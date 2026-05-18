@@ -1,26 +1,39 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { X, Loader2, Wallet, CreditCard, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
+import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 
-const CATEGORIAS = [
-  { emoji: '🛒', nome: 'Mercado' },
-  { emoji: '🍽️', nome: 'Restaurante' },
-  { emoji: '🚗', nome: 'Transporte' },
-  { emoji: '💊', nome: 'Saúde' },
-  { emoji: '🏠', nome: 'Aluguel' },
-  { emoji: '📺', nome: 'Assinaturas' },
-  { emoji: '🎬', nome: 'Lazer' },
-  { emoji: '📚', nome: 'Educação' },
-  { emoji: '👕', nome: 'Vestuário' },
-  { emoji: '🐶', nome: 'Pet' },
-  { emoji: '🥖', nome: 'Padaria' },
-  { emoji: '🛜', nome: 'Internet' },
-  { emoji: '✈️', nome: 'Viagem' },
-  { emoji: '💰', nome: 'Salário' },
+// ── Catálogos de categoria por tipo ────────────────────────────────
+const CAT_DESPESA = [
+  { emoji: '🛒', nome: 'Mercado'       },
+  { emoji: '🍽️', nome: 'Restaurante'   },
+  { emoji: '🚗', nome: 'Transporte'    },
+  { emoji: '💊', nome: 'Saúde'         },
+  { emoji: '🏠', nome: 'Aluguel'       },
+  { emoji: '📺', nome: 'Assinaturas'   },
+  { emoji: '🎬', nome: 'Lazer'         },
+  { emoji: '📚', nome: 'Educação'      },
+  { emoji: '👕', nome: 'Vestuário'     },
+  { emoji: '🐶', nome: 'Pet'           },
+  { emoji: '🥖', nome: 'Padaria'       },
+  { emoji: '🛜', nome: 'Internet'      },
+  { emoji: '✈️', nome: 'Viagem'        },
   { emoji: '🔄', nome: 'Transferência' },
-  { emoji: '📦', nome: 'Outros' },
+  { emoji: '📦', nome: 'Outros'        },
+];
+
+const CAT_RECEITA = [
+  { emoji: '💼', nome: 'Salário'          },
+  { emoji: '💻', nome: 'Freelance'        },
+  { emoji: '🎁', nome: 'Bônus'            },
+  { emoji: '🏘️', nome: 'Aluguel Recebido' },
+  { emoji: '📈', nome: 'Rendimentos'      },
+  { emoji: '💰', nome: 'Dividendos'       },
+  { emoji: '🎀', nome: 'Presente'         },
+  { emoji: '📦', nome: 'Venda de itens'   },
+  { emoji: '🪙', nome: 'Outras receitas'  },
 ];
 
 interface Props {
@@ -36,15 +49,46 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   const [descricao,  setDescricao]  = useState('');
   const [categoria,  setCategoria]  = useState('');
   const [catEmoji,   setCatEmoji]   = useState('');
-  const [walletId,   setWalletId]   = useState(wallets[0]?.id || '');
+  const [walletId,   setWalletId]   = useState<string>('');
   const [data,       setData]       = useState(new Date().toISOString().slice(0, 10));
   const [recorrente, setRecorrente] = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [erro,       setErro]       = useState('');
 
+  // Default da carteira: primeira conta não-crédito (em receita não faz sentido cartão)
+  useEffect(() => {
+    if (walletId) return;
+    const padrao = wallets.find(w => w.tipo !== 'Crédito') || wallets[0];
+    if (padrao) setWalletId(padrao.id);
+  }, [wallets, walletId]);
+
+  // Ao trocar tipo, limpa categoria pra forçar nova escolha
+  useEffect(() => {
+    setCategoria('');
+    setCatEmoji('');
+  }, [tipo]);
+
+  // Filtra wallets disponíveis:
+  // - Receita: contas (não cartão), porque receita não cai em cartão de crédito
+  // - Despesa: todas
+  const walletsVisiveis = useMemo(() => {
+    if (tipo === 'Receita') return wallets.filter(w => w.tipo !== 'Crédito');
+    return wallets;
+  }, [wallets, tipo]);
+
+  // Se tipo virou Receita e a wallet selecionada era cartão, troca
+  useEffect(() => {
+    const atual = wallets.find(w => w.id === walletId);
+    if (tipo === 'Receita' && atual?.tipo === 'Crédito') {
+      const nova = walletsVisiveis[0];
+      setWalletId(nova?.id || '');
+    }
+  }, [tipo, walletId, wallets, walletsVisiveis]);
+
+  const categoriasMostrar = tipo === 'Gasto' ? CAT_DESPESA : CAT_RECEITA;
+
   function handleValorInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value.replace(/\D/g, '');
-    setValor(raw);
+    setValor(e.target.value.replace(/\D/g, ''));
   }
 
   function formatValorDisplay(raw: string) {
@@ -54,11 +98,14 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   }
 
   async function handleSalvar() {
-    if (!valor || valor === '0') return;
-    if (!categoria) { setErro('Selecione uma categoria.'); return; }
     setErro('');
+    if (!valor || valor === '0') { setErro('Informe o valor.'); return; }
+    if (!categoria) { setErro('Selecione uma categoria.'); return; }
+    if (walletsVisiveis.length > 0 && !walletId) { setErro('Selecione a conta de origem.'); return; }
+
     setLoading(true);
     try {
+      const walletNome = wallets.find(w => w.id === walletId)?.nome;
       await api.transacoes.criar({
         phone,
         tipo,
@@ -66,6 +113,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
         observacao: descricao,
         categoria: `${catEmoji} ${categoria}`,
         wallet_id: walletId || undefined,
+        carteira_nome: walletNome,
         data,
         recorrente,
       });
@@ -83,7 +131,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in"
+        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -133,50 +181,104 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
           </div>
 
           {/* Descrição */}
-          <input
-            type="text"
-            placeholder="Ex: Supermercado, Academia, Netflix..."
-            value={descricao}
-            onChange={e => setDescricao(e.target.value)}
-            className="input"
-          />
-
-          {/* Categorias */}
           <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Categoria</p>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
+              Descrição
+            </p>
+            <input
+              type="text"
+              placeholder={tipo === 'Gasto'
+                ? 'Ex: Supermercado, Academia, Netflix...'
+                : 'Ex: Salário, Freelance, Bônus...'}
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+              className="input"
+            />
+          </div>
+
+          {/* Categorias (filtradas por tipo) */}
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
+              Categoria
+            </p>
             <div className="grid grid-cols-4 gap-2">
-              {CATEGORIAS.map(cat => (
-                <button
-                  key={cat.nome}
-                  onClick={() => { setCategoria(cat.nome); setCatEmoji(cat.emoji); }}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
-                    categoria === cat.nome
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/40 hover:bg-muted'
-                  }`}
-                >
-                  <span className="text-xl">{cat.emoji}</span>
-                  <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">{cat.nome}</span>
-                </button>
-              ))}
+              {categoriasMostrar.map(cat => {
+                const ativo = categoria === cat.nome;
+                return (
+                  <button
+                    key={cat.nome}
+                    onClick={() => { setCategoria(cat.nome); setCatEmoji(cat.emoji); }}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                      ativo
+                        ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                        : 'border-border hover:border-primary/40 hover:bg-muted'
+                    }`}
+                  >
+                    <span className="text-xl">{cat.emoji}</span>
+                    <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">{cat.nome}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Conta */}
-          {wallets.length > 0 && (
-            <div>
-              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 block">Conta</label>
-              <select value={walletId} onChange={e => setWalletId(e.target.value)} className="input">
-                {wallets.map(w => (
-                  <option key={w.id} value={w.id}>{w.nome}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Conta / Cartão — picker visual */}
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              {tipo === 'Receita' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
+              {tipo === 'Receita' ? 'Conta de destino' : 'Conta / Cartão usado'}
+            </p>
+
+            {walletsVisiveis.length === 0 ? (
+              <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
+                <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                  Você não tem {tipo === 'Receita' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
+                  <a href="/contas-bancarias" className="font-semibold underline">Cadastrar agora</a>
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto">
+                {walletsVisiveis.map(w => {
+                  const ativa = w.id === walletId;
+                  const ehCartao = w.tipo === 'Crédito';
+                  const logo = bancoLogo(w.nome);
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => setWalletId(w.id)}
+                      className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                        ativa
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                          : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
+                      }`}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                        style={{ background: logo.bg }}
+                      >
+                        {logo.text}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate">{w.nome}</p>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-0.5 ${
+                          ehCartao
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                        }`}>
+                          {ehCartao ? <><CreditCard size={9} /> Cartão</> : <><Wallet size={9} /> {w.tipo}</>}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Data */}
           <div>
-            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 block">Data</label>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Data</p>
             <input type="date" value={data} onChange={e => setData(e.target.value)} className="input" />
           </div>
 
@@ -195,7 +297,12 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             </button>
           </div>
 
-          {erro && <p className="text-xs text-red-500 text-center">{erro}</p>}
+          {erro && (
+            <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
+              <AlertCircle size={14} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">{erro}</p>
+            </div>
+          )}
 
           <button
             onClick={handleSalvar}
