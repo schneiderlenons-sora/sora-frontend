@@ -25,11 +25,18 @@ export const metadata: Metadata = {
     shortcut: '/sora-icon.png',
   },
   openGraph: {
-    title: 'Sora — Assistente Financeira',
-    description: 'Organize sua vida financeira pelo WhatsApp.',
+    title: 'Sora — Sua vida financeira pelo WhatsApp',
+    description: 'Controle gastos, investimentos e metas — só mandando mensagem pra Sora.',
     type: 'website',
     locale: 'pt_BR',
     siteName: 'Sora',
+    // images é auto-injetado pelo Next a partir de app/opengraph-image.tsx
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Sora — Sua vida financeira pelo WhatsApp',
+    description: 'Controle gastos, investimentos e metas — só mandando mensagem pra Sora.',
+    // images é auto-injetado pelo Next a partir de app/twitter-image.tsx
   },
 };
 
