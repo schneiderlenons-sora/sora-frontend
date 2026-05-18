@@ -1,135 +1,149 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────
-// Mapa nome (normalizado) → slug do Simple Icons
-// CDN público: https://cdn.simpleicons.org/{slug} retorna SVG colorido oficial.
-// Se a marca não existir no CDN, o componente cai pra render do fallback.
+// Mapa nome (normalizado) → { si?: slug Simple Icons, domain?: brandfetch.io domain }
+// Estratégia:
+//   1. Tenta cdn.simpleicons.org/{slug}  (SVG monocromático colorido)
+//   2. Se 404, tenta cdn.brandfetch.io/{domain}/w/64/h/64  (logo oficial colorido)
+//   3. Se ainda falhar, renderiza o fallback do componente (emoji)
 // ─────────────────────────────────────────────────────────────
-const MARCAS: Record<string, string> = {
+type Marca = { si?: string; domain?: string };
+
+const MARCAS: Record<string, Marca> = {
   // ── Streaming / Assinaturas ──
-  spotify:           'spotify',
-  netflix:           'netflix',
-  'disney plus':     'disneyplus',
-  'disney+':         'disneyplus',
-  disneyplus:        'disneyplus',
-  disney:            'disneyplus',
-  'hbo max':         'max',
-  'hbo':             'hbo',
-  max:               'max',
-  'prime video':     'primevideo',
-  'amazon prime':    'primevideo',
-  primevideo:        'primevideo',
-  'globo play':      'globo',
-  globoplay:         'globo',
-  globo:             'globo',
-  'apple music':     'applemusic',
-  applemusic:        'applemusic',
-  'apple tv':        'appletv',
-  appletv:           'appletv',
-  deezer:            'deezer',
-  'youtube music':   'youtubemusic',
-  youtubemusic:      'youtubemusic',
-  youtube:           'youtube',
-  'youtube premium': 'youtube',
-  twitch:            'twitch',
-  paramount:         'paramountplus',
-  'paramount+':      'paramountplus',
-  crunchyroll:       'crunchyroll',
-  tidal:             'tidal',
-  pandora:           'pandora',
+  spotify:           { si: 'spotify' },
+  netflix:           { si: 'netflix' },
+  'disney plus':     { domain: 'disneyplus.com' },  // Simple Icons removeu (trademark)
+  'disney+':         { domain: 'disneyplus.com' },
+  disneyplus:        { domain: 'disneyplus.com' },
+  disney:            { domain: 'disneyplus.com' },
+  'hbo max':         { si: 'max', domain: 'max.com' },
+  hbo:               { si: 'hbo' },
+  max:               { si: 'max', domain: 'max.com' },
+  'prime video':     { domain: 'primevideo.com' },
+  'amazon prime':    { domain: 'primevideo.com' },
+  primevideo:        { domain: 'primevideo.com' },
+  'globo play':      { domain: 'globoplay.com' },
+  globoplay:         { domain: 'globoplay.com' },
+  globo:             { domain: 'globoplay.com' },
+  'apple music':     { si: 'applemusic' },
+  applemusic:        { si: 'applemusic' },
+  'apple tv':        { si: 'appletv' },
+  'apple tv+':       { si: 'appletv' },
+  appletv:           { si: 'appletv' },
+  deezer:            { si: 'deezer' },
+  'youtube music':   { si: 'youtubemusic' },
+  youtubemusic:      { si: 'youtubemusic' },
+  youtube:           { si: 'youtube' },
+  'youtube premium': { si: 'youtube' },
+  twitch:            { si: 'twitch' },
+  paramount:         { si: 'paramountplus' },
+  'paramount+':      { si: 'paramountplus' },
+  crunchyroll:       { si: 'crunchyroll' },
+  tidal:             { si: 'tidal' },
+  pandora:           { si: 'pandora' },
 
-  // ── Apps de produtividade / SaaS ──
-  notion:            'notion',
-  figma:             'figma',
-  slack:             'slack',
-  dropbox:           'dropbox',
-  'google one':      'googleone',
-  'google drive':    'googledrive',
-  'icloud':          'icloud',
-  '1password':       '1password',
-  bitwarden:         'bitwarden',
-  github:            'github',
-  vercel:            'vercel',
-  openai:            'openai',
-  'chatgpt':         'openai',
-  claude:            'anthropic',
-  anthropic:         'anthropic',
+  // ── Produtividade / SaaS ──
+  notion:            { si: 'notion' },
+  figma:             { si: 'figma' },
+  slack:             { si: 'slack' },
+  dropbox:           { si: 'dropbox' },
+  'google one':      { si: 'googleone' },
+  'google drive':    { si: 'googledrive' },
+  icloud:            { si: 'icloud' },
+  '1password':       { si: '1password' },
+  bitwarden:         { si: 'bitwarden' },
+  github:            { si: 'github' },
+  vercel:            { si: 'vercel' },
+  openai:            { si: 'openai' },
+  chatgpt:           { si: 'openai' },
+  claude:            { si: 'anthropic' },
+  anthropic:         { si: 'anthropic' },
 
   // ── Bancos brasileiros ──
-  nubank:            'nubank',
-  'banco inter':     'intersport',  // simple-icons usa 'intersport' (clube); pode dar fallback
-  inter:             'intersport',
-  bradesco:          'bradesco',
-  itau:              'itau',
-  'itaú':            'itau',
-  santander:         'santander',
-  'banco do brasil': 'bancodobrasil',
-  bb:                'bancodobrasil',
-  caixa:             'caixa',
-  'c6 bank':         'c6bank',
-  c6:                'c6bank',
-  'c6bank':          'c6bank',
-  'banco safra':     'safra',
-  safra:             'safra',
-  bnb:               'bancodonordeste',
+  nubank:            { si: 'nubank',          domain: 'nubank.com.br' },
+  bradesco:          { si: 'bradesco',        domain: 'bradesco.com.br' },
+  itau:              { si: 'itau',            domain: 'itau.com.br' },
+  'itaú':            { si: 'itau',            domain: 'itau.com.br' },
+  santander:         { si: 'santander',       domain: 'santander.com.br' },
+  'banco do brasil': { si: 'bancodobrasil',   domain: 'bb.com.br' },
+  bb:                { si: 'bancodobrasil',   domain: 'bb.com.br' },
+  caixa:             { domain: 'caixa.gov.br' },
+  'caixa economica': { domain: 'caixa.gov.br' },
+  inter:             { domain: 'inter.co' },
+  'banco inter':     { domain: 'inter.co' },
+  'c6 bank':         { domain: 'c6bank.com.br' },
+  c6:                { domain: 'c6bank.com.br' },
+  c6bank:            { domain: 'c6bank.com.br' },
+  'banco safra':     { si: 'safra',           domain: 'safra.com.br' },
+  safra:             { si: 'safra',           domain: 'safra.com.br' },
+  'banco do nordeste': { domain: 'bnb.gov.br' },
+  bnb:               { domain: 'bnb.gov.br' },
 
   // ── Pagamentos / Carteira digital ──
-  'mercado pago':    'mercadopago',
-  mercadopago:       'mercadopago',
-  picpay:            'picpay',
-  paypal:            'paypal',
-  stripe:            'stripe',
-  visa:              'visa',
-  mastercard:        'mastercard',
-  pix:               'pix',
-  'amex':            'americanexpress',
-  'american express':'americanexpress',
-  elo:               'elo',
-  hipercard:         'hipercard',
+  'mercado pago':    { si: 'mercadopago',     domain: 'mercadopago.com.br' },
+  mercadopago:       { si: 'mercadopago',     domain: 'mercadopago.com.br' },
+  picpay:            { si: 'picpay',          domain: 'picpay.com' },
+  paypal:            { si: 'paypal' },
+  stripe:            { si: 'stripe' },
+  visa:              { si: 'visa' },
+  mastercard:        { si: 'mastercard' },
+  pix:               { si: 'pix' },
+  amex:              { si: 'americanexpress' },
+  'american express':{ si: 'americanexpress' },
+  elo:               { si: 'elo' },
+  hipercard:         { si: 'hipercard' },
 
   // ── Marketplaces / Compras ──
-  amazon:            'amazon',
-  'mercado livre':   'mercadolivre',
-  mercadolivre:      'mercadolivre',
-  'mercado-livre':   'mercadolivre',
-  aliexpress:        'aliexpress',
-  shopee:            'shopee',
-  shein:             'shein',
-  magalu:            'magazineluiza',
-  'magazine luiza':  'magazineluiza',
-  americanas:        'americanas',
-  submarino:         'submarino',
+  amazon:            { si: 'amazon' },
+  'mercado livre':   { si: 'mercadolivre',    domain: 'mercadolivre.com.br' },
+  mercadolivre:      { si: 'mercadolivre',    domain: 'mercadolivre.com.br' },
+  aliexpress:        { si: 'aliexpress' },
+  shopee:            { si: 'shopee' },
+  shein:             { domain: 'shein.com' },                 // Simple Icons removeu
+  magalu:            { si: 'magazineluiza',   domain: 'magalu.com.br' },
+  'magazine luiza':  { si: 'magazineluiza',   domain: 'magalu.com.br' },
+  americanas:        { domain: 'americanas.com.br' },
+  submarino:         { domain: 'submarino.com.br' },
 
-  // ── Mobilidade ──
-  uber:              'uber',
-  '99':              '99',
-  '99 pop':          '99',
-  cabify:            'cabify',
-  ifood:             'ifood',
-  rappi:             'rappi',
+  // ── Roupa / Esporte ──
+  nike:              { si: 'nike',            domain: 'nike.com' },
+  adidas:            { si: 'adidas',          domain: 'adidas.com' },
+  puma:              { si: 'puma',            domain: 'puma.com' },
+  zara:              { si: 'zara',            domain: 'zara.com' },
+  'new balance':     { si: 'newbalance',      domain: 'newbalance.com' },
+  reserva:           { domain: 'usereserva.com' },
+  riachuelo:         { domain: 'riachuelo.com.br' },
+  renner:            { domain: 'lojasrenner.com.br' },
 
-  // ── Telecom / Conexão ──
-  vivo:              'vivo',
-  claro:             'claro',
-  tim:               'tim',
-  oi:                'oi',
-  algar:             'algar',
+  // ── Mobilidade / Delivery ──
+  uber:              { si: 'uber' },
+  '99':              { si: '99' },
+  '99 pop':          { si: '99' },
+  cabify:            { si: 'cabify' },
+  ifood:             { si: 'ifood',           domain: 'ifood.com.br' },
+  rappi:             { si: 'rappi' },
+
+  // ── Telecom ──
+  vivo:              { si: 'vivo' },
+  claro:             { si: 'claro' },
+  tim:               { si: 'tim' },
+  oi:                { si: 'oi' },
 
   // ── Educação ──
-  duolingo:          'duolingo',
-  udemy:             'udemy',
-  coursera:          'coursera',
+  duolingo:          { si: 'duolingo' },
+  udemy:             { si: 'udemy' },
+  coursera:          { si: 'coursera' },
 
-  // ── Combustível / Locomoção ──
-  'shell':           'shell',
-  'petrobras':       'petrobras',
-  'ipiranga':        'ipiranga',
-  'ale':             'ale',
+  // ── Combustível ──
+  shell:             { si: 'shell' },
+  petrobras:         { si: 'petrobras' },
+  ipiranga:          { si: 'ipiranga' },
 };
 
-// Normaliza pra match: lowercase, remove acentos e emojis
+// Normaliza pra match: lowercase, sem acento, sem emoji
 function normalizar(s: string): string {
   return (s || '')
     .toLowerCase()
@@ -139,58 +153,69 @@ function normalizar(s: string): string {
     .trim();
 }
 
-// Retorna o slug Simple Icons pra um nome, ou null se não conhecemos
-export function slugDaMarca(nome: string): string | null {
+export function marcaDe(nome: string): Marca | null {
   const key = normalizar(nome);
   if (!key) return null;
   if (MARCAS[key]) return MARCAS[key];
-  // Match parcial: ex "Netflix Standard" → encontra "netflix"
   for (const [k, v] of Object.entries(MARCAS)) {
     if (key.includes(k) || k.includes(key)) return v;
   }
   return null;
 }
 
+export function slugDaMarca(nome: string): string | null {
+  const m = marcaDe(nome);
+  return m?.si || m?.domain || null;
+}
+
+export function temMarcaConhecida(nome: string): boolean {
+  return marcaDe(nome) !== null;
+}
+
 interface Props {
   nome:       string;
   size?:      number;
   className?: string;
-  /** Conteúdo de fallback se a marca não existir no CDN. Default: null (não renderiza nada). */
   fallback?:  React.ReactNode;
-  /** Wrapper opcional ao redor do ícone — útil pra criar avatar com background */
   wrap?:      (icon: React.ReactNode) => React.ReactNode;
 }
 
-/**
- * Renderiza o logo oficial colorido da marca (via cdn.simpleicons.org).
- * Cai em fallback se a marca não estiver mapeada OU se o CDN responder erro.
- */
-export default function IconeMarca({ nome, size = 24, className = '', fallback = null, wrap }: Props) {
-  const slug = slugDaMarca(nome);
-  const [erro, setErro] = useState(false);
+type Stage = 'si' | 'bf' | 'falhou';
 
-  if (!slug || erro) return <>{fallback}</>;
+export default function IconeMarca({ nome, size = 24, className = '', fallback = null }: Props) {
+  const marca = marcaDe(nome);
+  const inicial: Stage = marca?.si ? 'si' : (marca?.domain ? 'bf' : 'falhou');
+  const [stage, setStage] = useState<Stage>(inicial);
 
-  const img = (
+  // Reset stage quando o nome muda
+  useEffect(() => { setStage(inicial); /* eslint-disable-next-line */ }, [nome]);
+
+  if (!marca || stage === 'falhou') return <>{fallback}</>;
+
+  let src: string;
+  if (stage === 'si' && marca.si) {
+    src = `https://cdn.simpleicons.org/${marca.si}`;
+  } else if (marca.domain) {
+    src = `https://cdn.brandfetch.io/${marca.domain}/w/${size * 2}/h/${size * 2}`;
+  } else {
+    return <>{fallback}</>;
+  }
+
+  return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://cdn.simpleicons.org/${slug}`}
+      src={src}
       alt={nome}
       width={size}
       height={size}
       loading="lazy"
-      onError={() => setErro(true)}
       className={className}
       style={{ objectFit: 'contain' }}
+      onError={() => {
+        // Simple Icons falhou → tenta Brandfetch
+        if (stage === 'si' && marca.domain) setStage('bf');
+        else setStage('falhou');
+      }}
     />
   );
-
-  return <>{wrap ? wrap(img) : img}</>;
-}
-
-/**
- * Hook utilitário pra saber se um nome tem marca conhecida (pra UI condicional)
- */
-export function temMarcaConhecida(nome: string): boolean {
-  return slugDaMarca(nome) !== null;
 }
