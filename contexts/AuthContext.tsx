@@ -11,6 +11,8 @@ interface Perfil {
   id:          string;
   phone:       string | null;
   name:        string;
+  email?:      string | null;
+  avatar_url?: string | null;
   plano:       'inativo' | 'basico' | 'premium' | 'black';
   grupo_ativo: { id: string; nome: string } | null;
 }
