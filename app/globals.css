@@ -355,27 +355,135 @@
   }
   .btn-secondary:hover { background: hsl(var(--bg-muted) / .7); }
 
+  /* ─── btn-ghost (ações terciárias / icon-only) ─── */
   .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
     background: transparent;
     color: hsl(var(--fg-muted));
+    border: 1px solid transparent !important;
+    transition: all 180ms var(--ease);
+    cursor: pointer;
   }
   .btn-ghost:hover {
-    background: hsl(var(--bg-muted));
+    background: hsl(var(--bg-muted) / .6);
     color: hsl(var(--fg));
+    border-color: hsl(var(--border) / .6) !important;
   }
+  .btn-ghost:active { transform: scale(.97); }
 
+  /* ─── btn-outline (ações secundárias polidas) ─── */
   .btn-outline {
-    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
     color: hsl(var(--fg));
-    border: 1px solid hsl(var(--border));
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--bg-card)) 0%,
+      hsl(var(--bg-muted) / .25) 100%
+    );
+    border: 1px solid hsl(var(--border)) !important;
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .04) inset,
+      0 1px 2px hsl(220 25% 10% / .04);
+    transition: all 180ms var(--ease);
+    cursor: pointer;
+    white-space: nowrap;
   }
-  .btn-outline:hover { background: hsl(var(--bg-muted)); }
+  .btn-outline:hover {
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--bg-muted) / .5) 0%,
+      hsl(var(--bg-muted) / .8) 100%
+    );
+    border-color: hsl(var(--primary) / .4) !important;
+    color: hsl(var(--fg));
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .08) inset,
+      0 6px 16px hsl(220 25% 10% / .1),
+      0 2px 4px hsl(220 25% 10% / .04);
+  }
+  .btn-outline:active {
+    transform: translateY(0);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .04) inset,
+      0 1px 2px hsl(220 25% 10% / .05);
+  }
+  .btn-outline:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .04) inset,
+      0 1px 2px hsl(220 25% 10% / .04);
+  }
 
-  .btn-danger {
-    background: hsl(var(--danger));
-    color: white;
+  /* Dark mode: ajusta os gradientes pra ficarem com depth real sobre #09090B */
+  .dark .btn-outline {
+    background-image: linear-gradient(
+      180deg,
+      hsl(240 8% 10%) 0%,
+      hsl(240 10% 6%) 100%
+    );
+    border-color: hsl(240 6% 16%) !important;
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .04) inset,
+      0 1px 2px hsl(0 0% 0% / .3);
   }
-  .btn-danger:hover { background: hsl(var(--danger) / .9); }
+  .dark .btn-outline:hover {
+    background-image: linear-gradient(
+      180deg,
+      hsl(240 8% 14%) 0%,
+      hsl(240 10% 9%) 100%
+    );
+    border-color: hsl(134 55% 60% / .4) !important;
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .06) inset,
+      0 6px 16px hsl(0 0% 0% / .45),
+      0 0 0 1px hsl(134 55% 60% / .08);
+  }
+
+  /* ─── btn-danger ─── */
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    background: linear-gradient(180deg, hsl(var(--danger)) 0%, hsl(0 72% 50%) 100%);
+    color: white;
+    border: 1px solid hsl(0 72% 45%) !important;
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .15) inset,
+      0 2px 6px hsl(0 72% 50% / .35);
+    transition: all 180ms var(--ease);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-danger:hover {
+    background: linear-gradient(180deg, hsl(0 72% 62%) 0%, hsl(0 72% 52%) 100%);
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / .2) inset,
+      0 6px 16px hsl(0 72% 50% / .45);
+  }
+  .btn-danger:active { transform: translateY(0); }
 
   /* ── Input ── */
   .input {
