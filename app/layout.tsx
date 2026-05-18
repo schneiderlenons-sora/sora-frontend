@@ -20,9 +20,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: '/sora-logo-green.png',
-    apple: '/sora-logo-green.png',
-    shortcut: '/sora-logo-green.png',
+    icon: '/sora-icon.png',
+    apple: '/sora-icon.png',
+    shortcut: '/sora-icon.png',
   },
   openGraph: {
     title: 'Sora — Assistente Financeira',

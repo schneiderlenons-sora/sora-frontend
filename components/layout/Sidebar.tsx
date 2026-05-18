@@ -150,12 +150,14 @@ export default function Sidebar() {
         {conteudo}
       </aside>
 
-      {/* Mobile — botão hamburguer */}
+      {/* Mobile — botão hamburguer (respeita safe-area do notch no iPhone) */}
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-background border border-border shadow-card"
+        aria-label="Abrir menu"
+        className="md:hidden fixed left-3 z-50 w-11 h-11 rounded-xl bg-card/95 backdrop-blur-md border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
       >
-        <Menu size={20} />
+        <Menu size={20} className="text-foreground" />
       </button>
 
       {/* Mobile — drawer */}

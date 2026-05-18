@@ -637,8 +637,11 @@ export default function DashboardPage() {
       <PermissaoGuard>
         <button
           onClick={() => setModalOpen(true)}
-          className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3.5 rounded-2xl z-40 text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-glow"
-          style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})` }}
+          className="fixed right-4 sm:right-6 flex items-center gap-2 px-5 py-3.5 rounded-2xl z-40 text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-glow"
+          style={{
+            background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})`,
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
+          }}
         >
           <Plus size={18} />
           Nova transação

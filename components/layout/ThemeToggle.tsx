@@ -14,20 +14,21 @@ export default function ThemeToggle() {
     return (
       <div
         aria-hidden
-        className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-2xl bg-card border border-border/60"
+        className="hidden md:block fixed bottom-6 left-6 z-40 w-12 h-12 rounded-2xl bg-card border border-border/60"
       />
     );
   }
 
   const isDark = (resolvedTheme || theme) === 'dark';
 
+  // Esconde no mobile (sidebar já tem botão de tema próprio)
   return (
     <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
       title={isDark ? 'Tema claro' : 'Tema escuro'}
-      className="group fixed bottom-6 left-6 z-40 w-12 h-12 rounded-2xl bg-card border border-border/60 shadow-lg
-                 flex items-center justify-center overflow-hidden
+      className="group hidden md:flex fixed bottom-6 left-6 z-40 w-12 h-12 rounded-2xl bg-card border border-border/60 shadow-lg
+                 items-center justify-center overflow-hidden
                  transition-all duration-300 hover:scale-105 active:scale-95
                  hover:border-primary/40 hover:shadow-glow-sm"
     >

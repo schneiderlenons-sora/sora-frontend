@@ -13,9 +13,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const mostrarBadge = !ehPessoal && papel;
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-dvh md:h-screen bg-background overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6 relative">
+      <main
+        className="
+          flex-1 overflow-y-auto relative
+          px-4 sm:px-6
+          pt-[calc(env(safe-area-inset-top,0px)+4rem)] md:pt-6
+          pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-6
+        "
+      >
         {mostrarBadge && <PapelBadge papel={papel} />}
         {children}
       </main>

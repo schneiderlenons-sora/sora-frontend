@@ -12,20 +12,20 @@
   "categories": ["finance", "productivity", "lifestyle"],
   "icons": [
     {
-      "src": "/sora-logo-green.png",
+      "src": "/sora-icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/sora-logo-green.png",
+      "src": "/sora-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/sora-logo-green.png",
-      "sizes": "192x192",
+      "src": "/sora-icon.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
