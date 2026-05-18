@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
-  Sun, Moon, Flag,
+  Sun, Moon, Flag, Download,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePwa } from '@/components/pwa/InstallPwa';
 
 const NAV = [
   { href: '/dashboard',          label: 'Dashboard',        icon: LayoutDashboard },
@@ -47,6 +48,7 @@ export default function Sidebar() {
   useEffect(() => { setMounted(true); }, []);
   const isDark = mounted && (resolvedTheme === 'dark' || theme === 'dark');
   const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
+  const { abrir: abrirInstall } = usePwa();
 
   const plano  = perfil?.plano || 'inativo';
   const isBlack = plano === 'black';
@@ -96,7 +98,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Rodapé — toggle de tema, usuário e logout */}
+      {/* Rodapé — toggle de tema, instalar, usuário e logout */}
       <div className="px-3 py-4 border-t border-white/20">
         <button
           onClick={toggleTheme}
@@ -105,6 +107,15 @@ export default function Sidebar() {
         >
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
           <span>{isDark ? 'Tema claro' : 'Tema escuro'}</span>
+        </button>
+
+        <button
+          onClick={() => { setOpen(false); abrirInstall(); }}
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1"
+          aria-label="Instalar app"
+        >
+          <Download size={18} />
+          <span>Instalar app</span>
         </button>
 
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm mb-2">
