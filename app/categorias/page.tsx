@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import NovaCategoriaModal from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
 import { nomeCategoria } from '@/lib/categorias';
+import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
@@ -646,12 +647,14 @@ function CategoriaRow({
               : <ChevronDown size={14} className="text-muted-foreground" />}
           </button>
 
-          {/* Emoji */}
+          {/* Emoji ou logo da marca (Spotify, Netflix, etc.) */}
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 overflow-hidden"
             style={{ background: corBg, color: cor }}
           >
-            {pai.icone || '📦'}
+            {slugDaMarca(pai.nome)
+              ? <IconeMarca nome={pai.nome} size={22} fallback={<span>{pai.icone || '📦'}</span>} />
+              : <span>{pai.icone || '📦'}</span>}
           </div>
 
           {/* Nome + subcategorias count */}
@@ -764,12 +767,14 @@ function CategoriaRow({
                 <div className="absolute left-7 sm:left-10 top-0 bottom-0 w-px bg-border/60" />
 
                 <div className="flex items-center gap-3">
-                  {/* Emoji menor */}
+                  {/* Emoji ou logo da marca (Netflix, Spotify, etc.) */}
                   <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 overflow-hidden"
                     style={{ background: corFBg, color: corF }}
                   >
-                    {filho.icone || '📦'}
+                    {slugDaMarca(filho.nome)
+                      ? <IconeMarca nome={filho.nome} size={18} fallback={<span>{filho.icone || '📦'}</span>} />
+                      : <span>{filho.icone || '📦'}</span>}
                   </div>
 
                   <p className="text-sm text-foreground flex-1 truncate">{filho.nome}</p>

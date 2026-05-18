@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
@@ -467,12 +468,14 @@ function WalletCard({
       {/* ─── Cabeçalho ─── */}
       <div className="relative flex items-start justify-between gap-3 mb-5">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Avatar circular com gradient do banco */}
+          {/* Avatar com gradient do banco — substitui pela logo oficial quando reconhecemos a marca */}
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-lg ring-1 ring-white/20"
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-lg ring-1 ring-white/20 overflow-hidden"
             style={{ background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }}
           >
-            {inicial}
+            {slugDaMarca(wallet.nome)
+              ? <IconeMarca nome={wallet.nome} size={28} className="brightness-0 invert" fallback={<span>{inicial}</span>} />
+              : <span>{inicial}</span>}
           </div>
 
           <div className="min-w-0">
