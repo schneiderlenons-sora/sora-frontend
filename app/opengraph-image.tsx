@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 
 // Convenção do Next.js App Router: este arquivo gera a OG image automaticamente em /opengraph-image
-export const runtime = 'edge';
 export const alt     = 'Sora — Sua assistente financeira pelo WhatsApp';
 export const size    = { width: 1200, height: 630 };
 export const contentType = 'image/png';
