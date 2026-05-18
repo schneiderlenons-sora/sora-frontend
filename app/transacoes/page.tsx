@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
+import ImportarModal from '@/components/transacoes/ImportarModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
@@ -38,6 +39,8 @@ export default function TransacoesPage() {
   const [modalOpen,setModalOpen]= useState(false);
   const [ocultar,  setOcultar]  = useState(false);
   const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const [importarFormato, setImportarFormato] = useState<'ofx' | 'csv' | null>(null);
+  const [importToast, setImportToast] = useState<string>('');
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
@@ -184,17 +187,28 @@ export default function TransacoesPage() {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setImportMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-2 w-52 card p-1.5 z-20 animate-fade-in">
-                      <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors">
+                      <button
+                        onClick={() => { setImportarFormato('ofx'); setImportMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors"
+                      >
                         <FileText size={14} className="text-muted-foreground" />
                         <span>Importar OFX</span>
                       </button>
-                      <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors">
+                      <button
+                        onClick={() => { setImportarFormato('csv'); setImportMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors"
+                      >
                         <FileText size={14} className="text-muted-foreground" />
                         <span>Importar extrato (CSV)</span>
                       </button>
-                      <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors">
-                        <FileText size={14} className="text-muted-foreground" />
+                      <button
+                        disabled
+                        title="Em breve"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground/60 cursor-not-allowed"
+                      >
+                        <FileText size={14} />
                         <span>Importar PDF</span>
+                        <span className="ml-auto text-[9px] uppercase tracking-wider font-bold bg-muted px-1.5 py-0.5 rounded-full">Em breve</span>
                       </button>
                     </div>
                   </>
@@ -453,6 +467,28 @@ export default function TransacoesPage() {
           onClose={() => setModalOpen(false)}
           onSuccess={carregar}
         />
+      )}
+
+      {importarFormato && phone && (
+        <ImportarModal
+          phone={phone}
+          wallets={wallets}
+          formato={importarFormato}
+          onClose={() => setImportarFormato(null)}
+          onSuccess={(qtd) => {
+            setImportToast(`✓ ${qtd} transação${qtd === 1 ? '' : 'ões'} importada${qtd === 1 ? '' : 's'} com sucesso.`);
+            setTimeout(() => setImportToast(''), 5000);
+            carregar();
+          }}
+        />
+      )}
+
+      {/* Toast simples de feedback */}
+      {importToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl animate-fade-in"
+             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
+          {importToast}
+        </div>
       )}
     </DashboardLayout>
   );

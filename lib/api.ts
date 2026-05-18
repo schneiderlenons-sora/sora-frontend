@@ -58,6 +58,8 @@ export const api = {
     },
     criar: (body: any) =>
       req('/api/transacoes', { method: 'POST', body: JSON.stringify(body) }),
+    criarBulk: (body: { phone: string; transacoes: any[] }) =>
+      req<{ inserted: number }>('/api/transacoes/bulk', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>
       req(`/api/transacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deletar: (id: string) =>
