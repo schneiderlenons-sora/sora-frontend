@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
-  Sun, Moon,
+  Sun, Moon, Flag,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -19,6 +19,7 @@ const NAV = [
   { href: '/cartao-de-credito',  label: 'Cartão de crédito', icon: CreditCard },
   { href: '/categorias',         label: 'Categorias',        icon: Tag },
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
+  { href: '/metas',              label: 'Metas',             icon: Flag },
   { href: '/comunidade',         label: 'Grupos',            icon: Users },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp, black: true },
   { href: '/configuracoes',      label: 'Configurações',     icon: Settings },

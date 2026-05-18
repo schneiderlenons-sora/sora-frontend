@@ -165,4 +165,20 @@ export const api = {
         req(`/api/investimentos/metas/${id}`, { method: 'DELETE' }),
     },
   },
+
+  // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
+  metas: {
+    listar: (phone: string) =>
+      req<any[]>(`/api/metas/${phone}`),
+    criar: (body: { phone: string; titulo: string; descricao?: string; valor_objetivo: number; valor_atual?: number; data_alvo?: string | null; imagem_url?: string | null; cor?: string; icone?: string }) =>
+      req<any>('/api/metas', { method: 'POST', body: JSON.stringify(body) }),
+    editar: (id: string, body: any) =>
+      req<any>(`/api/metas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deletar: (id: string, phone: string) =>
+      req(`/api/metas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    aportar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string }) =>
+      req<any>(`/api/metas/${id}/aporte`, { method: 'POST', body: JSON.stringify(body) }),
+    resgatar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string }) =>
+      req<any>(`/api/metas/${id}/resgate`, { method: 'POST', body: JSON.stringify(body) }),
+  },
 };
