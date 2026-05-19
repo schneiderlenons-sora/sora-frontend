@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt,
-  Sprout, Heart, ListChecks, Home as HomeIcon,
+  Sprout, Heart, ListChecks, Home as HomeIcon, Activity,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -34,6 +34,7 @@ const NAV_GROW = [
   { href: '/grow/habitos',    label: 'Hábitos',       icon: Target },
   { href: '/grow/tarefas',    label: 'Tarefas',       icon: ListChecks },
   { href: '/grow/bem-estar',  label: 'Bem-estar',     icon: Heart },
+  { href: '/grow/saude',      label: 'Saúde',         icon: Activity },
   { href: '/grow/casa',       label: 'Casa',          icon: HomeIcon },
   { href: '/configuracoes',   label: 'Configurações', icon: Settings },
 ];
@@ -83,7 +84,9 @@ export default function Sidebar() {
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon, black: soBlack }: any) => {
           const bloqueado = soBlack && !isBlack;
-          const ativo     = pathname === href;
+          const ativo     = href === '/grow/saude'
+            ? !!pathname?.startsWith('/grow/saude')
+            : pathname === href;
           return (
             <Link
               key={href}

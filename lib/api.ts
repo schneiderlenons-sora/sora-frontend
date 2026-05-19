@@ -259,6 +259,114 @@ export const api = {
     },
   },
 
+  // ── SAÚDE & CORPO (sub-aba do Sora Grow) ─────────────────────
+  saude: {
+    dashboard: (phone: string) => req<any>(`/api/saude/dashboard/${phone}`),
+
+    perfil: {
+      get:    (phone: string) => req<any>(`/api/saude/perfil/${phone}`),
+      salvar: (phone: string, body: any) => req<any>(`/api/saude/perfil/${phone}`, { method: 'PUT', body: JSON.stringify({ ...body, phone }) }),
+    },
+
+    pesos: {
+      listar:  (phone: string, dias?: number) => req<any[]>(`/api/saude/pesos/${phone}${dias ? `?dias=${dias}` : ''}`),
+      criar:   (body: { phone: string; peso_kg: number; data?: string; observacao?: string }) =>
+        req<any>('/api/saude/pesos', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/saude/pesos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    agua: {
+      listar:   (phone: string, dias?: number) => req<any[]>(`/api/saude/agua/${phone}${dias ? `?dias=${dias}` : ''}`),
+      registrar:(body: { phone: string; ml: number; data?: string }) =>
+        req<any>('/api/saude/agua', { method: 'POST', body: JSON.stringify(body) }),
+      deletar:  (id: string, phone: string) =>
+        req(`/api/saude/agua/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    metas: {
+      get:    (phone: string) => req<any>(`/api/saude/metas/${phone}`),
+      salvar: (phone: string, body: any) => req<any>(`/api/saude/metas/${phone}`, { method: 'PUT', body: JSON.stringify({ ...body, phone }) }),
+    },
+
+    refeicoes: {
+      listar:  (phone: string, dias?: number) => req<any[]>(`/api/saude/refeicoes/${phone}${dias ? `?dias=${dias}` : ''}`),
+      criar:   (body: any) => req<any>('/api/saude/refeicoes', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/saude/refeicoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    treinos: {
+      catalogo:    (phone: string) => req<any[]>(`/api/saude/treinos/${phone}`),
+      criar:       (body: any)     => req<any>('/api/saude/treinos', { method: 'POST', body: JSON.stringify(body) }),
+      registros:   (phone: string, dias?: number) =>
+        req<any[]>(`/api/saude/treino-registros/${phone}${dias ? `?dias=${dias}` : ''}`),
+      registrar:   (body: any) => req<any>('/api/saude/treino-registros', { method: 'POST', body: JSON.stringify(body) }),
+      deletarReg:  (id: string, phone: string) =>
+        req(`/api/saude/treino-registros/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    checkups: {
+      listar: (phone: string, dias?: number) => req<any[]>(`/api/saude/checkups/${phone}${dias ? `?dias=${dias}` : ''}`),
+      salvar: (body: any) => req<any>('/api/saude/checkups', { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    consultas: {
+      listar:  (phone: string, status?: string) =>
+        req<any[]>(`/api/saude/consultas/${phone}${status ? `?status=${status}` : ''}`),
+      criar:   (body: any) => req<any>('/api/saude/consultas', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/saude/consultas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/saude/consultas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    exames: {
+      listar:  (phone: string, nome?: string) =>
+        req<any[]>(`/api/saude/exames/${phone}${nome ? `?nome=${encodeURIComponent(nome)}` : ''}`),
+      criar:   (body: any) => req<any>('/api/saude/exames', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/saude/exames/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    medicamentos: {
+      listar:  (phone: string) => req<any[]>(`/api/saude/medicamentos/${phone}`),
+      criar:   (body: any) => req<any>('/api/saude/medicamentos', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/saude/medicamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/saude/medicamentos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+      tomar:   (id: string, body: { phone: string; datetime_planejado?: string }) =>
+        req<any>(`/api/saude/medicamentos/${id}/tomar`, { method: 'POST', body: JSON.stringify(body) }),
+      doses:   (id: string, phone: string) =>
+        req<any[]>(`/api/saude/medicamentos/${id}/doses?phone=${phone}`),
+    },
+
+    medidas: {
+      listar: (phone: string) => req<any[]>(`/api/saude/medidas/${phone}`),
+      criar:  (body: any) => req<any>('/api/saude/medidas', { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    fotos: {
+      listar: (phone: string) => req<any[]>(`/api/saude/fotos/${phone}`),
+      criar:  (body: any) => req<any>('/api/saude/fotos', { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    sintomas: {
+      listar: (phone: string, dias?: number) =>
+        req<any[]>(`/api/saude/sintomas/${phone}${dias ? `?dias=${dias}` : ''}`),
+      criar:  (body: any) => req<any>('/api/saude/sintomas', { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    vacinas: {
+      listar: (phone: string) => req<any[]>(`/api/saude/vacinas/${phone}`),
+      criar:  (body: any) => req<any>('/api/saude/vacinas', { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    ciclo: {
+      listar: (phone: string) => req<any[]>(`/api/saude/ciclo/${phone}`),
+      criar:  (body: any) => req<any>('/api/saude/ciclo', { method: 'POST', body: JSON.stringify(body) }),
+    },
+  },
+
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
   metas: {
     listar: (phone: string) =>
