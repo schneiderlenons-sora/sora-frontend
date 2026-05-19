@@ -190,6 +190,75 @@ export const api = {
       req<{ phone: string; lembretes_dividas: boolean }>(`/api/dividas/lembretes/${phone}`, { method: 'PATCH', body: JSON.stringify({ ativo }) }),
   },
 
+  // ── GROW (segundo painel: hábitos, tarefas, humor, casa) ─────
+  grow: {
+    status: (phone: string) =>
+      req<{ temAcesso: boolean; plano: string; planoGrow: string; painelAtivo: 'finance' | 'grow'; trial: { ativo: boolean; diasRestantes: number; inicio: string | null; fim: string | null } }>(`/api/grow/status/${phone}`),
+    ativarTrial: (phone: string) =>
+      req<{ ok: boolean; fim: string; diasRestantes: number }>(`/api/grow/ativar-trial/${phone}`, { method: 'POST' }),
+    trocarPainel: (phone: string, painel: 'finance' | 'grow') =>
+      req<{ ok: boolean; painelAtivo: 'finance' | 'grow' }>(`/api/grow/trocar-painel/${phone}`, { method: 'POST', body: JSON.stringify({ painel }) }),
+
+    habitos: {
+      listar: (phone: string) =>
+        req<{ habitos: any[]; registros: any[] }>(`/api/grow/habitos/${phone}`),
+      criar: (body: { phone: string; nome: string; descricao?: string; icone?: string; cor?: string; frequencia?: string; dias_semana?: number[]; horario_lembrete?: string | null }) =>
+        req<any>('/api/grow/habitos', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: any) =>
+        req<any>(`/api/grow/habitos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/habitos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+      toggle: (id: string, body: { phone: string; data?: string }) =>
+        req<any>(`/api/grow/habitos/${id}/toggle`, { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    tarefas: {
+      listar: (phone: string, params?: { concluida?: boolean; projeto_id?: string; prioridade?: string }) => {
+        const q = new URLSearchParams();
+        if (params?.concluida !== undefined) q.set('concluida', String(params.concluida));
+        if (params?.projeto_id) q.set('projeto_id', params.projeto_id);
+        if (params?.prioridade) q.set('prioridade', params.prioridade);
+        const qs = q.toString();
+        return req<any[]>(`/api/grow/tarefas/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar: (body: { phone: string; titulo: string; descricao?: string; prioridade?: string; data_vencimento?: string | null; projeto_id?: string | null; tags?: string[]; status_kanban?: string }) =>
+        req<any>('/api/grow/tarefas', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: any) =>
+        req<any>(`/api/grow/tarefas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/tarefas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    projetos: {
+      listar: (phone: string) =>
+        req<any[]>(`/api/grow/projetos/${phone}`),
+      criar: (body: { phone: string; nome: string; descricao?: string; cor?: string; icone?: string; data_prazo?: string | null }) =>
+        req<any>('/api/grow/projetos', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/projetos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    humor: {
+      listar: (phone: string, dias?: number) =>
+        req<any[]>(`/api/grow/humor/${phone}?dias=${dias || 30}`),
+      registrar: (body: { phone: string; humor: number; nota?: string; gratidao?: string[]; energia?: number; sono_horas?: number; data?: string }) =>
+        req<any>('/api/grow/humor', { method: 'POST', body: JSON.stringify(body) }),
+    },
+
+    compras: {
+      listar: (phone: string) =>
+        req<{ lista_id: string; itens: any[] }>(`/api/grow/lista-compras/${phone}`),
+      adicionar: (body: { phone: string; nome: string; quantidade?: string; unidade?: string; categoria?: string; preco_estimado?: number }) =>
+        req<any>('/api/grow/lista-compras/item', { method: 'POST', body: JSON.stringify(body) }),
+      atualizar: (id: string, body: { phone: string; comprado?: boolean; nome?: string; quantidade?: string; categoria?: string }) =>
+        req<any>(`/api/grow/lista-compras/item/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/lista-compras/item/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+      limpar: (phone: string) =>
+        req(`/api/grow/lista-compras/limpar`, { method: 'POST', body: JSON.stringify({ phone }) }),
+    },
+  },
+
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
   metas: {
     listar: (phone: string) =>

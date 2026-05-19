@@ -6,13 +6,15 @@ import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt,
+  Sprout, Heart, ListChecks, Home as HomeIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePwa } from '@/components/pwa/InstallPwa';
+import PainelSwitch from './PainelSwitch';
 
-const NAV = [
+const NAV_FINANCE = [
   { href: '/dashboard',          label: 'Dashboard',        icon: LayoutDashboard },
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
@@ -27,7 +29,15 @@ const NAV = [
   { href: '/configuracoes',      label: 'Configurações',     icon: Settings },
 ];
 
-// Plano badge — fundo branco translúcido sobre o verde
+const NAV_GROW = [
+  { href: '/grow/dashboard',  label: 'Dashboard',     icon: Sprout },
+  { href: '/grow/habitos',    label: 'Hábitos',       icon: Target },
+  { href: '/grow/tarefas',    label: 'Tarefas',       icon: ListChecks },
+  { href: '/grow/bem-estar',  label: 'Bem-estar',     icon: Heart },
+  { href: '/grow/casa',       label: 'Casa',          icon: HomeIcon },
+  { href: '/configuracoes',   label: 'Configurações', icon: Settings },
+];
+
 const PLANO_BADGE: Record<string, string> = {
   basico:  'bg-white text-emerald-700',
   premium: 'bg-white text-blue-700',
@@ -35,13 +45,14 @@ const PLANO_BADGE: Record<string, string> = {
   inativo: 'bg-white text-emerald-800',
 };
 
-// Gradientes verdes — light e dark mode
-const SIDEBAR_BG_LIGHT = 'linear-gradient(180deg, #5BC571 0%, #4DAE61 100%)';
-const SIDEBAR_BG_DARK  = 'linear-gradient(180deg, #4DAE61 0%, #3C9450 100%)';
+const SIDEBAR_BG_FINANCE_LIGHT = 'linear-gradient(180deg, #5BC571 0%, #4DAE61 100%)';
+const SIDEBAR_BG_FINANCE_DARK  = 'linear-gradient(180deg, #4DAE61 0%, #3C9450 100%)';
+const SIDEBAR_BG_GROW_LIGHT    = 'linear-gradient(180deg, #7c3aed 0%, #4f46e5 100%)';
+const SIDEBAR_BG_GROW_DARK     = 'linear-gradient(180deg, #6d28d9 0%, #4338ca 100%)';
 
 export default function Sidebar() {
-  const pathname       = usePathname();
-  const { perfil, signOut } = useAuth();
+  const pathname = usePathname();
+  const { perfil, signOut, painelAtivo, temAcessoGrow } = useAuth();
   const [open, setOpen] = useState(false);
 
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -54,23 +65,60 @@ export default function Sidebar() {
   const plano  = perfil?.plano || 'inativo';
   const isBlack = plano === 'black';
 
+  const ehGrowPath = pathname?.startsWith('/grow');
+  const usarGrow = ehGrowPath || (painelAtivo === 'grow' && pathname !== '/configuracoes');
+  const NAV = usarGrow ? NAV_GROW : NAV_FINANCE;
+
+  const sidebarBg = usarGrow
+    ? (isDark ? SIDEBAR_BG_GROW_DARK : SIDEBAR_BG_GROW_LIGHT)
+    : (isDark ? SIDEBAR_BG_FINANCE_DARK : SIDEBAR_BG_FINANCE_LIGHT);
+
   const conteudo = (
     <div className="flex flex-col h-full">
-
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-        <img src="/sora-logo-green.png" alt="Sora" className="h-10 w-auto object-contain" />
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div className="flex items-center gap-2 min-w-0">
+          {usarGrow ? (
+            <>
+              <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center text-2xl">🌱</div>
+              <div className="leading-none">
+                <p className="text-white font-bold text-base tracking-tight">Sora</p>
+                <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest -mt-0.5">Grow</p>
+              </div>
+            </>
+          ) : (
+            <img src="/sora-logo-green.png" alt="Sora" className="h-10 w-auto object-contain" />
+          )}
+        </div>
         <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold ${PLANO_BADGE[plano]}`}>
           {plano.charAt(0).toUpperCase() + plano.slice(1)}
         </span>
       </div>
 
-      {/* Navegação */}
+      {(temAcessoGrow || usarGrow) && (
+        <div className="px-3 py-3 border-b border-white/10">
+          <PainelSwitch />
+        </div>
+      )}
+      {!temAcessoGrow && !usarGrow && (
+        <div className="px-3 py-3 border-b border-white/10">
+          <Link
+            href="/grow/upgrade"
+            onClick={() => setOpen(false)}
+            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all bg-gradient-to-r from-violet-500/30 to-indigo-500/30 hover:from-violet-500/50 hover:to-indigo-500/50 border border-white/20"
+          >
+            <span className="text-xl">✨</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-xs">Conheça o Grow</p>
+              <p className="text-white/70 text-[10px]">Organize sua vida</p>
+            </div>
+          </Link>
+        </div>
+      )}
+
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ href, label, icon: Icon, black: soBlack }) => {
+        {NAV.map(({ href, label, icon: Icon, black: soBlack }: any) => {
           const bloqueado = soBlack && !isBlack;
           const ativo     = pathname === href;
-
           return (
             <Link
               key={href}
@@ -99,26 +147,15 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Rodapé — toggle de tema, instalar, usuário e logout */}
       <div className="px-3 py-4 border-t border-white/20">
-        <button
-          onClick={toggleTheme}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1"
-          aria-label="Alternar tema"
-        >
+        <button onClick={toggleTheme} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
           <span>{isDark ? 'Tema claro' : 'Tema escuro'}</span>
         </button>
-
-        <button
-          onClick={() => { setOpen(false); abrirInstall(); }}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1"
-          aria-label="Instalar app"
-        >
+        <button onClick={() => { setOpen(false); abrirInstall(); }} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
           <Download size={18} />
           <span>Instalar app</span>
         </button>
-
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm mb-2">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
             {perfil?.name?.charAt(0)?.toUpperCase() || '?'}
@@ -128,10 +165,7 @@ export default function Sidebar() {
             <p className="text-xs text-white/70 truncate">{perfil?.phone || ''}</p>
           </div>
         </div>
-        <button
-          onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all"
-        >
+        <button onClick={signOut} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all">
           <LogOut size={18} />
           <span>Sair</span>
         </button>
@@ -139,19 +173,14 @@ export default function Sidebar() {
     </div>
   );
 
-  const sidebarStyle = { background: isDark ? SIDEBAR_BG_DARK : SIDEBAR_BG_LIGHT };
+  const sidebarStyle = { background: sidebarBg };
 
   return (
     <>
-      {/* Desktop */}
-      <aside
-        className="hidden md:flex flex-col w-64 h-screen sticky top-0 shadow-xl"
-        style={sidebarStyle}
-      >
+      <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 shadow-xl transition-all duration-500" style={sidebarStyle}>
         {conteudo}
       </aside>
 
-      {/* Mobile — botão hamburguer (respeita safe-area do notch no iPhone) */}
       <button
         onClick={() => setOpen(true)}
         aria-label="Abrir menu"
@@ -161,7 +190,6 @@ export default function Sidebar() {
         <Menu size={20} className="text-foreground" />
       </button>
 
-      {/* Mobile — drawer */}
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="w-64 flex flex-col shadow-xl" style={sidebarStyle}>
@@ -172,7 +200,6 @@ export default function Sidebar() {
             </div>
             {conteudo}
           </div>
-          {/* overlay */}
           <div className="flex-1 bg-black/40" onClick={() => setOpen(false)} />
         </div>
       )}
