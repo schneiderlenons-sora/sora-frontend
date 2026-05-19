@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Sora } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/providers';
 import InstallPwa from '@/components/pwa/InstallPwa';
 
 const inter = Inter({ subsets: ['latin'] });
+const soraFont = Sora({ subsets: ['latin'], weight: ['400','600','700','800'], variable: '--font-sora', display: 'swap' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://forsora.com'),
@@ -54,7 +55,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth" className={soraFont.variable}>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <InstallPwa>

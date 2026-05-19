@@ -75,45 +75,16 @@ export default function Sidebar() {
 
   const conteudo = (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="flex items-center gap-2 min-w-0">
-          {usarGrow ? (
-            <>
-              <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center text-2xl">🌱</div>
-              <div className="leading-none">
-                <p className="text-white font-bold text-base tracking-tight">Sora</p>
-                <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest -mt-0.5">Grow</p>
-              </div>
-            </>
-          ) : (
-            <img src="/sora-logo-green.png" alt="Sora" className="h-10 w-auto object-contain" />
-          )}
+      {/* HEADER: PainelSwitch substitui a logo + badge do plano ao lado */}
+      <div className="flex items-center gap-2 px-4 py-4 border-b border-white/10 min-w-0">
+        <div className="flex-1 min-w-0">
+          <PainelSwitch />
         </div>
-        <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-semibold ${PLANO_BADGE[plano]}`}>
+        <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold ${PLANO_BADGE[plano]}`}
+              style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}>
           {plano.charAt(0).toUpperCase() + plano.slice(1)}
         </span>
       </div>
-
-      {(temAcessoGrow || usarGrow) && (
-        <div className="px-3 py-3 border-b border-white/10">
-          <PainelSwitch />
-        </div>
-      )}
-      {!temAcessoGrow && !usarGrow && (
-        <div className="px-3 py-3 border-b border-white/10">
-          <Link
-            href="/grow/upgrade"
-            onClick={() => setOpen(false)}
-            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all bg-gradient-to-r from-violet-500/30 to-indigo-500/30 hover:from-violet-500/50 hover:to-indigo-500/50 border border-white/20"
-          >
-            <span className="text-xl">✨</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-xs">Conheça o Grow</p>
-              <p className="text-white/70 text-[10px]">Organize sua vida</p>
-            </div>
-          </Link>
-        </div>
-      )}
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {NAV.map(({ href, label, icon: Icon, black: soBlack }: any) => {
