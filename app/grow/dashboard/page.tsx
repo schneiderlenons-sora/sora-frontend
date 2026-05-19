@@ -83,7 +83,7 @@ export default function GrowDashboardPage() {
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND }}>Sora Grow</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
-            {saudacao()}, {perfil?.name?.split(' ')[0] || 'amigo'} 🌱
+            {saudacao()}, {perfil?.name?.split(' ')[0] || 'amigo'} 👋
           </h1>
           <p className="text-muted-foreground text-sm mt-2 max-w-md leading-relaxed">{frase}</p>
         </div>
