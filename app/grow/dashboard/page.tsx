@@ -72,20 +72,20 @@ export default function GrowDashboardPage() {
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       {/* HERO */}
       <div
-        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 text-white shadow-xl animate-fade-in"
-        style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)' }}
+        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
+        style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}
       >
-        <div className="absolute inset-0 opacity-30"
-             style={{ background: 'radial-gradient(circle at top right, rgba(255,255,255,0.3), transparent 60%)' }} />
+        <div className="absolute inset-0 pointer-events-none opacity-60"
+             style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.14) 0%, transparent 60%)' }} />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur mb-3 border border-white/20">
-            <Sprout size={11} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Sora Grow</span>
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
+            <Sprout size={11} style={{ color: BRAND }} />
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND }}>Sora Grow</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight leading-none">
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
             {saudacao()}, {perfil?.name?.split(' ')[0] || 'amigo'} 🌱
           </h1>
-          <p className="text-white/85 text-sm mt-2 max-w-md leading-relaxed">{frase}</p>
+          <p className="text-muted-foreground text-sm mt-2 max-w-md leading-relaxed">{frase}</p>
         </div>
       </div>
 

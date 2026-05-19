@@ -80,9 +80,8 @@ export default function Sidebar() {
         <div className="flex-1 min-w-0">
           <PainelSwitch />
         </div>
-        <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold ${PLANO_BADGE[plano]}`}
-              style={{ fontFamily: 'var(--font-sora), system-ui, sans-serif' }}>
-          {plano.charAt(0).toUpperCase() + plano.slice(1)}
+        <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${PLANO_BADGE[plano]}`}>
+          {plano}
         </span>
       </div>
 
