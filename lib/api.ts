@@ -168,6 +168,24 @@ export const api = {
     },
   },
 
+  // ── DÍVIDAS (empréstimos, financiamentos, crediário) ─────────
+  dividas: {
+    listar: (phone: string) =>
+      req<{ dividas: any[]; resumo: any }>(`/api/dividas/${phone}`),
+    criar: (body: { phone: string; titulo: string; tipo: string; valor_total: number; valor_parcela?: number; parcelas_total?: number; parcelas_pagas?: number; credor?: string; taxa_juros?: number; indexador?: string; dia_vencimento?: number; data_inicio?: string; observacao?: string }) =>
+      req<any>('/api/dividas', { method: 'POST', body: JSON.stringify(body) }),
+    editar: (id: string, body: any) =>
+      req<any>(`/api/dividas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deletar: (id: string, phone: string) =>
+      req(`/api/dividas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    pagar: (id: string, body: { phone: string; valor: number; tipo?: string; data_pagamento?: string; observacao?: string; numero_parcela?: number }) =>
+      req<{ divida: any; quitada: boolean }>(`/api/dividas/${id}/pagar`, { method: 'POST', body: JSON.stringify(body) }),
+    quitar: (id: string, body: { phone: string; valor?: number; data_pagamento?: string; observacao?: string }) =>
+      req<{ divida: any; quitada: boolean }>(`/api/dividas/${id}/quitar`, { method: 'POST', body: JSON.stringify(body) }),
+    pagamentos: (id: string) =>
+      req<any[]>(`/api/dividas/${id}/pagamentos`),
+  },
+
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
   metas: {
     listar: (phone: string) =>
