@@ -5,7 +5,7 @@ export const alt     = 'Sora — Sua assistente financeira pelo WhatsApp';
 export const size    = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://sora-frontend-alpha.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://forsora.com';
 
 export default async function OpenGraphImage() {
   return new ImageResponse(

@@ -7,6 +7,7 @@ import InstallPwa from '@/components/pwa/InstallPwa';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://forsora.com'),
   title: 'Sora — Assistente Financeira',
   description: 'Organize sua vida financeira pelo WhatsApp. Controle gastos, investimentos e metas em um só lugar.',
   manifest: '/manifest.json',
