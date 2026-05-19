@@ -184,6 +184,10 @@ export const api = {
       req<{ divida: any; quitada: boolean }>(`/api/dividas/${id}/quitar`, { method: 'POST', body: JSON.stringify(body) }),
     pagamentos: (id: string) =>
       req<any[]>(`/api/dividas/${id}/pagamentos`),
+    toggleLembrete: (id: string, body: { phone: string; ativo: boolean }) =>
+      req<any>(`/api/dividas/${id}/lembrete`, { method: 'PATCH', body: JSON.stringify(body) }),
+    toggleLembretesGlobal: (phone: string, ativo: boolean) =>
+      req<{ phone: string; lembretes_dividas: boolean }>(`/api/dividas/lembretes/${phone}`, { method: 'PATCH', body: JSON.stringify({ ativo }) }),
   },
 
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────

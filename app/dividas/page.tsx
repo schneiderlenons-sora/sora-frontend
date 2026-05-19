@@ -12,7 +12,7 @@ import {
   Plus, Sparkles, Receipt, Pencil, Trash2, ArrowDownRight, CheckCircle2,
   AlertCircle, Loader2, TrendingDown, Calendar, Zap, Eye, EyeOff,
   Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase,
-  GraduationCap, FileText, MoreVertical,
+  GraduationCap, FileText, MoreVertical, Bell, BellOff,
 } from 'lucide-react';
 
 const BRAND = '#61D17B';
@@ -45,7 +45,10 @@ export default function DividasPage() {
   const [resumo,  setResumo]  = useState<any>({
     total_devido: 0, total_ativas: 0, total_quitadas: 0,
     parcelas_mes_valor: 0, parcelas_mes_count: 0, proxima_parcela: null,
+    lembretes_dividas: true,
   });
+  const [lembretesGlobais, setLembretesGlobais] = useState(true);
+  const [salvandoLembrete, setSalvandoLembrete] = useState(false);
   const [loading,   setLoading]   = useState(false);
   const [ocultar,   setOcultar]   = useState(false);
   const [novaOpen,  setNovaOpen]  = useState(false);
@@ -62,6 +65,7 @@ export default function DividasPage() {
       const r = await api.dividas.listar(phone);
       setDividas(r.dividas || []);
       setResumo(r.resumo || {});
+      setLembretesGlobais((r.resumo as any)?.lembretes_dividas !== false);
     } catch (e) { console.warn('[dividas] listar erro:', e); }
     finally { setLoading(false); }
   }, [phone]);
@@ -78,6 +82,33 @@ export default function DividasPage() {
       carregar();
       flash('✓ Dívida removida.');
     } catch (e: any) { alert(e.message); }
+  }
+
+  async function toggleLembreteDivida(d: any) {
+    if (!phone) return;
+    const novo = !d.lembretes_ativos;
+    setDividas(prev => prev.map(x => x.id === d.id ? { ...x, lembretes_ativos: novo } : x));
+    try {
+      await api.dividas.toggleLembrete(d.id, { phone, ativo: novo });
+      flash(novo ? '🔔 Lembretes ativados.' : '🔕 Lembretes silenciados.');
+    } catch (e: any) {
+      setDividas(prev => prev.map(x => x.id === d.id ? { ...x, lembretes_ativos: !novo } : x));
+      alert(e.message);
+    }
+  }
+
+  async function toggleLembretesGlobais() {
+    if (!phone || salvandoLembrete) return;
+    const novo = !lembretesGlobais;
+    setSalvandoLembrete(true);
+    setLembretesGlobais(novo);
+    try {
+      await api.dividas.toggleLembretesGlobal(phone, novo);
+      flash(novo ? '🔔 Lembretes de dívidas ativados.' : '🔕 Você não receberá mais lembretes de dívidas.');
+    } catch (e: any) {
+      setLembretesGlobais(!novo);
+      alert(e.message);
+    } finally { setSalvandoLembrete(false); }
   }
 
   const dividasFiltradas = useMemo(() => {
@@ -114,6 +145,15 @@ export default function DividasPage() {
               <button onClick={() => setOcultar(v => !v)} className="btn-ghost px-3 py-2 text-sm gap-2"
                       title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}>
                 {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
+              </button>
+              <button
+                onClick={toggleLembretesGlobais}
+                disabled={salvandoLembrete}
+                className="btn-ghost px-3 py-2 text-sm gap-2 inline-flex items-center"
+                title={lembretesGlobais ? 'Lembretes do WhatsApp ativos — clique para silenciar' : 'Lembretes silenciados — clique para reativar'}
+              >
+                {lembretesGlobais ? <Bell size={15} /> : <BellOff size={15} className="text-muted-foreground" />}
+                <span className="hidden sm:inline text-xs">{lembretesGlobais ? 'Lembretes' : 'Mudos'}</span>
               </button>
               <PermissaoGuard>
                 <button onClick={() => { setEdicao(null); setNovaOpen(true); }}
@@ -195,6 +235,7 @@ export default function DividasPage() {
                 onPagar={() => setPagarOpen(d)}
                 onEditar={() => { setEdicao(d); setNovaOpen(true); }}
                 onExcluir={() => setConfirmDel(d)}
+                onToggleLembrete={() => toggleLembreteDivida(d)}
               />
             ))}
           </div>
@@ -290,9 +331,10 @@ interface DividaCardProps {
   onPagar:   () => void;
   onEditar:  () => void;
   onExcluir: () => void;
+  onToggleLembrete: () => void;
 }
 
-function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir }: DividaCardProps) {
+function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onToggleLembrete }: DividaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const tipo = TIPO_INFO[divida.tipo] || TIPO_INFO.outro;
   const status = STATUS_INFO[divida.status] || STATUS_INFO.ativa;
@@ -376,7 +418,11 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir }: Di
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-44 card p-1 z-20 animate-fade-in border border-border shadow-xl">
+                  <div className="absolute right-0 top-full mt-1 w-52 card p-1 z-20 animate-fade-in border border-border shadow-xl">
+                    <button onClick={() => { setMenuOpen(false); onToggleLembrete(); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors">
+                      {divida.lembretes_ativos !== false ? <><BellOff size={12} /> Silenciar lembretes</> : <><Bell size={12} /> Ativar lembretes</>}
+                    </button>
                     <button onClick={() => { setMenuOpen(false); onEditar(); }}
                             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors">
                       <Pencil size={12} /> Editar
@@ -392,6 +438,14 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir }: Di
           </PermissaoGuard>
         </div>
       </div>
+
+      {/* Aviso de lembretes silenciados */}
+      {divida.lembretes_ativos === false && !concluida && (
+        <div className="rounded-lg px-2.5 py-1.5 bg-muted/40 border border-border/60 flex items-center gap-1.5 mb-3 text-[10px] text-muted-foreground">
+          <BellOff size={11} />
+          <span>Lembretes silenciados pra esta dívida</span>
+        </div>
+      )}
 
       {/* Valores */}
       <div className="grid grid-cols-2 gap-3 mb-3">
