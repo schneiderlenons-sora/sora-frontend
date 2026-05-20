@@ -378,6 +378,76 @@ export const api = {
     },
   },
 
+  // ── ESTUDOS (sub-aba do Sora Grow) ───────────────────────────
+  estudos: {
+    dashboard: (phone: string) => req<any>(`/api/estudos/dashboard/${phone}`),
+
+    cursos: {
+      listar:  (phone: string, params?: { tipo?: string; status?: string }) => {
+        const q = new URLSearchParams();
+        if (params?.tipo) q.set('tipo', params.tipo);
+        if (params?.status) q.set('status', params.status);
+        const qs = q.toString();
+        return req<any[]>(`/api/estudos/cursos/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar:   (body: any) => req<any>('/api/estudos/cursos', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/estudos/cursos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/estudos/cursos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    disciplinas: {
+      listar:  (phone: string, curso_id?: string) =>
+        req<any[]>(`/api/estudos/disciplinas/${phone}${curso_id ? `?curso_id=${curso_id}` : ''}`),
+      criar:   (body: any) => req<any>('/api/estudos/disciplinas', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/estudos/disciplinas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/estudos/disciplinas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    provas: {
+      listar:  (phone: string, params?: { curso_id?: string; realizada?: boolean }) => {
+        const q = new URLSearchParams();
+        if (params?.curso_id) q.set('curso_id', params.curso_id);
+        if (params?.realizada !== undefined) q.set('realizada', String(params.realizada));
+        const qs = q.toString();
+        return req<any[]>(`/api/estudos/provas/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar:   (body: any) => req<any>('/api/estudos/provas', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/estudos/provas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/estudos/provas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    sessoes: {
+      listar:  (phone: string, params?: { dias?: number; curso_id?: string; disciplina_id?: string }) => {
+        const q = new URLSearchParams();
+        if (params?.dias) q.set('dias', String(params.dias));
+        if (params?.curso_id) q.set('curso_id', params.curso_id);
+        if (params?.disciplina_id) q.set('disciplina_id', params.disciplina_id);
+        const qs = q.toString();
+        return req<any[]>(`/api/estudos/sessoes/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar:   (body: any) => req<any>('/api/estudos/sessoes', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/estudos/sessoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
+    metas: {
+      get:    (phone: string, curso_id?: string) =>
+        req<any>(`/api/estudos/metas/${phone}${curso_id ? `?curso_id=${curso_id}` : ''}`),
+      salvar: (phone: string, body: any) => req<any>(`/api/estudos/metas/${phone}`, { method: 'PUT', body: JSON.stringify({ ...body, phone }) }),
+    },
+
+    anotacoes: {
+      listar:  (phone: string, params?: { disciplina_id?: string; curso_id?: string }) => {
+        const q = new URLSearchParams();
+        if (params?.disciplina_id) q.set('disciplina_id', params.disciplina_id);
+        if (params?.curso_id) q.set('curso_id', params.curso_id);
+        const qs = q.toString();
+        return req<any[]>(`/api/estudos/anotacoes/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar:   (body: any) => req<any>('/api/estudos/anotacoes', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/estudos/anotacoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+  },
+
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
   metas: {
     listar: (phone: string) =>
