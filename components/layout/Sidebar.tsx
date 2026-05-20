@@ -70,8 +70,8 @@ export default function Sidebar() {
     : 'light'
     : 'light';
 
-  const isBlack = efetivo === 'black';
-  const isDark  = efetivo === 'dark' || isBlack;
+  const isTemaBlack = efetivo === 'black';
+  const isDark      = efetivo === 'dark' || isTemaBlack;
 
   function ciclarTema() {
     const proximo = efetivo === 'light' ? 'dark' : efetivo === 'dark' ? 'black' : 'light';
@@ -88,7 +88,7 @@ export default function Sidebar() {
   const usarGrow = ehGrowPath || (painelAtivo === 'grow' && pathname !== '/configuracoes');
   const NAV = usarGrow ? NAV_GROW : NAV_FINANCE;
 
-  const sidebarBg = isBlack
+  const sidebarBg = isTemaBlack
     ? SIDEBAR_BG_BLACK
     : usarGrow
       ? (isDark ? SIDEBAR_BG_GROW_DARK : SIDEBAR_BG_GROW_LIGHT)
