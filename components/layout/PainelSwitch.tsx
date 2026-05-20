@@ -5,20 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ArrowRightLeft, Sparkles } from 'lucide-react';
 
-// Ícone da marca Sora — PNG transparente em public/
-function IconeSora({ size = 40 }: { size?: number }) {
-  return (
-    <img
-      src="/soraicon-transparente.png"
-      alt="Sora"
-      width={size}
-      height={size}
-      style={{ width: size, height: size, objectFit: 'contain', display: 'block' }}
-      draggable={false}
-    />
-  );
-}
-
 export default function PainelSwitch() {
   const { painelAtivo, trocarPainel, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const router = useRouter();
@@ -44,45 +30,69 @@ export default function PainelSwitch() {
   return (
     <button
       onClick={handleSwitch}
-      className={`group relative w-full flex items-center gap-3 px-3 py-3 rounded-xl overflow-hidden border border-white/15 bg-white/10 backdrop-blur-sm
+      className={`group relative w-full flex items-center gap-2.5 px-3 py-3 rounded-xl overflow-hidden border border-white/15 bg-white/10 backdrop-blur-sm
         transition-[transform,opacity,background-color] duration-300 ease-out
         ${animating ? 'scale-[0.97] opacity-80' : 'hover:bg-white/15 active:scale-[0.99]'}`}
       title={`Trocar para Sora ${ehGrow ? 'Finance' : 'Grow'}`}
     >
-      {/* Ícone único Sora — anima rotação ao trocar de painel */}
+      {/* Ícone Sora — anima rotação na troca */}
       <div
-        className="relative w-10 h-10 flex items-center justify-center flex-shrink-0"
+        className="relative w-12 h-12 flex items-center justify-center flex-shrink-0"
         style={{
           transition: 'transform 550ms cubic-bezier(0.34, 1.56, 0.64, 1)',
           transform: animating ? 'rotate(360deg) scale(0.85)' : 'rotate(0deg) scale(1)',
         }}
       >
-        <IconeSora size={38} />
+        <img
+          src="/soraicon-transparente.png"
+          alt="Sora"
+          width={48}
+          height={48}
+          style={{ width: 48, height: 48, objectFit: 'contain', display: 'block' }}
+          draggable={false}
+        />
       </div>
 
-      {/* "Sora Finance" / "Sora Grow" — fonte Allura, grande */}
-      <div className="flex-1 text-left min-w-0">
-        <div
-          className="text-white leading-[0.95] truncate"
-          style={{
-            fontFamily: 'var(--font-brand), Pacifico, cursive',
-            fontSize: 26,
-            fontWeight: 400,
-            letterSpacing: '0.005em',
-          }}
-        >
-          Sora {ehGrow ? 'Grow' : 'Finance'}
+      {/* Wordmark — crossfade entre as 2 imagens (Finance ↔ Grow) */}
+      <div className="flex-1 min-w-0 text-left">
+        <div className="relative w-full" style={{ height: 36 }}>
+          <img
+            src="/sora-finance.png"
+            alt="Sora Finance"
+            draggable={false}
+            className={`absolute inset-0 transition-opacity duration-250 ease-out`}
+            style={{
+              height: '100%',
+              width: 'auto',
+              maxWidth: '100%',
+              objectFit: 'contain',
+              objectPosition: 'left center',
+              opacity: ehGrow ? 0 : 1,
+            }}
+          />
+          <img
+            src="/sora-grow.png"
+            alt="Sora Grow"
+            draggable={false}
+            className={`absolute inset-0 transition-opacity duration-250 ease-out`}
+            style={{
+              height: '100%',
+              width: 'auto',
+              maxWidth: '100%',
+              objectFit: 'contain',
+              objectPosition: 'left center',
+              opacity: ehGrow ? 1 : 0,
+            }}
+          />
         </div>
-        <div className="text-white/65 text-[10px] mt-1 flex items-center gap-1 leading-none">
+        <div className="text-white/65 text-[10px] mt-0.5 flex items-center gap-1 leading-none">
           <ArrowRightLeft size={9} />
           Trocar para {ehGrow ? 'Finance' : 'Grow'}
         </div>
       </div>
 
       {trialAtivo && !ehGrow && (
-        <span
-          className="absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-300 text-yellow-900 shadow-md"
-        >
+        <span className="absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-300 text-yellow-900 shadow-md">
           {diasTrialRestantes}d
         </span>
       )}
