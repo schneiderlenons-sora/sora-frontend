@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Caveat } from 'next/font/google';
+import { Inter, Allura } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/providers';
 import InstallPwa from '@/components/pwa/InstallPwa';
 
 const inter  = Inter({ subsets: ['latin'] });
-// Caveat — fonte cursiva pincelada (alternativa Google à "Buffalo" do Canva) usada na marca "Sora"
-const caveat = Caveat({ subsets: ['latin'], weight: ['400','600','700'], variable: '--font-brand', display: 'swap' });
+// Allura — script cursivo elegante (similar ao wordmark do Pierre) usado na marca "Sora"
+const allura = Allura({ subsets: ['latin'], weight: ['400'], variable: '--font-brand', display: 'swap' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://forsora.com'),
@@ -56,7 +56,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth" className={caveat.variable}>
+    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth" className={allura.variable}>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <InstallPwa>
