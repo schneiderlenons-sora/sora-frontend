@@ -30,15 +30,16 @@ export default function PainelSwitch() {
   return (
     <button
       onClick={handleSwitch}
-      className={`group relative w-full flex items-center gap-2.5 px-3 py-3 rounded-xl overflow-hidden border border-white/15 bg-white/10 backdrop-blur-sm
+      className={`group relative w-full flex items-center gap-1.5 px-3 py-3 rounded-xl overflow-hidden border border-white/15 bg-white/10 backdrop-blur-sm
         transition-[transform,opacity,background-color] duration-300 ease-out
         ${animating ? 'scale-[0.97] opacity-80' : 'hover:bg-white/15 active:scale-[0.99]'}`}
       title={`Trocar para Sora ${ehGrow ? 'Finance' : 'Grow'}`}
     >
       {/* Ícone Sora — anima rotação na troca */}
       <div
-        className="relative w-12 h-12 flex items-center justify-center flex-shrink-0"
+        className="relative flex items-center justify-center flex-shrink-0"
         style={{
+          width: 60, height: 60,
           transition: 'transform 550ms cubic-bezier(0.34, 1.56, 0.64, 1)',
           transform: animating ? 'rotate(360deg) scale(0.85)' : 'rotate(0deg) scale(1)',
         }}
@@ -46,16 +47,16 @@ export default function PainelSwitch() {
         <img
           src="/soraicon-transparente.png"
           alt="Sora"
-          width={48}
-          height={48}
-          style={{ width: 48, height: 48, objectFit: 'contain', display: 'block' }}
+          width={60}
+          height={60}
+          style={{ width: 60, height: 60, objectFit: 'contain', display: 'block' }}
           draggable={false}
         />
       </div>
 
       {/* Wordmark — crossfade entre as 2 imagens (Finance ↔ Grow) */}
       <div className="flex-1 min-w-0 text-left">
-        <div className="relative w-full" style={{ height: 36 }}>
+        <div className="relative w-full" style={{ height: 42 }}>
           <img
             src="/sora-finance.png"
             alt="Sora Finance"
