@@ -65,8 +65,8 @@ export default function PainelSwitch() {
         <div
           className="text-white leading-[0.95] truncate"
           style={{
-            fontFamily: 'var(--font-brand), Allura, cursive',
-            fontSize: 30,
+            fontFamily: 'var(--font-brand), Pacifico, cursive',
+            fontSize: 26,
             fontWeight: 400,
             letterSpacing: '0.005em',
           }}
