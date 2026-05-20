@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt,
-  Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap,
+  Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -51,6 +51,7 @@ const SIDEBAR_BG_FINANCE_LIGHT = 'linear-gradient(180deg, #5BC571 0%, #4DAE61 10
 const SIDEBAR_BG_FINANCE_DARK  = 'linear-gradient(180deg, #4DAE61 0%, #3C9450 100%)';
 const SIDEBAR_BG_GROW_LIGHT    = 'linear-gradient(180deg, #7c3aed 0%, #4f46e5 100%)';
 const SIDEBAR_BG_GROW_DARK     = 'linear-gradient(180deg, #6d28d9 0%, #4338ca 100%)';
+const SIDEBAR_BG_BLACK         = '#000000';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -60,8 +61,24 @@ export default function Sidebar() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-  const isDark = mounted && (resolvedTheme === 'dark' || theme === 'dark');
-  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
+
+  // Tema efetivo: light | dark | black (resolve 'system')
+  const efetivo: 'light' | 'dark' | 'black' = mounted
+    ? theme === 'black' ? 'black'
+    : theme === 'system' ? (resolvedTheme === 'dark' ? 'dark' : 'light')
+    : theme === 'dark' ? 'dark'
+    : 'light'
+    : 'light';
+
+  const isBlack = efetivo === 'black';
+  const isDark  = efetivo === 'dark' || isBlack;
+
+  function ciclarTema() {
+    const proximo = efetivo === 'light' ? 'dark' : efetivo === 'dark' ? 'black' : 'light';
+    setTheme(proximo);
+  }
+  const proxLabel = efetivo === 'light' ? 'Tema escuro' : efetivo === 'dark' ? 'Tema black' : 'Tema claro';
+  const ProxIcon  = efetivo === 'light' ? Moon : efetivo === 'dark' ? Sparkles : Sun;
   const { abrir: abrirInstall } = usePwa();
 
   const plano  = perfil?.plano || 'inativo';
@@ -71,9 +88,11 @@ export default function Sidebar() {
   const usarGrow = ehGrowPath || (painelAtivo === 'grow' && pathname !== '/configuracoes');
   const NAV = usarGrow ? NAV_GROW : NAV_FINANCE;
 
-  const sidebarBg = usarGrow
-    ? (isDark ? SIDEBAR_BG_GROW_DARK : SIDEBAR_BG_GROW_LIGHT)
-    : (isDark ? SIDEBAR_BG_FINANCE_DARK : SIDEBAR_BG_FINANCE_LIGHT);
+  const sidebarBg = isBlack
+    ? SIDEBAR_BG_BLACK
+    : usarGrow
+      ? (isDark ? SIDEBAR_BG_GROW_DARK : SIDEBAR_BG_GROW_LIGHT)
+      : (isDark ? SIDEBAR_BG_FINANCE_DARK : SIDEBAR_BG_FINANCE_LIGHT);
 
   const conteudo = (
     <div className="flex flex-col h-full">
@@ -119,9 +138,17 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-3 py-4 border-t border-white/20">
-        <button onClick={toggleTheme} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{isDark ? 'Tema claro' : 'Tema escuro'}</span>
+        <button onClick={ciclarTema} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
+          <ProxIcon size={18} />
+          <span>{proxLabel}</span>
+          {/* Indicador discreto de qual tema está ativo */}
+          <span className="ml-auto flex items-center gap-0.5">
+            {(['light','dark','black'] as const).map(t => (
+              <span key={t} className={`block w-1.5 h-1.5 rounded-full transition-all ${
+                efetivo === t ? 'bg-white opacity-100' : 'bg-white opacity-25'
+              }`} />
+            ))}
+          </span>
         </button>
         <button onClick={() => { setOpen(false); abrirInstall(); }} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
           <Download size={18} />
