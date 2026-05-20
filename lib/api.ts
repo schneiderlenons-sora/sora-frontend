@@ -200,9 +200,14 @@ export const api = {
       req<{ ok: boolean; painelAtivo: 'finance' | 'grow' }>(`/api/grow/trocar-painel/${phone}`, { method: 'POST', body: JSON.stringify({ painel }) }),
 
     habitos: {
-      listar: (phone: string) =>
-        req<{ habitos: any[]; registros: any[] }>(`/api/grow/habitos/${phone}`),
-      criar: (body: { phone: string; nome: string; descricao?: string; icone?: string; cor?: string; frequencia?: string; dias_semana?: number[]; horario_lembrete?: string | null }) =>
+      listar: (phone: string, params?: { dias?: number; incluir_arquivados?: boolean }) => {
+        const q = new URLSearchParams();
+        if (params?.dias) q.set('dias', String(params.dias));
+        if (params?.incluir_arquivados) q.set('incluir_arquivados', 'true');
+        const qs = q.toString();
+        return req<{ habitos: any[]; registros: any[] }>(`/api/grow/habitos/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar: (body: { phone: string; nome: string; descricao?: string; icone?: string; cor?: string; frequencia?: string; dias_semana?: number[]; horario_lembrete?: string | null; motivo?: string; tipo?: 'construir'|'eliminar'; ordem?: number }) =>
         req<any>('/api/grow/habitos', { method: 'POST', body: JSON.stringify(body) }),
       editar: (id: string, body: any) =>
         req<any>(`/api/grow/habitos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -210,6 +215,8 @@ export const api = {
         req(`/api/grow/habitos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
       toggle: (id: string, body: { phone: string; data?: string }) =>
         req<any>(`/api/grow/habitos/${id}/toggle`, { method: 'POST', body: JSON.stringify(body) }),
+      reordenar: (phone: string, ordens: Array<{ id: string; ordem: number }>) =>
+        req<{ ok: boolean }>(`/api/grow/habitos/reordenar`, { method: 'POST', body: JSON.stringify({ phone, ordens }) }),
     },
 
     tarefas: {
