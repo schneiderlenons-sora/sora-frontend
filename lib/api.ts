@@ -296,6 +296,17 @@ export const api = {
         req(`/api/saude/refeicoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
 
+    nutricao: {
+      buscarAlimentos: (phone: string, q?: string) =>
+        req<any[]>(`/api/saude/nutricao/alimentos?phone=${phone}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+      analisar:    (body: { phone: string; texto: string }) =>
+        req<{ itens: any[] }>('/api/saude/nutricao/analisar', { method: 'POST', body: JSON.stringify(body) }),
+      calcular:    (body: { phone: string; peso_kg: number; altura_cm: number; idade: number; sexo: 'M'|'F'|'outro'; nivel_atividade: string; objetivo: string; tipo_dieta?: string; salvar?: boolean }) =>
+        req<any>('/api/saude/nutricao/calcular', { method: 'POST', body: JSON.stringify(body) }),
+      diagnostico: (phone: string) =>
+        req<{ macros_hoje: any; meta: any; diagnostico: any[] }>(`/api/saude/nutricao/diagnostico/${phone}`),
+    },
+
     treinos: {
       catalogo:    (phone: string) => req<any[]>(`/api/saude/treinos/${phone}`),
       criar:       (body: any)     => req<any>('/api/saude/treinos', { method: 'POST', body: JSON.stringify(body) }),
