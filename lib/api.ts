@@ -470,4 +470,52 @@ export const api = {
     resgatar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string }) =>
       req<any>(`/api/metas/${id}/resgate`, { method: 'POST', body: JSON.stringify(body) }),
   },
+
+  // ── NEGÓCIOS (CFO de bolso — DRE, integrações, custos, IA) ────
+  negocios: {
+    integracoes: {
+      listar: (phone: string) =>
+        req<any[]>(`/api/negocios/integracoes/${phone}`),
+      conectar: (body: { phone: string; plataforma: string; credenciais: any; apelido?: string }) =>
+        req<{ ok: boolean; integracao: { id: string; webhook_secret: string } }>('/api/negocios/integracoes', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string) =>
+        req(`/api/negocios/integracoes/${id}`, { method: 'DELETE' }),
+    },
+    dre: {
+      get: (phone: string, periodo?: string) =>
+        req<any>(`/api/negocios/dre/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+      recalcular: (body: { phone: string; periodo?: string }) =>
+        req<any>('/api/negocios/dre/recalcular', { method: 'POST', body: JSON.stringify(body) }),
+    },
+    eventos: {
+      listar: (phone: string, params?: { limit?: number; offset?: number; tipo?: string; plataforma?: string; periodo?: string }) => {
+        const q = new URLSearchParams(params as any).toString();
+        return req<{ eventos: any[]; total: number }>(`/api/negocios/eventos/${phone}${q ? `?${q}` : ''}`);
+      },
+    },
+    custos: {
+      listar: (phone: string, periodo?: string) =>
+        req<any[]>(`/api/negocios/custos/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+      criar: (body: { phone: string; categoria: string; descricao: string; valor: number; data?: string; fornecedor?: string; recorrente?: boolean; recorrencia?: string; observacao?: string }) =>
+        req<{ ok: boolean; custo: any }>('/api/negocios/custos', { method: 'POST', body: JSON.stringify(body) }),
+      deletar: (id: string) =>
+        req(`/api/negocios/custos/${id}`, { method: 'DELETE' }),
+    },
+    config: {
+      get: (phone: string) => req<any>(`/api/negocios/config/${phone}`),
+      salvar: (body: { phone: string; regime_tributario?: string; aliquota_simples?: number; reservar_imposto?: boolean; pct_reserva_imposto?: number; ai_insights_ativo?: boolean; notificar_meta_lucro?: number | null }) =>
+        req<any>('/api/negocios/config', { method: 'PUT', body: JSON.stringify(body) }),
+    },
+    insights: {
+      listar: (phone: string) => req<any[]>(`/api/negocios/insights/${phone}`),
+      visto: (id: string) => req(`/api/negocios/insights/${id}/visto`, { method: 'POST' }),
+      dispensar: (id: string) => req(`/api/negocios/insights/${id}/dispensar`, { method: 'POST' }),
+    },
+    conciliacao: {
+      sugerir: (phone: string) =>
+        req<{ evento_id: string; transacao_id: string; confianca: number }[]>(`/api/negocios/conciliacao/sugerir/${phone}`),
+      conciliar: (body: { phone: string; evento_id: string; transacao_id: string; match_tipo?: string }) =>
+        req('/api/negocios/conciliacao', { method: 'POST', body: JSON.stringify(body) }),
+    },
+  },
 };

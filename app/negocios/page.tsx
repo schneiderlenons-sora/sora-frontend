@@ -1,13 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/lib/api';
 import {
   Briefcase, ArrowUpRight, ArrowDownRight, Plug, Sparkles, RefreshCw,
   Crown, Trophy, ChevronRight, BarChart3, Zap, Calendar, TrendingUp,
-  ShoppingBag, Receipt, Info,
+  ShoppingBag, Receipt, Info, Settings as SettingsIcon, Loader2,
 } from 'lucide-react';
 
 const BRAND = '#61ce70';
@@ -17,10 +18,17 @@ const fmt   = (centavos: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((centavos || 0) / 100);
 const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${(n || 0).toFixed(1)}%`;
 
-// ── MOCK DATA (será substituído por api.negocios.dre quando Fase 2 plugar) ─
+const MES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function periodoLabel(periodoIso: string) {
+  // 'YYYY-MM-01' → 'Maio 2026'
+  const [a, m] = periodoIso.split('-');
+  return `${MES_NOMES[parseInt(m) - 1]} ${a}`;
+}
+
+// ── MOCK DATA (usado como fallback se nenhuma integração ativa) ──
 const MOCK_DRE = {
-  periodo: 'Maio 2026',
-  receita_bruta:    14230000,  // R$ 142.300,00
+  periodo: '2026-05-01',
+  receita_bruta:    14230000,
   taxas_plataforma:   823000,
   taxas_gateway:      218000,
   impostos:           854000,
@@ -33,21 +41,32 @@ const MOCK_DRE = {
   total_vendas: 287,
   ticket_medio: 49580,
   mrr: 1880000,
+  por_plataforma: [
+    { plataforma: 'hotmart', valor: 8940000, vendas: 142 },
+    { plataforma: 'kiwify',  valor: 3820000, vendas:  89 },
+    { plataforma: 'stripe',  valor: 1470000, vendas:  56 },
+  ],
+  por_produto: [
+    { nome: 'Mentoria Black 1:1',      valor: 4500000, vendas: 18 },
+    { nome: 'Curso Sora Pro 2026',     valor: 3820000, vendas: 76 },
+    { nome: 'Ebook Finanças WhatsApp', valor: 1230000, vendas: 142 },
+    { nome: 'Workshop Hábitos',        valor:  680000, vendas: 51 },
+  ],
   spark: [38, 42, 35, 48, 52, 47, 55, 61, 58, 65, 70, 68, 75, 82, 79, 86, 90, 88, 95, 102, 98, 110, 118, 115, 125, 132, 128, 140, 145, 148],
 };
 
-const MOCK_PLATAFORMAS = [
-  { nome: 'Hotmart',  cor: '#f04e23', vendas: 142, valor: 8940000, margem: 31.2 },
-  { nome: 'Kiwify',   cor: '#0066ff', vendas:  89, valor: 3820000, margem: 38.5 },
-  { nome: 'Stripe',   cor: '#635bff', vendas:  56, valor: 1470000, margem: 42.1 },
-];
-
-const MOCK_PRODUTOS = [
-  { nome: 'Mentoria Black 1:1',    valor: 4500000, vendas: 18, tendencia:  12.4 },
-  { nome: 'Curso Sora Pro 2026',   valor: 3820000, vendas: 76, tendencia:   8.2 },
-  { nome: 'Ebook Finanças WhatsApp', valor: 1230000, vendas: 142, tendencia: -3.1 },
-  { nome: 'Workshop Hábitos',      valor:  680000, vendas: 51, tendencia:  21.7 },
-];
+const CORES_PLAT: Record<string, string> = {
+  hotmart: '#f04e23', kiwify: '#0066ff', eduzz: '#ff6b00',
+  stripe: '#635bff',  mercadopago: '#00b1ea',
+  asaas: '#1e7d8c',   pagseguro: '#fdb022',
+  shopify: '#95bf47', woocommerce: '#7f54b3',
+};
+const NOME_PLAT: Record<string, string> = {
+  hotmart: 'Hotmart', kiwify: 'Kiwify', eduzz: 'Eduzz',
+  stripe: 'Stripe', mercadopago: 'Mercado Pago',
+  asaas: 'Asaas', pagseguro: 'PagSeguro',
+  shopify: 'Shopify', woocommerce: 'WooCommerce',
+};
 
 const MOCK_INSIGHT = {
   tipo: 'lucro_subiu',
@@ -57,19 +76,54 @@ const MOCK_INSIGHT = {
 };
 
 export default function NegociosPage() {
-  const { isBlack } = useAuth();
-  const [periodo, setPeriodo] = useState('Maio 2026');
-  // Em produção: const { data: dre } = useSWR(`/api/negocios/dre/${phone}?periodo=${periodo}`)
-  const dre = MOCK_DRE;
+  const { isBlack, phone } = useAuth();
+
+  const hojeIso = new Date().toISOString().slice(0, 7);
+  const [periodo, setPeriodo] = useState(hojeIso); // YYYY-MM
+  const [dre, setDre]         = useState<any>(null);
+  const [usandoMock, setUsandoMock] = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [recalculando, setRecalc]   = useState(false);
+
+  async function carregar() {
+    if (!phone || !isBlack) return;
+    setLoading(true);
+    try {
+      const data = await api.negocios.dre.get(phone, periodo);
+      // Sem eventos → mostra mock como demo
+      if (!data || data.total_vendas === 0) {
+        setDre(MOCK_DRE);
+        setUsandoMock(true);
+      } else {
+        setDre(data);
+        setUsandoMock(false);
+      }
+    } catch {
+      setDre(MOCK_DRE);
+      setUsandoMock(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone, isBlack, periodo]);
+
+  async function handleRecalcular() {
+    if (!phone || recalculando) return;
+    setRecalc(true);
+    try { await api.negocios.dre.recalcular({ phone, periodo }); await carregar(); }
+    catch (e: any) { alert(e.message); }
+    finally { setRecalc(false); }
+  }
 
   if (!isBlack) return <DashboardLayout><PaywallBlack /></DashboardLayout>;
+  if (loading || !dre) return <DashboardLayout><LoadingState /></DashboardLayout>;
 
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto pb-24 space-y-7">
 
-        {/* DEMO BANNER ─ visível enquanto não há integração ativa */}
-        <DemoBanner />
+        {usandoMock && <DemoBanner />}
 
         {/* HEADER */}
         <header className="flex items-start justify-between flex-wrap gap-4 animate-fade-in">
@@ -84,33 +138,67 @@ export default function NegociosPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
-              <Calendar size={13} /> {periodo}
+            <SeletorPeriodo value={periodo} onChange={setPeriodo} />
+            <button
+              onClick={handleRecalcular}
+              disabled={recalculando || usandoMock}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors disabled:opacity-50"
+            >
+              {recalculando
+                ? <Loader2 size={13} className="animate-spin" />
+                : <RefreshCw size={13} />}
+              Atualizar
             </button>
-            <button className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
-              <RefreshCw size={13} /> Atualizar
-            </button>
+            <Link href="/negocios/integracoes"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+              <SettingsIcon size={13} /> Integrações
+            </Link>
           </div>
         </header>
 
-        {/* HERO — métrica gigante + sparkline + KPIs secundários */}
         <HeroLucro dre={dre} />
-
-        {/* DRE WATERFALL */}
         <Waterfall dre={dre} />
 
-        {/* GRID 2x2 — Plataformas, Produtos, MRR, Insight */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <CardPlataformas />
-          <CardProdutos />
+          <CardPlataformas dre={dre} />
+          <CardProdutos dre={dre} />
           <CardMrr dre={dre} />
           <CardInsight />
         </div>
 
-        {/* Footer — sub-rotas futuras */}
         <FuturoEmBreve />
       </div>
     </DashboardLayout>
+  );
+}
+
+function SeletorPeriodo({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // últimos 6 meses
+  const opcoes = useMemo(() => {
+    const out: { v: string; label: string }[] = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(); d.setMonth(d.getMonth() - i);
+      const v = d.toISOString().slice(0, 7);
+      out.push({ v, label: periodoLabel(v + '-01') });
+    }
+    return out;
+  }, []);
+  return (
+    <div className="relative">
+      <select value={value} onChange={e => onChange(e.target.value)}
+              className="appearance-none cursor-pointer inline-flex items-center gap-2 px-3 py-2 pr-9 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+        {opcoes.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
+      </select>
+      <Calendar size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="max-w-7xl mx-auto pt-20 flex items-center justify-center">
+      <Loader2 size={20} className="animate-spin text-muted-foreground" />
+    </div>
   );
 }
 
@@ -137,7 +225,7 @@ function DemoBanner() {
   );
 }
 
-function HeroLucro({ dre }: { dre: typeof MOCK_DRE }) {
+function HeroLucro({ dre }: { dre: any }) {
   const positivo = dre.delta_vs_anterior >= 0;
   return (
     <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 animate-fade-in"
@@ -218,7 +306,7 @@ function Sparkline({ data, cor, className = '' }: { data: number[]; cor: string;
   );
 }
 
-function Waterfall({ dre }: { dre: typeof MOCK_DRE }) {
+function Waterfall({ dre }: { dre: any }) {
   // Linhas do DRE — cada uma com seu valor absoluto pra escala visual
   const max = dre.receita_bruta;
   const linhas = [
@@ -236,7 +324,7 @@ function Waterfall({ dre }: { dre: typeof MOCK_DRE }) {
     <section className="rounded-3xl border border-border bg-card p-6 animate-fade-in" style={{ animationDelay: '120ms' }}>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-base font-bold text-foreground tracking-tight">DRE — {dre.periodo}</h2>
+          <h2 className="text-base font-bold text-foreground tracking-tight">DRE — {periodoLabel(dre.periodo)}</h2>
           <p className="text-xs text-muted-foreground">Demonstração de Resultado do Exercício</p>
         </div>
         <Link href="#" className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
@@ -278,64 +366,74 @@ function Waterfall({ dre }: { dre: typeof MOCK_DRE }) {
   );
 }
 
-function CardPlataformas() {
-  const total = MOCK_PLATAFORMAS.reduce((s, p) => s + p.valor, 0);
+function CardPlataformas({ dre }: { dre: any }) {
+  const lista: { plataforma: string; valor: number; vendas: number }[] = dre.por_plataforma || [];
+  const total = lista.reduce((s, p) => s + (p.valor || 0), 0) || 1;
   return (
     <CardSecao titulo="Plataformas" subtitulo="Vendas por canal" icon={BarChart3} href="/negocios/integracoes">
-      <div className="space-y-3">
-        {MOCK_PLATAFORMAS.map(p => {
-          const pct = (p.valor / total) * 100;
-          return (
-            <div key={p.nome}>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.cor }} />
-                  <span className="text-sm font-semibold text-foreground truncate">{p.nome}</span>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0">· {p.vendas} vendas</span>
+      {lista.length === 0 ? (
+        <EmptyMini msg="Nenhuma venda registrada no período." />
+      ) : (
+        <div className="space-y-3">
+          {lista.map(p => {
+            const pct = (p.valor / total) * 100;
+            const cor = CORES_PLAT[p.plataforma] || '#94a3b8';
+            const nome = NOME_PLAT[p.plataforma] || p.plataforma;
+            return (
+              <div key={p.plataforma}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cor }} />
+                    <span className="text-sm font-semibold text-foreground truncate">{nome}</span>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">· {p.vendas} vendas</span>
+                  </div>
+                  <span className="text-sm font-bold tabular-nums text-foreground">{fmt(p.valor)}</span>
                 </div>
-                <span className="text-sm font-bold tabular-nums text-foreground">{fmt(p.valor)}</span>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: cor }} />
+                </div>
               </div>
-              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: p.cor }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </CardSecao>
   );
 }
 
-function CardProdutos() {
+function CardProdutos({ dre }: { dre: any }) {
+  const lista: { nome: string; valor: number; vendas: number }[] = dre.por_produto || [];
   return (
     <CardSecao titulo="Produtos" subtitulo="Top do mês" icon={Trophy} href="#">
-      <div className="space-y-2.5">
-        {MOCK_PRODUTOS.map((p, i) => {
-          const positivo = p.tendencia >= 0;
-          return (
+      {lista.length === 0 ? (
+        <EmptyMini msg="Nenhum produto vendido no período." />
+      ) : (
+        <div className="space-y-2.5">
+          {lista.slice(0, 4).map((p, i) => (
             <div key={p.nome} className="flex items-center gap-3">
               <span className="w-5 h-5 rounded-md bg-muted text-[10px] font-bold text-muted-foreground flex items-center justify-center flex-shrink-0">{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{p.nome}</p>
-                <p className="text-[11px] text-muted-foreground">{p.vendas} vendas</p>
+                <p className="text-[11px] text-muted-foreground">{p.vendas} {p.vendas === 1 ? 'venda' : 'vendas'}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-sm font-bold tabular-nums text-foreground">{fmt(p.valor)}</p>
-                <p className={`text-[10px] font-bold tabular-nums inline-flex items-center gap-0.5 ${
-                  positivo ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {positivo ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}{fmtPct(p.tendencia)}
-                </p>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </CardSecao>
   );
 }
 
-function CardMrr({ dre }: { dre: typeof MOCK_DRE }) {
+function EmptyMini({ msg }: { msg: string }) {
+  return (
+    <p className="text-xs text-muted-foreground italic py-4 text-center">{msg}</p>
+  );
+}
+
+function CardMrr({ dre }: { dre: any }) {
   return (
     <CardSecao titulo="MRR · Receita recorrente" subtitulo="Mensal" icon={TrendingUp} href="#">
       <div className="flex items-baseline gap-2 mb-3">
