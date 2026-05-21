@@ -291,17 +291,17 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
   // já conectada → modal vira tela de gerenciamento (mostra status + última sync)
   const jaConectada = plataforma.status === 'conectada';
   const disponivel  = plataforma.status === 'disponivel';
-  const temCredenciais = clientId.trim() && clientSecret.trim();
-
   async function handleConectar() {
-    if (!temCredenciais || !phone) return;
+    if (!phone) return;
     setErro('');
     setEnviando(true);
     try {
       const { integracao } = await api.negocios.integracoes.conectar({
         phone,
         plataforma: plataforma.id,
-        credenciais: { client_id: clientId.trim(), client_secret: clientSecret.trim() },
+        credenciais: clientId.trim()
+          ? { client_id: clientId.trim(), client_secret: clientSecret.trim() }
+          : {},
         apelido: apelido.trim() || undefined,
       });
       const base = typeof window !== 'undefined' ? window.location.origin.replace('3000', '3001') : '';
@@ -383,7 +383,10 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
               <div className="rounded-xl bg-muted/20 border border-border/60 p-3 mb-4 space-y-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Credenciais OAuth</p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Acesse <strong className="text-foreground">developers.hotmart.com</strong> → Crie um app → copie Client ID e Client Secret.
+                  <span className="text-foreground font-semibold">Opcional</span> — necessário apenas pra importar histórico dos últimos 90 dias. Pra receber novas vendas em tempo real, pode deixar em branco.
+                </p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Se quiser: acesse <strong className="text-foreground">developers.hotmart.com</strong> → crie um app → copie Client ID e Client Secret.
                 </p>
                 <div className="space-y-2">
                   <div>
@@ -429,7 +432,7 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
             </button>
             <button
               onClick={handleConectar}
-              disabled={!temCredenciais || enviando}
+              disabled={enviando}
               className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
               style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}
             >
