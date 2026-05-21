@@ -282,7 +282,8 @@ function Garantia({ icon: Icon, titulo, desc }: { icon: any; titulo: string; des
 
 function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClose: () => void }) {
   const { phone } = useAuth();
-  const [token, setToken]   = useState('');
+  const [clientId, setClientId]   = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [apelido, setApelido] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso]   = useState<{ webhookUrl: string; secret: string } | null>(null);
@@ -290,16 +291,17 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
   // já conectada → modal vira tela de gerenciamento (mostra status + última sync)
   const jaConectada = plataforma.status === 'conectada';
   const disponivel  = plataforma.status === 'disponivel';
+  const temCredenciais = clientId.trim() && clientSecret.trim();
 
   async function handleConectar() {
-    if (!token.trim() || !phone) return;
+    if (!temCredenciais || !phone) return;
     setErro('');
     setEnviando(true);
     try {
       const { integracao } = await api.negocios.integracoes.conectar({
         phone,
         plataforma: plataforma.id,
-        credenciais: { token: token.trim() },
+        credenciais: { client_id: clientId.trim(), client_secret: clientSecret.trim() },
         apelido: apelido.trim() || undefined,
       });
       const base = typeof window !== 'undefined' ? window.location.origin.replace('3000', '3001') : '';
@@ -378,17 +380,35 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
                 />
               </div>
 
-              <div className="space-y-1.5 mb-4">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Token de autenticação</label>
-                <input
-                  type="password"
-                  value={token}
-                  onChange={e => setToken(e.target.value)}
-                  placeholder="cole o token Hotmart aqui"
-                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
-                />
+              <div className="rounded-xl bg-muted/20 border border-border/60 p-3 mb-4 space-y-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Credenciais OAuth</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Acesse <strong className="text-foreground">developers.hotmart.com</strong> → Crie um app → copie Client ID e Client Secret.
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Client ID</label>
+                    <input
+                      type="text"
+                      value={clientId}
+                      onChange={e => setClientId(e.target.value)}
+                      placeholder="ex: 12ab34cd-..."
+                      className="w-full mt-1 px-3 py-2 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Client Secret</label>
+                    <input
+                      type="password"
+                      value={clientSecret}
+                      onChange={e => setClientSecret(e.target.value)}
+                      placeholder="cole o secret aqui"
+                      className="w-full mt-1 px-3 py-2 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
+                    />
+                  </div>
+                </div>
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Lock size={9} /> Token salvo no servidor, nunca exposto.
+                  <Lock size={9} /> Credenciais salvas no servidor, nunca expostas.
                 </p>
               </div>
 
@@ -409,7 +429,7 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
             </button>
             <button
               onClick={handleConectar}
-              disabled={!token.trim() || enviando}
+              disabled={!temCredenciais || enviando}
               className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
               style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}
             >
