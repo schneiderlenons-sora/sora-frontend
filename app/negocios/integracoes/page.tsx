@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
   ArrowLeft, Plug, Check, Clock, Sparkles, X, Lock, ExternalLink,
-  ShieldCheck, RefreshCw, Zap, Trash2, Copy, Loader2,
+  ShieldCheck, RefreshCw, Zap, Trash2, Copy, Loader2, ChevronRight,
 } from 'lucide-react';
 
 const BRAND = '#61ce70';
