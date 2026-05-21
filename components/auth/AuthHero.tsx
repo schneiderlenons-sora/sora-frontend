@@ -74,8 +74,8 @@ export default function AuthHero() {
       <div className="relative mt-8 lg:mt-0 space-y-7 animate-fade-in" style={{ animationDelay: '80ms' }}>
 
         <h1 className="text-4xl sm:text-5xl font-bold leading-[1.05] tracking-tight">
-          Suas finanças<br />sob controle.{' '}
-          <span style={{ color: BRAND }}>Finalmente.</span>
+          Sua vida<br />sob controle.{' '}
+          <span style={{ color: BRAND }}>Definitivamente!</span>
         </h1>
 
         <p className="text-white/60 text-sm sm:text-base leading-relaxed max-w-md">
