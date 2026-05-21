@@ -5,10 +5,13 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
+import ModalCustos from '@/components/negocios/ModalCustos';
 import {
   Briefcase, ArrowUpRight, ArrowDownRight, Plug, Sparkles, RefreshCw,
   Crown, Trophy, ChevronRight, BarChart3, Zap, Calendar, TrendingUp,
   ShoppingBag, Receipt, Info, Settings as SettingsIcon, Loader2,
+  Wallet, Landmark,
 } from 'lucide-react';
 
 const BRAND = '#61ce70';
@@ -84,6 +87,8 @@ export default function NegociosPage() {
   const [usandoMock, setUsandoMock] = useState(false);
   const [loading, setLoading]       = useState(true);
   const [recalculando, setRecalc]   = useState(false);
+  const [modalCfg, setModalCfg]     = useState(false);
+  const [modalCustos, setModalCustos] = useState(false);
 
   async function carregar() {
     if (!phone || !isBlack) return;
@@ -149,9 +154,17 @@ export default function NegociosPage() {
                 : <RefreshCw size={13} />}
               Atualizar
             </button>
+            <button onClick={() => setModalCustos(true)}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+              <Wallet size={13} /> Custos
+            </button>
+            <button onClick={() => setModalCfg(true)}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+              <Landmark size={13} /> Tributário
+            </button>
             <Link href="/negocios/integracoes"
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
-              <SettingsIcon size={13} /> Integrações
+              <Plug size={13} /> Integrações
             </Link>
           </div>
         </header>
@@ -168,6 +181,9 @@ export default function NegociosPage() {
 
         <FuturoEmBreve />
       </div>
+
+      {modalCfg    && <ModalConfigTributaria onClose={() => { setModalCfg(false); carregar(); }} />}
+      {modalCustos && <ModalCustos periodo={periodo} onClose={() => { setModalCustos(false); carregar(); }} />}
     </DashboardLayout>
   );
 }
