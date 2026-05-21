@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
-  Sun, Moon, Flag, Download, Receipt,
+  Sun, Moon, Flag, Download, Receipt, Briefcase,
   Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -26,6 +26,7 @@ const NAV_FINANCE = [
   { href: '/dividas',            label: 'Dívidas',           icon: Receipt },
   { href: '/comunidade',         label: 'Grupos',            icon: Users },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp, black: true },
+  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,  black: true },
   { href: '/configuracoes',      label: 'Configurações',     icon: Settings },
 ];
 
@@ -108,6 +109,8 @@ export default function Sidebar() {
             ? !!pathname?.startsWith('/grow/saude')
             : href === '/grow/estudos'
             ? !!pathname?.startsWith('/grow/estudos')
+            : href === '/negocios'
+            ? !!pathname?.startsWith('/negocios')
             : pathname === href;
           return (
             <Link
