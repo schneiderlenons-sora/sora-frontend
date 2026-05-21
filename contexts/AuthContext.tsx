@@ -42,10 +42,12 @@ interface AuthContextType {
   trocarPainel:    (p: Painel) => Promise<void>;
   ativarTrialGrow: () => Promise<void>;
   // ──────────
-  signIn:     (email: string, password: string) => Promise<void>;
-  signUp:     (email: string, password: string, name: string) => Promise<void>;
-  signOut:    () => Promise<void>;
-  recarregar: () => Promise<void>;
+  signIn:           (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple:  () => Promise<void>;
+  signUp:           (email: string, password: string, name: string) => Promise<void>;
+  signOut:          () => Promise<void>;
+  recarregar:       () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -127,6 +129,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/dashboard');
   }
 
+  async function signInWithProvider(provider: 'google' | 'apple') {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    });
+    if (error) throw new Error(error.message);
+  }
+  const signInWithGoogle = () => signInWithProvider('google');
+  const signInWithApple  = () => signInWithProvider('apple');
+
   async function signUp(email: string, password: string, name: string) {
     const { error } = await supabase.auth.signUp({
       email, password,
@@ -182,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       papel, podeEditar, podeAdministrar,
       painelAtivo, temAcessoGrow, trialAtivo, diasTrialRestantes,
       trocarPainel, ativarTrialGrow,
-      signIn, signUp, signOut, recarregar
+      signIn, signInWithGoogle, signInWithApple, signUp, signOut, recarregar
     }}>
       {children}
     </AuthContext.Provider>
