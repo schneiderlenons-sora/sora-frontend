@@ -311,11 +311,16 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
           {sucesso ? (
             <TelaSucesso webhookUrl={sucesso.webhookUrl} plataforma={plataforma.nome} />
           ) : jaConectada ? (
-            <div className="text-center py-6">
-              <Check size={24} className="text-green-500 mx-auto mb-2" />
-              <p className="text-sm font-bold text-foreground">{plataforma.nome} conectada</p>
-              <p className="text-xs text-muted-foreground mt-1">Eventos chegam via webhook.</p>
-            </div>
+            <TelaConectada
+              plataforma={plataforma}
+              integ={(plataforma as any).integ}
+              onImportar={async () => {
+                try {
+                  await api.negocios.integracoes.importarHistorico((plataforma as any).integ.id);
+                  alert('Importação iniciada! Os eventos dos últimos 90 dias chegam em instantes.');
+                } catch (e: any) { alert(e.message); }
+              }}
+            />
           ) : !disponivel ? (
             <div className="text-center py-6">
               <Clock size={24} className="text-muted-foreground mx-auto mb-2" />
@@ -393,6 +398,61 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function TelaConectada({ plataforma, integ, onImportar }: { plataforma: Plataforma; integ: any; onImportar: () => Promise<void> }) {
+  const [importando, setImportando] = useState(false);
+
+  async function handleImportar() {
+    setImportando(true);
+    try { await onImportar(); }
+    finally { setImportando(false); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0"
+             style={{ background: `linear-gradient(135deg, ${plataforma.cor} 0%, ${escurecer(plataforma.cor)} 100%)` }}>
+          {plataforma.nome.charAt(0)}
+        </div>
+        <div>
+          <p className="text-sm font-bold text-foreground">{plataforma.nome} conectada</p>
+          <p className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Ativa · recebendo via webhook
+          </p>
+        </div>
+      </div>
+
+      {integ?.ultimo_sync && (
+        <p className="text-[11px] text-muted-foreground">
+          Última sincronização: {new Date(integ.ultimo_sync).toLocaleString('pt-BR')}
+        </p>
+      )}
+      {integ?.total_eventos > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {integ.total_eventos} eventos capturados
+        </p>
+      )}
+
+      <div className="rounded-xl bg-muted/30 border border-border p-3">
+        <p className="text-xs font-bold text-foreground mb-1">Importar histórico</p>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          Puxa todas as vendas dos últimos 90 dias via API da {plataforma.nome}. Ideal pra fazer no primeiro acesso.
+        </p>
+        <button
+          onClick={handleImportar}
+          disabled={importando}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-sm disabled:opacity-50"
+          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}
+        >
+          {importando
+            ? <><Loader2 size={12} className="animate-spin" /> Importando…</>
+            : <><Zap size={12} /> Importar 90 dias</>}
+        </button>
       </div>
     </div>
   );

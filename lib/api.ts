@@ -480,6 +480,8 @@ export const api = {
         req<{ ok: boolean; integracao: { id: string; webhook_secret: string } }>('/api/negocios/integracoes', { method: 'POST', body: JSON.stringify(body) }),
       deletar: (id: string) =>
         req(`/api/negocios/integracoes/${id}`, { method: 'DELETE' }),
+      importarHistorico: (id: string) =>
+        req<{ ok: boolean; job: string }>(`/api/negocios/integracoes/${id}/importar-historico`, { method: 'POST' }),
     },
     dre: {
       get: (phone: string, periodo?: string) =>
