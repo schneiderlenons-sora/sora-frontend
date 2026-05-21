@@ -552,12 +552,14 @@ function FuturoEmBreve() {
     { icon: Receipt,    label: 'DRE detalhado',  desc: 'Drill-down linha-a-linha', href: '/negocios/dre' },
     { icon: ShoppingBag, label: 'Vendas',        desc: 'Lista de eventos',          href: '/negocios/vendas' },
     { icon: Zap,        label: 'Insights da IA', desc: 'Feed de alertas',           href: '/negocios/insights' },
-    { icon: Sparkles,   label: 'Wrapped',        desc: 'Em breve',                  href: null },
+    { icon: Sparkles,   label: 'Wrapped',        desc: 'Resumo do mês compartilhável', href: '/negocios/wrapped' },
+    { icon: Trophy,     label: 'Conciliação',    desc: 'Match Hotmart × banco',     href: '/negocios/conciliacao' },
+    { icon: TrendingUp, label: 'Forecast',       desc: 'Previsão 3 meses',          href: '/negocios/forecast' },
   ];
   return (
     <div className="rounded-2xl border border-border bg-muted/20 p-5 animate-fade-in" style={{ animationDelay: '300ms' }}>
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Explorar</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {itens.map(it => {
           const Inner = (
             <div className="flex items-start gap-2.5 p-2 rounded-xl hover:bg-card transition-colors h-full">

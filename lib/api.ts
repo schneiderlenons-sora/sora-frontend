@@ -516,11 +516,22 @@ export const api = {
       dispensar: (id: string) => req(`/api/negocios/insights/${id}/dispensar`, { method: 'POST' }),
       gerar: (phone: string) => req<{ ok: boolean; gerados: number; insights: any[] }>('/api/negocios/insights/gerar', { method: 'POST', body: JSON.stringify({ phone }) }),
     },
+    wrapped: {
+      get: (phone: string, periodo?: string) =>
+        req<any>(`/api/negocios/wrapped/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+    },
+    forecast: {
+      get: (phone: string) => req<any>(`/api/negocios/forecast/${phone}`),
+    },
     conciliacao: {
       sugerir: (phone: string) =>
-        req<{ evento_id: string; transacao_id: string; confianca: number }[]>(`/api/negocios/conciliacao/sugerir/${phone}`),
+        req<any[]>(`/api/negocios/conciliacao/sugerir/${phone}`),
+      conciliadas: (phone: string) =>
+        req<any[]>(`/api/negocios/conciliacao/conciliadas/${phone}`),
       conciliar: (body: { phone: string; evento_id: string; transacao_id: string; match_tipo?: string }) =>
         req('/api/negocios/conciliacao', { method: 'POST', body: JSON.stringify(body) }),
+      desconciliar: (id: string) =>
+        req(`/api/negocios/conciliacao/${id}`, { method: 'DELETE' }),
     },
   },
 };
