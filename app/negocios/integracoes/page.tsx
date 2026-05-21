@@ -35,10 +35,10 @@ const PLATAFORMAS: Plataforma[] = [
     status: 'disponivel',
     destaque: true,
     comoConectar: [
-      'Acesse o painel Hotmart → Ferramentas → Webhooks',
-      'Crie um novo webhook apontando para a URL da Sora (copiamos pra você no próximo passo)',
-      'Cole o token de autenticação aqui',
-      'Sincronizamos seus últimos 90 dias automaticamente',
+      'Clique em "Conectar" abaixo — geramos a URL do webhook pra você',
+      'Copie a URL e cole em: Hotmart → Ferramentas → Webhooks → Cadastrar',
+      'Selecione versão 2.0.0 e os eventos: PURCHASE_APPROVED, PURCHASE_REFUNDED, PURCHASE_CHARGEBACK',
+      'Pronto! Novas vendas chegam automaticamente em tempo real',
     ],
   },
   { id: 'kiwify', nome: 'Kiwify',  categoria: 'Infoprodutos', cor: '#0066ff',
@@ -285,10 +285,10 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
   const [clientId, setClientId]   = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [apelido, setApelido] = useState('');
+  const [avancado, setAvancado] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso]   = useState<{ webhookUrl: string; secret: string } | null>(null);
   const [erro, setErro] = useState('');
-  // já conectada → modal vira tela de gerenciamento (mostra status + última sync)
   const jaConectada = plataforma.status === 'conectada';
   const disponivel  = plataforma.status === 'disponivel';
   async function handleConectar() {
@@ -380,39 +380,48 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
                 />
               </div>
 
-              <div className="rounded-xl bg-muted/20 border border-border/60 p-3 mb-4 space-y-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Credenciais OAuth</p>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  <span className="text-foreground font-semibold">Opcional</span> — necessário apenas pra importar histórico dos últimos 90 dias. Pra receber novas vendas em tempo real, pode deixar em branco.
-                </p>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Se quiser: acesse <strong className="text-foreground">developers.hotmart.com</strong> → crie um app → copie Client ID e Client Secret.
-                </p>
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Client ID</label>
-                    <input
-                      type="text"
-                      value={clientId}
-                      onChange={e => setClientId(e.target.value)}
-                      placeholder="ex: 12ab34cd-..."
-                      className="w-full mt-1 px-3 py-2 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
-                    />
+              {/* Seção avançada colapsável — importação histórica */}
+              <div className="mb-4">
+                <button type="button" onClick={() => setAvancado(v => !v)}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-muted/20 border border-border/60 hover:bg-muted/40 transition-colors">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Habilitar importação histórica (90 dias)
+                  </span>
+                  <ChevronRight size={13} className={`text-muted-foreground transition-transform ${avancado ? 'rotate-90' : ''}`} />
+                </button>
+
+                {avancado && (
+                  <div className="mt-2 rounded-xl bg-muted/20 border border-border/60 p-3 space-y-2.5 animate-fade-in">
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Para puxar vendas anteriores, acesse <strong className="text-foreground">developers.hotmart.com</strong> → crie um app → copie Client ID e Client Secret.
+                    </p>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Client ID</label>
+                        <input
+                          type="text"
+                          value={clientId}
+                          onChange={e => setClientId(e.target.value)}
+                          placeholder="ex: 12ab34cd-..."
+                          className="w-full mt-1 px-3 py-2 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Client Secret</label>
+                        <input
+                          type="password"
+                          value={clientSecret}
+                          onChange={e => setClientSecret(e.target.value)}
+                          placeholder="cole o secret aqui"
+                          className="w-full mt-1 px-3 py-2 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Lock size={9} /> Salvas no servidor, nunca expostas.
+                    </p>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Client Secret</label>
-                    <input
-                      type="password"
-                      value={clientSecret}
-                      onChange={e => setClientSecret(e.target.value)}
-                      placeholder="cole o secret aqui"
-                      className="w-full mt-1 px-3 py-2 rounded-xl bg-card border border-border text-sm font-mono text-foreground focus:outline-none focus:border-foreground/40 transition-colors"
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Lock size={9} /> Credenciais salvas no servidor, nunca expostas.
-                </p>
+                )}
               </div>
 
               {erro && (
