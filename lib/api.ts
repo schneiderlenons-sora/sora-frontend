@@ -486,6 +486,8 @@ export const api = {
     dre: {
       get: (phone: string, periodo?: string) =>
         req<any>(`/api/negocios/dre/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+      detalhado: (phone: string, periodo?: string) =>
+        req<any>(`/api/negocios/dre-detalhado/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
       recalcular: (body: { phone: string; periodo?: string }) =>
         req<any>('/api/negocios/dre/recalcular', { method: 'POST', body: JSON.stringify(body) }),
     },
@@ -512,6 +514,7 @@ export const api = {
       listar: (phone: string) => req<any[]>(`/api/negocios/insights/${phone}`),
       visto: (id: string) => req(`/api/negocios/insights/${id}/visto`, { method: 'POST' }),
       dispensar: (id: string) => req(`/api/negocios/insights/${id}/dispensar`, { method: 'POST' }),
+      gerar: (phone: string) => req<{ ok: boolean; gerados: number; insights: any[] }>('/api/negocios/insights/gerar', { method: 'POST', body: JSON.stringify({ phone }) }),
     },
     conciliacao: {
       sugerir: (phone: string) =>

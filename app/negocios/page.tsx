@@ -476,21 +476,50 @@ function CardMrr({ dre }: { dre: any }) {
 }
 
 function CardInsight() {
+  const { phone } = useAuth();
+  const [topo, setTopo] = useState<any>(null);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    if (!phone) return;
+    api.negocios.insights.listar(phone)
+      .then(list => setTopo(list?.[0] || null))
+      .catch(() => setTopo(null))
+      .finally(() => setCarregando(false));
+  }, [phone]);
+
+  // Fallback pro mock se não houver insights reais ainda
+  const exibir = topo || (carregando ? null : { ...MOCK_INSIGHT, acao_url: '/negocios/insights', acao_label: 'Ver insights' });
+
   return (
     <div className="rounded-2xl border bg-card p-5 animate-fade-in relative overflow-hidden"
          style={{ animationDelay: '240ms', borderColor: `${BRAND}40` }}>
       <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none opacity-30"
            style={{ background: `radial-gradient(circle at top right, ${BRAND} 0%, transparent 70%)` }} />
       <div className="relative">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={13} style={{ color: BRAND }} />
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND }}>Sora IA</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles size={13} style={{ color: BRAND }} />
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND }}>Sora IA</span>
+          </div>
+          <Link href="/negocios/insights" className="text-[10px] font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5">
+            Todos <ChevronRight size={10} />
+          </Link>
         </div>
-        <h3 className="text-base font-bold text-foreground tracking-tight mb-1">{MOCK_INSIGHT.titulo}</h3>
-        <p className="text-xs text-muted-foreground leading-relaxed mb-4">{MOCK_INSIGHT.descricao}</p>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors">
-          {MOCK_INSIGHT.acao} <ChevronRight size={12} />
-        </button>
+        {carregando ? (
+          <div className="py-3 text-xs text-muted-foreground italic">Analisando…</div>
+        ) : !exibir ? (
+          <p className="text-xs text-muted-foreground italic py-3">Sem insights no momento.</p>
+        ) : (
+          <>
+            <h3 className="text-base font-bold text-foreground tracking-tight mb-1">{exibir.titulo}</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-4">{exibir.descricao}</p>
+            <Link href={exibir.acao_url || '/negocios/insights'}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-foreground bg-foreground/5 hover:bg-foreground/10 transition-colors">
+              {exibir.acao_label || exibir.acao || 'Ver'} <ChevronRight size={12} />
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
@@ -520,24 +549,29 @@ function CardSecao({
 
 function FuturoEmBreve() {
   const itens = [
-    { icon: Receipt,    label: 'DRE detalhado',     desc: 'Drill-down linha-a-linha' },
-    { icon: ShoppingBag, label: 'Vendas',           desc: 'Lista crua de eventos' },
-    { icon: Zap,        label: 'Insights da IA',    desc: 'Feed de alertas' },
-    { icon: Sparkles,   label: 'Wrapped',           desc: 'Resumo do mês compartilhável' },
+    { icon: Receipt,    label: 'DRE detalhado',  desc: 'Drill-down linha-a-linha', href: '/negocios/dre' },
+    { icon: ShoppingBag, label: 'Vendas',        desc: 'Lista de eventos',          href: '/negocios/vendas' },
+    { icon: Zap,        label: 'Insights da IA', desc: 'Feed de alertas',           href: '/negocios/insights' },
+    { icon: Sparkles,   label: 'Wrapped',        desc: 'Em breve',                  href: null },
   ];
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 animate-fade-in" style={{ animationDelay: '300ms' }}>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Em breve nesta aba</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {itens.map(it => (
-          <div key={it.label} className="flex items-start gap-2.5">
-            <it.icon size={14} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground leading-tight">{it.label}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{it.desc}</p>
+    <div className="rounded-2xl border border-border bg-muted/20 p-5 animate-fade-in" style={{ animationDelay: '300ms' }}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Explorar</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {itens.map(it => {
+          const Inner = (
+            <div className="flex items-start gap-2.5 p-2 rounded-xl hover:bg-card transition-colors h-full">
+              <it.icon size={14} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground leading-tight">{it.label}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{it.desc}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+          return it.href
+            ? <Link key={it.label} href={it.href}>{Inner}</Link>
+            : <div key={it.label} className="opacity-50">{Inner}</div>;
+        })}
       </div>
     </div>
   );
