@@ -1,29 +1,36 @@
 'use client';
 
 import { useState } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
-/**
- * Carrossel mostrando as principais telas dos painéis Finance + Grow.
- * Placeholder com SVG ilustrativo até screenshots reais entrarem em /public/screenshots.
- */
 const SHOTS = [
-  { id: 'dashboard',     titulo: 'Dashboard Finance',  painel: 'finance', desc: 'Saldo, fluxo e KPIs do mês em uma só tela.' },
-  { id: 'transacoes',    titulo: 'Transações',         painel: 'finance', desc: 'Histórico completo, filtros e busca instantânea.' },
-  { id: 'investimentos', titulo: 'Investimentos',      painel: 'finance', desc: 'Carteira consolidada com rentabilidade ao vivo.' },
-  { id: 'metas',         titulo: 'Metas',              painel: 'finance', desc: 'Cálculo automático de aporte pra bater o objetivo.' },
-  { id: 'grow-dash',     titulo: 'Dashboard Grow',     painel: 'grow',    desc: 'Visão diária de hábitos, tarefas, saúde.' },
-  { id: 'habitos',       titulo: 'Hábitos',            painel: 'grow',    desc: 'Heatmap GitHub-style + conquistas dinâmicas.' },
-  { id: 'saude',         titulo: 'Saúde',              painel: 'grow',    desc: 'Consultas, remédios, treinos, peso, nutrição.' },
-  { id: 'estudos',       titulo: 'Estudos',            painel: 'grow',    desc: 'Sessões cronometradas + progresso por curso.' },
+  { id: 'finance-dashboard',     titulo: 'Dashboard',     painel: 'finance', desc: 'Saldo, fluxo e KPIs do mês em uma só tela.',          img: '/screenshots/finance-dashboard.jpeg' },
+  { id: 'finance-transacoes',    titulo: 'Transações',    painel: 'finance', desc: 'Histórico completo com filtros e busca instantânea.', img: '/screenshots/finance-transacoes.jpeg' },
+  { id: 'finance-investimentos', titulo: 'Investimentos', painel: 'finance', desc: 'Carteira consolidada com rentabilidade ao vivo.',     img: '/screenshots/finance-investimentos.jpeg' },
+  { id: 'finance-metas',         titulo: 'Metas',         painel: 'finance', desc: 'Cálculo automático de aporte pra bater o objetivo.', img: '/screenshots/finance-metas.jpeg' },
+  { id: 'finance-cartao',        titulo: 'Cartão de crédito', painel: 'finance', desc: 'Fatura, limites e parcelas no controle total.',  img: '/screenshots/finance-cartao.jpeg' },
+  { id: 'finance-limites',       titulo: 'Limites de gastos', painel: 'finance', desc: 'Alertas inteligentes antes de virar problema.',  img: '/screenshots/finance-limites.jpeg' },
+  { id: 'grow-dashboard',        titulo: 'Sora Grow',     painel: 'grow',    desc: 'Visão diária de hábitos, tarefas e saúde.',           img: '/screenshots/grow-dashboard.jpeg' },
+  { id: 'grow-saude',            titulo: 'Saúde',         painel: 'grow',    desc: 'Consultas, remédios, treinos, peso e nutrição.',     img: '/screenshots/grow-saude.jpeg' },
 ];
 
 export default function Carrossel() {
   const [idx, setIdx] = useState(0);
   const ativo = SHOTS[idx];
 
+  function prev() { setIdx(i => (i === 0 ? SHOTS.length - 1 : i - 1)); }
+  function next() { setIdx(i => (i === SHOTS.length - 1 ? 0 : i + 1)); }
+
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
-      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+
+      {/* BG glow sutil */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] h-[600px] opacity-20 dark:opacity-10"
+             style={{ background: 'radial-gradient(ellipse, rgba(97,206,112,0.18) 0%, transparent 60%)' }} />
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-5 sm:px-8">
 
         <div className="text-center mb-12 lg:mb-16">
           <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
@@ -35,28 +42,66 @@ export default function Carrossel() {
           </h2>
         </div>
 
-        {/* Display principal */}
-        <div className="relative rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.02] overflow-hidden mb-6">
-          <div className="aspect-[16/9] w-full relative bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-900 dark:to-zinc-950 flex items-center justify-center">
-            {/* Browser chrome fake */}
-            <div className="absolute top-0 left-0 right-0 px-4 py-2.5 flex items-center gap-2 border-b border-zinc-200 dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.03] backdrop-blur-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
-                <span className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
-              </div>
-              <div className="ml-3 px-3 py-1 rounded-md bg-zinc-100 dark:bg-white/[0.06] text-[10px] font-mono text-zinc-500 dark:text-white/40">
-                forsora.com/{ativo.id}
-              </div>
+        {/* Display principal — browser chrome + screenshot */}
+        <div className="relative rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-900 dark:bg-black overflow-hidden mb-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)]">
+          {/* Browser chrome */}
+          <div className="px-4 py-3 flex items-center gap-2 border-b border-zinc-800 dark:border-white/[0.06] bg-zinc-900 dark:bg-zinc-950">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-[#FF5F57]" />
+              <span className="w-3 h-3 rounded-full bg-[#FEBC2E]" />
+              <span className="w-3 h-3 rounded-full bg-[#28C840]" />
+            </div>
+            <div className="ml-3 px-3 py-1 rounded-md bg-white/5 text-[11px] font-mono text-white/60 inline-flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              forsora.com<span className="text-white/30">/{ativo.id.replace('finance-', '').replace('grow-', 'grow/')}</span>
             </div>
 
-            {/* Placeholder shot — placeholder até screenshots reais */}
-            <PlaceholderShot id={ativo.id} painel={ativo.painel as 'finance' | 'grow'} />
+            {/* Setas de navegação no chrome */}
+            <div className="ml-auto flex items-center gap-1">
+              <button onClick={prev}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+                <ArrowLeft size={14} />
+              </button>
+              <button onClick={next}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Screenshot */}
+          <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-900">
+            <img
+              key={ativo.id}
+              src={ativo.img}
+              alt={ativo.titulo}
+              className="absolute inset-0 w-full h-full object-cover object-top animate-[fade-in_500ms_ease-out_both]"
+              loading="lazy"
+            />
+
+            {/* Caption flutuante */}
+            <div className="absolute bottom-5 left-5 right-5 sm:left-auto sm:right-5 sm:max-w-sm">
+              <div className="px-4 py-3 rounded-xl backdrop-blur-md bg-black/60 border border-white/10 text-white shadow-2xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }} />
+                  <p className="text-[10px] font-bold uppercase tracking-widest"
+                     style={{ color: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }}>
+                    {ativo.painel === 'finance' ? 'Sora Finance' : 'Sora Grow'}
+                  </p>
+                </div>
+                <p className="font-bold text-sm">{ativo.titulo}</p>
+                <p className="text-xs text-white/70 mt-0.5 leading-relaxed">{ativo.desc}</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Lista de thumbnails */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Thumbnails */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {SHOTS.map((s, i) => {
             const ativa = idx === i;
             const cor = s.painel === 'finance' ? '#61ce70' : '#7c3aed';
@@ -64,74 +109,32 @@ export default function Carrossel() {
               <button
                 key={s.id}
                 onClick={() => setIdx(i)}
-                className={`text-left p-4 rounded-2xl border transition-all ${
+                className={`group relative aspect-[16/10] rounded-xl overflow-hidden border transition-all ${
                   ativa
-                    ? 'border-zinc-300 dark:border-white/[0.18] bg-white dark:bg-white/[0.05] shadow-md'
-                    : 'border-zinc-200 dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] hover:border-zinc-300 dark:hover:border-white/[0.12]'
+                    ? 'border-zinc-400 dark:border-white/30 shadow-md ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a]'
+                    : 'border-zinc-200 dark:border-white/[0.08] hover:border-zinc-300 dark:hover:border-white/[0.18] opacity-70 hover:opacity-100'
                 }`}
+                style={ativa ? { '--tw-ring-color': cor } as any : {}}
               >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: cor }} />
-                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: cor }}>
-                    {s.painel === 'finance' ? 'Finance' : 'Grow'}
-                  </p>
+                <img src={s.img} alt={s.titulo} loading="lazy"
+                     className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <div className="absolute bottom-1.5 left-2 right-2">
+                  <p className="text-[9px] font-bold text-white truncate">{s.titulo}</p>
                 </div>
-                <p className="font-bold text-sm text-zinc-900 dark:text-white truncate">{s.titulo}</p>
-                <p className="text-[11px] text-zinc-500 dark:text-white/50 mt-1 line-clamp-2">{s.desc}</p>
+                {/* Dot indicador de painel */}
+                <span className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full" style={{ background: cor }} />
               </button>
             );
           })}
         </div>
 
-        {/* Aviso pra screenshots reais */}
-        <p className="text-center mt-6 text-xs text-zinc-400 dark:text-white/30">
-          Imagens ilustrativas — as telas reais do produto serão exibidas em breve.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function PlaceholderShot({ id, painel }: { id: string; painel: 'finance' | 'grow' }) {
-  const cor = painel === 'finance' ? '#61ce70' : '#7c3aed';
-  return (
-    <div className="absolute inset-0 mt-10 p-8 flex items-center justify-center">
-      <div className="w-full max-w-3xl">
-        {/* Mock dashboard */}
-        <div className="rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/[0.06] p-6 shadow-2xl">
-          {/* Top metrics */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="p-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03]">
-                <div className="w-12 h-2.5 rounded-full bg-zinc-200 dark:bg-white/10 mb-2" />
-                <div className="w-20 h-5 rounded-full" style={{ background: `${cor}33` }} />
-              </div>
-            ))}
-          </div>
-
-          {/* Chart area */}
-          <div className="h-40 rounded-xl bg-zinc-50 dark:bg-white/[0.02] p-4 flex items-end gap-1.5">
-            {[40, 65, 50, 80, 70, 95, 60, 75, 85, 70, 90, 100].map((h, i) => (
-              <div key={i} className="flex-1 rounded-t-md"
-                   style={{ height: `${h}%`, background: `linear-gradient(to top, ${cor}, ${cor}66)` }} />
-            ))}
-          </div>
-
-          {/* List */}
-          <div className="mt-5 space-y-2">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-white/[0.02]">
-                <div className="w-7 h-7 rounded-lg" style={{ background: `${cor}33` }} />
-                <div className="flex-1">
-                  <div className="w-32 h-2.5 rounded-full bg-zinc-200 dark:bg-white/10 mb-1" />
-                  <div className="w-20 h-2 rounded-full bg-zinc-100 dark:bg-white/[0.06]" />
-                </div>
-                <div className="w-16 h-3 rounded-full" style={{ background: `${cor}55` }} />
-              </div>
-            ))}
-          </div>
+        {/* Stats / contador */}
+        <div className="flex items-center justify-between mt-6 text-xs text-zinc-500 dark:text-white/40">
+          <span>{String(idx + 1).padStart(2, '0')} / {String(SHOTS.length).padStart(2, '0')}</span>
+          <span className="font-mono">{ativo.titulo}</span>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
