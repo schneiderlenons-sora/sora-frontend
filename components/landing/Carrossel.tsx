@@ -93,7 +93,7 @@ export default function Carrossel() {
               key={ativo.id}
               src={ativo.img}
               alt={ativo.titulo}
-              className="absolute inset-0 w-full h-full object-contain object-center animate-[fade-in_500ms_ease-out_both]"
+              className="absolute inset-0 w-full h-full object-cover object-top animate-[fade-in_500ms_ease-out_both]"
               loading="lazy"
             />
 
