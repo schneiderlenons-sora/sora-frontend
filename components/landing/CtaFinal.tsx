@@ -56,7 +56,7 @@ export default function CtaFinal() {
             </h2>
 
             <p className="text-lg lg:text-xl text-white/65 max-w-2xl mx-auto leading-relaxed mb-10">
-              7 dias do Sora Grow grátis em qualquer plano. Cancele em 1 toque, sem letras miúdas.
+              Cancele em 1 toque. Sem letras miúdas, sem permanência.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3">

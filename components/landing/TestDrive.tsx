@@ -95,10 +95,10 @@ export default function TestDrive() {
         </div>
 
         {/* Grid: phone (esquerda) + controles (direita) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-8 lg:gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-10 lg:gap-14 items-start">
 
-          {/* iPhone */}
-          <div className="mx-auto w-full max-w-[340px] lg:max-w-[380px] lg:sticky lg:top-24">
+          {/* iPhone — width fixa em lg pra grid auto resolver corretamente */}
+          <div className="mx-auto w-full max-w-[320px] lg:max-w-none lg:sticky lg:top-24">
             <IPhoneFrame>
               <WhatsAppChat mensagens={mensagens} scrollRef={scrollRef} />
             </IPhoneFrame>

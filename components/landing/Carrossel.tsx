@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 
 const SHOTS = [
   { id: 'finance-dashboard',     titulo: 'Dashboard',     painel: 'finance', desc: 'Saldo, fluxo e KPIs do mês em uma só tela.',          img: '/screenshots/finance-dashboard.jpeg' },
@@ -17,9 +18,19 @@ const SHOTS = [
 export default function Carrossel() {
   const [idx, setIdx] = useState(0);
   const ativo = SHOTS[idx];
+  const touchStartX = useRef<number | null>(null);
 
   function prev() { setIdx(i => (i === 0 ? SHOTS.length - 1 : i - 1)); }
   function next() { setIdx(i => (i === SHOTS.length - 1 ? 0 : i + 1)); }
+
+  function onTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX; }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (dx > 50) prev();
+    else if (dx < -50) next();
+    touchStartX.current = null;
+  }
 
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
@@ -43,7 +54,11 @@ export default function Carrossel() {
         </div>
 
         {/* Display principal — browser chrome + screenshot */}
-        <div className="relative rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-900 dark:bg-black overflow-hidden mb-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)]">
+        <div
+          className="relative rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-900 dark:bg-black overflow-hidden mb-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)] touch-pan-y"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
           {/* Browser chrome */}
           <div className="px-4 py-3 flex items-center gap-2 border-b border-zinc-800 dark:border-white/[0.06] bg-zinc-900 dark:bg-zinc-950">
             <div className="flex items-center gap-1.5">
@@ -82,8 +97,8 @@ export default function Carrossel() {
               loading="lazy"
             />
 
-            {/* Caption flutuante */}
-            <div className="absolute bottom-5 left-5 right-5 sm:left-auto sm:right-5 sm:max-w-sm">
+            {/* Caption flutuante — só em desktop */}
+            <div className="hidden sm:block absolute bottom-5 right-5 max-w-sm">
               <div className="px-4 py-3 rounded-xl backdrop-blur-md bg-black/60 border border-white/10 text-white shadow-2xl">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-1.5 h-1.5 rounded-full"
@@ -98,6 +113,20 @@ export default function Carrossel() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Caption mobile — fora da imagem, abaixo */}
+        <div className="sm:hidden mb-4 px-1">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }} />
+            <p className="text-[10px] font-bold uppercase tracking-widest"
+               style={{ color: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }}>
+              {ativo.painel === 'finance' ? 'Sora Finance' : 'Sora Grow'}
+            </p>
+          </div>
+          <p className="font-bold text-base">{ativo.titulo}</p>
+          <p className="text-sm text-zinc-600 dark:text-white/65 mt-0.5 leading-relaxed">{ativo.desc}</p>
         </div>
 
         {/* Thumbnails */}
@@ -133,6 +162,31 @@ export default function Carrossel() {
         <div className="flex items-center justify-between mt-6 text-xs text-zinc-500 dark:text-white/40">
           <span>{String(idx + 1).padStart(2, '0')} / {String(SHOTS.length).padStart(2, '0')}</span>
           <span className="font-mono">{ativo.titulo}</span>
+        </div>
+
+        {/* "Tudo isso e muito mais!" — fechamento elegante */}
+        <div className="mt-20 lg:mt-28 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 border border-zinc-200 dark:border-white/[0.08] bg-zinc-100/60 dark:bg-white/[0.03] backdrop-blur-sm">
+            <Sparkles size={11} style={{ color: '#61ce70' }} />
+            <span className="text-[11px] font-bold tracking-widest uppercase text-zinc-700 dark:text-white/70">
+              Você só viu o começo
+            </span>
+          </div>
+          <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.03em] leading-[1.05]">
+            Tudo isso<br />
+            <span className="text-transparent bg-clip-text"
+                  style={{ backgroundImage: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
+              e muito mais.
+            </span>
+          </h3>
+          <p className="mt-4 text-base lg:text-lg text-zinc-600 dark:text-white/60 max-w-xl mx-auto leading-relaxed">
+            Cada detalhe pensado pra te poupar tempo todo dia.
+          </p>
+          <Link href="#pricing"
+                className="inline-flex items-center gap-2 mt-7 px-5 py-3 text-sm font-bold text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all"
+                style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
+            Ver todos os recursos →
+          </Link>
         </div>
       </div>
     </section>

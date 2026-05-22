@@ -26,7 +26,6 @@ const PLANOS: Plano[] = [
     descontoAnual: 12,
     cor: '#71717a',
     subtitulo: 'Pra começar a se organizar.',
-    badge: '7 dias Sora Grow grátis',
     features: [
       'Lançamentos ilimitados',
       'WhatsApp ou painel (texto/áudio)',
@@ -154,18 +153,15 @@ export default function Pricing() {
                 key={p.id}
                 className={`relative rounded-3xl p-7 transition-all hover:-translate-y-1 duration-300 ${
                   p.destaque
-                    ? 'border-2 shadow-[0_20px_60px_-20px_rgba(97,206,112,0.4)]'
-                    : 'border border-zinc-200 dark:border-white/[0.08] hover:border-zinc-300 dark:hover:border-white/[0.14] shadow-sm'
+                    ? 'border-2 shadow-[0_20px_60px_-20px_rgba(97,206,112,0.4)] bg-white dark:bg-zinc-950'
+                    : 'border border-zinc-200 dark:border-white/[0.08] hover:border-zinc-300 dark:hover:border-white/[0.14] shadow-sm bg-white/40 dark:bg-white/[0.02]'
                 }`}
-                style={p.destaque
-                  ? { borderColor: p.cor, background: 'linear-gradient(180deg, rgba(97,206,112,0.04), transparent), white' }
-                  : {}
-                }
+                style={p.destaque ? { borderColor: p.cor } : {}}
               >
-                {/* DARK MODE override pra destaque */}
+                {/* Tinted overlay no destaque, em ambos os temas */}
                 {p.destaque && (
-                  <div aria-hidden className="hidden dark:block absolute inset-0 rounded-3xl pointer-events-none"
-                       style={{ background: 'linear-gradient(180deg, rgba(97,206,112,0.06), transparent)' }} />
+                  <div aria-hidden className="absolute inset-0 rounded-3xl pointer-events-none"
+                       style={{ background: 'linear-gradient(180deg, rgba(97,206,112,0.06), transparent 60%)' }} />
                 )}
 
                 <div className="relative">
@@ -236,8 +232,8 @@ export default function Pricing() {
         </div>
 
         <p className="text-center mt-10 text-sm text-zinc-500 dark:text-white/50">
-          Todos os planos com 7 dias de teste do Sora Grow.{' '}
-          <span className="text-zinc-900 dark:text-white font-semibold">Cancele em 1 toque.</span>
+          Cancele a qualquer momento.{' '}
+          <span className="text-zinc-900 dark:text-white font-semibold">Sem letras miúdas.</span>
         </p>
       </div>
     </section>

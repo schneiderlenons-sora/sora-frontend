@@ -4,9 +4,9 @@ import { Star, Quote } from 'lucide-react';
 
 const TESTEMUNHOS = [
   {
-    nome: 'Lenon S.',
+    nome: 'Jeferson S.',
     role: 'Designer',
-    foto: 'L',
+    foto: 'J',
     cor: '#61ce70',
     quote: 'Finalmente consigo organizar minha vida em um lugar só. A IA da Sora é insana — entende áudio, foto, qualquer coisa.',
     stars: 5,
