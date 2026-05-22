@@ -5,14 +5,14 @@ import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 const SHOTS = [
-  { id: 'finance-dashboard',     titulo: 'Dashboard',     painel: 'finance', desc: 'Saldo, fluxo e KPIs do mês em uma só tela.',          img: '/screenshots/finance-dashboard.jpeg' },
-  { id: 'finance-transacoes',    titulo: 'Transações',    painel: 'finance', desc: 'Histórico completo com filtros e busca instantânea.', img: '/screenshots/finance-transacoes.jpeg' },
-  { id: 'finance-investimentos', titulo: 'Investimentos', painel: 'finance', desc: 'Carteira consolidada com rentabilidade ao vivo.',     img: '/screenshots/finance-investimentos.jpeg' },
-  { id: 'finance-metas',         titulo: 'Metas',         painel: 'finance', desc: 'Cálculo automático de aporte pra bater o objetivo.', img: '/screenshots/finance-metas.jpeg' },
-  { id: 'finance-cartao',        titulo: 'Cartão de crédito', painel: 'finance', desc: 'Fatura, limites e parcelas no controle total.',  img: '/screenshots/finance-cartao.jpeg' },
-  { id: 'finance-limites',       titulo: 'Limites de gastos', painel: 'finance', desc: 'Alertas inteligentes antes de virar problema.',  img: '/screenshots/finance-limites.jpeg' },
-  { id: 'grow-dashboard',        titulo: 'Sora Grow',     painel: 'grow',    desc: 'Visão diária de hábitos, tarefas e saúde.',           img: '/screenshots/grow-dashboard.jpeg' },
-  { id: 'grow-saude',            titulo: 'Saúde',         painel: 'grow',    desc: 'Consultas, remédios, treinos, peso e nutrição.',     img: '/screenshots/grow-saude.jpeg' },
+  { id: 'finance-dashboard',     titulo: 'Dashboard',     painel: 'finance',  desc: 'Saldo, fluxo e KPIs do mês em uma só tela.',                                             img: '/screenshots/finance-dashboard.jpeg' },
+  { id: 'finance-transacoes',    titulo: 'Transações',    painel: 'finance',  desc: 'Histórico completo com filtros, busca e categorias personalizadas.',                     img: '/screenshots/finance-transacoes.png' },
+  { id: 'finance-investimentos', titulo: 'Investimentos', painel: 'finance',  desc: 'Patrimônio, carteira por classe de ativo, dividendos e rentabilidade ao vivo.',         img: '/screenshots/finance-investimentos.png' },
+  { id: 'finance-metas',         titulo: 'Metas',         painel: 'finance',  desc: 'Cálculo automático de aporte pra bater o objetivo.',                                    img: '/screenshots/finance-metas.jpeg' },
+  { id: 'finance-cartao',        titulo: 'Negócios',      painel: 'negocios', desc: 'Painel financeiro do seu negócio — lucro líquido, receita e vendas em tempo real.',     img: '/screenshots/finance-cartao.png' },
+  { id: 'finance-limites',       titulo: 'DRE & Integrações', painel: 'negocios', desc: 'Hotmart, Stripe, Kiwify e mais — DRE completo reconciliado automaticamente.',       img: '/screenshots/finance-limites.png' },
+  { id: 'grow-dashboard',        titulo: 'Sora Grow',     painel: 'grow',     desc: 'Visão diária de hábitos, tarefas e saúde.',                                             img: '/screenshots/grow-dashboard.png' },
+  { id: 'grow-saude',            titulo: 'Saúde',         painel: 'grow',     desc: 'Plano automático de ganho ou perda de peso com base no seu perfil, objetivo e histórico.', img: '/screenshots/grow-saude.png' },
 ];
 
 export default function Carrossel() {
@@ -102,10 +102,10 @@ export default function Carrossel() {
               <div className="px-4 py-3 rounded-xl backdrop-blur-md bg-black/60 border border-white/10 text-white shadow-2xl">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }} />
+                        style={{ background: ativo.painel === 'finance' ? '#61ce70' : ativo.painel === 'negocios' ? '#fbbf24' : '#7c3aed' }} />
                   <p className="text-[10px] font-bold uppercase tracking-widest"
-                     style={{ color: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }}>
-                    {ativo.painel === 'finance' ? 'Sora Finance' : 'Sora Grow'}
+                     style={{ color: ativo.painel === 'finance' ? '#61ce70' : ativo.painel === 'negocios' ? '#fbbf24' : '#7c3aed' }}>
+                    {ativo.painel === 'finance' ? 'Sora Finance' : ativo.painel === 'negocios' ? 'Sora Negócios' : 'Sora Grow'}
                   </p>
                 </div>
                 <p className="font-bold text-sm">{ativo.titulo}</p>
@@ -119,10 +119,10 @@ export default function Carrossel() {
         <div className="sm:hidden mb-4 px-1">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }} />
+                  style={{ background: ativo.painel === 'finance' ? '#61ce70' : ativo.painel === 'negocios' ? '#fbbf24' : '#7c3aed' }} />
             <p className="text-[10px] font-bold uppercase tracking-widest"
-               style={{ color: ativo.painel === 'finance' ? '#61ce70' : '#7c3aed' }}>
-              {ativo.painel === 'finance' ? 'Sora Finance' : 'Sora Grow'}
+               style={{ color: ativo.painel === 'finance' ? '#61ce70' : ativo.painel === 'negocios' ? '#fbbf24' : '#7c3aed' }}>
+              {ativo.painel === 'finance' ? 'Sora Finance' : ativo.painel === 'negocios' ? 'Sora Negócios' : 'Sora Grow'}
             </p>
           </div>
           <p className="font-bold text-base">{ativo.titulo}</p>
@@ -133,7 +133,7 @@ export default function Carrossel() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {SHOTS.map((s, i) => {
             const ativa = idx === i;
-            const cor = s.painel === 'finance' ? '#61ce70' : '#7c3aed';
+            const cor = s.painel === 'finance' ? '#61ce70' : s.painel === 'negocios' ? '#fbbf24' : '#7c3aed';
             return (
               <button
                 key={s.id}
