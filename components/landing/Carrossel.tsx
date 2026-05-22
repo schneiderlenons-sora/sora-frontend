@@ -88,12 +88,12 @@ export default function Carrossel() {
           </div>
 
           {/* Screenshot */}
-          <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-900">
+          <div className="relative aspect-[16/9] w-full overflow-hidden bg-zinc-950">
             <img
               key={ativo.id}
               src={ativo.img}
               alt={ativo.titulo}
-              className="absolute inset-0 w-full h-full object-cover object-top animate-[fade-in_500ms_ease-out_both]"
+              className="absolute inset-0 w-full h-full object-contain object-center animate-[fade-in_500ms_ease-out_both]"
               loading="lazy"
             />
 
