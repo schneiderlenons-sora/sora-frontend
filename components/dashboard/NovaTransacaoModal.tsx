@@ -5,7 +5,7 @@ import { X, Loader2, Wallet, CreditCard, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 
-interface CatItem { id?: string; emoji: string; nome: string }
+interface CatItem { id?: string; emoji: string; nome: string; filhos?: CatItem[] }
 
 interface Props {
   phone: string;
@@ -61,6 +61,8 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   const [catsDespesa, setCatsDespesa] = useState<CatItem[]>([]);
   const [catsReceita, setCatsReceita] = useState<CatItem[]>([]);
   const [carregandoCats, setCarregandoCats] = useState(true);
+  // ID da categoria-pai selecionada (pra mostrar subcategorias)
+  const [parentId, setParentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!phone) return;
@@ -69,16 +71,21 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
     api.categorias.listar(phone)
       .then(cats => {
         if (cancelado) return;
-        // Só categorias raiz (sem parent) — subcategorias aparecem como filhas na aba Categorias
-        const raiz = (cats || []).filter((c: any) => !c.parent_id);
-        const desp = raiz
-          .filter((c: any) => (c.tipo || 'despesa') === 'despesa')
-          .map((c: any) => ({ id: c.id, emoji: c.icone || '📦', nome: c.nome }));
-        const rec = raiz
-          .filter((c: any) => c.tipo === 'receita')
-          .map((c: any) => ({ id: c.id, emoji: c.icone || '📦', nome: c.nome }));
-        setCatsDespesa(desp);
-        setCatsReceita(rec);
+        const todas = cats || [];
+        // Monta árvore: raiz + filhos por parent_id
+        const construir = (tipoFiltro: 'despesa' | 'receita'): CatItem[] => {
+          const raiz = todas.filter((c: any) => !c.parent_id && (c.tipo || 'despesa') === tipoFiltro);
+          return raiz.map((p: any) => ({
+            id: p.id,
+            emoji: p.icone || '📦',
+            nome: p.nome,
+            filhos: todas
+              .filter((c: any) => c.parent_id === p.id)
+              .map((f: any) => ({ id: f.id, emoji: f.icone || '📦', nome: f.nome })),
+          }));
+        };
+        setCatsDespesa(construir('despesa'));
+        setCatsReceita(construir('receita'));
       })
       .catch(() => { /* mantém fallback */ })
       .finally(() => { if (!cancelado) setCarregandoCats(false); });
@@ -96,6 +103,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   useEffect(() => {
     setCategoria('');
     setCatEmoji('');
+    setParentId(null);
   }, [tipo]);
 
   // Filtra wallets disponíveis:
@@ -243,12 +251,18 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             </div>
             <div className="grid grid-cols-4 gap-2">
               {categoriasMostrar.map(cat => {
-                const ativo = categoria === cat.nome;
+                const ehPaiSelecionado = parentId === cat.id;
+                const ativo = (categoria === cat.nome && !parentId) || ehPaiSelecionado;
+                const temFilhos = (cat.filhos?.length || 0) > 0;
                 return (
                   <button
                     key={cat.id || cat.nome}
-                    onClick={() => { setCategoria(cat.nome); setCatEmoji(cat.emoji); }}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                    onClick={() => {
+                      setCategoria(cat.nome);
+                      setCatEmoji(cat.emoji);
+                      setParentId(temFilhos ? (cat.id || null) : null);
+                    }}
+                    className={`relative flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
                       ativo
                         ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
                         : 'border-border hover:border-primary/40 hover:bg-muted'
@@ -256,10 +270,59 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
                   >
                     <span className="text-xl">{cat.emoji}</span>
                     <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">{cat.nome}</span>
+                    {temFilhos && (
+                      <span className="absolute top-1 right-1 text-[8px] font-bold text-muted-foreground bg-muted/80 px-1 rounded-full">
+                        {cat.filhos!.length}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+
+            {/* Subcategorias do pai selecionado */}
+            {parentId && (() => {
+              const pai = categoriasMostrar.find(c => c.id === parentId);
+              if (!pai?.filhos?.length) return null;
+              return (
+                <div className="mt-3 p-3 rounded-xl bg-muted/30 border border-border animate-fade-in">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
+                    Subcategoria de <span className="text-foreground">{pai.nome}</span> — opcional
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {/* Botão para manter só a categoria-pai */}
+                    <button
+                      onClick={() => { setCategoria(pai.nome); setCatEmoji(pai.emoji); }}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                        categoria === pai.nome
+                          ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                          : 'border-dashed border-border hover:border-primary/40 hover:bg-card'
+                      }`}
+                    >
+                      <span className="text-xl">{pai.emoji}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">Só {pai.nome}</span>
+                    </button>
+                    {pai.filhos.map(sub => {
+                      const ativo = categoria === sub.nome;
+                      return (
+                        <button
+                          key={sub.id || sub.nome}
+                          onClick={() => { setCategoria(sub.nome); setCatEmoji(sub.emoji); }}
+                          className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                            ativo
+                              ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                              : 'border-border bg-card hover:border-primary/40'
+                          }`}
+                        >
+                          <span className="text-xl">{sub.emoji}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">{sub.nome}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Conta / Cartão — picker visual */}
