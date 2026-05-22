@@ -5,8 +5,17 @@ import { X, Loader2, Wallet, CreditCard, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 
-// ── Catálogos de categoria por tipo ────────────────────────────────
-const CAT_DESPESA = [
+interface CatItem { id?: string; emoji: string; nome: string }
+
+interface Props {
+  phone: string;
+  wallets: any[];
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+// Fallback usado se o user ainda não tiver categorias (DB antiga sem coluna tipo)
+const FALLBACK_DESPESA: CatItem[] = [
   { emoji: '🛒', nome: 'Mercado'       },
   { emoji: '🍽️', nome: 'Restaurante'   },
   { emoji: '🚗', nome: 'Transporte'    },
@@ -24,7 +33,7 @@ const CAT_DESPESA = [
   { emoji: '📦', nome: 'Outros'        },
 ];
 
-const CAT_RECEITA = [
+const FALLBACK_RECEITA: CatItem[] = [
   { emoji: '💼', nome: 'Salário'          },
   { emoji: '💻', nome: 'Freelance'        },
   { emoji: '🎁', nome: 'Bônus'            },
@@ -36,15 +45,8 @@ const CAT_RECEITA = [
   { emoji: '🪙', nome: 'Outras receitas'  },
 ];
 
-interface Props {
-  phone: string;
-  wallets: any[];
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
 export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess }: Props) {
-  const [tipo,       setTipo]       = useState<'Gasto' | 'Receita'>('Gasto');
+  const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>('Gasto');
   const [valor,      setValor]      = useState('');
   const [descricao,  setDescricao]  = useState('');
   const [categoria,  setCategoria]  = useState('');
@@ -54,6 +56,34 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   const [recorrente, setRecorrente] = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [erro,       setErro]       = useState('');
+
+  // Categorias do usuário (carregadas da API)
+  const [catsDespesa, setCatsDespesa] = useState<CatItem[]>([]);
+  const [catsReceita, setCatsReceita] = useState<CatItem[]>([]);
+  const [carregandoCats, setCarregandoCats] = useState(true);
+
+  useEffect(() => {
+    if (!phone) return;
+    let cancelado = false;
+    setCarregandoCats(true);
+    api.categorias.listar(phone)
+      .then(cats => {
+        if (cancelado) return;
+        // Só categorias raiz (sem parent) — subcategorias aparecem como filhas na aba Categorias
+        const raiz = (cats || []).filter((c: any) => !c.parent_id);
+        const desp = raiz
+          .filter((c: any) => (c.tipo || 'despesa') === 'despesa')
+          .map((c: any) => ({ id: c.id, emoji: c.icone || '📦', nome: c.nome }));
+        const rec = raiz
+          .filter((c: any) => c.tipo === 'receita')
+          .map((c: any) => ({ id: c.id, emoji: c.icone || '📦', nome: c.nome }));
+        setCatsDespesa(desp);
+        setCatsReceita(rec);
+      })
+      .catch(() => { /* mantém fallback */ })
+      .finally(() => { if (!cancelado) setCarregandoCats(false); });
+    return () => { cancelado = true; };
+  }, [phone]);
 
   // Default da carteira: primeira conta não-crédito (em receita não faz sentido cartão)
   useEffect(() => {
@@ -72,20 +102,25 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   // - Receita: contas (não cartão), porque receita não cai em cartão de crédito
   // - Despesa: todas
   const walletsVisiveis = useMemo(() => {
-    if (tipo === 'Receita') return wallets.filter(w => w.tipo !== 'Crédito');
+    if (tipo === 'Recebimento') return wallets.filter(w => w.tipo !== 'Crédito');
     return wallets;
   }, [wallets, tipo]);
 
   // Se tipo virou Receita e a wallet selecionada era cartão, troca
   useEffect(() => {
     const atual = wallets.find(w => w.id === walletId);
-    if (tipo === 'Receita' && atual?.tipo === 'Crédito') {
+    if (tipo === 'Recebimento' && atual?.tipo === 'Crédito') {
       const nova = walletsVisiveis[0];
       setWalletId(nova?.id || '');
     }
   }, [tipo, walletId, wallets, walletsVisiveis]);
 
-  const categoriasMostrar = tipo === 'Gasto' ? CAT_DESPESA : CAT_RECEITA;
+  const categoriasMostrar: CatItem[] = useMemo(() => {
+    if (tipo === 'Gasto') {
+      return catsDespesa.length ? catsDespesa : FALLBACK_DESPESA;
+    }
+    return catsReceita.length ? catsReceita : FALLBACK_RECEITA;
+  }, [tipo, catsDespesa, catsReceita]);
 
   function handleValorInput(e: React.ChangeEvent<HTMLInputElement>) {
     setValor(e.target.value.replace(/\D/g, ''));
@@ -154,7 +189,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
                 background: tipo === 'Gasto' ? 'hsl(0 72% 58%)' : '#61D17B',
               }}
             />
-            {(['Gasto', 'Receita'] as const).map(t => (
+            {(['Gasto', 'Recebimento'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTipo(t)}
@@ -198,15 +233,20 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
 
           {/* Categorias (filtradas por tipo) */}
           <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
-              Categoria
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+                Categoria
+              </p>
+              {carregandoCats && (
+                <Loader2 size={10} className="animate-spin text-muted-foreground" />
+              )}
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {categoriasMostrar.map(cat => {
                 const ativo = categoria === cat.nome;
                 return (
                   <button
-                    key={cat.nome}
+                    key={cat.id || cat.nome}
                     onClick={() => { setCategoria(cat.nome); setCatEmoji(cat.emoji); }}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
                       ativo
@@ -225,15 +265,15 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
           {/* Conta / Cartão — picker visual */}
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              {tipo === 'Receita' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
-              {tipo === 'Receita' ? 'Conta de destino' : 'Conta / Cartão usado'}
+              {tipo === 'Recebimento' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
+              {tipo === 'Recebimento' ? 'Conta de destino' : 'Conta / Cartão usado'}
             </p>
 
             {walletsVisiveis.length === 0 ? (
               <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
                 <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                  Você não tem {tipo === 'Receita' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
+                  Você não tem {tipo === 'Recebimento' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
                   <a href="/contas-bancarias" className="font-semibold underline">Cadastrar agora</a>
                 </p>
               </div>

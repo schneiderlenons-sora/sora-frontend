@@ -78,8 +78,8 @@ export const api = {
 
   // ── CATEGORIAS ────────────────────────────────────────────────
   categorias: {
-    listar: (phone: string) =>
-      req<any[]>(`/api/categorias/${phone}`),
+    listar: (phone: string, tipo?: 'despesa' | 'receita') =>
+      req<any[]>(`/api/categorias/${phone}${tipo ? `?tipo=${tipo}` : ''}`),
     criar: (body: any) =>
       req('/api/categorias', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>

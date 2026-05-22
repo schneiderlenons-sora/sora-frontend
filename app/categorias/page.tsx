@@ -75,6 +75,7 @@ interface Categoria {
   icone?:     string;
   cor?:       number; // HSL hue
   parent_id?: string | null;
+  tipo?:      'despesa' | 'receita';
 }
 
 interface Limite {
@@ -85,6 +86,7 @@ interface Limite {
 }
 
 type Filtro = 'todas' | 'com_limite' | 'sem_limite' | 'com_subs' | 'sem_subs';
+type TipoTab = 'despesa' | 'receita';
 
 export default function CategoriasPage() {
   const { phone } = useAuth();
@@ -109,6 +111,7 @@ export default function CategoriasPage() {
   const [ocultar,    setOcultar]    = useState(false);
   const [busca,      setBusca]      = useState('');
   const [filtro,     setFiltro]     = useState<Filtro>('todas');
+  const [tipoTab,    setTipoTab]    = useState<TipoTab>('despesa');
   const [mostrarZeradas, setMostrarZeradas] = useState(true);
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
 
@@ -177,9 +180,9 @@ export default function CategoriasPage() {
     return limites.find(l => nomeCategoria(l.categoria || '').toLowerCase() === alvo);
   };
 
-  // Agrupa categorias em árvore: pais e filhas
+  // Agrupa categorias em árvore: pais e filhas — só do tipo selecionado (default = despesa)
   const arvore = useMemo(() => {
-    const pais = categorias.filter(c => !c.parent_id);
+    const pais = categorias.filter(c => !c.parent_id && (c.tipo || 'despesa') === tipoTab);
     return pais.map(p => {
       const filhos = categorias.filter(c => c.parent_id === p.id);
       const gastoProprio = gastoDeNome(p.nome);
@@ -189,7 +192,10 @@ export default function CategoriasPage() {
       return { pai: p, filhos, gastoTotal, gastoProprio, gastoFilhos, limite };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categorias, resumo, limites]);
+  }, [categorias, resumo, limites, tipoTab]);
+
+  const totalDespesa = categorias.filter(c => !c.parent_id && (c.tipo || 'despesa') === 'despesa').length;
+  const totalReceita = categorias.filter(c => !c.parent_id && c.tipo === 'receita').length;
 
   // Aplica busca + filtros
   const arvoreFiltrada = useMemo(() => {
@@ -299,6 +305,40 @@ export default function CategoriasPage() {
                 <Plus size={16} /> Nova categoria
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════
+            TABS Despesa / Receita
+        ═══════════════════════════════════════════════════════ */}
+        <div className="card rounded-2xl p-1.5 animate-fade-in inline-flex" style={{ animationDelay: '30ms' }}>
+          <div className="relative flex bg-muted/40 rounded-xl p-1">
+            <div
+              className="absolute top-1 bottom-1 rounded-lg transition-all duration-200"
+              style={{
+                width: 'calc(50% - 4px)',
+                left: tipoTab === 'despesa' ? '4px' : 'calc(50%)',
+                background: tipoTab === 'despesa' ? 'hsl(0 72% 58%)' : '#61D17B',
+              }}
+            />
+            <button
+              onClick={() => setTipoTab('despesa')}
+              className={`relative px-5 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 inline-flex items-center gap-1.5 ${tipoTab === 'despesa' ? 'text-white' : 'text-muted-foreground'}`}
+            >
+              💸 Despesa
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tipoTab === 'despesa' ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
+                {totalDespesa}
+              </span>
+            </button>
+            <button
+              onClick={() => setTipoTab('receita')}
+              className={`relative px-5 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 inline-flex items-center gap-1.5 ${tipoTab === 'receita' ? 'text-white' : 'text-muted-foreground'}`}
+            >
+              💰 Receita
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tipoTab === 'receita' ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
+                {totalReceita}
+              </span>
+            </button>
           </div>
         </div>
 

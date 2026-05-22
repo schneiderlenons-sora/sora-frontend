@@ -58,7 +58,14 @@ export default function NovaCategoriaModal({
 }: Props) {
   const ediMode = !!edicao;
 
+  const parentObj = parents.find(p => p.id === (parentId ?? edicao?.parent_id));
+  const tipoInicial: 'despesa' | 'receita' =
+    edicao?.tipo === 'receita' ? 'receita'
+    : parentObj?.tipo === 'receita' ? 'receita'
+    : 'despesa';
+
   const [nome,     setNome]     = useState(edicao?.nome || '');
+  const [tipo,     setTipo]     = useState<'despesa' | 'receita'>(tipoInicial);
   const [emoji,    setEmoji]    = useState<string>(edicao?.icone || '📦');
   const [hue,      setHue]      = useState<number>(edicao?.cor ?? 142);
   const [parent,   setParent]   = useState<string | null>(parentId ?? edicao?.parent_id ?? null);
@@ -83,6 +90,7 @@ export default function NovaCategoriaModal({
           nome: nome.trim(),
           icone: emoji,
           cor: hue,
+          tipo,
         });
       } else {
         await api.categorias.criar({
@@ -90,6 +98,7 @@ export default function NovaCategoriaModal({
           nome: nome.trim(),
           icone: emoji,
           cor: hue,
+          tipo,
           parent_id: parent || undefined,
         });
       }
@@ -156,6 +165,35 @@ export default function NovaCategoriaModal({
               autoFocus
             />
           </div>
+
+          {/* Tipo: Despesa / Receita — só em categoria raiz (subs herdam do pai) */}
+          {!ehSubcategoria && (
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                Tipo
+              </label>
+              <div className="relative flex bg-muted rounded-2xl p-1">
+                <div
+                  className="absolute top-1 bottom-1 rounded-xl transition-all duration-200"
+                  style={{
+                    width: 'calc(50% - 4px)',
+                    left: tipo === 'despesa' ? '4px' : 'calc(50%)',
+                    background: tipo === 'despesa' ? 'hsl(0 72% 58%)' : '#61D17B',
+                  }}
+                />
+                {(['despesa', 'receita'] as const).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTipo(t)}
+                    className={`relative flex-1 py-2 text-sm font-semibold rounded-xl transition-colors duration-200 ${tipo === t ? 'text-white' : 'text-muted-foreground'}`}
+                  >
+                    {t === 'despesa' ? '💸 Despesa' : '💰 Receita'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pai (só em modo edição se já tiver parent ou explicit) */}
           {ediMode && parents.length > 0 && (
