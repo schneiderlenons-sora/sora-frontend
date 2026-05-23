@@ -104,30 +104,30 @@ export default function HeroBackground() {
           Duas camadas (uma por tema) — usa cor + alfa direto pra
           garantir visibilidade. Light: zinc-900 a 12%, Dark: white a 14%.
           Linhas de 1.5px ficam nítidas em qualquer DPR.                   */}
-      {/* Light mode grid */}
+      {/* Light mode grid — linhas 2px, células 80px, opacidade 24% */}
       <div
         className="absolute inset-0 dark:hidden"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(15, 23, 42, 0.13) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(15, 23, 42, 0.13) 1.5px, transparent 1.5px)
+            linear-gradient(to right, rgba(15, 23, 42, 0.20) 2px, transparent 2px),
+            linear-gradient(to bottom, rgba(15, 23, 42, 0.20) 2px, transparent 2px)
           `,
-          backgroundSize: '64px 64px',
-          maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
+          backgroundSize: '80px 80px',
+          maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
         }}
       />
-      {/* Dark mode grid */}
+      {/* Dark mode grid — linhas 2px, células 80px, opacidade 22% */}
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px)
+            linear-gradient(to right, rgba(255, 255, 255, 0.22) 2px, transparent 2px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 2px, transparent 2px)
           `,
-          backgroundSize: '64px 64px',
-          maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
+          backgroundSize: '80px 80px',
+          maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
         }}
       />
 
@@ -236,11 +236,11 @@ function CellHighlights() {
       }}
     >
       {cells.map((c, i) => (
-        <div key={i} className="absolute w-16 h-16" style={{ top: c.top, left: c.left }}>
-          {/* Light mode fill */}
-          <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o})` }} />
+        <div key={i} className="absolute w-20 h-20" style={{ top: c.top, left: c.left }}>
+          {/* Light mode fill (mais opaco em viewport grande) */}
+          <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o + 0.05})` }} />
           {/* Dark mode fill */}
-          <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.02})` }} />
+          <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.04})` }} />
         </div>
       ))}
     </div>

@@ -14,7 +14,7 @@ export default function Hero() {
   const { user } = useAuth();
 
   return (
-    <section className="relative overflow-hidden pt-10 lg:pt-20 pb-20 lg:pb-32">
+    <section className="relative isolate overflow-hidden pt-10 lg:pt-20 pb-20 lg:pb-32">
 
       {/* Background cinematográfico — múltiplas camadas (ver HeroBackground.tsx) */}
       <HeroBackground />
