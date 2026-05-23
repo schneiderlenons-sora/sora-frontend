@@ -101,24 +101,20 @@ export default function HeroBackground() {
       } as React.CSSProperties}
     >
       {/* ── 1. GRID BASE ──────────────────────────────────────────────
-          Visível e elegante. Fade combinado: linear top→bottom (some
-          aos poucos pra baixo, como o Lovable) + radial nas laterais.
-          currentColor herda do texto da seção (light: zinc / dark: white). */}
+          Bem visível no topo, dissolve aos poucos pra baixo.
+          Estilo Lovable/Concursa. currentColor herda do texto (light: zinc
+          950, dark: white) — sem cores adicionais.                        */}
       <div
-        className="absolute inset-0 opacity-[0.13] dark:opacity-[0.14]"
+        className="absolute inset-0 opacity-[0.16] dark:opacity-[0.22]"
         style={{
           backgroundImage: `
             linear-gradient(to right, currentColor 1px, transparent 1px),
             linear-gradient(to bottom, currentColor 1px, transparent 1px)
           `,
           backgroundSize: '64px 64px',
-          // Duplo mask: vertical (some pra baixo) + radial (fade lateral)
-          maskImage:
-            'linear-gradient(to bottom, black 0%, black 35%, transparent 95%), radial-gradient(ellipse 80% 100% at 50% 0%, black 60%, transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to bottom, black 0%, black 35%, transparent 95%), radial-gradient(ellipse 80% 100% at 50% 0%, black 60%, transparent 100%)',
-          maskComposite: 'intersect',
-          WebkitMaskComposite: 'source-in',
+          // Fade vertical: visível no topo, some perto da próxima seção
+          maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
         }}
       />
 
@@ -191,16 +187,16 @@ function CellHighlights() {
   // Constelação balanceada pelos cantos. Tamanho 64px = grid match.
   // Opacidades variadas pra dar profundidade (sem ficar uniforme).
   const cells = [
-    { top: '8%',   left: '12%',  o: 0.09 },
-    { top: '14%',  left: '78%',  o: 0.11 },
-    { top: '24%',  left: '4%',   o: 0.07 },
-    { top: '32%',  left: '88%',  o: 0.09 },
-    { top: '46%',  left: '18%',  o: 0.08 },
-    { top: '54%',  left: '76%',  o: 0.10 },
-    { top: '16%',  left: '44%',  o: 0.06 },
-    { top: '38%',  left: '60%',  o: 0.06 },
-    { top: '6%',   left: '92%',  o: 0.08 },
-    { top: '26%',  left: '34%',  o: 0.05 },
+    { top: '8%',   left: '12%',  o: 0.14 },
+    { top: '14%',  left: '78%',  o: 0.16 },
+    { top: '24%',  left: '4%',   o: 0.10 },
+    { top: '32%',  left: '88%',  o: 0.12 },
+    { top: '46%',  left: '18%',  o: 0.09 },
+    { top: '54%',  left: '76%',  o: 0.11 },
+    { top: '16%',  left: '44%',  o: 0.08 },
+    { top: '38%',  left: '60%',  o: 0.07 },
+    { top: '6%',   left: '92%',  o: 0.12 },
+    { top: '26%',  left: '34%',  o: 0.07 },
   ];
 
   return (
