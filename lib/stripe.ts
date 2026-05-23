@@ -1,8 +1,31 @@
 import Stripe from 'stripe';
 import type { Plano } from '@/lib/plans';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-04-22.dahlia',
+// Inicialização lazy via Proxy: a instância só é criada na primeira chamada
+// (ex.: stripe.checkout.sessions.create). Isso permite que o build do
+// Next.js importe o módulo mesmo sem STRIPE_SECRET_KEY definida — só falha
+// se uma rota for de fato executada sem a env var.
+let _stripeInstance: Stripe | null = null;
+
+function getStripeInstance(): Stripe {
+  if (_stripeInstance) return _stripeInstance;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error(
+      'STRIPE_SECRET_KEY ausente — defina nas variáveis de ambiente (Vercel → Settings → Environment Variables).'
+    );
+  }
+  _stripeInstance = new Stripe(key, { apiVersion: '2026-04-22.dahlia' });
+  return _stripeInstance;
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    const real = getStripeInstance() as unknown as Record<string | symbol, unknown>;
+    const value = real[prop as string];
+    // Métodos precisam ficar bindados à instância real para `this` funcionar
+    return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(real) : value;
+  },
 });
 
 export type PlanoId = Exclude<Plano, 'inativo'>;
