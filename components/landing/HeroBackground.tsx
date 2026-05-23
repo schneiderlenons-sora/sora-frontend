@@ -5,21 +5,22 @@ import { useEffect, useRef, useState } from 'react';
 const BRAND = '#61ce70';
 
 /**
- * Fundo cinematográfico do hero — arquitetura por camadas:
+ * Fundo do hero — estilo Lovable/Linear:
+ * grid super sutil presente nas bordas, completamente apagado no centro
+ * (área de leitura) e no topo (transição suave a partir do header).
  *
- *   1. Grid base               — sempre presente, em todo o hero
- *   2. Overlay TOP             — emerge suavemente do header (cor do BG + fade)
- *   3. Overlay HEADLINE        — protege a área do título com radial (cor do BG)
- *   4. Overlay BOTTOM          — funde com a próxima seção
- *   5. Spotlight grid          — segue o cursor (Linear-style)
- *   6. Cell highlights         — quadrados acentuados nos cantos
- *   7. Pulse dots              — pontos pulsando (vida)
- *   8. Green glow              — halo da marca no topo
- *   9. Light beam              — feixe vertical fino
- *  10. Noise                   — grain
+ * Camadas (ordem de pintura, de trás pra frente):
+ *   1. Grid base                    — linhas 1px, opacidade 8–10% em todo hero
+ *   2. Overlay TOP                  — fade vertical alto pra emergir do header
+ *   3. Overlay CENTRAL              — radial amplo que apaga o grid sobre os textos
+ *   4. Overlay BOTTOM               — fade vertical pra próxima seção
+ *   5. Spotlight grid (desktop)     — segue cursor, sutil, sobre os overlays
+ *   6. Pulse dots (2 sutis)         — vida sem distração
+ *   7. Green glow + light beam      — identidade Sora
+ *   8. Noise grain                  — textura imperceptível
  *
- * Light + dark sem cores extras (rgba branco / rgba zinc).
- * Respeita prefers-reduced-motion (desliga spotlight + pulse).
+ * Sem cells highlights, sem multiplos elementos chamativos — minimalismo Apple.
+ * Light + dark sem cores extras. Respeita prefers-reduced-motion.
  */
 export default function HeroBackground() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,7 +34,6 @@ export default function HeroBackground() {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Spotlight cursor (desktop, sem reduced-motion)
   useEffect(() => {
     if (reducedMotion) return;
     if (typeof window === 'undefined') return;
@@ -97,77 +97,75 @@ export default function HeroBackground() {
       } as React.CSSProperties}
     >
       {/* ═════════════════════════════════════════════════════════════
-          CAMADA 1 — GRID BASE (sempre presente, sem máscaras)
-          ═════════════════════════════════════════════════════════════ */}
-      {/* Light */}
-      <div
-        className="absolute inset-0 dark:hidden"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(15, 23, 42, 0.18) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(15, 23, 42, 0.18) 1.5px, transparent 1.5px)
-          `,
-          backgroundSize: '72px 72px',
-        }}
-      />
-      {/* Dark */}
-      <div
-        className="absolute inset-0 hidden dark:block"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(255, 255, 255, 0.20) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.20) 1.5px, transparent 1.5px)
-          `,
-          backgroundSize: '72px 72px',
-        }}
-      />
-
-      {/* ═════════════════════════════════════════════════════════════
-          CAMADA 2 — OVERLAY TOP (fade do header, grid emerge suave)
-          ═════════════════════════════════════════════════════════════ */}
-      <div
-        className="absolute inset-x-0 top-0 h-40 dark:hidden"
-        style={{
-          background:
-            'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0.85) 35%, rgba(255,255,255,0.35) 70%, transparent 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-x-0 top-0 h-40 hidden dark:block"
-        style={{
-          background:
-            'linear-gradient(to bottom, rgba(10,10,10,1) 0%, rgba(10,10,10,0.85) 35%, rgba(10,10,10,0.35) 70%, transparent 100%)',
-        }}
-      />
-
-      {/* ═════════════════════════════════════════════════════════════
-          CAMADA 3 — OVERLAY HEADLINE (protege o título, lado esquerdo)
-          Elipse centrada no centro-esquerda (onde fica o título).
-          Opaca no centro, dissolve nas bordas — apaga o grid.
+          1. GRID BASE — sutil, linhas finas, cobre todo o hero
           ═════════════════════════════════════════════════════════════ */}
       <div
         className="absolute inset-0 dark:hidden"
         style={{
-          background:
-            'radial-gradient(ellipse 60% 65% at 28% 55%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.85) 30%, rgba(255,255,255,0.5) 55%, transparent 85%)',
+          backgroundImage: `
+            linear-gradient(to right, rgba(15, 23, 42, 0.09) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(15, 23, 42, 0.09) 1px, transparent 1px)
+          `,
+          backgroundSize: '84px 84px',
         }}
       />
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
-          background:
-            'radial-gradient(ellipse 60% 65% at 28% 55%, rgba(10,10,10,0.98) 0%, rgba(10,10,10,0.85) 30%, rgba(10,10,10,0.5) 55%, transparent 85%)',
+          backgroundImage: `
+            linear-gradient(to right, rgba(255, 255, 255, 0.10) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.10) 1px, transparent 1px)
+          `,
+          backgroundSize: '84px 84px',
         }}
       />
 
       {/* ═════════════════════════════════════════════════════════════
-          CAMADA 4 — OVERLAY BOTTOM (fade pra próxima seção)
+          2. OVERLAY TOP — fade longo, grid emerge muito suave do header
+          (h-80 = 320px, equivale a ~30% de um hero de 1000px)
           ═════════════════════════════════════════════════════════════ */}
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white dark:to-[#0a0a0a]" />
+      <div
+        className="absolute inset-x-0 top-0 h-80 dark:hidden"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0.6) 60%, rgba(255,255,255,0.2) 85%, transparent 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-80 hidden dark:block"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(10,10,10,1) 0%, rgba(10,10,10,0.92) 30%, rgba(10,10,10,0.6) 60%, rgba(10,10,10,0.2) 85%, transparent 100%)',
+        }}
+      />
 
       {/* ═════════════════════════════════════════════════════════════
-          CAMADA 5 — SPOTLIGHT GRID (segue o cursor)
-          Acima dos overlays pra ser sempre visível na trajetória.
+          3. OVERLAY CENTRAL — radial AMPLO que apaga o grid sobre todo
+          o conteúdo (título + subtítulo + CTAs). Cobre 75% × 70% do
+          hero, centrado em 50% 50%.
+          ═════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute inset-0 dark:hidden"
+        style={{
+          background:
+            'radial-gradient(ellipse 75% 70% at 50% 50%, rgba(255,255,255,1) 5%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0.55) 55%, rgba(255,255,255,0.15) 80%, transparent 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          background:
+            'radial-gradient(ellipse 75% 70% at 50% 50%, rgba(10,10,10,1) 5%, rgba(10,10,10,0.92) 30%, rgba(10,10,10,0.55) 55%, rgba(10,10,10,0.15) 80%, transparent 100%)',
+        }}
+      />
+
+      {/* ═════════════════════════════════════════════════════════════
+          4. OVERLAY BOTTOM — fade pra próxima seção
+          ═════════════════════════════════════════════════════════════ */}
+      <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent to-white dark:to-[#0a0a0a]" />
+
+      {/* ═════════════════════════════════════════════════════════════
+          5. SPOTLIGHT GRID — só desktop, segue cursor, bem sutil
           ═════════════════════════════════════════════════════════════ */}
       {!reducedMotion && (
         <>
@@ -176,12 +174,12 @@ export default function HeroBackground() {
             style={{
               opacity: 'var(--spot-opacity)',
               backgroundImage: `
-                linear-gradient(to right, rgba(15, 23, 42, 0.32) 1.5px, transparent 1.5px),
-                linear-gradient(to bottom, rgba(15, 23, 42, 0.32) 1.5px, transparent 1.5px)
+                linear-gradient(to right, rgba(15, 23, 42, 0.22) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.22) 1px, transparent 1px)
               `,
-              backgroundSize: '72px 72px',
-              maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
-              WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
+              backgroundSize: '84px 84px',
+              maskImage: 'radial-gradient(320px circle at var(--spot-x) var(--spot-y), black 0%, transparent 70%)',
+              WebkitMaskImage: 'radial-gradient(320px circle at var(--spot-x) var(--spot-y), black 0%, transparent 70%)',
             }}
           />
           <div
@@ -189,128 +187,73 @@ export default function HeroBackground() {
             style={{
               opacity: 'var(--spot-opacity)',
               backgroundImage: `
-                linear-gradient(to right, rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px)
+                linear-gradient(to right, rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.28) 1px, transparent 1px)
               `,
-              backgroundSize: '72px 72px',
-              maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
-              WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
+              backgroundSize: '84px 84px',
+              maskImage: 'radial-gradient(320px circle at var(--spot-x) var(--spot-y), black 0%, transparent 70%)',
+              WebkitMaskImage: 'radial-gradient(320px circle at var(--spot-x) var(--spot-y), black 0%, transparent 70%)',
             }}
           />
         </>
       )}
 
       {/* ═════════════════════════════════════════════════════════════
-          CAMADA 6 — CELL HIGHLIGHTS (cantos absolutos)
-          Acima dos overlays pra ficarem sempre visíveis. Posicionadas
-          fora completamente da área do título.
+          6. PULSE DOTS (apenas 2, nos cantos extremos)
           ═════════════════════════════════════════════════════════════ */}
-      <CellHighlights />
-
-      {/* ═════════════════════════════════════════════════════════════
-          CAMADA 7 — PULSE DOTS
-          ═════════════════════════════════════════════════════════════ */}
-      {!reducedMotion && <PulseDots />}
-
-      {/* ═════════════════════════════════════════════════════════════
-          CAMADA 8 — GREEN GLOW (identidade Sora)
-          ═════════════════════════════════════════════════════════════ */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-30 dark:opacity-40"
-        style={{ background: `radial-gradient(ellipse, ${BRAND}22 0%, transparent 60%)` }}
-      />
-
-      {/* ═════════════════════════════════════════════════════════════
-          CAMADA 9 — LIGHT BEAM (feixe vertical fino do topo)
-          ═════════════════════════════════════════════════════════════ */}
-      <div
-        className="hidden lg:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-[40vh] opacity-60 dark:opacity-40"
-        style={{ background: `linear-gradient(to bottom, ${BRAND}80, transparent)` }}
-      />
-
-      {/* ═════════════════════════════════════════════════════════════
-          CAMADA 10 — NOISE GRAIN
-          ═════════════════════════════════════════════════════════════ */}
-      <div
-        className="absolute inset-0 opacity-[0.018] dark:opacity-[0.035] mix-blend-overlay"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        }}
-      />
-    </div>
-  );
-}
-
-// ─── Cell Highlights ─────────────────────────────────────────────────────────
-// Posições nos 4 cantos absolutos + 2 bordas (longe da headline e dos phones).
-
-function CellHighlights() {
-  const cells = [
-    { top: '4%',   left: '2%',   o: 0.13 },  // canto sup esq
-    { top: '4%',   left: '94%',  o: 0.13 },  // canto sup dir
-    { top: '86%',  left: '4%',   o: 0.10 },  // canto inf esq
-    { top: '86%',  left: '92%',  o: 0.10 },  // canto inf dir
-    { top: '14%',  left: '92%',  o: 0.09 },  // borda dir alta
-    { top: '70%',  left: '2%',   o: 0.09 },  // borda esq baixa
-  ];
-
-  return (
-    <div className="absolute inset-0 hidden sm:block">
-      {cells.map((c, i) => (
-        <div key={i} className="absolute w-[72px] h-[72px]" style={{ top: c.top, left: c.left }}>
-          <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o})` }} />
-          <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.02})` }} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Pulse Dots ──────────────────────────────────────────────────────────────
-// Pontos brancos/escuros pulsando em interseções do grid.
-
-function PulseDots() {
-  const dots = [
-    { top: '18%', left: '6%',  delay: '0s'   },
-    { top: '32%', left: '95%', delay: '1.2s' },
-    { top: '52%', left: '4%',  delay: '2.4s' },
-    { top: '70%', left: '90%', delay: '0.8s' },
-    { top: '12%', left: '88%', delay: '1.8s' },
-  ];
-
-  return (
-    <>
-      <style>{`
-        @keyframes hero-pulse {
-          0%, 100% { opacity: 0; transform: scale(0.6); }
-          50%      { opacity: 0.85; transform: scale(1); }
-        }
-        @keyframes hero-pulse-halo {
-          0%   { opacity: 0.5; transform: scale(0.5); }
-          100% { opacity: 0;   transform: scale(3); }
-        }
-      `}</style>
-      <div className="absolute inset-0 hidden sm:block text-zinc-700 dark:text-white">
-        {dots.map((d, i) => (
-          <div key={i} className="absolute" style={{ top: d.top, left: d.left }}>
+      {!reducedMotion && (
+        <>
+          <style>{`
+            @keyframes hero-pulse {
+              0%, 100% { opacity: 0; transform: scale(0.6); }
+              50%      { opacity: 0.7; transform: scale(1); }
+            }
+          `}</style>
+          <div className="absolute inset-0 hidden lg:block text-zinc-700 dark:text-white">
             <div
-              className="absolute w-3 h-3 rounded-full -translate-x-1/2 -translate-y-1/2 bg-current opacity-50"
+              className="absolute w-1.5 h-1.5 rounded-full -translate-x-1/2 -translate-y-1/2 bg-current"
               style={{
-                animation: `hero-pulse-halo 3.5s ease-out infinite`,
-                animationDelay: d.delay,
+                top: '12%',
+                left: '92%',
+                boxShadow: '0 0 6px currentColor',
+                animation: 'hero-pulse 3.5s ease-in-out infinite',
               }}
             />
             <div
               className="absolute w-1.5 h-1.5 rounded-full -translate-x-1/2 -translate-y-1/2 bg-current"
               style={{
+                top: '75%',
+                left: '6%',
                 boxShadow: '0 0 6px currentColor',
-                animation: `hero-pulse 3.5s ease-in-out infinite`,
-                animationDelay: d.delay,
+                animation: 'hero-pulse 3.5s ease-in-out infinite',
+                animationDelay: '1.8s',
               }}
             />
           </div>
-        ))}
-      </div>
-    </>
+        </>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════
+          7. GREEN GLOW + LIGHT BEAM — identidade Sora
+          ═════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-25 dark:opacity-35"
+        style={{ background: `radial-gradient(ellipse, ${BRAND}22 0%, transparent 60%)` }}
+      />
+      <div
+        className="hidden lg:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-[40vh] opacity-50 dark:opacity-35"
+        style={{ background: `linear-gradient(to bottom, ${BRAND}80, transparent)` }}
+      />
+
+      {/* ═════════════════════════════════════════════════════════════
+          8. NOISE GRAIN — quebra gradientes, sutil
+          ═════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute inset-0 opacity-[0.015] dark:opacity-[0.025] mix-blend-overlay"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        }}
+      />
+    </div>
   );
 }
