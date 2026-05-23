@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import IPhoneFrame from './IPhoneFrame';
 import HeroPhoneWhatsApp from './HeroPhoneWhatsApp';
 import HeroPhoneSora from './HeroPhoneSora';
+import HeroBackground from './HeroBackground';
 
 const BRAND = '#61ce70';
 
@@ -15,32 +16,8 @@ export default function Hero() {
   return (
     <section className="relative overflow-hidden pt-10 lg:pt-20 pb-20 lg:pb-32">
 
-      {/* ── Background: grid + radial green glow + light beam + grain ── */}
-      <div aria-hidden className="absolute inset-0 -z-10 pointer-events-none">
-        {/* Grid pattern — visível mas elegante, com fade suave nas bordas.
-            Mesmo design do CTA final, agora se aplicando ao hero inteiro. */}
-        <div className="absolute inset-0 opacity-[0.07] dark:opacity-[0.08]"
-             style={{
-               backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
-               backgroundSize: '56px 56px',
-               maskImage: 'radial-gradient(ellipse 100% 80% at 50% 35%, black 30%, transparent 85%)',
-               WebkitMaskImage: 'radial-gradient(ellipse 100% 80% at 50% 35%, black 30%, transparent 85%)',
-             }} />
-
-        {/* Radial green glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-30 dark:opacity-40"
-             style={{ background: `radial-gradient(ellipse, ${BRAND}22 0%, transparent 60%)` }} />
-
-        {/* Vertical light beam */}
-        <div className="hidden lg:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-[40vh] opacity-60 dark:opacity-40"
-             style={{ background: `linear-gradient(to bottom, ${BRAND}80, transparent)` }} />
-
-        {/* Noise grain — quebra o gradiente puro, dá textura */}
-        <div className="absolute inset-0 opacity-[0.018] dark:opacity-[0.03] mix-blend-overlay pointer-events-none"
-             style={{
-               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-             }} />
-      </div>
+      {/* Background cinematográfico — múltiplas camadas (ver HeroBackground.tsx) */}
+      <HeroBackground />
 
       <div className="max-w-7xl mx-auto px-5 sm:px-8 grid lg:grid-cols-2 gap-10 lg:gap-8 items-center">
 
