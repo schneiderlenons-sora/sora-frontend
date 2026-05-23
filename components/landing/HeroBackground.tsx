@@ -5,24 +5,26 @@ import { useEffect, useRef, useState } from 'react';
 const BRAND = '#61ce70';
 
 /**
- * Fundo cinematográfico do hero — 7 camadas combinadas:
+ * Fundo cinematográfico do hero — arquitetura por camadas:
  *
- *   1. Grid base               — quadradinhos sutis com fade radial (sempre visível)
- *   2. Spotlight grid          — grid amplificado que segue o cursor (Linear-style)
- *   3. Cell highlights         — alguns quadrados pintados (constelação)
- *   4. Pulse dots              — pontos pulsando em interseções (estática suave)
- *   5. Green glow              — halo da marca no topo
- *   6. Light beam              — feixe vertical fino do topo
- *   7. Noise                   — grain pra quebrar gradientes
+ *   1. Grid base               — sempre presente, em todo o hero
+ *   2. Overlay TOP             — emerge suavemente do header (cor do BG + fade)
+ *   3. Overlay HEADLINE        — protege a área do título com radial (cor do BG)
+ *   4. Overlay BOTTOM          — funde com a próxima seção
+ *   5. Spotlight grid          — segue o cursor (Linear-style)
+ *   6. Cell highlights         — quadrados acentuados nos cantos
+ *   7. Pulse dots              — pontos pulsando (vida)
+ *   8. Green glow              — halo da marca no topo
+ *   9. Light beam              — feixe vertical fino
+ *  10. Noise                   — grain
  *
- * Tudo respeita `prefers-reduced-motion`: spotlight e pulse desabilitam.
- * Funciona em light e dark sem cores adicionais (usa currentColor + opacidade).
+ * Light + dark sem cores extras (rgba branco / rgba zinc).
+ * Respeita prefers-reduced-motion (desliga spotlight + pulse).
  */
 export default function HeroBackground() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
 
-  // Detecta preferência de motion reduzido
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReducedMotion(mq.matches);
@@ -31,17 +33,17 @@ export default function HeroBackground() {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Spotlight que segue o cursor (apenas desktop, sem reduced-motion)
+  // Spotlight cursor (desktop, sem reduced-motion)
   useEffect(() => {
     if (reducedMotion) return;
     if (typeof window === 'undefined') return;
-    if (window.matchMedia('(pointer: coarse)').matches) return; // só pointers finos (mouse)
+    if (window.matchMedia('(pointer: coarse)').matches) return;
 
     const el = containerRef.current;
     if (!el) return;
 
     let raf = 0;
-    let targetX = 50, targetY = 30; // valores em % iniciais
+    let targetX = 50, targetY = 30;
     let curX = 50, curY = 30;
 
     function onMove(e: PointerEvent) {
@@ -49,7 +51,6 @@ export default function HeroBackground() {
       const rect = el.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
-      // Só atualiza se o cursor está dentro (com margem)
       if (x < -10 || x > 110 || y < -10 || y > 110) {
         el.style.setProperty('--spot-opacity', '0');
         return;
@@ -64,7 +65,6 @@ export default function HeroBackground() {
       el?.style.setProperty('--spot-opacity', '0');
     }
 
-    // Easing pra mover suavemente (não saltar com movimentos bruscos)
     function loop() {
       curX += (targetX - curX) * 0.18;
       curY += (targetY - curY) * 0.18;
@@ -72,10 +72,7 @@ export default function HeroBackground() {
       el?.style.setProperty('--spot-y', `${curY}%`);
       const dx = Math.abs(targetX - curX);
       const dy = Math.abs(targetY - curY);
-      if (dx < 0.05 && dy < 0.05) {
-        raf = 0;
-        return;
-      }
+      if (dx < 0.05 && dy < 0.05) { raf = 0; return; }
       raf = requestAnimationFrame(loop);
     }
 
@@ -94,53 +91,84 @@ export default function HeroBackground() {
       aria-hidden
       className="absolute inset-0 -z-10 pointer-events-none overflow-hidden"
       style={{
-        // CSS vars usadas no spotlight
         ['--spot-x' as string]: '50%',
         ['--spot-y' as string]: '30%',
         ['--spot-opacity' as string]: '0',
       } as React.CSSProperties}
     >
-      {/* ── 1. GRID BASE ──────────────────────────────────────────────
-          Duas camadas (uma por tema) — usa cor + alfa direto pra
-          garantir visibilidade. Light: zinc-900 a 12%, Dark: white a 14%.
-          Linhas de 1.5px ficam nítidas em qualquer DPR.                   */}
-      {/* Light mode grid — mask radial cria "moldura": forte nas bordas,
-          dissolvido no centro (onde está a headline). Estilo Apple/Stripe. */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 1 — GRID BASE (sempre presente, sem máscaras)
+          ═════════════════════════════════════════════════════════════ */}
+      {/* Light */}
       <div
         className="absolute inset-0 dark:hidden"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(15, 23, 42, 0.17) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(15, 23, 42, 0.17) 1.5px, transparent 1.5px)
+            linear-gradient(to right, rgba(15, 23, 42, 0.18) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(15, 23, 42, 0.18) 1.5px, transparent 1.5px)
           `,
           backgroundSize: '72px 72px',
-          // Buraco no centro (transparente) → bordas fortes (preto).
-          // E fade vertical no bottom (some perto da próxima section).
-          maskImage:
-            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
-          WebkitMaskImage:
-            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
         }}
       />
-      {/* Dark mode grid — mesmo mask */}
+      {/* Dark */}
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(255, 255, 255, 0.19) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.19) 1.5px, transparent 1.5px)
+            linear-gradient(to right, rgba(255, 255, 255, 0.20) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.20) 1.5px, transparent 1.5px)
           `,
           backgroundSize: '72px 72px',
-          maskImage:
-            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
-          WebkitMaskImage:
-            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
         }}
       />
 
-      {/* ── 2. SPOTLIGHT GRID ─────────────────────────────────────────
-          Grid amplificado revelado pela posição do cursor (Linear/Vercel).
-          Light: zinc mais forte. Dark: white mais forte.                  */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 2 — OVERLAY TOP (fade do header, grid emerge suave)
+          ═════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute inset-x-0 top-0 h-40 dark:hidden"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0.85) 35%, rgba(255,255,255,0.35) 70%, transparent 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-40 hidden dark:block"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(10,10,10,1) 0%, rgba(10,10,10,0.85) 35%, rgba(10,10,10,0.35) 70%, transparent 100%)',
+        }}
+      />
+
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 3 — OVERLAY HEADLINE (protege o título, lado esquerdo)
+          Elipse centrada no centro-esquerda (onde fica o título).
+          Opaca no centro, dissolve nas bordas — apaga o grid.
+          ═════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute inset-0 dark:hidden"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 65% at 28% 55%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.85) 30%, rgba(255,255,255,0.5) 55%, transparent 85%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 65% at 28% 55%, rgba(10,10,10,0.98) 0%, rgba(10,10,10,0.85) 30%, rgba(10,10,10,0.5) 55%, transparent 85%)',
+        }}
+      />
+
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 4 — OVERLAY BOTTOM (fade pra próxima seção)
+          ═════════════════════════════════════════════════════════════ */}
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white dark:to-[#0a0a0a]" />
+
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 5 — SPOTLIGHT GRID (segue o cursor)
+          Acima dos overlays pra ser sempre visível na trajetória.
+          ═════════════════════════════════════════════════════════════ */}
       {!reducedMotion && (
         <>
           <div
@@ -148,10 +176,10 @@ export default function HeroBackground() {
             style={{
               opacity: 'var(--spot-opacity)',
               backgroundImage: `
-                linear-gradient(to right, rgba(15, 23, 42, 0.35) 1.5px, transparent 1.5px),
-                linear-gradient(to bottom, rgba(15, 23, 42, 0.35) 1.5px, transparent 1.5px)
+                linear-gradient(to right, rgba(15, 23, 42, 0.32) 1.5px, transparent 1.5px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.32) 1.5px, transparent 1.5px)
               `,
-              backgroundSize: '64px 64px',
+              backgroundSize: '72px 72px',
               maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
               WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
             }}
@@ -164,7 +192,7 @@ export default function HeroBackground() {
                 linear-gradient(to right, rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px),
                 linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px)
               `,
-              backgroundSize: '64px 64px',
+              backgroundSize: '72px 72px',
               maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
               WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
             }}
@@ -172,80 +200,65 @@ export default function HeroBackground() {
         </>
       )}
 
-      {/* ── 3. CELL HIGHLIGHTS — "constelação" ─────────────────────────
-          Alguns quadrados sutilmente pintados, alinhados ao grid de 64px.
-          Posicionados em % pra responder ao viewport. Dão profundidade
-          sem competir com o grid principal.                              */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 6 — CELL HIGHLIGHTS (cantos absolutos)
+          Acima dos overlays pra ficarem sempre visíveis. Posicionadas
+          fora completamente da área do título.
+          ═════════════════════════════════════════════════════════════ */}
       <CellHighlights />
 
-      {/* ── 4. PULSE DOTS ─────────────────────────────────────────────
-          Pontos brancos pulsando suavemente em pontos do grid.
-          Cria sensação de "vida" sem ser distrativo.                     */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 7 — PULSE DOTS
+          ═════════════════════════════════════════════════════════════ */}
       {!reducedMotion && <PulseDots />}
 
-      {/* ── 5. GREEN GLOW ─────────────────────────────────────────────
-          Halo verde no topo, reforça identidade Sora.                    */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 8 — GREEN GLOW (identidade Sora)
+          ═════════════════════════════════════════════════════════════ */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full opacity-30 dark:opacity-40"
         style={{ background: `radial-gradient(ellipse, ${BRAND}22 0%, transparent 60%)` }}
       />
 
-      {/* ── 6. LIGHT BEAM ─────────────────────────────────────────────
-          Feixe vertical fino do topo (depth + foco na headline).         */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 9 — LIGHT BEAM (feixe vertical fino do topo)
+          ═════════════════════════════════════════════════════════════ */}
       <div
         className="hidden lg:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-[40vh] opacity-60 dark:opacity-40"
         style={{ background: `linear-gradient(to bottom, ${BRAND}80, transparent)` }}
       />
 
-      {/* ── 7. NOISE GRAIN ────────────────────────────────────────────
-          Textura sutil que quebra o gradient liso e dá sensação de mídia
-          impressa de qualidade.                                          */}
+      {/* ═════════════════════════════════════════════════════════════
+          CAMADA 10 — NOISE GRAIN
+          ═════════════════════════════════════════════════════════════ */}
       <div
         className="absolute inset-0 opacity-[0.018] dark:opacity-[0.035] mix-blend-overlay"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }}
       />
-
-      {/* ── 8. BOTTOM FADE ────────────────────────────────────────────
-          Transição suave pra próxima seção, evita corte abrupto.         */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-white dark:to-[#0a0a0a]" />
     </div>
   );
 }
 
 // ─── Cell Highlights ─────────────────────────────────────────────────────────
-// Quadrados pintados em posições fixas. Posições escolhidas pra dar uma
-// "constelação" equilibrada — nem amontoado, nem espalhado demais.
+// Posições nos 4 cantos absolutos + 2 bordas (longe da headline e dos phones).
 
 function CellHighlights() {
-  // Constelação balanceada pelos cantos. Tamanho 64px = grid match.
-  // Opacidades variadas pra dar profundidade (sem ficar uniforme).
-  // Cells nos cantos absolutos — fora completamente da área do título
-  // e dos phones. Função: dar peso visual nos cantos e equilibrar a
-  // composição (ancoragem nos 4 cantos + 2 nas bordas).
   const cells = [
-    { top: '4%',   left: '2%',   o: 0.10 },  // canto sup esq
-    { top: '4%',   left: '94%',  o: 0.10 },  // canto sup dir
-    { top: '88%',  left: '4%',   o: 0.08 },  // canto inf esq
-    { top: '88%',  left: '92%',  o: 0.08 },  // canto inf dir
-    { top: '14%',  left: '93%',  o: 0.07 },  // borda dir
-    { top: '70%',  left: '2%',   o: 0.07 },  // borda esq
+    { top: '4%',   left: '2%',   o: 0.13 },  // canto sup esq
+    { top: '4%',   left: '94%',  o: 0.13 },  // canto sup dir
+    { top: '86%',  left: '4%',   o: 0.10 },  // canto inf esq
+    { top: '86%',  left: '92%',  o: 0.10 },  // canto inf dir
+    { top: '14%',  left: '92%',  o: 0.09 },  // borda dir alta
+    { top: '70%',  left: '2%',   o: 0.09 },  // borda esq baixa
   ];
 
   return (
-    <div
-      className="absolute inset-0 hidden sm:block"
-      style={{
-        maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 95%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 95%)',
-      }}
-    >
+    <div className="absolute inset-0 hidden sm:block">
       {cells.map((c, i) => (
         <div key={i} className="absolute w-[72px] h-[72px]" style={{ top: c.top, left: c.left }}>
-          {/* Light mode fill */}
           <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o})` }} />
-          {/* Dark mode fill */}
           <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.02})` }} />
         </div>
       ))}
@@ -254,16 +267,15 @@ function CellHighlights() {
 }
 
 // ─── Pulse Dots ──────────────────────────────────────────────────────────────
-// Pequenos pontos em interseções do grid pulsando suavemente.
-// Usa keyframes inline pra não depender do tailwind.config.
+// Pontos brancos/escuros pulsando em interseções do grid.
 
 function PulseDots() {
   const dots = [
-    { top: '18%', left: '24%', delay: '0s'   },
-    { top: '32%', left: '74%', delay: '1.2s' },
-    { top: '52%', left: '14%', delay: '2.4s' },
-    { top: '60%', left: '82%', delay: '0.8s' },
-    { top: '28%', left: '52%', delay: '1.8s' },
+    { top: '18%', left: '6%',  delay: '0s'   },
+    { top: '32%', left: '95%', delay: '1.2s' },
+    { top: '52%', left: '4%',  delay: '2.4s' },
+    { top: '70%', left: '90%', delay: '0.8s' },
+    { top: '12%', left: '88%', delay: '1.8s' },
   ];
 
   return (
@@ -280,12 +292,7 @@ function PulseDots() {
       `}</style>
       <div className="absolute inset-0 hidden sm:block text-zinc-700 dark:text-white">
         {dots.map((d, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{ top: d.top, left: d.left }}
-          >
-            {/* Halo expansivo (neutro, herda do tema) */}
+          <div key={i} className="absolute" style={{ top: d.top, left: d.left }}>
             <div
               className="absolute w-3 h-3 rounded-full -translate-x-1/2 -translate-y-1/2 bg-current opacity-50"
               style={{
@@ -293,7 +300,6 @@ function PulseDots() {
                 animationDelay: d.delay,
               }}
             />
-            {/* Dot central (neutro, ligeiro glow neutro) */}
             <div
               className="absolute w-1.5 h-1.5 rounded-full -translate-x-1/2 -translate-y-1/2 bg-current"
               style={{
