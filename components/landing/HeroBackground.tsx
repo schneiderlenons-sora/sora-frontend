@@ -101,40 +101,68 @@ export default function HeroBackground() {
       } as React.CSSProperties}
     >
       {/* ── 1. GRID BASE ──────────────────────────────────────────────
-          Bem visível no topo, dissolve aos poucos pra baixo.
-          Estilo Lovable/Concursa. currentColor herda do texto (light: zinc
-          950, dark: white) — sem cores adicionais.                        */}
+          Duas camadas (uma por tema) — usa cor + alfa direto pra
+          garantir visibilidade. Light: zinc-900 a 12%, Dark: white a 14%.
+          Linhas de 1.5px ficam nítidas em qualquer DPR.                   */}
+      {/* Light mode grid */}
       <div
-        className="absolute inset-0 opacity-[0.16] dark:opacity-[0.22]"
+        className="absolute inset-0 dark:hidden"
         style={{
           backgroundImage: `
-            linear-gradient(to right, currentColor 1px, transparent 1px),
-            linear-gradient(to bottom, currentColor 1px, transparent 1px)
+            linear-gradient(to right, rgba(15, 23, 42, 0.13) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(15, 23, 42, 0.13) 1.5px, transparent 1.5px)
           `,
           backgroundSize: '64px 64px',
-          // Fade vertical: visível no topo, some perto da próxima seção
+          maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
+        }}
+      />
+      {/* Dark mode grid */}
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 1.5px, transparent 1.5px)
+          `,
+          backgroundSize: '64px 64px',
           maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 100%)',
         }}
       />
 
       {/* ── 2. SPOTLIGHT GRID ─────────────────────────────────────────
-          Grid amplificado (mais visível) revelado pela posição do cursor.
-          Linear/Vercel-style: efeito "lanterna" sobre o grid base.        */}
+          Grid amplificado revelado pela posição do cursor (Linear/Vercel).
+          Light: zinc mais forte. Dark: white mais forte.                  */}
       {!reducedMotion && (
-        <div
-          className="hidden lg:block absolute inset-0 transition-opacity duration-500 opacity-[0.18] dark:opacity-[0.22]"
-          style={{
-            opacity: `calc(var(--spot-opacity) * 1)`,
-            backgroundImage: `
-              linear-gradient(to right, currentColor 1px, transparent 1px),
-              linear-gradient(to bottom, currentColor 1px, transparent 1px)
-            `,
-            backgroundSize: '64px 64px',
-            maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
-            WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
-          }}
-        />
+        <>
+          <div
+            className="hidden lg:block dark:lg:hidden absolute inset-0 transition-opacity duration-500"
+            style={{
+              opacity: 'var(--spot-opacity)',
+              backgroundImage: `
+                linear-gradient(to right, rgba(15, 23, 42, 0.35) 1.5px, transparent 1.5px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.35) 1.5px, transparent 1.5px)
+              `,
+              backgroundSize: '64px 64px',
+              maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
+              WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
+            }}
+          />
+          <div
+            className="hidden dark:lg:block absolute inset-0 transition-opacity duration-500"
+            style={{
+              opacity: 'var(--spot-opacity)',
+              backgroundImage: `
+                linear-gradient(to right, rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px)
+              `,
+              backgroundSize: '64px 64px',
+              maskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
+              WebkitMaskImage: 'radial-gradient(360px circle at var(--spot-x) var(--spot-y), black 5%, transparent 65%)',
+            }}
+          />
+        </>
       )}
 
       {/* ── 3. CELL HIGHLIGHTS — "constelação" ─────────────────────────
@@ -208,16 +236,12 @@ function CellHighlights() {
       }}
     >
       {cells.map((c, i) => (
-        <div
-          key={i}
-          className="absolute w-16 h-16"
-          style={{
-            top: c.top,
-            left: c.left,
-            background: 'currentColor',
-            opacity: c.o,
-          }}
-        />
+        <div key={i} className="absolute w-16 h-16" style={{ top: c.top, left: c.left }}>
+          {/* Light mode fill */}
+          <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o})` }} />
+          {/* Dark mode fill */}
+          <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.02})` }} />
+        </div>
       ))}
     </div>
   );
