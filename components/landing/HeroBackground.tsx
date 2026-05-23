@@ -101,18 +101,24 @@ export default function HeroBackground() {
       } as React.CSSProperties}
     >
       {/* ── 1. GRID BASE ──────────────────────────────────────────────
-          Sempre visível, com fade radial elegante. O `currentColor`
-          herda do texto da seção (zinc no light, white no dark).        */}
+          Visível e elegante. Fade combinado: linear top→bottom (some
+          aos poucos pra baixo, como o Lovable) + radial nas laterais.
+          currentColor herda do texto da seção (light: zinc / dark: white). */}
       <div
-        className="absolute inset-0 opacity-[0.07] dark:opacity-[0.085]"
+        className="absolute inset-0 opacity-[0.13] dark:opacity-[0.14]"
         style={{
           backgroundImage: `
             linear-gradient(to right, currentColor 1px, transparent 1px),
             linear-gradient(to bottom, currentColor 1px, transparent 1px)
           `,
           backgroundSize: '64px 64px',
-          maskImage: 'radial-gradient(ellipse 110% 90% at 50% 20%, black 20%, transparent 88%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 110% 90% at 50% 20%, black 20%, transparent 88%)',
+          // Duplo mask: vertical (some pra baixo) + radial (fade lateral)
+          maskImage:
+            'linear-gradient(to bottom, black 0%, black 35%, transparent 95%), radial-gradient(ellipse 80% 100% at 50% 0%, black 60%, transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to bottom, black 0%, black 35%, transparent 95%), radial-gradient(ellipse 80% 100% at 50% 0%, black 60%, transparent 100%)',
+          maskComposite: 'intersect',
+          WebkitMaskComposite: 'source-in',
         }}
       />
 
@@ -182,34 +188,36 @@ export default function HeroBackground() {
 // "constelação" equilibrada — nem amontoado, nem espalhado demais.
 
 function CellHighlights() {
-  // x/y em vh/vw + offsets fixos pra alinhar ao grid de 64px.
-  // Cada cell é 64×64 — match exato do grid.
+  // Constelação balanceada pelos cantos. Tamanho 64px = grid match.
+  // Opacidades variadas pra dar profundidade (sem ficar uniforme).
   const cells = [
-    { top: '12%',  left: '14%',  size: 64,  o: 0.05 },
-    { top: '22%',  left: '78%',  size: 64,  o: 0.06 },
-    { top: '38%',  left: '8%',   size: 64,  o: 0.04 },
-    { top: '46%',  left: '88%',  size: 64,  o: 0.05 },
-    { top: '62%',  left: '22%',  size: 64,  o: 0.04 },
-    { top: '70%',  left: '72%',  size: 64,  o: 0.05 },
-    { top: '18%',  left: '46%',  size: 64,  o: 0.03 },
-    { top: '54%',  left: '56%',  size: 64,  o: 0.03 },
+    { top: '8%',   left: '12%',  o: 0.09 },
+    { top: '14%',  left: '78%',  o: 0.11 },
+    { top: '24%',  left: '4%',   o: 0.07 },
+    { top: '32%',  left: '88%',  o: 0.09 },
+    { top: '46%',  left: '18%',  o: 0.08 },
+    { top: '54%',  left: '76%',  o: 0.10 },
+    { top: '16%',  left: '44%',  o: 0.06 },
+    { top: '38%',  left: '60%',  o: 0.06 },
+    { top: '6%',   left: '92%',  o: 0.08 },
+    { top: '26%',  left: '34%',  o: 0.05 },
   ];
 
   return (
-    <div className="absolute inset-0 hidden sm:block"
-         style={{
-           maskImage: 'radial-gradient(ellipse 100% 85% at 50% 25%, black 30%, transparent 90%)',
-           WebkitMaskImage: 'radial-gradient(ellipse 100% 85% at 50% 25%, black 30%, transparent 90%)',
-         }}>
+    <div
+      className="absolute inset-0 hidden sm:block"
+      style={{
+        maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 95%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 95%)',
+      }}
+    >
       {cells.map((c, i) => (
         <div
           key={i}
-          className="absolute"
+          className="absolute w-16 h-16"
           style={{
             top: c.top,
             left: c.left,
-            width: c.size,
-            height: c.size,
             background: 'currentColor',
             opacity: c.o,
           }}
