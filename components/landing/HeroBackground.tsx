@@ -104,50 +104,37 @@ export default function HeroBackground() {
           Duas camadas (uma por tema) — usa cor + alfa direto pra
           garantir visibilidade. Light: zinc-900 a 12%, Dark: white a 14%.
           Linhas de 1.5px ficam nítidas em qualquer DPR.                   */}
-      {/* Light mode grid — linhas 1.5px, células 72px, opacidade 14% */}
+      {/* Light mode grid — mask radial cria "moldura": forte nas bordas,
+          dissolvido no centro (onde está a headline). Estilo Apple/Stripe. */}
       <div
         className="absolute inset-0 dark:hidden"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(15, 23, 42, 0.14) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(15, 23, 42, 0.14) 1.5px, transparent 1.5px)
+            linear-gradient(to right, rgba(15, 23, 42, 0.17) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(15, 23, 42, 0.17) 1.5px, transparent 1.5px)
           `,
           backgroundSize: '72px 72px',
-          maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+          // Buraco no centro (transparente) → bordas fortes (preto).
+          // E fade vertical no bottom (some perto da próxima section).
+          maskImage:
+            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
+          WebkitMaskImage:
+            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
         }}
       />
-      {/* Dark mode grid — linhas 1.5px, células 72px, opacidade 16% */}
+      {/* Dark mode grid — mesmo mask */}
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(255, 255, 255, 0.16) 1.5px, transparent 1.5px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.16) 1.5px, transparent 1.5px)
+            linear-gradient(to right, rgba(255, 255, 255, 0.19) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.19) 1.5px, transparent 1.5px)
           `,
           backgroundSize: '72px 72px',
-          maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
-        }}
-      />
-
-      {/* ── VINHETA DE LEITURA ────────────────────────────────────────
-          Halo central que clareia o BG no light e escurece no dark,
-          dando contraste/legibilidade pra headline sem matar o grid.
-          O grid fica visível nas bordas (impacto visual) e sutil onde
-          tem texto (legibilidade).                                      */}
-      <div
-        className="absolute inset-0 dark:hidden"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 55% at 30% 45%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.35) 40%, transparent 75%)',
-        }}
-      />
-      <div
-        className="absolute inset-0 hidden dark:block"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 55% at 30% 45%, rgba(10,10,10,0.80) 0%, rgba(10,10,10,0.30) 40%, transparent 75%)',
+          maskImage:
+            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
+          WebkitMaskImage:
+            'radial-gradient(ellipse 60% 75% at 50% 45%, transparent 8%, rgba(0,0,0,0.4) 35%, black 75%)',
         }}
       />
 
@@ -234,17 +221,16 @@ export default function HeroBackground() {
 function CellHighlights() {
   // Constelação balanceada pelos cantos. Tamanho 64px = grid match.
   // Opacidades variadas pra dar profundidade (sem ficar uniforme).
-  // Cells posicionadas nos cantos / bordas — fora da área de leitura.
-  // Não tem cells no centro-esquerda (onde fica a headline).
+  // Cells nos cantos absolutos — fora completamente da área do título
+  // e dos phones. Função: dar peso visual nos cantos e equilibrar a
+  // composição (ancoragem nos 4 cantos + 2 nas bordas).
   const cells = [
-    { top: '6%',   left: '4%',   o: 0.07 },
-    { top: '8%',   left: '74%',  o: 0.10 },
-    { top: '6%',   left: '92%',  o: 0.08 },
-    { top: '22%',  left: '86%',  o: 0.09 },
-    { top: '40%',  left: '90%',  o: 0.07 },
-    { top: '60%',  left: '4%',   o: 0.06 },
-    { top: '70%',  left: '80%',  o: 0.07 },
-    { top: '78%',  left: '14%',  o: 0.05 },
+    { top: '4%',   left: '2%',   o: 0.10 },  // canto sup esq
+    { top: '4%',   left: '94%',  o: 0.10 },  // canto sup dir
+    { top: '88%',  left: '4%',   o: 0.08 },  // canto inf esq
+    { top: '88%',  left: '92%',  o: 0.08 },  // canto inf dir
+    { top: '14%',  left: '93%',  o: 0.07 },  // borda dir
+    { top: '70%',  left: '2%',   o: 0.07 },  // borda esq
   ];
 
   return (
