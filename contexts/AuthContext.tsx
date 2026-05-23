@@ -5,6 +5,7 @@ import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { type Plano, type Feature, type Recurso, podeUsar as _podeUsar, limiteDe as _limiteDe } from '@/lib/plans';
 
 export type Papel = 'admin' | 'escrita' | 'leitura';
 export type Painel = 'finance' | 'grow';
@@ -16,7 +17,12 @@ interface Perfil {
   name:             string;
   email?:           string | null;
   avatar_url?:      string | null;
-  plano:            'inativo' | 'basico' | 'premium' | 'black';
+  created_at?:      string | null;
+  plano:            Plano;
+  plano_intervalo?: 'mensal' | 'anual' | null;
+  plano_valido_ate?: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
   plano_grow?:      PlanoGrow;
   grow_trial_inicio?: string | null;
   grow_trial_fim?:    string | null;
@@ -29,14 +35,20 @@ interface AuthContextType {
   perfil:          Perfil | null;
   loading:         boolean;
   phone:           string;
+  plano:           Plano;
+  // Flags legados — mantidos por compat. Para novo código use `podeUsar`.
   isBlack:         boolean;
   isPremium:       boolean;
+  // Helpers centralizados (lib/plans.ts)
+  podeUsar:        (feature: Feature) => boolean;
+  limiteDe:        (recurso: Recurso) => number;
   papel:           Papel;
   podeEditar:      boolean;
   podeAdministrar: boolean;
   // ── Grow ──
   painelAtivo:     Painel;
   temAcessoGrow:   boolean;
+  podeAtivarTrialGrow: boolean;
   trialAtivo:      boolean;
   diasTrialRestantes: number;
   trocarPainel:    (p: Painel) => Promise<void>;
@@ -160,18 +172,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const phone    = perfil?.phone || '';
-  const isBlack  = perfil?.plano === 'black';
-  const isPremium = perfil?.plano === 'premium' || isBlack;
+  const plano: Plano = perfil?.plano || 'inativo';
+  const isBlack  = plano === 'black';
+  const isPremium = plano === 'premium' || isBlack;
+  const podeUsar = (f: Feature) => _podeUsar(plano, f);
+  const limiteDe = (r: Recurso) => _limiteDe(plano, r);
   const podeEditar      = papel === 'admin' || papel === 'escrita';
   const podeAdministrar = papel === 'admin';
 
   // ── GROW: acesso, trial, troca de painel ───────────────────────────
+  // Premium e Black têm Sora Grow incluso (acesso direto, sem trial).
+  // Básico pode ativar 7 dias grátis. Inativo idem (onboarding).
+  // Histórico: planos legados "grow_basico"/"grow_premium" continuam valendo.
   const planoGrow = perfil?.plano_grow || 'sem_acesso';
   const trialFim  = perfil?.grow_trial_fim ? new Date(perfil.grow_trial_fim) : null;
   const agora     = new Date();
   const trialAtivo = planoGrow === 'trial' && trialFim != null && trialFim > agora;
   const diasTrialRestantes = trialFim ? Math.max(0, Math.ceil((trialFim.getTime() - agora.getTime()) / 86400000)) : 0;
-  const temAcessoGrow = isBlack || ['grow_basico','grow_premium'].includes(planoGrow) || trialAtivo;
+  const temAcessoGrow =
+    podeUsar('sora_grow') ||
+    ['grow_basico', 'grow_premium'].includes(planoGrow) ||
+    trialAtivo;
+  // Só quem não tem acesso direto e ainda não consumiu o trial pode ativar.
+  const podeAtivarTrialGrow =
+    podeUsar('sora_grow_trial') && planoGrow === 'sem_acesso';
   const painelAtivo: Painel = painelLocal;
 
   async function trocarPainel(p: Painel) {
@@ -190,9 +214,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, perfil, loading, phone,
-      isBlack, isPremium,
+      plano, isBlack, isPremium,
+      podeUsar, limiteDe,
       papel, podeEditar, podeAdministrar,
-      painelAtivo, temAcessoGrow, trialAtivo, diasTrialRestantes,
+      painelAtivo, temAcessoGrow, podeAtivarTrialGrow, trialAtivo, diasTrialRestantes,
       trocarPainel, ativarTrialGrow,
       signIn, signInWithGoogle, signInWithApple, signUp, signOut, recarregar
     }}>

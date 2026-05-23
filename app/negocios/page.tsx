@@ -594,9 +594,9 @@ function PaywallBlack() {
           <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
             Conecte Hotmart, Stripe e mais. Tenha seu DRE, fluxo de caixa e insights de IA em tempo real.
           </p>
-          <Link href="/configuracoes" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-black shadow-lg"
+          <Link href="/planos" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-black shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }}>
-            <Crown size={15} /> Fazer upgrade
+            <Crown size={15} /> Ver planos
           </Link>
         </div>
       </div>

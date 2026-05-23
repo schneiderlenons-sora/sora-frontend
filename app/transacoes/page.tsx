@@ -31,7 +31,11 @@ const mesAtual = new Date().toISOString().slice(0, 7);
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function TransacoesPage() {
-  const { phone } = useAuth();
+  const { phone, podeUsar } = useAuth();
+  const podeImportarOFX = podeUsar('import_ofx');
+  const podeImportarCSV = podeUsar('import_csv');
+  const podeImportar = podeImportarOFX || podeImportarCSV;
+  const podeExportar = podeUsar('export_dados');
 
   const [txs,      setTxs]      = useState<any[]>([]);
   const [wallets,  setWallets]  = useState<any[]>([]);
@@ -178,25 +182,30 @@ export default function TransacoesPage() {
 
               <div className="relative">
                 <button
-                  onClick={() => setImportMenuOpen(v => !v)}
+                  onClick={() => podeImportar ? setImportMenuOpen(v => !v) : alert('Importação de OFX/CSV está disponível no plano Premium ou Black.')}
                   className="btn-outline px-3 py-2 text-sm gap-2"
+                  title={podeImportar ? 'Importar extrato' : 'Disponível no plano Premium'}
                 >
-                  <Upload size={14} /> Importar <ChevronDown size={12} />
+                  <Upload size={14} /> Importar
+                  {!podeImportar && <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Premium</span>}
+                  <ChevronDown size={12} />
                 </button>
-                {importMenuOpen && (
+                {importMenuOpen && podeImportar && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setImportMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-2 w-52 card p-1.5 z-20 animate-fade-in">
                       <button
                         onClick={() => { setImportarFormato('ofx'); setImportMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors"
+                        disabled={!podeImportarOFX}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={14} className="text-muted-foreground" />
                         <span>Importar OFX</span>
                       </button>
                       <button
                         onClick={() => { setImportarFormato('csv'); setImportMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors"
+                        disabled={!podeImportarCSV}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={14} className="text-muted-foreground" />
                         <span>Importar extrato (CSV)</span>
@@ -215,8 +224,13 @@ export default function TransacoesPage() {
                 )}
               </div>
 
-              <button onClick={exportarCSV} className="btn-outline px-3 py-2 text-sm gap-2">
+              <button
+                onClick={() => podeExportar ? exportarCSV() : alert('Exportação de dados está disponível no plano Premium ou Black.')}
+                className="btn-outline px-3 py-2 text-sm gap-2"
+                title={podeExportar ? 'Exportar CSV' : 'Disponível no plano Premium'}
+              >
                 <Download size={14} /> Exportar
+                {!podeExportar && <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Premium</span>}
               </button>
 
               <button

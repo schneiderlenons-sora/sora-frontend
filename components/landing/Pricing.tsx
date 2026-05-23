@@ -2,92 +2,13 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Check, Crown, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, Crown, Sparkles } from 'lucide-react';
+import { PLANOS_DISPLAY } from '@/lib/planos-display';
+import { PLANOS_INFO } from '@/lib/stripe';
 
-type Plano = {
-  id: 'basico' | 'premium' | 'black';
-  nome: string;
-  mensal: number;
-  descontoAnual: number;
-  badge?: string;
-  destaque?: boolean;
-  icon?: any;
-  cor: string;
-  subtitulo: string;
-  features: string[];
-  features_extras?: string[];
-};
-
-const PLANOS: Plano[] = [
-  {
-    id: 'basico',
-    nome: 'Básico',
-    mensal: 19.90,
-    descontoAnual: 12,
-    cor: '#71717a',
-    subtitulo: 'Pra começar a se organizar.',
-    features: [
-      'Lançamentos ilimitados',
-      'WhatsApp ou painel (texto/áudio)',
-      '3 contas bancárias',
-      'Gráficos interativos no painel',
-      'Categorias e subcategorias personalizadas',
-      'Lembretes de contas',
-      'Relatórios financeiros',
-      'Alertas e limites de gastos',
-      'Suporte via WhatsApp',
-    ],
-  },
-  {
-    id: 'premium',
-    nome: 'Premium',
-    mensal: 29.90,
-    descontoAnual: 20,
-    cor: '#61ce70',
-    subtitulo: 'A vida toda organizada.',
-    destaque: true,
-    badge: 'Mais popular · Sora Grow incluso',
-    icon: Sparkles,
-    features: [
-      'Tudo do Básico',
-      'Contas e cartões ilimitados',
-      'Controle de gastos por imagem (OCR)',
-      'Importação OFX',
-      'Exportação de dados',
-      'Gestão compartilhada (casal/família)',
-      'Relatórios avançados',
-      'Suporte prioritário',
-      'Central de Investimentos',
-      'Metas com aporte automático',
-      'Metas compartilhadas',
-      'Recomendações por perfil de risco',
-      'Sora Grow incluso — hábitos, saúde, estudos, casa',
-    ],
-  },
-  {
-    id: 'black',
-    nome: 'Black',
-    mensal: 79.90,
-    descontoAnual: 40,
-    cor: '#fbbf24',
-    subtitulo: 'Pra empreendedor digital.',
-    badge: 'Business · Sora Grow incluso',
-    icon: Crown,
-    features: [
-      'Tudo do Premium',
-      'Painel DRE completo',
-      'Integrações Hotmart, Kiwify, Eduzz, Stripe',
-      'Importação histórica 90 dias',
-      'Forecast 3 meses (receita/lucro)',
-      'Insights da IA financeira',
-      'Conciliação automática (venda × banco)',
-      'Wrapped mensal compartilhável',
-      'Config tributária (MEI/Simples/Lucro Presumido)',
-      'Custos por categoria',
-      'MRR / ARR tracking',
-    ],
-  },
-];
+// Ícone exibido junto ao nome do plano destacado. Mantido aqui pra não
+// vazar dependência de lucide-react no lib/planos-display.
+const ICONES = { premium: Sparkles, black: Crown } as const;
 
 export default function Pricing() {
   const [anual, setAnual] = useState(false);
@@ -142,11 +63,10 @@ export default function Pricing() {
 
         {/* Cards de planos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {PLANOS.map((p, i) => {
-            const precoExibido = anual
-              ? +(p.mensal * (1 - p.descontoAnual / 100)).toFixed(2)
-              : p.mensal;
-            const Icon = p.icon;
+          {PLANOS_DISPLAY.map((p) => {
+            const info = PLANOS_INFO[p.id];
+            const precoExibido = anual ? info.anual : info.mensal;
+            const Icon = ICONES[p.id as keyof typeof ICONES];
 
             return (
               <div
@@ -196,7 +116,7 @@ export default function Pricing() {
                       </span>
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-white/50 mt-1">
-                      por mês{anual && <> · pago anualmente · <span style={{ color: p.cor }} className="font-bold">{p.descontoAnual}% off</span></>}
+                      por mês{anual && <> · pago anualmente · <span style={{ color: p.cor }} className="font-bold">{info.descAnual}% off</span></>}
                     </p>
                   </div>
 

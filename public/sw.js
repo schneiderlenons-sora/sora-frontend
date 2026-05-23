@@ -1,27 +1,51 @@
 // Service Worker mínimo — necessário pro Chrome/Edge habilitarem o prompt de instalação PWA.
-// Versão simples: network-first com fallback em cache pra lidar com offline básico.
+// Network-first com fallback em cache pra lidar com offline básico.
+// IMPORTANTE: bumpar CACHE quando mudar a estratégia ou se houver suspeita
+// de versão obsoleta sendo servida no painel.
 
-const CACHE = 'sora-v1';
+const CACHE = 'sora-v3';
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
+  // Força essa nova versão a substituir a antiga imediatamente
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  // Limpa caches antigos e assume controle de todas as abas abertas
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })()
+  );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Só faz cache de requests GET, não de API/POST
   if (event.request.method !== 'GET') return;
 
-  // Network-first: tenta rede, cacheia resposta; offline -> cache
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  if (!isSameOrigin) return;
+
+  // Documentos HTML (navegação) NUNCA são cacheados — sempre da rede.
+  // Isso evita servir páginas obsoletas após deploy / hot reload.
+  const isHTML =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request).then((c) => c || Response.error()))
+    );
+    return;
+  }
+
+  // Assets estáticos: network-first com cache de fallback
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        // Cacheia apenas same-origin (não cacheia Supabase/Render etc.)
-        const isSameOrigin = new URL(event.request.url).origin === self.location.origin;
-        if (isSameOrigin && res && res.status === 200) {
+        if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then((c) => c.put(event.request, clone)).catch(() => {});
         }

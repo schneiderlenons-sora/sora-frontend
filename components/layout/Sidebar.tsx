@@ -6,15 +6,24 @@ import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt, Briefcase,
-  Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles,
+  Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import PainelSwitch from './PainelSwitch';
+import type { Feature } from '@/lib/plans';
 
-const NAV_FINANCE = [
+type NavItem = {
+  href:    string;
+  label:   string;
+  icon:    any;
+  gate?:   Feature;       // feature requerida pra acessar
+  badge?:  'Premium' | 'Black'; // rótulo exibido quando bloqueado
+};
+
+const NAV_FINANCE: NavItem[] = [
   { href: '/dashboard',          label: 'Dashboard',        icon: LayoutDashboard },
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
@@ -24,9 +33,10 @@ const NAV_FINANCE = [
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
   { href: '/metas',              label: 'Metas',             icon: Flag },
   { href: '/dividas',            label: 'Dívidas',           icon: Receipt },
-  { href: '/comunidade',         label: 'Grupos',            icon: Users },
-  { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp, black: true },
-  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,  black: true },
+  { href: '/comunidade',         label: 'Grupos',            icon: Users,       gate: 'compartilhamento', badge: 'Premium' },
+  { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
+  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Black'   },
+  { href: '/planos',             label: 'Planos',            icon: Zap },
   { href: '/configuracoes',      label: 'Configurações',     icon: Settings },
 ];
 
@@ -56,7 +66,7 @@ const SIDEBAR_BG_BLACK         = '#000000';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { perfil, signOut, painelAtivo, temAcessoGrow } = useAuth();
+  const { perfil, signOut, painelAtivo, podeUsar } = useAuth();
   const [open, setOpen] = useState(false);
 
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -83,7 +93,6 @@ export default function Sidebar() {
   const { abrir: abrirInstall } = usePwa();
 
   const plano  = perfil?.plano || 'inativo';
-  const isBlack = plano === 'black';
 
   const ehGrowPath = pathname?.startsWith('/grow');
   const usarGrow = ehGrowPath || (painelAtivo === 'grow' && pathname !== '/configuracoes');
@@ -103,8 +112,9 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ href, label, icon: Icon, black: soBlack }: any) => {
-          const bloqueado = soBlack && !isBlack;
+        {NAV.map((item) => {
+          const { href, label, icon: Icon, gate, badge } = item as NavItem;
+          const bloqueado = gate ? !podeUsar(gate) : false;
           const ativo     = href === '/grow/saude'
             ? !!pathname?.startsWith('/grow/saude')
             : href === '/grow/estudos'
@@ -112,6 +122,9 @@ export default function Sidebar() {
             : href === '/negocios'
             ? !!pathname?.startsWith('/negocios')
             : pathname === href;
+          const corBadge = badge === 'Black'
+            ? 'bg-zinc-900 text-white'
+            : 'bg-white text-emerald-700';
           return (
             <Link
               key={href}
@@ -126,13 +139,13 @@ export default function Sidebar() {
                     : 'text-white/75 hover:text-white hover:bg-white/15'
                 }
               `}
-              title={bloqueado ? 'Disponível no plano Black' : label}
+              title={bloqueado ? `Disponível no plano ${badge || 'Premium'}` : label}
             >
               <Icon size={18} />
               <span>{label}</span>
-              {soBlack && !isBlack && (
-                <span className="ml-auto text-[10px] bg-zinc-900 text-white px-1.5 py-0.5 rounded font-semibold">
-                  Black
+              {bloqueado && badge && (
+                <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded font-semibold ${corBadge}`}>
+                  {badge}
                 </span>
               )}
             </Link>

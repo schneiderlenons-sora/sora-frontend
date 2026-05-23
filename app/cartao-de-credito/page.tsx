@@ -36,7 +36,8 @@ interface Wallet {
 }
 
 export default function CartaoDeCreditoPage() {
-  const { phone } = useAuth();
+  const { phone, limiteDe } = useAuth();
+  const limiteCartoes = limiteDe('cartoes');
 
   const [wallets,        setWallets]        = useState<Wallet[]>([]);
   const [txsMes,         setTxsMes]         = useState<any[]>([]);
@@ -196,13 +197,24 @@ export default function CartaoDeCreditoPage() {
               </button>
 
               <button
-                onClick={() => { setEdicao(null); setAddOpen(true); }}
+                onClick={() => {
+                  if (wallets.length >= limiteCartoes) {
+                    alert(`Plano atual permite ${limiteCartoes} cartões. Faça upgrade para Premium ou Black para ter cartões ilimitados.`);
+                    return;
+                  }
+                  setEdicao(null); setAddOpen(true);
+                }}
                 className="btn btn-primary px-4 py-2.5 text-sm gap-2 shadow-glow-sm"
               >
                 <Plus size={16} /> Adicionar cartão
               </button>
             </div>
           </div>
+          {wallets.length >= limiteCartoes && Number.isFinite(limiteCartoes) && (
+            <p className="relative mt-3 text-xs text-amber-600 dark:text-amber-400">
+              Você atingiu o limite de {limiteCartoes} cartões do plano atual. <a href="/configuracoes#plano" className="underline font-semibold">Upgrade para Premium</a> para cartões ilimitados.
+            </p>
+          )}
         </div>
 
         {/* ═══════════════════════════════════════════════════════

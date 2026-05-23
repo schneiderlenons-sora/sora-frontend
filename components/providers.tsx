@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/contexts/AuthContext';
+import IntentPlanoRedirect from '@/components/auth/IntentPlanoRedirect';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange={false}
     >
       <AuthProvider>
+        <IntentPlanoRedirect />
         {children}
       </AuthProvider>
     </ThemeProvider>

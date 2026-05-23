@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoModal';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
-  Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown,
+  Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area,
@@ -38,7 +38,8 @@ const fmtPct = (v: number) => `${v >= 0 ? '+' : ''}${(v || 0).toFixed(2)}%`;
 type Tab = 'resumo' | 'carteira' | 'reserva' | 'simulador' | 'aportes';
 
 export default function InvestimentosPage() {
-  const { phone, isBlack } = useAuth();
+  const { phone, podeUsar } = useAuth();
+  const temAcesso = podeUsar('investimentos');
 
   const [tab, setTab] = useState<Tab>('resumo');
   const [invs,         setInvs]         = useState<any[]>([]);
@@ -50,12 +51,12 @@ export default function InvestimentosPage() {
   const [feedback,     setFeedback]     = useState('');
 
   const carregar = useCallback(async () => {
-    if (!phone || !isBlack) return;
+    if (!phone || !temAcesso) return;
     try { setInvs(await api.investimentos.listar(phone) || []); } catch {}
     try { setAportes(await api.investimentos.aportes.listar(phone) || []); } catch {}
     try { setPatrimonio(await api.investimentos.patrimonio(phone) || []); } catch {}
     try { setReserva(await api.investimentos.reserva(phone)); } catch {}
-  }, [phone, isBlack]);
+  }, [phone, temAcesso]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -113,12 +114,12 @@ export default function InvestimentosPage() {
   }, [invs]);
 
   // ─── PAYWALL ─────────────────────────────────────────────────
-  if (!isBlack) {
+  if (!temAcesso) {
     return (
       <DashboardLayout>
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
           <Header />
-          <PaywallBlack />
+          <PaywallPremium />
         </div>
       </DashboardLayout>
     );
@@ -243,7 +244,7 @@ function Header({ actions }: { actions?: React.ReactNode }) {
   );
 }
 
-function PaywallBlack() {
+function PaywallPremium() {
   const features = [
     { icon: Briefcase,  l: 'Carteira completa multiclasse',    d: 'Ações, FIIs, ETFs, Cripto, Tesouro, CDB, Imóveis' },
     { icon: RefreshCw,  l: 'Atualização automática',           d: 'Yahoo Finance + CoinGecko (24h)' },
@@ -255,22 +256,22 @@ function PaywallBlack() {
   return (
     <div className="card rounded-3xl p-8 sm:p-10 text-center animate-fade-in" style={{ animationDelay: '60ms' }}>
       <div className="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-glow"
-           style={{ background: 'linear-gradient(135deg, #18181b, #3f3f46)' }}>
-        <Crown size={42} className="text-yellow-400" />
+           style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
+        <TrendingUp size={42} className="text-white" />
       </div>
       <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-        Recursos exclusivos do plano Black
+        Central de Investimentos
       </h2>
       <p className="text-muted-foreground text-sm mt-2 max-w-lg mx-auto leading-relaxed">
-        Gerencie carteiras de investimento com cotações em tempo real e ferramentas profissionais.
+        Disponível no plano <strong className="text-foreground">Premium</strong>. Gerencie sua carteira com cotações em tempo real e ferramentas profissionais.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8 text-left max-w-3xl mx-auto">
         {features.map(({ icon: Icon, l, d }) => (
           <div key={l} className="flex items-start gap-3 p-4 rounded-2xl bg-muted/30 border border-border/60">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style={{ background: 'linear-gradient(135deg, #18181b, #3f3f46)' }}>
-              <Icon size={18} className="text-yellow-400" />
+                 style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
+              <Icon size={18} className="text-white" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">{l}</p>
@@ -280,10 +281,11 @@ function PaywallBlack() {
         ))}
       </div>
 
-      <button className="btn w-full max-w-xs mx-auto mt-8 py-3 text-sm gap-2 text-white shadow-glow font-bold"
-              style={{ background: 'linear-gradient(135deg, #18181b, #3f3f46)' }}>
-        <Crown size={16} className="text-yellow-400" /> Fazer upgrade para Black
-      </button>
+      <a href="/planos"
+         className="btn w-full max-w-xs mx-auto mt-8 py-3 text-sm gap-2 text-white shadow-glow font-bold inline-flex items-center justify-center"
+         style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
+        <TrendingUp size={16} /> Ver planos
+      </a>
     </div>
   );
 }

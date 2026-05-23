@@ -20,7 +20,7 @@ const FEATURES = [
 ];
 
 export default function GrowUpgradePage() {
-  const { perfil, isPremium, isBlack, ativarTrialGrow, temAcessoGrow } = useAuth();
+  const { ativarTrialGrow, temAcessoGrow, podeAtivarTrialGrow } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
@@ -29,7 +29,7 @@ export default function GrowUpgradePage() {
     router.replace('/grow/dashboard');
   }
 
-  const podeAtivarTrial = (isPremium || isBlack) && perfil?.plano_grow === 'sem_acesso';
+  const podeAtivarTrial = podeAtivarTrialGrow;
 
   async function ativarTrial() {
     setLoading(true); setErro('');
@@ -77,9 +77,9 @@ export default function GrowUpgradePage() {
                 <button
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl opacity-60 cursor-not-allowed"
                   disabled
-                  title="Disponível para planos Premium e Black"
+                  title="Trial já utilizado — faça upgrade para Premium ou Black"
                 >
-                  <Crown size={16} /> Trial — Premium e Black
+                  <Crown size={16} /> Trial indisponível
                 </button>
               )}
               <button
@@ -143,7 +143,7 @@ export default function GrowUpgradePage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Já é <strong>Black</strong>? Você tem o Grow incluído. Já é <strong>Premium</strong>? Ative seu trial de 7 dias acima.
+          Já é <strong>Premium</strong> ou <strong>Black</strong>? O Sora Grow vem incluído no seu plano. Plano <strong>Básico</strong>? Ative 7 dias grátis acima.
         </p>
     </div>
   );

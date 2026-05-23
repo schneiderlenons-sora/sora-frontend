@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { salvarIntencaoPlano } from '@/lib/plan-intent';
 import { Eye, EyeOff, Loader2, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
 import AuthHero from '@/components/auth/AuthHero';
 
@@ -32,7 +34,24 @@ function RegrasSenha({ senha }: { senha: string }) {
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const { signUp, signInWithGoogle } = useAuth();
+  const searchParams = useSearchParams();
+  const planoIntencao = searchParams.get('plano');
+
+  // Salva intenção de plano vinda da landing assim que a página monta.
+  // Após o primeiro login o IntentPlanoRedirect redireciona para /planos.
+  useEffect(() => {
+    if (planoIntencao) salvarIntencaoPlano(planoIntencao);
+  }, [planoIntencao]);
+
   const [nome,     setNome]     = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');

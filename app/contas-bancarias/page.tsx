@@ -120,7 +120,7 @@ type Tab = 'ativas' | 'arquivadas';
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function ContasBancariasPage() {
-  const { phone, perfil } = useAuth();
+  const { phone, perfil, limiteDe } = useAuth();
 
   const [wallets,    setWallets]    = useState<Wallet[]>([]);
   const [tab,        setTab]        = useState<Tab>('ativas');
@@ -136,7 +136,7 @@ export default function ContasBancariasPage() {
   const [transferOpen,setTransferOpen] = useState(false);
 
   const plano        = perfil?.plano || 'inativo';
-  const limiteContas = plano === 'basico' || plano === 'inativo' ? 3 : Infinity;
+  const limiteContas = limiteDe('contas');
 
   // ── Carregamento sem bloquear UI ───────────────────────────
   const carregar = useCallback(async () => {

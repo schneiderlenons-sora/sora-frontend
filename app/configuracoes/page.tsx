@@ -5,10 +5,15 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import AvatarMembro from '@/components/ui/AvatarMembro';
+import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
+import { PLANOS_DISPLAY, type PlanoDisplay } from '@/lib/planos-display';
+import { type Plano } from '@/lib/plans';
 import {
   Sparkles, User, CreditCard, MessageCircle, ShieldCheck,
   Check, Crown, Loader2, AlertCircle, Camera, Pencil, ExternalLink,
   Download, Trash2, Mail, Phone, Lock, Info, Upload,
+  Zap, Calendar, Receipt, Settings as SettingsIcon,
+  ArrowUpRight, ArrowDownRight, ShieldX, Gem,
 } from 'lucide-react';
 
 const BRAND = '#61D17B';
@@ -297,186 +302,602 @@ function SecaoPerfil() {
 // ═══════════════════════════════════════════════════════════════
 // SEÇÃO: PLANO E COBRANÇA
 // ═══════════════════════════════════════════════════════════════
-const PLANOS = [
-  {
-    id: 'basico' as const,
-    nome: 'Básico',
-    preco: 0,
-    precoLabel: 'Grátis',
-    destaque: false,
-    cor: '#64748b',
-    features: [
-      'Controle individual de gastos',
-      'Categorias e limites pessoais',
-      'Sem grupos compartilhados',
-      'WhatsApp Bot ilimitado',
-      'Histórico dos últimos 3 meses',
-    ],
-  },
-  {
-    id: 'premium' as const,
-    nome: 'Premium',
-    preco: 29.90,
-    precoLabel: 'R$ 29,90/mês',
-    destaque: true,
-    cor: '#3b82f6',
-    features: [
-      'Tudo do Básico, e mais:',
-      'Grupos compartilhados (até 3 membros)',
-      'Limites por categoria',
-      'Histórico ilimitado',
-      'Relatórios avançados',
-    ],
-  },
-  {
-    id: 'black' as const,
-    nome: 'Black',
-    preco: 37.00,
-    precoLabel: 'R$ 37,00/mês',
-    destaque: false,
-    cor: '#facc15',
-    features: [
-      'Tudo do Premium, e mais:',
-      'Grupos com até 5 membros',
-      'Portfólio de investimentos completo',
-      'Cotações em tempo real',
-      'Suporte prioritário',
-    ],
-  },
-];
+
+// Ícone exibido junto ao nome do plano (mapeado a partir do id).
+// Mantido aqui pra não vazar lucide-react no lib/planos-display.
+const ICONE_PLANO = {
+  basico:  Zap,
+  premium: Gem,
+  black:   Crown,
+} as const;
+
+// Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
+const PLANOS_DETALHE = PLANOS_DISPLAY;
+
+const ORDEM_PLANO: Record<Plano, number> = {
+  inativo: 0, basico: 1, premium: 2, black: 3,
+};
 
 function SecaoPlano() {
-  const { perfil } = useAuth();
-  const planoAtualId = perfil?.plano || 'inativo';
-  const [modalUpgrade, setModalUpgrade] = useState<typeof PLANOS[number] | null>(null);
+  const { perfil, plano: planoAtual, recarregar } = useAuth();
+  const [anual, setAnual] = useState(false);
+  const [loadingPlano, setLoadingPlano] = useState<string | null>(null);
+  const [loadingPortal, setLoadingPortal] = useState(false);
+  const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
-  const planoAtualInfo = PLANOS.find(p => p.id === planoAtualId);
+  const planoVisual = PLANOS_DETALHE.find(p => p.id === planoAtual);
+  const ordemAtual = ORDEM_PLANO[planoAtual];
+  const temAssinatura = planoAtual !== 'inativo';
+  const validoAte = perfil?.plano_valido_ate ? new Date(perfil.plano_valido_ate) : null;
+  const intervaloAssinatura = (perfil?.plano_intervalo as Intervalo | undefined) ?? 'mensal';
+
+  // Dias até a próxima cobrança
+  const diasRestantes = validoAte
+    ? Math.max(0, Math.ceil((validoAte.getTime() - Date.now()) / 86400000))
+    : null;
+
+  async function iniciarCheckout(planoAlvo: PlanoId) {
+    setFeedback(null);
+    setLoadingPlano(planoAlvo);
+    try {
+      const intervalo: Intervalo = anual ? 'anual' : 'mensal';
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plano: planoAlvo, intervalo }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setFeedback({ tipo: 'erro', texto: data.erro || 'Erro ao iniciar checkout.' });
+      }
+    } catch {
+      setFeedback({ tipo: 'erro', texto: 'Falha de conexão. Tente novamente.' });
+    } finally {
+      setLoadingPlano(null);
+    }
+  }
+
+  async function abrirPortal() {
+    setFeedback(null);
+    setLoadingPortal(true);
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setFeedback({ tipo: 'erro', texto: data.erro || 'Erro ao abrir portal.' });
+      }
+    } catch {
+      setFeedback({ tipo: 'erro', texto: 'Falha de conexão.' });
+    } finally {
+      setLoadingPortal(false);
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Plano atual */}
-      <Card titulo="Plano atual">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style={{ background: `${planoAtualInfo?.cor || '#64748b'}22` }}>
-              {planoAtualId === 'black' ? <Crown size={20} className="text-yellow-500" /> : <CreditCard size={20} style={{ color: planoAtualInfo?.cor }} />}
+    <div className="space-y-5">
+
+      {feedback && <Flash tipo={feedback.tipo} texto={feedback.texto} />}
+
+      {/* ═══════════════════════════════════════════════════════════
+          HERO DO PLANO ATUAL
+      ═══════════════════════════════════════════════════════════ */}
+      <HeroPlanoAtual
+        planoVisual={planoVisual}
+        planoAtual={planoAtual}
+        intervalo={intervaloAssinatura}
+        validoAte={validoAte}
+        diasRestantes={diasRestantes}
+        temAssinatura={temAssinatura}
+        loadingPortal={loadingPortal}
+        onGerenciar={abrirPortal}
+        criadoEm={perfil?.created_at ? new Date(perfil.created_at) : null}
+      />
+
+      {/* ═══════════════════════════════════════════════════════════
+          OUTROS PLANOS DISPONÍVEIS
+      ═══════════════════════════════════════════════════════════ */}
+      <Card
+        titulo={temAssinatura ? 'Mudar de plano' : 'Escolha seu plano'}
+        subtitulo={
+          temAssinatura
+            ? 'Faça upgrade pra desbloquear mais recursos, ou downgrade quando quiser.'
+            : 'Comece quando quiser. Sem fidelidade, cancelamento a qualquer momento.'
+        }
+      >
+        {/* Toggle Mensal/Anual */}
+        <div className="flex items-center justify-center mb-6">
+          <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60">
+            <button
+              onClick={() => setAnual(false)}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                !anual ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Mensal
+            </button>
+            <button
+              onClick={() => setAnual(true)}
+              className={`relative px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                anual ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Anual
+              {!anual && (
+                <span
+                  className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[8px] font-bold text-white shadow-sm"
+                  style={{ background: BRAND }}
+                >
+                  até -40%
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Grid de planos — pt-10 reserva espaço pros badges absolutos (-top-9) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 pt-10">
+          {PLANOS_DETALHE.map((p) => (
+            <PlanoCard
+              key={p.id}
+              plano={p}
+              ehAtual={p.id === planoAtual}
+              ordemAtual={ordemAtual}
+              anual={anual}
+              loading={loadingPlano === p.id}
+              loadingPortal={loadingPortal}
+              onAssinar={() => iniciarCheckout(p.id)}
+              onGerenciar={abrirPortal}
+            />
+          ))}
+        </div>
+
+        {/* Confiança */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck size={11} /> Pagamento seguro via Stripe
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldX size={11} /> Cancele quando quiser
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Receipt size={11} /> Sem letras miúdas
+          </span>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── HERO DO PLANO ATUAL ────────────────────────────────────────
+
+function HeroPlanoAtual({
+  planoVisual, planoAtual, intervalo, validoAte, diasRestantes,
+  temAssinatura, loadingPortal, onGerenciar, criadoEm,
+}: {
+  planoVisual?: PlanoDisplay;
+  planoAtual: Plano;
+  intervalo: Intervalo;
+  validoAte: Date | null;
+  diasRestantes: number | null;
+  temAssinatura: boolean;
+  loadingPortal: boolean;
+  onGerenciar: () => void;
+  criadoEm: Date | null;
+}) {
+  // Estado: inativo → estado vazio sofisticado
+  if (!temAssinatura || !planoVisual) {
+    return (
+      <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-card">
+        {/* Mesh decorativo */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-60"
+          style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, ${BRAND}1A 0%, transparent 60%)` }}
+        />
+        <div className="relative p-7 sm:p-9 text-center">
+          <div
+            className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-4 shadow-glow"
+            style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
+          >
+            <Sparkles size={22} className="text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">Você ainda não tem um plano ativo</h2>
+          <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto leading-relaxed">
+            Escolha um plano abaixo e desbloqueie o seu jeito de organizar a vida financeira.
+          </p>
+          <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+            <Check size={11} style={{ color: BRAND }} /> Sem fidelidade
+            <span className="text-border">•</span>
+            <Check size={11} style={{ color: BRAND }} /> Cancele quando quiser
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const Icon = ICONE_PLANO[planoVisual.id];
+  const precoMensalRef = PLANOS_INFO[planoVisual.id]?.[intervalo] ?? 0;
+
+  const statusInfo = (() => {
+    if (!validoAte) return { label: 'Ativo', cor: 'emerald' as const };
+    if (diasRestantes === null) return { label: 'Ativo', cor: 'emerald' as const };
+    if (diasRestantes <= 3) return { label: `Expira em ${diasRestantes}d`, cor: 'amber' as const };
+    return { label: 'Ativo', cor: 'emerald' as const };
+  })();
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-card">
+      {/* Gradient overlay sutil baseado no plano */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(ellipse 90% 60% at 100% 0%, ${planoVisual.cor}1F 0%, transparent 55%),
+            radial-gradient(ellipse 60% 50% at 0% 100%, ${planoVisual.cor}14 0%, transparent 50%)
+          `,
+        }}
+      />
+      {/* Marca d'água do ícone gigante no fundo */}
+      <div
+        className="absolute -right-8 -top-8 pointer-events-none opacity-[0.06] dark:opacity-[0.08]"
+        aria-hidden
+      >
+        <Icon size={180} style={{ color: planoVisual.cor }} strokeWidth={1.2} />
+      </div>
+
+      <div className="relative p-6 sm:p-8">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-glow"
+              style={{ background: `linear-gradient(135deg, ${planoVisual.cor}, ${escurecer(planoVisual.cor)})` }}
+            >
+              <Icon size={26} className="text-white" />
             </div>
             <div>
-              <p className="text-xl font-bold text-foreground capitalize">{planoAtualInfo?.nome || 'Inativo'}</p>
-              <p className="text-xs text-muted-foreground">
-                {planoAtualInfo?.precoLabel || 'Sem plano ativo'}
-                {perfil?.valido_ate && ` · válido até ${new Date(perfil.valido_ate).toLocaleDateString('pt-BR')}`}
-              </p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Plano atual
+                </p>
+                <StatusPill cor={statusInfo.cor} label={statusInfo.label} />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
+                Sora <span style={{ color: planoVisual.cor }}>{planoVisual.nome}</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">{planoVisual.subtitulo}</p>
             </div>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Ativo</span>
+
+          {/* CTA Gerenciar */}
+          <button
+            onClick={onGerenciar}
+            disabled={loadingPortal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ borderColor: planoVisual.cor, color: planoVisual.cor }}
+          >
+            {loadingPortal ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <SettingsIcon size={14} />
+            )}
+            Gerenciar assinatura
+          </button>
+        </div>
+
+        {/* Preço grande */}
+        <div className="mt-6 flex items-baseline gap-2">
+          <span className="text-sm font-bold text-muted-foreground">R$</span>
+          <span className="text-5xl sm:text-6xl font-bold text-foreground tabular-nums tracking-tight leading-none">
+            {Math.floor(precoMensalRef)}
+          </span>
+          <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
+            ,{(precoMensalRef % 1).toFixed(2).slice(2)}
+          </span>
+          <span className="text-sm text-muted-foreground ml-1">
+            /mês {intervalo === 'anual' && '· pago anualmente'}
+          </span>
+        </div>
+
+        {/* Grid de info */}
+        <div className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <InfoCell
+            icon={<Calendar size={13} />}
+            label="Próxima cobrança"
+            value={
+              validoAte
+                ? validoAte.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+                : '—'
+            }
+            sub={diasRestantes !== null ? `em ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'}` : undefined}
+          />
+          <InfoCell
+            icon={<Receipt size={13} />}
+            label="Ciclo"
+            value={intervalo === 'anual' ? 'Anual' : 'Mensal'}
+            sub={intervalo === 'anual' ? 'com desconto' : 'renova automaticamente'}
+          />
+          <InfoCell
+            icon={<CreditCard size={13} />}
+            label="Pagamento"
+            value="Cartão"
+            sub="Gerencie no portal"
+          />
+          <InfoCell
+            icon={<Sparkles size={13} />}
+            label="Cliente desde"
+            value={
+              criadoEm
+                ? criadoEm.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '')
+                : '—'
+            }
+          />
+        </div>
+
+        {/* Aviso de expiração proativo */}
+        {diasRestantes !== null && diasRestantes <= 7 && diasRestantes > 0 && (
+          <div className="mt-5 flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60">
+            <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+              Sua próxima cobrança acontece em <strong>{diasRestantes} {diasRestantes === 1 ? 'dia' : 'dias'}</strong>.
+              {' '}Atualize seu cartão pelo portal se precisar.
+            </div>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── CARD DE PLANO (comparação) ────────────────────────────────
+// Design replicado do componente Pricing da landing — mantém vibração visual
+// idêntica, só troca o CTA "Começar agora" pela ação de Stripe contextual.
+
+function PlanoCard({
+  plano, ehAtual, ordemAtual, anual, loading, loadingPortal,
+  onAssinar, onGerenciar,
+}: {
+  plano:         PlanoDisplay;
+  ehAtual:       boolean;
+  ordemAtual:    number;
+  anual:         boolean;
+  loading:       boolean;
+  loadingPortal: boolean;
+  onAssinar:     () => void;
+  onGerenciar:   () => void;
+}) {
+  const Icon = ICONE_PLANO[plano.id];
+  const info = PLANOS_INFO[plano.id];
+  const precoExibido = anual ? info.anual : info.mensal;
+  const podeSubir  = ORDEM_PLANO[plano.id] > ordemAtual;
+  const podeDescer = ORDEM_PLANO[plano.id] < ordemAtual && ordemAtual > 0;
+
+  return (
+    <div
+      className={`relative rounded-3xl p-7 transition-all hover:-translate-y-1 duration-300 ${
+        plano.destaque
+          ? 'border-2 shadow-[0_20px_60px_-20px_rgba(97,206,112,0.4)] bg-card'
+          : 'border border-border hover:border-foreground/20 shadow-sm bg-card/60'
+      }`}
+      style={plano.destaque ? { borderColor: plano.cor } : {}}
+    >
+      {/* Tinted overlay no destaque, em ambos os temas */}
+      {plano.destaque && (
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-3xl pointer-events-none"
+          style={{ background: 'linear-gradient(180deg, rgba(97,206,112,0.06), transparent 60%)' }}
+        />
+      )}
+
+      <div className="relative">
+        {/* Badge no topo (Mais popular / Business / Plano atual) */}
+        {ehAtual ? (
+          <div
+            className="absolute -top-9 -right-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-white shadow-md whitespace-nowrap"
+            style={{ background: `linear-gradient(135deg, ${plano.cor} 0%, ${escurecer(plano.cor)} 100%)` }}
+          >
+            <Check size={9} strokeWidth={3} /> Plano atual
+          </div>
+        ) : plano.badge ? (
+          <div
+            className="absolute -top-9 -right-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-white shadow-md whitespace-nowrap"
+            style={{ background: `linear-gradient(135deg, ${plano.cor} 0%, ${escurecer(plano.cor)} 100%)` }}
+          >
+            {plano.destaque && <Sparkles size={9} />}
+            {plano.id === 'black' && <Crown size={9} />}
+            {plano.badge}
+          </div>
+        ) : null}
+
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2">
+          {Icon && (
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: `${plano.cor}18` }}
+            >
+              <Icon size={13} style={{ color: plano.cor }} />
+            </div>
+          )}
+          <h3 className="text-xl font-bold text-foreground tracking-tight">{plano.nome}</h3>
         </div>
-      </Card>
+        <p className="text-sm text-muted-foreground mb-6">{plano.subtitulo}</p>
 
-      {/* Comparação de planos */}
-      <Card titulo="Comparar planos" subtitulo="Mude de plano a qualquer momento. Cancele quando quiser.">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PLANOS.map((p) => {
-            const ehAtual = p.id === planoAtualId;
-            return (
-              <div key={p.id}
-                   className={`relative rounded-2xl p-5 border-2 transition-all ${
-                     ehAtual
-                       ? 'border-primary bg-primary/5 shadow-glow-sm'
-                       : p.destaque
-                         ? 'border-blue-500/30 hover:border-blue-500/60 bg-blue-50/30 dark:bg-blue-950/10'
-                         : 'border-border bg-card hover:border-primary/30'
-                   }`}>
-                {p.destaque && !ehAtual && (
-                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                    Mais popular
-                  </div>
-                )}
-                {ehAtual && (
-                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                    Plano atual
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 mb-2">
-                  {p.id === 'black' && <Crown size={16} className="text-yellow-500" />}
-                  <h3 className="text-lg font-bold text-foreground">{p.nome}</h3>
-                </div>
-
-                <p className="text-3xl font-bold tabular tracking-tight" style={{ color: p.cor }}>
-                  {p.preco === 0 ? 'Grátis' : `R$ ${p.preco.toFixed(2).replace('.', ',')}`}
-                  {p.preco > 0 && <span className="text-sm font-normal text-muted-foreground">/mês</span>}
-                </p>
-
-                <ul className="space-y-2 mt-4 min-h-[160px]">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs text-foreground leading-relaxed">
-                      <Check size={13} className="text-primary flex-shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={() => !ehAtual && setModalUpgrade(p)}
-                  disabled={ehAtual}
-                  className={`w-full mt-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    ehAtual
-                      ? 'bg-muted/40 text-muted-foreground cursor-not-allowed'
-                      : p.id === 'black'
-                        ? 'text-white shadow-glow-sm hover:scale-[1.02]'
-                        : 'btn btn-primary shadow-glow-sm'
-                  }`}
-                  style={p.id === 'black' && !ehAtual ? { background: 'linear-gradient(135deg, #18181b, #3f3f46)' } : undefined}
-                >
-                  {ehAtual ? 'Plano atual' : `Mudar para ${p.nome}`}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 rounded-xl p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 flex items-start gap-2.5">
-          <Info size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-          <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-            <strong>Sem fidelidade.</strong> Você pode mudar de plano ou cancelar a qualquer momento. Sem multas, sem letras miúdas.
+        {/* Preço */}
+        <div className="mb-6">
+          <div className="flex items-baseline gap-1">
+            <span className="text-sm font-bold text-foreground">R$</span>
+            <span className="text-5xl font-bold text-foreground tabular-nums tracking-tight">
+              {Math.floor(precoExibido)}
+              <span className="text-2xl">,{(precoExibido % 1).toFixed(2).slice(2)}</span>
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            por mês{anual && (
+              <>
+                {' '}· pago anualmente ·{' '}
+                <span style={{ color: plano.cor }} className="font-bold">{info.descAnual}% off</span>
+              </>
+            )}
           </p>
         </div>
-      </Card>
 
-      {/* Modal de upgrade (placeholder até gateway de pagamento) */}
-      {modalUpgrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setModalUpgrade(null)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl border border-border animate-fade-in p-6"
-               onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
-                 style={{ background: `${modalUpgrade.cor}22` }}>
-              {modalUpgrade.id === 'black' ? <Crown size={22} className="text-yellow-500" /> : <CreditCard size={22} style={{ color: modalUpgrade.cor }} />}
-            </div>
-            <h3 className="text-base font-bold text-foreground">Mudar para {modalUpgrade.nome}</h3>
-            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              Em breve! O gateway de pagamento (Stripe) está sendo integrado. Por enquanto, entre em contato pelo WhatsApp da Sora pra mudar seu plano manualmente.
-            </p>
-            <div className="rounded-xl p-3 bg-muted/30 border border-border/60 mt-4">
-              <p className="text-xs text-foreground">
-                <strong>{modalUpgrade.nome}</strong> — <strong className="tabular">{modalUpgrade.precoLabel}</strong>
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-5">
-              <button onClick={() => setModalUpgrade(null)} className="btn-ghost px-4 py-2 text-sm">Fechar</button>
-              <a href="https://wa.me/?text=Quero%20mudar%20meu%20plano%20Sora" target="_blank" rel="noreferrer"
-                 className="btn btn-primary px-4 py-2 text-sm gap-2 inline-flex items-center shadow-glow-sm">
-                <MessageCircle size={14} /> Falar com a Sora
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+        {/* CTA contextual: Gerenciar (atual) / Upgrade / Downgrade / Assinar */}
+        <PlanoCTA
+          ehAtual={ehAtual}
+          podeSubir={podeSubir}
+          podeDescer={podeDescer}
+          loading={loading}
+          loadingPortal={loadingPortal}
+          plano={plano}
+          ordemAtual={ordemAtual}
+          onAssinar={onAssinar}
+          onGerenciar={onGerenciar}
+        />
+
+        {/* Features list — mesmo design da landing */}
+        <ul className="space-y-2.5">
+          {plano.features.map((f) => (
+            <li
+              key={f}
+              className="flex items-start gap-2 text-[13px] text-foreground/85 leading-snug"
+            >
+              <span
+                className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center"
+                style={{ background: `${plano.cor}22` }}
+              >
+                <Check size={9} style={{ color: plano.cor }} strokeWidth={3} />
+              </span>
+              {f}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ─── CTA do card de plano ──────────────────────────────────────
+// Mantém o mesmo estilo visual do CTA "Começar agora" da landing
+// (gradient cheio no destaque, outline nos demais), apenas com texto
+// e ação contextuais ao estado de assinatura do usuário.
+
+function PlanoCTA({
+  ehAtual, podeSubir, podeDescer, loading, loadingPortal, plano, ordemAtual,
+  onAssinar, onGerenciar,
+}: {
+  ehAtual:       boolean;
+  podeSubir:     boolean;
+  podeDescer:    boolean;
+  loading:       boolean;
+  loadingPortal: boolean;
+  plano:         PlanoDisplay;
+  ordemAtual:    number;
+  onAssinar:     () => void;
+  onGerenciar:   () => void;
+}) {
+  const baseClass =
+    'block w-full text-center px-4 py-3 text-sm font-bold rounded-xl mb-7 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2';
+
+  if (ehAtual) {
+    return (
+      <button
+        onClick={onGerenciar}
+        disabled={loadingPortal}
+        className={`${baseClass} text-white shadow-md hover:shadow-lg`}
+        style={{ background: `linear-gradient(135deg, ${plano.cor} 0%, ${escurecer(plano.cor)} 100%)` }}
+      >
+        {loadingPortal ? <Loader2 size={14} className="animate-spin" /> : <SettingsIcon size={14} />}
+        Gerenciar assinatura
+      </button>
+    );
+  }
+  if (podeSubir) {
+    return (
+      <button
+        onClick={onAssinar}
+        disabled={loading}
+        className={`${baseClass} ${plano.destaque ? 'text-white shadow-md hover:shadow-lg' : 'border border-border text-foreground hover:bg-muted/60'}`}
+        style={
+          plano.destaque
+            ? { background: `linear-gradient(135deg, ${plano.cor} 0%, ${escurecer(plano.cor)} 100%)` }
+            : undefined
+        }
+      >
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <ArrowUpRight size={14} />}
+        {ordemAtual === 0 ? 'Assinar' : 'Fazer upgrade'}
+      </button>
+    );
+  }
+  if (podeDescer) {
+    return (
+      <button
+        onClick={onGerenciar}
+        disabled={loadingPortal}
+        className={`${baseClass} border border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground`}
+      >
+        {loadingPortal ? <Loader2 size={14} className="animate-spin" /> : <ArrowDownRight size={14} />}
+        Fazer downgrade
+      </button>
+    );
+  }
+  return null;
+}
+
+// Escurece um hex pra montar gradient dos botões/badges (cópia do helper
+// usado no componente Pricing da landing).
+function escurecer(hex: string, amt = 0.18): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, ((n >> 16) & 0xff) - Math.round(255 * amt));
+  const g = Math.max(0, ((n >> 8)  & 0xff) - Math.round(255 * amt));
+  const b = Math.max(0,  (n        & 0xff) - Math.round(255 * amt));
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+
+// ─── Auxiliares visuais ────────────────────────────────────────
+
+function StatusPill({ cor, label }: { cor: 'emerald' | 'amber'; label: string }) {
+  const tons = {
+    emerald: {
+      bg: 'bg-emerald-100 dark:bg-emerald-950/40',
+      text: 'text-emerald-700 dark:text-emerald-400',
+      dot: 'bg-emerald-500',
+    },
+    amber: {
+      bg: 'bg-amber-100 dark:bg-amber-950/40',
+      text: 'text-amber-700 dark:text-amber-400',
+      dot: 'bg-amber-500',
+    },
+  }[cor];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full ${tons.bg} ${tons.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${tons.dot} animate-pulse`} />
+      <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+    </span>
+  );
+}
+
+function InfoCell({
+  icon, label, value, sub,
+}: {
+  icon:  React.ReactNode;
+  label: string;
+  value: string;
+  sub?:  string;
+}) {
+  return (
+    <div className="rounded-xl p-3 bg-muted/30 dark:bg-muted/20 border border-border/40 transition-colors hover:bg-muted/40">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        {icon}
+        <p className="text-[10px] font-bold uppercase tracking-widest">{label}</p>
+      </div>
+      <p className="text-sm font-bold text-foreground tabular-nums mt-1 leading-tight">{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>}
     </div>
   );
 }
@@ -564,7 +985,8 @@ function Recurso({ emoji, titulo, desc }: { emoji: string; titulo: string; desc:
 // SEÇÃO: PRIVACIDADE E DADOS
 // ═══════════════════════════════════════════════════════════════
 function SecaoDados() {
-  const { phone, user, signOut } = useAuth();
+  const { phone, user, signOut, podeUsar } = useAuth();
+  const podeExportar = podeUsar('export_dados');
   const [exportando, setExportando] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [digitouConfirma, setDigitouConfirma] = useState('');
@@ -576,6 +998,7 @@ function SecaoDados() {
   }
 
   async function exportar() {
+    if (!podeExportar) { flash('erro', 'Exportação de dados está disponível no plano Premium ou Black.'); return; }
     if (!phone) { flash('erro', 'Vincule o WhatsApp primeiro.'); return; }
     setExportando(true);
     try {
@@ -619,21 +1042,29 @@ function SecaoDados() {
 
   return (
     <div className="space-y-4">
-      <Card titulo="Exportar meus dados" subtitulo="Baixe todas as suas transações em CSV (LGPD Art. 18)">
+      <Card titulo="Exportar meus dados" subtitulo="Baixe todas as suas transações em CSV">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
               <Download size={18} className="text-blue-600 dark:text-blue-400" />
             </div>
             <div className="max-w-md">
-              <p className="text-sm font-semibold text-foreground">Histórico completo em CSV</p>
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                Histórico completo em CSV
+                {!podeExportar && (
+                  <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Premium</span>
+                )}
+              </p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Inclui data, tipo, categoria, valor, conta e observação de todas as transações. Abre direto no Excel ou Google Sheets.
+                {podeExportar
+                  ? 'Inclui data, tipo, categoria, valor, conta e observação de todas as transações. Abre direto no Excel ou Google Sheets.'
+                  : 'Exportação de histórico em CSV está disponível nos planos Premium e Black.'}
               </p>
             </div>
           </div>
-          <button onClick={exportar} disabled={exportando}
-                  className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm">
+          <button onClick={exportar} disabled={exportando || !podeExportar}
+                  title={podeExportar ? '' : 'Disponível no plano Premium'}
+                  className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {exportando ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             Baixar CSV
           </button>
