@@ -7,6 +7,7 @@ import Features        from '@/components/landing/Features';
 import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import Carrossel       from '@/components/landing/Carrossel';
+import SoraLabs        from '@/components/landing/SoraLabs';
 import SocialProof     from '@/components/landing/SocialProof';
 import Pricing         from '@/components/landing/Pricing';
 import Faq             from '@/components/landing/Faq';
@@ -25,6 +26,7 @@ export default function LandingPage() {
       <TestDrive />
       <OpenFinance />
       <Carrossel />
+      <SoraLabs />
       <SocialProof />
       <Pricing />
       <Faq />
