@@ -104,30 +104,50 @@ export default function HeroBackground() {
           Duas camadas (uma por tema) — usa cor + alfa direto pra
           garantir visibilidade. Light: zinc-900 a 12%, Dark: white a 14%.
           Linhas de 1.5px ficam nítidas em qualquer DPR.                   */}
-      {/* Light mode grid — linhas 2px, células 80px, opacidade 24% */}
+      {/* Light mode grid — linhas 1.5px, células 72px, opacidade 14% */}
       <div
         className="absolute inset-0 dark:hidden"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(15, 23, 42, 0.20) 2px, transparent 2px),
-            linear-gradient(to bottom, rgba(15, 23, 42, 0.20) 2px, transparent 2px)
+            linear-gradient(to right, rgba(15, 23, 42, 0.14) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(15, 23, 42, 0.14) 1.5px, transparent 1.5px)
           `,
-          backgroundSize: '80px 80px',
+          backgroundSize: '72px 72px',
           maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
         }}
       />
-      {/* Dark mode grid — linhas 2px, células 80px, opacidade 22% */}
+      {/* Dark mode grid — linhas 1.5px, células 72px, opacidade 16% */}
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
           backgroundImage: `
-            linear-gradient(to right, rgba(255, 255, 255, 0.22) 2px, transparent 2px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 2px, transparent 2px)
+            linear-gradient(to right, rgba(255, 255, 255, 0.16) 1.5px, transparent 1.5px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.16) 1.5px, transparent 1.5px)
           `,
-          backgroundSize: '80px 80px',
+          backgroundSize: '72px 72px',
           maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+        }}
+      />
+
+      {/* ── VINHETA DE LEITURA ────────────────────────────────────────
+          Halo central que clareia o BG no light e escurece no dark,
+          dando contraste/legibilidade pra headline sem matar o grid.
+          O grid fica visível nas bordas (impacto visual) e sutil onde
+          tem texto (legibilidade).                                      */}
+      <div
+        className="absolute inset-0 dark:hidden"
+        style={{
+          background:
+            'radial-gradient(ellipse 70% 55% at 30% 45%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.35) 40%, transparent 75%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          background:
+            'radial-gradient(ellipse 70% 55% at 30% 45%, rgba(10,10,10,0.80) 0%, rgba(10,10,10,0.30) 40%, transparent 75%)',
         }}
       />
 
@@ -214,17 +234,17 @@ export default function HeroBackground() {
 function CellHighlights() {
   // Constelação balanceada pelos cantos. Tamanho 64px = grid match.
   // Opacidades variadas pra dar profundidade (sem ficar uniforme).
+  // Cells posicionadas nos cantos / bordas — fora da área de leitura.
+  // Não tem cells no centro-esquerda (onde fica a headline).
   const cells = [
-    { top: '8%',   left: '12%',  o: 0.14 },
-    { top: '14%',  left: '78%',  o: 0.16 },
-    { top: '24%',  left: '4%',   o: 0.10 },
-    { top: '32%',  left: '88%',  o: 0.12 },
-    { top: '46%',  left: '18%',  o: 0.09 },
-    { top: '54%',  left: '76%',  o: 0.11 },
-    { top: '16%',  left: '44%',  o: 0.08 },
-    { top: '38%',  left: '60%',  o: 0.07 },
-    { top: '6%',   left: '92%',  o: 0.12 },
-    { top: '26%',  left: '34%',  o: 0.07 },
+    { top: '6%',   left: '4%',   o: 0.07 },
+    { top: '8%',   left: '74%',  o: 0.10 },
+    { top: '6%',   left: '92%',  o: 0.08 },
+    { top: '22%',  left: '86%',  o: 0.09 },
+    { top: '40%',  left: '90%',  o: 0.07 },
+    { top: '60%',  left: '4%',   o: 0.06 },
+    { top: '70%',  left: '80%',  o: 0.07 },
+    { top: '78%',  left: '14%',  o: 0.05 },
   ];
 
   return (
@@ -236,11 +256,11 @@ function CellHighlights() {
       }}
     >
       {cells.map((c, i) => (
-        <div key={i} className="absolute w-20 h-20" style={{ top: c.top, left: c.left }}>
-          {/* Light mode fill (mais opaco em viewport grande) */}
-          <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o + 0.05})` }} />
+        <div key={i} className="absolute w-[72px] h-[72px]" style={{ top: c.top, left: c.left }}>
+          {/* Light mode fill */}
+          <div className="absolute inset-0 dark:hidden" style={{ background: `rgba(15, 23, 42, ${c.o})` }} />
           {/* Dark mode fill */}
-          <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.04})` }} />
+          <div className="absolute inset-0 hidden dark:block" style={{ background: `rgba(255, 255, 255, ${c.o + 0.02})` }} />
         </div>
       ))}
     </div>
