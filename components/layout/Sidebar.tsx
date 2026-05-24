@@ -7,6 +7,7 @@ import {
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt, Briefcase,
   Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
+  MessageCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -36,6 +37,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/comunidade',         label: 'Grupos',            icon: Users,       gate: 'compartilhamento', badge: 'Premium' },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
   { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Black'   },
+  { href: '/central-sora',       label: 'Central da Sora',   icon: MessageCircle },
   { href: '/planos',             label: 'Planos',            icon: Zap },
   { href: '/configuracoes',      label: 'Configurações',     icon: Settings },
 ];
