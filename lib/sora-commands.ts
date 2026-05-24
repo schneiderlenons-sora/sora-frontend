@@ -31,6 +31,7 @@ export type Comando = {
   variantes?: string[];     // outras formas de escrever a mesma coisa
   categoria: CategoriaCmdId;
   feature?:  Feature;       // se requer plano específico
+  destaque?: boolean;       // se aparece em "essenciais" / topo
 };
 
 // ─── CATEGORIAS ──────────────────────────────────────────────────────────────
@@ -152,19 +153,42 @@ export const COMANDOS: Comando[] = [
   // ─── LANÇAMENTOS ──────────────────────────────────────────────────
   {
     id: 'gasto-simples',
-    titulo: 'Registrar gasto',
+    titulo: 'Gasto rápido',
     exemplo: 'gastei 50 no mercado',
-    descricao: 'A Sora identifica valor, categoria e descrição automaticamente.',
-    variantes: ['50 no atacado', 'paguei 120 no posto'],
+    descricao: 'A Sora identifica valor, categoria e descrição automaticamente. Vai pra sua conta principal.',
+    variantes: ['50 no atacado', 'paguei 120 no posto', 'gastei 30 com uber'],
+    categoria: 'lancamentos',
+    destaque: true,
+  },
+  {
+    id: 'gasto-com-conta',
+    titulo: 'Gasto especificando a conta',
+    exemplo: 'gastei 50 no mercado pelo nubank',
+    descricao: 'Mencione o banco e a Sora debita da conta certa. Funciona com qualquer banco que você tenha cadastrado.',
+    variantes: [
+      'paguei 80 farmácia pix do inter',
+      '120 posto débito itau',
+      'pagamento pix nubank 50',
+    ],
+    categoria: 'lancamentos',
+    destaque: true,
+  },
+  {
+    id: 'gasto-cartao-credito',
+    titulo: 'Gasto no cartão de crédito',
+    exemplo: 'comprei 200 no mercado nubank crédito',
+    descricao: 'Adicione "crédito" depois do nome do banco pra usar o cartão (não a conta corrente).',
+    variantes: ['gastei 150 farmácia itau credito', 'comprei 80 no atacado credito do nubank'],
     categoria: 'lancamentos',
   },
   {
     id: 'recebimento',
     titulo: 'Registrar recebimento',
     exemplo: 'recebi 2000 de salário',
-    descricao: 'Cria uma receita. Funciona com freelas, vendas, devoluções.',
-    variantes: ['caiu 500 de freela', 'me pagaram 300'],
+    descricao: 'Cria uma receita. Vai pra sua conta principal — ou mencione o banco se for outra.',
+    variantes: ['caiu 500 de freela no nubank', 'me pagaram 300 pix inter'],
     categoria: 'lancamentos',
+    destaque: true,
   },
   {
     id: 'gasto-categoria',
@@ -174,11 +198,23 @@ export const COMANDOS: Comando[] = [
     categoria: 'lancamentos',
   },
   {
+    id: 'corrigir-ultima-conta',
+    titulo: 'Corrigir conta do último gasto',
+    exemplo: 'não, foi do nubank',
+    descricao: 'Se a Sora pôs na conta errada, peça pra corrigir — ela move pro banco certo e ajusta os saldos.',
+    variantes: [
+      'corrige a última pra inter',
+      'esse último foi no cartão do itau',
+      'a última foi crédito do nubank',
+    ],
+    categoria: 'lancamentos',
+  },
+  {
     id: 'apagar-ultimo',
     titulo: 'Apagar último lançamento',
     exemplo: 'apagar último',
     descricao: 'Desfaz o último gasto ou receita registrado por engano.',
-    variantes: ['excluir último', 'cancelar último'],
+    variantes: ['excluir último', 'cancelar último', 'apagar transação ABC123'],
     categoria: 'lancamentos',
   },
 

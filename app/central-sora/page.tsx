@@ -138,10 +138,11 @@ function HomeGrid({ onSelect }: { onSelect: (id: CategoriaCmdId) => void }) {
 function CategoriaView({ id, onVoltar, phoneSora }: { id: CategoriaCmdId; onVoltar: () => void; phoneSora: string }) {
   const cat = CATEGORIAS.find((c) => c.id === id);
   const comandos = COMANDOS.filter((c) => c.categoria === id);
-  const { podeUsar } = useAuth();
+  const { podeUsar, perfil } = useAuth();
   if (!cat) return null;
 
   const bloqueada = cat.feature && !podeUsar(cat.feature);
+  const temWalletPadrao = !!perfil?.wallet_padrao_id;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -173,6 +174,42 @@ function CategoriaView({ id, onVoltar, phoneSora }: { id: CategoriaCmdId; onVolt
           <p className="text-sm text-amber-800 dark:text-amber-300">
             Esses comandos exigem um plano superior. <a href="/planos" className="font-bold underline">Ver planos →</a>
           </p>
+        </div>
+      )}
+
+      {/* Callout educacional — só na categoria Lançamentos */}
+      {id === 'lancamentos' && (
+        <div
+          className="rounded-2xl border p-4 sm:p-5"
+          style={{
+            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.08), transparent)',
+            borderColor: 'rgba(251, 191, 36, 0.3)',
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="text-2xl flex-shrink-0">💡</div>
+            <div className="flex-1 min-w-0 text-sm leading-relaxed text-foreground">
+              <p className="font-bold mb-1">Em qual conta a Sora registra?</p>
+              <p className="text-muted-foreground">
+                {temWalletPadrao ? (
+                  <>
+                    Se você <strong>não menciona o banco</strong>, a Sora usa sua{' '}
+                    <strong className="text-foreground">conta principal</strong>. Mencione o banco
+                    (ex.: <em>"gastei 50 no mercado pelo nubank"</em>) pra debitar de outra conta.
+                  </>
+                ) : (
+                  <>
+                    Defina sua <strong>conta principal</strong> em{' '}
+                    <a href="/contas-bancarias" className="text-amber-700 dark:text-amber-400 font-semibold hover:underline">
+                      Contas bancárias
+                    </a>{' '}
+                    — assim a Sora sabe de onde debitar quando você não mencionar o banco.
+                    Se errar, é só dizer <em>"não, foi do nubank"</em> que ela corrige.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
@@ -139,13 +140,20 @@ export default function ContasBancariasPage() {
   const limiteContas = limiteDe('contas');
 
   // ── Carregamento sem bloquear UI ───────────────────────────
+  // Marca a wallet padrão (perfil.wallet_padrao_id) com padrao:true
+  // pra UI renderizar corretamente.
   const carregar = useCallback(async () => {
     if (!phone) return;
     try {
       const data = await api.wallets.listar(phone);
-      setWallets(data || []);
+      const walletPadraoId = perfil?.wallet_padrao_id || null;
+      const comPadrao = (data || []).map((w: Wallet) => ({
+        ...w,
+        padrao: walletPadraoId ? w.id === walletPadraoId : !!w.padrao,
+      }));
+      setWallets(comPadrao);
     } catch (e) { console.warn('[contas] listar erro:', e); }
-  }, [phone]);
+  }, [phone, perfil]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -225,8 +233,15 @@ export default function ContasBancariasPage() {
     }
   }
 
-  function tornarPadrao(w: Wallet) {
+  async function tornarPadrao(w: Wallet) {
+    // Otimista
     setWallets(prev => prev.map(x => ({ ...x, padrao: x.id === w.id })));
+    if (!perfil?.id) return;
+    try {
+      await supabase.from('users').update({ wallet_padrao_id: w.id }).eq('id', perfil.id);
+    } catch (e: any) {
+      console.warn('[contas] erro ao salvar wallet_padrao_id:', e);
+    }
   }
 
   function toggleArquivar(w: Wallet) {

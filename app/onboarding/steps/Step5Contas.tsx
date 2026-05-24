@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Landmark, Plus, Trash2, Upload, Crown } from 'lucide-react';
+import { Landmark, Plus, Trash2, Upload, Crown, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import StepNav from '../components/StepNav';
@@ -12,43 +12,62 @@ type TipoConta = 'Corrente' | 'Poupança' | 'Dinheiro' | 'Crédito';
 const TIPOS: TipoConta[] = ['Corrente', 'Poupança', 'Dinheiro', 'Crédito'];
 
 type Conta = {
-  nome:  string;
-  tipo:  TipoConta;
-  saldo: string;
+  nome:      string;
+  tipo:      TipoConta;
+  saldo:     string;
+  principal: boolean;
 };
 
 export default function Step5Contas() {
   const { perfil, podeUsar } = useAuth();
   const [contas, setContas] = useState<Conta[]>([
-    { nome: 'Carteira', tipo: 'Dinheiro', saldo: '' },
+    { nome: 'Carteira', tipo: 'Dinheiro', saldo: '', principal: true },
   ]);
 
   function atualizar(i: number, patch: Partial<Conta>) {
     setContas(contas.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
   }
+  function marcarPrincipal(i: number) {
+    setContas(contas.map((c, idx) => ({ ...c, principal: idx === i })));
+  }
   function adicionar() {
-    setContas([...contas, { nome: '', tipo: 'Corrente', saldo: '' }]);
+    setContas([...contas, { nome: '', tipo: 'Corrente', saldo: '', principal: false }]);
   }
   function remover(i: number) {
     if (contas.length === 1) return;
-    setContas(contas.filter((_, idx) => idx !== i));
+    const removida = contas[i];
+    let novas = contas.filter((_, idx) => idx !== i);
+    // Se a conta removida era a principal, marca a primeira restante
+    if (removida.principal && novas.length > 0) {
+      novas = novas.map((c, idx) => ({ ...c, principal: idx === 0 }));
+    }
+    setContas(novas);
   }
 
   async function salvar() {
     const grupoId = perfil?.grupo_ativo?.id;
+    const userId  = perfil?.id;
     if (!grupoId) return;
     try {
-      const rows = contas
-        .filter((c) => c.nome.trim())
-        .map((c) => ({
-          grupo_id: grupoId,
-          nome:     c.nome.trim(),
-          tipo:     c.tipo,
-          saldo:    parseFloat(String(c.saldo || '0').replace(',', '.')) || 0,
-          arquivada: false,
-        }));
-      if (rows.length > 0) {
-        await supabase.from('wallets').insert(rows);
+      const validas = contas.filter((c) => c.nome.trim());
+      const rows = validas.map((c) => ({
+        grupo_id: grupoId,
+        nome:     c.nome.trim(),
+        tipo:     c.tipo,
+        saldo:    parseFloat(String(c.saldo || '0').replace(',', '.')) || 0,
+        arquivada: false,
+      }));
+      if (rows.length === 0) return;
+
+      const { data: inseridas } = await supabase.from('wallets').insert(rows).select();
+
+      // Marca a conta principal (a Sora usa essa por padrão)
+      if (userId && inseridas && inseridas.length > 0) {
+        const principal = validas.findIndex((c) => c.principal);
+        const walletPrincipal = principal >= 0 ? inseridas[principal] : inseridas[0];
+        await supabase.from('users')
+          .update({ wallet_padrao_id: walletPrincipal.id })
+          .eq('id', userId);
       }
     } catch (e) {
       console.warn('[onboarding] erro ao salvar contas', e);
@@ -104,23 +123,57 @@ export default function Step5Contas() {
         </div>
       )}
 
+      {/* Callout — explicação da conta principal */}
+      <div className="mb-5 p-4 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-3">
+        <Star size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+          Marque uma conta como <strong>principal</strong> ⭐ — a Sora vai usar essa conta
+          automaticamente quando você não especificar o banco na mensagem
+          (ex.: "gastei 50 no mercado").
+        </p>
+      </div>
+
       <div className="space-y-3">
         {contas.map((c, i) => (
-          <div key={i} className="p-4 rounded-2xl border border-border bg-card">
+          <div
+            key={i}
+            className={`p-4 rounded-2xl border bg-card transition-all ${
+              c.principal ? 'border-amber-400 dark:border-amber-500 shadow-glow-sm' : 'border-border'
+            }`}
+          >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Conta {i + 1}
-              </p>
-              {contas.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => remover(i)}
-                  className="text-red-500 hover:text-red-600 transition-colors"
-                  aria-label="Remover conta"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Conta {i + 1}
+                </p>
+                {c.principal && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                    <Star size={9} /> Principal
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {!c.principal && c.nome.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => marcarPrincipal(i)}
+                    className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors inline-flex items-center gap-1"
+                  >
+                    <Star size={12} />
+                    Marcar principal
+                  </button>
+                )}
+                {contas.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remover(i)}
+                    className="text-red-500 hover:text-red-600 transition-colors"
+                    aria-label="Remover conta"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">

@@ -36,6 +36,9 @@ interface Perfil {
   onboarding_step?:      number;
   perfil_uso?:           PerfilUso | null;
   objetivo_principal?:   ObjetivoPrincipal | null;
+  // ── WhatsApp / preferências de conta ─────────────────────────────
+  welcomed_at?:          string | null;
+  wallet_padrao_id?:     string | null;
 }
 
 interface AuthContextType {
