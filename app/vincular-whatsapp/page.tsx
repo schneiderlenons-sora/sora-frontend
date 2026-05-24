@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { Loader2, Smartphone, CheckCircle2 } from 'lucide-react';
 
 export default function VincularWhatsapp() {
-  const { user, recarregar } = useAuth();
+  const { user, perfil, recarregar } = useAuth();
   const router  = useRouter();
   const [phone,   setPhone]   = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,15 +22,27 @@ export default function VincularWhatsapp() {
       setErro('Digite um número válido com DDD.');
       return;
     }
+    if (!user?.id) {
+      setErro('Sessão expirada. Faça login novamente.');
+      return;
+    }
     setLoading(true);
     try {
+      const nome = user.user_metadata?.name || perfil?.name || 'Usuário';
       const { error } = await supabase
         .from('users')
-        .update({ phone: numero, name: user?.user_metadata?.name || 'Usuário' })
-        .eq('id', user?.id);
+        .update({ phone: numero, name: nome })
+        .eq('id', user.id);
       if (error) throw error;
+
+      // Dispara mensagem de boas-vindas no WhatsApp (não bloqueia o fluxo)
+      api.user.welcome({ user_id: user.id, phone: numero, nome }).catch((err) => {
+        console.warn('[vincular-whatsapp] welcome falhou:', err);
+      });
+
       await recarregar();
-      router.push('/dashboard');
+      // Se ainda não fez onboarding → redirect pra lá. Caso contrário → dashboard.
+      router.push(perfil?.onboarding_completed ? '/dashboard' : '/onboarding');
     } catch (err: any) {
       setErro(err.message || 'Erro ao salvar. Tente novamente.');
     } finally {

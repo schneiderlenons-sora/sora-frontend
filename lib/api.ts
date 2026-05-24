@@ -41,6 +41,12 @@ export const api = {
       req<any>(`/api/user/${phone}`),
     updatePlan: (body: { phone: string; plano: string; valido_ate?: string }) =>
       req('/api/user/update-plan', { method: 'POST', body: JSON.stringify(body) }),
+    /** Dispara mensagem de boas-vindas no WhatsApp (idempotente por user_id). */
+    welcome: (body: { user_id: string; phone: string; nome?: string; force?: boolean }) =>
+      req<{ enviado: boolean; motivo?: string }>('/api/user/welcome', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
 
   // ── TRANSAÇÕES ────────────────────────────────────────────────

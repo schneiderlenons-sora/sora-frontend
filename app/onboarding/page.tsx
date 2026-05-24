@@ -21,10 +21,11 @@ export default function OnboardingPage() {
   const { loading, user, perfil } = useAuth();
   const router = useRouter();
 
-  // Sem auth → manda pra signup
+  // Sem auth → manda pra login (provavelmente clicou no link do WhatsApp
+  // sem estar logado no browser; ele já tem conta, é só logar).
   useEffect(() => {
     if (loading) return;
-    if (!user) router.replace('/signup');
+    if (!user) router.replace('/login');
   }, [loading, user, router]);
 
   // Já completou → manda pra dashboard
