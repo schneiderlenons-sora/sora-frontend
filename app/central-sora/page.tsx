@@ -196,15 +196,18 @@ function CategoriaView({ id, onVoltar, phoneSora }: { id: CategoriaCmdId; onVolt
                     Se você <strong>não menciona o banco</strong>, a Sora usa sua{' '}
                     <strong className="text-foreground">conta principal</strong>. Mencione o banco
                     (ex.: <em>"gastei 50 no mercado pelo nubank"</em>) pra debitar de outra conta.
+                    Se errar, é só dizer <em>"não, foi do inter"</em> que ela corrige.
                   </>
                 ) : (
                   <>
-                    Defina sua <strong>conta principal</strong> em{' '}
+                    Você ainda não tem <strong>conta principal</strong> definida.
+                    Quando mandar um gasto sem mencionar o banco, a Sora vai{' '}
+                    <strong className="text-foreground">perguntar de qual conta saiu</strong> e
+                    oferecer marcar uma como principal pra não perguntar mais.
+                    Você também pode configurar agora em{' '}
                     <a href="/contas-bancarias" className="text-amber-700 dark:text-amber-400 font-semibold hover:underline">
                       Contas bancárias
-                    </a>{' '}
-                    — assim a Sora sabe de onde debitar quando você não mencionar o banco.
-                    Se errar, é só dizer <em>"não, foi do nubank"</em> que ela corrige.
+                    </a>.
                   </>
                 )}
               </p>
