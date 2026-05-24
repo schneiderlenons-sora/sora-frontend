@@ -11,6 +11,9 @@ export type Papel = 'admin' | 'escrita' | 'leitura';
 export type Painel = 'finance' | 'grow';
 export type PlanoGrow = 'sem_acesso' | 'trial' | 'grow_basico' | 'grow_premium';
 
+export type PerfilUso = 'pessoal' | 'casal' | 'empresarial' | 'ambos';
+export type ObjetivoPrincipal = 'vermelho' | 'meta' | 'organizar' | 'negocio';
+
 interface Perfil {
   id:               string;
   phone:            string | null;
@@ -28,6 +31,11 @@ interface Perfil {
   grow_trial_fim?:    string | null;
   painel_ativo?:    Painel;
   grupo_ativo:      { id: string; nome: string } | null;
+  // ── Onboarding wizard ────────────────────────────────────────────
+  onboarding_completed?: boolean;
+  onboarding_step?:      number;
+  perfil_uso?:           PerfilUso | null;
+  objetivo_principal?:   ObjetivoPrincipal | null;
 }
 
 interface AuthContextType {
