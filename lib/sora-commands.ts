@@ -221,10 +221,35 @@ export const COMANDOS: Comando[] = [
   // ─── CONTAS ───────────────────────────────────────────────────────
   {
     id: 'criar-conta',
-    titulo: 'Criar conta nova',
+    titulo: 'Criar conta corrente',
     exemplo: 'nubank 1000',
-    descricao: 'Cria conta "Nubank" com saldo inicial de R$ 1000.',
-    variantes: ['itau 500', 'carteira 200'],
+    descricao: 'Cria conta corrente Nubank com R$ 1.000 de saldo. Você pode mudar pra outro tipo depois.',
+    variantes: ['itau 500', 'inter 2500'],
+    categoria: 'contas',
+    destaque: true,
+  },
+  {
+    id: 'criar-poupanca',
+    titulo: 'Criar conta poupança',
+    exemplo: 'poupança nubank 5000',
+    descricao: 'Mencione "poupança" no comando pra criar como tipo poupança.',
+    variantes: ['conta poupança itau 3000', 'poup bradesco 1500'],
+    categoria: 'contas',
+  },
+  {
+    id: 'criar-vale',
+    titulo: 'Criar Vale Alimentação / Refeição',
+    exemplo: 'vale alimentação alelo 800',
+    descricao: 'A Sora reconhece "VA", "alelo", "sodexo", "ticket" e "refeição".',
+    variantes: ['VA sodexo 500', 'alelo 600', 'ticket 300'],
+    categoria: 'contas',
+  },
+  {
+    id: 'criar-carteira',
+    titulo: 'Criar carteira (dinheiro)',
+    exemplo: 'carteira 200',
+    descricao: 'Pra registrar dinheiro físico. Funciona com "dinheiro" também.',
+    variantes: ['dinheiro 100'],
     categoria: 'contas',
   },
   {
@@ -234,6 +259,7 @@ export const COMANDOS: Comando[] = [
     descricao: 'Lista o saldo de todas as suas contas.',
     variantes: ['meu saldo', 'quanto tenho'],
     categoria: 'contas',
+    destaque: true,
   },
   {
     id: 'ajuste-saldo',
@@ -244,6 +270,26 @@ export const COMANDOS: Comando[] = [
   },
 
   // ─── CARTÕES ──────────────────────────────────────────────────────
+  {
+    id: 'criar-cartao-rapido',
+    titulo: 'Criar cartão de uma vez (avançado)',
+    exemplo: 'cartão nubank limite 5000 fecha 5 vence 15',
+    descricao: 'Cria o cartão com todos os dados de gestão de fatura. Você pode adicionar a bandeira: "cartão nubank mastercard limite 5000 fecha 5 vence 15".',
+    variantes: [
+      'cartão itau mastercard limite 3000 fecha 10 vence 20',
+      'cartão inter visa limite 8000 fecha 1 vence 10',
+    ],
+    categoria: 'cartoes',
+    destaque: true,
+  },
+  {
+    id: 'criar-cartao-wizard',
+    titulo: 'Criar cartão guiado',
+    exemplo: 'criar cartão nubank',
+    descricao: 'A Sora te pergunta limite, dia de fechamento, vencimento e bandeira — uma coisa por vez.',
+    variantes: ['novo cartão itau', 'cartão de crédito bradesco'],
+    categoria: 'cartoes',
+  },
   {
     id: 'parcelado',
     titulo: 'Compra parcelada',

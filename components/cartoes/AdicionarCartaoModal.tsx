@@ -346,8 +346,11 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
             </div>
 
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block flex items-center gap-1.5">
                 Últimos 4 dígitos
+                <span className="text-[9px] font-normal normal-case tracking-normal px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground">
+                  opcional
+                </span>
               </label>
               <input
                 type="text"
@@ -358,6 +361,9 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
                 maxLength={4}
                 className="input tabular tracking-widest text-center text-base"
               />
+              <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                💡 Só pra identificação visual quando você tem mais de um cartão do mesmo banco. Pode deixar em branco.
+              </p>
             </div>
           </div>
 
