@@ -468,12 +468,13 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
         </div>
       </div>
 
-      {/* Grade */}
-      <div className="rounded-3xl border border-border/40 backdrop-blur-xl overflow-hidden"
+      {/* Grade — scroll horizontal no mobile */}
+      <div className="rounded-3xl border border-border/40 backdrop-blur-xl overflow-x-auto scrollbar-none"
            style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+        <div className="min-w-[600px]">
 
         {/* Header de dias */}
-        <div className="grid border-b border-border/40" style={{ gridTemplateColumns: 'minmax(140px, 200px) repeat(7, 1fr)' }}>
+        <div className="grid border-b border-border/40" style={{ gridTemplateColumns: 'minmax(120px, 180px) repeat(7, minmax(52px, 1fr))' }}>
           <div className="p-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Hábito
           </div>
@@ -499,7 +500,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
         {habitosAtivos.map((h: any) => {
           const diasDoHabito = new Set(h.dias_semana || [1,2,3,4,5,6,7]);
           return (
-            <div key={h.id} className="grid border-b border-border/40 last:border-b-0" style={{ gridTemplateColumns: 'minmax(140px, 200px) repeat(7, 1fr)' }}>
+            <div key={h.id} className="grid border-b border-border/40 last:border-b-0" style={{ gridTemplateColumns: 'minmax(120px, 180px) repeat(7, minmax(52px, 1fr))' }}>
               <div className="p-2.5 flex items-center gap-2 min-w-0">
                 <span className="text-base flex-shrink-0">{h.icone}</span>
                 <p className="text-xs font-semibold text-foreground truncate">{h.nome}</p>
@@ -543,7 +544,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
         })}
 
         {/* Rodapé com resumo */}
-        <div className="grid bg-muted/30" style={{ gridTemplateColumns: 'minmax(140px, 200px) repeat(7, 1fr)' }}>
+        <div className="grid bg-muted/30" style={{ gridTemplateColumns: 'minmax(120px, 180px) repeat(7, minmax(52px, 1fr))' }}>
           <div className="p-2.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
             Resumo
           </div>
@@ -571,6 +572,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
             );
           })}
         </div>
+        </div> {/* fecha min-w-[600px] (scroll container) */}
       </div>
     </div>
   );

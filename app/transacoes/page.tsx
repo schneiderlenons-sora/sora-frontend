@@ -171,24 +171,37 @@ export default function TransacoesPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Ações — mobile: CTA primário em full-width, secundários em row compact */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+              {/* CTA primário (sempre visível e grande no mobile) */}
               <button
-                onClick={() => setOcultar(v => !v)}
-                className="btn-ghost px-3 py-2 text-sm gap-2"
-                title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
+                onClick={() => setModalOpen(true)}
+                className="btn btn-primary w-full sm:w-auto px-4 py-3 sm:py-2 text-sm gap-2 shadow-glow-sm order-first"
               >
-                {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
+                <Plus size={16} /> Nova transação
               </button>
+
+              {/* Ações secundárias (row compacto) */}
+              <div className="flex items-center gap-2 order-last">
+                <button
+                  onClick={() => setOcultar(v => !v)}
+                  className="btn-ghost p-2.5 sm:px-3 sm:py-2 text-sm"
+                  title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
+                  aria-label={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
+                >
+                  {ocultar ? <Eye size={16} /> : <EyeOff size={16} />}
+                </button>
 
               <div className="relative">
                 <button
                   onClick={() => podeImportar ? setImportMenuOpen(v => !v) : alert('Importação de OFX/CSV está disponível no plano Premium ou Black.')}
-                  className="btn-outline px-3 py-2 text-sm gap-2"
+                  className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
                   title={podeImportar ? 'Importar extrato' : 'Disponível no plano Premium'}
+                  aria-label="Importar"
                 >
-                  <Upload size={14} /> Importar
-                  {!podeImportar && <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Premium</span>}
-                  <ChevronDown size={12} />
+                  <Upload size={14} />
+                  <span className="hidden sm:inline">Importar</span>
+                  <ChevronDown size={12} className="hidden sm:block" />
                 </button>
                 {importMenuOpen && podeImportar && (
                   <>
@@ -226,20 +239,15 @@ export default function TransacoesPage() {
 
               <button
                 onClick={() => podeExportar ? exportarCSV() : alert('Exportação de dados está disponível no plano Premium ou Black.')}
-                className="btn-outline px-3 py-2 text-sm gap-2"
+                className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
                 title={podeExportar ? 'Exportar CSV' : 'Disponível no plano Premium'}
+                aria-label="Exportar"
               >
-                <Download size={14} /> Exportar
-                {!podeExportar && <span className="text-[9px] uppercase tracking-wider font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Premium</span>}
+                <Download size={14} />
+                <span className="hidden sm:inline">Exportar</span>
               </button>
-
-              <button
-                onClick={() => setModalOpen(true)}
-                className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm"
-              >
-                <Plus size={16} /> Nova transação
-              </button>
-            </div>
+              </div> {/* fecha row secundário */}
+            </div> {/* fecha container de ações */}
           </div>
         </div>
 
@@ -565,15 +573,15 @@ function TransactionRow({
 
   return (
     <div
-      className={`group relative grid grid-cols-[24px_minmax(0,2fr)_120px_40px] lg:grid-cols-[24px_minmax(0,2fr)_140px_140px_120px_120px_40px] gap-3 items-center px-5 py-3.5 transition-colors animate-fade-in ${
+      className={`group relative flex items-center gap-3 lg:grid lg:grid-cols-[24px_minmax(0,2fr)_140px_140px_120px_120px_40px] px-4 sm:px-5 py-3.5 transition-colors animate-fade-in ${
         selecionado ? 'bg-primary/5' : 'hover:bg-muted/40'
       }`}
       style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
     >
-      {/* Checkbox */}
+      {/* Checkbox — oculto no mobile pra dar espaço */}
       <button
         onClick={onToggleSelect}
-        className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+        className={`hidden lg:flex w-4 h-4 rounded border-2 transition-all items-center justify-center flex-shrink-0 ${
           selecionado
             ? 'border-primary bg-primary'
             : 'border-border hover:border-primary/60'
@@ -582,20 +590,20 @@ function TransactionRow({
         {selecionado && <CheckCircle2 size={10} className="text-white" />}
       </button>
 
-      {/* Descrição com emoji da categoria */}
-      <div className="flex items-center gap-3 min-w-0">
+      {/* Emoji da categoria */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ring-1"
           style={{ background: theme.bg, boxShadow: `inset 0 0 0 1px ${theme.ring}` }}
         >
           {theme.emoji}
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">{desc}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate max-w-[200px] sm:max-w-none">{desc}</p>
           <div className="flex items-center gap-1.5 mt-0.5 lg:hidden">
             <span className="text-xs text-muted-foreground">{fmtData(tx.data)}</span>
             <span className="text-muted-foreground/40">·</span>
-            <span className="text-xs font-medium" style={{ color: theme.color }}>{nome}</span>
+            <span className="text-xs font-medium truncate" style={{ color: theme.color }}>{nome}</span>
           </div>
         </div>
       </div>
@@ -641,11 +649,12 @@ function TransactionRow({
         </p>
       </div>
 
-      {/* Menu de ações */}
-      <div className="relative flex justify-end">
+      {/* Menu de ações — sempre visível no mobile (touch não tem hover) */}
+      <div className="relative flex justify-end flex-shrink-0">
         <button
           onClick={onToggleMenu}
-          className="p-1.5 rounded-lg hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+          className="p-2 rounded-lg hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+          aria-label="Mais ações"
         >
           <MoreVertical size={14} className="text-muted-foreground" />
         </button>

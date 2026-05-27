@@ -211,10 +211,16 @@ export default function Sidebar() {
 
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 flex flex-col shadow-xl" style={sidebarStyle}>
-            <div className="flex justify-end p-3">
-              <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/15">
-                <X size={18} />
+          <div className="w-72 flex flex-col shadow-xl" style={sidebarStyle}>
+            {/* Botão fechar — safe-area top + right, toque 44×44 mínimo */}
+            <div className="flex justify-end px-3"
+                 style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Fechar menu"
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-white/80 hover:text-white hover:bg-white/15 active:scale-95 transition-all"
+              >
+                <X size={20} />
               </button>
             </div>
             {conteudo}

@@ -142,12 +142,13 @@ export default function NegociosPage() {
               <p className="text-xs text-muted-foreground">Seu DRE em tempo real, conciliado com a Sora Finance.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Botões de ação — scroll horizontal no mobile pra não quebrar */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
             <SeletorPeriodo value={periodo} onChange={setPeriodo} />
             <button
               onClick={handleRecalcular}
               disabled={recalculando || usandoMock}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0"
             >
               {recalculando
                 ? <Loader2 size={13} className="animate-spin" />
@@ -155,15 +156,15 @@ export default function NegociosPage() {
               Atualizar
             </button>
             <button onClick={() => setModalCustos(true)}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
               <Wallet size={13} /> Custos
             </button>
             <button onClick={() => setModalCfg(true)}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
               <Landmark size={13} /> Tributário
             </button>
             <Link href="/negocios/integracoes"
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors">
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
               <Plug size={13} /> Integrações
             </Link>
           </div>
@@ -255,7 +256,7 @@ function HeroLucro({ dre }: { dre: any }) {
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Lucro líquido</p>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span className="text-5xl sm:text-6xl font-bold tracking-tight tabular-nums" style={{ color: BRAND }}>
+            <span className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight tabular-nums break-all" style={{ color: BRAND }}>
               {fmt(dre.lucro_liquido)}
             </span>
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold tabular-nums ${

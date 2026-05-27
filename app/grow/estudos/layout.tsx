@@ -35,7 +35,7 @@ export default function EstudosLayout({ children }: { children: React.ReactNode 
   }, [pathname]);
 
   return (
-    <div className="-mx-4 sm:-mx-6 -mt-[calc(env(safe-area-inset-top,0px)+4rem)] md:-mt-6 mb-2">
+    <div className="-mx-4 sm:-mx-6 mb-2">
       <div
         className="sticky z-30 backdrop-blur-xl border-b border-border/40"
         style={{
