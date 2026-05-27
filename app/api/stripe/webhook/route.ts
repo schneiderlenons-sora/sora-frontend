@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { stripe, priceIdToPlano, priceIdToIntervalo } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sendCAPIEvent } from '@/lib/facebook-capi';
 
 // Necessário para ler o raw body e verificar a assinatura Stripe
 export const dynamic = 'force-dynamic';
@@ -80,6 +81,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     stripe_customer_id:      session.customer as string,
     stripe_subscription_id:  sub.id,
   }).eq('id', userId);
+
+  // CAPI: Purchase server-side (mais confiável que o pixel client-side)
+  const amount = session.amount_total ? session.amount_total / 100 : 0;
+  sendCAPIEvent({
+    event_name: 'Purchase',
+    event_source_url: `https://forsora.com/planos?success=1`,
+    user_data: {
+      em: session.customer_details?.email || undefined,
+    },
+    custom_data: {
+      value: amount,
+      currency: session.currency?.toUpperCase() || 'BRL',
+      content_name: `Plano ${plano} ${intervalo}`,
+    },
+  }).catch(() => {}); // non-blocking
 }
 
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
