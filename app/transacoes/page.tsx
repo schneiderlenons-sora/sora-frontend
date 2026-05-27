@@ -332,8 +332,8 @@ export default function TransacoesPage() {
               )}
             </div>
 
-            {/* Pílulas de tipo */}
-            <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
+            {/* Pílulas de tipo — centralizadas */}
+            <div className="flex justify-center gap-1 bg-muted/60 rounded-xl p-1">
               {([
                 { v: 'todos',       l: 'Todas'    },
                 { v: 'Recebimento', l: 'Receitas' },
@@ -342,7 +342,7 @@ export default function TransacoesPage() {
                 <button
                   key={opt.v}
                   onClick={() => setTipo(opt.v)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                     tipo === opt.v
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -353,44 +353,40 @@ export default function TransacoesPage() {
               ))}
             </div>
 
-            {/* Status */}
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value as Status)}
-              className="input py-2.5 text-sm w-32"
-            >
-              <option value="todos">Status</option>
-              <option value="pago">Pagos</option>
-              <option value="pendente">Pendentes</option>
-            </select>
+            {/* Filtros secundários — row único, mesmo tamanho */}
+            <div className="grid grid-cols-3 gap-2">
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value as Status)}
+                className="input py-2.5 text-sm text-foreground"
+              >
+                <option value="todos">Status</option>
+                <option value="pago">Pagos</option>
+                <option value="pendente">Pendentes</option>
+              </select>
 
-            {/* Categoria */}
-            {categorias.length > 0 && (
               <select
                 value={catFiltro}
                 onChange={e => setCatFiltro(e.target.value)}
-                className="input py-2.5 text-sm w-40"
+                className="input py-2.5 text-sm text-foreground"
               >
                 <option value="todas">Categorias</option>
                 {categorias.map(c => (
                   <option key={c} value={c}>{nomeCategoria(c)}</option>
                 ))}
               </select>
-            )}
 
-            {/* Conta */}
-            {wallets.length > 0 && (
               <select
                 value={contaId}
                 onChange={e => setContaId(e.target.value)}
-                className="input py-2.5 text-sm w-36"
+                className="input py-2.5 text-sm text-foreground"
               >
                 <option value="todas">Contas</option>
                 {wallets.map(w => (
                   <option key={w.id} value={w.id}>{w.nome}</option>
                 ))}
               </select>
-            )}
+            </div>
 
             {temFiltro && (
               <button
@@ -599,12 +595,10 @@ function TransactionRow({
           {theme.emoji}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate max-w-[200px] sm:max-w-none">{desc}</p>
-          <div className="flex items-center gap-1.5 mt-0.5 lg:hidden">
-            <span className="text-xs text-muted-foreground">{fmtData(tx.data)}</span>
-            <span className="text-muted-foreground/40">·</span>
-            <span className="text-xs font-medium truncate" style={{ color: theme.color }}>{nome}</span>
-          </div>
+          <p className="text-sm font-medium text-foreground truncate">{desc}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 lg:hidden truncate">
+            {fmtData(tx.data)} · <span style={{ color: theme.color }}>{nome}</span>
+          </p>
         </div>
       </div>
 

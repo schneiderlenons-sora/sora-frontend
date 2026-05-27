@@ -279,32 +279,38 @@ export default function CategoriasPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+              {/* CTA primário full-width mobile */}
+              <button
+                onClick={() => setModalCat({})}
+                className="btn btn-primary w-full sm:w-auto px-4 py-3 sm:py-2 text-sm gap-2 shadow-glow-sm order-first"
+              >
+                <Plus size={16} /> Nova categoria
+              </button>
+
+              {/* Secundários */}
+              <div className="flex items-center gap-2 order-last">
               <button
                 onClick={() => setOcultar(v => !v)}
-                className="btn-ghost px-3 py-2 text-sm gap-2"
+                className="btn-ghost p-2.5 sm:px-3 sm:py-2 text-sm"
                 title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
+                aria-label={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
               >
-                {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
+                {ocultar ? <Eye size={16} /> : <EyeOff size={16} />}
               </button>
 
               <button
                 onClick={restaurarPadrao}
                 disabled={restaurando}
-                className="btn-outline px-3 py-2 text-sm gap-2"
-                title="Recria as categorias padrão se nenhuma foi criada automaticamente"
+                className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
+                title="Restaurar categorias padrão"
+                aria-label="Restaurar padrão"
               >
                 {restaurando ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                Restaurar padrão
+                <span className="hidden sm:inline">Restaurar padrão</span>
               </button>
-
-              <button
-                onClick={() => setModalCat({})}
-                className="btn btn-primary px-4 py-2.5 text-sm gap-2 shadow-glow-sm"
-              >
-                <Plus size={16} /> Nova categoria
-              </button>
-            </div>
+              </div> {/* fecha row secundários */}
+            </div> {/* fecha container ações */}
           </div>
         </div>
 
@@ -709,12 +715,32 @@ function CategoriaRow({
             </div>
           </div>
 
-          {/* Valor + barra */}
-          <div className="hidden sm:flex flex-col items-end gap-1 min-w-[200px]">
-            <p className="text-sm font-bold text-foreground tabular">
-              {ocultar ? '•••••' : fmt(gastoTotal)}
-            </p>
-            <div className="w-32 h-1.5 rounded-full bg-muted overflow-hidden">
+          {/* Valor + barra (visível em TODOS os tamanhos) */}
+          <div className="flex flex-col items-end gap-1 min-w-0 sm:min-w-[200px]">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-bold text-foreground tabular">
+                {ocultar ? '•••••' : fmt(gastoTotal)}
+              </p>
+              {/* Limite inline (mobile) */}
+              {limite?.limite_mensal ? (
+                <button
+                  onClick={onDefinirLimite}
+                  className="text-[10px] font-bold tabular md:hidden"
+                  style={{ color: corPctLimite(pctLimite) }}
+                >
+                  {pctLimite}%
+                </button>
+              ) : (
+                <button
+                  onClick={onDefinirLimite}
+                  className="md:hidden p-1"
+                  title="Definir limite"
+                >
+                  <Target size={12} className="text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <div className="w-20 sm:w-32 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
@@ -725,7 +751,7 @@ function CategoriaRow({
             </div>
           </div>
 
-          {/* Limite */}
+          {/* Limite detalhado (desktop) */}
           <div className="hidden md:block min-w-[140px] text-right">
             {limite?.limite_mensal ? (
               <button
@@ -748,8 +774,8 @@ function CategoriaRow({
             )}
           </div>
 
-          {/* Ações */}
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
+          {/* Ações — visível em mobile (sem hover) */}
+          <div className="flex items-center gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
             <button
               onClick={onEditar}
               className="p-1.5 rounded-lg hover:bg-muted transition-colors"

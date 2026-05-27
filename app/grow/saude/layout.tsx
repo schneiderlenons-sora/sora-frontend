@@ -41,12 +41,11 @@ export default function SaudeLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="-mx-4 sm:-mx-6 mb-2">
-      {/* Sub-tabs nav — sticky, glassmorphism */}
+      {/* Sub-tabs nav — sticky dentro do main (top:0 é relativo ao scroll container) */}
       <div
-        className="sticky z-30 backdrop-blur-xl border-b border-border/40"
+        className="sticky top-0 z-20 backdrop-blur-xl border-b border-border/40"
         style={{
-          top: 'calc(env(safe-area-inset-top, 0px))',
-          background: 'color-mix(in srgb, hsl(var(--background)) 75%, transparent)',
+          background: 'color-mix(in srgb, hsl(var(--background)) 85%, transparent)',
         }}
       >
         <div
