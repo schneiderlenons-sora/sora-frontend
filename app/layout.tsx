@@ -3,6 +3,7 @@ import { Inter, Pacifico } from 'next/font/google';
 import './globals.css';
 import Providers from '@/components/providers';
 import InstallPwa from '@/components/pwa/InstallPwa';
+import MetaPixel from '@/components/analytics/MetaPixel';
 
 const inter    = Inter({ subsets: ['latin'] });
 // Pacifico — script cursivo encorpado, estilo wordmark de marca (Pierre, Disney+, etc)
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth" className={pacifico.variable}>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
+          <MetaPixel />
           <InstallPwa>
             {children}
           </InstallPwa>

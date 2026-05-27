@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANO_LABEL } from '@/lib/plans';
+import { trackInitiateCheckout, trackPurchase } from '@/lib/analytics';
 import {
   Check, Crown, Sparkles, Loader2, AlertCircle, CheckCircle2,
   CreditCard, Settings, Zap,
@@ -43,7 +44,7 @@ function PlanosContent() {
 
   useEffect(() => {
     if (success) {
-      // Plano pode demorar 2-3s para ser atualizado pelo webhook
+      trackPurchase({ value: 0 });
       setTimeout(() => recarregar(), 2000);
     }
   }, [success, recarregar]);
@@ -64,6 +65,10 @@ function PlanosContent() {
     setLoading(plano);
     try {
       const intervalo: Intervalo = anual ? 'anual' : 'mensal';
+      const info = PLANOS_INFO[plano];
+      const preco = anual ? info.anual : info.mensal;
+      trackInitiateCheckout({ value: preco, currency: 'BRL' });
+
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { salvarIntencaoPlano } from '@/lib/plan-intent';
+import { trackSignUp } from '@/lib/analytics';
 import { Eye, EyeOff, Loader2, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
 import AuthHero from '@/components/auth/AuthHero';
 
@@ -71,6 +72,7 @@ function SignupForm() {
     setLoading(true);
     try {
       await signUp(email, password, nome);
+      trackSignUp();
       setSucesso(true);
     } catch (err: any) {
       setErro(err.message || 'Erro ao criar conta. Tente novamente.');
