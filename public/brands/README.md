@@ -16,6 +16,11 @@ Coloque aqui PNGs circulares **full-bleed** (preenchem todo o quadrado) das marc
 
 ## Marcas com `local` ativo
 
-(adicione aqui conforme for adicionando PNGs)
-
-- (nenhuma ainda — me envie as imagens que você criou no Canva e eu cadastro)
+Streaming: spotify, netflix, disney-plus, hbo-max, prime-video, globo-play, apple-tv, youtube-premium
+Bancos: nubank, bradesco, itau, santander, banco-do-brasil
+Marketplaces: amazon, mercado-livre, aliexpress, shopee, shein
+Roupa/esporte: nike, adidas
+Mobilidade/delivery: uber, ifood
+Telecom: vivo, claro, tim
+Educação: qconcursos
+Design: canva
