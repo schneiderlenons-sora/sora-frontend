@@ -182,6 +182,7 @@ const MARCAS: Record<string, Marca> = {
 
   // ── Design / Criação ──
   canva:             { local: '/brands/canva.png',          si: 'canva' },
+  sora:              { local: '/brands/sora.png' },
 
   // ── Combustível ──
   shell:             { si: 'shell' },
@@ -204,7 +205,10 @@ export function marcaDe(nome: string): Marca | null {
   if (!key) return null;
   if (MARCAS[key]) return MARCAS[key];
   for (const [k, v] of Object.entries(MARCAS)) {
-    if (key.includes(k) || k.includes(key)) return v;
+    // "mercado" NÃO deve acionar "mercado livre": só aceita partial match
+    // quando a categoria digitada é mais longa ou igual à chave do mapa
+    // (a chave da marca deve estar DENTRO do nome buscado, não o contrário).
+    if (key.includes(k) && key.length >= k.length) return v;
   }
   return null;
 }
