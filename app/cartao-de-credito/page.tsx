@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
-import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
+import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
@@ -491,14 +492,18 @@ function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbr
       {/* Header: logo + nome + badge */}
       <div className="flex items-start justify-between gap-3 mb-3 relative">
         <div className="flex items-center gap-3 min-w-0">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0 overflow-hidden"
-            style={{ background: logo.bg }}
-          >
-            {slugDaMarca(cartao.nome)
-              ? <IconeMarca nome={cartao.nome} size={28} className="brightness-0 invert" fallback={<span>{logo.text}</span>} />
-              : <span>{logo.text}</span>}
-          </div>
+          {/* Mesmo ícone das contas bancárias — marca conhecida usa CategoriaIcon
+              (PNG circular full-bleed). Sem marca → fallback com cor + inicial. */}
+          {marcaDe(cartao.nome) ? (
+            <CategoriaIcon nome={cartao.nome} size={48} rounded="rounded-xl" />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0"
+              style={{ background: logo.bg }}
+            >
+              {logo.text}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-foreground truncate">{cartao.nome}</p>
             <p className="text-[11px] text-muted-foreground tabular tracking-widest">

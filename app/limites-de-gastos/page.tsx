@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import EditarLimiteGeralModal from '@/components/limites/EditarLimiteGeralModal';
 import LimiteCategoriaModal from '@/components/limites/LimiteCategoriaModal';
 import { nomeCategoria } from '@/lib/categorias';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Eye, EyeOff, Pencil, Trash2, Target, Bell, BellOff,
   AlertCircle, Wallet, ChevronRight,
@@ -410,10 +411,14 @@ export default function LimitesPage() {
                         className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors animate-fade-in text-left"
                         style={{ animationDelay: `${i * 20}ms` }}
                       >
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
-                             style={{ background: bg, color: fg }}>
-                          {cat.icone || '📦'}
-                        </div>
+                        <CategoriaIcon
+                          nome={cat.nome}
+                          icone={cat.icone}
+                          bg={bg}
+                          color={fg}
+                          size={36}
+                          rounded="rounded-lg"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium text-foreground truncate inline-flex items-center gap-1.5">
@@ -604,10 +609,14 @@ function LimiteCategoriaCard({ limite, categoria, gasto, ocultar, delay, onToggl
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-               style={{ background: bg, color: fg }}>
-            {categoria?.icone || '📦'}
-          </div>
+          <CategoriaIcon
+            nome={limite.categoria}
+            icone={categoria?.icone}
+            bg={bg}
+            color={fg}
+            size={48}
+            rounded="rounded-xl"
+          />
           <div className="min-w-0">
             <p className="text-sm font-bold text-foreground truncate">{limite.categoria}</p>
             {categoria?.parent_id && (

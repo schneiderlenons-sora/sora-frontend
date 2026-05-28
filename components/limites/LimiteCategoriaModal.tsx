@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { X, Loader2, AlertCircle, Check, Target, Bell, Info } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { X, Loader2, AlertCircle, Check, Target, Bell, Info, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import { getCategoriaTheme } from '@/lib/categorias';
 
 const BRAND = '#61D17B';
 
@@ -42,6 +44,18 @@ export default function LimiteCategoriaModal({
   const [pct,    setPct]    = useState(limiteExistente?.percentual_alerta ?? 80);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
+  const [dropOpen, setDropOpen] = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    if (!dropOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [dropOpen]);
 
   // Agrupa categorias: pais com seus filhos
   const arvore = useMemo(() => {
@@ -102,12 +116,28 @@ export default function LimiteCategoriaModal({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-              style={{ background: `${BRAND}22` }}
-            >
-              {categoriaInfo?.icone || <Target size={18} style={{ color: BRAND }} />}
-            </div>
+            {categoriaInfo ? (
+              (() => {
+                const t = getCategoriaTheme(categoriaInfo.nome);
+                return (
+                  <CategoriaIcon
+                    nome={categoriaInfo.nome}
+                    icone={categoriaInfo.icone}
+                    bg={t.bg}
+                    color={t.color}
+                    size={44}
+                    rounded="rounded-xl"
+                  />
+                );
+              })()
+            ) : (
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `${BRAND}22` }}
+              >
+                <Target size={18} style={{ color: BRAND }} />
+              </div>
+            )}
             <div className="min-w-0">
               <h2 className="text-base font-bold text-foreground leading-tight">
                 {ediMode ? 'Editar limite' : 'Novo limite por categoria'}
@@ -125,29 +155,95 @@ export default function LimiteCategoriaModal({
         </div>
 
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Select categoria */}
+          {/* Select categoria — dropdown custom com ícones oficiais */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
               Categoria *
             </label>
-            <select
-              value={categoriaNome}
-              onChange={e => setCategoriaNome(e.target.value)}
-              disabled={ediMode || !!categoriaAlvo}
-              className="input cursor-pointer"
-            >
-              <option value="">Selecione uma categoria...</option>
-              {arvore.map(({ pai, filhos }) => (
-                <optgroup key={pai.id} label={`${pai.icone || '📦'} ${pai.nome}`}>
-                  <option value={pai.nome}>{pai.icone || '📦'} {pai.nome}</option>
-                  {filhos.map(f => (
-                    <option key={f.id} value={f.nome}>
-                      &nbsp;&nbsp;↳ {f.icone || '📦'} {f.nome}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            <div ref={dropRef} className="relative">
+              <button
+                type="button"
+                onClick={() => !ediMode && !categoriaAlvo && setDropOpen(v => !v)}
+                disabled={ediMode || !!categoriaAlvo}
+                className="input cursor-pointer flex items-center gap-2.5 text-left disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {categoriaInfo ? (
+                  <>
+                    {(() => {
+                      const t = getCategoriaTheme(categoriaInfo.nome);
+                      return (
+                        <CategoriaIcon
+                          nome={categoriaInfo.nome}
+                          icone={categoriaInfo.icone}
+                          bg={t.bg}
+                          color={t.color}
+                          size={28}
+                          rounded="rounded-lg"
+                        />
+                      );
+                    })()}
+                    <span className="flex-1 truncate text-sm font-medium text-foreground">{categoriaInfo.nome}</span>
+                  </>
+                ) : (
+                  <span className="flex-1 text-sm text-muted-foreground">Selecione uma categoria...</span>
+                )}
+                {!ediMode && !categoriaAlvo && (
+                  <ChevronDown size={16} className={`text-muted-foreground transition-transform ${dropOpen ? 'rotate-180' : ''}`} />
+                )}
+              </button>
+
+              {dropOpen && (
+                <div className="absolute z-30 top-full mt-1.5 left-0 right-0 max-h-80 overflow-y-auto rounded-2xl bg-card shadow-2xl border border-border animate-fade-in">
+                  {arvore.map(({ pai, filhos }) => {
+                    const tPai = getCategoriaTheme(pai.nome);
+                    return (
+                      <div key={pai.id} className="border-b border-border/40 last:border-b-0">
+                        <button
+                          type="button"
+                          onClick={() => { setCategoriaNome(pai.nome); setDropOpen(false); }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
+                            categoriaNome === pai.nome ? 'bg-primary/10' : ''
+                          }`}
+                        >
+                          <CategoriaIcon
+                            nome={pai.nome}
+                            icone={pai.icone}
+                            bg={tPai.bg}
+                            color={tPai.color}
+                            size={28}
+                            rounded="rounded-lg"
+                          />
+                          <span className="flex-1 text-sm font-semibold text-foreground truncate">{pai.nome}</span>
+                        </button>
+                        {filhos.map(f => {
+                          const tF = getCategoriaTheme(f.nome);
+                          return (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => { setCategoriaNome(f.nome); setDropOpen(false); }}
+                              className={`w-full flex items-center gap-2.5 pl-9 pr-3 py-1.5 text-left hover:bg-muted/40 transition-colors ${
+                                categoriaNome === f.nome ? 'bg-primary/10' : ''
+                              }`}
+                            >
+                              <CategoriaIcon
+                                nome={f.nome}
+                                icone={f.icone}
+                                bg={tF.bg}
+                                color={tF.color}
+                                size={22}
+                                rounded="rounded-md"
+                              />
+                              <span className="flex-1 text-xs text-foreground truncate">{f.nome}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             {ediMode && (
               <p className="text-[11px] text-muted-foreground mt-1.5">
                 A categoria não pode ser alterada. Para mudá-la, exclua e crie um novo limite.
