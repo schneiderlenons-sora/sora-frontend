@@ -34,9 +34,9 @@ export default function TarefasPage() {
   const [novoProjeto, setNovoProjeto] = useState(false);
   const [filtroProjeto, setFiltroProjeto] = useState<string | null>(null);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (silent = false) => {
     if (!phone) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [t, p] = await Promise.all([
         api.grow.tarefas.listar(phone),
@@ -44,7 +44,7 @@ export default function TarefasPage() {
       ]);
       setTarefas(t || []);
       setProjetos(p || []);
-    } finally { setLoading(false); }
+    } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -66,13 +66,16 @@ export default function TarefasPage() {
     setTarefas(prev => prev.map(x => x.id === t.id ? { ...x, status_kanban: novaCol, concluida: novaCol === 'concluida' } : x));
     try {
       await api.grow.tarefas.editar(t.id, { status_kanban: novaCol, concluida: novaCol === 'concluida' });
-    } catch (e: any) { alert(e.message); carregar(); }
+    } catch (e: any) { alert(e.message); carregar(true); }
   }
 
   async function deletarTarefa(t: any) {
     if (!phone) return;
     if (!confirm(`Excluir "${t.titulo}"?`)) return;
-    try { await api.grow.tarefas.deletar(t.id, phone); carregar(); } catch (e: any) { alert(e.message); }
+    // Remove otimisticamente
+    setTarefas(prev => prev.filter(x => x.id !== t.id));
+    try { await api.grow.tarefas.deletar(t.id, phone); }
+    catch (e: any) { alert(e.message); carregar(true); }
   }
 
   return (
@@ -195,7 +198,7 @@ export default function TarefasPage() {
           tarefa={editando}
           projetos={projetos}
           onClose={() => { setNovaOpen(false); setEditando(null); }}
-          onSuccess={() => { carregar(); setNovaOpen(false); setEditando(null); }}
+          onSuccess={() => { carregar(true); setNovaOpen(false); setEditando(null); }}
         />
       )}
 
@@ -203,7 +206,7 @@ export default function TarefasPage() {
         <ModalProjeto
           phone={phone}
           onClose={() => setNovoProjeto(false)}
-          onSuccess={() => { carregar(); setNovoProjeto(false); }}
+          onSuccess={() => { carregar(true); setNovoProjeto(false); }}
         />
       )}
     </div>

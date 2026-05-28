@@ -127,27 +127,26 @@ export default function CategoriasPage() {
     setLoading(true);
     setErroFetch(null);
 
-    // listar é a chamada crítica — se falhar, mostramos estado de erro
-    try {
-      const cats = await api.categorias.listar(phone);
-      setCategorias(cats || []);
-    } catch (e: any) {
-      console.error('[categorias] listar falhou:', e);
-      setErroFetch(e?.message || 'Erro desconhecido ao buscar categorias.');
+    // Paraleliza as 3 chamadas — listar é a crítica (decide se mostra erro)
+    const [cats, r, ls] = await Promise.allSettled([
+      api.categorias.listar(phone),
+      api.transacoes.resumo(phone, mesRef),
+      api.limites.listar(phone, mesRef),
+    ]);
+
+    if (cats.status === 'rejected') {
+      console.error('[categorias] listar falhou:', cats.reason);
+      setErroFetch(cats.reason?.message || 'Erro desconhecido ao buscar categorias.');
       setLoading(false);
       return;
     }
+    setCategorias(cats.value || []);
 
-    try {
-      const r = await api.transacoes.resumo(phone, mesRef);
-      setResumo(r || { por_categoria: [], gastos: 0 });
-    } catch (e) { console.warn('[categorias] resumo falhou:', e); }
-
-    try {
-      const ls = await api.limites.listar(phone, mesRef);
-      const arr = Array.isArray(ls) ? ls : (ls?.limites || []);
+    if (r.status === 'fulfilled') setResumo(r.value || { por_categoria: [], gastos: 0 });
+    if (ls.status === 'fulfilled') {
+      const arr = Array.isArray(ls.value) ? ls.value : (ls.value?.limites || []);
       setLimites(arr);
-    } catch (e) { console.warn('[categorias] limites falhou:', e); }
+    }
 
     setLoading(false);
   }, [phone, mesRef]);

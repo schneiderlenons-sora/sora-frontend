@@ -44,25 +44,40 @@ export default function SaudeDashboardPage() {
   const [modalPeso, setModalPeso] = useState(false);
   const [addingAgua, setAddingAgua] = useState<number | null>(null);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (silent = false) => {
     if (!phone) return;
+    if (!silent) setLoading(true);
     try {
       const r = await api.saude.dashboard(phone);
       setData(r);
     } catch (e) { console.warn('[saude] dashboard', e); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  // Água — totalmente otimista. Sem disable de botão, sem piscar nada.
+  // Recalcula hoje_ml + pct na hora e revalida em background.
   async function adicionarAgua(ml: number) {
     if (!phone) return;
     setAddingAgua(ml);
+    setData((prev: any) => {
+      if (!prev?.agua) return prev;
+      const novoMl = (prev.agua.hoje_ml || 0) + ml;
+      const meta   = prev.agua.meta_ml || 2000;
+      return {
+        ...prev,
+        agua: { ...prev.agua, hoje_ml: novoMl, pct: Math.round((novoMl / meta) * 100) },
+      };
+    });
+    setTimeout(() => setAddingAgua(null), 250);
     try {
       await api.saude.agua.registrar({ phone, ml });
-      carregar();
-    } catch (e: any) { alert(e.message); }
-    finally { setTimeout(() => setAddingAgua(null), 250); }
+      carregar(true); // revalida silenciosamente
+    } catch (e: any) {
+      alert(e.message);
+      carregar(true); // reverte buscando do servidor
+    }
   }
 
   if (loading) {
@@ -153,7 +168,7 @@ export default function SaudeDashboardPage() {
       </div>
 
       {modalPeso && phone && (
-        <ModalPeso phone={phone} onClose={() => setModalPeso(false)} onSuccess={() => { carregar(); setModalPeso(false); }} />
+        <ModalPeso phone={phone} onClose={() => setModalPeso(false)} onSuccess={() => { carregar(true); setModalPeso(false); }} />
       )}
     </div>
   );

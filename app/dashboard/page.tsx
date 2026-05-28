@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
@@ -142,29 +142,34 @@ export default function DashboardPage() {
 
   const carregar = useCallback(async () => {
     if (!phone) return;
-    try { setResumo(await api.transacoes.resumo(phone, mesAtual)); }    catch {}
-    try { setResumoAnt(await api.transacoes.resumo(phone, mesAnterior)); } catch {}
-    try { setWallets(await api.wallets.listar(phone)); }                 catch {}
-    try {
-      const t = await api.transacoes.listar(phone, { limit: 8 });
-      setTxs(t.transacoes || []);
-    } catch {}
-    try {
-      const tMes = await api.transacoes.listar(phone, { mes: mesAtual, tipo: 'Gasto', limit: 500 });
-      setTxsMes(tMes.transacoes || []);
-    } catch {}
-    try {
-      const cats = await api.categorias.listar(phone);
-      setCategorias(cats || []);
-    } catch {}
+    // Paraleliza tudo — antes eram 6 awaits sequenciais (cada um esperando
+    // o anterior) que somavam ~3-6s. Agora roda em paralelo e cada erro é
+    // isolado: se a categorias falha as outras 5 ainda preenchem.
+    const [r, rAnt, w, tRec, tMes, cats] = await Promise.allSettled([
+      api.transacoes.resumo(phone, mesAtual),
+      api.transacoes.resumo(phone, mesAnterior),
+      api.wallets.listar(phone),
+      api.transacoes.listar(phone, { limit: 8 }),
+      api.transacoes.listar(phone, { mes: mesAtual, tipo: 'Gasto', limit: 500 }),
+      api.categorias.listar(phone),
+    ]);
+    if (r.status    === 'fulfilled') setResumo(r.value);
+    if (rAnt.status === 'fulfilled') setResumoAnt(rAnt.value);
+    if (w.status    === 'fulfilled') setWallets(w.value);
+    if (tRec.status === 'fulfilled') setTxs(tRec.value.transacoes || []);
+    if (tMes.status === 'fulfilled') setTxsMes(tMes.value.transacoes || []);
+    if (cats.status === 'fulfilled') setCategorias(cats.value || []);
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  // ── Métricas ─────────────────────────────────────────────────
-  const saldoTotal  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo||0), 0);
-  const varReceitas = pct(resumo?.receitas||0, resumoAnt?.receitas||0);
-  const varGastos   = pct(resumo?.gastos||0,   resumoAnt?.gastos||0);
+  // ── Métricas (memoizadas — só recalculam quando os dados mudam) ──
+  const saldoTotal  = useMemo(
+    () => wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo||0), 0),
+    [wallets]
+  );
+  const varReceitas = useMemo(() => pct(resumo?.receitas||0, resumoAnt?.receitas||0), [resumo, resumoAnt]);
+  const varGastos   = useMemo(() => pct(resumo?.gastos||0,   resumoAnt?.gastos||0),   [resumo, resumoAnt]);
   const economia    = (resumo?.receitas||0) - (resumo?.gastos||0);
   const maiorCat    = resumo?.por_categoria?.[0];
   const temDados    = (resumo?.gastos||0) > 0 || (resumo?.receitas||0) > 0;

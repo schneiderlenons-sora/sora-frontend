@@ -17,7 +17,7 @@ git push           # Vercel deploya automaticamente do GitHub (branch master)
 
 **URLs:**
 - Frontend: https://forsora.com (Vercel, auto-deploy do GitHub)
-- Backend: Express.js no Fly.io (sora-backend — repositório separado)
+- Backend: Express.js no Render (sora-backend — repositório separado) → https://sora-backend-jqm8.onrender.com
 - DB/Auth: Supabase
 
 **Repositórios:**
@@ -220,7 +220,7 @@ NEXT_PUBLIC_FB_PIXEL_ID
 FB_ACCESS_TOKEN
 ```
 
-**Backend `.env` (Fly.io):**
+**Backend `.env` (Render — configurar em render.com → serviço → Environment):**
 ```
 ZAPI_INSTANCE, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN (WhatsApp Z-API)
 ANTHROPIC_API_KEY (IA)
@@ -233,7 +233,7 @@ SUPABASE_URL, SUPABASE_KEY
 ## Deployment
 
 - **Frontend:** Vercel — auto-deploy a cada push no branch `master` do GitHub
-- **Backend:** Fly.io — deploy manual ou via CI
+- **Backend:** Render — auto-deploy via GitHub (sora-backend-jqm8.onrender.com). Vars de ambiente via painel Render → Environment.
 - **Migrations SQL:** rodar manualmente no Supabase Dashboard → SQL Editor
 - **Cache Vercel:** `export const revalidate = 0` em `app/page.tsx` pra landing não cachear
 - **Service Worker:** `public/sw.js` usa `CACHE = 'sora-v3'`, HTML nunca cacheado

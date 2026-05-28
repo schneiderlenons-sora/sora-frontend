@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -51,21 +51,55 @@ export default function GrowDashboardPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   const hoje = new Date().toISOString().slice(0, 10);
-  const registrosHoje = data.registros.filter((r: any) => r.data === hoje && r.concluido);
-  const habitosConcluidosHoje = new Set(registrosHoje.map((r: any) => r.habito_id));
-  const tarefasHoje = data.tarefas.filter((t: any) => !t.concluida).slice(0, 5);
-  const comprasPendentes = data.compras.filter((i: any) => !i.comprado).length;
 
-  const humorMedio = data.humor.length
+  // Derivações memoizadas — só recalculam quando os dados base mudam
+  const habitosConcluidosHoje = useMemo(
+    () => new Set(data.registros.filter((r: any) => r.data === hoje && r.concluido).map((r: any) => r.habito_id)),
+    [data.registros, hoje]
+  );
+  const tarefasHoje = useMemo(
+    () => data.tarefas.filter((t: any) => !t.concluida).slice(0, 5),
+    [data.tarefas]
+  );
+  const comprasPendentes = useMemo(
+    () => data.compras.filter((i: any) => !i.comprado).length,
+    [data.compras]
+  );
+  const humorMedio = useMemo(() => data.humor.length
     ? (data.humor.reduce((s: number, r: any) => s + r.humor, 0) / data.humor.length).toFixed(1)
-    : null;
+    : null,
+    [data.humor]
+  );
 
+  // Toggle otimista — atualiza UI imediatamente, persiste em background,
+  // reverte só se a API falhar. Sem tela de carregando piscando.
   async function toggleHabito(h: any) {
     if (!phone) return;
+    const jaConcluido = habitosConcluidosHoje.has(h.id);
+    const novoValor = !jaConcluido;
+
+    // Update otimista nos registros locais
+    setData((prev: any) => {
+      const sem = prev.registros.filter((r: any) => !(r.habito_id === h.id && r.data === hoje));
+      const novosRegistros = novoValor
+        ? [...sem, { habito_id: h.id, data: hoje, concluido: true }]
+        : sem;
+      return { ...prev, registros: novosRegistros };
+    });
+
     try {
       await api.grow.habitos.toggle(h.id, { phone });
-      carregar();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) {
+      // Reverte
+      setData((prev: any) => {
+        const sem = prev.registros.filter((r: any) => !(r.habito_id === h.id && r.data === hoje));
+        const restaurado = jaConcluido
+          ? [...sem, { habito_id: h.id, data: hoje, concluido: true }]
+          : sem;
+        return { ...prev, registros: restaurado };
+      });
+      alert(e.message);
+    }
   }
 
   return (

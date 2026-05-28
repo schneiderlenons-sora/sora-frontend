@@ -23,22 +23,26 @@ export default function BemEstarPage() {
 
   const hoje = new Date().toISOString().slice(0, 10);
 
-  const carregar = useCallback(async () => {
+  // Padrão SWR-style: 1ª chamada pisca loader, subsequentes (após ações
+  // otimistas) revalidam silenciosamente em background sem piscar nada.
+  const carregar = useCallback(async (silent = false) => {
     if (!phone) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const r = await api.grow.humor.listar(phone, 30);
       setRegistros(r || []);
-    } finally { setLoading(false); }
+    } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const registroHoje = registros.find(r => r.data === hoje);
-  const humorMedio = registros.length
+  const registroHoje = useMemo(() => registros.find(r => r.data === hoje), [registros, hoje]);
+  const humorMedio = useMemo(() => registros.length
     ? (registros.reduce((s, r) => s + r.humor, 0) / registros.length).toFixed(1)
-    : null;
-  const diasBons = registros.filter(r => r.humor >= 4).length;
+    : null,
+    [registros]
+  );
+  const diasBons = useMemo(() => registros.filter(r => r.humor >= 4).length, [registros]);
 
   const dadosGrafico = useMemo(() => {
     return registros.map(r => ({
@@ -70,7 +74,14 @@ export default function BemEstarPage() {
             <div className="card rounded-3xl p-6 sm:p-8 animate-fade-in" style={{ animationDelay: '60ms' }}>
               <h2 className="text-lg font-bold text-foreground mb-1">Como você está hoje?</h2>
               <p className="text-sm text-muted-foreground mb-5">Um clique e a Sora aprende mais sobre você.</p>
-              <CheckinHumor phone={phone!} onSuccess={carregar} />
+              <CheckinHumor
+                phone={phone!}
+                onOtimista={(humor) => setRegistros(prev => [
+                  { data: hoje, humor, energia: null, nota: null },
+                  ...prev.filter(r => r.data !== hoje),
+                ])}
+                onSuccess={() => carregar(true)}
+              />
             </div>
           ) : (
             <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '60ms' }}>
@@ -134,23 +145,28 @@ export default function BemEstarPage() {
           phone={phone}
           atual={registroHoje}
           onClose={() => setModalOpen(false)}
-          onSuccess={() => { carregar(); setModalOpen(false); }}
+          onSuccess={() => { carregar(true); setModalOpen(false); }}
         />
       )}
     </div>
   );
 }
 
-function CheckinHumor({ phone, onSuccess }: { phone: string; onSuccess: () => void }) {
-  const [saving, setSaving] = useState<number | null>(null);
-
+function CheckinHumor({ phone, onOtimista, onSuccess }: {
+  phone: string;
+  onOtimista: (humor: number) => void;
+  onSuccess: () => void;
+}) {
   async function registrar(humor: number) {
-    setSaving(humor);
+    // Optimismo total — UI atualiza imediatamente, sem disable de botão.
+    onOtimista(humor);
     try {
       await api.grow.humor.registrar({ phone, humor });
-      onSuccess();
-    } catch (e: any) { alert(e.message); }
-    finally { setSaving(null); }
+      onSuccess(); // revalida em background
+    } catch (e: any) {
+      alert(e.message);
+      onSuccess(); // reverte buscando do servidor
+    }
   }
 
   return (
@@ -159,12 +175,7 @@ function CheckinHumor({ phone, onSuccess }: { phone: string; onSuccess: () => vo
         <button
           key={h}
           onClick={() => registrar(h)}
-          disabled={saving !== null}
-          className={`flex flex-col items-center gap-1 p-4 rounded-2xl transition-all border ${
-            saving === h
-              ? 'scale-95 ring-2 ring-violet-500'
-              : 'bg-muted/30 border-border/60 hover:border-violet-300 dark:hover:border-violet-800 hover:scale-105 active:scale-95'
-          }`}
+          className="flex flex-col items-center gap-1 p-4 rounded-2xl transition-all border bg-muted/30 border-border/60 hover:border-violet-300 dark:hover:border-violet-800 hover:scale-105 active:scale-95"
         >
           <span className="text-4xl">{HUMOR_EMOJI[h]}</span>
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{HUMOR_LABEL[h]}</span>

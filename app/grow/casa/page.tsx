@@ -24,13 +24,13 @@ export default function CasaPage() {
   const [novaCat,  setNovaCat]  = useState<string>('📦 Outros');
   const [novaQtd,  setNovaQtd]  = useState('1');
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (silent = false) => {
     if (!phone) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const r = await api.grow.compras.listar(phone);
       setItens(r.itens || []);
-    } finally { setLoading(false); }
+    } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -74,7 +74,10 @@ export default function CasaPage() {
   async function limparComprados() {
     if (!phone) return;
     if (!confirm('Remover todos os itens já comprados?')) return;
-    try { await api.grow.compras.limpar(phone); carregar(); } catch (e: any) { alert(e.message); }
+    // Otimista: remove já da UI
+    setItens(prev => prev.filter(i => !i.comprado));
+    try { await api.grow.compras.limpar(phone); carregar(true); }
+    catch (e: any) { alert(e.message); carregar(true); }
   }
 
   return (

@@ -89,30 +89,19 @@ export default function RelatoriosPage() {
     if (!phone) return;
     setRefreshing(true);
 
-    try {
-      const r = await api.transacoes.resumo(phone, mesRef, { criado_por_me: apenasMeus });
-      setResumo(r);
-    } catch (e) { console.warn('[relatorios] resumo erro:', e); }
-
-    try {
-      const rAnt = await api.transacoes.resumo(phone, mesAntRef);
-      setResumoAnt(rAnt);
-    } catch (e) { console.warn('[relatorios] resumoAnt erro:', e); }
-
-    try {
-      const t = await api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por_me: apenasMeus || undefined });
-      setTxs(t.transacoes || []);
-    } catch (e) { console.warn('[relatorios] txs erro:', e); }
-
-    try {
-      const w = await api.wallets.listar(phone);
-      setWallets(w || []);
-    } catch (e) { console.warn('[relatorios] wallets erro:', e); }
-
-    try {
-      const cats = await api.categorias.listar(phone);
-      setCategorias(cats || []);
-    } catch (e) { console.warn('[relatorios] categorias erro:', e); }
+    // Paralelo — antes eram 5 awaits sequenciais
+    const [r, rAnt, t, w, cats] = await Promise.allSettled([
+      api.transacoes.resumo(phone, mesRef, { criado_por_me: apenasMeus }),
+      api.transacoes.resumo(phone, mesAntRef),
+      api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por_me: apenasMeus || undefined }),
+      api.wallets.listar(phone),
+      api.categorias.listar(phone),
+    ]);
+    if (r.status    === 'fulfilled') setResumo(r.value);
+    if (rAnt.status === 'fulfilled') setResumoAnt(rAnt.value);
+    if (t.status    === 'fulfilled') setTxs(t.value.transacoes || []);
+    if (w.status    === 'fulfilled') setWallets(w.value || []);
+    if (cats.status === 'fulfilled') setCategorias(cats.value || []);
 
     setRefreshing(false);
   }, [phone, mesRef, mesAntRef, apenasMeus]);

@@ -80,14 +80,14 @@ export default function HabitosPage() {
   }, []);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, tab); } catch {} }, [tab]);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (silent = false) => {
     if (!phone) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const r = await api.grow.habitos.listar(phone, { dias: 120, incluir_arquivados: true });
       setHabitos(r.habitos || []);
       setRegistros(r.registros || []);
-    } finally { setLoading(false); }
+    } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -223,7 +223,7 @@ export default function HabitosPage() {
       )}
 
       {modalOpen && phone && (
-        <ModalHabito phone={phone} habito={editando} onClose={() => { setModalOpen(false); setEditando(null); }} onSuccess={() => { carregar(); setModalOpen(false); setEditando(null); }} />
+        <ModalHabito phone={phone} habito={editando} onClose={() => { setModalOpen(false); setEditando(null); }} onSuccess={() => { carregar(true); setModalOpen(false); setEditando(null); }} />
       )}
     </div>
   );
