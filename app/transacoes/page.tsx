@@ -440,21 +440,19 @@ export default function TransacoesPage() {
             <EmptyState temFiltro={!!temFiltro} onLimpar={limparFiltros} onCriar={() => setModalOpen(true)} />
           ) : (
             <>
-              {/* Cabeçalho de colunas (desktop) */}
-              <div className="hidden lg:grid grid-cols-[24px_minmax(0,2fr)_140px_140px_120px_120px_40px] gap-3 items-center px-5 py-2.5 border-b border-border/60 bg-muted/30">
-                <div></div>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Descrição</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Categoria</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Conta</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Data</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold text-right">Valor</span>
-                <div></div>
+              {/* Cabeçalho — mesmo grid pra ambos */}
+              <div className="overflow-x-auto scrollbar-none border-b border-border/60 bg-muted/30">
+                <div className="grid gap-3 items-center px-4 py-2.5"
+                     style={{ gridTemplateColumns: '44px minmax(160px,1fr) 130px 110px 100px 110px 40px', minWidth: 700 }}>
+                  <div/>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Descrição</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Categoria</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Conta</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Data</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold text-right">Valor</span>
+                  <div/>
+                </div>
               </div>
-
-              {/* Mobile: dica de scroll */}
-              <p className="lg:hidden text-[10px] text-muted-foreground text-center py-2 border-b border-border/40">
-                ← Deslize para ver mais →
-              </p>
 
               {/* Linhas */}
               <div className="divide-y divide-border/40">
@@ -581,23 +579,23 @@ function TransactionRow({
     >
       {/* Desktop: grid normal */}
       {/* Mobile: scroll horizontal com min-width pra mostrar tudo sem empacotar */}
-      <div className="overflow-x-auto scrollbar-none lg:overflow-visible">
-      <div className="flex items-center gap-3 min-w-[500px] lg:min-w-0 lg:grid lg:grid-cols-[24px_minmax(0,2fr)_140px_140px_120px_120px_40px] px-4 sm:px-5 py-3.5">
+      {/* Scroll horizontal no mobile — grid idêntico ao desktop dentro */}
+      <div className="overflow-x-auto scrollbar-none">
+      <div className="grid px-4 py-3.5 gap-3"
+           style={{ gridTemplateColumns: '44px minmax(160px,1fr) 130px 110px 100px 110px 40px', minWidth: 700 }}>
 
-      {/* Checkbox — oculto no mobile */}
+      {/* Checkbox */}
       <button
         onClick={onToggleSelect}
-        className={`hidden lg:flex w-4 h-4 rounded border-2 transition-all items-center justify-center flex-shrink-0 ${
-          selecionado
-            ? 'border-primary bg-primary'
-            : 'border-border hover:border-primary/60'
+        className={`w-6 h-6 self-center rounded border-2 transition-all flex items-center justify-center flex-shrink-0 ${
+          selecionado ? 'border-primary bg-primary' : 'border-border'
         }`}
       >
         {selecionado && <CheckCircle2 size={10} className="text-white" />}
       </button>
 
-      {/* Emoji + descrição (nunca trunca no mobile — tem espaço pelo scroll) */}
-      <div className="flex items-center gap-3 min-w-[180px] flex-shrink-0 lg:flex-shrink lg:min-w-0">
+      {/* Emoji + descrição */}
+      <div className="flex items-center gap-3 min-w-0">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ring-1"
           style={{ background: theme.bg, boxShadow: `inset 0 0 0 1px ${theme.ring}` }}
@@ -606,51 +604,46 @@ function TransactionRow({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{desc}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 lg:hidden">
-            {fmtData(tx.data)} · <span style={{ color: theme.color }}>{nome}</span>
-          </p>
         </div>
       </div>
 
-      {/* Categoria (desktop) */}
-      <div className="hidden lg:flex items-center">
+      {/* Categoria */}
+      <div className="flex items-center">
         <span
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap"
           style={{ background: theme.bg, color: theme.color }}
         >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: theme.color }} />
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: theme.color }} />
           {nome}
         </span>
       </div>
 
-      {/* Conta (desktop) */}
-      <div className="hidden lg:flex items-center min-w-0">
+      {/* Conta */}
+      <div className="flex items-center min-w-0">
         <span className="text-xs text-muted-foreground truncate">{tx.wallet_nome || '—'}</span>
       </div>
 
-      {/* Data (desktop) */}
-      <div className="hidden lg:flex items-center">
-        <span className="text-xs text-muted-foreground tabular">{fmtData(tx.data)}</span>
+      {/* Data */}
+      <div className="flex items-center">
+        <span className="text-xs text-muted-foreground tabular whitespace-nowrap">{fmtData(tx.data)}</span>
       </div>
 
       {/* Valor + status */}
-      <div className="text-right min-w-0">
-        <p className={`text-sm font-bold tabular ${
+      <div className="flex flex-col items-end justify-center">
+        <p className={`text-sm font-bold tabular whitespace-nowrap ${
           isGasto ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'
         }`}>
           {ocultar ? '••••' : `${isGasto ? '−' : '+'}${fmt(tx.valor)}`}
         </p>
-        <p className="hidden lg:block mt-0.5">
-          {tx.pago ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
-              <CheckCircle2 size={9} /> Pago
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-              <Clock size={9} /> Pendente
-            </span>
-          )}
-        </p>
+        {tx.pago ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
+            <CheckCircle2 size={9} /> Pago
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+            <Clock size={9} /> Pendente
+          </span>
+        )}
       </div>
 
       {/* Menu de ações */}
