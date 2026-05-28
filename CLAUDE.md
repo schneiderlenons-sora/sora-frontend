@@ -1,179 +1,252 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 
-## Getting Started
+## Comandos essenciais
 
-**Development Server:**
 ```bash
-npm run dev
-# Opens on http://localhost:3000
+npm run dev        # Dev server (http://localhost:3000) — app está em forsora.com
+npm run build      # Build produção
+npm run lint       # ESLint
+git push           # Vercel deploya automaticamente do GitHub (branch master)
 ```
 
-**Build & Lint:**
-```bash
-npm run build      # Build for production
-npm start          # Start production server
-npm run lint       # Run ESLint
+## Visão geral
+
+**Sora** — assistente financeira pessoal integrada ao WhatsApp. Usuário envia "gastei 50 no mercado" pelo WhatsApp e a IA interpreta, categoriza e lança na conta certa.
+
+**URLs:**
+- Frontend: https://forsora.com (Vercel, auto-deploy do GitHub)
+- Backend: Express.js no Fly.io (sora-backend — repositório separado)
+- DB/Auth: Supabase
+
+**Repositórios:**
+- Frontend: `c:\Users\jenif\OneDrive\Área de Trabalho\Sora\sora-frontend` (Next.js)
+- Backend: `c:\Users\jenif\OneDrive\Área de Trabalho\Sora\sora-backend` (Express.js)
+
+---
+
+## Stack técnica
+
+| Camada | Tech |
+|---|---|
+| Framework | Next.js 16.2.6 (App Router, Turbopack) |
+| UI | React 19 + Tailwind CSS 4 |
+| Auth/DB | Supabase (ssr client) |
+| Backend | Express.js (Node.js, JS puro) |
+| WhatsApp | Z-API |
+| IA | Claude API (Anthropic) via backend |
+| Pagamentos | Stripe (integrado, webhooks em `/api/stripe/webhook`) |
+| Analytics | Meta Pixel + Conversions API (CAPI) |
+| Charts | Recharts |
+| Icons | Lucide React |
+| Language | TypeScript 5 (frontend), JavaScript (backend) |
+| Idioma | Português Brasil — todo texto user-facing |
+
+---
+
+## Planos e feature gates
+
+**Arquivo central: `lib/plans.ts`** — fonte única da verdade para gates.
+
+| Plano | Preço mensal | Principais exclusivos |
+|---|---|---|
+| Básico | R$19,90 | 3 contas, funcionalidades base, trial 7d Grow |
+| Premium | R$29,90 | Contas ilimitadas, OCR, OFX, investimentos, Sora Grow incluso |
+| Black | R$79,90 | Tudo + aba Negócios (DRE, integrações Hotmart/Stripe) |
+
+**Helpers:** `podeUsar(plano, feature)` e `limiteDe(plano, recurso)` do `lib/plans.ts`.
+
+**AuthContext** expõe: `plano`, `isBlack`, `isPremium`, `podeUsar()`, `limiteDe()`, `temAcessoGrow`, `podeAtivarTrialGrow`.
+
+---
+
+## Stripe (pagamentos)
+
+**Integração:** Next.js Route Handlers (não o backend Express).
+
+| Arquivo | Função |
+|---|---|
+| `app/api/stripe/checkout/route.ts` | Cria Checkout Session |
+| `app/api/stripe/portal/route.ts` | Cria Customer Portal session |
+| `app/api/stripe/webhook/route.ts` | Recebe eventos, atualiza `users.plano` no Supabase |
+| `lib/stripe.ts` | Instância Stripe (lazy Proxy) + mapa Price IDs |
+| `lib/supabase-admin.ts` | Client server-side com service role (lazy Proxy) |
+| `lib/supabase-server.ts` | Client server-side com cookie auth |
+
+**Env vars necessárias (Vercel):**
+```
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+STRIPE_PRICE_BASICO_MENSAL / ANUAL
+STRIPE_PRICE_PREMIUM_MENSAL / ANUAL
+STRIPE_PRICE_BLACK_MENSAL / ANUAL
+NEXT_PUBLIC_APP_URL=https://forsora.com
+SUPABASE_SERVICE_KEY (ou SUPABASE_SERVICE_ROLE_KEY)
 ```
 
-## Project Overview
+**Webhook:** `https://forsora.com/api/stripe/webhook`
+Eventos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
 
-**Sora** is a Next.js financial assistant application that helps users manage their finances through WhatsApp integration. The app uses Supabase for authentication and backend services, with a React 19 + Tailwind CSS frontend.
+**Colunas novas no Supabase (`users`):**
+- `stripe_customer_id`, `stripe_subscription_id`, `plano_intervalo`, `plano_valido_ate`
+- Migrations: `sql/018_stripe.sql`, `sql/021_wallet_padrao.sql`, `sql/022_transacoes_pendentes.sql`, `sql/023_cartao_metadata.sql`
 
-### Key Features
-- User authentication (signup/login) via Supabase
-- Financial transactions tracking (income/expenses)
-- Bank account (wallet) management
-- Budget limits (general and per-category)
-- Group expense sharing
-- Investment portfolio (premium/black plan users)
-- Reports and analytics with charts (Recharts)
+---
 
-### Technology Stack
-- **Framework**: Next.js 16.2.6 (App Router)
-- **UI Framework**: React 19.2.4 + Tailwind CSS 4
-- **Database/Auth**: Supabase (ssr client)
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Language**: TypeScript 5
-- **Styling**: Tailwind CSS + tailwindcss-animate
-- **Theme**: next-themes for dark mode support
+## Onboarding wizard
 
-### Language
-The application is in **Portuguese (Brazil)**. All user-facing text, error messages, and documentation references use Portuguese.
+`app/onboarding/` — 9 steps que rodam antes do dashboard (forçado via `OnboardingRedirect` em `components/providers.tsx`).
 
-## Architecture
+**Steps:** Boas-vindas/nome → Perfil de uso → Objetivo → Categorias → Contas (com conta padrão ⭐) → Gastos fixos → Receitas fixas → Meta → WhatsApp tour.
 
-### Directory Structure
+**Guard:** `components/auth/OnboardingRedirect.tsx` — redireciona pra `/onboarding` se `perfil.onboarding_completed === false`.
+
+**Colunas Supabase (`users`):** `onboarding_completed`, `onboarding_step`, `perfil_uso`, `objetivo_principal`, `wallet_padrao_id`, `welcomed_at`.
+
+---
+
+## WhatsApp — conta padrão e conversas pendentes
+
+**Conta padrão (`wallet_padrao_id`):** Se usuário manda "gastei 50 mercado" sem mencionar banco, a Sora usa a conta padrão. Se não tiver configurada e houver múltiplas contas, inicia wizard conversacional perguntando de qual conta saiu.
+
+**State machine de conversas (`transacoes_pendentes`):** Tabela com TTL 10min. Tipos: `escolher_conta`, `marcar_principal`, `criar_conta`, `criar_cartao`, `tipo_conta`. O webhook processa pendente ANTES de chamar a IA.
+
+**Arquivo central backend:** `src/handlers/pendentes.js` — resolve cada tipo de conversa pendente.
+
+**WhatsApp boas-vindas:** Disparado após vincular número. `src/services/welcome.js` + rota `POST /api/user/welcome`.
+
+---
+
+## Analytics (Meta Pixel + CAPI)
+
+| Arquivo | Função |
+|---|---|
+| `components/analytics/MetaPixel.tsx` | Pixel client-side (afterInteractive) |
+| `lib/analytics.ts` | Helpers com dedup (event_id) pra ambos os canais |
+| `lib/facebook-capi.ts` | Envia eventos server-side pro Graph API |
+| `app/api/analytics/route.ts` | Ponte frontend → CAPI |
+
+**Env vars:** `NEXT_PUBLIC_FB_PIXEL_ID`, `FB_ACCESS_TOKEN`.
+
+**Eventos rastreados:** PageView, CompleteRegistration (signup), InitiateCheckout (clicar assinar), Purchase (webhook Stripe).
+
+---
+
+## Catálogos centrais importantes
+
+| Arquivo | O que contém |
+|---|---|
+| `lib/plans.ts` | Features × planos, helpers `podeUsar` / `limiteDe` |
+| `lib/planos-display.ts` | Textos/features/cores dos 3 planos (landing + painel) |
+| `lib/stripe.ts` | Price IDs do Stripe + mapa price→plano |
+| `lib/sora-commands.ts` | Todos os comandos WhatsApp (Central da Sora) |
+| `lib/plan-intent.ts` | Intenção de plano salva no signup (localStorage, TTL 24h) |
+| `lib/analytics.ts` | Helpers de eventos Meta Pixel + CAPI |
+| `lib/planos-display.ts` | FONTE ÚNICA dos dados visuais dos planos |
+
+---
+
+## Páginas principais do app
+
+| Rota | Descrição |
+|---|---|
+| `/` | Landing page (Pricing usa `lib/planos-display.ts`) |
+| `/planos` | Página de upgrade/downgrade dentro do dashboard |
+| `/onboarding` | Wizard 9 steps (novo usuário) |
+| `/central-sora` | "Central da Sora" — catálogo de comandos WhatsApp |
+| `/configuracoes` | Perfil, Plano e Cobrança (hero + cards de planos), WhatsApp, Dados |
+| `/categorias` | Categorias com barras de consumo e limites |
+| `/transacoes` | Lista de transações com scroll horizontal no mobile |
+| `/investimentos` | Premium+ (era Black-only, mudou) |
+| `/negocios` | Black-only (DRE, vendas, forecast, integrações) |
+| `/grow/*` | Sora Grow — hábitos, saúde, estudos, casa, bem-estar |
+
+---
+
+## Sidebar nav
+
+Arquivo: `components/layout/Sidebar.tsx`. Items com `gate: Feature` mostram badge "Premium" ou "Black" quando bloqueados.
+
 ```
-app/               # Next.js App Router pages (route segments)
-├── layout.tsx     # Root layout with AuthProvider
-├── page.tsx       # Landing page
-├── login/         # Login page
-├── signup/        # Signup page
-├── dashboard/     # Main dashboard with charts and transactions
-├── contas-bancarias/     # Bank accounts (wallets) management
-├── relatorios/    # Reports/analytics page
-├── vincular-whatsapp/    # WhatsApp linking page
-
-components/       # Reusable UI components
-├── layout/       # Layout components (DashboardLayout, Sidebar)
-└── dashboard/    # Dashboard-specific components (NovaTransacaoModal)
-
-contexts/         # React Context providers
-├── AuthContext.tsx       # Authentication and user profile context
-
-lib/             # Utility functions and API client
-├── api.ts        # Centralized API client with typed endpoints
-└── supabase.ts   # Supabase client initialization
-
-public/          # Static assets (logos, images, videos)
-```
-
-### Authentication & Authorization
-
-**AuthContext** ([contexts/AuthContext.tsx](contexts/AuthContext.tsx)) manages:
-- Supabase authentication (signup/signin/signout)
-- User profile loading (from `users` table)
-- Plan tier detection (`isBlack`, `isPremium`)
-- Active group tracking
-- Profile refresh on demand
-
-**Key Types:**
-```typescript
-interface Perfil {
-  id: string;
-  phone: string | null;
-  name: string;
-  plano: 'inativo' | 'basico' | 'premium' | 'black';
-  grupo_ativo: { id: string; nome: string } | null;
-}
-```
-
-**Supabase Table Relations:**
-- `users` table has FK `users_grupo_ativo_fkey` pointing to `grupos`
-- User profiles are auto-created by Supabase trigger on signup
-- Phone field is set during WhatsApp linking (`vincular-whatsapp` flow)
-
-### API Client
-
-[lib/api.ts](lib/api.ts) provides a centralized typed API layer:
-```typescript
-const api = {
-  user: { get, updatePlan },
-  transacoes: { listar, resumo, criar, editar, deletar },
-  wallets: { listar, salvar, deletar },
-  categorias: { listar, criar, editar, deletar },
-  limites: { listar, setGeral, setCategoria, deletar },
-  grupos: { listar, convidar, aceitar, trocar },
-  investimentos: { listar, distribuicao, patrimonio, ... },
-}
+Investimentos → gate: 'investimentos' (Premium+)
+Negócios      → gate: 'negocios' (Black)
+Grupos        → gate: 'compartilhamento' (Premium+)
+Central da Sora → sem gate (todos)
+Planos        → sem gate (todos)
 ```
 
-All API calls:
-- Use centralized `req<T>()` function with error handling
-- Expect JSON responses
-- Pass `x-api-token` header from `NEXT_PUBLIC_API_TOKEN` env var
-- Use `NEXT_PUBLIC_API_URL` as base (default: `http://localhost:3000`)
+---
 
-### Important Next.js 16 Notes
+## Responsividade mobile — regras aplicadas
 
-This version has breaking changes from older Next.js versions. **Read `node_modules/next/dist/docs/` before writing new code.** Key differences:
-- Modern App Router structure (no Pages directory)
-- Server Components by default (use `'use client'` for client-side)
-- Metadata API for SEO (not `<Head>` tag)
-- TypeScript path alias `@/*` resolves to project root
+- **Sidebar:** botão fechar com `safe-area-inset-top` + toque 44pt
+- **Transações:** botões hero mobile-first (CTA full-width); movimentações com scroll horizontal (`overflow-x-auto`, `min-w:700px`, mesmo grid desktop/mobile); filtros em `grid-cols-3`
+- **Categorias:** scroll horizontal nas linhas, barras de consumo visíveis no mobile, botões touch 44pt
+- **Hábitos Grow:** tabela semana com `overflow-x-auto` + `min-w-[600px]`
+- **Negócios:** botões header em scroll horizontal com `whitespace-nowrap`
+- **Saúde/Estudos layouts:** `sticky top-0` (não mais `calc(env(safe-area-inset-top))`)
+- **Regra geral:** nunca usar `opacity-0 group-hover:opacity-100` pra elementos de ação no mobile — usar `lg:opacity-0 lg:group-hover:opacity-100`
 
-## Common Tasks
+---
 
-### Adding a New Page
-1. Create `app/new-feature/page.tsx`
-2. Mark as `'use client'` if using hooks or interactivity
-3. Import `useAuth()` for protected routes
-4. Add sidebar/nav link in `components/layout/Sidebar.tsx`
+## Convenções de código
 
-### Adding an API Endpoint
-1. Create method in [lib/api.ts](lib/api.ts) under appropriate `api.category`
-2. Use `req<ReturnType>()` wrapper
-3. Handle errors in the component with try/catch
-4. Call from client component via `useAuth().phone` for user context
+- **Componentes:** functional + hooks, `'use client'` quando usa state/effects
+- **Tailwind v4:** `border: 1px solid <color> !important` (border shorthand, não split)
+- **Cores:** Brand `#61D17B` (Sora green). Dark mode via classe `.dark`.
+- **Moeda:** `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`
+- **Plano guard:** sempre usar `podeUsar(plano, feature)` de `lib/plans.ts`
+- **IA local-first:** preferir parsers locais antes de chamar Claude API
 
-### Working with Data
-- **Categories**: Format with emoji prefix (e.g., `"📚 Educação"`)
-- **Dates**: ISO string format `YYYY-MM-DD` for API, local manipulation in components
-- **Currency**: Use `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })` for display
-- **Phone**: Stored in `perfil.phone`, required for most API calls
+---
 
-### Charts & Visualization
-- Uses **Recharts** for all charts (LineChart, AreaChart, BarChart, PieChart)
-- Brand color: `#61D17B` (Sora green)
-- Dashboard palette: CORES array with 8 colors for multi-series data
+## Variáveis de ambiente
 
-## Environment Variables
-
-Create `.env.local`:
+**Frontend `.env.local`:**
 ```
-NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-NEXT_PUBLIC_API_URL=http://localhost:3000
-NEXT_PUBLIC_API_TOKEN=<your-backend-token>
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_KEY
+NEXT_PUBLIC_API_URL=https://... (URL do backend Express)
+NEXT_PUBLIC_API_TOKEN
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+STRIPE_PRICE_BASICO_MENSAL / ANUAL
+STRIPE_PRICE_PREMIUM_MENSAL / ANUAL
+STRIPE_PRICE_BLACK_MENSAL / ANUAL
+NEXT_PUBLIC_APP_URL=https://forsora.com
+NEXT_PUBLIC_FB_PIXEL_ID
+FB_ACCESS_TOKEN
 ```
 
-Public env vars (prefixed with `NEXT_PUBLIC_`) are accessible in browser. Backend token should be rotated regularly.
+**Backend `.env` (Fly.io):**
+```
+ZAPI_INSTANCE, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN (WhatsApp Z-API)
+ANTHROPIC_API_KEY (IA)
+API_SECRET_TOKEN (autenticação entre frontend e backend)
+SUPABASE_URL, SUPABASE_KEY
+```
 
-## Code Style & Conventions
-
-- **Components**: Functional components with hooks
-- **Styling**: Tailwind CSS utility classes (no CSS files)
-- **Type Safety**: Full TypeScript, explicit types for props and API responses
-- **Error Handling**: User-friendly Portuguese error messages
-- **Formatting**: Code is linted with ESLint (run `npm run lint`)
-
-## Testing
-
-No test suite currently configured. Manual testing in dev server is standard.
+---
 
 ## Deployment
 
-Built with Vercel in mind (uses `next/font`, metadata API, etc.). Build command: `npm run build`
+- **Frontend:** Vercel — auto-deploy a cada push no branch `master` do GitHub
+- **Backend:** Fly.io — deploy manual ou via CI
+- **Migrations SQL:** rodar manualmente no Supabase Dashboard → SQL Editor
+- **Cache Vercel:** `export const revalidate = 0` em `app/page.tsx` pra landing não cachear
+- **Service Worker:** `public/sw.js` usa `CACHE = 'sora-v3'`, HTML nunca cacheado
+
+---
+
+## Migrations SQL a rodar (se ainda não rodou)
+
+```
+sql/018_stripe.sql              — colunas Stripe em users
+sql/019_onboarding.sql          — colunas onboarding em users
+sql/020_welcome_tracking.sql    — coluna welcomed_at em users
+sql/021_wallet_padrao.sql       — coluna wallet_padrao_id em users
+sql/022_transacoes_pendentes.sql — tabela state machine conversas
+sql/023_cartao_metadata.sql     — colunas limite/dia_fechamento/bandeira em wallets
+```
