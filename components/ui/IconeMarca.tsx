@@ -19,9 +19,12 @@ const MARCAS: Record<string, Marca> = {
   'disney+':         { domain: 'disneyplus.com' },
   disneyplus:        { domain: 'disneyplus.com' },
   disney:            { domain: 'disneyplus.com' },
-  'hbo max':         { si: 'max', domain: 'max.com' },
-  hbo:               { si: 'hbo' },
-  max:               { si: 'max', domain: 'max.com' },
+  // Max (ex HBO Max) — Simple Icons removeu por trademark; brandfetch
+  // resolve melhor pelo domínio play.max.com (logo colorido oficial).
+  'hbo max':         { domain: 'play.max.com' },
+  hbomax:            { domain: 'play.max.com' },
+  hbo:               { domain: 'play.max.com' },
+  max:               { domain: 'play.max.com' },
   'prime video':     { domain: 'primevideo.com' },
   'amazon prime':    { domain: 'primevideo.com' },
   primevideo:        { domain: 'primevideo.com' },

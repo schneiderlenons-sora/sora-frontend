@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
 import { nomeCategoria, getCategoriaTheme, isHexGrayscale } from '@/lib/categorias';
-import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
@@ -727,14 +727,17 @@ function CategoriaRow({
           <div className="relative flex-shrink-0" ref={pickerRef}>
             <button
               onClick={() => setPickerOpen(v => !v)}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg overflow-hidden ring-2 ring-transparent hover:ring-primary/40 transition-all"
-              style={{ background: corBg, color: cor }}
+              className="block focus:outline-none rounded-xl ring-2 ring-transparent hover:ring-primary/40 transition-all"
               title="Mudar cor da categoria"
               aria-label="Mudar cor"
             >
-              {slugDaMarca(pai.nome)
-                ? <IconeMarca nome={pai.nome} size={22} fallback={<span>{pai.icone || '📦'}</span>} />
-                : <span>{pai.icone || '📦'}</span>}
+              <CategoriaIcon
+                nome={pai.nome}
+                icone={pai.icone}
+                bg={corBg}
+                color={cor}
+                size={40}
+              />
             </button>
 
             {pickerOpen && (
@@ -887,14 +890,14 @@ function CategoriaRow({
 
                 <div className="flex items-center gap-3">
                   {/* Emoji ou logo da marca (Netflix, Spotify, etc.) */}
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 overflow-hidden"
-                    style={{ background: corFBg, color: corF }}
-                  >
-                    {slugDaMarca(filho.nome)
-                      ? <IconeMarca nome={filho.nome} size={18} fallback={<span>{filho.icone || '📦'}</span>} />
-                      : <span>{filho.icone || '📦'}</span>}
-                  </div>
+                  <CategoriaIcon
+                    nome={filho.nome}
+                    icone={filho.icone}
+                    bg={corFBg}
+                    color={corF}
+                    size={32}
+                    rounded="rounded-lg"
+                  />
 
                   <p className="text-sm text-foreground flex-1 truncate">{filho.nome}</p>
 

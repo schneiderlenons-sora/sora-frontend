@@ -7,6 +7,7 @@ import ImportarModal from '@/components/transacoes/ImportarModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
@@ -594,14 +595,15 @@ function TransactionRow({
         {selecionado && <CheckCircle2 size={10} className="text-white" />}
       </button>
 
-      {/* Emoji + descrição */}
+      {/* Emoji ou logo da marca + descrição */}
       <div className="flex items-center gap-3 min-w-0">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ring-1"
-          style={{ background: theme.bg, boxShadow: `inset 0 0 0 1px ${theme.ring}` }}
-        >
-          {theme.emoji}
-        </div>
+        <CategoriaIcon
+          nome={nome}
+          icone={theme.emoji}
+          bg={theme.bg}
+          color={theme.color}
+          size={40}
+        />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{desc}</p>
         </div>

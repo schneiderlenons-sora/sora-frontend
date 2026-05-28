@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2, Wallet, CreditCard, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
+import { getCategoriaTheme } from '@/lib/categorias';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
 interface CatItem { id?: string; emoji: string; nome: string; filhos?: CatItem[] }
 
@@ -254,6 +256,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
                 const ehPaiSelecionado = parentId === cat.id;
                 const ativo = (categoria === cat.nome && !parentId) || ehPaiSelecionado;
                 const temFilhos = (cat.filhos?.length || 0) > 0;
+                const theme = getCategoriaTheme(cat.nome);
                 return (
                   <button
                     key={cat.id || cat.nome}
@@ -262,13 +265,19 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
                       setCatEmoji(cat.emoji);
                       setParentId(temFilhos ? (cat.id || null) : null);
                     }}
-                    className={`relative flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                    className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                       ativo
                         ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
                         : 'border-border hover:border-primary/40 hover:bg-muted'
                     }`}
                   >
-                    <span className="text-xl">{cat.emoji}</span>
+                    <CategoriaIcon
+                      nome={cat.nome}
+                      icone={cat.emoji}
+                      bg={theme.bg}
+                      color={theme.color}
+                      size={36}
+                    />
                     <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">{cat.nome}</span>
                     {temFilhos && (
                       <span className="absolute top-1 right-1 text-[8px] font-bold text-muted-foreground bg-muted/80 px-1 rounded-full">
@@ -293,28 +302,34 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
                     {/* Botão para manter só a categoria-pai */}
                     <button
                       onClick={() => { setCategoria(pai.nome); setCatEmoji(pai.emoji); }}
-                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                      className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                         categoria === pai.nome
                           ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
                           : 'border-dashed border-border hover:border-primary/40 hover:bg-card'
                       }`}
                     >
-                      <span className="text-xl">{pai.emoji}</span>
+                      {(() => {
+                        const t = getCategoriaTheme(pai.nome);
+                        return (
+                          <CategoriaIcon nome={pai.nome} icone={pai.emoji} bg={t.bg} color={t.color} size={32} />
+                        );
+                      })()}
                       <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">Só {pai.nome}</span>
                     </button>
                     {pai.filhos.map(sub => {
                       const ativo = categoria === sub.nome;
+                      const t = getCategoriaTheme(sub.nome);
                       return (
                         <button
                           key={sub.id || sub.nome}
                           onClick={() => { setCategoria(sub.nome); setCatEmoji(sub.emoji); }}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                             ativo
                               ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
                               : 'border-border bg-card hover:border-primary/40'
                           }`}
                         >
-                          <span className="text-xl">{sub.emoji}</span>
+                          <CategoriaIcon nome={sub.nome} icone={sub.emoji} bg={t.bg} color={t.color} size={32} />
                           <span className="text-[10px] text-muted-foreground font-medium leading-tight text-center">{sub.nome}</span>
                         </button>
                       );

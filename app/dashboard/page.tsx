@@ -8,6 +8,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
@@ -583,11 +584,14 @@ export default function DashboardPage() {
                     <div key={tx.id}
                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors animate-fade-in group"
                          style={{ animationDelay: `${i * 30}ms` }}>
-                      {/* Ícone de categoria */}
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
-                           style={{ background: isGasto ? '#ef444418' : `${BRAND}18` }}>
-                        {emoji}
-                      </div>
+                      {/* Ícone de categoria — usa logo oficial se for marca conhecida */}
+                      <CategoriaIcon
+                        nome={nome}
+                        icone={emoji}
+                        bg={isGasto ? '#ef444418' : `${BRAND}18`}
+                        color={isGasto ? '#ef4444' : BRAND}
+                        size={36}
+                      />
 
                       {/* Descrição + categoria */}
                       <div className="flex-1 min-w-0">

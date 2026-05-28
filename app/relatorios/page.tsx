@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -979,14 +980,18 @@ function PendentesList({
         <div className="divide-y divide-border/40 max-h-[400px] overflow-y-auto">
           {items.map((tx, i) => {
             const theme = getCategoriaTheme(tx.categoria || '');
+            const catNome = nomeCategoria(tx.categoria);
             return (
               <div key={tx.id || i}
                    className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors animate-fade-in"
                    style={{ animationDelay: `${i * 30}ms` }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0"
-                     style={{ background: theme.bg }}>
-                  {theme.emoji}
-                </div>
+                <CategoriaIcon
+                  nome={catNome}
+                  icone={theme.emoji}
+                  bg={theme.bg}
+                  color={theme.color}
+                  size={36}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">
                     {tx.observacao || nomeCategoria(tx.categoria)}
