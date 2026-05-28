@@ -13,9 +13,8 @@ import {
   Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
 } from 'lucide-react';
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
-  PieChart, Pie,
 } from 'recharts';
 
 // ── Constantes ────────────────────────────────────────────────
@@ -54,6 +53,19 @@ function computeDailyCumulative(txs: any[], today: number) {
     acc += byDay[i + 1] || 0;
     return { dia: String(i + 1), atual: acc };
   });
+}
+
+// Gasto NÃO acumulado — cada dia só com o que foi efetivamente gasto naquele dia.
+function computeDailyAmount(txs: any[], today: number) {
+  const byDay: Record<number, number> = {};
+  txs.forEach(tx => {
+    const d = new Date(tx.data).getDate();
+    byDay[d] = (byDay[d] || 0) + (tx.valor || 0);
+  });
+  return Array.from({ length: Math.max(today, 1) }, (_, i) => ({
+    dia: String(i + 1),
+    valor: byDay[i + 1] || 0,
+  }));
 }
 
 // ── Tooltip customizado ────────────────────────────────────────
@@ -163,6 +175,9 @@ export default function DashboardPage() {
     ...d,
     anterior: gastoAntTotal > 0 ? Math.round((gastoAntTotal / daysInMonth) * (i + 1)) : 0,
   }));
+
+  // Gastos por dia (não acumulado) — usado no Fluxo de Caixa modo Área
+  const dadosDiarios = computeDailyAmount(txsMes, today);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
   const cats = (resumo?.por_categoria||[]) as any[];
@@ -289,11 +304,16 @@ export default function DashboardPage() {
 
             <div className="flex-1 min-h-0" style={{ height: 130 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dadosRitmo} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                <AreaChart data={dadosRitmo} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="gRitmo" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"  stopColor={BRAND} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={BRAND} stopOpacity={0} />
+                    <linearGradient id="gRitmoArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.5} />
+                      <stop offset="50%"  stopColor={BRAND2} stopOpacity={0.22} />
+                      <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gRitmoStroke" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%"   stopColor={BRAND}  />
+                      <stop offset="100%" stopColor={BRAND2} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -301,9 +321,27 @@ export default function DashboardPage() {
                          tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
                   <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="atual"    name="Este mês"    stroke={BRAND}                 strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: BRAND }} />
-                  <Line type="monotone" dataKey="anterior" name="Mês anterior" stroke="hsl(var(--fg-muted))" strokeWidth={1.5} dot={false} strokeDasharray="5 4" />
-                </LineChart>
+                  <Area
+                    type="monotone"
+                    dataKey="anterior"
+                    name="Mês anterior"
+                    stroke="hsl(var(--fg-muted))"
+                    strokeWidth={1.5}
+                    strokeDasharray="5 4"
+                    fill="none"
+                    dot={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="atual"
+                    name="Este mês"
+                    stroke="url(#gRitmoStroke)"
+                    strokeWidth={2.5}
+                    fill="url(#gRitmoArea)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
 
@@ -397,7 +435,7 @@ export default function DashboardPage() {
                   Fluxo de Caixa
                 </p>
                 <p className="text-lg font-bold text-foreground">
-                  {chartMode === 'area' ? `Gasto acumulado — ${monthName}` : `Por categoria — ${monthName}`}
+                  {chartMode === 'area' ? `Gastos por dia — ${monthName}` : `Por categoria — ${monthName}`}
                 </p>
               </div>
               <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
@@ -424,27 +462,28 @@ export default function DashboardPage() {
                   </Bar>
                 </BarChart>
               ) : (
-                <AreaChart data={dadosRitmo} margin={{ left: -24 }}>
+                <AreaChart data={dadosDiarios} margin={{ left: -24 }}>
                   <defs>
-                    <linearGradient id="gAreaTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={BRAND} stopOpacity={0.35} />
-                      <stop offset="95%" stopColor={BRAND} stopOpacity={0} />
+                    <linearGradient id="gAreaDia" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.55} />
+                      <stop offset="60%"  stopColor={BRAND2} stopOpacity={0.18} />
+                      <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                         tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
+                         tickFormatter={v => Number(v) % 5 === 0 ? v : ''} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area
                     type="monotone"
-                    dataKey="atual"
-                    name="Este mês"
+                    dataKey="valor"
+                    name="Gasto no dia"
                     stroke={BRAND}
-                    fill="url(#gAreaTotal)"
+                    fill="url(#gAreaDia)"
                     strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 4, fill: BRAND }}
+                    dot={{ r: 2.5, fill: BRAND, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
                   />
                 </AreaChart>
               )}
@@ -453,7 +492,7 @@ export default function DashboardPage() {
             {/* Sub-texto explicativo — clarifica o que cada modo mostra */}
             <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-border/60">
               {chartMode === 'area'
-                ? <>Evolução do gasto acumulado dia a dia. Para ver a distribuição por categoria, use o modo <strong className="text-foreground">Barra</strong>.</>
+                ? <>Quanto você gastou em cada dia. Para ver a distribuição por categoria, use o modo <strong className="text-foreground">Barra</strong>.</>
                 : <>Total gasto em cada categoria neste mês.</>}
             </p>
           </div>
