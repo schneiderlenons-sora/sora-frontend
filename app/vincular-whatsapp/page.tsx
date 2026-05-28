@@ -17,9 +17,11 @@ export default function VincularWhatsapp() {
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
     setErro('');
-    const numero = phone.replace(/\D/g, '');
-    if (numero.length < 10) {
-      setErro('Digite um número válido com DDD.');
+    let numero = phone.replace(/\D/g, '');
+    // Garante código do país Brasil (55) — Z-API sempre envia com ele
+    if (!numero.startsWith('55')) numero = '55' + numero;
+    if (numero.length < 12) {
+      setErro('Digite um número válido com DDD. Ex: 11999998888');
       return;
     }
     if (!user?.id) {
@@ -60,7 +62,7 @@ export default function VincularWhatsapp() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Vincular WhatsApp</h1>
           <p className="text-muted-foreground text-sm">
-            Informe o número que vai usar para enviar mensagens ao Sora.
+            Informe o número com DDD (sem código do país, ex: 11999998888).
           </p>
         </div>
 

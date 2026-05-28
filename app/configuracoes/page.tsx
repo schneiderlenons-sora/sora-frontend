@@ -908,8 +908,9 @@ function InfoCell({
 function SecaoWhatsApp() {
   const { perfil } = useAuth();
   const phone = perfil?.phone;
+  // Suporta 55XXXXXXXXXXX (13 dígitos) e 55XXXXXXXXXX (12 dígitos)
   const phoneFmt = phone
-    ? phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '+$1 ($2) $3-$4')
+    ? phone.replace(/^55(\d{2})(\d{4,5})(\d{4})$/, '+55 ($1) $2-$3')
     : '';
 
   return (
