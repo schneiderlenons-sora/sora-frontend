@@ -73,42 +73,6 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-// ── Tooltip do stacked area por categoria ──────────────────────
-// Mostra acumulado de cada banda + total, ordenado por valor (maior em cima).
-function AreaCatTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  const ordenado = [...payload].sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
-  const total = payload.reduce((s: number, p: any) => s + (p.value || 0), 0);
-  return (
-    <div className="rounded-xl p-3 shadow-xl min-w-[200px] border border-border/60"
-         style={{ background: 'hsl(var(--bg-card))' }}>
-      <p className="font-semibold text-foreground mb-2 text-xs">Dia {label}</p>
-      <div className="space-y-1">
-        {ordenado.map((p: any, i: number) => {
-          const pct = total > 0 ? (p.value / total) * 100 : 0;
-          return (
-            <div key={i} className="flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: p.color }} />
-                <span className="text-muted-foreground truncate">{p.name}</span>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-bold tabular text-foreground">{fmt(p.value)}</span>
-                <span className="tabular text-muted-foreground text-[10px] w-9 text-right">
-                  {pct.toFixed(0)}%
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-border/60 text-xs">
-        <span className="text-muted-foreground font-medium">Total acumulado</span>
-        <span className="font-bold tabular text-foreground">{fmt(total)}</span>
-      </div>
-    </div>
-  );
-}
 
 // ── Badge de variação ─────────────────────────────────────────
 function VarBadge({ val, invert = false, size = 'sm' }: { val: number; invert?: boolean; size?: 'sm' | 'lg' }) {
@@ -213,57 +177,6 @@ export default function DashboardPage() {
     };
   });
 
-  // Stacked area por categoria — acumulado dia-a-dia para top 5 categorias + Outros
-  const TOP_CATS = 5;
-  const dadosAreaCats = (() => {
-    const topNomes = cats.slice(0, TOP_CATS).map((c: any) => nomeCategoria(c.categoria || ''));
-    const keys = [...topNomes, 'Outros'];
-    // Mapa case-insensitive para mapear nome da tx → key exata da banda
-    const lcMap: Record<string, string> = {};
-    topNomes.forEach((n: string) => { lcMap[n.toLowerCase()] = n; });
-
-    const acc: Record<string, number> = Object.fromEntries(keys.map(k => [k, 0]));
-    const porDia: Record<number, Record<string, number>> = {};
-    for (let d = 1; d <= today; d++) porDia[d] = Object.fromEntries(keys.map(k => [k, 0]));
-
-    txsMes.forEach(tx => {
-      const dia = new Date(tx.data).getDate();
-      if (dia < 1 || dia > today) return;
-      const nome = nomeCategoria(tx.categoria || '');
-      const chave = lcMap[nome.toLowerCase()] || 'Outros';
-      porDia[dia][chave] = (porDia[dia][chave] || 0) + (tx.valor || 0);
-    });
-
-    return Array.from({ length: Math.max(today, 1) }, (_, i) => {
-      const dia = i + 1;
-      const linha: any = { dia: String(dia) };
-      keys.forEach(k => {
-        acc[k] += porDia[dia]?.[k] || 0;
-        linha[k] = acc[k];
-      });
-      return linha;
-    });
-  })();
-
-  const areaCatKeys = (() => {
-    const topNomes = cats.slice(0, TOP_CATS).map((c: any) => nomeCategoria(c.categoria || ''));
-    const totalGastosPorCat: Record<string, number> = {};
-    cats.forEach((c: any) => {
-      totalGastosPorCat[nomeCategoria(c.categoria || '')] = c.total || 0;
-    });
-    // Total da banda "Outros" = soma das categorias fora do top
-    const totalOutros = cats
-      .slice(TOP_CATS)
-      .reduce((s: number, c: any) => s + (c.total || 0), 0);
-
-    return [...topNomes, 'Outros'].map(nome => ({
-      nome,
-      color: nome === 'Outros'
-        ? 'hsl(220 8% 55%)'
-        : getCategoriaTheme(nome, categorias).color,
-      total: nome === 'Outros' ? totalOutros : (totalGastosPorCat[nome] || 0),
-    }));
-  })();
 
   // Insight personalizado
   const insight = temDados && maiorCat
@@ -483,7 +396,9 @@ export default function DashboardPage() {
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
                   Fluxo de Caixa
                 </p>
-                <p className="text-lg font-bold text-foreground">Por categoria — {monthName}</p>
+                <p className="text-lg font-bold text-foreground">
+                  {chartMode === 'area' ? `Gasto acumulado — ${monthName}` : `Por categoria — ${monthName}`}
+                </p>
               </div>
               <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
                 {(['area', 'bar'] as const).map(m => (
@@ -509,55 +424,38 @@ export default function DashboardPage() {
                   </Bar>
                 </BarChart>
               ) : (
-                <AreaChart data={dadosAreaCats} margin={{ left: -24 }}>
+                <AreaChart data={dadosRitmo} margin={{ left: -24 }}>
                   <defs>
-                    {areaCatKeys.map((k, i) => (
-                      <linearGradient key={i} id={`gArea-${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor={k.color} stopOpacity={0.7} />
-                        <stop offset="95%" stopColor={k.color} stopOpacity={0.15} />
-                      </linearGradient>
-                    ))}
+                    <linearGradient id="gAreaTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={BRAND} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={BRAND} stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
                          tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-                  <Tooltip content={<AreaCatTooltip />} />
-                  {areaCatKeys.map((k, i) => (
-                    <Area
-                      key={k.nome}
-                      type="monotone"
-                      dataKey={k.nome}
-                      stackId="1"
-                      stroke={k.color}
-                      fill={`url(#gArea-${i})`}
-                      strokeWidth={1.5}
-                      dot={false}
-                    />
-                  ))}
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="atual"
+                    name="Este mês"
+                    stroke={BRAND}
+                    fill="url(#gAreaTotal)"
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 4, fill: BRAND }}
+                  />
                 </AreaChart>
               )}
             </ResponsiveContainer>
 
-            {/* Legenda detalhada — cada categoria com valor total no mês */}
-            {chartMode === 'area' && areaCatKeys.some(k => k.total > 0) && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-x-4 gap-y-1.5 mt-4 pt-3 border-t border-border/60">
-                {areaCatKeys
-                  .filter(k => k.total > 0)
-                  .sort((a, b) => b.total - a.total)
-                  .map(k => (
-                    <div key={k.nome} className="flex items-center justify-between gap-2 min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: k.color }} />
-                        <span className="text-[11px] text-muted-foreground truncate">{k.nome}</span>
-                      </div>
-                      <span className="text-[11px] font-semibold tabular text-foreground flex-shrink-0">
-                        {fmt(k.total)}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            )}
+            {/* Sub-texto explicativo — clarifica o que cada modo mostra */}
+            <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-border/60">
+              {chartMode === 'area'
+                ? <>Evolução do gasto acumulado dia a dia. Para ver a distribuição por categoria, use o modo <strong className="text-foreground">Barra</strong>.</>
+                : <>Total gasto em cada categoria neste mês.</>}
+            </p>
           </div>
 
           {/* ── Principais Categorias ───────────────────────── */}
