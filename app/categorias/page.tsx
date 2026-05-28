@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
-import NovaCategoriaModal from '@/components/categorias/NovaCategoriaModal';
+import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
-import { nomeCategoria, getCategoriaTheme } from '@/lib/categorias';
+import { nomeCategoria, getCategoriaTheme, isHexGrayscale } from '@/lib/categorias';
 import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
@@ -34,8 +34,8 @@ function corPctLimite(pct: number): string {
 }
 
 // Normaliza cor que pode vir como string hex (#RRGGBB), string HSL "hsl(...)", número (HSL hue)
-// ou string numérica. Quando cor for nula, deriva do nome via getCategoriaTheme
-// (catálogo + hash determinístico) para evitar o cinza genérico.
+// ou string numérica. Quando cor for nula OU um cinza padrão do backend
+// (#808080 etc.), deriva do nome via getCategoriaTheme (catálogo + hash).
 function normalizaCor(cor: any, nomeFallback?: string): { fg: string; bg: string } {
   // Número HSL hue (0-360) — formato salvo pelo NovaCategoriaModal
   if (typeof cor === 'number') {
@@ -47,18 +47,23 @@ function normalizaCor(cor: any, nomeFallback?: string): { fg: string; bg: string
 
   if (typeof cor === 'string') {
     const trim = cor.trim();
-    if (trim.startsWith('#')) return { fg: trim, bg: `${trim}26` };
-    if (trim.startsWith('hsl') || trim.startsWith('rgb')) return { fg: trim, bg: trim };
-    const n = parseFloat(trim);
-    if (!isNaN(n)) {
-      return {
-        fg: `hsl(${n} 65% 55%)`,
-        bg: `hsl(${n} 75% 50% / 0.15)`,
-      };
+    if (trim.startsWith('#')) {
+      // Ignora cinza padrão do backend — cai no fallback do nome
+      if (!isHexGrayscale(trim)) return { fg: trim, bg: `${trim}26` };
+    } else if (trim.startsWith('hsl') || trim.startsWith('rgb')) {
+      return { fg: trim, bg: trim };
+    } else {
+      const n = parseFloat(trim);
+      if (!isNaN(n)) {
+        return {
+          fg: `hsl(${n} 65% 55%)`,
+          bg: `hsl(${n} 75% 50% / 0.15)`,
+        };
+      }
     }
   }
 
-  // Fallback: hash do nome via catálogo central (cor estável, nunca cinza)
+  // Fallback: tema do nome via catálogo central (cor estável, nunca cinza)
   if (nomeFallback) {
     const t = getCategoriaTheme(nomeFallback);
     return { fg: t.color, bg: t.bg };
@@ -242,6 +247,17 @@ export default function CategoriasPage() {
       carregar();
     } catch (e: any) {
       alert(e.message || 'Erro ao excluir.');
+    }
+  }
+
+  // Edição rápida de cor pelo popover do ícone — otimista
+  async function handleMudarCor(c: Categoria, hue: number) {
+    setCategorias(prev => prev.map(x => x.id === c.id ? { ...x, cor: hue } : x));
+    try {
+      await api.categorias.editar(c.id, { nome: c.nome, icone: c.icone, cor: hue, tipo: c.tipo });
+    } catch (e: any) {
+      console.warn('[categorias] mudar cor falhou:', e);
+      carregar(); // reverte do banco
     }
   }
 
@@ -561,6 +577,7 @@ export default function CategoriasPage() {
                   onDefinirLimite={() => setModalLim(item.pai)}
                   onEditarSub={(c) => setModalCat({ edicao: c })}
                   onExcluirSub={(c) => setConfirmDel(c)}
+                  onMudarCor={handleMudarCor}
                   gastoSubFn={gastoDeNome}
                   delay={i * 30}
                 />
@@ -653,6 +670,7 @@ interface CategoriaRowProps {
   onDefinirLimite: () => void;
   onEditarSub: (c: Categoria) => void;
   onExcluirSub: (c: Categoria) => void;
+  onMudarCor: (c: Categoria, hue: number) => void;
   gastoSubFn: (nome: string) => number;
   delay: number;
 }
@@ -660,10 +678,24 @@ interface CategoriaRowProps {
 function CategoriaRow({
   item, totalMes, ocultar, expandida, toggleExpand,
   onEditar, onExcluir, onAddSub, onDefinirLimite,
-  onEditarSub, onExcluirSub, gastoSubFn, delay,
+  onEditarSub, onExcluirSub, onMudarCor, gastoSubFn, delay,
 }: CategoriaRowProps) {
   const { pai, filhos, gastoTotal, limite } = item;
   const { fg: cor, bg: corBg } = normalizaCor(pai.cor, pai.nome);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Fecha picker ao clicar fora
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [pickerOpen]);
 
   // % em relação ao total OU ao limite (preferimos limite se houver)
   const pctTotal = totalMes > 0 ? Math.min((gastoTotal / totalMes) * 100, 100) : 0;
@@ -691,14 +723,51 @@ function CategoriaRow({
               : <ChevronDown size={14} className="text-muted-foreground" />}
           </button>
 
-          {/* Emoji ou logo da marca (Spotify, Netflix, etc.) */}
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 overflow-hidden"
-            style={{ background: corBg, color: cor }}
-          >
-            {slugDaMarca(pai.nome)
-              ? <IconeMarca nome={pai.nome} size={22} fallback={<span>{pai.icone || '📦'}</span>} />
-              : <span>{pai.icone || '📦'}</span>}
+          {/* Ícone clicável — abre paleta de cores em popover */}
+          <div className="relative flex-shrink-0" ref={pickerRef}>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-lg overflow-hidden ring-2 ring-transparent hover:ring-primary/40 transition-all"
+              style={{ background: corBg, color: cor }}
+              title="Mudar cor da categoria"
+              aria-label="Mudar cor"
+            >
+              {slugDaMarca(pai.nome)
+                ? <IconeMarca nome={pai.nome} size={22} fallback={<span>{pai.icone || '📦'}</span>} />
+                : <span>{pai.icone || '📦'}</span>}
+            </button>
+
+            {pickerOpen && (
+              <div
+                className="absolute z-20 top-full left-0 mt-2 p-2.5 rounded-2xl bg-card shadow-2xl border border-border animate-fade-in"
+                style={{ minWidth: 192 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-0.5">
+                  Cor da categoria
+                </p>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {PALETA_CORES.map(({ hue: h, label }) => {
+                    const ativa = typeof pai.cor === 'number' && pai.cor === h;
+                    return (
+                      <button
+                        key={h}
+                        onClick={() => { onMudarCor(pai, h); setPickerOpen(false); }}
+                        title={label}
+                        className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${
+                          ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : ''
+                        }`}
+                        style={{
+                          background: `hsl(${h} 65% 50%)`,
+                          // @ts-ignore
+                          '--tw-ring-color': `hsl(${h} 65% 50%)`,
+                        } as any}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Nome + subcategorias count */}

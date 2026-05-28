@@ -72,6 +72,15 @@ function hueDoNome(nome: string): number {
   return Math.abs(hash) % 360;
 }
 
+// Detecta se um hex é grayscale (R≈G≈B). O backend antigo salva categorias
+// padrão com cor "#808080" e queremos ignorar isso pra cair no tema do nome.
+export function isHexGrayscale(hex: string): boolean {
+  const m = hex.trim().match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return false;
+  const [r, g, b] = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  return Math.max(r, g, b) - Math.min(r, g, b) < 15;
+}
+
 // Item mínimo aceito pelo helper — qualquer objeto com nome + cor opcional
 export interface CategoriaUserMin {
   nome?: string;
@@ -91,14 +100,22 @@ export function getCategoriaTheme(
 
   // 1. Match com categorias do usuário (cor customizada vence)
   let hueUsuario: number | null = null;
+  let hexUsuario: string | null = null;
   let emojiUsuario: string | null = null;
   if (categoriasUsuario && categoriasUsuario.length) {
     const match = categoriasUsuario.find(c => normaliza(c.nome || '') === limpo);
     if (match) {
-      if (typeof match.cor === 'number') hueUsuario = match.cor;
-      else if (typeof match.cor === 'string') {
-        const n = parseFloat(match.cor);
-        if (!isNaN(n)) hueUsuario = n;
+      if (typeof match.cor === 'number') {
+        hueUsuario = match.cor;
+      } else if (typeof match.cor === 'string') {
+        const trim = match.cor.trim();
+        if (trim.startsWith('#')) {
+          // Hex válido só conta se NÃO for grayscale do default do backend
+          if (!isHexGrayscale(trim)) hexUsuario = trim;
+        } else {
+          const n = parseFloat(trim);
+          if (!isNaN(n)) hueUsuario = n;
+        }
       }
       if (match.icone) emojiUsuario = match.icone;
     }
@@ -120,8 +137,19 @@ export function getCategoriaTheme(
   // Se a categoria original já tem emoji, usa esse
   const emojiMatch = (categoria || '').match(/\p{Emoji}/u);
   const emoji = emojiUsuario || (emojiMatch ? emojiMatch[0] : tema.emoji);
-  const hue   = hueUsuario != null ? hueUsuario : tema.hue;
 
+  // Hex customizado válido vence; senão usa hue (custom ou catálogo)
+  if (hexUsuario) {
+    return {
+      ...tema,
+      emoji,
+      color: hexUsuario,
+      bg:    hexUsuario + '20',
+      ring:  hexUsuario + '40',
+    };
+  }
+
+  const hue = hueUsuario != null ? hueUsuario : tema.hue;
   return {
     ...tema,
     emoji,
