@@ -124,9 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Aguarda perfil antes de liberar loading — previne flicker onde temAcessoGrow
+    // fica false brevemente e o GrowLayout chuta o usuário para /grow/upgrade.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) carregarPerfil(session.user);
+      if (session?.user) await carregarPerfil(session.user);
       setLoading(false);
     });
 

@@ -63,29 +63,72 @@ function normaliza(nome: string): string {
     .toLowerCase().trim();
 }
 
-// Retorna emoji + cor para qualquer categoria
-export function getCategoriaTheme(categoria: string): CategoriaTheme & { color: string; bg: string; ring: string } {
+// Hash determinístico — usado como fallback final quando o nome não tem
+// match nem no catálogo nem na lista de categorias do usuário.
+function hueDoNome(nome: string): number {
+  const limpo = normaliza(nome);
+  let hash = 0;
+  for (let i = 0; i < limpo.length; i++) hash = limpo.charCodeAt(i) + ((hash << 5) - hash);
+  return Math.abs(hash) % 360;
+}
+
+// Item mínimo aceito pelo helper — qualquer objeto com nome + cor opcional
+export interface CategoriaUserMin {
+  nome?: string;
+  icone?: string | null;
+  cor?: number | string | null;
+}
+
+// Resolve a cor da categoria considerando, em ordem:
+//   1. Categoria customizada do usuário (cor + icone definidos no painel)
+//   2. Catálogo CATEGORIA_TEMAS por match de nome
+//   3. Hash determinístico do nome (cores estáveis, nunca cinza)
+export function getCategoriaTheme(
+  categoria: string,
+  categoriasUsuario?: CategoriaUserMin[]
+): CategoriaTheme & { color: string; bg: string; ring: string } {
   const limpo = normaliza(categoria);
 
-  // Tenta encontrar correspondência exata ou parcial
+  // 1. Match com categorias do usuário (cor customizada vence)
+  let hueUsuario: number | null = null;
+  let emojiUsuario: string | null = null;
+  if (categoriasUsuario && categoriasUsuario.length) {
+    const match = categoriasUsuario.find(c => normaliza(c.nome || '') === limpo);
+    if (match) {
+      if (typeof match.cor === 'number') hueUsuario = match.cor;
+      else if (typeof match.cor === 'string') {
+        const n = parseFloat(match.cor);
+        if (!isNaN(n)) hueUsuario = n;
+      }
+      if (match.icone) emojiUsuario = match.icone;
+    }
+  }
+
+  // 2. Catálogo
   let tema = CATEGORIA_TEMAS[limpo];
   if (!tema) {
     for (const [key, val] of Object.entries(CATEGORIA_TEMAS)) {
       if (limpo.includes(key) || key.includes(limpo)) { tema = val; break; }
     }
   }
-  if (!tema) tema = CATEGORIA_TEMAS.outros;
+
+  // 3. Hash final — antes era cinza/Outros; agora gera cor estável a partir do nome
+  if (!tema) {
+    tema = { emoji: '📦', hue: hueDoNome(limpo), label: categoria };
+  }
 
   // Se a categoria original já tem emoji, usa esse
   const emojiMatch = (categoria || '').match(/\p{Emoji}/u);
-  const emoji = emojiMatch ? emojiMatch[0] : tema.emoji;
+  const emoji = emojiUsuario || (emojiMatch ? emojiMatch[0] : tema.emoji);
+  const hue   = hueUsuario != null ? hueUsuario : tema.hue;
 
   return {
     ...tema,
     emoji,
-    color: `hsl(${tema.hue} 65% 50%)`,
-    bg:    `hsl(${tema.hue} 75% 50% / 0.12)`,
-    ring:  `hsl(${tema.hue} 65% 50% / 0.25)`,
+    hue,
+    color: `hsl(${hue} 65% 50%)`,
+    bg:    `hsl(${hue} 75% 50% / 0.12)`,
+    ring:  `hsl(${hue} 65% 50% / 0.25)`,
   };
 }
 

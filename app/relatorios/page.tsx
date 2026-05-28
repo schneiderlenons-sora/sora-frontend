@@ -74,6 +74,7 @@ export default function RelatoriosPage() {
   const [resumoAnt,setResumoAnt]= useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
   const [txs,      setTxs]      = useState<any[]>([]);
   const [wallets,  setWallets]  = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [apenasMeus, setApenasMeus] = useState(false);
 
@@ -106,6 +107,11 @@ export default function RelatoriosPage() {
       const w = await api.wallets.listar(phone);
       setWallets(w || []);
     } catch (e) { console.warn('[relatorios] wallets erro:', e); }
+
+    try {
+      const cats = await api.categorias.listar(phone);
+      setCategorias(cats || []);
+    } catch (e) { console.warn('[relatorios] categorias erro:', e); }
 
     setRefreshing(false);
   }, [phone, mesRef, mesAntRef, apenasMeus]);
@@ -150,11 +156,11 @@ export default function RelatoriosPage() {
   const saldoPrevisto = (resumo?.receitas || 0) - (resumo?.gastos || 0) + saldoBanco;
 
   // ── Dados para gráficos ────────────────────────────────────
-  // Pizza por categoria (top 7)
+  // Pizza por categoria (top 7) — cor customizada do usuário > catálogo > hash
   const dadosPie = useMemo(() => {
     const cats = (resumo?.por_categoria || []).slice(0, 7);
     return cats.map((c: any) => {
-      const theme = getCategoriaTheme(c.categoria || '');
+      const theme = getCategoriaTheme(c.categoria || '', categorias);
       return {
         name:  nomeCategoria(c.categoria || ''),
         value: c.total || 0,
@@ -162,9 +168,9 @@ export default function RelatoriosPage() {
         emoji: theme.emoji,
       };
     });
-  }, [resumo]);
+  }, [resumo, categorias]);
 
-  // Pizza receitas (mockup — só salário se não tiver detalhamento)
+  // Pizza receitas
   const dadosPieReceitas = useMemo(() => {
     const recs = txs.filter(t => t.tipo === 'Recebimento');
     const grupos: Record<string, number> = {};
@@ -176,10 +182,10 @@ export default function RelatoriosPage() {
       .sort(([, a], [, b]) => b - a)
       .slice(0, 7)
       .map(([cat, val]) => {
-        const theme = getCategoriaTheme(cat);
+        const theme = getCategoriaTheme(cat, categorias);
         return { name: nomeCategoria(cat), value: val, color: theme.color, emoji: theme.emoji };
       });
-  }, [txs]);
+  }, [txs, categorias]);
 
   // Receitas x Despesas — frequência por dia/mês
   const dadosFrequencia = useMemo(() => {

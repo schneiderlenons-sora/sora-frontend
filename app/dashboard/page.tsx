@@ -7,6 +7,7 @@ import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
+import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
@@ -20,7 +21,6 @@ import {
 // ── Constantes ────────────────────────────────────────────────
 const BRAND  = '#61D17B';
 const BRAND2 = '#3dd68c';
-const CORES  = [BRAND, '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
 
 const mesAtual    = new Date().toISOString().slice(0, 7);
 const mesAnterior = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
@@ -116,6 +116,7 @@ export default function DashboardPage() {
   const [wallets,   setWallets]   = useState<any[]>([]);
   const [txs,       setTxs]       = useState<any[]>([]);
   const [txsMes,    setTxsMes]    = useState<any[]>([]);
+  const [categorias, setCategorias] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
 
@@ -138,6 +139,10 @@ export default function DashboardPage() {
       const tMes = await api.transacoes.listar(phone, { mes: mesAtual, tipo: 'Gasto', limit: 500 });
       setTxsMes(tMes.transacoes || []);
     } catch {}
+    try {
+      const cats = await api.categorias.listar(phone);
+      setCategorias(cats || []);
+    } catch {}
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -158,14 +163,58 @@ export default function DashboardPage() {
     anterior: gastoAntTotal > 0 ? Math.round((gastoAntTotal / daysInMonth) * (i + 1)) : 0,
   }));
 
-  // Categorias com percentual
+  // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
   const cats = (resumo?.por_categoria||[]) as any[];
   const totalGastos = resumo?.gastos || 0;
-  const catsComPct = cats.slice(0, 7).map((c: any, i: number) => ({
-    ...c,
-    pct: totalGastos > 0 ? Math.round((c.total / totalGastos) * 100) : 0,
-    color: CORES[i % CORES.length],
-  }));
+  const catsComPct = cats.slice(0, 7).map((c: any) => {
+    const theme = getCategoriaTheme(c.categoria || '', categorias);
+    return {
+      ...c,
+      pct: totalGastos > 0 ? Math.round((c.total / totalGastos) * 100) : 0,
+      color: theme.color,
+      emoji: theme.emoji,
+    };
+  });
+
+  // Stacked area por categoria — acumulado dia-a-dia para top 5 categorias + Outros
+  const TOP_CATS = 5;
+  const dadosAreaCats = (() => {
+    const topNomes = cats.slice(0, TOP_CATS).map((c: any) => nomeCategoria(c.categoria || ''));
+    const keys = [...topNomes, 'Outros'];
+
+    // Acumuladores por categoria
+    const acc: Record<string, number> = Object.fromEntries(keys.map(k => [k, 0]));
+    const porDia: Record<number, Record<string, number>> = {};
+    for (let d = 1; d <= today; d++) porDia[d] = Object.fromEntries(keys.map(k => [k, 0]));
+
+    txsMes.forEach(tx => {
+      const dia = new Date(tx.data).getDate();
+      if (dia < 1 || dia > today) return;
+      const nome = nomeCategoria(tx.categoria || '');
+      const chave = topNomes.includes(nome) ? nome : 'Outros';
+      porDia[dia][chave] = (porDia[dia][chave] || 0) + (tx.valor || 0);
+    });
+
+    return Array.from({ length: Math.max(today, 1) }, (_, i) => {
+      const dia = i + 1;
+      const linha: any = { dia: String(dia) };
+      keys.forEach(k => {
+        acc[k] += porDia[dia]?.[k] || 0;
+        linha[k] = acc[k];
+      });
+      return linha;
+    });
+  })();
+
+  const areaCatKeys = (() => {
+    const topNomes = cats.slice(0, TOP_CATS).map((c: any) => nomeCategoria(c.categoria || ''));
+    return [...topNomes, 'Outros'].map(nome => ({
+      nome,
+      color: nome === 'Outros'
+        ? 'hsl(220 8% 55%)'
+        : getCategoriaTheme(nome, categorias).color,
+    }));
+  })();
 
   // Insight personalizado
   const insight = temDados && maiorCat
@@ -399,34 +448,59 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={220}>
               {chartMode === 'bar' ? (
-                <BarChart data={catsComPct.map(c => ({ name: parseCategoria(c.categoria).nome.slice(0,10), gastos: c.total }))} barSize={28}>
+                <BarChart data={catsComPct.map(c => ({ name: parseCategoria(c.categoria).nome.slice(0,10), gastos: c.total, color: c.color }))} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: 'hsl(var(--bg-muted))' }} />
                   <Bar dataKey="gastos" name="Gastos" radius={[6,6,0,0]}>
-                    {catsComPct.map((_: any, i: number) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+                    {catsComPct.map((c: any, i: number) => <Cell key={i} fill={c.color} />)}
                   </Bar>
                 </BarChart>
               ) : (
-                <AreaChart data={dadosRitmo} margin={{ left: -24 }}>
+                <AreaChart data={dadosAreaCats} margin={{ left: -24 }}>
                   <defs>
-                    <linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={BRAND} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={BRAND} stopOpacity={0} />
-                    </linearGradient>
+                    {areaCatKeys.map((k, i) => (
+                      <linearGradient key={i} id={`gArea-${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={k.color} stopOpacity={0.55} />
+                        <stop offset="95%" stopColor={k.color} stopOpacity={0.05} />
+                      </linearGradient>
+                    ))}
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
                          tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="atual" name="Este mês" stroke={BRAND} fill="url(#gArea)" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: BRAND }} />
+                  {areaCatKeys.map((k, i) => (
+                    <Area
+                      key={k.nome}
+                      type="monotone"
+                      dataKey={k.nome}
+                      stackId="1"
+                      stroke={k.color}
+                      fill={`url(#gArea-${i})`}
+                      strokeWidth={1.5}
+                      dot={false}
+                    />
+                  ))}
                 </AreaChart>
               )}
             </ResponsiveContainer>
+
+            {/* Legenda das categorias (modo área) */}
+            {chartMode === 'area' && areaCatKeys.length > 1 && (
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-border/60">
+                {areaCatKeys.map(k => (
+                  <div key={k.nome} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: k.color }} />
+                    <span className="text-[11px] text-muted-foreground">{k.nome}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── Principais Categorias ───────────────────────── */}
@@ -446,13 +520,18 @@ export default function DashboardPage() {
             {catsComPct.length > 0 ? (
               <div className="space-y-3.5">
                 {catsComPct.map((c: any, i: number) => {
-                  const { emoji, nome } = parseCategoria(c.categoria);
+                  const nome = nomeCategoria(c.categoria);
                   return (
                     <div key={i} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                       <div className="flex items-center justify-between text-xs mb-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{emoji}</span>
-                          <span className="font-medium text-foreground truncate max-w-[100px]">{nome}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+                            style={{ background: `${c.color}22` }}
+                          >
+                            {c.emoji}
+                          </span>
+                          <span className="font-medium text-foreground truncate">{nome}</span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-muted-foreground tabular">{fmt(c.total)}</span>

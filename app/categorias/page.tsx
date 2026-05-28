@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import NovaCategoriaModal from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
-import { nomeCategoria } from '@/lib/categorias';
+import { nomeCategoria, getCategoriaTheme } from '@/lib/categorias';
 import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
@@ -34,10 +34,9 @@ function corPctLimite(pct: number): string {
 }
 
 // Normaliza cor que pode vir como string hex (#RRGGBB), string HSL "hsl(...)", número (HSL hue)
-// ou string numérica. Retorna { fg, bg } prontos para CSS.
-function normalizaCor(cor: any): { fg: string; bg: string } {
-  if (cor == null) return { fg: 'hsl(220 10% 50%)', bg: 'hsl(220 10% 50% / 0.15)' };
-
+// ou string numérica. Quando cor for nula, deriva do nome via getCategoriaTheme
+// (catálogo + hash determinístico) para evitar o cinza genérico.
+function normalizaCor(cor: any, nomeFallback?: string): { fg: string; bg: string } {
   // Número HSL hue (0-360) — formato salvo pelo NovaCategoriaModal
   if (typeof cor === 'number') {
     return {
@@ -48,15 +47,8 @@ function normalizaCor(cor: any): { fg: string; bg: string } {
 
   if (typeof cor === 'string') {
     const trim = cor.trim();
-    // Hex (#808080) — formato do backend
-    if (trim.startsWith('#')) {
-      return { fg: trim, bg: `${trim}26` }; // hex alpha 26 ≈ 15%
-    }
-    // hsl(...) literal
-    if (trim.startsWith('hsl') || trim.startsWith('rgb')) {
-      return { fg: trim, bg: trim };
-    }
-    // String numérica "142"
+    if (trim.startsWith('#')) return { fg: trim, bg: `${trim}26` };
+    if (trim.startsWith('hsl') || trim.startsWith('rgb')) return { fg: trim, bg: trim };
     const n = parseFloat(trim);
     if (!isNaN(n)) {
       return {
@@ -66,6 +58,11 @@ function normalizaCor(cor: any): { fg: string; bg: string } {
     }
   }
 
+  // Fallback: hash do nome via catálogo central (cor estável, nunca cinza)
+  if (nomeFallback) {
+    const t = getCategoriaTheme(nomeFallback);
+    return { fg: t.color, bg: t.bg };
+  }
   return { fg: 'hsl(220 10% 50%)', bg: 'hsl(220 10% 50% / 0.15)' };
 }
 
@@ -226,7 +223,7 @@ export default function CategoriasPage() {
       .map(x => ({
         name: x.pai.nome,
         value: x.gastoTotal,
-        color: normalizaCor(x.pai.cor).fg,
+        color: normalizaCor(x.pai.cor, x.pai.nome).fg,
       }));
   }, [arvore]);
 
@@ -666,7 +663,7 @@ function CategoriaRow({
   onEditarSub, onExcluirSub, gastoSubFn, delay,
 }: CategoriaRowProps) {
   const { pai, filhos, gastoTotal, limite } = item;
-  const { fg: cor, bg: corBg } = normalizaCor(pai.cor);
+  const { fg: cor, bg: corBg } = normalizaCor(pai.cor, pai.nome);
 
   // % em relação ao total OU ao limite (preferimos limite se houver)
   const pctTotal = totalMes > 0 ? Math.min((gastoTotal / totalMes) * 100, 100) : 0;
@@ -807,7 +804,7 @@ function CategoriaRow({
       {expandida && filhos.length > 0 && (
         <div className="bg-muted/15 border-t border-border/40">
           {filhos.map(filho => {
-            const { fg: corF, bg: corFBg } = normalizaCor(filho.cor ?? pai.cor);
+            const { fg: corF, bg: corFBg } = normalizaCor(filho.cor ?? pai.cor, filho.nome);
             const gastoF = gastoSubFn(filho.nome);
             const pctF = gastoTotal > 0 ? (gastoF / gastoTotal) * 100 : 0;
 
