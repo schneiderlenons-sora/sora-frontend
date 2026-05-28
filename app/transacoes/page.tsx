@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
@@ -648,36 +649,76 @@ function TransactionRow({
         )}
       </div>
 
-      {/* Menu de ações */}
-      <div className="relative flex justify-end flex-shrink-0">
-        <button
-          onClick={onToggleMenu}
-          className="p-2.5 rounded-lg hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
-          aria-label="Mais ações"
-        >
-          <MoreVertical size={16} className="text-muted-foreground" />
-        </button>
-        {menuOpen && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={onCloseMenu} />
-            <div className="absolute right-0 bottom-full mb-2 w-40 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-40 animate-fade-in">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
-                <Edit2 size={14} className="text-muted-foreground" /> Editar
-              </button>
-              <button
-                onClick={onDeletar}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-sm text-red-500 transition-colors"
-              >
-                <Trash2 size={14} /> Excluir
-              </button>
-            </div>
-          </>
-        )}
+      {/* Menu de ações — dropdown via portal (não é cortado pelo overflow do scroll) */}
+      <div className="flex justify-end flex-shrink-0">
+        <MenuAcoes
+          menuOpen={menuOpen}
+          onToggleMenu={onToggleMenu}
+          onCloseMenu={onCloseMenu}
+          onDeletar={onDeletar}
+        />
       </div>
 
       </div> {/* fecha inner row (min-w-[500px]) */}
       </div> {/* fecha scroll container */}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
+// overflow-x-auto da linha (que cria clipping em ambos os eixos).
+// ─────────────────────────────────────────────────────────────
+function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar }: {
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
+  onDeletar: () => void;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Calcula a posição do menu a partir do botão ao abrir
+  useEffect(() => {
+    if (!menuOpen || !btnRef.current) { setCoords(null); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    setCoords({ top: r.bottom + 6, right: window.innerWidth - r.right });
+  }, [menuOpen]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={onToggleMenu}
+        className="p-2.5 rounded-lg hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+        aria-label="Mais ações"
+      >
+        <MoreVertical size={16} className="text-muted-foreground" />
+      </button>
+      {mounted && menuOpen && coords && createPortal(
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={onCloseMenu} />
+          <div
+            className="fixed w-40 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-[61] animate-fade-in"
+            style={{ top: coords.top, right: coords.right }}
+          >
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+              <Edit2 size={14} className="text-muted-foreground" /> Editar
+            </button>
+            <button
+              onClick={onDeletar}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-sm text-red-500 transition-colors"
+            >
+              <Trash2 size={14} /> Excluir
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
+    </>
   );
 }
 
