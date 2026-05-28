@@ -3,7 +3,7 @@
 // IMPORTANTE: bumpar CACHE quando mudar a estratégia ou se houver suspeita
 // de versão obsoleta sendo servida no painel.
 
-const CACHE = 'sora-v4';
+const CACHE = 'sora-v5';
 
 self.addEventListener('install', () => {
   // Força essa nova versão a substituir a antiga imediatamente
