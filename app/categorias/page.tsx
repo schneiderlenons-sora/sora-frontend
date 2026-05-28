@@ -677,9 +677,10 @@ function CategoriaRow({
 
   return (
     <div className="animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
-      {/* Linha principal */}
-      <div className="px-3 sm:px-5 py-3 hover:bg-muted/30 transition-colors group">
-        <div className="flex items-center gap-3">
+      {/* Linha principal — scroll horizontal no mobile pra mostrar tudo */}
+      <div className="hover:bg-muted/30 transition-colors group">
+        <div className="overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-3 min-w-[520px] lg:min-w-0 px-3 sm:px-5 py-3">
           {/* Chevron */}
           <button
             onClick={toggleExpand}
@@ -775,45 +776,31 @@ function CategoriaRow({
           </div>
 
           {/* Ações — visível em mobile (sem hover) */}
-          <div className="flex items-center gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
+          <div className="flex items-center gap-1 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
             <button
               onClick={onEditar}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
               title="Editar"
             >
-              <Pencil size={13} className="text-muted-foreground" />
+              <Pencil size={14} className="text-muted-foreground" />
             </button>
             <button
               onClick={onAddSub}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
               title="Adicionar subcategoria"
             >
-              <FolderPlus size={13} className="text-muted-foreground" />
+              <FolderPlus size={14} className="text-muted-foreground" />
             </button>
             <button
               onClick={onExcluir}
-              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
               title="Excluir"
             >
-              <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
+              <Trash2 size={14} className="text-muted-foreground hover:text-red-500" />
             </button>
           </div>
-        </div>
-
-        {/* Mobile: valor abaixo */}
-        <div className="flex sm:hidden items-center justify-between mt-2 ml-12">
-          <p className="text-sm font-bold text-foreground tabular">
-            {ocultar ? '•••••' : fmt(gastoTotal)}
-          </p>
-          {limite?.limite_mensal && (
-            <span
-              className="text-[11px] font-bold tabular"
-              style={{ color: corPctLimite(pctLimite) }}
-            >
-              {pctLimite}%
-            </span>
-          )}
-        </div>
+        </div> {/* fecha inner row (min-w-[520px]) */}
+        </div> {/* fecha scroll container */}
       </div>
 
       {/* Subcategorias */}

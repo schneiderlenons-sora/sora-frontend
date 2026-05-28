@@ -451,6 +451,11 @@ export default function TransacoesPage() {
                 <div></div>
               </div>
 
+              {/* Mobile: dica de scroll */}
+              <p className="lg:hidden text-[10px] text-muted-foreground text-center py-2 border-b border-border/40">
+                ← Deslize para ver mais →
+              </p>
+
               {/* Linhas */}
               <div className="divide-y divide-border/40">
                 {txsFiltradas.map((tx, i) => (
@@ -569,12 +574,17 @@ function TransactionRow({
 
   return (
     <div
-      className={`group relative flex items-center gap-3 lg:grid lg:grid-cols-[24px_minmax(0,2fr)_140px_140px_120px_120px_40px] px-4 sm:px-5 py-3.5 transition-colors animate-fade-in ${
+      className={`group relative transition-colors animate-fade-in ${
         selecionado ? 'bg-primary/5' : 'hover:bg-muted/40'
       }`}
       style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
     >
-      {/* Checkbox — oculto no mobile pra dar espaço */}
+      {/* Desktop: grid normal */}
+      {/* Mobile: scroll horizontal com min-width pra mostrar tudo sem empacotar */}
+      <div className="overflow-x-auto scrollbar-none lg:overflow-visible">
+      <div className="flex items-center gap-3 min-w-[500px] lg:min-w-0 lg:grid lg:grid-cols-[24px_minmax(0,2fr)_140px_140px_120px_120px_40px] px-4 sm:px-5 py-3.5">
+
+      {/* Checkbox — oculto no mobile */}
       <button
         onClick={onToggleSelect}
         className={`hidden lg:flex w-4 h-4 rounded border-2 transition-all items-center justify-center flex-shrink-0 ${
@@ -586,17 +596,17 @@ function TransactionRow({
         {selecionado && <CheckCircle2 size={10} className="text-white" />}
       </button>
 
-      {/* Emoji da categoria */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
+      {/* Emoji + descrição (nunca trunca no mobile — tem espaço pelo scroll) */}
+      <div className="flex items-center gap-3 min-w-[180px] flex-shrink-0 lg:flex-shrink lg:min-w-0">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ring-1"
           style={{ background: theme.bg, boxShadow: `inset 0 0 0 1px ${theme.ring}` }}
         >
           {theme.emoji}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">{desc}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 lg:hidden truncate">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{desc}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 lg:hidden">
             {fmtData(tx.data)} · <span style={{ color: theme.color }}>{nome}</span>
           </p>
         </div>
@@ -643,32 +653,35 @@ function TransactionRow({
         </p>
       </div>
 
-      {/* Menu de ações — sempre visível no mobile (touch não tem hover) */}
+      {/* Menu de ações */}
       <div className="relative flex justify-end flex-shrink-0">
         <button
           onClick={onToggleMenu}
-          className="p-2 rounded-lg hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+          className="p-2.5 rounded-lg hover:bg-muted lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
           aria-label="Mais ações"
         >
-          <MoreVertical size={14} className="text-muted-foreground" />
+          <MoreVertical size={16} className="text-muted-foreground" />
         </button>
         {menuOpen && (
           <>
-            <div className="fixed inset-0 z-10" onClick={onCloseMenu} />
-            <div className="absolute right-0 top-full mt-1 w-36 card p-1 z-20 animate-fade-in">
-              <button className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-muted text-xs text-foreground">
-                <Edit2 size={12} className="text-muted-foreground" /> Editar
+            <div className="fixed inset-0 z-30" onClick={onCloseMenu} />
+            <div className="absolute right-0 bottom-full mb-2 w-40 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-40 animate-fade-in">
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+                <Edit2 size={14} className="text-muted-foreground" /> Editar
               </button>
               <button
                 onClick={onDeletar}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 text-xs text-red-500"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-sm text-red-500 transition-colors"
               >
-                <Trash2 size={12} /> Excluir
+                <Trash2 size={14} /> Excluir
               </button>
             </div>
           </>
         )}
       </div>
+
+      </div> {/* fecha inner row (min-w-[500px]) */}
+      </div> {/* fecha scroll container */}
     </div>
   );
 }
