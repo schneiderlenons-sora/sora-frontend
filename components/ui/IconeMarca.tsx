@@ -200,15 +200,21 @@ function normalizar(s: string): string {
     .trim();
 }
 
+// Verifica se `trecho` aparece como palavra completa dentro de `texto`
+// (delimitado por início, fim ou espaço). Evita "inter" → "internet".
+function palavraInteira(texto: string, trecho: string): boolean {
+  const escaped = trecho.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\s)${escaped}(\\s|$)`).test(texto);
+}
+
 export function marcaDe(nome: string): Marca | null {
   const key = normalizar(nome);
   if (!key) return null;
   if (MARCAS[key]) return MARCAS[key];
   for (const [k, v] of Object.entries(MARCAS)) {
-    // "mercado" NÃO deve acionar "mercado livre": só aceita partial match
-    // quando a categoria digitada é mais longa ou igual à chave do mapa
-    // (a chave da marca deve estar DENTRO do nome buscado, não o contrário).
-    if (key.includes(k) && key.length >= k.length) return v;
+    // Só aceita match parcial se a chave da marca é uma palavra inteira
+    // dentro do nome buscado. "inter" ≠ "internet", "mercado" ≠ "mercado livre".
+    if (palavraInteira(key, k)) return v;
   }
   return null;
 }
