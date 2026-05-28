@@ -114,11 +114,14 @@ export default function TransacoesPage() {
   // ── Ações ──────────────────────────────────────────────────
   async function handleDeletar(id: string) {
     if (!confirm('Excluir esta transação?')) return;
+    // Remoção otimista — some da lista na hora
+    const backup = txs;
+    setTxs(prev => prev.filter(t => t.id !== id));
+    setRowMenuOpen(null);
     try {
-      await api.transacoes.deletar(id);
-      setTxs(prev => prev.filter(t => t.id !== id));
-      setRowMenuOpen(null);
+      await api.transacoes.deletar(id, phone);
     } catch (e: any) {
+      setTxs(backup); // reverte se falhar
       alert('Erro ao excluir: ' + (e.message || ''));
     }
   }

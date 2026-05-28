@@ -68,8 +68,8 @@ export const api = {
       req<{ inserted: number }>('/api/transacoes/bulk', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>
       req(`/api/transacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    deletar: (id: string) =>
-      req(`/api/transacoes/${id}`, { method: 'DELETE' }),
+    deletar: (id: string, phone?: string) =>
+      req(`/api/transacoes/${id}${phone ? `?phone=${phone}` : ''}`, { method: 'DELETE' }),
   },
 
   // ── CONTAS BANCÁRIAS ──────────────────────────────────────────
