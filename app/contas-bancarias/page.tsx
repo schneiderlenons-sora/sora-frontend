@@ -5,7 +5,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
-import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
+import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
@@ -482,18 +483,19 @@ export default function ContasBancariasPage() {
                       className="group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-muted/30 border border-border/60 cursor-not-allowed transition-all hover:bg-muted/50 hover:border-primary/30 animate-fade-in"
                       style={{ animationDelay: `${i * 25}ms` }}
                     >
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden ring-1 ring-border/40 transition-transform group-hover:scale-105"
-                           style={{ background: '#fff' }}>
-                        {conhecida ? (
-                          <IconeMarca
-                            nome={b.nome}
-                            size={34}
-                            fallback={<span className="text-base font-bold text-foreground">{b.nome.charAt(0)}</span>}
-                          />
-                        ) : (
+                      {conhecida ? (
+                        <CategoriaIcon
+                          nome={b.nome}
+                          size={44}
+                          rounded="rounded-xl"
+                          className="transition-transform group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden ring-1 ring-border/40 transition-transform group-hover:scale-105"
+                             style={{ background: '#fff' }}>
                           <span className="text-base font-bold text-foreground">{b.nome.charAt(0)}</span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                       <p className="text-[11px] font-semibold text-foreground text-center leading-tight line-clamp-1">
                         {b.nome}
                       </p>
@@ -593,15 +595,15 @@ function WalletCard({
       {/* ─── Cabeçalho ─── */}
       <div className="relative flex items-start justify-between gap-3 mb-5">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Marca conhecida → fundo branco + logo colorido oficial.
-              Sem marca → gradiente do banco + inicial. */}
-          {slugDaMarca(wallet.nome) ? (
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg ring-1 ring-border/40"
-              style={{ background: '#fff' }}
-            >
-              <IconeMarca nome={wallet.nome} size={38} fallback={<span className="text-foreground font-bold">{inicial}</span>} />
-            </div>
+          {/* Marca conhecida → CategoriaIcon resolve (bg oficial + logo branco
+              ou fundo branco + logo colorido). Sem marca → gradiente do banco. */}
+          {marcaDe(wallet.nome) ? (
+            <CategoriaIcon
+              nome={wallet.nome}
+              size={48}
+              rounded="rounded-2xl"
+              className="shadow-lg"
+            />
           ) : (
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-lg ring-1 ring-white/20 overflow-hidden"
