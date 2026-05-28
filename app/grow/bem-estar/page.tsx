@@ -7,6 +7,7 @@ import {
   Heart, Sparkles, Loader2, Check, Smile, Plus, TrendingUp,
   Moon, Zap, X,
 } from 'lucide-react';
+import GrowHero from '@/components/grow/GrowHero';
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, XAxis, CartesianGrid } from 'recharts';
 
 const BRAND = '#7c3aed';
@@ -49,22 +50,14 @@ export default function BemEstarPage() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
-      {/* HERO */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
-           style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none opacity-50"
-             style={{ background: 'radial-gradient(ellipse at top right, rgba(236,72,153,0.12) 0%, transparent 60%)' }} />
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-pink-100 dark:bg-pink-950/40 mb-3">
-            <Sparkles size={12} className="text-pink-600 dark:text-pink-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-pink-600 dark:text-pink-400">Bem-estar</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">Bem-estar</h1>
-          <p className="text-muted-foreground text-sm mt-2 max-w-md">
-            Como você está hoje? Registrar o humor te ajuda a notar padrões.
-          </p>
-        </div>
-      </div>
+      <GrowHero
+        badge="Bem-estar"
+        badgeColor="#db2777"
+        badgeBgClass="bg-pink-100 dark:bg-pink-950/40"
+        haloRgba="rgba(236,72,153,0.12)"
+        titulo="Bem-estar"
+        subtitulo="Como você está hoje? Registrar o humor te ajuda a notar padrões."
+      />
 
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center">

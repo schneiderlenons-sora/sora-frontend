@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
 } from 'lucide-react';
+import GrowHero from '@/components/grow/GrowHero';
 
 const BRAND = '#7c3aed';
 
@@ -77,39 +78,31 @@ export default function CasaPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-20 space-y-6">
-      {/* HERO */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
-           style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none opacity-50"
-             style={{ background: 'radial-gradient(ellipse at top right, rgba(245,158,11,0.12) 0%, transparent 60%)' }} />
-        <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/40 mb-3">
-              <Sparkles size={12} className="text-amber-600 dark:text-amber-400" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Casa</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">Lista de compras</h1>
-            <p className="text-muted-foreground text-sm mt-2">
-              {pendentes} pendente{pendentes === 1 ? '' : 's'} · {total - pendentes} comprado{total - pendentes === 1 ? '' : 's'}
-            </p>
-          </div>
-          {total - pendentes > 0 && (
-            <button onClick={limparComprados} className="btn-ghost px-3 py-2 text-xs gap-1.5 inline-flex items-center">
-              <Trash2 size={12} /> Limpar comprados
-            </button>
-          )}
-        </div>
-        {total > 0 && (
-          <div className="relative mt-5">
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div className="h-full transition-all duration-700"
-                   style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #f59e0b, #f97316)' }} />
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1.5">{pct}% concluído</p>
-          </div>
+    <div className="max-w-7xl mx-auto pb-20 space-y-6">
+      <GrowHero
+        badge="Casa"
+        badgeColor="#d97706"
+        badgeBgClass="bg-amber-100 dark:bg-amber-950/40"
+        haloRgba="rgba(245,158,11,0.12)"
+        titulo="Lista de compras"
+        subtitulo={`${pendentes} pendente${pendentes === 1 ? '' : 's'} · ${total - pendentes} comprado${total - pendentes === 1 ? '' : 's'}`}
+      >
+        {total - pendentes > 0 && (
+          <button onClick={limparComprados} className="btn-ghost px-3 py-2 text-xs gap-1.5 inline-flex items-center">
+            <Trash2 size={12} /> Limpar comprados
+          </button>
         )}
-      </div>
+      </GrowHero>
+
+      {total > 0 && (
+        <div className="card rounded-2xl p-4 animate-fade-in" style={{ animationDelay: '30ms' }}>
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full transition-all duration-700"
+                 style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #f59e0b, #f97316)' }} />
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2">{pct}% concluído</p>
+        </div>
+      )}
 
       {/* Adicionar */}
       <div className="card rounded-2xl p-4 animate-fade-in" style={{ animationDelay: '60ms' }}>

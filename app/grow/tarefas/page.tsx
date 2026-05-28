@@ -7,6 +7,7 @@ import {
   Plus, ListChecks, Loader2, X, Check, Trash2, Sparkles, Tag,
   ChevronRight, AlertCircle, Pencil, FolderPlus,
 } from 'lucide-react';
+import GrowHero from '@/components/grow/GrowHero';
 
 const BRAND = '#7c3aed';
 
@@ -76,34 +77,20 @@ export default function TarefasPage() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
-      {/* HERO */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
-           style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none opacity-50"
-             style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.12) 0%, transparent 60%)' }} />
-        <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
-              <Sparkles size={12} style={{ color: BRAND }} />
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Tarefas</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">Tarefas</h1>
-            <p className="text-muted-foreground text-sm mt-2 max-w-md">
-              Organize por projeto e prioridade. Mova entre colunas conforme avança.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setNovoProjeto(true)}
-                    className="btn-ghost px-3 py-2 text-sm gap-2 inline-flex items-center">
-              <FolderPlus size={14} /> Novo projeto
-            </button>
-            <button onClick={() => { setEditando(null); setNovaOpen(true); }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
-              <Plus size={16} /> Nova tarefa
-            </button>
-          </div>
-        </div>
-      </div>
+      <GrowHero
+        badge="Tarefas"
+        titulo="Tarefas"
+        subtitulo="Organize por projeto e prioridade. Mova entre colunas conforme avança."
+      >
+        <button onClick={() => setNovoProjeto(true)}
+                className="btn-ghost px-3 py-2 text-sm gap-2 inline-flex items-center">
+          <FolderPlus size={14} /> Novo projeto
+        </button>
+        <button onClick={() => { setEditando(null); setNovaOpen(true); }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+          <Plus size={16} /> Nova tarefa
+        </button>
+      </GrowHero>
 
       {/* Projetos pill bar */}
       {projetos.length > 0 && (

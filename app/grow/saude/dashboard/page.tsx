@@ -81,7 +81,6 @@ export default function SaudeDashboardPage() {
 
       {/* ═══════════ HERO ═══════════ */}
       <HeroCard
-        nome={perfil?.name?.split(' ')[0]}
         peso={data?.peso_atual}
         pesoData={data?.peso_data}
         imc={data?.imc}
@@ -163,24 +162,23 @@ export default function SaudeDashboardPage() {
 // ═══════════════════════════════════════════════════════════════════
 // HERO
 // ═══════════════════════════════════════════════════════════════════
-function HeroCard({ nome, peso, pesoData, imc, imcClass, metaProjecao, semPerfil, semPeso, onAddPeso }: any) {
+function HeroCard({ peso, pesoData, imc, imcClass, metaProjecao, semPerfil, semPeso, onAddPeso }: any) {
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-border/40 backdrop-blur-xl p-6 sm:p-8 animate-fade-in"
-      style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card) / 0.7) 0%, hsl(var(--bg-subtle) / 0.5) 100%)' }}
+      className="relative overflow-hidden rounded-3xl border border-border/60 p-6 sm:p-8 animate-fade-in"
+      style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}
     >
-      {/* Acentos radiais */}
-      <div className="absolute inset-0 pointer-events-none"
-           style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.16) 0%, transparent 55%), radial-gradient(circle at bottom left, rgba(236,72,153,0.10) 0%, transparent 50%)' }} />
+      <div className="absolute inset-0 pointer-events-none opacity-50"
+           style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.12) 0%, transparent 60%)' }} />
 
       <div className="relative">
         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
-          <Activity size={11} style={{ color: BRAND }} />
-          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Saúde & Corpo</span>
+          <Sparkles size={12} style={{ color: BRAND }} />
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Saúde</span>
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
-          {saudacao()}{nome ? `, ${nome}` : ''}
+          Saúde
         </h1>
 
         {/* Highlight insight ou CTA */}

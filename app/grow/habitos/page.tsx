@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import ModalHabito, { periodoDoHorario } from '@/components/habitos/ModalHabito';
+import GrowHero from '@/components/grow/GrowHero';
 import {
   Plus, Target, Loader2, Check, Flame, Trash2, X, Sparkles, Pencil,
   Sun, Sunrise, Moon, Trophy, Calendar, BarChart3, Settings,
@@ -154,50 +155,41 @@ export default function HabitosPage() {
     registros.filter(r => r.data === hoje && r.concluido).map(r => r.habito_id)
   );
 
+  const progressoHoje = habitosDeHoje.length > 0
+    ? <><strong className="text-foreground tabular">{concluidosHoje.size}</strong> de <strong className="text-foreground tabular">{habitosDeHoje.length}</strong> hábitos concluídos hoje.</>
+    : <>Crie seu primeiro hábito e comece a construir consistência.</>;
+
   return (
-    <div className="max-w-7xl mx-auto pb-24 relative">
+    <div className="max-w-7xl mx-auto pb-24 relative space-y-6">
       <ConfeteCss />
 
-      {/* HEADER FIXO */}
-      <div className="sticky -top-px z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-4 backdrop-blur-xl border-b border-border/40"
-           style={{ background: 'color-mix(in srgb, hsl(var(--background)) 78%, transparent)' }}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-1">
-              <Sparkles size={10} style={{ color: BRAND }} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Hábitos</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-none">
-              {habitosDeHoje.length > 0 ? <>
-                <span style={{ color: concluidosHoje.size === habitosDeHoje.length ? '#10b981' : BRAND }}>{concluidosHoje.size}</span>
-                <span className="text-muted-foreground">/{habitosDeHoje.length}</span>
-                <span className="text-sm font-medium text-muted-foreground ml-2">hoje</span>
-              </> : 'Hábitos'}
-            </h1>
-          </div>
-          <button onClick={() => { setEditando(null); setModalOpen(true); }}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition-all">
-            <Plus size={13} /> Novo hábito
-          </button>
-        </div>
+      <GrowHero
+        badge="Hábitos"
+        titulo="Hábitos"
+        subtitulo={progressoHoje}
+      >
+        <button onClick={() => { setEditando(null); setModalOpen(true); }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30 transition-all">
+          <Plus size={14} /> Novo hábito
+        </button>
+      </GrowHero>
 
-        {/* TABS */}
-        <div className="flex items-center gap-1 mt-3 overflow-x-auto scrollbar-none -mx-1 px-1">
-          {TABS.map(({ v, l, icon: Icon }) => {
-            const ativo = tab === v;
-            return (
-              <button key={v} onClick={() => setTab(v)}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  ativo
-                    ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}>
-                <Icon size={12} />
-                {l}
-              </button>
-            );
-          })}
-        </div>
+      {/* TABS */}
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1 animate-fade-in" style={{ animationDelay: '60ms' }}>
+        {TABS.map(({ v, l, icon: Icon }) => {
+          const ativo = tab === v;
+          return (
+            <button key={v} onClick={() => setTab(v)}
+              className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                ativo
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              }`}>
+              <Icon size={12} />
+              {l}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (

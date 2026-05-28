@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import { type Plano, type Feature, type Recurso, podeUsar as _podeUsar, limiteDe as _limiteDe } from '@/lib/plans';
@@ -80,8 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [perfil,  setPerfil]  = useState<Perfil | null>(null);
   const [papel,   setPapel]   = useState<Papel>('admin');
   const [loading, setLoading] = useState(true);
-  const [painelLocal, setPainelLocal] = useState<Painel>('finance');
   const router = useRouter();
+  const pathname = usePathname();
 
   async function carregarPerfil(u: User) {
     try {
@@ -97,7 +97,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setPerfil(data || null);
-      if (data?.painel_ativo) setPainelLocal(data.painel_ativo);
 
       // Descobre o papel no grupo ativo
       const grupoAtivoId = (data as any)?.grupo_ativo?.id;
@@ -209,11 +208,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Só quem não tem acesso direto e ainda não consumiu o trial pode ativar.
   const podeAtivarTrialGrow =
     podeUsar('sora_grow_trial') && planoGrow === 'sem_acesso';
-  const painelAtivo: Painel = painelLocal;
+  // Painel ativo é DERIVADO da URL — fonte de verdade única, sem race
+  // condition entre state local e navegação. Sidebar/UI ficam sempre
+  // consistentes com a rota atual.
+  const painelAtivo: Painel = pathname?.startsWith('/grow') ? 'grow' : 'finance';
 
   async function trocarPainel(p: Painel) {
     if (!phone) return;
-    setPainelLocal(p);
+    // Persiste no backend (usado pela conversa do WhatsApp); a UI já
+    // reflete a troca via mudança de pathname.
     try { await api.grow.trocarPainel(phone, p); } catch (e) { console.warn('[grow] trocar painel falhou', e); }
   }
 
@@ -221,7 +224,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!phone) return;
     await api.grow.ativarTrial(phone);
     await recarregar();
-    setPainelLocal('grow');
   }
 
   return (

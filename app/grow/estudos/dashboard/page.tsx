@@ -99,18 +99,18 @@ export default function EstudosDashboard() {
     <div className="max-w-7xl mx-auto pb-20 space-y-5">
 
       {/* HERO */}
-      <div className="relative overflow-hidden rounded-3xl border border-border/40 backdrop-blur-xl p-6 sm:p-8 animate-fade-in"
-           style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card) / 0.7) 0%, hsl(var(--bg-subtle) / 0.5) 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none"
-             style={{ background: `radial-gradient(ellipse at top right, ${BRAND}24 0%, transparent 55%), radial-gradient(circle at bottom left, rgba(99,102,241,0.10) 0%, transparent 50%)` }} />
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
+           style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
+        <div className="absolute inset-0 pointer-events-none opacity-50"
+             style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.12) 0%, transparent 60%)' }} />
         <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full mb-3" style={{ background: `${BRAND}1A` }}>
-              <Sparkles size={11} style={{ color: BRAND }} />
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
+              <Sparkles size={12} style={{ color: BRAND }} />
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Estudos</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
-              Bom estudo{nome ? `, ${nome}` : ''} 📚
+              Estudos
             </h1>
             <p className="text-muted-foreground text-sm mt-2 max-w-md leading-relaxed">
               {streak > 0
