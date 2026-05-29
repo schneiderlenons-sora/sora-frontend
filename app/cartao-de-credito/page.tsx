@@ -43,6 +43,7 @@ export default function CartaoDeCreditoPage() {
 
   const [wallets,        setWallets]        = useState<Wallet[]>([]);
   const [txsMes,         setTxsMes]         = useState<any[]>([]);
+  const [txsTodas,       setTxsTodas]       = useState<any[]>([]); // p/ limite comprometido (parcelas futuras)
   const [txsHistorico,   setTxsHistorico]   = useState<Record<string, any[]>>({});
   const [loading,        setLoading]        = useState(false);
   const [ocultar,        setOcultar]        = useState(false);
@@ -86,6 +87,14 @@ export default function CartaoDeCreditoPage() {
       setTxsMes(t.transacoes || []);
     } catch (e) {
       console.warn('[cartoes] txs mes erro:', e);
+    }
+    try {
+      // Sem filtro de mês → traz futuras também (parcelas). Usado p/ calcular
+      // o limite comprometido (soma de todas as parcelas em aberto do cartão).
+      const all = await api.transacoes.listar(phone, { limit: 1000 });
+      setTxsTodas(all.transacoes || []);
+    } catch (e) {
+      console.warn('[cartoes] txs todas erro:', e);
     } finally {
       setLoading(false);
     }
@@ -140,6 +149,22 @@ export default function CartaoDeCreditoPage() {
     () => Object.values(faturaPorCartao).reduce((s, v) => s + v, 0),
     [faturaPorCartao]
   );
+
+  // Limite COMPROMETIDO por cartão = fatura atual + parcelas futuras.
+  // No cartão, a transação fica pago=true ao ser lançada, mas conceitualmente
+  // ocupa o limite até a fatura ser paga — então contamos tudo do mês atual
+  // em diante (compras do mês + parcelas dos próximos meses).
+  const comprometidoPorCartao = useMemo(() => {
+    const inicioMesAtual = `${mesAtualRef}-01`;
+    const acc: Record<string, number> = {};
+    wallets.forEach(w => {
+      acc[w.id] = txsTodas
+        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && (t.data || '') >= inicioMesAtual)
+        .reduce((s, t) => s + (t.valor || 0), 0);
+    });
+    return acc;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallets, txsTodas, mesAtualRef]);
 
   // Dados do gráfico (6 meses, mais recente à direita)
   const dadosHistorico = useMemo(() => {
@@ -303,6 +328,7 @@ export default function CartaoDeCreditoPage() {
                   key={w.id}
                   cartao={w}
                   fatura={faturaPorCartao[w.id] || 0}
+                  comprometido={comprometidoPorCartao[w.id] || 0}
                   ocultar={ocultar}
                   delay={i * 50}
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
@@ -324,7 +350,7 @@ export default function CartaoDeCreditoPage() {
                 <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
                   <BarChart3 size={16} className="text-foreground" />
                 </div>
-                <h2 className="text-base font-bold text-foreground">Faturas anteriores</h2>
+                <h2 className="text-base font-bold text-foreground">Faturas</h2>
               </div>
 
               {/* Navegação de mês */}
@@ -341,8 +367,8 @@ export default function CartaoDeCreditoPage() {
                   {refMesLabel}
                 </div>
                 <button
-                  onClick={() => setMesIndex(i => Math.min(0, i + 1))}
-                  disabled={mesIndex >= 0}
+                  onClick={() => setMesIndex(i => Math.min(12, i + 1))}
+                  disabled={mesIndex >= 12}
                   className="p-1.5 rounded-lg hover:bg-card transition-colors disabled:opacity-40"
                   title="Próximo mês"
                 >
@@ -466,6 +492,7 @@ export default function CartaoDeCreditoPage() {
 interface CardCartaoProps {
   cartao:    Wallet;
   fatura:    number;
+  comprometido: number;
   ocultar:   boolean;
   delay:     number;
   onEditar:  () => void;
@@ -473,7 +500,7 @@ interface CardCartaoProps {
   onAbrir:   () => void;
 }
 
-function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbrir }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, onExcluir, onAbrir }: CardCartaoProps) {
   const [meta, setMeta] = useState<CartaoMeta>({});
 
   useEffect(() => {
@@ -482,7 +509,9 @@ function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbr
 
   const logo = bancoLogo(cartao.nome);
   const limite = cartao.limite || 0;
-  const usado = fatura;
+  // "Usado" do limite = total comprometido (fatura atual + parcelas futuras
+  // em aberto), com fallback pra fatura do mês se ainda não carregou.
+  const usado = comprometido || fatura;
   const disponivel = Math.max(limite - usado, 0);
   const pctUsado = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
 
