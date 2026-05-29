@@ -343,7 +343,11 @@ export default function CartaoDeCreditoPage() {
               </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={240}>
+            {/* Wrapper com dimensão fixa — o ResponsiveContainer mede ESTE div
+                (que já tem layout), evitando medir -1 no mount tardio (após o
+                fetch de wallets) que disparava React #284 no Recharts 3 + React 19. */}
+            <div style={{ width: '100%', height: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosHistorico} margin={{ top: 12, right: 8, left: -10, bottom: 4 }} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
@@ -376,6 +380,7 @@ export default function CartaoDeCreditoPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
       </div>
