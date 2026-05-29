@@ -83,7 +83,7 @@ export default function TransacoesPage() {
       const matchBusca  = !q || t.observacao?.toLowerCase().includes(q) || t.categoria?.toLowerCase().includes(q);
       const matchTipo   = tipo === 'todos' || t.tipo === tipo;
       const matchCat    = catFiltro === 'todas' || t.categoria === catFiltro;
-      const matchConta  = contaId === 'todas' || t.wallet_id === contaId;
+      const matchConta  = contaId === 'todas' || (t.carteira_nome || t.wallet_nome) === contaId;
       const matchStatus = status === 'todos' ||
                           (status === 'pago' && t.pago) ||
                           (status === 'pendente' && !t.pago);
@@ -388,7 +388,7 @@ export default function TransacoesPage() {
               >
                 <option value="todas">Contas</option>
                 {wallets.map(w => (
-                  <option key={w.id} value={w.id}>{w.nome}</option>
+                  <option key={w.id} value={w.nome}>{w.nome}</option>
                 ))}
               </select>
             </div>
