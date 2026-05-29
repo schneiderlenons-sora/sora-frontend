@@ -50,6 +50,13 @@ export default function CartaoDeCreditoPage() {
   const [detalhes,       setDetalhes]       = useState<Wallet | null>(null);
   const [mesIndex,       setMesIndex]       = useState(0); // 0 = mês atual, -1 = mês passado, etc.
   const [confirmDel,     setConfirmDel]     = useState<Wallet | null>(null);
+  // Só monta o gráfico Recharts após o 1º paint do cliente — evita que o
+  // ResponsiveContainer meça o container como -1 no mount tardio (React #284).
+  const [graficoPronto, setGraficoPronto] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGraficoPronto(true), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const hoje = new Date();
   const mesAtualRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -347,6 +354,7 @@ export default function CartaoDeCreditoPage() {
                 (que já tem layout), evitando medir -1 no mount tardio (após o
                 fetch de wallets) que disparava React #284 no Recharts 3 + React 19. */}
             <div style={{ width: '100%', height: 240 }}>
+            {graficoPronto && (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dadosHistorico} margin={{ top: 12, right: 8, left: -10, bottom: 4 }} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -380,6 +388,7 @@ export default function CartaoDeCreditoPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            )}
             </div>
           </div>
         )}
