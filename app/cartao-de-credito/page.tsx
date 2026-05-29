@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
@@ -14,7 +14,7 @@ import {
   ChevronRight, ChevronLeft, AlertCircle, BarChart3, Calendar, Loader2,
 } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid,
 } from 'recharts';
 
 const BRAND = '#61D17B';
@@ -59,6 +59,22 @@ export default function CartaoDeCreditoPage() {
     const t = setTimeout(() => setGraficoPronto(true), 0);
     return () => clearTimeout(t);
   }, []);
+
+  // Mede a largura do container do gráfico manualmente (ResizeObserver) e
+  // passa width numérico ao BarChart — substitui o ResponsiveContainer do
+  // Recharts, que disparava React #284 no mount tardio dentro do layout.
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [chartW, setChartW] = useState(0);
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width || 0;
+      if (w > 0) setChartW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [graficoPronto, wallets.length, mesIndex]);
 
   const hoje = new Date();
   const mesAtualRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -377,19 +393,17 @@ export default function CartaoDeCreditoPage() {
               </div>
             </div>
 
-            {/* Wrapper com dimensão fixa — o ResponsiveContainer mede ESTE div
-                (que já tem layout), evitando medir -1 no mount tardio (após o
-                fetch de wallets) que disparava React #284 no Recharts 3 + React 19. */}
+            {/* Gráfico com largura medida manualmente (chartW) — sem
+                ResponsiveContainer, que disparava React #284 neste layout. */}
             <ErrorBoundary fallback={
               <div style={{ height: 240 }} className="flex flex-col items-center justify-center text-center gap-1">
                 <BarChart3 size={22} className="text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Gráfico de faturas indisponível no momento.</p>
               </div>
             }>
-            <div style={{ width: '100%', height: 240 }}>
-            {graficoPronto && (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dadosHistorico} margin={{ top: 12, right: 8, left: -10, bottom: 4 }} barSize={48}>
+            <div ref={chartRef} style={{ width: '100%', height: 240 }}>
+            {graficoPronto && chartW > 0 && (
+              <BarChart width={chartW} height={240} data={dadosHistorico} margin={{ top: 12, right: 8, left: -10, bottom: 4 }} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
                   dataKey="mes"
@@ -420,7 +434,6 @@ export default function CartaoDeCreditoPage() {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
             )}
             </div>
             </ErrorBoundary>
