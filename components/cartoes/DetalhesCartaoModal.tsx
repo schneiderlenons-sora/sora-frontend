@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, ChevronRight, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta } from './AdicionarCartaoModal';
@@ -52,9 +52,36 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
   const [txs,     setTxs]      = useState<any[]>([]);
   const [loading, setLoading]  = useState(false);
   const [verTudo, setVerTudo]  = useState(false);
+  const [antecipando, setAntecipando] = useState(false);
+  // Quão à frente/atrás do mês atual está a fatura exibida (0 = atual)
+  const [offsetMes, setOffsetMes] = useState(0);
 
   const meta = loadCartaoMeta(cartao.id);
   const logo = bancoLogo(cartao.nome);
+
+  // Recalcula o mês de referência quando navega (offsetMes)
+  useEffect(() => {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() + offsetMes, 1);
+    setMesRef(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offsetMes]);
+
+  // Antecipar: marca todas as transações em aberto da fatura exibida como pagas
+  async function anteciparFatura() {
+    const emAberto = txs.filter(t => t.pago === false);
+    if (emAberto.length === 0) return;
+    if (!confirm(`Antecipar ${emAberto.length} parcela(s) desta fatura? Elas serão marcadas como pagas e liberam limite.`)) return;
+    setAntecipando(true);
+    try {
+      await Promise.all(emAberto.map(t => api.transacoes.editar(t.id, { phone, pago: true })));
+      setTxs(prev => prev.map(t => ({ ...t, pago: true })));
+      onRefresh?.();
+    } catch (e: any) {
+      alert(e.message || 'Erro ao antecipar.');
+    } finally {
+      setAntecipando(false);
+    }
+  }
 
   // Carrega transações do mês atual no cartão
   useEffect(() => {
@@ -207,6 +234,34 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
 
         {/* Conteúdo rolável */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+          {/* Navegação entre faturas (passadas e futuras com parcelas) */}
+          <div className="flex items-center justify-between bg-muted/40 rounded-xl p-1">
+            <button onClick={() => setOffsetMes(o => o - 1)}
+                    className="p-1.5 rounded-lg hover:bg-card transition-colors" title="Fatura anterior">
+              <ChevronLeft size={16} className="text-muted-foreground" />
+            </button>
+            <span className="text-sm font-semibold text-foreground capitalize">
+              {mesNome} {ano}{offsetMes === 0 ? ' · atual' : offsetMes > 0 ? ' · futura' : ''}
+            </span>
+            <button onClick={() => setOffsetMes(o => Math.min(12, o + 1))}
+                    disabled={offsetMes >= 12}
+                    className="p-1.5 rounded-lg hover:bg-card transition-colors disabled:opacity-40" title="Próxima fatura">
+              <ChevronRight size={16} className="text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Antecipar parcelas em aberto desta fatura */}
+          {txs.some(t => t.pago === false) && (
+            <button
+              onClick={anteciparFatura}
+              disabled={antecipando}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-all disabled:opacity-60"
+            >
+              {antecipando ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
+              Antecipar {txs.filter(t => t.pago === false).length} parcela(s) desta fatura
+            </button>
+          )}
 
           {/* Alerta: data de fechamento não cadastrada */}
           {!meta.diaFechamento && (
