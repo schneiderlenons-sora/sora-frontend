@@ -110,15 +110,22 @@ export default function CartaoDeCreditoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phone, mesIndex]);
 
+  // As transações guardam `carteira_nome` (string), não wallet_id — o
+  // backend nem persiste wallet_id. Match precisa ser por nome.
+  const mesmaCarteira = (t: any, w: any) =>
+    t.wallet_id === w.id ||
+    (t.carteira_nome || '').trim().toLowerCase() === (w.nome || '').trim().toLowerCase();
+
   // Fatura por cartão (mês atual ou mesIndex == 0)
   const faturaPorCartao = useMemo(() => {
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
       acc[w.id] = txsMes
-        .filter(t => t.wallet_id === w.id && t.tipo === 'Gasto')
+        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto')
         .reduce((s, t) => s + (t.valor || 0), 0);
     });
     return acc;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallets, txsMes]);
 
   const faturaTotal = useMemo(
@@ -134,7 +141,7 @@ export default function CartaoDeCreditoPage() {
       const ref = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const txs = txsHistorico[ref] || [];
       const total = txs
-        .filter((t: any) => wallets.some(w => w.id === t.wallet_id) && t.tipo === 'Gasto')
+        .filter((t: any) => wallets.some(w => mesmaCarteira(t, w)) && t.tipo === 'Gasto')
         .reduce((s: number, t: any) => s + (t.valor || 0), 0);
       return {
         mes: MES_ABREV[d.getMonth()],
