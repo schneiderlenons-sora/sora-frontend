@@ -63,8 +63,13 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
     api.transacoes.listar(phone, { mes: mesRef, limit: 500 })
       .then((r: any) => {
         const todas = r?.transacoes || [];
+        // As transações guardam carteira_nome (string), não wallet_id — match por nome
+        const nomeCartao = (cartao.nome || '').trim().toLowerCase();
         const doCartao = todas.filter(
-          (t: any) => t.wallet_id === cartao.id && t.tipo === 'Gasto'
+          (t: any) =>
+            (t.wallet_id === cartao.id ||
+             (t.carteira_nome || '').trim().toLowerCase() === nomeCartao) &&
+            t.tipo === 'Gasto'
         );
         setTxs(doCartao);
       })

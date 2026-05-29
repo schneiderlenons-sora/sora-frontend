@@ -486,6 +486,11 @@ function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbr
   const disponivel = Math.max(limite - usado, 0);
   const pctUsado = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
 
+  // Formato compacto correto: "R$ 1.8k" só acima de 1000; abaixo mostra o
+  // valor cheio (antes dividia por 1000 sempre, e R$557 virava "R$ 1").
+  const fmtK = (v: number) =>
+    v >= 1000 ? `R$ ${(v / 1000).toFixed(1)}k` : fmt(v);
+
   const hoje = new Date();
   const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
@@ -498,9 +503,12 @@ function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbr
 
   const vencimentoLabel = (() => {
     if (!meta.diaVencimento) return null;
-    const m = hoje.getMonth();
-    const ano = hoje.getFullYear();
-    return `${meta.diaVencimento} de ${MES_ABREV[m].toLowerCase()}.`;
+    const dia = meta.diaVencimento;
+    let m = hoje.getMonth();
+    // Se o dia de vencimento já passou neste mês, mostra o próximo (mês seguinte)
+    if (hoje.getDate() > dia) m += 1;
+    if (m > 11) m = 0;
+    return `${dia} de ${MES_ABREV[m].toLowerCase()}.`;
   })();
 
   return (
@@ -591,7 +599,7 @@ function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbr
               Limite total
             </span>
             <span className="text-[11px] font-semibold text-foreground tabular">
-              {ocultar ? '•••' : `R$ ${(limite / 1000).toFixed(1)}k`}
+              {ocultar ? '•••' : fmtK(limite)}
             </span>
           </div>
 
@@ -617,14 +625,14 @@ function CardCartao({ cartao, fatura, ocultar, delay, onEditar, onExcluir, onAbr
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               <span className="text-muted-foreground">Usado</span>
               <span className="font-semibold text-foreground tabular ml-0.5">
-                {ocultar ? '•••' : `R$ ${(usado / 1000).toFixed(usado >= 1000 ? 1 : 0)}${usado >= 1000 ? 'k' : ''}`}
+                {ocultar ? '•••' : fmtK(usado)}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: BRAND }} />
               <span className="text-muted-foreground">Disponível</span>
               <span className="font-semibold text-foreground tabular ml-0.5">
-                {ocultar ? '•••' : `R$ ${(disponivel / 1000).toFixed(disponivel >= 1000 ? 1 : 0)}${disponivel >= 1000 ? 'k' : ''}`}
+                {ocultar ? '•••' : fmtK(disponivel)}
               </span>
             </div>
           </div>
