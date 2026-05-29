@@ -6,6 +6,7 @@ import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, CartaoMeta } from '@/c
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
@@ -353,6 +354,12 @@ export default function CartaoDeCreditoPage() {
             {/* Wrapper com dimensão fixa — o ResponsiveContainer mede ESTE div
                 (que já tem layout), evitando medir -1 no mount tardio (após o
                 fetch de wallets) que disparava React #284 no Recharts 3 + React 19. */}
+            <ErrorBoundary fallback={
+              <div style={{ height: 240 }} className="flex flex-col items-center justify-center text-center gap-1">
+                <BarChart3 size={22} className="text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Gráfico de faturas indisponível no momento.</p>
+              </div>
+            }>
             <div style={{ width: '100%', height: 240 }}>
             {graficoPronto && (
             <ResponsiveContainer width="100%" height="100%">
@@ -390,6 +397,7 @@ export default function CartaoDeCreditoPage() {
             </ResponsiveContainer>
             )}
             </div>
+            </ErrorBoundary>
           </div>
         )}
       </div>
