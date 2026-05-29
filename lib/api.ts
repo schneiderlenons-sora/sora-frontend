@@ -70,6 +70,8 @@ export const api = {
       req(`/api/transacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deletar: (id: string, phone?: string) =>
       req(`/api/transacoes/${id}${phone ? `?phone=${phone}` : ''}`, { method: 'DELETE' }),
+    anteciparCartao: (body: { phone: string; ids: string[]; conta_nome: string }) =>
+      req<{ ok: boolean; debitado: number; conta?: string }>('/api/transacoes/antecipar-cartao', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   // ── CONTAS BANCÁRIAS ──────────────────────────────────────────

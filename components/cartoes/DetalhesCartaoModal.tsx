@@ -53,6 +53,8 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
   const [loading, setLoading]  = useState(false);
   const [verTudo, setVerTudo]  = useState(false);
   const [antecipando, setAntecipando] = useState(false);
+  const [contas, setContas] = useState<any[]>([]);
+  const [escolhendoConta, setEscolhendoConta] = useState(false);
   // Quão à frente/atrás do mês atual está a fatura exibida (0 = atual)
   const [offsetMes, setOffsetMes] = useState(0);
 
@@ -66,16 +68,27 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offsetMes]);
 
-  // Antecipar: marca todas as transações em aberto da fatura exibida como pagas
-  async function anteciparFatura() {
+  // Carrega contas bancárias (não-crédito) p/ escolher de onde pagar
+  useEffect(() => {
+    if (!phone) return;
+    api.wallets.listar(phone)
+      .then(ws => setContas((ws || []).filter((w: any) => w.tipo !== 'Crédito')))
+      .catch(() => setContas([]));
+  }, [phone]);
+
+  // Antecipar: paga as parcelas em aberto da fatura debitando da conta escolhida
+  async function anteciparFatura(contaNome: string) {
     const emAberto = txs.filter(t => t.pago === false);
     if (emAberto.length === 0) return;
-    if (!confirm(`Antecipar ${emAberto.length} parcela(s) desta fatura? Elas serão marcadas como pagas e liberam limite.`)) return;
     setAntecipando(true);
     try {
-      await Promise.all(emAberto.map(t => api.transacoes.editar(t.id, { phone, pago: true })));
+      const r = await api.transacoes.anteciparCartao({
+        phone, ids: emAberto.map(t => t.id), conta_nome: contaNome,
+      });
       setTxs(prev => prev.map(t => ({ ...t, pago: true })));
+      setEscolhendoConta(false);
       onRefresh?.();
+      alert(`✅ Fatura antecipada: ${fmt(r.debitado)} debitado de ${contaNome}.`);
     } catch (e: any) {
       alert(e.message || 'Erro ao antecipar.');
     } finally {
@@ -252,15 +265,38 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
           </div>
 
           {/* Antecipar parcelas em aberto desta fatura */}
-          {txs.some(t => t.pago === false) && (
+          {txs.some(t => t.pago === false) && !escolhendoConta && (
             <button
-              onClick={anteciparFatura}
+              onClick={() => setEscolhendoConta(true)}
               disabled={antecipando}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-all disabled:opacity-60"
             >
               {antecipando ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
               Antecipar {txs.filter(t => t.pago === false).length} parcela(s) desta fatura
             </button>
+          )}
+
+          {/* Seletor de conta de pagamento */}
+          {escolhendoConta && (
+            <div className="rounded-2xl border border-border bg-muted/20 p-3 space-y-2 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pagar de qual conta?</p>
+                <button onClick={() => setEscolhendoConta(false)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+              </div>
+              {contas.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-1">Nenhuma conta bancária cadastrada.</p>
+              ) : contas.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => anteciparFatura(c.nome)}
+                  disabled={antecipando}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/40 transition-all text-left disabled:opacity-60"
+                >
+                  <span className="text-sm font-medium text-foreground truncate">{c.nome}</span>
+                  <span className="text-xs text-muted-foreground tabular flex-shrink-0">{fmt(c.saldo || 0)}</span>
+                </button>
+              ))}
+            </div>
           )}
 
           {/* Alerta: data de fechamento não cadastrada */}
