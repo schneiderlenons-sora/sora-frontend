@@ -49,10 +49,26 @@ function PlanosContent() {
     }
   }, [success, recarregar]);
 
-  // Auto-scroll suave até o card pré-selecionado (vindo da landing → signup)
+  // Auto-checkout: se o usuário já escolheu o plano na landing (intent), vai
+  // direto pro Stripe sem precisar clicar de novo. Só dispara uma vez, com o
+  // usuário autenticado e inativo, e nunca ao voltar de um success/cancel
+  // (evita loop). Se o checkout falhar, cai no fallback (a tela com os cards).
+  const autoCheckout = useRef(false);
+  useEffect(() => {
+    if (autoCheckout.current) return;
+    if (intent !== 'upgrade' || !planoIntencaoValido) return;
+    if (planoAtual !== 'inativo') return;
+    if (success || canceled) return;
+    if (!perfil) return;                       // precisa de sessão pro checkout
+    autoCheckout.current = true;
+    assinar(planoIntencaoValido);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent, planoIntencaoValido, planoAtual, success, canceled, perfil]);
+
+  // Fallback: se por algum motivo o auto-checkout não disparar, ao menos
+  // rola suave até o card pré-selecionado.
   useEffect(() => {
     if (intent !== 'upgrade' || !planoIntencaoValido) return;
-    // Pequeno delay pro layout terminar de montar
     const t = setTimeout(() => {
       const el = cardRefs.current[planoIntencaoValido];
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
