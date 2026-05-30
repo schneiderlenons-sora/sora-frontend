@@ -48,6 +48,7 @@ export default function Step7ReceitasFixas() {
       const recRows = validos.map((r) => ({
         grupo_id:       grupoId,
         tipo:           'Recebimento',
+        categoria:      '💼 Salário',   // dedup do job casa por categoria — precisa ser não-nula
         descricao:      r.descricao.trim(),
         valor:          parseFloat(String(r.valor).replace(',', '.')),
         dia_vencimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),

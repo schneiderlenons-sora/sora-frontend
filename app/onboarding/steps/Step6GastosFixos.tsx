@@ -64,6 +64,7 @@ export default function Step6GastosFixos() {
       const rows = validos.map((g) => ({
         grupo_id:       grupoId,
         tipo:           'Gasto',
+        categoria:      'Outros',   // dedup do job casa por categoria — precisa ser não-nula
         descricao:      g.descricao.trim(),
         valor:          parseFloat(String(g.valor).replace(',', '.')),
         dia_vencimento: Math.max(1, Math.min(28, parseInt(g.dia) || 5)),
