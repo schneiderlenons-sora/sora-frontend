@@ -40,11 +40,6 @@ export default function GastosFixosSection({ grupoId, wallets }: Props) {
   const [removendo, setRemovendo] = useState<string | null>(null);
   const [addOpen, setAddOpen]     = useState(false);
 
-  const contasDisponiveis = useMemo(
-    () => wallets.filter((w) => w.tipo !== 'Crédito'),
-    [wallets],
-  );
-
   const carregar = useCallback(async () => {
     if (!grupoId) return;
     const { data } = await supabase
@@ -123,7 +118,7 @@ export default function GastosFixosSection({ grupoId, wallets }: Props) {
       {addOpen && (
         <AddForm
           grupoId={grupoId}
-          contas={contasDisponiveis}
+          contas={wallets}
           onCancel={() => setAddOpen(false)}
           onSaved={() => { setAddOpen(false); carregar(); }}
         />
@@ -250,12 +245,42 @@ function AddForm({
   const [descricao, setDescricao] = useState('');
   const [valor, setValor]         = useState('');
   const [dia, setDia]             = useState('5');
-  const [carteira, setCarteira]   = useState(contas[0]?.nome || 'Dinheiro');
   const [salvando, setSalvando]   = useState(false);
   const [erro, setErro]           = useState('');
   const descRef = useRef<HTMLInputElement>(null);
 
+  // Contas válidas pro tipo: receita fixa não cai em cartão de crédito.
+  // Garante "Dinheiro" como opção e remove duplicatas por nome.
+  const opcoesContas = useMemo(() => {
+    const base = tipo === 'Recebimento'
+      ? contas.filter((c) => c.tipo !== 'Crédito')
+      : contas;
+    const nomes = base.map((c) => c.nome);
+    const lista = [...base];
+    if (!nomes.some((n) => n.toLowerCase() === 'dinheiro')) {
+      lista.push({ id: '__dinheiro__', nome: 'Dinheiro' });
+    }
+    // Dedup por nome (case-insensitive), preservando ordem
+    const vistos = new Set<string>();
+    return lista.filter((c) => {
+      const k = c.nome.toLowerCase();
+      if (vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
+  }, [contas, tipo]);
+
+  const [carteira, setCarteira] = useState(opcoesContas[0]?.nome || 'Dinheiro');
+
   useEffect(() => { descRef.current?.focus(); }, []);
+
+  // Se a conta selecionada deixou de ser válida (ex.: trocou pra receita e
+  // estava num cartão), volta pra primeira opção disponível.
+  useEffect(() => {
+    if (!opcoesContas.some((c) => c.nome === carteira)) {
+      setCarteira(opcoesContas[0]?.nome || 'Dinheiro');
+    }
+  }, [opcoesContas, carteira]);
 
   const valido = descricao.trim() && parseFloat(valor.replace(',', '.')) > 0;
 
@@ -325,23 +350,20 @@ function AddForm({
         </div>
       </div>
 
-      {/* Conta (só faz sentido se houver contas) */}
-      {contas.length > 0 && (
-        <div className="mt-2.5">
-          <select
-            value={carteira}
-            onChange={(e) => setCarteira(e.target.value)}
-            className="w-full sm:w-auto px-3.5 h-11 rounded-xl bg-background border border-border text-sm
-                       focus:outline-none focus:border-primary transition-colors"
-            aria-label="Conta de origem"
-          >
-            {contas.map((c) => (
-              <option key={c.id} value={c.nome}>{c.nome}</option>
-            ))}
-            <option value="Dinheiro">Dinheiro</option>
-          </select>
-        </div>
-      )}
+      {/* Conta de origem */}
+      <div className="mt-2.5">
+        <select
+          value={carteira}
+          onChange={(e) => setCarteira(e.target.value)}
+          className="w-full sm:w-auto px-3.5 h-11 rounded-xl bg-background border border-border text-sm
+                     focus:outline-none focus:border-primary transition-colors"
+          aria-label={tipo === 'Gasto' ? 'Conta de pagamento' : 'Conta de recebimento'}
+        >
+          {opcoesContas.map((c) => (
+            <option key={c.id} value={c.nome}>{c.nome}</option>
+          ))}
+        </select>
+      </div>
 
       {erro && <p className="text-xs text-red-500 mt-2">{erro}</p>}
 
