@@ -5,7 +5,7 @@ import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
 
@@ -29,11 +29,11 @@ type Recorrencia = {
 type Wallet = { id: string; nome: string; tipo?: string };
 
 interface Props {
-  grupoId?: string;
-  wallets:  Wallet[];
+  phone?:  string;
+  wallets: Wallet[];
 }
 
-export default function GastosFixosSection({ grupoId, wallets }: Props) {
+export default function GastosFixosSection({ phone, wallets }: Props) {
   const [itens, setItens]         = useState<Recorrencia[]>([]);
   const [carregando, setCarreg]   = useState(true);
   const [confirmando, setConfirm] = useState<string | null>(null); // id em confirmação de cancelamento
@@ -41,17 +41,16 @@ export default function GastosFixosSection({ grupoId, wallets }: Props) {
   const [addOpen, setAddOpen]     = useState(false);
 
   const carregar = useCallback(async () => {
-    if (!grupoId) return;
-    const { data } = await supabase
-      .from('recorrencias')
-      .select('id, tipo, valor, dia_vencimento, descricao, carteira, categoria')
-      .eq('grupo_id', grupoId)
-      .eq('ativa', true)
-      .order('tipo', { ascending: true })
-      .order('dia_vencimento', { ascending: true });
-    setItens((data as Recorrencia[]) || []);
-    setCarreg(false);
-  }, [grupoId]);
+    if (!phone) { setCarreg(false); return; }
+    try {
+      const data = await api.recorrencias.listar(phone);
+      setItens(Array.isArray(data) ? (data as Recorrencia[]) : []);
+    } catch {
+      setItens([]);
+    } finally {
+      setCarreg(false);
+    }
+  }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -61,12 +60,16 @@ export default function GastosFixosSection({ grupoId, wallets }: Props) {
   );
 
   async function cancelar(id: string) {
+    if (!phone) return;
     setRemovendo(id);
     const backup = itens;
     setItens((prev) => prev.filter((i) => i.id !== id)); // otimista
     setConfirm(null);
-    const { error } = await supabase.from('recorrencias').update({ ativa: false }).eq('id', id);
-    if (error) setItens(backup); // reverte se falhar
+    try {
+      await api.recorrencias.cancelar(id, phone);
+    } catch {
+      setItens(backup); // reverte se falhar
+    }
     setRemovendo(null);
   }
 
@@ -117,7 +120,7 @@ export default function GastosFixosSection({ grupoId, wallets }: Props) {
       {/* ── Form de adicionar (progressive disclosure) ───────── */}
       {addOpen && (
         <AddForm
-          grupoId={grupoId}
+          phone={phone}
           contas={wallets}
           onCancel={() => setAddOpen(false)}
           onSaved={() => { setAddOpen(false); carregar(); }}
@@ -234,9 +237,9 @@ export default function GastosFixosSection({ grupoId, wallets }: Props) {
 // Form inline de adicionar recorrência
 // ─────────────────────────────────────────────────────────────
 function AddForm({
-  grupoId, contas, onCancel, onSaved,
+  phone, contas, onCancel, onSaved,
 }: {
-  grupoId?:  string;
+  phone?:    string;
   contas:    Wallet[];
   onCancel:  () => void;
   onSaved:   () => void;
@@ -285,22 +288,24 @@ function AddForm({
   const valido = descricao.trim() && parseFloat(valor.replace(',', '.')) > 0;
 
   async function salvar() {
-    if (!valido || !grupoId) return;
+    if (!valido || !phone) return;
     setErro('');
     setSalvando(true);
-    const { error } = await supabase.from('recorrencias').insert({
-      grupo_id:       grupoId,
-      tipo,
-      categoria:      tipo === 'Gasto' ? 'Outros' : '💼 Salário',
-      descricao:      descricao.trim(),
-      valor:          parseFloat(valor.replace(',', '.')),
-      dia_vencimento: Math.max(1, Math.min(28, parseInt(dia) || 5)),
-      carteira:       carteira || 'Dinheiro',
-      ativa:          true,
-    });
-    setSalvando(false);
-    if (error) { setErro('Não consegui salvar. Tente de novo.'); return; }
-    onSaved();
+    try {
+      await api.recorrencias.criar({
+        phone,
+        tipo,
+        descricao:      descricao.trim(),
+        valor:          parseFloat(valor.replace(',', '.')),
+        dia_vencimento: Math.max(1, Math.min(28, parseInt(dia) || 5)),
+        carteira:       carteira || 'Dinheiro',
+      });
+      onSaved();
+    } catch {
+      setErro('Não consegui salvar. Tente de novo.');
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (

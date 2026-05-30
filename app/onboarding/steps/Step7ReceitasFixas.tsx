@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TrendingUp, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import StepNav from '../components/StepNav';
 
 const BRAND = '#61D17B';
@@ -16,7 +16,7 @@ type Receita = {
 };
 
 export default function Step7ReceitasFixas() {
-  const { perfil } = useAuth();
+  const { phone } = useAuth();
   const [receitas, setReceitas] = useState<Receita[]>([
     { descricao: 'Salário', valor: '', dia: '5', jaRecebeu: false },
   ]);
@@ -33,46 +33,31 @@ export default function Step7ReceitasFixas() {
   }
 
   async function salvar() {
-    const grupoId = perfil?.grupo_ativo?.id;
-    const userId  = perfil?.id;
-    if (!grupoId || !userId) return;
-
+    if (!phone) return;
     try {
       const validos = receitas.filter((r) => r.descricao.trim() && parseFloat(r.valor) > 0);
       if (validos.length === 0) return;
+      const hoje = new Date().toISOString().slice(0, 10);
 
-      const hoje = new Date();
-
-      // Recorrência de RECEBIMENTO (sempre cria) — mesma tabela `recorrencias`
-      // que o job mensal lê pra lançar a receita automaticamente todo mês.
-      const recRows = validos.map((r) => ({
-        grupo_id:       grupoId,
-        tipo:           'Recebimento',
-        categoria:      '💼 Salário',   // dedup do job casa por categoria — precisa ser não-nula
-        descricao:      r.descricao.trim(),
-        valor:          parseFloat(String(r.valor).replace(',', '.')),
-        dia_vencimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),
-        carteira:       'Dinheiro',
-        ativa:          true,
+      await Promise.all(validos.map(async (r) => {
+        const valor = parseFloat(String(r.valor).replace(',', '.'));
+        // Recorrência de RECEBIMENTO via backend (job mensal lança sozinho)
+        await api.recorrencias.criar({
+          phone,
+          tipo:           'Recebimento',
+          descricao:      r.descricao.trim(),
+          valor,
+          dia_vencimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),
+        });
+        // Se "já recebeu" → cria a transação real do mês atual
+        if (r.jaRecebeu) {
+          await api.transacoes.criar({
+            phone, tipo: 'Recebimento', valor,
+            data: hoje, observacao: r.descricao.trim(),
+            categoria: '💼 Salário', pago: true,
+          });
+        }
       }));
-      await supabase.from('recorrencias').insert(recRows);
-
-      // Se "já recebeu" → cria transação real do mês atual
-      const txRows = validos
-        .filter((r) => r.jaRecebeu)
-        .map((r) => ({
-          grupo_id:   grupoId,
-          criado_por: userId,
-          tipo:       'Recebimento',
-          valor:      parseFloat(String(r.valor).replace(',', '.')),
-          data:       hoje.toISOString().slice(0, 10),
-          observacao: r.descricao.trim(),
-          categoria:  '💼 Salário',
-          pago:       true,
-        }));
-      if (txRows.length > 0) {
-        await supabase.from('transacoes').insert(txRows);
-      }
     } catch (e) {
       console.warn('[onboarding] erro ao salvar receitas', e);
     }

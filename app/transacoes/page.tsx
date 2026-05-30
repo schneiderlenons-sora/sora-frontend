@@ -34,7 +34,7 @@ const mesAtual = new Date().toISOString().slice(0, 7);
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function TransacoesPage() {
-  const { phone, perfil, podeUsar } = useAuth();
+  const { phone, podeUsar } = useAuth();
   const podeImportarOFX = podeUsar('import_ofx');
   const podeImportarCSV = podeUsar('import_csv');
   const podeImportar = podeImportarOFX || podeImportarCSV;
@@ -319,7 +319,7 @@ export default function TransacoesPage() {
         {/* ═══════════════════════════════════════════════════════
             GASTOS FIXOS (recorrências)
         ═══════════════════════════════════════════════════════ */}
-        <GastosFixosSection grupoId={perfil?.grupo_ativo?.id} wallets={wallets} />
+        <GastosFixosSection phone={phone} wallets={wallets} />
 
         {/* ═══════════════════════════════════════════════════════
             BARRA DE FILTROS

@@ -98,6 +98,16 @@ export const api = {
       req<{ ok: boolean; total: number }>(`/api/categorias/restaurar-padrao/${phone}`, { method: 'POST' }),
   },
 
+  // ── RECORRÊNCIAS (gastos/receitas fixas) ─────────────────────
+  recorrencias: {
+    listar: (phone: string) =>
+      req<any[]>(`/api/recorrencias/${phone}`),
+    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string }) =>
+      req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
+    cancelar: (id: string, phone: string) =>
+      req(`/api/recorrencias/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+  },
+
   // ── LIMITES ───────────────────────────────────────────────────
   limites: {
     listar: (phone: string, mes?: string) =>

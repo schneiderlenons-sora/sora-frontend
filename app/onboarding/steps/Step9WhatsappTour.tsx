@@ -33,10 +33,12 @@ export default function Step9WhatsappTour() {
 
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-tight">
-            Quase lá! 🎉
+            Tudo pronto! 🎉
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-2 max-w-md mx-auto">
-            Pra fechar com chave de ouro, conecte o WhatsApp e comece a registrar tudo de qualquer lugar.
+            {temPhone
+              ? 'Seu WhatsApp já está conectado. Agora é só registrar tudo de qualquer lugar — texto, áudio, foto ou PDF.'
+              : 'Pra fechar com chave de ouro, conecte o WhatsApp e comece a registrar tudo de qualquer lugar.'}
           </p>
         </div>
       </div>

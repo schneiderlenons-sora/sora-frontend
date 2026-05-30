@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Receipt, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { PLANOS_INFO, type PlanoId } from '@/lib/stripe';
 import { PLANO_LABEL } from '@/lib/plans';
 import StepNav from '../components/StepNav';
@@ -17,7 +17,7 @@ type Gasto = {
 };
 
 export default function Step6GastosFixos() {
-  const { perfil } = useAuth();
+  const { perfil, phone } = useAuth();
   const [gastos, setGastos] = useState<Gasto[]>([
     { descricao: '', valor: '', dia: '5' },
   ]);
@@ -53,25 +53,21 @@ export default function Step6GastosFixos() {
   }
 
   async function salvar() {
-    const grupoId = perfil?.grupo_ativo?.id;
-    if (!grupoId) return;
+    if (!phone) return;
     try {
       const validos = gastos.filter((g) => g.descricao.trim() && parseFloat(g.valor) > 0);
       if (validos.length === 0) return;
-
-      // Grava como RECORRÊNCIA (não dívida) — é o que o job mensal lê pra
-      // lançar a transação automaticamente todo mês no dia certo.
-      const rows = validos.map((g) => ({
-        grupo_id:       grupoId,
-        tipo:           'Gasto',
-        categoria:      'Outros',   // dedup do job casa por categoria — precisa ser não-nula
-        descricao:      g.descricao.trim(),
-        valor:          parseFloat(String(g.valor).replace(',', '.')),
-        dia_vencimento: Math.max(1, Math.min(28, parseInt(g.dia) || 5)),
-        carteira:       'Dinheiro',
-        ativa:          true,
-      }));
-      await supabase.from('recorrencias').insert(rows);
+      // Grava como RECORRÊNCIA via backend (service role) — é o que o job
+      // mensal lê pra lançar a transação automaticamente todo mês.
+      await Promise.all(validos.map((g) =>
+        api.recorrencias.criar({
+          phone,
+          tipo:           'Gasto',
+          descricao:      g.descricao.trim(),
+          valor:          parseFloat(String(g.valor).replace(',', '.')),
+          dia_vencimento: Math.max(1, Math.min(28, parseInt(g.dia) || 5)),
+        }),
+      ));
     } catch (e) {
       console.warn('[onboarding] erro ao salvar gastos fixos', e);
     }

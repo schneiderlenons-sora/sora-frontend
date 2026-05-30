@@ -34,7 +34,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [salvando, setSalvando] = useState(false);
 
   const [state, setState] = useState<OnboardingState>({
-    step:      perfil?.onboarding_step ?? 1,
+    // onboarding_step tem default 0 no banco — clamp pra 1 (senão o 1º clique
+    // só vai de 0→1, exigindo dois cliques pra sair do passo inicial).
+    step:      Math.max(1, perfil?.onboarding_step || 1),
     nome:      perfil?.name ?? '',
     perfilUso: (perfil?.perfil_uso as PerfilUso | undefined) ?? null,
     objetivo:  (perfil?.objetivo_principal as ObjetivoPrincipal | undefined) ?? null,

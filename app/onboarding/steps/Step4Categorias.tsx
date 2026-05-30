@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Tag, Plus, X, Check, Loader2 } from 'lucide-react';
-import { useOnboarding } from '../OnboardingContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
 import StepNav from '../components/StepNav';
@@ -12,80 +11,63 @@ import StepNav from '../components/StepNav';
 const BRAND = '#61D17B';
 
 type Cat = {
-  id?:        string;          // só as que já existem no banco têm id
-  nome:       string;
-  icone?:     string | null;
-  tipo:       'despesa' | 'receita';
+  id:        string;
+  nome:      string;
+  icone?:    string | null;
+  tipo?:     string;
   parent_id?: string | null;
-  novo?:      boolean;         // criada agora, ainda não está no banco
 };
 
 export default function Step4Categorias() {
-  const { state } = useOnboarding();
-  const { perfil } = useAuth();
-  const grupoId = perfil?.grupo_ativo?.id;
+  const { phone } = useAuth();
 
   const [cats, setCats]       = useState<Cat[]>([]);
-  const [removidos, setRem]   = useState<string[]>([]);  // ids a deletar no save
   const [novaCat, setNovaCat] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [salvandoNova, setSalvando] = useState(false);
 
-  // Carrega as categorias REAIS do grupo (criadas no signup) — todas, inclusive
-  // subcategorias. Assim o usuário vê/edita exatamente o que existe no banco.
+  // Carrega as categorias REAIS do grupo (criadas no signup) via backend —
+  // service role, sem depender de RLS/grupo_ativo no cliente.
   useEffect(() => {
-    if (!grupoId) return;
     let vivo = true;
     (async () => {
-      const { data } = await supabase
-        .from('categorias')
-        .select('id, nome, icone, tipo, parent_id')
-        .eq('grupo_id', grupoId)
-        .eq('ativa', true)
-        .order('parent_id', { nullsFirst: true })
-        .order('nome');
-      if (!vivo) return;
-      setCats((data as Cat[]) || []);
-      setCarregando(false);
+      if (!phone) { setCarregando(false); return; }
+      try {
+        const data = await api.categorias.listar(phone);
+        if (vivo) setCats(Array.isArray(data) ? data : []);
+      } catch {
+        if (vivo) setCats([]);
+      } finally {
+        if (vivo) setCarregando(false);
+      }
     })();
     return () => { vivo = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grupoId]);
+  }, [phone]);
 
-  function adicionar() {
+  async function adicionar() {
     const nome = novaCat.trim();
-    if (!nome) return;
+    if (!nome || !phone) return;
     if (cats.some((c) => c.nome.toLowerCase() === nome.toLowerCase())) { setNovaCat(''); return; }
-    setCats([...cats, { nome, tipo: 'despesa', novo: true }]);
-    setNovaCat('');
-  }
-
-  function remover(idx: number) {
-    const c = cats[idx];
-    if (c.id) setRem((r) => [...r, c.id!]);   // marca pra deletar no banco
-    setCats(cats.filter((_, i) => i !== idx));
-  }
-
-  async function salvar() {
-    if (!grupoId) return;
+    setSalvando(true);
     try {
-      // Deleta as removidas (conta nova, sem transações apontando — seguro)
-      if (removidos.length) {
-        await supabase.from('categorias').delete().in('id', removidos);
-      }
-      // Insere as novas criadas no wizard
-      const novas = cats.filter((c) => c.novo);
-      if (novas.length) {
-        await supabase.from('categorias').insert(
-          novas.map((c) => ({
-            grupo_id: grupoId,
-            nome:     c.nome,
-            tipo:     c.tipo,
-            ativa:    true,
-          })),
-        );
-      }
-    } catch (e) {
-      console.warn('[onboarding] erro ao sincronizar categorias', e);
+      const nova = await api.categorias.criar({ phone, nome, tipo: 'despesa' });
+      setCats((prev) => [...prev, nova as Cat]);
+      setNovaCat('');
+    } catch {
+      // silencioso — mantém o que digitou pra tentar de novo
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function remover(idx: number) {
+    const c = cats[idx];
+    setCats((prev) => prev.filter((_, i) => i !== idx)); // otimista
+    try {
+      await api.categorias.deletar(c.id);
+    } catch {
+      // se falhar, recarrega pra refletir o estado real
+      if (phone) { try { setCats(await api.categorias.listar(phone) as Cat[]); } catch { /* noop */ } }
     }
   }
 
@@ -110,17 +92,17 @@ export default function Step4Categorias() {
         </div>
       ) : (
         <>
-          {/* Grid de chips — todas as categorias e subcategorias */}
           <div className="flex flex-wrap gap-2 mb-5">
             {cats.map((c, i) => {
               const tema = getCategoriaTheme(c.nome);
+              const emoji = c.icone && /^\p{Extended_Pictographic}/u.test(c.icone) ? c.icone : undefined;
               return (
                 <span
-                  key={c.id || `novo-${i}`}
+                  key={c.id}
                   className="group inline-flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl border text-sm font-medium transition-all"
                   style={{ borderColor: `${tema.color}40`, background: `${tema.color}10` }}
                 >
-                  <CategoriaIcon nome={c.nome} icone={c.icone} size={22} bg={tema.bg} color={tema.color} rounded="rounded-lg" />
+                  <CategoriaIcon nome={c.nome} icone={emoji} size={22} bg={tema.bg} color={tema.color} rounded="rounded-lg" />
                   <span className="text-foreground">{c.nome}</span>
                   <button
                     type="button"
@@ -133,9 +115,11 @@ export default function Step4Categorias() {
                 </span>
               );
             })}
+            {cats.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma categoria ainda — adicione abaixo.</p>
+            )}
           </div>
 
-          {/* Add nova */}
           <div className="flex gap-2">
             <input
               type="text"
@@ -149,10 +133,10 @@ export default function Step4Categorias() {
             <button
               type="button"
               onClick={adicionar}
-              disabled={!novaCat.trim()}
+              disabled={!novaCat.trim() || salvandoNova}
               className="px-4 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 text-foreground text-sm font-semibold transition-colors disabled:opacity-40"
             >
-              <Plus size={16} />
+              {salvandoNova ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             </button>
           </div>
 
@@ -163,7 +147,7 @@ export default function Step4Categorias() {
         </>
       )}
 
-      <StepNav podeAvancar={!carregando} onAntesAvancar={salvar} />
+      <StepNav podeAvancar={!carregando} />
     </>
   );
 }
