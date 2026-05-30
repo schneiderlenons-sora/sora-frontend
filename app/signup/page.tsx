@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import { trackSignUp, trackInitiateCheckout } from '@/lib/analytics';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
@@ -83,9 +82,11 @@ function SignupWizard() {
       const uid = await signUp(email, password, nome);
       if (!uid) throw new Error('Não consegui criar a conta. Tente novamente.');
 
-      // Salva o número e dispara as boas-vindas (não bloqueia)
-      await supabase.from('users').update({ phone: numero, name: nome }).eq('id', uid);
-      api.user.welcome({ user_id: uid, phone: numero, nome }).catch(() => {});
+      // Salva o número no backend (service role, confiável) e dispara boas-vindas.
+      // Aguardamos pra garantir o phone salvo, e recarregamos o perfil pra que
+      // o onboarding já enxergue o número vinculado.
+      try { await api.user.welcome({ user_id: uid, phone: numero, nome }); } catch { /* não bloqueia */ }
+      await recarregar();
       trackSignUp();
 
       setStep('plano');

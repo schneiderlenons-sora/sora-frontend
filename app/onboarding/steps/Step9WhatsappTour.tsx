@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { MessageCircle, Mic, Camera, FileText, Sparkles, CheckCircle2, ArrowRight, Phone } from 'lucide-react';
+import { MessageCircle, Mic, Camera, FileText, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import StepNav from '../components/StepNav';
 
@@ -43,47 +42,21 @@ export default function Step9WhatsappTour() {
         </div>
       </div>
 
-      {/* Status do WhatsApp */}
-      {temPhone ? (
-        <div className="mb-6 p-5 rounded-2xl border border-primary/30 bg-primary/5">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-                 style={{ background: BRAND }}>
-              <CheckCircle2 size={20} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-foreground">WhatsApp já vinculado ✓</p>
-              <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
-                {perfil?.phone}
-              </p>
-            </div>
+      {/* WhatsApp vinculado no cadastro — apenas confirma o status */}
+      <div className="mb-6 p-5 rounded-2xl border border-primary/30 bg-primary/5">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+               style={{ background: BRAND }}>
+            <CheckCircle2 size={20} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground">WhatsApp vinculado ✓</p>
+            {temPhone && (
+              <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{perfil?.phone}</p>
+            )}
           </div>
         </div>
-      ) : (
-        <div className="mb-6 p-5 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5">
-          <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style={{ background: BRAND }}>
-              <Phone size={18} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-foreground">Vincule seu WhatsApp</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Conecte seu número pra registrar gastos por texto, áudio, foto ou PDF — sem precisar abrir o painel.
-              </p>
-              <Link
-                href="/vincular-whatsapp"
-                className="inline-flex items-center gap-1.5 mt-3 px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-sm"
-                style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
-              >
-                <Phone size={12} />
-                Vincular agora
-                <ArrowRight size={12} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Como usar */}
       <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
