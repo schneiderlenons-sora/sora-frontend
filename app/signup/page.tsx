@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -103,17 +103,35 @@ function SignupWizard() {
     catch (err: any) { setErro(err.message || 'Falha ao cadastrar com Google.'); setLoadingGoogle(false); }
   }
 
-  // ── PASSO 3: client secret do Embedded Checkout ───────────────────
-  const fetchClientSecret = useCallback(async () => {
-    const res = await fetch('/api/stripe/embedded-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plano: planoSel, intervalo }),
-    });
-    const data = await res.json();
-    if (!data.client_secret) throw new Error(data.erro || 'Falha ao iniciar o checkout.');
-    return data.client_secret as string;
-  }, [planoSel, intervalo]);
+  // ── PASSO 3: busca o client_secret (mostrando o erro real do servidor,
+  //    em vez de deixar o Stripe esconder atrás de "Something went wrong") ──
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [checkoutErro, setCheckoutErro] = useState('');
+  useEffect(() => {
+    if (step !== 'pagamento') return;
+    let alive = true;
+    setClientSecret(null);
+    setCheckoutErro('');
+    (async () => {
+      try {
+        const res = await fetch('/api/stripe/embedded-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plano: planoSel, intervalo }),
+        });
+        const data = await res.json();
+        if (!alive) return;
+        if (!res.ok || !data.client_secret) {
+          setCheckoutErro(data.erro || 'Falha ao iniciar o checkout.');
+          return;
+        }
+        setClientSecret(data.client_secret);
+      } catch {
+        if (alive) setCheckoutErro('Falha de conexão ao iniciar o checkout.');
+      }
+    })();
+    return () => { alive = false; };
+  }, [step, planoSel, intervalo]);
 
   // Após o pagamento: espera o webhook ativar o plano e segue pro onboarding.
   const recarregarRef = useRef(recarregar);
@@ -192,12 +210,20 @@ function SignupWizard() {
                 <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-sm text-amber-700 dark:text-amber-400">
                   Pagamento indisponível: falta configurar a chave pública do Stripe.
                 </div>
+              ) : checkoutErro ? (
+                <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-sm text-red-600 dark:text-red-400">
+                  {checkoutErro}
+                </div>
+              ) : !clientSecret ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-10">
+                  <Loader2 size={16} className="animate-spin" /> Carregando pagamento…
+                </div>
               ) : (
                 <div className="rounded-xl overflow-hidden border border-border">
                   <EmbeddedCheckoutProvider
                     key={`${planoSel}-${intervalo}`}
                     stripe={stripePromise}
-                    options={{ fetchClientSecret, onComplete: onPagamentoCompleto }}
+                    options={{ clientSecret, onComplete: onPagamentoCompleto }}
                   >
                     <EmbeddedCheckout />
                   </EmbeddedCheckoutProvider>
