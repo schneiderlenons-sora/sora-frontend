@@ -18,8 +18,15 @@ import Step8PrimeiraMeta  from './steps/Step8PrimeiraMeta';
 import Step9WhatsappTour  from './steps/Step9WhatsappTour';
 
 export default function OnboardingPage() {
-  const { loading, user, perfil } = useAuth();
+  const { loading, user, perfil, recarregar } = useAuth();
   const router = useRouter();
+
+  // Garante perfil fresco ao entrar (phone/grupo recém-salvos no cadastro),
+  // pra que os passos que chamam o backend tenham o número vinculado.
+  useEffect(() => {
+    if (user) recarregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Sem auth → manda pra login (provavelmente clicou no link do WhatsApp
   // sem estar logado no browser; ele já tem conta, é só logar).
