@@ -1,33 +1,23 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
-import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
   ChevronRight, ChevronLeft, AlertCircle, BarChart3, Calendar, Loader2,
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid,
-} from 'recharts';
-
 const BRAND = '#61D17B';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NOMES  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-const fmtShort = (v: number) => {
-  if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
-  return `${v}`;
-};
 
 interface Wallet {
   id:     string;
@@ -52,30 +42,6 @@ export default function CartaoDeCreditoPage() {
   const [detalhes,       setDetalhes]       = useState<Wallet | null>(null);
   const [mesIndex,       setMesIndex]       = useState(0); // 0 = mês atual, -1 = mês passado, etc.
   const [confirmDel,     setConfirmDel]     = useState<Wallet | null>(null);
-  // Só monta o gráfico Recharts após o 1º paint do cliente — evita que o
-  // ResponsiveContainer meça o container como -1 no mount tardio (React #284).
-  const [graficoPronto, setGraficoPronto] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setGraficoPronto(true), 0);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Mede a largura do container do gráfico manualmente (ResizeObserver) e
-  // passa width numérico ao BarChart — substitui o ResponsiveContainer do
-  // Recharts, que disparava React #284 no mount tardio dentro do layout.
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [chartW, setChartW] = useState(0);
-  useEffect(() => {
-    const el = chartRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width || 0;
-      if (w > 0) setChartW(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [graficoPronto, wallets.length, mesIndex]);
-
   const hoje = new Date();
   const mesAtualRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
@@ -393,50 +359,37 @@ export default function CartaoDeCreditoPage() {
               </div>
             </div>
 
-            {/* Gráfico com largura medida manualmente (chartW) — sem
-                ResponsiveContainer, que disparava React #284 neste layout. */}
-            <ErrorBoundary fallback={
-              <div style={{ height: 240 }} className="flex flex-col items-center justify-center text-center gap-1">
-                <BarChart3 size={22} className="text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Gráfico de faturas indisponível no momento.</p>
-              </div>
-            }>
-            <div ref={chartRef} style={{ width: '100%', height: 240 }}>
-            {graficoPronto && chartW > 0 && (
-              <BarChart width={chartW} height={240} data={dadosHistorico} margin={{ top: 12, right: 8, left: -10, bottom: 4 }} barSize={48}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis
-                  dataKey="mes"
-                  tick={{ fontSize: 12, fill: 'hsl(var(--fg-muted))' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={fmtShort}
-                />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--bg-muted) / .4)' }}
-                  contentStyle={{
-                    background: 'hsl(var(--bg-card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: any) => [fmt(Number(v)), 'Fatura']}
-                  labelFormatter={(l: string) => l}
-                />
-                <Bar dataKey="total" radius={[8, 8, 0, 0]}>
-                  {dadosHistorico.map((d, i) => (
-                    <Cell key={i} fill={d.atual ? BRAND : 'hsl(var(--bg-muted))'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            )}
-            </div>
-            </ErrorBoundary>
+            {/* Gráfico de barras em CSS puro — sem Recharts (que disparava
+                React #284 neste layout). Robusto e sempre renderiza. */}
+            {(() => {
+              const maxTotal = Math.max(...dadosHistorico.map(d => d.total), 1);
+              return (
+                <div className="flex items-end justify-between gap-2 sm:gap-3" style={{ height: 200 }}>
+                  {dadosHistorico.map((d, i) => {
+                    const h = Math.max((d.total / maxTotal) * 160, d.total > 0 ? 6 : 2);
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center justify-end gap-2 group">
+                        <span className={`text-[10px] tabular font-semibold transition-opacity ${d.total > 0 ? 'text-foreground opacity-0 group-hover:opacity-100' : 'opacity-0'}`}>
+                          {fmt(d.total)}
+                        </span>
+                        <div
+                          className="w-full rounded-t-lg transition-all duration-500"
+                          style={{
+                            height: h,
+                            background: d.atual ? BRAND : 'hsl(var(--bg-muted))',
+                            minHeight: 2,
+                          }}
+                          title={`${d.mes}: ${fmt(d.total)}`}
+                        />
+                        <span className={`text-[11px] font-medium ${d.atual ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {d.mes}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -527,11 +480,6 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
   const usado = comprometido || fatura;
   const disponivel = Math.max(limite - usado, 0);
   const pctUsado = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
-
-  // Formato compacto correto: "R$ 1.8k" só acima de 1000; abaixo mostra o
-  // valor cheio (antes dividia por 1000 sempre, e R$557 virava "R$ 1").
-  const fmtK = (v: number) =>
-    v >= 1000 ? `R$ ${(v / 1000).toFixed(1)}k` : fmt(v);
 
   const hoje = new Date();
   const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -641,7 +589,7 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
               Limite total
             </span>
             <span className="text-[11px] font-semibold text-foreground tabular">
-              {ocultar ? '•••' : fmtK(limite)}
+              {ocultar ? '•••' : fmt(limite)}
             </span>
           </div>
 
@@ -667,14 +615,14 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               <span className="text-muted-foreground">Usado</span>
               <span className="font-semibold text-foreground tabular ml-0.5">
-                {ocultar ? '•••' : fmtK(usado)}
+                {ocultar ? '•••' : fmt(usado)}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: BRAND }} />
               <span className="text-muted-foreground">Disponível</span>
               <span className="font-semibold text-foreground tabular ml-0.5">
-                {ocultar ? '•••' : fmtK(disponivel)}
+                {ocultar ? '•••' : fmt(disponivel)}
               </span>
             </div>
           </div>
