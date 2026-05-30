@@ -43,19 +43,18 @@ export default function Step7ReceitasFixas() {
 
       const hoje = new Date();
 
-      // Recorrência (sempre cria)
+      // Recorrência de RECEBIMENTO (sempre cria) — mesma tabela `recorrencias`
+      // que o job mensal lê pra lançar a receita automaticamente todo mês.
       const recRows = validos.map((r) => ({
-        grupo_id:        grupoId,
-        criado_por:      userId,
-        descricao:       r.descricao.trim(),
-        valor:           parseFloat(String(r.valor).replace(',', '.')),
-        dia_recebimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),
-        recorrente:      true,
+        grupo_id:       grupoId,
+        tipo:           'Recebimento',
+        descricao:      r.descricao.trim(),
+        valor:          parseFloat(String(r.valor).replace(',', '.')),
+        dia_vencimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),
+        carteira:       'Dinheiro',
+        ativa:          true,
       }));
-      await supabase.from('recebimentos').insert(recRows).then(
-        () => {},
-        () => {} // se a tabela não existir ainda, silencia
-      );
+      await supabase.from('recorrencias').insert(recRows);
 
       // Se "já recebeu" → cria transação real do mês atual
       const txRows = validos

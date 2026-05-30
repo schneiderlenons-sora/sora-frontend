@@ -54,28 +54,23 @@ export default function Step6GastosFixos() {
 
   async function salvar() {
     const grupoId = perfil?.grupo_ativo?.id;
-    const userId  = perfil?.id;
-    if (!grupoId || !userId) return;
+    if (!grupoId) return;
     try {
       const validos = gastos.filter((g) => g.descricao.trim() && parseFloat(g.valor) > 0);
       if (validos.length === 0) return;
 
-      const hoje = new Date();
-      const rows = validos.map((g) => {
-        const dia = Math.max(1, Math.min(28, parseInt(g.dia) || 5));
-        const venc = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
-        return {
-          grupo_id:    grupoId,
-          criado_por:  userId,
-          descricao:   g.descricao.trim(),
-          valor:       parseFloat(String(g.valor).replace(',', '.')),
-          dia_vencimento: dia,
-          vencimento:  venc.toISOString().slice(0, 10),
-          recorrente:  true,
-          status:      'pendente',
-        };
-      });
-      await supabase.from('dividas').insert(rows);
+      // Grava como RECORRÊNCIA (não dívida) — é o que o job mensal lê pra
+      // lançar a transação automaticamente todo mês no dia certo.
+      const rows = validos.map((g) => ({
+        grupo_id:       grupoId,
+        tipo:           'Gasto',
+        descricao:      g.descricao.trim(),
+        valor:          parseFloat(String(g.valor).replace(',', '.')),
+        dia_vencimento: Math.max(1, Math.min(28, parseInt(g.dia) || 5)),
+        carteira:       'Dinheiro',
+        ativa:          true,
+      }));
+      await supabase.from('recorrencias').insert(rows);
     } catch (e) {
       console.warn('[onboarding] erro ao salvar gastos fixos', e);
     }
