@@ -44,12 +44,22 @@ function PlanosContent() {
   // Refs pra fazer scroll até o card escolhido na intent
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // Após o pagamento, o webhook do Stripe leva alguns segundos pra ativar o
+  // plano. Re-checa o perfil a cada 2s (até ~20s); quando o plano ativa, o
+  // PaywallRedirect/OnboardingRedirect assumem e levam pro onboarding.
+  const recarregarRef = useRef(recarregar);
+  recarregarRef.current = recarregar;
   useEffect(() => {
-    if (success) {
-      trackPurchase({ value: 0 });
-      setTimeout(() => recarregar(), 2000);
-    }
-  }, [success, recarregar]);
+    if (!success) return;
+    trackPurchase({ value: 0 });
+    let tries = 0;
+    const iv = setInterval(() => {
+      tries += 1;
+      recarregarRef.current();
+      if (tries >= 10) clearInterval(iv);
+    }, 2000);
+    return () => clearInterval(iv);
+  }, [success]);
 
   // Auto-checkout: se o usuário já escolheu o plano na landing (intent), vai
   // direto pro Stripe sem precisar clicar de novo. Só dispara uma vez, com o
