@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
  *   - Se já completou ou em rota pública → não faz nada
  */
 export default function OnboardingRedirect() {
-  const { perfil, loading } = useAuth();
+  const { perfil, loading, plano } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const ja = useRef(false);
@@ -22,6 +22,7 @@ export default function OnboardingRedirect() {
   useEffect(() => {
     if (loading) return;
     if (!perfil) return;
+    if (plano === 'inativo') return;        // paywall tem prioridade — paga antes de onboardar
     if (perfil.onboarding_completed) return;
 
     // Rotas públicas / fora do app — não redireciona
@@ -39,7 +40,7 @@ export default function OnboardingRedirect() {
     if (ja.current) return;
     ja.current = true;
     router.replace('/onboarding');
-  }, [perfil, loading, pathname, router]);
+  }, [perfil, loading, plano, pathname, router]);
 
   return null;
 }

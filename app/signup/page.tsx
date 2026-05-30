@@ -48,7 +48,7 @@ function SignupForm() {
   const planoIntencao = searchParams.get('plano');
 
   // Salva intenção de plano vinda da landing assim que a página monta.
-  // Após o primeiro login o IntentPlanoRedirect redireciona para /planos.
+  // Após o primeiro login o PaywallRedirect leva o usuário inativo pra /planos.
   useEffect(() => {
     if (planoIntencao) salvarIntencaoPlano(planoIntencao);
   }, [planoIntencao]);

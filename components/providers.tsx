@@ -2,7 +2,7 @@
 
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/contexts/AuthContext';
-import IntentPlanoRedirect from '@/components/auth/IntentPlanoRedirect';
+import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -17,7 +17,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange={false}
     >
       <AuthProvider>
-        <IntentPlanoRedirect />
+        <PaywallRedirect />
         <OnboardingRedirect />
         {children}
       </AuthProvider>
