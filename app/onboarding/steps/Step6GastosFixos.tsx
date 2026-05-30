@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Receipt, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { PLANOS_INFO, type PlanoId } from '@/lib/stripe';
+import { PLANO_LABEL } from '@/lib/plans';
 import StepNav from '../components/StepNav';
 
 const BRAND = '#61D17B';
@@ -19,6 +21,25 @@ export default function Step6GastosFixos() {
   const [gastos, setGastos] = useState<Gasto[]>([
     { descricao: '', valor: '', dia: '5' },
   ]);
+
+  // Pré-preenche a assinatura da Sora como gasto fixo — SÓ se o plano for
+  // mensal (no anual é uma cobrança única, não recorrente: aí a Sora pergunta
+  // depois como foi o pagamento). Roda uma vez, quando o perfil carrega.
+  const jaPreencheu = useRef(false);
+  useEffect(() => {
+    if (jaPreencheu.current || !perfil) return;
+    const plano = perfil.plano;
+    if (plano === 'inativo' || perfil.plano_intervalo !== 'mensal') return;
+    const preco = PLANOS_INFO[plano as PlanoId]?.mensal;
+    if (!preco) return;
+    jaPreencheu.current = true;
+    const dia = String(Math.min(28, Math.max(1, new Date().getDate())));
+    setGastos((g) =>
+      g.length === 1 && !g[0].descricao && !g[0].valor
+        ? [{ descricao: `Assinatura Sora ${PLANO_LABEL[plano]}`, valor: preco.toFixed(2).replace('.', ','), dia }]
+        : g,
+    );
+  }, [perfil]);
 
   function atualizar(i: number, patch: Partial<Gasto>) {
     setGastos(gastos.map((g, idx) => (idx === i ? { ...g, ...patch } : g)));

@@ -17,8 +17,8 @@ type Opcao = {
 
 const OPCOES: Opcao[] = [
   { id: 'vermelho',  titulo: 'Sair do vermelho',     desc: 'Pagar dívidas e equilibrar o orçamento',         icon: TrendingDown, cor: '#ef4444' },
-  { id: 'meta',      titulo: 'Juntar pra uma meta',  desc: 'Viagem, casa, carro, reserva de emergência',     icon: Target,       cor: '#3b82f6' },
-  { id: 'organizar', titulo: 'Organizar melhor',     desc: 'Sei pra onde vai meu dinheiro e otimizar gastos', icon: BarChart3,    cor: BRAND     },
+  { id: 'meta',      titulo: 'Criar uma meta',       desc: 'Viagem, casa, carro, reserva de emergência',           icon: Target,       cor: '#3b82f6' },
+  { id: 'organizar', titulo: 'Organizar melhor',     desc: 'Saber para onde vai meu dinheiro e otimizar gastos',   icon: BarChart3,    cor: BRAND     },
   { id: 'negocio',   titulo: 'Crescer meu negócio',  desc: 'Lucro, DRE, fluxo de caixa, projeções',          icon: Briefcase,    cor: '#f59e0b' },
 ];
 
