@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     // ui_mode/redirect_on_completion existem na API mas não nos tipos desta
     // versão do SDK — cast localizado pra usar o checkout embarcado.
     const params = {
-      ui_mode: 'embedded',
+      ui_mode: 'embedded_page', // API "dahlia" renomeou 'embedded' -> 'embedded_page'
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
