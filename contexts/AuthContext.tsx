@@ -68,7 +68,7 @@ interface AuthContextType {
   signIn:           (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithApple:  () => Promise<void>;
-  signUp:           (email: string, password: string, name: string) => Promise<void>;
+  signUp:           (email: string, password: string, name: string) => Promise<string | null>;
   signOut:          () => Promise<void>;
   recarregar:       () => Promise<void>;
 }
@@ -163,14 +163,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = () => signInWithProvider('google');
   const signInWithApple  = () => signInWithProvider('apple');
 
-  async function signUp(email: string, password: string, name: string) {
-    const { error } = await supabase.auth.signUp({
+  async function signUp(email: string, password: string, name: string): Promise<string | null> {
+    const { data, error } = await supabase.auth.signUp({
       email, password,
       options: { data: { name } }
     });
     if (error) throw new Error(error.message);
-    // Trigger do Supabase cria o perfil automaticamente
-    router.push('/vincular-whatsapp');
+    // Trigger do Supabase cria o perfil automaticamente. NÃO navega aqui — o
+    // wizard de cadastro controla os passos (dados → plano → pagamento).
+    return data.user?.id ?? null;
   }
 
   async function signOut() {
