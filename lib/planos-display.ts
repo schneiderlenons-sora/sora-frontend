@@ -19,6 +19,7 @@ export type PlanoDisplay = {
   badge?:     string;       // versão longa (landing/planos)
   badgeShort?: string;      // versão curta (cards compactos em configurações)
   features:   string[];     // lista completa
+  growTrialDias?: number;   // se setado: Grow só como teste de X dias (ex.: Básico)
 };
 
 export const PLANOS_DISPLAY: PlanoDisplay[] = [
@@ -28,6 +29,7 @@ export const PLANOS_DISPLAY: PlanoDisplay[] = [
     cor: '#71717a',
     corDark: '#52525b',
     subtitulo: 'Pra começar a se organizar.',
+    growTrialDias: 7,
     features: [
       'Lançamentos ilimitados',
       'WhatsApp ou painel (texto/áudio)',

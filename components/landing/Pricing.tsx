@@ -145,6 +145,30 @@ export default function Pricing() {
                       </li>
                     ))}
                   </ul>
+
+                  {/* Callout do Grow como teste (Básico): distinto do checklist
+                      pra deixar claro que é trial, não inclusão permanente. */}
+                  {p.growTrialDias && (
+                    <div className="mt-4 pt-4 border-t border-zinc-200/60 dark:border-white/[0.06]">
+                      <div
+                        className="flex items-start gap-2.5 rounded-xl p-3"
+                        style={{ background: '#61ce700F', border: '1px solid #61ce7033' }}
+                      >
+                        <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
+                              style={{ background: '#61ce7022' }}>
+                          <Sparkles size={11} style={{ color: '#61ce70' }} />
+                        </span>
+                        <div className="leading-snug">
+                          <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">
+                            Sora Grow — {p.growTrialDias} dias grátis
+                          </p>
+                          <p className="text-xs text-zinc-500 dark:text-white/50 mt-0.5">
+                            Hábitos, saúde e estudos. Incluso de vez no Premium e Black.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
