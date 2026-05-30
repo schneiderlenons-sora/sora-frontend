@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
+import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
@@ -33,7 +34,7 @@ const mesAtual = new Date().toISOString().slice(0, 7);
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function TransacoesPage() {
-  const { phone, podeUsar } = useAuth();
+  const { phone, perfil, podeUsar } = useAuth();
   const podeImportarOFX = podeUsar('import_ofx');
   const podeImportarCSV = podeUsar('import_csv');
   const podeImportar = podeImportarOFX || podeImportarCSV;
@@ -314,6 +315,11 @@ export default function TransacoesPage() {
             delay={180}
           />
         </div>
+
+        {/* ═══════════════════════════════════════════════════════
+            GASTOS FIXOS (recorrências)
+        ═══════════════════════════════════════════════════════ */}
+        <GastosFixosSection grupoId={perfil?.grupo_ativo?.id} wallets={wallets} />
 
         {/* ═══════════════════════════════════════════════════════
             BARRA DE FILTROS
