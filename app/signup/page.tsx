@@ -46,12 +46,13 @@ function SignupForm() {
   const { signUp, signInWithGoogle } = useAuth();
   const searchParams = useSearchParams();
   const planoIntencao = searchParams.get('plano');
+  const cicloIntencao = searchParams.get('ciclo');
 
-  // Salva intenção de plano vinda da landing assim que a página monta.
+  // Salva intenção de plano (+ ciclo) vinda da landing assim que a página monta.
   // Após o primeiro login o PaywallRedirect leva o usuário inativo pra /planos.
   useEffect(() => {
-    if (planoIntencao) salvarIntencaoPlano(planoIntencao);
-  }, [planoIntencao]);
+    if (planoIntencao) salvarIntencaoPlano(planoIntencao, cicloIntencao);
+  }, [planoIntencao, cicloIntencao]);
 
   const [nome,     setNome]     = useState('');
   const [email,    setEmail]    = useState('');

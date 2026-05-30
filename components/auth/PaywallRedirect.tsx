@@ -39,9 +39,11 @@ export default function PaywallRedirect() {
     if (pathname.startsWith('/api/')) return;
     if (ROTAS_LIVRES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return;
 
-    // Demais rotas → manda pro /planos, pré-selecionando o plano da intenção.
+    // Demais rotas → manda pro /planos, pré-selecionando o plano+ciclo da intenção.
     const intent = lerIntencaoPlano();
-    const qs = intent ? `?intent=upgrade&plano=${intent}` : '';
+    const qs = intent
+      ? `?intent=upgrade&plano=${intent.plano}&ciclo=${intent.ciclo}`
+      : '';
     router.replace(`/planos${qs}`);
   }, [perfil, loading, plano, pathname, router]);
 

@@ -38,6 +38,8 @@ function PlanosContent() {
   const planoIntencao = searchParams.get('plano') as PlanoId | null;
   const planoIntencaoValido =
     planoIntencao && ['basico', 'premium', 'black'].includes(planoIntencao) ? planoIntencao : null;
+  // Ciclo escolhido na landing (mensal/anual) — preserva a escolha no checkout.
+  const cicloIntencao: Intervalo = searchParams.get('ciclo') === 'anual' ? 'anual' : 'mensal';
 
   // Refs pra fazer scroll até o card escolhido na intent
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -61,9 +63,15 @@ function PlanosContent() {
     if (success || canceled) return;
     if (!perfil) return;                       // precisa de sessão pro checkout
     autoCheckout.current = true;
-    assinar(planoIntencaoValido);
+    assinar(planoIntencaoValido, cicloIntencao); // respeita mensal/anual da landing
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intent, planoIntencaoValido, planoAtual, success, canceled, perfil]);
+  }, [intent, planoIntencaoValido, planoAtual, success, canceled, perfil, cicloIntencao]);
+
+  // Reflete o ciclo escolhido na landing no toggle (fallback visual, caso o
+  // auto-checkout não dispare e o usuário veja os cards).
+  useEffect(() => {
+    if (cicloIntencao === 'anual') setAnual(true);
+  }, [cicloIntencao]);
 
   // Fallback: se por algum motivo o auto-checkout não disparar, ao menos
   // rola suave até o card pré-selecionado.
@@ -76,13 +84,13 @@ function PlanosContent() {
     return () => clearTimeout(t);
   }, [intent, planoIntencaoValido]);
 
-  async function assinar(plano: PlanoId) {
+  async function assinar(plano: PlanoId, intervaloForcado?: Intervalo) {
     setErro('');
     setLoading(plano);
     try {
-      const intervalo: Intervalo = anual ? 'anual' : 'mensal';
+      const intervalo: Intervalo = intervaloForcado ?? (anual ? 'anual' : 'mensal');
       const info = PLANOS_INFO[plano];
-      const preco = anual ? info.anual : info.mensal;
+      const preco = intervalo === 'anual' ? info.anual : info.mensal;
       trackInitiateCheckout({ value: preco, currency: 'BRL' });
 
       const res = await fetch('/api/stripe/checkout', {

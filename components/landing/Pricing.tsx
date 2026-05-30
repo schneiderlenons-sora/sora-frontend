@@ -122,7 +122,7 @@ export default function Pricing() {
 
                   {/* CTA */}
                   <Link
-                    href={`/signup?plano=${p.id}`}
+                    href={`/signup?plano=${p.id}${anual ? '&ciclo=anual' : ''}`}
                     className={`block w-full text-center px-4 py-3 text-sm font-bold rounded-xl mb-7 transition-all hover:-translate-y-0.5 ${
                       p.destaque
                         ? 'text-white shadow-md hover:shadow-lg'
