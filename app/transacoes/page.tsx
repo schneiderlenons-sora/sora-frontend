@@ -649,11 +649,11 @@ function TransactionRow({
         </p>
         {tx.pago ? (
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
-            <CheckCircle2 size={9} /> Pago
+            <CheckCircle2 size={9} /> {isGasto ? 'Pago' : 'Recebido'}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-            <Clock size={9} /> Pendente
+            <Clock size={9} /> {isGasto ? 'Pendente' : 'A receber'}
           </span>
         )}
       </div>

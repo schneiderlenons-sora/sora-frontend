@@ -54,9 +54,11 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  const gastos   = useMemo(() => itens.filter((i) => i.tipo === 'Gasto'), [itens]);
+  const receitas = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento'), [itens]);
   const totalGastos = useMemo(
-    () => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0),
-    [itens],
+    () => gastos.reduce((s, i) => s + (i.valor || 0), 0),
+    [gastos],
   );
 
   async function cancelar(id: string) {
@@ -89,7 +91,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           </div>
           <div className="min-w-0">
             <h3 className="font-semibold text-foreground leading-tight flex items-center gap-2">
-              Gastos fixos
+              Fixos do mês
               {!carregando && itens.length > 0 && (
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
                       style={{ background: `${BRAND}1A`, color: BRAND }}>
@@ -152,84 +154,114 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           )}
         </div>
       ) : (
-        <ul className="divide-y divide-border/50">
-          {itens.map((item, idx) => {
-            const tema = getCategoriaTheme(item.descricao);
-            // Só usa emoji como fallback (não o texto "Outros"); marca é detectada pelo nome.
-            const emoji = item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0] ?? undefined;
-            const ehGasto = item.tipo === 'Gasto';
-            const emConfirm = confirmando === item.id;
-            const saindo = removendo === item.id;
-            return (
-              <li
-                key={item.id}
-                className="group flex items-center gap-3 px-4 sm:px-6 py-3 transition-colors hover:bg-muted/30 animate-fade-in"
-                style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
-              >
-                <CategoriaIcon
-                  nome={item.descricao}
-                  icone={emoji}
-                  size={38}
-                  bg={tema.bg}
-                  color={tema.color}
-                  rounded="rounded-xl"
-                />
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
-                      <Calendar size={10} /> dia {item.dia_vencimento}
-                    </span>
-                    {item.carteira && <span className="truncate">· {item.carteira}</span>}
-                  </div>
-                </div>
-
-                {/* Valor */}
-                <div className="text-right flex-shrink-0">
-                  <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
-                    {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
-                    {fmt(item.valor)}
-                  </p>
-                </div>
-
-                {/* Ação cancelar — confirmação inline em 2 passos */}
-                {emConfirm ? (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => cancelar(item.id)}
-                      disabled={saindo}
-                      className="h-9 px-2.5 rounded-lg bg-red-500 text-white text-xs font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
-                      aria-label={`Confirmar cancelamento de ${item.descricao}`}
-                    >
-                      {saindo ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Cancelar
-                    </button>
-                    <button
-                      onClick={() => setConfirm(null)}
-                      className="h-9 w-9 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground flex items-center justify-center transition-colors"
-                      aria-label="Voltar"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirm(item.id)}
-                    className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 text-muted-foreground
-                               hover:text-red-500 hover:bg-red-500/10 transition-colors
-                               lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
-                    aria-label={`Cancelar ${item.descricao}`}
-                    title="Cancelar gasto fixo"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <div>
+          {gastos.length > 0 && (
+            <>
+              <p className="px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                Gastos fixos
+              </p>
+              <ul className="divide-y divide-border/50">
+                {gastos.map((item, idx) => (
+                  <Linha key={item.id} item={item} idx={idx}
+                    confirmando={confirmando} removendo={removendo}
+                    onPedir={setConfirm} onCancelar={cancelar} />
+                ))}
+              </ul>
+            </>
+          )}
+          {receitas.length > 0 && (
+            <>
+              <p className="px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-t border-border/50">
+                Receitas fixas
+              </p>
+              <ul className="divide-y divide-border/50">
+                {receitas.map((item, idx) => (
+                  <Linha key={item.id} item={item} idx={idx}
+                    confirmando={confirmando} removendo={removendo}
+                    onPedir={setConfirm} onCancelar={cancelar} />
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
       )}
     </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Linha de uma recorrência (gasto ou receita)
+// ─────────────────────────────────────────────────────────────
+function Linha({
+  item, idx, confirmando, removendo, onPedir, onCancelar,
+}: {
+  item:        Recorrencia;
+  idx:         number;
+  confirmando: string | null;
+  removendo:   string | null;
+  onPedir:     (id: string | null) => void;
+  onCancelar:  (id: string) => void;
+}) {
+  const tema = getCategoriaTheme(item.descricao);
+  const emoji = item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0] ?? undefined;
+  const ehGasto = item.tipo === 'Gasto';
+  const emConfirm = confirmando === item.id;
+  const saindo = removendo === item.id;
+  return (
+    <li
+      className="group flex items-center gap-3 px-4 sm:px-6 py-3 transition-colors hover:bg-muted/30 animate-fade-in"
+      style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
+    >
+      <CategoriaIcon nome={item.descricao} icone={emoji} size={38} bg={tema.bg} color={tema.color} rounded="rounded-xl" />
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+            <Calendar size={10} /> dia {item.dia_vencimento}
+          </span>
+          {item.carteira && <span className="truncate">· {item.carteira}</span>}
+        </div>
+      </div>
+
+      <div className="text-right flex-shrink-0">
+        <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
+          {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
+          {fmt(item.valor)}
+        </p>
+      </div>
+
+      {emConfirm ? (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => onCancelar(item.id)}
+            disabled={saindo}
+            className="h-9 px-2.5 rounded-lg bg-red-500 text-white text-xs font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
+            aria-label={`Confirmar cancelamento de ${item.descricao}`}
+          >
+            {saindo ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Cancelar
+          </button>
+          <button
+            onClick={() => onPedir(null)}
+            className="h-9 w-9 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground flex items-center justify-center transition-colors"
+            aria-label="Voltar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => onPedir(item.id)}
+          className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 text-muted-foreground
+                     hover:text-red-500 hover:bg-red-500/10 transition-colors
+                     lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+          aria-label={`Cancelar ${item.descricao}`}
+          title="Cancelar"
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
+    </li>
   );
 }
 

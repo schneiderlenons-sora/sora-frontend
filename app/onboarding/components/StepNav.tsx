@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { useOnboarding, TOTAL_STEPS } from '../OnboardingContext';
 
@@ -31,16 +32,24 @@ export default function StepNav({
 }: Props) {
   const { state, prev, next, skip, finalizar, salvando } = useOnboarding();
   const ehUltimo = state.step >= TOTAL_STEPS;
+  // Guard contra duplo-clique: onAntesAvancar (ex.: salvar receita) não pode
+  // rodar duas vezes — senão duplica o que foi inserido.
+  const [processando, setProcessando] = useState(false);
 
   async function handleContinuar() {
-    if (onAntesAvancar) await onAntesAvancar();
-    if (ehUltimo) {
-      await finalizar();
-      // O OnboardingRedirect detecta onboarding_completed=true e libera.
-      // Redirect explícito pra dashboard como reforço:
-      window.location.href = '/dashboard';
-    } else {
-      await next();
+    if (processando || salvando) return;
+    setProcessando(true);
+    try {
+      if (onAntesAvancar) await onAntesAvancar();
+      if (ehUltimo) {
+        await finalizar();
+        // O OnboardingRedirect detecta onboarding_completed=true e libera.
+        window.location.href = '/dashboard';
+      } else {
+        await next();
+      }
+    } finally {
+      setProcessando(false);
     }
   }
 
@@ -78,11 +87,11 @@ export default function StepNav({
         <button
           type="button"
           onClick={handleContinuar}
-          disabled={!podeAvancar || salvando}
+          disabled={!podeAvancar || salvando || processando}
           className="ml-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white shadow-glow-sm transition-all hover:-translate-y-0.5 hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
         >
-          {salvando ? (
+          {salvando || processando ? (
             <Loader2 size={15} className="animate-spin" />
           ) : ehUltimo ? (
             <Sparkles size={15} />

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Landmark, Plus, Trash2, Upload, Crown, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import StepNav from '../components/StepNav';
 
 const BRAND = '#61D17B';
@@ -19,7 +19,7 @@ type Conta = {
 };
 
 export default function Step5Contas() {
-  const { perfil, podeUsar } = useAuth();
+  const { phone, podeUsar } = useAuth();
   const [contas, setContas] = useState<Conta[]>([
     { nome: 'Carteira', tipo: 'Dinheiro', saldo: '', principal: true },
   ]);
@@ -45,30 +45,20 @@ export default function Step5Contas() {
   }
 
   async function salvar() {
-    const grupoId = perfil?.grupo_ativo?.id;
-    const userId  = perfil?.id;
-    if (!grupoId) return;
+    if (!phone) return;
     try {
       const validas = contas.filter((c) => c.nome.trim());
-      const rows = validas.map((c) => ({
-        grupo_id: grupoId,
-        nome:     c.nome.trim(),
-        tipo:     c.tipo,
-        saldo:    parseFloat(String(c.saldo || '0').replace(',', '.')) || 0,
-        arquivada: false,
-      }));
-      if (rows.length === 0) return;
-
-      const { data: inseridas } = await supabase.from('wallets').insert(rows).select();
-
-      // Marca a conta principal (a Sora usa essa por padrão)
-      if (userId && inseridas && inseridas.length > 0) {
-        const principal = validas.findIndex((c) => c.principal);
-        const walletPrincipal = principal >= 0 ? inseridas[principal] : inseridas[0];
-        await supabase.from('users')
-          .update({ wallet_padrao_id: walletPrincipal.id })
-          .eq('id', userId);
-      }
+      if (validas.length === 0) return;
+      // Cria as contas via backend (service role) — o supabase no cliente
+      // falhava por RLS e a conta não aparecia no painel.
+      await Promise.all(validas.map((c) =>
+        api.wallets.salvar({
+          phone,
+          nome:  c.nome.trim(),
+          tipo:  c.tipo,
+          saldo: parseFloat(String(c.saldo || '0').replace(',', '.')) || 0,
+        }),
+      ));
     } catch (e) {
       console.warn('[onboarding] erro ao salvar contas', e);
     }
