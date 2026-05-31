@@ -83,78 +83,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  async function carregarPerfil(u: User, tentativa = 0): Promise<void> {
-    const MAX_TENTATIVAS = 4;
+  // Carrega o perfil pelo SERVIDOR (/api/me): lê a sessão via cookie + service
+  // role. É confiável no F5 — o caminho client-side (RLS + sessão ainda
+  // hidratando) voltava vazio/erro e travava o painel. Reententa em falha.
+  async function carregarPerfil(_u: User, tentativa = 0): Promise<void> {
+    const MAX = 3;
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*, grupo_ativo:grupos!fk_users_grupo_ativo(id, nome, dono_id)')
-        .eq('id', u.id)
-        .maybeSingle();
-      if (error) throw error;
-
-      // Em F5 a sessão do Supabase pode não estar totalmente hidratada quando
-      // a query roda → volta vazio/erro. Reententa antes de assumir "inativo",
-      // senão o painel pisca inativo (Finance) ou trava no loader (Grow).
-      if (!data) {
-        if (tentativa < MAX_TENTATIVAS) {
+      const res = await fetch('/api/me', { cache: 'no-store' });
+      if (!res.ok) throw new Error('status ' + res.status);
+      const { perfil: p, papel: pap } = await res.json();
+      if (!p) {
+        if (tentativa < MAX) {
           await new Promise((r) => setTimeout(r, 500));
-          return carregarPerfil(u, tentativa + 1);
+          return carregarPerfil(_u, tentativa + 1);
         }
-        setPerfil(null);
-        setPapel('admin');
-        return;
+        setPerfil(null); setPapel('admin'); return;
       }
-      setPerfil(data);
-
-      // Descobre o papel no grupo ativo
-      const grupoAtivoId = (data as any)?.grupo_ativo?.id;
-      const grupoDonoId  = (data as any)?.grupo_ativo?.dono_id;
-      if (!grupoAtivoId) { setPapel('admin'); return; }
-
-      const { data: membro } = await supabase
-        .from('grupo_membros')
-        .select('papel')
-        .eq('grupo_id', grupoAtivoId).eq('user_id', u.id)
-        .maybeSingle();
-      if (membro?.papel) {
-        setPapel(membro.papel as Papel);
-      } else if (grupoDonoId === u.id) {
-        // Fallback: dono do grupo, sem registro em grupo_membros
-        setPapel('admin');
-      } else {
-        setPapel('leitura');
-      }
+      setPerfil(p);
+      setPapel((pap as Papel) || 'admin');
     } catch (e) {
-      if (tentativa < MAX_TENTATIVAS) {
+      if (tentativa < MAX) {
         await new Promise((r) => setTimeout(r, 500));
-        return carregarPerfil(u, tentativa + 1);
+        return carregarPerfil(_u, tentativa + 1);
       }
-      console.warn('[AuthContext] carregarPerfil falhou após retries:', e);
-      setPerfil(null);
-      setPapel('admin');
+      console.warn('[AuthContext] carregarPerfil falhou:', e);
+      setPerfil(null); setPapel('admin');
     }
   }
 
   useEffect(() => {
-    // Aguarda perfil antes de liberar loading — previne flicker onde temAcessoGrow
-    // fica false brevemente e o GrowLayout chuta o usuário para /grow/upgrade.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) await carregarPerfil(session.user);
-      setLoading(false);
-    });
+    // Blindagem: garante que `loading` SEMPRE resolve (senão o painel fica em
+    // loader infinito quando getSession trava/rejeita no F5).
+    let resolvido = false;
+    const finalizar = () => { if (!resolvido) { resolvido = true; setLoading(false); } };
+    const hardTimeout = setTimeout(finalizar, 8000);
+
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        if (session?.user) await carregarPerfil(session.user);
+      })
+      .catch(() => {})
+      .finally(finalizar);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) await carregarPerfil(session.user);
         else setPerfil(null);
-        setLoading(false);
+        finalizar();
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(hardTimeout); subscription.unsubscribe(); };
   }, []);
 
   async function signIn(email: string, password: string) {
