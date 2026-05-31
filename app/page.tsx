@@ -11,6 +11,7 @@ import ComoFunciona    from '@/components/landing/ComoFunciona';
 import Features        from '@/components/landing/Features';
 import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
+import Showcase        from '@/components/landing/Showcase';
 import Carrossel       from '@/components/landing/Carrossel';
 import SoraLabs        from '@/components/landing/SoraLabs';
 import SocialProof     from '@/components/landing/SocialProof';
@@ -30,6 +31,7 @@ export default function LandingPage() {
       <Features />
       <TestDrive />
       <OpenFinance />
+      <Showcase />
       <Carrossel />
       <SoraLabs />
       <SocialProof />
