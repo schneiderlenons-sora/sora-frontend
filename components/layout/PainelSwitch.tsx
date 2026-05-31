@@ -72,8 +72,9 @@ export default function PainelSwitch() {
         Trocar para {ehGrow ? 'Finance' : 'Grow'}
       </div>
 
-      {trialAtivo && !ehGrow && (
-        <span className="absolute top-1 right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-300 text-yellow-900 shadow-md">
+      {trialAtivo && ehGrow && (
+        <span className="absolute top-1 right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-300 text-yellow-900 shadow-md"
+              title={`Trial do Sora Grow — ${diasTrialRestantes} dia(s) restante(s)`}>
           {diasTrialRestantes}d
         </span>
       )}
