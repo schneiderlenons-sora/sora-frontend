@@ -1,21 +1,24 @@
 'use client';
 
 // Seções de destaque (título + imagem + subtítulo) logo após o Open Finance.
-// Imagens em public/landing/ — troque os arquivos mantendo os nomes.
+// Imagens em public/landing/ — versões separadas pra tema claro e escuro
+// (as PNGs já vêm transparentes; renderizadas sem moldura/fundo).
 const SECOES = [
   {
-    eyebrow: 'Clareza total',
-    titulo:  'A Sora detalha exatamente para onde seu dinheiro está indo',
-    img:     '/landing/para-onde-vai.png',
-    alt:     'Painel da Sora detalhando os gastos por categoria',
-    sub:     'E ainda te mostra onde dá pra economizar da melhor forma.',
+    eyebrow:  'Clareza total',
+    titulo:   'A Sora detalha exatamente para onde seu dinheiro está indo',
+    imgDark:  '/landing/para-onde-vai.png',
+    imgLight: '/landing/para-onde-vai-light.png',
+    alt:      'Painel da Sora detalhando os gastos por categoria',
+    sub:      'E ainda te mostra onde dá pra economizar da melhor forma.',
   },
   {
-    eyebrow: 'Em conjunto',
-    titulo:  'Gestão Compartilhada',
-    img:     '/landing/gestao-compartilhada.png',
-    alt:     'Gestão financeira compartilhada entre casal ou família',
-    sub:     'Organize sua vida e suas finanças em casal ou família, cada um com seu próprio acesso.',
+    eyebrow:  'Em conjunto',
+    titulo:   'Gestão Compartilhada',
+    imgDark:  '/landing/gestao-compartilhada.png',
+    imgLight: '/landing/gestao-compartilhada-light.png',
+    alt:      'Gestão financeira compartilhada entre casal ou família',
+    sub:      'Organize sua vida e suas finanças em casal ou família, cada um com seu próprio acesso.',
   },
 ] as const;
 
@@ -27,7 +30,7 @@ export default function Showcase() {
           key={s.titulo}
           className="relative py-24 lg:py-32 border-t border-zinc-200/50 dark:border-white/[0.04]"
         >
-          {/* Glow de fundo sutil (brand) */}
+          {/* Glow de fundo sutil da seção (não envolve a imagem) */}
           <div aria-hidden className="absolute inset-0 pointer-events-none">
             <div
               className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[600px] opacity-20 dark:opacity-15"
@@ -44,21 +47,20 @@ export default function Showcase() {
               {s.titulo}
             </h2>
 
-            {/* Moldura da imagem — borda, sombra e brilho de marca por trás */}
-            <div className="relative mt-10 mb-8 w-fit mx-auto max-w-full">
-              <div
-                aria-hidden
-                className="absolute -inset-4 rounded-[2rem] opacity-60 blur-2xl pointer-events-none"
-                style={{ background: 'radial-gradient(ellipse at center, rgba(97,206,112,0.18) 0%, transparent 70%)' }}
+            {/* Imagem limpa, sem moldura — troca por tema via CSS */}
+            <div className="mt-10 mb-8">
+              <img
+                src={s.imgLight}
+                alt={s.alt}
+                loading="lazy"
+                className="block dark:hidden mx-auto w-full h-auto max-h-[640px] object-contain"
               />
-              <div className="relative rounded-3xl border border-zinc-200 dark:border-white/[0.08] bg-white/60 dark:bg-white/[0.02] overflow-hidden shadow-2xl">
-                <img
-                  src={s.img}
-                  alt={s.alt}
-                  loading="lazy"
-                  className="block w-full h-auto max-h-[640px] object-contain"
-                />
-              </div>
+              <img
+                src={s.imgDark}
+                alt={s.alt}
+                loading="lazy"
+                className="hidden dark:block mx-auto w-full h-auto max-h-[640px] object-contain"
+              />
             </div>
 
             <p className="text-lg lg:text-xl text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">

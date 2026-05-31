@@ -9,8 +9,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="light"
-      enableSystem
+      defaultTheme="dark"
+      enableSystem={false}
       themes={['light', 'dark', 'black']}
       value={{ light: 'light', dark: 'dark', black: 'dark' }}
       storageKey="sora-theme"
