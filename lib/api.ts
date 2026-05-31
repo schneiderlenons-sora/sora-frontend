@@ -1,14 +1,27 @@
+import { supabase } from '@/lib/supabase';
+
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-// Faz chamadas ao backend com tratamento de erro centralizado
+// Faz chamadas ao backend com tratamento de erro centralizado.
+// Autentica com o JWT da sessão do Supabase (Authorization: Bearer) — o
+// backend valida e amarra o request ao próprio usuário. O x-api-token é
+// legado (mantido só durante a transição de deploy; o backend novo o ignora).
 async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE}${path}`;
+
+  let token: string | null = null;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    token = session?.access_token ?? null;
+  } catch { /* sem sessão */ }
+
   let res: Response;
   try {
     res = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'x-api-token': process.env.NEXT_PUBLIC_API_TOKEN || '',
         ...options.headers,
       },
