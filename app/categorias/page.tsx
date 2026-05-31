@@ -213,7 +213,10 @@ export default function CategoriasPage() {
       if (filtro === 'sem_subs'    && filhos.length > 0) return false;
 
       return true;
-    });
+    })
+    // Maior gasto primeiro — categorias com gasto aparecem no topo;
+    // empate (ou zeradas) cai pra ordem alfabética.
+    .sort((a, b) => (b.gastoTotal - a.gastoTotal) || a.pai.nome.localeCompare(b.pai.nome));
   }, [arvore, busca, filtro, mostrarZeradas]);
 
   const totalMes = arvore.reduce((s, x) => s + x.gastoTotal, 0);
