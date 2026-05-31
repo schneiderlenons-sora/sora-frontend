@@ -43,10 +43,14 @@ export async function POST(req: NextRequest) {
         .eq('id', user.id);
     }
 
-    const origin =
+    // Domínio canônico é o www (apex faz 307→www). Forçar o www no retorno
+    // garante que a tela de sucesso carregue COM o cookie de sessão — senão
+    // o sync pós-pagamento dá 401 e o plano só ativa quando o webhook chega.
+    const origin = (
       req.headers.get('origin') ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      'http://localhost:3000';
+      'https://www.forsora.com'
+    ).replace('://forsora.com', '://www.forsora.com');
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

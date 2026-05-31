@@ -52,20 +52,21 @@ function PlanosContent() {
   useEffect(() => {
     if (!success) return;
     trackPurchase({ value: 0 });
+    let cancelado = false;
+    // Sync IMEDIATO direto do Stripe (não espera o webhook) — ativa na hora.
+    (async () => {
+      try { await fetch('/api/stripe/sync', { method: 'POST' }); } catch { /* noop */ }
+      if (!cancelado) await recarregarRef.current();
+    })();
+    // Continua re-checando como rede de segurança (webhook + latência).
     let tries = 0;
-    let sincronizou = false;
     const iv = setInterval(async () => {
       tries += 1;
+      if (tries === 6) { try { await fetch('/api/stripe/sync', { method: 'POST' }); } catch { /* noop */ } }
       await recarregarRef.current();
-      // Fallback: a partir da 4ª tentativa, puxa o plano direto do Stripe.
-      if (tries >= 4 && !sincronizou) {
-        sincronizou = true;
-        try { await fetch('/api/stripe/sync', { method: 'POST' }); } catch { /* noop */ }
-        await recarregarRef.current();
-      }
       if (tries >= 20) clearInterval(iv);
     }, 2000);
-    return () => clearInterval(iv);
+    return () => { cancelado = true; clearInterval(iv); };
   }, [success]);
 
   // Auto-checkout: se o usuário já escolheu o plano na landing (intent), vai
