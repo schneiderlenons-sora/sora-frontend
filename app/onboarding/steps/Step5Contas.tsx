@@ -1,213 +1,215 @@
 'use client';
 
-import { useState } from 'react';
-import { Landmark, Plus, Trash2, Upload, Crown, Star } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Landmark, Plus, Trash2, Loader2, CreditCard, Check, X, Wallet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import AdicionarCartaoModal, { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import StepNav from '../components/StepNav';
 
 const BRAND = '#61D17B';
+const fmt = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-type TipoConta = 'Corrente' | 'Poupança' | 'Dinheiro' | 'Crédito';
-const TIPOS: TipoConta[] = ['Corrente', 'Poupança', 'Dinheiro', 'Crédito'];
-
-type Conta = {
-  nome:      string;
-  tipo:      TipoConta;
-  saldo:     string;
-  principal: boolean;
-};
+type TipoBanco = 'Corrente' | 'Poupança' | 'Dinheiro';
+const TIPOS_BANCO: TipoBanco[] = ['Corrente', 'Poupança', 'Dinheiro'];
 
 export default function Step5Contas() {
-  const { phone, podeUsar } = useAuth();
-  const [contas, setContas] = useState<Conta[]>([
-    { nome: 'Carteira', tipo: 'Dinheiro', saldo: '', principal: true },
-  ]);
+  const { phone } = useAuth();
 
-  function atualizar(i: number, patch: Partial<Conta>) {
-    setContas(contas.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
-  }
-  function marcarPrincipal(i: number) {
-    setContas(contas.map((c, idx) => ({ ...c, principal: idx === i })));
-  }
-  function adicionar() {
-    setContas([...contas, { nome: '', tipo: 'Corrente', saldo: '', principal: false }]);
-  }
-  function remover(i: number) {
-    if (contas.length === 1) return;
-    const removida = contas[i];
-    let novas = contas.filter((_, idx) => idx !== i);
-    // Se a conta removida era a principal, marca a primeira restante
-    if (removida.principal && novas.length > 0) {
-      novas = novas.map((c, idx) => ({ ...c, principal: idx === 0 }));
-    }
-    setContas(novas);
-  }
+  const [wallets, setWallets]   = useState<any[]>([]);
+  const [carregando, setCarreg] = useState(true);
+  const [addOpen, setAddOpen]   = useState(false);
+  const [cartaoOpen, setCartaoOpen] = useState(false);
 
-  async function salvar() {
-    if (!phone) return;
+  // form de conta bancária
+  const [nome, setNome]   = useState('');
+  const [tipo, setTipo]   = useState<TipoBanco>('Corrente');
+  const [saldo, setSaldo] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    if (!phone) { setCarreg(false); return; }
+    try { setWallets((await api.wallets.listar(phone)) || []); }
+    catch { setWallets([]); }
+    finally { setCarreg(false); }
+  }, [phone]);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const contas  = wallets.filter((w) => w.tipo !== 'Crédito');
+  const cartoes = wallets.filter((w) => w.tipo === 'Crédito');
+
+  async function addConta() {
+    if (!nome.trim() || !phone) return;
+    setSalvando(true);
     try {
-      const validas = contas.filter((c) => c.nome.trim());
-      if (validas.length === 0) return;
-      // Cria as contas via backend (service role) — o supabase no cliente
-      // falhava por RLS e a conta não aparecia no painel.
-      await Promise.all(validas.map((c) =>
-        api.wallets.salvar({
-          phone,
-          nome:  c.nome.trim(),
-          tipo:  c.tipo,
-          saldo: parseFloat(String(c.saldo || '0').replace(',', '.')) || 0,
-        }),
-      ));
-    } catch (e) {
-      console.warn('[onboarding] erro ao salvar contas', e);
-    }
+      await api.wallets.salvar({
+        phone, nome: nome.trim(), tipo,
+        saldo: parseFloat(String(saldo || '0').replace(',', '.')) || 0,
+      });
+      setNome(''); setSaldo(''); setTipo('Corrente'); setAddOpen(false);
+      await carregar();
+    } catch { /* noop */ } finally { setSalvando(false); }
   }
 
-  const podeOFX = podeUsar('import_ofx');
-  const valido = contas.some((c) => c.nome.trim());
+  async function remover(id: string) {
+    setWallets((prev) => prev.filter((w) => w.id !== id)); // otimista
+    try { await api.wallets.deletar(id); } catch { carregar(); }
+  }
 
   return (
     <>
       <div className="space-y-3 mb-8">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-2"
-             style={{ background: `${BRAND}1A` }}>
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-2" style={{ background: `${BRAND}1A` }}>
           <Landmark size={20} style={{ color: BRAND }} />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
-          Suas contas
+          Suas contas e cartões
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Cadastre conta corrente, poupança ou dinheiro. Você pode adicionar mais depois.
+          Cadastre suas contas bancárias e cartões de crédito. É com elas que a Sora organiza suas finanças.
         </p>
       </div>
 
-      {/* OFX Premium banner */}
-      {podeOFX ? (
-        <div className="mb-5 p-4 rounded-2xl border border-primary/30 bg-primary/5 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ background: BRAND }}>
-            <Upload size={16} className="text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-foreground">Tem extrato bancário em OFX?</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Importe e a Sora categoriza 30 dias de transações automaticamente.
-            </p>
-            <a href="/transacoes" className="inline-block mt-2 text-xs font-bold text-primary hover:underline">
-              Importar extrato →
-            </a>
-          </div>
+      {carregando ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
+          <Loader2 size={16} className="animate-spin" /> Carregando…
         </div>
       ) : (
-        <div className="mb-5 p-4 rounded-2xl border border-border bg-card/60 flex items-start gap-3 opacity-80">
-          <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-            <Crown size={16} className="text-amber-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-foreground">Importação OFX</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Suba seu extrato e a IA categoriza 30 dias automaticamente. Disponível no Premium.
-            </p>
-          </div>
+        <div className="space-y-6">
+          {/* ── CONTAS BANCÁRIAS ─────────────────────────────── */}
+          <section className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Contas bancárias</h2>
+              {!addOpen && (
+                <button
+                  onClick={() => setAddOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold transition-all hover:-translate-y-0.5"
+                  style={{ background: `${BRAND}1A`, color: BRAND }}
+                >
+                  <Plus size={14} /> Adicionar
+                </button>
+              )}
+            </div>
+
+            {contas.map((c) => {
+              const logo = bancoLogo(c.nome);
+              return (
+                <div key={c.id} className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: logo.bg }}>
+                    {logo.text}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
+                    <p className="text-[11px] text-muted-foreground">{c.tipo}</p>
+                  </div>
+                  <span className="text-sm font-bold text-foreground tabular-nums">{fmt(c.saldo)}</span>
+                  <button onClick={() => remover(c.id)} className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100" aria-label={`Remover ${c.nome}`}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Form inline de nova conta */}
+            {addOpen && (
+              <div className="p-4 rounded-2xl border border-border bg-muted/20 animate-fade-in space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_130px] gap-2.5">
+                  <input
+                    autoFocus
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addConta()}
+                    placeholder="Nome (ex.: Nubank)"
+                    className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                  />
+                  <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoBanco)} className="px-3 h-11 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary">
+                    {TIPOS_BANCO.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <input
+                    inputMode="decimal"
+                    value={saldo}
+                    onChange={(e) => setSaldo(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addConta()}
+                    placeholder="Saldo R$ 0,00"
+                    className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm tabular-nums placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={addConta} disabled={!nome.trim() || salvando} className="inline-flex items-center gap-1.5 px-4 h-11 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-40" style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
+                    {salvando ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Salvar conta
+                  </button>
+                  <button onClick={() => { setAddOpen(false); setNome(''); setSaldo(''); }} className="px-4 h-11 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {contas.length === 0 && !addOpen && (
+              <button onClick={() => setAddOpen(true)} className="w-full p-4 rounded-2xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2">
+                <Wallet size={16} /> Adicionar conta bancária
+              </button>
+            )}
+          </section>
+
+          {/* ── CARTÕES DE CRÉDITO ───────────────────────────── */}
+          <section className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Cartões de crédito</h2>
+              {contas.length > 0 && (
+                <button
+                  onClick={() => setCartaoOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold transition-all hover:-translate-y-0.5"
+                  style={{ background: `${BRAND}1A`, color: BRAND }}
+                >
+                  <Plus size={14} /> Adicionar
+                </button>
+              )}
+            </div>
+
+            {cartoes.map((c) => {
+              const logo = bancoLogo(c.nome);
+              return (
+                <div key={c.id} className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: logo.bg }}>
+                    {logo.text}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{c.nome}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Crédito{c.limite ? ` · limite ${fmt(c.limite)}` : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => remover(c.id)} className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100" aria-label={`Remover ${c.nome}`}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              );
+            })}
+
+            {contas.length === 0 ? (
+              <div className="p-4 rounded-2xl border border-border bg-card/60 text-xs text-muted-foreground leading-relaxed">
+                Cadastre uma conta bancária primeiro — o cartão é vinculado a uma conta.
+              </div>
+            ) : cartoes.length === 0 && (
+              <button onClick={() => setCartaoOpen(true)} className="w-full p-4 rounded-2xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2">
+                <CreditCard size={16} /> Adicionar cartão de crédito
+              </button>
+            )}
+          </section>
         </div>
       )}
 
-      {/* Callout — explicação da conta principal */}
-      <div className="mb-5 p-4 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-3">
-        <Star size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-          Marque uma conta como <strong>principal</strong> ⭐ — a Sora vai usar essa conta
-          automaticamente quando você não especificar o banco na mensagem
-          (ex.: "gastei 50 no mercado").
-        </p>
-      </div>
+      <StepNav podeAvancar={!carregando} />
 
-      <div className="space-y-3">
-        {contas.map((c, i) => (
-          <div
-            key={i}
-            className={`p-4 rounded-2xl border bg-card transition-all ${
-              c.principal ? 'border-amber-400 dark:border-amber-500 shadow-glow-sm' : 'border-border'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Conta {i + 1}
-                </p>
-                {c.principal && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
-                    <Star size={9} /> Principal
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {!c.principal && c.nome.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => marcarPrincipal(i)}
-                    className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors inline-flex items-center gap-1"
-                  >
-                    <Star size={12} />
-                    Marcar principal
-                  </button>
-                )}
-                {contas.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => remover(i)}
-                    className="text-red-500 hover:text-red-600 transition-colors"
-                    aria-label="Remover conta"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
-              <input
-                type="text"
-                value={c.nome}
-                onChange={(e) => atualizar(i, { nome: e.target.value })}
-                placeholder="Nome (ex.: Nubank, Carteira)"
-                className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm
-                           placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
-              />
-              <select
-                value={c.tipo}
-                onChange={(e) => atualizar(i, { tipo: e.target.value as TipoConta })}
-                className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary"
-              >
-                {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={c.saldo}
-                onChange={(e) => atualizar(i, { saldo: e.target.value })}
-                placeholder="Saldo R$ 0,00"
-                className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm tabular-nums
-                           placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={adicionar}
-          className="w-full p-4 rounded-2xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5
-                     text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors
-                     flex items-center justify-center gap-2"
-        >
-          <Plus size={16} />
-          Adicionar outra conta
-        </button>
-      </div>
-
-      <StepNav podeAvancar={valido} onAntesAvancar={salvar} />
+      {cartaoOpen && (
+        <AdicionarCartaoModal
+          phone={phone || ''}
+          onClose={() => setCartaoOpen(false)}
+          onSuccess={() => { setCartaoOpen(false); carregar(); }}
+        />
+      )}
     </>
   );
 }

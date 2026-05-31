@@ -165,6 +165,12 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
         nome: nome.trim(),
         tipo: 'Crédito',
         limite,
+        // Persiste no banco (além do localStorage) — integra com o painel e o
+        // job de fatura, que leem dia_fechamento/dia_vencimento das wallets.
+        dia_fechamento: typeof diaFechamento === 'number' ? diaFechamento : null,
+        dia_vencimento: typeof diaVencimento === 'number' ? diaVencimento : null,
+        bandeira: bandeira || null,
+        ultimos4: ultimos4 || null,
       };
       if (ediMode) walletPayload.id = cartaoExistente.id;
 
