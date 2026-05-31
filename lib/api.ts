@@ -4,8 +4,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // Faz chamadas ao backend com tratamento de erro centralizado.
 // Autentica com o JWT da sessão do Supabase (Authorization: Bearer) — o
-// backend valida e amarra o request ao próprio usuário. O x-api-token é
-// legado (mantido só durante a transição de deploy; o backend novo o ignora).
+// backend valida e amarra o request ao próprio usuário.
 async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE}${path}`;
 
@@ -22,7 +21,6 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'x-api-token': process.env.NEXT_PUBLIC_API_TOKEN || '',
         ...options.headers,
       },
     });

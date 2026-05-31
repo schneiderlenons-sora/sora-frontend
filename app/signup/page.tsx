@@ -392,7 +392,7 @@ function DadosStep(p: any) {
         <label className="flex items-start gap-2 cursor-pointer select-none">
           <input type="checkbox" checked={p.aceito} onChange={(e: any) => p.setAceito(e.target.checked)} className="w-4 h-4 mt-0.5 accent-[#61ce70] cursor-pointer" />
           <span className="text-[11px] text-muted-foreground leading-relaxed">
-            Aceito os <span className="font-semibold" style={{ color: BRAND }}>Termos de uso</span> e a <span className="font-semibold" style={{ color: BRAND }}>Política de privacidade</span>.
+            Aceito os <Link href="/termos" target="_blank" className="font-semibold hover:underline" style={{ color: BRAND }}>Termos de uso</Link> e a <Link href="/privacidade" target="_blank" className="font-semibold hover:underline" style={{ color: BRAND }}>Política de privacidade</Link>.
           </span>
         </label>
 

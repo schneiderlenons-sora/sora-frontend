@@ -33,10 +33,9 @@ const COLUNAS = [
   {
     titulo: 'Legal',
     links: [
-      { label: 'Termos de uso',     href: '#' },
-      { label: 'Privacidade',       href: '#' },
-      { label: 'LGPD',              href: '#' },
-      { label: 'Cookies',           href: '#' },
+      { label: 'Termos de uso',     href: '/termos' },
+      { label: 'Privacidade',       href: '/privacidade' },
+      { label: 'LGPD',              href: '/privacidade' },
     ],
   },
 ];

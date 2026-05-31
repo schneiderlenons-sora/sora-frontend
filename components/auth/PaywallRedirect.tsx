@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { lerIntencaoPlano, limparIntencaoPlano } from '@/lib/plan-intent';
 
 // Rotas acessíveis SEM plano ativo. Tudo o mais é bloqueado pro inativo.
-const ROTAS_LIVRES = ['/', '/login', '/signup', '/planos'];
+const ROTAS_LIVRES = ['/', '/login', '/signup', '/planos', '/termos', '/privacidade'];
 
 /**
  * Paywall do app. Enquanto o plano for `inativo` (nunca pagou / assinatura
