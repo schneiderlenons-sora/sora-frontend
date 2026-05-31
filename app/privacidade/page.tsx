@@ -30,7 +30,7 @@ export default function PrivacidadePage() {
           </section>
           <section>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">5. Seus direitos (LGPD)</h2>
-            <p>Você pode solicitar acesso, correção, portabilidade, anonimização e exclusão dos seus dados, além de revogar consentimentos. Para exercer, escreva para <strong>privacidade@forsora.com</strong>.</p>
+            <p>Você pode solicitar acesso, correção, portabilidade, anonimização e exclusão dos seus dados, além de revogar consentimentos. Para exercer, escreva para <strong>contato@forsora.com</strong>.</p>
           </section>
           <section>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">6. Segurança e retenção</h2>
@@ -42,7 +42,7 @@ export default function PrivacidadePage() {
           </section>
           <section>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">8. Contato / Encarregado (DPO)</h2>
-            <p>Para assuntos de privacidade: <strong>privacidade@forsora.com</strong>.</p>
+            <p>Para assuntos de privacidade: <strong>contato@forsora.com</strong>.</p>
           </section>
         </div>
       </div>
