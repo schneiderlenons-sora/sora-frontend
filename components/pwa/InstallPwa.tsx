@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   X, Smartphone, Monitor, Apple, Share, Plus, MoreVertical, Download,
   Zap, Wifi, Bell, Check, Sparkles,
@@ -46,6 +47,7 @@ export default function InstallPwa({ children }: { children?: React.ReactNode })
   const [deferred, setDeferred] = useState<any>(null);
   const [montado, setMontado] = useState(false);
   const pathname = usePathname();
+  const { perfil } = useAuth();
 
   // Registra o service worker (necessário pro Chrome mostrar instalação)
   useEffect(() => {
@@ -67,22 +69,25 @@ export default function InstallPwa({ children }: { children?: React.ReactNode })
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // Auto-prompt: só aparece em rotas autenticadas (não em login/landing) após 30s
+  // Auto-prompt: só aparece quando o usuário já está no painel com o onboarding
+  // concluído (não na landing, auth, nem durante as configurações iniciais).
   useEffect(() => {
     if (!montado) return;
     if (jaInstalado()) return;
     if (typeof localStorage === 'undefined') return;
 
-    // Pula auto-prompt em landing, auth e vincular-whatsapp — espera o usuário estar dentro do app
-    const rotasAuth = ['/', '/login', '/signup', '/vincular-whatsapp'];
-    if (rotasAuth.includes(pathname || '')) return;
+    // Só depois do onboarding concluído — nada de prompt no cadastro/config inicial.
+    if (!perfil?.onboarding_completed) return;
+
+    const rotasFora = ['/', '/login', '/signup', '/vincular-whatsapp'];
+    if (rotasFora.includes(pathname || '') || pathname?.startsWith('/onboarding')) return;
 
     const flag = localStorage.getItem(STORAGE_KEY);
     if (flag === 'dismissed' || flag === 'installed') return;
 
     const t = window.setTimeout(() => setAberto(true), 30000);
     return () => window.clearTimeout(t);
-  }, [montado, pathname]);
+  }, [montado, pathname, perfil?.onboarding_completed]);
 
   const abrir  = useCallback(() => setAberto(true), []);
   const fechar = useCallback((motivo: 'x' | 'instalado' | 'later' = 'x') => {
