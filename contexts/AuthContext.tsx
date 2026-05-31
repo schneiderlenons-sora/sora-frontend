@@ -83,20 +83,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  async function carregarPerfil(u: User) {
+  async function carregarPerfil(u: User, tentativa = 0): Promise<void> {
+    const MAX_TENTATIVAS = 4;
     try {
       const { data, error } = await supabase
         .from('users')
         .select('*, grupo_ativo:grupos!fk_users_grupo_ativo(id, nome, dono_id)')
         .eq('id', u.id)
         .maybeSingle();
-      if (error) {
-        console.warn('[AuthContext] carregarPerfil erro:', error);
+      if (error) throw error;
+
+      // Em F5 a sessão do Supabase pode não estar totalmente hidratada quando
+      // a query roda → volta vazio/erro. Reententa antes de assumir "inativo",
+      // senão o painel pisca inativo (Finance) ou trava no loader (Grow).
+      if (!data) {
+        if (tentativa < MAX_TENTATIVAS) {
+          await new Promise((r) => setTimeout(r, 500));
+          return carregarPerfil(u, tentativa + 1);
+        }
         setPerfil(null);
         setPapel('admin');
         return;
       }
-      setPerfil(data || null);
+      setPerfil(data);
 
       // Descobre o papel no grupo ativo
       const grupoAtivoId = (data as any)?.grupo_ativo?.id;
@@ -116,7 +125,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setPapel('leitura');
       }
-    } catch {
+    } catch (e) {
+      if (tentativa < MAX_TENTATIVAS) {
+        await new Promise((r) => setTimeout(r, 500));
+        return carregarPerfil(u, tentativa + 1);
+      }
+      console.warn('[AuthContext] carregarPerfil falhou após retries:', e);
       setPerfil(null);
       setPapel('admin');
     }
