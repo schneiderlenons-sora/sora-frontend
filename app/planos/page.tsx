@@ -44,19 +44,26 @@ function PlanosContent() {
   // Refs pra fazer scroll até o card escolhido na intent
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Após o pagamento, o webhook do Stripe leva alguns segundos pra ativar o
-  // plano. Re-checa o perfil a cada 2s (até ~20s); quando o plano ativa, o
-  // PaywallRedirect/OnboardingRedirect assumem e levam pro onboarding.
+  // Após o pagamento, o webhook do Stripe ativa o plano. Re-checa o perfil a
+  // cada 2s; se em ~8s ainda estiver inativo, força um sync direto do Stripe
+  // (fallback caso o webhook atrase/falhe). Continua tentando até ~40s.
   const recarregarRef = useRef(recarregar);
   recarregarRef.current = recarregar;
   useEffect(() => {
     if (!success) return;
     trackPurchase({ value: 0 });
     let tries = 0;
-    const iv = setInterval(() => {
+    let sincronizou = false;
+    const iv = setInterval(async () => {
       tries += 1;
-      recarregarRef.current();
-      if (tries >= 10) clearInterval(iv);
+      await recarregarRef.current();
+      // Fallback: a partir da 4ª tentativa, puxa o plano direto do Stripe.
+      if (tries >= 4 && !sincronizou) {
+        sincronizou = true;
+        try { await fetch('/api/stripe/sync', { method: 'POST' }); } catch { /* noop */ }
+        await recarregarRef.current();
+      }
+      if (tries >= 20) clearInterval(iv);
     }, 2000);
     return () => clearInterval(iv);
   }, [success]);
