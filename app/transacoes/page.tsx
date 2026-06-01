@@ -15,6 +15,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 const BRAND = '#61D17B';
@@ -58,11 +59,21 @@ export default function TransacoesPage() {
   const [catFiltro,setCatFiltro]= useState('todas');
   const [contaId,  setContaId]  = useState('todas');
 
+  // Mês visualizado (0 = atual, -1 = anterior…) — pra ver meses passados,
+  // ex.: transações importadas de um extrato OFX de meses anteriores.
+  const [mesIndex, setMesIndex] = useState(0);
+  const refDate = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + mesIndex, 1);
+  }, [mesIndex]);
+  const mesRef = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`;
+  const mesLabel = refDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
   // ── Carregamento sem bloquear UI ───────────────────────────
   const carregar = useCallback(async () => {
     if (!phone) return;
     try {
-      const t = await api.transacoes.listar(phone, { mes: mesAtual, limit: 200 });
+      const t = await api.transacoes.listar(phone, { mes: mesRef, limit: 500 });
       setTxs(t.transacoes || []);
     } catch (e) { console.warn('[transacoes] listar erro:', e); }
     try {
@@ -70,10 +81,10 @@ export default function TransacoesPage() {
       setWallets(w || []);
     } catch (e) { console.warn('[transacoes] wallets erro:', e); }
     try {
-      const r = await api.transacoes.resumo(phone, mesAtual);
+      const r = await api.transacoes.resumo(phone, mesRef);
       setResumo(r);
     } catch (e) { console.warn('[transacoes] resumo erro:', e); }
-  }, [phone]);
+  }, [phone, mesRef]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -163,11 +174,25 @@ export default function TransacoesPage() {
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
-                <Sparkles size={12} style={{ color: BRAND }} />
-                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>
-                  {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              <div className="inline-flex items-center gap-1 mb-3">
+                <button
+                  onClick={() => setMesIndex(i => i - 1)}
+                  aria-label="Mês anterior"
+                  className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors"
+                  style={{ color: BRAND }}>
+                  <ChevronLeft size={15} />
+                </button>
+                <span className="text-[11px] font-semibold uppercase tracking-wider px-2 min-w-[120px] text-center" style={{ color: BRAND }}>
+                  {mesLabel}
                 </span>
+                <button
+                  onClick={() => setMesIndex(i => Math.min(i + 1, 0))}
+                  disabled={mesIndex >= 0}
+                  aria-label="Próximo mês"
+                  className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{ color: BRAND }}>
+                  <ChevronRight size={15} />
+                </button>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
                 Transações

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, Upload, FileText, AlertCircle, Check, ArrowUpRight, ArrowDownRight, Pencil, Trash2, ArrowLeft, Copy } from 'lucide-react';
 import { api } from '@/lib/api';
+import { categorizarDescricao } from '@/lib/categorizar';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 
 // ─────────────────────────────────────────────────────────────
@@ -235,7 +236,10 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
 
       const novas: Row[] = txs.map(t => {
         const dup = existSet.has(chave(t.data, t.valor, t.tipo));
-        return { ...t, categoria: CAT_IMPORTADO, selecionada: !dup, dup, editando: false };
+        // Auto-categoriza pela descrição ("AMAZONMD" → Amazon, "IFOOD*" → iFood…).
+        // Só sugere pra despesas; receitas ficam como Importado pra revisão.
+        const sugerida = t.tipo === 'Gasto' ? categorizarDescricao(t.observacao) : null;
+        return { ...t, categoria: sugerida || CAT_IMPORTADO, selecionada: !dup, dup, editando: false };
       });
       setRows(novas);
       setStep('review');
@@ -435,7 +439,8 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                             className="px-3 h-10 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary" />
                           <select value={r.categoria} onChange={e => patchRow(i, { categoria: e.target.value })}
                             className="px-2 h-10 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary">
-                            {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                            {Array.from(new Set([...categorias, ...(r.categoria ? [r.categoria] : [])]))
+                              .map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <div className="flex gap-2">
                             <input inputMode="decimal" value={String(r.valor).replace('.', ',')}
