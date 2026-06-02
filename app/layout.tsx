@@ -24,9 +24,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: '/sora-icon.png',
-    apple: '/sora-icon.png',
-    shortcut: '/sora-icon.png',
+    icon: '/brands/sora.png',
+    apple: '/brands/sora.png',
+    shortcut: '/brands/sora.png',
   },
   openGraph: {
     title: 'Sora — Sua vida financeira pelo WhatsApp',
