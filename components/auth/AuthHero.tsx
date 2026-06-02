@@ -85,7 +85,7 @@ export default function AuthHero() {
         {/* Badges mobile */}
         <div className="flex flex-wrap gap-2 lg:hidden">
           <PillBadge label="Setup em 30s" />
-          <PillBadge label="Grátis pra começar" />
+          <PillBadge label="Pagamento seguro com Stripe" />
         </div>
 
         {/* Card mockup desktop */}
