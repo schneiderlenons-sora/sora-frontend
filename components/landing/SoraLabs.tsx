@@ -189,15 +189,17 @@ export default function SoraLabs() {
             <ArrowRight size={17} className="text-zinc-700 dark:text-white/85" />
           </button>
 
-          {/* Gradient edges */}
-          <div className="absolute left-0 top-0 bottom-3 w-12 sm:w-16 z-10 pointer-events-none bg-gradient-to-r from-white dark:from-[#0a0a0a] to-transparent" />
-          <div className="absolute right-0 top-0 bottom-3 w-12 sm:w-16 z-10 pointer-events-none bg-gradient-to-l from-white dark:from-[#0a0a0a] to-transparent" />
-
-          {/* Scroller */}
+          {/* Scroller — o fade lateral é feito por mask-image, que desbota só
+              a faixa de sangria (-mx-5) na borda do scroll. Fica sempre no
+              limite lateral (nunca no meio) e não cobre cards em repouso. */}
           <div
             ref={scrollerRef}
             className="flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-pl-5 pt-2 pb-6 -mx-5 px-5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
-            style={{ touchAction: 'pan-x pan-y' }}
+            style={{
+              touchAction: 'pan-x pan-y',
+              maskImage: 'linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%)',
+            }}
           >
             {CURSOS.map((c, i) => (
               <CursoCard key={c.id} curso={c} index={i} />
