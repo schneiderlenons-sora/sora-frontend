@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
-  Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight,
+  Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight, Send,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 
@@ -123,6 +123,8 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
   const [novoNome, setNovoNome] = useState('');
   const [novaCat,  setNovaCat]  = useState<string>('📦 Outros');
   const [novaQtd,  setNovaQtd]  = useState('1');
+  const [enviando, setEnviando] = useState(false);
+  const [enviado,  setEnviado]  = useState(false);
 
   const porCategoria = useMemo(() => {
     const m: Record<string, any[]> = {};
@@ -166,6 +168,16 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
     catch (e: any) { alert(e.message); onReload(true); }
   }
 
+  async function enviarWhatsapp() {
+    setEnviando(true); setEnviado(false);
+    try {
+      await api.grow.compras.enviarWhatsapp(phone);
+      setEnviado(true);
+      setTimeout(() => setEnviado(false), 3000);
+    } catch (e: any) { alert(e.message || 'Não consegui enviar a lista.'); }
+    finally { setEnviando(false); }
+  }
+
   return (
     <div className="space-y-4">
       {/* Progresso + ação */}
@@ -205,6 +217,22 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
           ))}
         </div>
       </div>
+
+      {/* Enviar lista pro WhatsApp */}
+      {pendentes > 0 && (
+        <button onClick={enviarWhatsapp} disabled={enviando}
+          className={`w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.99] disabled:opacity-60 ${
+            enviado
+              ? 'bg-emerald-600 text-white'
+              : 'text-white shadow-lg shadow-emerald-600/25 hover:brightness-110'
+          }`}
+          style={enviado ? undefined : { background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)' }}>
+          {enviando ? <Loader2 size={16} className="animate-spin" />
+            : enviado ? <Check size={16} />
+            : <Send size={15} />}
+          {enviando ? 'Enviando…' : enviado ? 'Enviado! Confira o WhatsApp' : 'Enviar lista pro WhatsApp'}
+        </button>
+      )}
 
       {/* Lista */}
       {itens.length === 0 ? (
