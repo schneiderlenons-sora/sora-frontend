@@ -9,7 +9,7 @@ import {
   Plus, Target, Loader2, Check, Flame, Trash2, X, Sparkles, Pencil,
   Sun, Sunrise, Moon, Trophy, Calendar, BarChart3, Settings,
   ChevronLeft, ChevronRight, Award, Lock, GripVertical, Eye, EyeOff,
-  Archive, ArchiveRestore, Activity,
+  Archive, ArchiveRestore, Activity, Bell, Clock,
 } from 'lucide-react';
 
 const BRAND = '#7c3aed';
@@ -74,6 +74,7 @@ export default function HabitosPage() {
   const [tab, setTab]               = useState<string>('visao');
   const [incluirArquivados, setInclArq] = useState(false);
   const [toast, setToast]           = useState<{ msg: string; ok: boolean } | null>(null);
+  const [lembrete, setLembrete]     = useState<{ ativo: boolean; horario: string | null }>({ ativo: false, horario: null });
 
   useEffect(() => {
     try { const s = localStorage.getItem(STORAGE_KEY); if (s) setTab(s); } catch {}
@@ -87,6 +88,7 @@ export default function HabitosPage() {
       const r = await api.grow.habitos.listar(phone, { dias: 120, incluir_arquivados: true });
       setHabitos(r.habitos || []);
       setRegistros(r.registros || []);
+      if (r.lembrete) setLembrete(r.lembrete);
     } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
@@ -202,7 +204,7 @@ export default function HabitosPage() {
           {tab === 'semana'     && <TabSemana habitosAtivos={habitosAtivos} registros={registros} onToggle={toggleHabito} />}
           {tab === 'heatmap'    && <TabHeatmap habitosAtivos={habitosAtivos} registros={registros} />}
           {tab === 'conquistas' && <TabConquistas habitos={habitos} registros={registros} />}
-          {tab === 'gerenciar'  && <TabGerenciar phone={phone!} habitos={habitos} registros={registros} incluirArquivados={incluirArquivados} setInclArq={setInclArq} onEdit={h => { setEditando(h); setModalOpen(true); }} onReload={carregar} onNew={() => { setEditando(null); setModalOpen(true); }} />}
+          {tab === 'gerenciar'  && <TabGerenciar phone={phone!} habitos={habitos} registros={registros} incluirArquivados={incluirArquivados} setInclArq={setInclArq} onEdit={h => { setEditando(h); setModalOpen(true); }} onReload={carregar} onNew={() => { setEditando(null); setModalOpen(true); }} lembreteInicial={lembrete} />}
         </div>
       )}
 
@@ -945,7 +947,7 @@ function TabConquistas({ habitos, registros }: any) {
 // ═══════════════════════════════════════════════════════════════════
 // TAB 5 — GERENCIAR (lista, drag-reorder, arquivar)
 // ═══════════════════════════════════════════════════════════════════
-function TabGerenciar({ phone, habitos, registros, incluirArquivados, setInclArq, onEdit, onReload, onNew }: any) {
+function TabGerenciar({ phone, habitos, registros, incluirArquivados, setInclArq, onEdit, onReload, onNew, lembreteInicial }: any) {
   const ativos     = habitos.filter((h: any) => h.ativo);
   const arquivados = habitos.filter((h: any) => !h.ativo);
   const lista      = incluirArquivados ? [...ativos, ...arquivados] : ativos;
@@ -998,6 +1000,9 @@ function TabGerenciar({ phone, habitos, registros, incluirArquivados, setInclArq
 
   return (
     <div className="space-y-4">
+      {/* Lembrete diário no WhatsApp */}
+      <LembreteCard phone={phone} inicial={lembreteInicial || { ativo: false, horario: null }} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button onClick={onNew}
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/30">
@@ -1062,6 +1067,98 @@ function TabGerenciar({ phone, habitos, registros, incluirArquivados, setInclArq
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LEMBRETE DIÁRIO (opt-in) — toggle + horário, a Sora avisa no WhatsApp
+// ═══════════════════════════════════════════════════════════════════
+function LembreteCard({ phone, inicial }: { phone: string; inicial: { ativo: boolean; horario: string | null } }) {
+  const [ativo, setAtivo]     = useState(inicial.ativo);
+  const [horario, setHorario] = useState(inicial.horario || '20:00');
+  const [estado, setEstado]   = useState<'idle' | 'salvando' | 'salvo'>('idle');
+
+  // Sincroniza quando o carregamento inicial chega depois da montagem
+  useEffect(() => {
+    setAtivo(inicial.ativo);
+    if (inicial.horario) setHorario(inicial.horario);
+  }, [inicial.ativo, inicial.horario]);
+
+  async function salvar(novoAtivo: boolean, novoHorario: string) {
+    setEstado('salvando');
+    try {
+      await api.grow.habitos.lembrete(phone, { ativo: novoAtivo, horario: novoHorario });
+      setEstado('salvo');
+      setTimeout(() => setEstado('idle'), 2000);
+    } catch (e: any) {
+      setEstado('idle');
+      setAtivo(inicial.ativo); // reverte
+      alert(e.message || 'Não consegui salvar o lembrete.');
+    }
+  }
+
+  function toggle() {
+    const novo = !ativo;
+    setAtivo(novo);
+    salvar(novo, horario);
+  }
+
+  function mudarHorario(h: string) {
+    setHorario(h);
+    if (ativo && h) salvar(ativo, h);
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-border/40 backdrop-blur-xl p-5"
+         style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="absolute inset-0 pointer-events-none opacity-40"
+           style={{ background: 'radial-gradient(circle at top right, #7c3aed24 0%, transparent 70%)' }} />
+      <div className="relative">
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+               style={{ background: `${BRAND}1A` }}>
+            <Bell size={18} style={{ color: BRAND }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground">Lembrete no WhatsApp</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              A Sora te avisa todo dia pra você não esquecer de marcar seus hábitos.
+            </p>
+          </div>
+          {/* Toggle */}
+          <button onClick={toggle} role="switch" aria-checked={ativo} aria-label="Ativar lembrete"
+                  className={`relative w-12 h-7 rounded-full flex-shrink-0 transition-colors ${ativo ? 'bg-violet-600' : 'bg-muted'}`}>
+            <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${ativo ? 'translate-x-5' : ''}`} />
+          </button>
+        </div>
+
+        {/* Horário (só quando ativo) */}
+        {ativo && (
+          <div className="mt-4 pt-4 border-t border-border/40 flex flex-wrap items-center gap-3 animate-fade-in">
+            <label className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <Clock size={14} /> Horário do lembrete
+            </label>
+            <input
+              type="time"
+              value={horario}
+              onChange={e => mudarHorario(e.target.value)}
+              className="px-3 py-1.5 rounded-xl bg-background border border-border text-sm font-bold tabular text-foreground focus:outline-none focus:border-violet-500"
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {estado === 'salvando' ? 'Salvando…'
+                : estado === 'salvo' ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold inline-flex items-center gap-1"><Check size={12} /> Salvo</span>
+                : 'Horário de Brasília'}
+            </span>
+          </div>
+        )}
+
+        {ativo && (
+          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
+            💡 Dica: quando receber o lembrete, responda <span className="font-bold text-foreground">"fiz todos"</span> que a Sora marca todos os hábitos do dia de uma vez.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

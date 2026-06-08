@@ -234,7 +234,7 @@ export const api = {
         if (params?.dias) q.set('dias', String(params.dias));
         if (params?.incluir_arquivados) q.set('incluir_arquivados', 'true');
         const qs = q.toString();
-        return req<{ habitos: any[]; registros: any[] }>(`/api/grow/habitos/${phone}${qs ? `?${qs}` : ''}`);
+        return req<{ habitos: any[]; registros: any[]; lembrete?: { ativo: boolean; horario: string | null } }>(`/api/grow/habitos/${phone}${qs ? `?${qs}` : ''}`);
       },
       criar: (body: { phone: string; nome: string; descricao?: string; icone?: string; cor?: string; frequencia?: string; dias_semana?: number[]; horario_lembrete?: string | null; motivo?: string; tipo?: 'construir'|'eliminar'; ordem?: number }) =>
         req<any>('/api/grow/habitos', { method: 'POST', body: JSON.stringify(body) }),
@@ -246,6 +246,8 @@ export const api = {
         req<any>(`/api/grow/habitos/${id}/toggle`, { method: 'POST', body: JSON.stringify(body) }),
       reordenar: (phone: string, ordens: Array<{ id: string; ordem: number }>) =>
         req<{ ok: boolean }>(`/api/grow/habitos/reordenar`, { method: 'POST', body: JSON.stringify({ phone, ordens }) }),
+      lembrete: (phone: string, body: { ativo: boolean; horario?: string | null }) =>
+        req<{ ok: boolean; lembrete: { ativo: boolean; horario: string | null } }>(`/api/grow/habitos/lembrete`, { method: 'POST', body: JSON.stringify({ phone, ...body }) }),
     },
 
     tarefas: {
