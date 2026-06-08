@@ -490,6 +490,14 @@ export const COMANDOS: Comando[] = [
     feature: 'sora_grow',
   },
   {
+    id: 'grow-habitos-todos',
+    titulo: 'Marcar todos os hábitos do dia',
+    exemplo: 'fiz todos',
+    descricao: 'Marca de uma vez todos os hábitos programados pra hoje. Ative o lembrete diário na aba Hábitos pra a Sora te avisar.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
     id: 'grow-refeicao',
     titulo: 'Registrar refeição',
     exemplo: 'almocei arroz, feijão e frango',
