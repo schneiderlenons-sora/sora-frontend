@@ -513,6 +513,22 @@ export const COMANDOS: Comando[] = [
     categoria: 'sora-grow',
     feature: 'sora_grow',
   },
+  {
+    id: 'grow-despensa-acabou',
+    titulo: 'Marcar item da despensa como acabado',
+    exemplo: 'acabou o café',
+    descricao: 'Marca o item na despensa e já joga na sua lista de compras automaticamente.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
+    id: 'grow-despensa-ver',
+    titulo: 'Ver a despensa',
+    exemplo: 'minha despensa',
+    descricao: 'A Sora mostra o que você tem, o que tá acabando e o que já entrou na lista de compras.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
 
   // ─── NEGÓCIOS ─────────────────────────────────────────────────────
   {

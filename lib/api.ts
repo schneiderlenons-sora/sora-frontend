@@ -295,6 +295,16 @@ export const api = {
       limpar: (phone: string) =>
         req(`/api/grow/lista-compras/limpar`, { method: 'POST', body: JSON.stringify({ phone }) }),
     },
+    despensa: {
+      listar: (phone: string) =>
+        req<{ itens: any[] }>(`/api/grow/despensa/${phone}`),
+      adicionar: (body: { phone: string; nome: string; categoria?: string; status?: 'tem'|'acabando'|'acabou'; quantidade_ideal?: string; unidade?: string }) =>
+        req<any>('/api/grow/despensa', { method: 'POST', body: JSON.stringify(body) }),
+      atualizar: (id: string, body: { phone: string; nome?: string; categoria?: string; status?: 'tem'|'acabando'|'acabou'; quantidade_ideal?: string; unidade?: string }) =>
+        req<any>(`/api/grow/despensa/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/despensa/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
   },
 
   // ── SAÚDE & CORPO (sub-aba do Sora Grow) ─────────────────────
