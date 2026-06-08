@@ -8,7 +8,14 @@ import {
   Moon, Zap, X,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, XAxis, CartesianGrid } from 'recharts';
+import {
+  LineChart, Line, BarChart, Bar, Cell, ReferenceArea,
+  ResponsiveContainer, Tooltip, YAxis, XAxis, CartesianGrid,
+} from 'recharts';
+
+// Faixa ideal de sono (h) → cor de feedback
+const corSono = (h: number) => h < 6 ? '#ef4444' : h < 7 ? '#f59e0b' : h <= 9 ? '#22c55e' : '#6366f1';
+const labelSono = (h: number) => h < 6 ? 'Pouco' : h < 7 ? 'Ok' : h <= 9 ? 'Ideal' : 'Bastante';
 
 const BRAND = '#7c3aed';
 const HUMOR_COR = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#7c3aed']; // 1-5
@@ -51,6 +58,26 @@ export default function BemEstarPage() {
       energia: r.energia,
     }));
   }, [registros]);
+
+  // ── SONO (dado já salvo no check-in, agora com superfície) ──────
+  const sono = useMemo(() => {
+    const com = registros.filter(r => r.sono_horas != null);
+    const ord = [...com].sort((a, b) => a.data.localeCompare(b.data));
+    const ult7 = ord.slice(-7);
+    const media7 = ult7.length ? ult7.reduce((s, r) => s + Number(r.sono_horas), 0) / ult7.length : null;
+    const ultimo = ord[ord.length - 1] || null;
+    const barras = ord.slice(-14).map(r => ({ dia: r.data?.slice(5).replace('-', '/'), horas: Number(r.sono_horas) }));
+    return { temDados: com.length > 0, ultimo, media7, barras };
+  }, [registros]);
+
+  // ── GRATIDÃO (mural — mais recentes primeiro) ──────────────────
+  const gratidaoEntries = useMemo(() =>
+    [...registros]
+      .filter(r => Array.isArray(r.gratidao) && r.gratidao.filter((g: string) => g?.trim()).length > 0)
+      .sort((a, b) => b.data.localeCompare(a.data))
+      .slice(0, 9),
+    [registros]
+  );
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
@@ -104,6 +131,9 @@ export default function BemEstarPage() {
             <StatBox icon={Heart} label="Check-ins" value={String(registros.length)} cor="#ec4899" />
           </div>
 
+          {/* SONO */}
+          {registros.length > 0 && <SonoCard sono={sono} />}
+
           {/* GRAFICO */}
           {dadosGrafico.length > 0 && (
             <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '180ms' }}>
@@ -124,6 +154,9 @@ export default function BemEstarPage() {
               </div>
             </div>
           )}
+
+          {/* MURAL DE GRATIDÃO */}
+          {registros.length > 0 && <GratidaoMural entries={gratidaoEntries} />}
 
           {registros.length === 0 && (
             <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
@@ -268,12 +301,144 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
 
 function StatBox({ icon: Icon, label, value, cor }: any) {
   return (
-    <div className="card rounded-2xl p-4">
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `${cor}18` }}>
-        <Icon size={16} style={{ color: cor }} />
+    <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4"
+         style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="absolute inset-0 pointer-events-none opacity-40"
+           style={{ background: `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)` }} />
+      <div className="relative">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `${cor}1A` }}>
+          <Icon size={16} style={{ color: cor }} />
+        </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+        <p className="text-xl font-bold tabular tracking-tight mt-0.5" style={{ color: cor }}>{value}</p>
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="text-xl font-bold tabular tracking-tight mt-0.5" style={{ color: cor }}>{value}</p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SONO — última noite + média 7d + barras com faixa ideal
+// ═══════════════════════════════════════════════════════════════════
+function SonoCard({ sono }: { sono: any }) {
+  const { temDados, ultimo, media7, barras } = sono;
+  const COR = '#6366f1';
+
+  return (
+    <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"
+         style={{ animationDelay: '160ms', background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${COR}1A` }}>
+          <Moon size={16} style={{ color: COR }} />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sono</p>
+          <p className="text-sm font-bold text-foreground">Suas horas de descanso</p>
+        </div>
+      </div>
+
+      {!temDados ? (
+        <div className="rounded-2xl border border-dashed border-border/60 py-9 px-6 text-center bg-muted/10">
+          <div className="text-3xl mb-2">😴</div>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+            Anote quantas horas você dormiu no check-in do dia pra acompanhar seu sono aqui.
+          </p>
+        </div>
+      ) : (
+        <div className="grid lg:grid-cols-[190px_1fr] gap-5 lg:gap-6 items-center">
+          {/* Resumo */}
+          <div className="flex lg:flex-col gap-5 lg:gap-3">
+            <div className="flex-1 lg:flex-none">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Última noite</p>
+              <p className="text-4xl font-bold tabular tracking-tight mt-0.5 leading-none" style={{ color: corSono(Number(ultimo.sono_horas)) }}>
+                {Number(ultimo.sono_horas).toFixed(1)}<span className="text-lg text-muted-foreground font-medium">h</span>
+              </p>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mt-2"
+                    style={{ background: `${corSono(Number(ultimo.sono_horas))}1A`, color: corSono(Number(ultimo.sono_horas)) }}>
+                {labelSono(Number(ultimo.sono_horas))}
+              </span>
+            </div>
+            <div className="flex-1 lg:flex-none lg:border-t lg:border-border/40 lg:pt-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Média 7 dias</p>
+              <p className="text-2xl font-bold tabular tracking-tight text-foreground mt-0.5 leading-none">
+                {media7 != null ? media7.toFixed(1) : '—'}<span className="text-sm text-muted-foreground font-medium">h</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#22c55e', opacity: 0.5 }} />
+                Faixa ideal: 7–9h
+              </p>
+            </div>
+          </div>
+
+          {/* Barras com zona ideal */}
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barras} margin={{ top: 8, right: 4, left: -22, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} />
+                <YAxis domain={[0, 12]} ticks={[0, 4, 8, 12]} stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} />
+                <ReferenceArea y1={7} y2={9} fill="#22c55e" fillOpacity={0.10} />
+                <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }}
+                         contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
+                         formatter={(v: any) => [`${v}h`, 'Sono']} />
+                <Bar dataKey="horas" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                  {barras.map((b: any, i: number) => <Cell key={i} fill={corSono(b.horas)} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MURAL DE GRATIDÃO — cards com as coisas registradas, por dia
+// ═══════════════════════════════════════════════════════════════════
+function GratidaoMural({ entries }: { entries: any[] }) {
+  const COR = '#f43f5e';
+  return (
+    <div className="animate-fade-in" style={{ animationDelay: '220ms' }}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1 flex items-center gap-1.5">
+        <span className="text-sm">🙏</span> Mural de gratidão
+      </p>
+
+      {entries.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-border/60 py-10 px-6 text-center bg-muted/10">
+          <div className="text-4xl mb-3">🙏</div>
+          <p className="text-base font-bold text-foreground">Nada registrado ainda</p>
+          <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto leading-relaxed">
+            No check-in, anote 3 coisas pelas quais você é grato. Reler depois faz um bem danado.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {entries.map((e, i) => {
+            const items = (e.gratidao || []).filter((g: string) => g?.trim());
+            return (
+              <div key={e.data + i}
+                   className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4"
+                   style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+                <div className="absolute inset-0 pointer-events-none opacity-40"
+                     style={{ background: `radial-gradient(circle at top right, ${COR}18 0%, transparent 70%)` }} />
+                <div className="relative">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: COR }}>
+                    {new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).replace(/\./g, '')}
+                  </p>
+                  <ul className="space-y-2">
+                    {items.map((g: string, gi: number) => (
+                      <li key={gi} className="flex items-start gap-2 text-sm text-foreground/90">
+                        <Heart size={12} className="flex-shrink-0 mt-1" style={{ color: COR }} fill={COR} />
+                        <span className="leading-snug">{g}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
