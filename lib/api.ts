@@ -307,6 +307,18 @@ export const api = {
       deletar: (id: string, phone: string) =>
         req(`/api/grow/despensa/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
+    manutencoes: {
+      listar: (phone: string) =>
+        req<{ itens: any[] }>(`/api/grow/manutencoes/${phone}`),
+      adicionar: (body: { phone: string; nome: string; icone?: string; frequencia_dias: number; ultima_data?: string | null; observacao?: string; lembrete_ativo?: boolean }) =>
+        req<any>('/api/grow/manutencoes', { method: 'POST', body: JSON.stringify(body) }),
+      atualizar: (id: string, body: { phone: string; nome?: string; icone?: string; frequencia_dias?: number; ultima_data?: string | null; observacao?: string; lembrete_ativo?: boolean }) =>
+        req<any>(`/api/grow/manutencoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      feito: (id: string, phone: string, data?: string) =>
+        req<any>(`/api/grow/manutencoes/${id}/feito`, { method: 'POST', body: JSON.stringify({ phone, data }) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/manutencoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
   },
 
   // ── SAÚDE & CORPO (sub-aba do Sora Grow) ─────────────────────

@@ -529,6 +529,22 @@ export const COMANDOS: Comando[] = [
     categoria: 'sora-grow',
     feature: 'sora_grow',
   },
+  {
+    id: 'grow-manutencao-feita',
+    titulo: 'Marcar manutenção como feita',
+    exemplo: 'fiz a manutenção do filtro de água',
+    descricao: 'Registra a manutenção como feita hoje e a Sora reprograma a próxima automaticamente.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
+    id: 'grow-manutencao-ver',
+    titulo: 'Ver manutenções da casa',
+    exemplo: 'minhas manutenções',
+    descricao: 'Lista as manutenções com o que está em dia, vencendo ou atrasado.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
 
   // ─── NEGÓCIOS ─────────────────────────────────────────────────────
   {

@@ -6,15 +6,57 @@ import { api } from '@/lib/api';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
   Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight, Send,
+  Wrench, Bell, Clock, CheckCircle2, Calendar, Pencil, RotateCcw,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 
 const BRAND = '#7c3aed';
 
 const TABS = [
-  { v: 'compras',  l: 'Compras',  icon: ShoppingCart },
-  { v: 'despensa', l: 'Despensa', icon: Package },
+  { v: 'compras',    l: 'Compras',     icon: ShoppingCart },
+  { v: 'despensa',   l: 'Despensa',    icon: Package },
+  { v: 'manutencao', l: 'Manutenções', icon: Wrench },
 ];
+
+// Presets de frequência (dias)
+const FREQUENCIAS = [
+  { label: 'Mensal',      dias: 30 },
+  { label: 'Bimestral',   dias: 60 },
+  { label: 'Trimestral',  dias: 90 },
+  { label: 'Semestral',   dias: 180 },
+  { label: 'Anual',       dias: 365 },
+];
+
+const ICONES_MANUT = ['🔧', '💧', '❄️', '🐜', '🚗', '💡', '🔥', '🚿', '🧯', '🪟', '🛢️', '🌡️'];
+
+// Status de uma manutenção, calculado a partir de última + frequência
+type StatusManut = 'emdia' | 'breve' | 'atrasada' | 'fazer';
+const STATUS_MANUT: Record<StatusManut, { label: string; cor: string; icon: any }> = {
+  emdia:    { label: 'Em dia',        cor: '#10b981', icon: CheckCircle2 },
+  breve:    { label: 'Vence em breve', cor: '#f59e0b', icon: Clock },
+  atrasada: { label: 'Atrasada',      cor: '#ef4444', icon: AlertTriangle },
+  fazer:    { label: 'Nunca feita',   cor: '#7c3aed', icon: RotateCcw },
+};
+
+function calcManut(m: any): { status: StatusManut; dias: number | null; proxima: Date | null; pct: number } {
+  if (!m.ultima_data) return { status: 'fazer', dias: null, proxima: null, pct: 0 };
+  const ultima = new Date(m.ultima_data + 'T12:00:00');
+  const proxima = new Date(ultima); proxima.setDate(proxima.getDate() + (m.frequencia_dias || 90));
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const dias = Math.round((proxima.getTime() - hoje.getTime()) / 86400000);
+  const limiteBreve = Math.max(7, Math.round((m.frequencia_dias || 90) * 0.15));
+  const status: StatusManut = dias < 0 ? 'atrasada' : dias <= limiteBreve ? 'breve' : 'emdia';
+  const pct = Math.min(100, Math.max(0, Math.round((1 - dias / (m.frequencia_dias || 90)) * 100)));
+  return { status, dias, proxima, pct };
+}
+
+function labelFrequencia(dias: number): string {
+  const p = FREQUENCIAS.find(f => f.dias === dias);
+  if (p) return p.label;
+  if (dias % 30 === 0) return `A cada ${dias / 30} meses`;
+  if (dias % 7 === 0) return `A cada ${dias / 7} semanas`;
+  return `A cada ${dias} dias`;
+}
 
 const CATEGORIAS = [
   '🥬 Hortifruti', '🥩 Carnes', '🥛 Laticínios', '🍞 Padaria',
@@ -37,6 +79,7 @@ export default function CasaPage() {
   const [tab, setTab] = useState('compras');
   const [itens, setItens]       = useState<any[]>([]);   // lista de compras
   const [despensa, setDespensa] = useState<any[]>([]);   // itens da despensa
+  const [manutencoes, setManut] = useState<any[]>([]);   // manutenções
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
@@ -48,12 +91,14 @@ export default function CasaPage() {
     if (!phone) return;
     if (!silent) setLoading(true);
     try {
-      const [c, d] = await Promise.allSettled([
+      const [c, d, mn] = await Promise.allSettled([
         api.grow.compras.listar(phone),
         api.grow.despensa.listar(phone),
+        api.grow.manutencoes.listar(phone),
       ]);
       if (c.status === 'fulfilled') setItens(c.value.itens || []);
       if (d.status === 'fulfilled') setDespensa(d.value.itens || []);
+      if (mn.status === 'fulfilled') setManut(mn.value.itens || []);
     } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
@@ -62,12 +107,16 @@ export default function CasaPage() {
   // ── stats do hero por aba ──
   const pendentesCompra = itens.filter(i => !i.comprado).length;
   const faltandoDespensa = despensa.filter(d => d.status !== 'tem').length;
+  const manutAtencao = manutencoes.filter(m => {
+    const s = calcManut(m).status;
+    return s === 'atrasada' || s === 'breve' || s === 'fazer';
+  }).length;
 
   const subtitulo = tab === 'compras'
     ? `${pendentesCompra} pendente${pendentesCompra === 1 ? '' : 's'} · ${itens.length - pendentesCompra} comprado${itens.length - pendentesCompra === 1 ? '' : 's'}`
-    : despensa.length
-      ? `${despensa.length} item${despensa.length === 1 ? '' : 's'} · ${faltandoDespensa} pra repor`
-      : 'Cadastre o que você sempre tem em casa.';
+    : tab === 'despensa'
+      ? (despensa.length ? `${despensa.length} item${despensa.length === 1 ? '' : 's'} · ${faltandoDespensa} pra repor` : 'Cadastre o que você sempre tem em casa.')
+      : (manutencoes.length ? `${manutencoes.length} manutenç${manutencoes.length === 1 ? 'ão' : 'ões'} · ${manutAtencao} pedem atenção` : 'Nunca mais esqueça uma manutenção.');
 
   return (
     <div className="max-w-7xl mx-auto pb-24 space-y-6">
@@ -84,7 +133,7 @@ export default function CasaPage() {
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1 animate-fade-in" style={{ animationDelay: '60ms' }}>
         {TABS.map(({ v, l, icon: Icon }) => {
           const ativo = tab === v;
-          const badge = v === 'compras' ? pendentesCompra : faltandoDespensa;
+          const badge = v === 'compras' ? pendentesCompra : v === 'despensa' ? faltandoDespensa : manutAtencao;
           return (
             <button key={v} onClick={() => setTab(v)}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
@@ -108,8 +157,9 @@ export default function CasaPage() {
         </div>
       ) : (
         <div className="animate-fade-in">
-          {tab === 'compras'  && <TabCompras phone={phone!} itens={itens} setItens={setItens} onReload={carregar} />}
-          {tab === 'despensa' && <TabDespensa phone={phone!} despensa={despensa} setDespensa={setDespensa} onReload={carregar} onVerCompras={() => setTab('compras')} />}
+          {tab === 'compras'    && <TabCompras phone={phone!} itens={itens} setItens={setItens} onReload={carregar} />}
+          {tab === 'despensa'   && <TabDespensa phone={phone!} despensa={despensa} setDespensa={setDespensa} onReload={carregar} onVerCompras={() => setTab('compras')} />}
+          {tab === 'manutencao' && <TabManutencoes phone={phone!} manutencoes={manutencoes} setManut={setManut} onReload={carregar} />}
         </div>
       )}
     </div>
@@ -441,6 +491,266 @@ function DespensaCard({ item, index, onStatus, onDelete }: any) {
               </button>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TAB 3 — MANUTENÇÕES
+// ═══════════════════════════════════════════════════════════════════
+function TabManutencoes({ phone, manutencoes, setManut, onReload }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editando, setEditando]   = useState<any | null>(null);
+
+  const comStatus = useMemo(() => {
+    const rank: Record<StatusManut, number> = { atrasada: 0, fazer: 1, breve: 2, emdia: 3 };
+    return manutencoes
+      .map((m: any) => ({ m, calc: calcManut(m) }))
+      .sort((a: any, b: any) => rank[a.calc.status as StatusManut] - rank[b.calc.status as StatusManut]);
+  }, [manutencoes]);
+
+  const contagem = useMemo(() => {
+    const c = { emdia: 0, breve: 0, atrasada: 0, fazer: 0 };
+    comStatus.forEach(({ calc }: any) => { c[calc.status as StatusManut]++; });
+    return c;
+  }, [comStatus]);
+
+  async function marcarFeito(item: any) {
+    setManut((prev: any[]) => prev.map(m => m.id === item.id ? { ...m, ultima_data: new Date().toISOString().slice(0, 10) } : m));
+    try { await api.grow.manutencoes.feito(item.id, phone); onReload(true); }
+    catch (e: any) { alert(e.message); onReload(); }
+  }
+
+  async function toggleLembrete(item: any) {
+    const novo = !item.lembrete_ativo;
+    setManut((prev: any[]) => prev.map(m => m.id === item.id ? { ...m, lembrete_ativo: novo } : m));
+    try { await api.grow.manutencoes.atualizar(item.id, { phone, lembrete_ativo: novo }); }
+    catch (e: any) { alert(e.message); onReload(); }
+  }
+
+  async function deletar(item: any) {
+    setManut((prev: any[]) => prev.filter(m => m.id !== item.id));
+    try { await api.grow.manutencoes.deletar(item.id, phone); } catch (e: any) { alert(e.message); onReload(); }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      {manutencoes.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <StatBox icon={CheckCircle2}  label="Em dia"   value={contagem.emdia}                    cor="#10b981" />
+          <StatBox icon={Clock}         label="Em breve" value={contagem.breve}                    cor="#f59e0b" />
+          <StatBox icon={AlertTriangle} label="Atrasadas" value={contagem.atrasada + contagem.fazer} cor="#ef4444" />
+        </div>
+      )}
+
+      {/* Nova manutenção */}
+      <button onClick={() => { setEditando(null); setModalOpen(true); }}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.99]">
+        <Plus size={15} /> Nova manutenção
+      </button>
+
+      {/* Lista */}
+      {manutencoes.length === 0 ? (
+        <EmptyCard icon={Wrench} titulo="Nenhuma manutenção"
+          desc='Cadastre o que precisa de cuidado periódico (filtro de água, ar-condicionado, dedetização...). A Sora calcula a próxima data e pode te avisar no WhatsApp.' />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {comStatus.map(({ m, calc }: any, i: number) => (
+            <ManutencaoCard key={m.id} item={m} calc={calc} index={i}
+              onFeito={() => marcarFeito(m)} onToggleLembrete={() => toggleLembrete(m)}
+              onEdit={() => { setEditando(m); setModalOpen(true); }} onDelete={() => deletar(m)} />
+          ))}
+        </div>
+      )}
+
+      {modalOpen && (
+        <ModalManutencao phone={phone} item={editando}
+          onClose={() => { setModalOpen(false); setEditando(null); }}
+          onSaved={() => { onReload(true); setModalOpen(false); setEditando(null); }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Card de manutenção ─────────────────────────────────────────────
+function ManutencaoCard({ item, calc, index, onFeito, onToggleLembrete, onEdit, onDelete }: any) {
+  const st = STATUS_MANUT[calc.status as StatusManut];
+  const StatusIcon = st.icon;
+  const textoQuando = calc.status === 'fazer' ? 'Marque quando fizer pela 1ª vez'
+    : calc.dias < 0 ? `Atrasada há ${Math.abs(calc.dias)} dia${Math.abs(calc.dias) === 1 ? '' : 's'}`
+    : calc.dias === 0 ? 'Vence hoje'
+    : `Próxima em ${calc.dias} dia${calc.dias === 1 ? '' : 's'}`;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border backdrop-blur-xl p-4 transition-all animate-[slide-up_500ms_ease-out_both]"
+         style={{
+           animationDelay: `${index * 40}ms`,
+           background: 'hsl(var(--bg-card) / 0.5)',
+           borderColor: calc.status === 'emdia' ? 'hsl(var(--border) / 0.4)' : `${st.cor}55`,
+         }}>
+      {calc.status !== 'emdia' && (
+        <div className="absolute inset-0 pointer-events-none opacity-40"
+             style={{ background: `radial-gradient(circle at top right, ${st.cor}22 0%, transparent 70%)` }} />
+      )}
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: `${st.cor}1A` }}>
+            {item.icone || '🔧'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground truncate">{item.nome}</p>
+            <p className="text-[11px] text-muted-foreground tabular">
+              {labelFrequencia(item.frequencia_dias)}
+              {item.ultima_data && ` · última ${new Date(item.ultima_data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')}`}
+            </p>
+          </div>
+          {/* Lembrete + editar + excluir */}
+          <button onClick={onToggleLembrete} aria-label={item.lembrete_ativo ? 'Desativar lembrete' : 'Ativar lembrete'} aria-pressed={item.lembrete_ativo}
+                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${item.lembrete_ativo ? 'text-violet-600 dark:text-violet-400 bg-violet-500/10' : 'text-muted-foreground hover:bg-muted'}`}>
+            <Bell size={15} fill={item.lembrete_ativo ? 'currentColor' : 'none'} />
+          </button>
+          <button onClick={onEdit} aria-label="Editar" className="lg:opacity-0 lg:group-hover:opacity-100 p-2 rounded-lg text-muted-foreground hover:bg-muted flex-shrink-0">
+            <Pencil size={13} />
+          </button>
+        </div>
+
+        {/* Barra de progresso do ciclo */}
+        <div className="h-2 rounded-full bg-muted overflow-hidden mb-2.5">
+          <div className="h-full transition-all duration-700"
+               style={{ width: `${calc.status === 'fazer' ? 100 : calc.pct}%`, background: st.cor }} />
+        </div>
+
+        {/* Status + ação */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold" style={{ color: st.cor }}>
+            <StatusIcon size={13} /> {textoQuando}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button onClick={onDelete} aria-label="Excluir" className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40">
+              <Trash2 size={13} />
+            </button>
+            <button onClick={onFeito}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+                    style={{ background: `${st.cor}1A`, color: st.cor }}>
+              <Check size={13} /> Fiz hoje
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de manutenção (criar/editar) ─────────────────────────────
+function ModalManutencao({ phone, item, onClose, onSaved }: any) {
+  const [nome, setNome]       = useState(item?.nome || '');
+  const [icone, setIcone]     = useState(item?.icone || '🔧');
+  const [freq, setFreq]       = useState<number>(item?.frequencia_dias || 90);
+  const [primeiraVez, setPrimeiraVez] = useState<boolean>(!item?.ultima_data);
+  const [ultima, setUltima]   = useState<string>(item?.ultima_data || new Date().toISOString().slice(0, 10));
+  const [lembrete, setLembrete] = useState<boolean>(item?.lembrete_ativo ?? true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function salvar() {
+    if (!nome.trim()) { setErro('Dê um nome pra manutenção.'); return; }
+    setErro(''); setSalvando(true);
+    const body = {
+      phone, nome: nome.trim(), icone, frequencia_dias: freq,
+      ultima_data: primeiraVez ? null : ultima, lembrete_ativo: lembrete,
+    };
+    try {
+      if (item) await api.grow.manutencoes.atualizar(item.id, body);
+      else await api.grow.manutencoes.adicionar(body);
+      onSaved();
+    } catch (e: any) { setErro(e.message || 'Não consegui salvar.'); setSalvando(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+          <h2 className="text-base font-bold text-foreground">{item ? 'Editar manutenção' : 'Nova manutenção'}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Ícone */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Ícone</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {ICONES_MANUT.map(ic => (
+                <button key={ic} onClick={() => setIcone(ic)}
+                  className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all ${
+                    icone === ic ? 'ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-950/40 scale-105' : 'bg-muted/40 hover:bg-muted'
+                  }`}>{ic}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nome */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">O que é</label>
+            <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Trocar filtro de água" className="input" autoFocus maxLength={60} />
+          </div>
+
+          {/* Frequência */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">A cada quanto tempo</label>
+            <div className="flex gap-1.5 flex-wrap mb-2">
+              {FREQUENCIAS.map(f => (
+                <button key={f.dias} onClick={() => setFreq(f.dias)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                    freq === f.dias ? 'bg-violet-600 text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  }`}>{f.label}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="number" min={1} value={freq} onChange={e => setFreq(parseInt(e.target.value) || 1)} className="input w-20 text-center" />
+              <span className="text-sm text-muted-foreground">dias entre cada manutenção</span>
+            </div>
+          </div>
+
+          {/* Última vez */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer select-none mb-2">
+              <input type="checkbox" checked={primeiraVez} onChange={e => setPrimeiraVez(e.target.checked)} className="w-4 h-4 accent-violet-600" />
+              <span className="text-xs font-semibold text-foreground">Nunca fiz / não sei a última vez</span>
+            </label>
+            {!primeiraVez && (
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">Última vez que foi feita</label>
+                <input type="date" value={ultima} max={new Date().toISOString().slice(0, 10)} onChange={e => setUltima(e.target.value)} className="input" />
+              </div>
+            )}
+          </div>
+
+          {/* Lembrete */}
+          <label className="flex items-center justify-between gap-3 cursor-pointer select-none rounded-xl bg-muted/30 p-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Bell size={15} className="text-violet-600 dark:text-violet-400" /> Avisar no WhatsApp quando vencer
+            </span>
+            <button type="button" onClick={() => setLembrete(v => !v)} role="switch" aria-checked={lembrete}
+                    className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${lembrete ? 'bg-violet-600' : 'bg-muted-foreground/30'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${lembrete ? 'translate-x-5' : ''}`} />
+            </button>
+          </label>
+
+          {erro && <p className="text-xs text-red-600">{erro}</p>}
+        </div>
+
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
+          <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
+          <button onClick={salvar} disabled={salvando || !nome.trim()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+            {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {item ? 'Salvar' : 'Criar'}
+          </button>
         </div>
       </div>
     </div>
