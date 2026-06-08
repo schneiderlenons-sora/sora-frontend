@@ -319,6 +319,18 @@ export const api = {
       deletar: (id: string, phone: string) =>
         req(`/api/grow/manutencoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
+    receitas: {
+      listar: (phone: string) =>
+        req<{ itens: any[] }>(`/api/grow/receitas/${phone}`),
+      adicionar: (body: { phone: string; nome: string; icone?: string; porcoes?: number | null; tempo_min?: number | null; modo_preparo?: string; ingredientes?: { nome: string; quantidade?: string; categoria?: string }[] }) =>
+        req<any>('/api/grow/receitas', { method: 'POST', body: JSON.stringify(body) }),
+      atualizar: (id: string, body: { phone: string; nome?: string; icone?: string; porcoes?: number | null; tempo_min?: number | null; modo_preparo?: string; ingredientes?: { nome: string; quantidade?: string; categoria?: string }[] }) =>
+        req<any>(`/api/grow/receitas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      cozinhar: (id: string, phone: string) =>
+        req<{ ok: boolean; receita: string; adicionados: string[]; jaTem: string[] }>(`/api/grow/receitas/${id}/cozinhar`, { method: 'POST', body: JSON.stringify({ phone }) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/receitas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
   },
 
   // ── SAÚDE & CORPO (sub-aba do Sora Grow) ─────────────────────

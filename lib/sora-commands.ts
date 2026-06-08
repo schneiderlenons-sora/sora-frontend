@@ -545,6 +545,38 @@ export const COMANDOS: Comando[] = [
     categoria: 'sora-grow',
     feature: 'sora_grow',
   },
+  {
+    id: 'grow-receitas-ver',
+    titulo: 'Ver suas receitas',
+    exemplo: 'minhas receitas',
+    descricao: 'Lista todas as receitas salvas com tempo de preparo e porções.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
+    id: 'grow-receita-detalhe',
+    titulo: 'Ver ingredientes e preparo',
+    exemplo: 'receita strogonoff',
+    descricao: 'A Sora mostra os ingredientes (marcando o que você já tem) e o modo de preparo.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
+    id: 'grow-receita-cozinhar',
+    titulo: 'Cozinhar uma receita',
+    exemplo: 'cozinhar strogonoff',
+    descricao: 'A Sora confere a despensa e joga os ingredientes que faltam direto na lista de compras.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
+    id: 'grow-receita-sugestao',
+    titulo: 'O que dá pra cozinhar',
+    exemplo: 'o que posso cozinhar',
+    descricao: 'A Sora sugere receitas que você consegue fazer agora com o que tem na despensa.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
 
   // ─── NEGÓCIOS ─────────────────────────────────────────────────────
   {

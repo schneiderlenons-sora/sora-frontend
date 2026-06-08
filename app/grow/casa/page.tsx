@@ -7,16 +7,31 @@ import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
   Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight, Send,
   Wrench, Bell, Clock, CheckCircle2, Calendar, Pencil, RotateCcw,
+  ChefHat, Flame, Users, ChevronDown, UtensilsCrossed,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 
 const BRAND = '#7c3aed';
+const LARANJA = '#f97316';   // accent das receitas (cozinha)
 
 const TABS = [
   { v: 'compras',    l: 'Compras',     icon: ShoppingCart },
   { v: 'despensa',   l: 'Despensa',    icon: Package },
+  { v: 'receitas',   l: 'Receitas',    icon: ChefHat },
   { v: 'manutencao', l: 'Manutenções', icon: Wrench },
 ];
+
+const ICONES_RECEITA = ['🍳', '🍝', '🥘', '🍲', '🥗', '🍛', '🍜', '🧆', '🥞', '🍰', '🍞', '🥩'];
+
+// Status de uma receita vs. despensa — quantos ingredientes você já tem
+function statusReceita(receita: any, despensa: any[]): { falta: number; total: number; ok: number } {
+  const ings = receita.ingredientes || [];
+  if (!ings.length) return { falta: 0, total: 0, ok: 0 };
+  const tem = despensa.filter((d: any) => d.status === 'tem').map((d: any) => d.nome.toLowerCase());
+  const has = (nome: string) => { const b = nome.toLowerCase(); return tem.some(t => t.includes(b) || b.includes(t)); };
+  const ok = ings.filter((i: any) => has(i.nome)).length;
+  return { falta: ings.length - ok, total: ings.length, ok };
+}
 
 // Presets de frequência (dias)
 const FREQUENCIAS = [
@@ -80,6 +95,7 @@ export default function CasaPage() {
   const [itens, setItens]       = useState<any[]>([]);   // lista de compras
   const [despensa, setDespensa] = useState<any[]>([]);   // itens da despensa
   const [manutencoes, setManut] = useState<any[]>([]);   // manutenções
+  const [receitas, setReceitas] = useState<any[]>([]);   // receitas
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
@@ -91,14 +107,16 @@ export default function CasaPage() {
     if (!phone) return;
     if (!silent) setLoading(true);
     try {
-      const [c, d, mn] = await Promise.allSettled([
+      const [c, d, mn, rc] = await Promise.allSettled([
         api.grow.compras.listar(phone),
         api.grow.despensa.listar(phone),
         api.grow.manutencoes.listar(phone),
+        api.grow.receitas.listar(phone),
       ]);
       if (c.status === 'fulfilled') setItens(c.value.itens || []);
       if (d.status === 'fulfilled') setDespensa(d.value.itens || []);
       if (mn.status === 'fulfilled') setManut(mn.value.itens || []);
+      if (rc.status === 'fulfilled') setReceitas(rc.value.itens || []);
     } finally { if (!silent) setLoading(false); }
   }, [phone]);
 
@@ -111,12 +129,18 @@ export default function CasaPage() {
     const s = calcManut(m).status;
     return s === 'atrasada' || s === 'breve' || s === 'fazer';
   }).length;
+  const receitasProntas = receitas.filter(r => {
+    const s = statusReceita(r, despensa);
+    return s.total > 0 && s.falta === 0;
+  }).length;
 
   const subtitulo = tab === 'compras'
     ? `${pendentesCompra} pendente${pendentesCompra === 1 ? '' : 's'} · ${itens.length - pendentesCompra} comprado${itens.length - pendentesCompra === 1 ? '' : 's'}`
     : tab === 'despensa'
       ? (despensa.length ? `${despensa.length} item${despensa.length === 1 ? '' : 's'} · ${faltandoDespensa} pra repor` : 'Cadastre o que você sempre tem em casa.')
-      : (manutencoes.length ? `${manutencoes.length} manutenç${manutencoes.length === 1 ? 'ão' : 'ões'} · ${manutAtencao} pedem atenção` : 'Nunca mais esqueça uma manutenção.');
+      : tab === 'receitas'
+        ? (receitas.length ? `${receitas.length} receita${receitas.length === 1 ? '' : 's'}${receitasProntas ? ` · ${receitasProntas} dá pra fazer agora` : ''}` : 'Salve suas receitas e cozinhe sem stress.')
+        : (manutencoes.length ? `${manutencoes.length} manutenç${manutencoes.length === 1 ? 'ão' : 'ões'} · ${manutAtencao} pedem atenção` : 'Nunca mais esqueça uma manutenção.');
 
   return (
     <div className="max-w-7xl mx-auto pb-24 space-y-6">
@@ -133,7 +157,7 @@ export default function CasaPage() {
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1 animate-fade-in" style={{ animationDelay: '60ms' }}>
         {TABS.map(({ v, l, icon: Icon }) => {
           const ativo = tab === v;
-          const badge = v === 'compras' ? pendentesCompra : v === 'despensa' ? faltandoDespensa : manutAtencao;
+          const badge = v === 'compras' ? pendentesCompra : v === 'despensa' ? faltandoDespensa : v === 'receitas' ? receitasProntas : manutAtencao;
           return (
             <button key={v} onClick={() => setTab(v)}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
@@ -159,6 +183,7 @@ export default function CasaPage() {
         <div className="animate-fade-in">
           {tab === 'compras'    && <TabCompras phone={phone!} itens={itens} setItens={setItens} onReload={carregar} />}
           {tab === 'despensa'   && <TabDespensa phone={phone!} despensa={despensa} setDespensa={setDespensa} onReload={carregar} onVerCompras={() => setTab('compras')} />}
+          {tab === 'receitas'   && <TabReceitas phone={phone!} receitas={receitas} setReceitas={setReceitas} despensa={despensa} onReload={carregar} onVerCompras={() => setTab('compras')} />}
           {tab === 'manutencao' && <TabManutencoes phone={phone!} manutencoes={manutencoes} setManut={setManut} onReload={carregar} />}
         </div>
       )}
@@ -498,7 +523,360 @@ function DespensaCard({ item, index, onStatus, onDelete }: any) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TAB 3 — MANUTENÇÕES
+// TAB 3 — RECEITAS (loop "cozinhar" com a lista de compras)
+// ═══════════════════════════════════════════════════════════════════
+function TabReceitas({ phone, receitas, setReceitas, despensa, onReload, onVerCompras }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editando, setEditando]   = useState<any | null>(null);
+
+  // Ordena: dá pra fazer agora → falta pouco → resto
+  const ordenadas = useMemo(() => {
+    return [...receitas]
+      .map((r: any) => ({ r, s: statusReceita(r, despensa) }))
+      .sort((a, b) => {
+        const fa = a.s.total === 0 ? 99 : a.s.falta;
+        const fb = b.s.total === 0 ? 99 : b.s.falta;
+        return fa - fb;
+      });
+  }, [receitas, despensa]);
+
+  const prontas = ordenadas.filter(x => x.s.total > 0 && x.s.falta === 0).length;
+
+  async function deletar(item: any) {
+    if (!confirm(`Excluir a receita "${item.nome}"?`)) return;
+    setReceitas((prev: any[]) => prev.filter(r => r.id !== item.id));
+    try { await api.grow.receitas.deletar(item.id, phone); } catch (e: any) { alert(e.message); onReload(); }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Banner: dá pra cozinhar agora */}
+      {prontas > 0 && (
+        <div className="relative overflow-hidden rounded-2xl border p-4"
+             style={{ borderColor: '#10b98155', background: 'hsl(var(--bg-card) / 0.5)' }}>
+          <div className="absolute inset-0 pointer-events-none opacity-40"
+               style={{ background: 'radial-gradient(circle at top right, #10b98124 0%, transparent 70%)' }} />
+          <div className="relative flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#10b9811A' }}>
+              <UtensilsCrossed size={16} style={{ color: '#10b981' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-foreground">{prontas} receita{prontas === 1 ? '' : 's'} pra fazer agora</p>
+              <p className="text-[11px] text-muted-foreground">Você já tem todos os ingredientes na despensa.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nova receita */}
+      <button onClick={() => { setEditando(null); setModalOpen(true); }}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.99]">
+        <Plus size={15} /> Nova receita
+      </button>
+
+      {/* Lista */}
+      {receitas.length === 0 ? (
+        <EmptyCard icon={ChefHat} titulo="Nenhuma receita ainda"
+          desc='Salve suas receitas com os ingredientes. Na hora de cozinhar, a Sora confere a despensa e manda o que falta direto pra lista de compras.' />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {ordenadas.map(({ r, s }: any, i: number) => (
+            <ReceitaCard key={r.id} item={r} status={s} index={i} phone={phone} despensa={despensa}
+              onReload={onReload} onVerCompras={onVerCompras}
+              onEdit={() => { setEditando(r); setModalOpen(true); }} onDelete={() => deletar(r)} />
+          ))}
+        </div>
+      )}
+
+      {modalOpen && (
+        <ModalReceita phone={phone} item={editando}
+          onClose={() => { setModalOpen(false); setEditando(null); }}
+          onSaved={() => { onReload(true); setModalOpen(false); setEditando(null); }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Card de receita ────────────────────────────────────────────────
+function ReceitaCard({ item, status, index, phone, despensa, onReload, onVerCompras, onEdit, onDelete }: any) {
+  const [aberto, setAberto] = useState(false);
+  const [cozinhando, setCozinhando] = useState(false);
+  const [resultado, setResultado] = useState<{ adicionados: string[]; jaTem: string[] } | null>(null);
+
+  const ings = item.ingredientes || [];
+  const temNome = useMemo(() => {
+    const tem = despensa.filter((d: any) => d.status === 'tem').map((d: any) => d.nome.toLowerCase());
+    return (nome: string) => { const b = nome.toLowerCase(); return tem.some((t: string) => t.includes(b) || b.includes(t)); };
+  }, [despensa]);
+
+  // estado visual: pronta (verde) / falta pouco (âmbar) / falta (laranja) / sem ingredientes
+  const estado = status.total === 0 ? 'vazia'
+    : status.falta === 0 ? 'pronta'
+    : status.falta <= 2 ? 'quase' : 'falta';
+  const corEstado = estado === 'pronta' ? '#10b981' : estado === 'quase' ? '#f59e0b' : LARANJA;
+  const labelEstado = estado === 'vazia' ? 'Sem ingredientes'
+    : estado === 'pronta' ? 'Dá pra fazer agora'
+    : `Falta ${status.falta} item${status.falta === 1 ? '' : 's'}`;
+  const meta = [
+    item.tempo_min ? { icon: Clock, txt: `${item.tempo_min}min` } : null,
+    item.porcoes ? { icon: Users, txt: `${item.porcoes} porç.` } : null,
+    status.total ? { icon: UtensilsCrossed, txt: `${status.total} ingred.` } : null,
+  ].filter(Boolean) as { icon: any; txt: string }[];
+
+  async function cozinhar() {
+    setCozinhando(true); setResultado(null);
+    try {
+      const r = await api.grow.receitas.cozinhar(item.id, phone);
+      setResultado({ adicionados: r.adicionados || [], jaTem: r.jaTem || [] });
+      if ((r.adicionados || []).length) onReload(true); // mexeu na lista de compras
+    } catch (e: any) { alert(e.message || 'Não consegui preparar a lista.'); }
+    finally { setCozinhando(false); }
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border backdrop-blur-xl p-4 transition-all animate-[slide-up_500ms_ease-out_both]"
+         style={{
+           animationDelay: `${index * 40}ms`,
+           background: 'hsl(var(--bg-card) / 0.5)',
+           borderColor: estado === 'pronta' ? '#10b98155' : 'hsl(var(--border) / 0.4)',
+         }}>
+      {estado === 'pronta' && (
+        <div className="absolute inset-0 pointer-events-none opacity-40"
+             style={{ background: 'radial-gradient(circle at top right, #10b98122 0%, transparent 70%)' }} />
+      )}
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: `${LARANJA}1A` }}>
+            {item.icone || '🍳'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground truncate">{item.nome}</p>
+            <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
+              {meta.map((mt, k) => (
+                <span key={k} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground tabular">
+                  <mt.icon size={11} /> {mt.txt}
+                </span>
+              ))}
+            </div>
+          </div>
+          <button onClick={onEdit} aria-label="Editar receita" className="p-2 rounded-lg text-muted-foreground hover:bg-muted flex-shrink-0">
+            <Pencil size={13} />
+          </button>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold" style={{ color: corEstado }}>
+            {estado === 'pronta' ? <CheckCircle2 size={13} /> : estado === 'vazia' ? <AlertTriangle size={13} /> : <ShoppingCart size={13} />}
+            {labelEstado}
+          </span>
+          {status.total > 0 && (
+            <button onClick={() => setAberto(v => !v)} aria-expanded={aberto}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              {aberto ? 'Ocultar' : 'Ver ingredientes'}
+              <ChevronDown size={13} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+
+        {/* Ingredientes + preparo (expansível) */}
+        {aberto && (
+          <div className="mb-3 rounded-xl bg-muted/30 p-3 space-y-2.5 animate-fade-in">
+            <div className="space-y-1.5">
+              {ings.map((ing: any) => {
+                const tem = temNome(ing.nome);
+                return (
+                  <div key={ing.id || ing.nome} className="flex items-center gap-2 text-[13px]">
+                    {tem
+                      ? <Check size={13} className="text-emerald-500 flex-shrink-0" strokeWidth={3} />
+                      : <span className="w-[13px] h-[13px] rounded-full border-2 border-muted-foreground/40 flex-shrink-0" />}
+                    <span className={`flex-1 min-w-0 truncate ${tem ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{ing.nome}</span>
+                    {ing.quantidade && <span className="text-[11px] text-muted-foreground tabular flex-shrink-0">{ing.quantidade}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {item.modo_preparo && (
+              <div className="pt-2.5 border-t border-border/40">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Modo de preparo</p>
+                <p className="text-[13px] text-foreground/90 whitespace-pre-wrap leading-relaxed">{item.modo_preparo}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Resultado do "cozinhar" */}
+        {resultado && (
+          <div className="mb-3 rounded-xl p-3 animate-fade-in" style={{ background: '#10b9810F', border: '1px solid #10b98133' }}>
+            {resultado.adicionados.length > 0 ? (
+              <>
+                <p className="text-[13px] font-bold text-foreground flex items-center gap-1.5">
+                  <ShoppingCart size={13} style={{ color: LARANJA }} /> {resultado.adicionados.length} na lista de compras
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{resultado.adicionados.join(', ')}</p>
+                {resultado.jaTem.length > 0 && (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">✓ Você já tinha: {resultado.jaTem.join(', ')}</p>
+                )}
+                <button onClick={onVerCompras} className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: LARANJA }}>
+                  Ver lista de compras <ArrowRight size={12} />
+                </button>
+              </>
+            ) : (
+              <p className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> Você tem tudo! Bom apetite 🍽️
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Ações */}
+        <div className="flex items-center gap-2">
+          <button onClick={cozinhar} disabled={cozinhando || status.total === 0}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-white text-xs font-bold transition-all active:scale-[0.98] disabled:opacity-50 shadow-sm"
+            style={{ background: status.total === 0 ? '#9ca3af' : `linear-gradient(135deg, ${LARANJA} 0%, #ea580c 100%)` }}>
+            {cozinhando ? <Loader2 size={14} className="animate-spin" /> : <Flame size={14} />}
+            {cozinhando ? 'Conferindo despensa…' : 'Cozinhar'}
+          </button>
+          <button onClick={onDelete} aria-label="Excluir receita"
+                  className="p-2.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de receita (criar/editar) ────────────────────────────────
+function ModalReceita({ phone, item, onClose, onSaved }: any) {
+  const [nome, setNome]     = useState(item?.nome || '');
+  const [icone, setIcone]   = useState(item?.icone || '🍳');
+  const [tempo, setTempo]   = useState<string>(item?.tempo_min ? String(item.tempo_min) : '');
+  const [porcoes, setPorcoes] = useState<string>(item?.porcoes ? String(item.porcoes) : '');
+  const [preparo, setPreparo] = useState(item?.modo_preparo || '');
+  const [ings, setIngs] = useState<{ nome: string; quantidade: string }[]>(
+    item?.ingredientes?.length
+      ? item.ingredientes.map((i: any) => ({ nome: i.nome, quantidade: i.quantidade || '' }))
+      : [{ nome: '', quantidade: '' }]
+  );
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  function setIng(i: number, campo: 'nome' | 'quantidade', val: string) {
+    setIngs(prev => prev.map((x, k) => k === i ? { ...x, [campo]: val } : x));
+  }
+  function addIng() { setIngs(prev => [...prev, { nome: '', quantidade: '' }]); }
+  function rmIng(i: number) { setIngs(prev => prev.length === 1 ? prev : prev.filter((_, k) => k !== i)); }
+
+  async function salvar() {
+    if (!nome.trim()) { setErro('Dê um nome pra receita.'); return; }
+    setErro(''); setSalvando(true);
+    const body = {
+      phone, nome: nome.trim(), icone,
+      tempo_min: tempo ? parseInt(tempo) : null,
+      porcoes: porcoes ? parseInt(porcoes) : null,
+      modo_preparo: preparo.trim() || undefined,
+      ingredientes: ings.filter(i => i.nome.trim()).map(i => ({ nome: i.nome.trim(), quantidade: i.quantidade.trim() || undefined })),
+    };
+    try {
+      if (item) await api.grow.receitas.atualizar(item.id, body);
+      else await api.grow.receitas.adicionar(body);
+      onSaved();
+    } catch (e: any) { setErro(e.message || 'Não consegui salvar.'); setSalvando(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+          <h2 className="text-base font-bold text-foreground">{item ? 'Editar receita' : 'Nova receita'}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Ícone */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Ícone</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {ICONES_RECEITA.map(ic => (
+                <button key={ic} onClick={() => setIcone(ic)}
+                  className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all ${
+                    icone === ic ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950/40 scale-105' : 'bg-muted/40 hover:bg-muted'
+                  }`}>{ic}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nome */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Nome da receita</label>
+            <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Strogonoff de frango" className="input" autoFocus maxLength={60} />
+          </div>
+
+          {/* Tempo + porções */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Tempo (min)</label>
+              <input type="number" min={0} inputMode="numeric" value={tempo} onChange={e => setTempo(e.target.value)} placeholder="30" className="input" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Porções</label>
+              <input type="number" min={0} inputMode="numeric" value={porcoes} onChange={e => setPorcoes(e.target.value)} placeholder="4" className="input" />
+            </div>
+          </div>
+
+          {/* Ingredientes */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Ingredientes</label>
+            <div className="space-y-2">
+              {ings.map((ing, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input value={ing.nome} onChange={e => setIng(i, 'nome', e.target.value)}
+                         onKeyDown={e => { if (e.key === 'Enter' && i === ings.length - 1 && ing.nome.trim()) addIng(); }}
+                         placeholder="Ingrediente" className="input flex-1" />
+                  <input value={ing.quantidade} onChange={e => setIng(i, 'quantidade', e.target.value)}
+                         placeholder="qtd" className="input w-20 text-center" />
+                  <button onClick={() => rmIng(i)} aria-label="Remover ingrediente"
+                          className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 flex-shrink-0 disabled:opacity-30"
+                          disabled={ings.length === 1}>
+                    <X size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button onClick={addIng} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
+              <Plus size={13} /> Adicionar ingrediente
+            </button>
+          </div>
+
+          {/* Modo de preparo */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Modo de preparo <span className="normal-case font-normal text-muted-foreground/70">(opcional)</span></label>
+            <textarea value={preparo} onChange={e => setPreparo(e.target.value)} rows={4}
+                      placeholder={'1. Refogue a cebola e o alho...\n2. Adicione o frango...'}
+                      className="input resize-none leading-relaxed" />
+          </div>
+
+          {erro && <p className="text-xs text-red-600">{erro}</p>}
+        </div>
+
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
+          <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
+          <button onClick={salvar} disabled={salvando || !nome.trim()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+            {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {item ? 'Salvar' : 'Criar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TAB 4 — MANUTENÇÕES
 // ═══════════════════════════════════════════════════════════════════
 function TabManutencoes({ phone, manutencoes, setManut, onReload }: any) {
   const [modalOpen, setModalOpen] = useState(false);
