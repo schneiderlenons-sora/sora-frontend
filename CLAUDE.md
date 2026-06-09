@@ -160,7 +160,7 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `/transacoes` | Lista de transações com scroll horizontal no mobile |
 | `/investimentos` | Premium+ (era Black-only, mudou) |
 | `/negocios` | Black-only (DRE, vendas, forecast, integrações) |
-| `/grow/*` | Sora Grow — hábitos, saúde, estudos, casa, bem-estar |
+| `/grow/*` | Sora Grow — hábitos, tarefas, bem-estar, saúde, estudos, casa, agenda |
 
 ---
 
@@ -175,6 +175,38 @@ Grupos        → gate: 'compartilhamento' (Premium+)
 Central da Sora → sem gate (todos)
 Planos        → sem gate (todos)
 ```
+
+`NAV_GROW` (sub-nav do Sora Grow): Dashboard · Hábitos · Tarefas · Bem-estar · Saúde · Estudos · Casa · **Agenda** · Configurações.
+
+---
+
+## Sora Grow — design system das abas
+
+Todas as abas do Grow seguem o **estilo da aba Hábitos** (`app/grow/habitos/page.tsx`) — referência obrigatória ao criar/editar abas. Usar a **skill `ui-ux-pro-max`** em todo design novo.
+
+- **Hero:** componente `components/grow/GrowHero.tsx` (badge + título + subtítulo dinâmico). Dashboard do Grow tem hero próprio — não usar o GrowHero lá.
+- **Cards:** `rounded-2xl`/`rounded-3xl`, `border border-border/40 backdrop-blur-xl`, fundo `style={{ background: 'hsl(var(--bg-card) / 0.5)' }}`, glow radial `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)`.
+- **Accent:** `BRAND = '#7c3aed'` (violet) é o padrão do Grow. Casa usa âmbar `#d97706` no badge; Receitas usa laranja `#f97316` no botão "Cozinhar".
+- **Status:** sempre **ícone + rótulo** (nunca cor sozinha — acessibilidade). Números com `tabular`/`tabular-nums`.
+- **Animações:** entrada escalonada `animate-[slide-up_500ms_ease-out_both]` com `animationDelay: ${i*40}ms`. Toggles como `role="switch" aria-checked`. Toque ≥44pt.
+- **Otimista:** atualiza UI na hora, chama API, reverte no erro; `onReload(true)` revalida em silêncio.
+
+### Aba Casa (`app/grow/casa/page.tsx`) — 4 sub-abas internas
+1. **Compras** — lista de compras + botão "Enviar lista pro WhatsApp" (a Sora manda agrupada por categoria).
+2. **Despensa** — itens que você sempre tem (status tem/acabando/acabou). Marcar "acabou" → entra na lista de compras (loop via `despensa_item_id`); comprar → volta pra "tem". Migration 032.
+3. **Receitas** — receitas + ingredientes. Botão "Cozinhar" cruza ingredientes com a despensa e manda o que falta pra lista de compras. Migration 034.
+4. **Manutenções** — upkeep recorrente (próxima = última + frequência), barra de ciclo, "Fiz hoje", lembrete opt-in. Migration 033.
+
+### Aba Agenda (`app/grow/agenda/page.tsx`) — item próprio no sidebar
+Central de tudo que tem data na Sora. Construída em 3 fases (ver memória `project-agenda-grow`):
+- **Compromissos nativos** (tabela `compromissos`, migration 035): visão Próximos (lista por dia) + Mês (calendário); categorias coloridas; lembrete opt-in com antecedência.
+- **Feed agregador** (`src/services/agendaFeed.js` → `montarFeed`): junta consultas, recorrências, dívidas, faturas de cartão e manutenções no mesmo calendário (read-only, deeplink pra origem). Cada fonte é **tolerante** (try/catch por fonte). Filtro por origem no frontend.
+- **Briefing matinal** (opt-in, migration 036, cron JOB 1K) + **criar por linguagem natural** ("marca dentista terça 15h") via parser PT local em `src/handlers/grow.js` (sem IA).
+
+### Backend do Grow
+- **Rotas:** `sora-backend/src/routes/grow.js` (CRUD de hábitos, despensa, manutenções, receitas, compromissos + `/agenda/feed` + `/agenda/briefing`). Auth por `requireGrow` (checa acesso ao plano Grow) + `req.userRow.grupo_ativo`.
+- **Comandos WhatsApp:** `sora-backend/src/handlers/grow.js` (todos no catálogo `lib/sora-commands.ts` do frontend).
+- **Crons:** `sora-backend/src/jobs/index.js` — JOB 1H (hábitos), 1I (manutenções), 1J (compromissos), 1K (briefing). Todos com dedup persistido (à prova de restart) e fuso SP via `agoraSP()`.
 
 ---
 
@@ -249,4 +281,13 @@ sql/020_welcome_tracking.sql    — coluna welcomed_at em users
 sql/021_wallet_padrao.sql       — coluna wallet_padrao_id em users
 sql/022_transacoes_pendentes.sql — tabela state machine conversas
 sql/023_cartao_metadata.sql     — colunas limite/dia_fechamento/bandeira em wallets
+sql/030_categorias_extra.sql    — Encomendas/iFood/Uber/Nike/Shein/Adidas (funções criar_categorias_extra + backfill)
+sql/031_habito_lembrete.sql     — colunas habito_lembrete_* em users (lembrete diário hábitos)
+sql/032_despensa.sql            — tabela despensa_itens + link despensa_item_id em itens_lista_compras
+sql/033_manutencoes.sql         — tabela manutencoes (upkeep recorrente da casa)
+sql/034_receitas.sql            — tabelas receitas + receita_ingredientes
+sql/035_compromissos.sql        — tabela compromissos (Agenda do Grow)
+sql/036_agenda_briefing.sql     — colunas agenda_briefing_* em users (briefing matinal)
 ```
+
+> **Atenção (lição aprendida):** colunas novas NÃO podem entrar no `select()` de queries do caminho crítico (ex.: `getUser` em `routes/grow.js`) ANTES da migration rodar — o Supabase erra e a feature inteira quebra ("Usuário não encontrado"). Buscar colunas novas em query separada/tolerante (try/catch ou maybeSingle) e retornar default se faltar. **Sempre mandar o link da migration nova pro usuário** (ele roda à mão no Supabase).
