@@ -362,20 +362,22 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                       : ehHoje ? 'bg-violet-500/10'
                       : noMes ? 'hover:bg-muted/50' : 'opacity-40 hover:bg-muted/30'
                 }`}>
-                {/* Número do dia + (mobile) pontinhos */}
+                {/* Número do dia */}
                 <div className="flex items-center justify-between gap-1">
                   <span className={`text-[12px] sm:text-[13px] tabular leading-none w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 ${
                     ehHoje ? 'bg-violet-600 text-white font-bold' : noMes ? 'text-muted-foreground/50' : 'text-foreground font-medium'
                   }`}>{d.getDate()}</span>
-                  {evs.length > 0 && (
-                    <span className="flex sm:hidden items-center gap-0.5" aria-hidden="true">
-                      {evs.slice(0, 3).map((e: any, k: number) => (
-                        <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: e.cor }} />
-                      ))}
-                      {evs.length > 3 && <span className="text-[8px] font-bold text-muted-foreground">+</span>}
-                    </span>
-                  )}
                 </div>
+                {/* Pontinhos (mobile) — abaixo do número, centralizados e contidos
+                    (flex-wrap garante que nunca escapem da célula) */}
+                {evs.length > 0 && (
+                  <div className="flex sm:hidden items-center justify-center gap-0.5 flex-wrap px-0.5" aria-hidden="true">
+                    {evs.slice(0, 4).map((e: any, k: number) => (
+                      <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: e.cor }} />
+                    ))}
+                    {evs.length > 4 && <span className="text-[8px] font-bold text-muted-foreground leading-none">+</span>}
+                  </div>
+                )}
                 {/* Chips com o título (desktop/tablet) */}
                 {evs.length > 0 && (
                   <div className="hidden sm:flex flex-col gap-0.5 min-w-0">
