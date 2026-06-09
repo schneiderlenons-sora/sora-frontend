@@ -63,7 +63,7 @@ export default function Showcase() {
               />
             </div>
 
-            <p className="text-lg lg:text-xl text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
+            <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
               {s.sub}
             </p>
           </div>

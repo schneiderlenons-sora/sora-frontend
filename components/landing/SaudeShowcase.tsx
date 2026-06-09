@@ -48,7 +48,7 @@ export default function SaudeShowcase() {
 
         {/* ── Carrossel ── */}
         <div
-          className="relative mt-12 mb-7 max-w-3xl mx-auto group/carousel"
+          className="relative mt-12 mb-7 max-w-3xl lg:max-w-4xl mx-auto group/carousel"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
           onFocusCapture={() => setPaused(true)}
@@ -110,7 +110,7 @@ export default function SaudeShowcase() {
           ))}
         </div>
 
-        <p className="text-lg lg:text-xl text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
+        <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
           Registre o que comeu e a Sora calcula proteínas, carboidratos e gorduras do seu dia
           na hora. Com uma calculadora nutricional completa pra você bater suas metas — do
           controle do bolso ao controle do prato, tudo num só lugar.
