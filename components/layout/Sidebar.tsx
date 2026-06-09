@@ -7,7 +7,7 @@ import {
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt, Briefcase,
   Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
-  MessageCircle,
+  MessageCircle, CalendarDays,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -50,6 +50,7 @@ const NAV_GROW = [
   { href: '/grow/saude',      label: 'Saúde',         icon: Activity },
   { href: '/grow/estudos',    label: 'Estudos',       icon: GraduationCap },
   { href: '/grow/casa',       label: 'Casa',          icon: HomeIcon },
+  { href: '/grow/agenda',     label: 'Agenda',        icon: CalendarDays },
   { href: '/configuracoes',   label: 'Configurações', icon: Settings },
 ];
 

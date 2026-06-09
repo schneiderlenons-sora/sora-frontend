@@ -577,6 +577,22 @@ export const COMANDOS: Comando[] = [
     categoria: 'sora-grow',
     feature: 'sora_grow',
   },
+  {
+    id: 'grow-agenda-ver',
+    titulo: 'Ver sua agenda',
+    exemplo: 'minha agenda',
+    descricao: 'Lista seus compromissos dos próximos 7 dias, agrupados por dia.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
+    id: 'grow-agenda-hoje',
+    titulo: 'Compromissos de hoje',
+    exemplo: 'agenda hoje',
+    descricao: 'A Sora mostra só os compromissos marcados para hoje.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
 
   // ─── NEGÓCIOS ─────────────────────────────────────────────────────
   {

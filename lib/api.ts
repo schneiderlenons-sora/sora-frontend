@@ -331,6 +331,21 @@ export const api = {
       deletar: (id: string, phone: string) =>
         req(`/api/grow/receitas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
+    compromissos: {
+      listar: (phone: string, range?: { de?: string; ate?: string }) => {
+        const qs = new URLSearchParams();
+        if (range?.de)  qs.set('de', range.de);
+        if (range?.ate) qs.set('ate', range.ate);
+        const q = qs.toString();
+        return req<{ itens: any[] }>(`/api/grow/compromissos/${phone}${q ? `?${q}` : ''}`);
+      },
+      adicionar: (body: { phone: string; titulo: string; descricao?: string; data: string; hora?: string | null; local?: string; categoria?: string; cor?: string; lembrete_ativo?: boolean; lembrete_antecedencia?: number }) =>
+        req<any>('/api/grow/compromissos', { method: 'POST', body: JSON.stringify(body) }),
+      atualizar: (id: string, body: { phone: string; titulo?: string; descricao?: string; data?: string; hora?: string | null; local?: string; categoria?: string; cor?: string; lembrete_ativo?: boolean; lembrete_antecedencia?: number }) =>
+        req<any>(`/api/grow/compromissos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/compromissos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
   },
 
   // ── SAÚDE & CORPO (sub-aba do Sora Grow) ─────────────────────
