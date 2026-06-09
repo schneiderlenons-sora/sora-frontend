@@ -9,6 +9,7 @@ import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
@@ -585,13 +586,15 @@ export default function DashboardPage() {
                 {txs.map((tx, i) => {
                   const isGasto   = tx.tipo === 'Gasto';
                   const { emoji, nome } = parseCategoria(tx.categoria || '');
+                  // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
+                  const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : nome;
                   return (
                     <div key={tx.id}
                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors animate-fade-in group"
                          style={{ animationDelay: `${i * 30}ms` }}>
                       {/* Ícone de categoria — usa logo oficial se for marca conhecida */}
                       <CategoriaIcon
-                        nome={nome}
+                        nome={iconeNome}
                         icone={emoji}
                         bg={isGasto ? '#ef444418' : `${BRAND}18`}
                         color={isGasto ? '#ef4444' : BRAND}

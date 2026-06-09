@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -970,12 +971,14 @@ function PendentesList({
           {items.map((tx, i) => {
             const theme = getCategoriaTheme(tx.categoria || '');
             const catNome = nomeCategoria(tx.categoria);
+            // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
+            const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : catNome;
             return (
               <div key={tx.id || i}
                    className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors animate-fade-in"
                    style={{ animationDelay: `${i * 30}ms` }}>
                 <CategoriaIcon
-                  nome={catNome}
+                  nome={iconeNome}
                   icone={theme.emoji}
                   bg={theme.bg}
                   color={theme.color}
