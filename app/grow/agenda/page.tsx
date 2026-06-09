@@ -1,19 +1,22 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import GrowHero from '@/components/grow/GrowHero';
 import {
   CalendarDays, Plus, Loader2, Check, X, Trash2, Pencil, Bell, Clock,
   MapPin, ChevronLeft, ChevronRight, List, CalendarRange, CalendarX,
-  User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag,
+  User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag, ArrowUpRight,
+  Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench,
 } from 'lucide-react';
 
 const BRAND = '#7c3aed';
 const STORAGE_KEY = 'sora-grow-agenda-view';
+const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-// ─── Categorias (cor + ícone + rótulo) ──────────────────────────────
+// ─── Categorias dos compromissos nativos (cor + ícone) ──────────────
 type CatKey = 'pessoal' | 'trabalho' | 'familia' | 'saude' | 'financas' | 'estudos' | 'outro';
 const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
   pessoal:  { label: 'Pessoal',  cor: '#7c3aed', icon: User },
@@ -24,7 +27,26 @@ const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
   estudos:  { label: 'Estudos',  cor: '#4f46e5', icon: GraduationCap },
   outro:    { label: 'Outro',    cor: '#64748b', icon: Tag },
 };
-const catDe = (k: string): { label: string; cor: string; icon: any } => CATEGORIAS[(k as CatKey)] || CATEGORIAS.outro;
+
+// ─── Famílias de origem (pro filtro + legenda do agregador) ─────────
+type FamKey = 'compromisso' | 'saude' | 'financas' | 'casa';
+const FAMILIAS: Record<FamKey, { label: string; cor: string; icon: any }> = {
+  compromisso: { label: 'Compromissos', cor: '#7c3aed', icon: CalendarDays },
+  saude:       { label: 'Saúde',        cor: '#0d9488', icon: Stethoscope },
+  financas:    { label: 'Finanças',     cor: '#16a34a', icon: Wallet },
+  casa:        { label: 'Casa',         cor: '#d97706', icon: HomeIcon },
+};
+function familiaDe(source: string): FamKey {
+  if (source === 'compromisso') return 'compromisso';
+  if (source === 'consulta') return 'saude';
+  if (source === 'manutencao') return 'casa';
+  return 'financas';
+}
+// Ícone por source (mostrado na coluna de hora quando não há horário)
+const ICONE_SOURCE: Record<string, any> = {
+  compromisso: CalendarDays, consulta: Stethoscope, recorrencia: Receipt,
+  divida: Receipt, fatura: CreditCard, fechamento: CreditCard, manutencao: Wrench,
+};
 
 const ANTEC = [
   { v: 0,    l: 'Na hora' },
@@ -50,18 +72,20 @@ function rotuloDia(dataStr: string): string {
   return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 }
 
-// 42 células (6 semanas) começando no domingo da 1ª semana
 function matrizMes(ano: number, mes: number): Date[] {
   const primeiro = new Date(ano, mes, 1);
   const ini = new Date(primeiro); ini.setDate(1 - primeiro.getDay());
   return Array.from({ length: 42 }, (_, i) => { const d = new Date(ini); d.setDate(ini.getDate() + i); return d; });
 }
+const ordenarDia = (a: any, b: any) => (a.hora || '99:99').localeCompare(b.hora || '99:99');
 
 export default function AgendaPage() {
   const { phone } = useAuth();
-  const [comps, setComps]     = useState<any[]>([]);
+  const router = useRouter();
+  const [eventos, setEventos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView]       = useState<'lista' | 'mes'>('lista');
+  const [ocultas, setOcultas] = useState<Set<FamKey>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando]   = useState<any | null>(null);
   const [dataPrefill, setDataPrefill] = useState<string | null>(null);
@@ -75,47 +99,49 @@ export default function AgendaPage() {
     if (!phone) return;
     if (!silent) setLoading(true);
     try {
-      const r = await api.grow.compromissos.listar(phone);
-      setComps(r.itens || []);
-    } catch { /* tolerante: aba vazia se a migration ainda não rodou */ }
+      const r = await api.grow.compromissos.feed(phone);
+      setEventos(r.eventos || []);
+    } catch { /* tolerante */ }
     finally { if (!silent) setLoading(false); }
   }, [phone]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  // próximos 7 dias (hoje incluso)
+  // aplica filtro de famílias
+  const visiveis = useMemo(() => eventos.filter(e => !ocultas.has(familiaDe(e.source))), [eventos, ocultas]);
+
   const proximos7 = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const lim = new Date(hoje); lim.setDate(lim.getDate() + 7);
-    return comps.filter(c => { const d = parseD(c.data); return d >= hoje && d <= lim; });
-  }, [comps]);
-
+    return visiveis.filter(c => { const d = parseD(c.data); return d >= hoje && d <= lim; });
+  }, [visiveis]);
   const proximo = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    return comps.filter(c => parseD(c.data) >= hoje)[0] || null;
-  }, [comps]);
+    return [...visiveis].filter(c => parseD(c.data) >= hoje).sort((a, b) => a.data.localeCompare(b.data) || ordenarDia(a, b))[0] || null;
+  }, [visiveis]);
 
-  const subtitulo = comps.length === 0
-    ? 'Seus compromissos num só lugar — e a Sora te lembra na hora.'
+  const subtitulo = eventos.length === 0
+    ? 'Seus compromissos e tudo que tem data na Sora, num lugar só.'
     : `${proximos7.length} esta semana${proximo ? ` · próximo: ${rotuloDia(proximo.data).toLowerCase()}${proximo.hora ? ` ${proximo.hora}` : ''}` : ''}`;
 
+  function toggleFamilia(f: FamKey) {
+    setOcultas(prev => { const n = new Set(prev); n.has(f) ? n.delete(f) : n.add(f); return n; });
+  }
   function abrirNovo(data?: string) { setEditando(null); setDataPrefill(data || null); setModalOpen(true); }
-  function abrirEdicao(c: any) { setEditando(c); setDataPrefill(null); setModalOpen(true); }
-
-  async function deletar(c: any) {
-    if (!confirm(`Excluir "${c.titulo}"?`)) return;
-    setComps(prev => prev.filter(x => x.id !== c.id));
-    try { await api.grow.compromissos.deletar(c.id, phone!); } catch (e: any) { alert(e.message); carregar(); }
+  function abrirEvento(e: any) {
+    if (e.editavel) { setEditando(e.raw); setDataPrefill(null); setModalOpen(true); }
+    else router.push(e.deeplink); // read-only → vai pra área de origem
+  }
+  async function deletar(e: any) {
+    if (!e.editavel) return;
+    if (!confirm(`Excluir "${e.titulo}"?`)) return;
+    setEventos(prev => prev.filter(x => x.id !== e.id));
+    try { await api.grow.compromissos.deletar(e.raw.id, phone!); } catch (err: any) { alert(err.message); carregar(); }
   }
 
   return (
     <div className="max-w-5xl mx-auto pb-24 space-y-6">
-      <GrowHero
-        badge="Agenda"
-        badgeIcon={CalendarDays}
-        titulo="Agenda"
-        subtitulo={subtitulo}
-      />
+      <GrowHero badge="Agenda" badgeIcon={CalendarDays} titulo="Agenda" subtitulo={subtitulo} />
 
       {/* Toggle de visão + Novo */}
       <div className="flex items-center justify-between gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>
@@ -138,6 +164,22 @@ export default function AgendaPage() {
         </button>
       </div>
 
+      {/* Filtro / legenda por origem */}
+      <div className="flex items-center gap-1.5 flex-wrap animate-fade-in" style={{ animationDelay: '100ms' }}>
+        {(Object.keys(FAMILIAS) as FamKey[]).map(f => {
+          const fam = FAMILIAS[f]; const Icon = fam.icon; const on = !ocultas.has(f);
+          return (
+            <button key={f} onClick={() => toggleFamilia(f)} aria-pressed={on}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all border"
+              style={on
+                ? { background: `${fam.cor}14`, color: fam.cor, borderColor: `${fam.cor}40` }
+                : { background: 'transparent', color: 'hsl(var(--muted-foreground))', borderColor: 'hsl(var(--border))', opacity: 0.55 }}>
+              <Icon size={12} /> {fam.label}
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div className="card rounded-3xl p-16 flex items-center justify-center">
           <Loader2 size={22} className="animate-spin text-violet-600" />
@@ -145,8 +187,8 @@ export default function AgendaPage() {
       ) : (
         <div className="animate-fade-in">
           {view === 'lista'
-            ? <ViewLista comps={comps} onEdit={abrirEdicao} onDelete={deletar} onNovo={() => abrirNovo()} />
-            : <ViewMes comps={comps} onEdit={abrirEdicao} onDelete={deletar} onNovoNoDia={abrirNovo} />}
+            ? <ViewLista eventos={visiveis} onAbrir={abrirEvento} onDelete={deletar} onNovo={() => abrirNovo()} />
+            : <ViewMes eventos={visiveis} onAbrir={abrirEvento} onDelete={deletar} onNovoNoDia={abrirNovo} />}
         </div>
       )}
 
@@ -162,20 +204,20 @@ export default function AgendaPage() {
 // ═══════════════════════════════════════════════════════════════════
 // VIEW — PRÓXIMOS (lista agrupada por dia)
 // ═══════════════════════════════════════════════════════════════════
-function ViewLista({ comps, onEdit, onDelete, onNovo }: any) {
+function ViewLista({ eventos, onAbrir, onDelete, onNovo }: any) {
   const grupos = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const futuros = comps
+    const futuros = eventos
       .filter((c: any) => parseD(c.data) >= hoje)
-      .sort((a: any, b: any) => a.data.localeCompare(b.data) || (a.hora || '99').localeCompare(b.hora || '99'));
+      .sort((a: any, b: any) => a.data.localeCompare(b.data) || ordenarDia(a, b));
     const m: Record<string, any[]> = {};
     futuros.forEach((c: any) => { (m[c.data] = m[c.data] || []).push(c); });
     return Object.entries(m);
-  }, [comps]);
+  }, [eventos]);
 
   if (!grupos.length) {
-    return <EmptyCard icon={CalendarX} titulo="Nenhum compromisso à frente"
-      desc="Adicione reuniões, eventos, consultas ou aniversários — a Sora te lembra no WhatsApp na hora certa."
+    return <EmptyCard icon={CalendarX} titulo="Nada à frente"
+      desc="Adicione um compromisso, ou ajuste o filtro de origem acima. Consultas, contas e manutenções com data aparecem aqui automaticamente."
       acao={<button onClick={onNovo} className="mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold transition-colors"><Plus size={15} /> Criar compromisso</button>} />;
   }
 
@@ -192,7 +234,7 @@ function ViewLista({ comps, onEdit, onDelete, onNovo }: any) {
             <span className="text-[10px] font-bold text-muted-foreground tabular">{lista.length}</span>
           </div>
           <div className="space-y-2">
-            {lista.map((c: any) => <CompromissoCard key={c.id} c={c} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />)}
+            {lista.map((e: any) => <EventoCard key={e.id} e={e} onAbrir={() => onAbrir(e)} onDelete={() => onDelete(e)} />)}
           </div>
         </div>
       ))}
@@ -200,50 +242,60 @@ function ViewLista({ comps, onEdit, onDelete, onNovo }: any) {
   );
 }
 
-// ─── Card de compromisso ────────────────────────────────────────────
-function CompromissoCard({ c, onEdit, onDelete }: any) {
-  const cat = catDe(c.categoria);
-  const Icon = cat.icon;
+// ─── Card de evento (compromisso editável OU agregado read-only) ────
+function EventoCard({ e, onAbrir, onDelete }: any) {
+  const fam = FAMILIAS[familiaDe(e.source)];
+  const FamIcon = fam.icon;
+  const SrcIcon = ICONE_SOURCE[e.source] || CalendarDays;
+  const cat = e.source === 'compromisso' ? (CATEGORIAS[(e.raw?.categoria as CatKey)] || CATEGORIAS.outro) : null;
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl flex items-stretch transition-all hover:border-border/70"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
-      {/* barra de cor da categoria */}
-      <div className="w-1 flex-shrink-0" style={{ background: cat.cor }} />
-      {/* hora */}
+      <div className="w-1 flex-shrink-0" style={{ background: e.cor }} />
+      {/* hora ou ícone da origem */}
       <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 py-3 border-r border-border/30">
-        {c.hora ? (
-          <span className="text-sm font-bold text-foreground tabular tracking-tight">{c.hora}</span>
-        ) : (
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground text-center leading-tight">Dia<br />todo</span>
-        )}
+        {e.hora
+          ? <span className="text-sm font-bold text-foreground tabular tracking-tight">{e.hora}</span>
+          : <SrcIcon size={18} style={{ color: e.cor }} />}
       </div>
       {/* corpo */}
-      <div className="flex-1 min-w-0 py-2.5 px-3">
-        <p className="text-sm font-bold text-foreground truncate">{c.titulo}</p>
+      <button onClick={onAbrir} className="flex-1 min-w-0 py-2.5 px-3 text-left">
+        <p className="text-sm font-bold text-foreground truncate">{e.titulo}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: cat.cor }}>
-            <Icon size={10} /> {cat.label}
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: e.cor }}>
+            {cat ? <cat.icon size={10} /> : <FamIcon size={10} />} {cat ? cat.label : fam.label}
           </span>
-          {c.local && (
+          {e.valor != null && (
+            <span className="text-[11px] font-bold tabular" style={{ color: e.cor }}>{brl(e.valor)}</span>
+          )}
+          {e.local && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
-              <MapPin size={10} className="flex-shrink-0" /> <span className="truncate">{c.local}</span>
+              <MapPin size={10} className="flex-shrink-0" /> <span className="truncate">{e.local}</span>
             </span>
           )}
-          {c.lembrete_ativo && (
+          {e.editavel && e.raw?.lembrete_ativo && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
               <Bell size={10} fill="currentColor" /> lembrete
             </span>
           )}
         </div>
-      </div>
+      </button>
       {/* ações */}
       <div className="flex items-center gap-0.5 pr-2">
-        <button onClick={onEdit} aria-label="Editar compromisso" className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
-          <Pencil size={14} />
-        </button>
-        <button onClick={onDelete} aria-label="Excluir compromisso" className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
-          <Trash2 size={14} />
-        </button>
+        {e.editavel ? (
+          <>
+            <button onClick={onAbrir} aria-label="Editar compromisso" className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+              <Pencil size={14} />
+            </button>
+            <button onClick={onDelete} aria-label="Excluir compromisso" className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
+              <Trash2 size={14} />
+            </button>
+          </>
+        ) : (
+          <button onClick={onAbrir} aria-label={`Abrir em ${fam.label}`} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <ArrowUpRight size={15} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -252,29 +304,27 @@ function CompromissoCard({ c, onEdit, onDelete }: any) {
 // ═══════════════════════════════════════════════════════════════════
 // VIEW — MÊS (calendário)
 // ═══════════════════════════════════════════════════════════════════
-function ViewMes({ comps, onEdit, onDelete, onNovoNoDia }: any) {
+function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
   const hojeStr = iso(new Date());
   const [refMes, setRefMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [selecionado, setSelecionado] = useState<string>(hojeStr);
 
   const porDia = useMemo(() => {
     const m: Record<string, any[]> = {};
-    comps.forEach((c: any) => { (m[c.data] = m[c.data] || []).push(c); });
-    Object.values(m).forEach(l => l.sort((a, b) => (a.hora || '99').localeCompare(b.hora || '99')));
+    eventos.forEach((c: any) => { (m[c.data] = m[c.data] || []).push(c); });
+    Object.values(m).forEach(l => l.sort(ordenarDia));
     return m;
-  }, [comps]);
+  }, [eventos]);
 
   const celulas = useMemo(() => matrizMes(refMes.ano, refMes.mes), [refMes]);
   const navMes = (delta: number) => setRefMes(({ ano, mes }) => {
     const d = new Date(ano, mes + delta, 1); return { ano: d.getFullYear(), mes: d.getMonth() };
   });
   const irHoje = () => { const d = new Date(); setRefMes({ ano: d.getFullYear(), mes: d.getMonth() }); setSelecionado(hojeStr); };
-
   const eventosDoDia = (porDia[selecionado] || []);
 
   return (
     <div className="space-y-4">
-      {/* Header do mês */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-foreground capitalize">
           {MESES[refMes.mes]} <span className="text-muted-foreground font-semibold">{refMes.ano}</span>
@@ -286,7 +336,6 @@ function ViewMes({ comps, onEdit, onDelete, onNovoNoDia }: any) {
         </div>
       </div>
 
-      {/* Grade */}
       <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-2 sm:p-3" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
         <div className="grid grid-cols-7 mb-1">
           {DIAS_MIN.map((d, i) => (
@@ -299,21 +348,21 @@ function ViewMes({ comps, onEdit, onDelete, onNovoNoDia }: any) {
             const noMes = d.getMonth() === refMes.mes;
             const ehHoje = ds === hojeStr;
             const sel = ds === selecionado;
-            const eventos = porDia[ds] || [];
+            const evs = porDia[ds] || [];
             return (
-              <button key={i} onClick={() => setSelecionado(ds)} aria-label={`${d.getDate()} — ${eventos.length} compromisso(s)`} aria-pressed={sel}
+              <button key={i} onClick={() => setSelecionado(ds)} aria-label={`${d.getDate()} — ${evs.length} item(ns)`} aria-pressed={sel}
                 className={`relative aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${
                   sel ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/25'
                       : ehHoje ? 'bg-violet-500/10 text-foreground'
                       : noMes ? 'text-foreground hover:bg-muted/60' : 'text-muted-foreground/40 hover:bg-muted/40'
                 }`}>
                 <span className={`text-[13px] tabular ${ehHoje && !sel ? 'font-bold text-violet-600 dark:text-violet-400' : sel ? 'font-bold' : 'font-medium'}`}>{d.getDate()}</span>
-                {eventos.length > 0 && (
+                {evs.length > 0 && (
                   <div className="flex items-center gap-0.5">
-                    {eventos.slice(0, 3).map((e: any, k: number) => (
-                      <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: sel ? 'rgba(255,255,255,0.9)' : catDe(e.categoria).cor }} />
+                    {evs.slice(0, 3).map((e: any, k: number) => (
+                      <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: sel ? 'rgba(255,255,255,0.9)' : e.cor }} />
                     ))}
-                    {eventos.length > 3 && <span className={`text-[8px] font-bold ${sel ? 'text-white/90' : 'text-muted-foreground'}`}>+</span>}
+                    {evs.length > 3 && <span className={`text-[8px] font-bold ${sel ? 'text-white/90' : 'text-muted-foreground'}`}>+</span>}
                   </div>
                 )}
               </button>
@@ -322,7 +371,6 @@ function ViewMes({ comps, onEdit, onDelete, onNovoNoDia }: any) {
         </div>
       </div>
 
-      {/* Eventos do dia selecionado */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <p className="text-sm font-bold text-foreground capitalize">{rotuloDia(selecionado)}</p>
@@ -333,11 +381,11 @@ function ViewMes({ comps, onEdit, onDelete, onNovoNoDia }: any) {
         </div>
         {eventosDoDia.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/60 py-8 text-center bg-muted/10">
-            <p className="text-sm text-muted-foreground">Nada marcado nesse dia.</p>
+            <p className="text-sm text-muted-foreground">Nada nesse dia.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {eventosDoDia.map((c: any) => <CompromissoCard key={c.id} c={c} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />)}
+            {eventosDoDia.map((e: any) => <EventoCard key={e.id} e={e} onAbrir={() => onAbrir(e)} onDelete={() => onDelete(e)} />)}
           </div>
         )}
       </div>
@@ -346,7 +394,7 @@ function ViewMes({ comps, onEdit, onDelete, onNovoNoDia }: any) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MODAL — criar / editar
+// MODAL — criar / editar compromisso
 // ═══════════════════════════════════════════════════════════════════
 function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
   const [titulo, setTitulo]   = useState(item?.titulo || '');
@@ -365,10 +413,8 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
     if (!data) { setErro('Escolha a data.'); return; }
     setErro(''); setSalvando(true);
     const body = {
-      phone, titulo: titulo.trim(), data,
-      hora: diaTodo ? null : hora,
-      categoria, cor: CATEGORIAS[categoria].cor,
-      local: local.trim() || undefined,
+      phone, titulo: titulo.trim(), data, hora: diaTodo ? null : hora,
+      categoria, cor: CATEGORIAS[categoria].cor, local: local.trim() || undefined,
       lembrete_ativo: lembrete, lembrete_antecedencia: antec,
     };
     try {
@@ -388,13 +434,11 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Título */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Título</label>
             <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex.: Reunião com a equipe" className="input" autoFocus maxLength={80} />
           </div>
 
-          {/* Data + hora */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Data</label>
@@ -402,8 +446,7 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Hora</label>
-              <input type="time" value={hora} onChange={e => setHora(e.target.value)} disabled={diaTodo}
-                     className="input disabled:opacity-40" />
+              <input type="time" value={hora} onChange={e => setHora(e.target.value)} disabled={diaTodo} className="input disabled:opacity-40" />
             </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none -mt-2">
@@ -411,7 +454,6 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
             <span className="text-xs font-semibold text-foreground">Dia todo (sem horário)</span>
           </label>
 
-          {/* Categoria */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Categoria</label>
             <div className="flex gap-1.5 flex-wrap">
@@ -420,9 +462,7 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
                 return (
                   <button key={k} onClick={() => setCategoria(k)} aria-pressed={ativo}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all"
-                    style={ativo
-                      ? { background: cat.cor, color: '#fff' }
-                      : { background: `${cat.cor}14`, color: cat.cor }}>
+                    style={ativo ? { background: cat.cor, color: '#fff' } : { background: `${cat.cor}14`, color: cat.cor }}>
                     <Icon size={12} /> {cat.label}
                   </button>
                 );
@@ -430,13 +470,11 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
             </div>
           </div>
 
-          {/* Local */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Local <span className="normal-case font-normal text-muted-foreground/70">(opcional)</span></label>
             <input value={local} onChange={e => setLocal(e.target.value)} placeholder="Ex.: Escritório, online…" className="input" maxLength={80} />
           </div>
 
-          {/* Lembrete */}
           <div className="rounded-xl bg-muted/30 p-3 space-y-3">
             <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
               <span className="flex items-center gap-2 text-sm font-semibold text-foreground">

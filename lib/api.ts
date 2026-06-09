@@ -345,6 +345,14 @@ export const api = {
         req<any>(`/api/grow/compromissos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string, phone: string) =>
         req(`/api/grow/compromissos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+      // Fase 2 — feed unificado: compromissos + consultas + finanças + casa
+      feed: (phone: string, range?: { de?: string; ate?: string }) => {
+        const qs = new URLSearchParams();
+        if (range?.de)  qs.set('de', range.de);
+        if (range?.ate) qs.set('ate', range.ate);
+        const q = qs.toString();
+        return req<{ eventos: any[] }>(`/api/grow/agenda/feed/${phone}${q ? `?${q}` : ''}`);
+      },
     },
   },
 
