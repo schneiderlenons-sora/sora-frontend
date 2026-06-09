@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
+import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { useAuth } from '@/contexts/AuthContext';
@@ -321,6 +322,7 @@ export default function CartaoDeCreditoPage() {
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
                   onExcluir={() => setConfirmDel(w)}
                   onAbrir={() => setDetalhes(w)}
+                  onRefresh={carregar}
                 />
               ))}
             </div>
@@ -469,10 +471,12 @@ interface CardCartaoProps {
   onEditar:  () => void;
   onExcluir: () => void;
   onAbrir:   () => void;
+  onRefresh: () => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, onExcluir, onAbrir }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, onExcluir, onAbrir, onRefresh }: CardCartaoProps) {
   const [meta, setMeta] = useState<CartaoMeta>({});
+  const [pagarOpen, setPagarOpen] = useState(false);
 
   useEffect(() => {
     setMeta(loadCartaoMeta(cartao.id));
@@ -513,6 +517,7 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
   })();
 
   return (
+    <>
     <div
       role="button"
       tabIndex={0}
@@ -568,6 +573,13 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
         <p className="text-2xl font-bold text-foreground tabular tracking-tight mt-0.5">
           {ocultar ? '••••••' : fmt(fatura)}
         </p>
+
+        {fatura > 0 && !paga && (
+          <button onClick={(e) => { e.stopPropagation(); setPagarOpen(true); }}
+            className="relative z-10 mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-bold hover:bg-primary hover:text-white transition-colors">
+            <CreditCard size={11} /> Pagar fatura
+          </button>
+        )}
 
         {/* Alerta de fechamento não configurado */}
         {!diaFechamento ? (
@@ -658,5 +670,19 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
         </button>
       </div>
     </div>
+    {pagarOpen && (
+      <PagarFaturaModal
+        cartaoId={cartao.id}
+        cartaoNome={cartao.nome}
+        valorFatura={fatura}
+        onClose={() => setPagarOpen(false)}
+        onPago={() => {
+          try { localStorage.setItem(`sora-fatura-${cartao.id}-${mesRef}`, 'paga'); } catch {}
+          setPaga(true);
+          onRefresh();
+        }}
+      />
+    )}
+    </>
   );
 }

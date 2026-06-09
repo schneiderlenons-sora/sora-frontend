@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Receipt, Zap, Calendar, ArrowDownRight } from 'lucide-react';
 import { api } from '@/lib/api';
+import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 
 const TIPOS_PAGAMENTO = [
   { v: 'parcela',       l: 'Parcela',         desc: 'Pagamento mensal regular',     icon: Receipt },
@@ -28,6 +29,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
   const [tipo,    setTipo]    = useState<'parcela' | 'antecipacao' | 'juros_atraso'>('parcela');
   const [data,    setData]    = useState(new Date().toISOString().slice(0, 10));
   const [obs,     setObs]     = useState('');
+  const [walletId, setWalletId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
 
@@ -54,6 +56,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
         data_pagamento: data,
         observacao: obs.trim() || undefined,
         numero_parcela: tipo === 'parcela' || tipo === 'antecipacao' ? numeroAtual : undefined,
+        wallet_id: walletId,
       });
       onSuccess(r.quitada);
       onClose();
@@ -185,6 +188,9 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
               className="input"
             />
           </div>
+
+          {/* Descontar de uma conta */}
+          <ContaDebitoSelect value={walletId} onChange={setWalletId} />
 
           {erro && (
             <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">

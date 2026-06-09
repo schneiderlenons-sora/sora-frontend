@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import NovaMetaModal from '@/components/metas/NovaMetaModal';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
+import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 import {
   Plus, Sparkles, Pencil, Trash2, ArrowUpRight, ArrowDownLeft,
   AlertCircle, Loader2, Check, X as XIcon, Flag, Calendar, Target as TargetIcon,
@@ -455,6 +456,7 @@ interface AporteProps {
 function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AporteProps) {
   const [valorRaw, setValorRaw] = useState('');
   const [obs,      setObs]      = useState('');
+  const [walletId, setWalletId] = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState('');
 
@@ -475,8 +477,8 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
     }
     setLoading(true);
     try {
-      const body = { phone, valor, observacao: obs.trim() || undefined };
-      if (ehAporte) await api.metas.aportar(meta.id,  body);
+      const body: any = { phone, valor, observacao: obs.trim() || undefined };
+      if (ehAporte) { body.wallet_id = walletId; await api.metas.aportar(meta.id, body); }
       else          await api.metas.resgatar(meta.id, body);
       onSuccess();
       onClose();
@@ -566,6 +568,9 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
                    placeholder={ehAporte ? 'Ex: 13º salário' : 'Ex: gasto emergencial'}
                    className="input" maxLength={80} />
           </div>
+
+          {/* Descontar de uma conta (só no aporte) */}
+          {ehAporte && <ContaDebitoSelect value={walletId} onChange={setWalletId} />}
 
           {erro && (
             <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">

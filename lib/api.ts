@@ -93,6 +93,9 @@ export const api = {
       req('/api/wallets', { method: 'POST', body: JSON.stringify(body) }),
     deletar: (id: string) =>
       req(`/api/wallets/${id}`, { method: 'DELETE' }),
+    // Paga a fatura do cartão debitando de uma conta (cria a transação de saída)
+    pagarFatura: (body: { phone: string; cartao_id: string; wallet_id: string; valor: number }) =>
+      req<{ ok: boolean; debito: any }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   // ── CATEGORIAS ────────────────────────────────────────────────
@@ -207,10 +210,10 @@ export const api = {
       req<any>(`/api/dividas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deletar: (id: string, phone: string) =>
       req(`/api/dividas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
-    pagar: (id: string, body: { phone: string; valor: number; tipo?: string; data_pagamento?: string; observacao?: string; numero_parcela?: number }) =>
-      req<{ divida: any; quitada: boolean }>(`/api/dividas/${id}/pagar`, { method: 'POST', body: JSON.stringify(body) }),
-    quitar: (id: string, body: { phone: string; valor?: number; data_pagamento?: string; observacao?: string }) =>
-      req<{ divida: any; quitada: boolean }>(`/api/dividas/${id}/quitar`, { method: 'POST', body: JSON.stringify(body) }),
+    pagar: (id: string, body: { phone: string; valor: number; tipo?: string; data_pagamento?: string; observacao?: string; numero_parcela?: number; wallet_id?: string | null }) =>
+      req<{ divida: any; quitada: boolean; debito?: any }>(`/api/dividas/${id}/pagar`, { method: 'POST', body: JSON.stringify(body) }),
+    quitar: (id: string, body: { phone: string; valor?: number; data_pagamento?: string; observacao?: string; wallet_id?: string | null }) =>
+      req<{ divida: any; quitada: boolean; debito?: any }>(`/api/dividas/${id}/quitar`, { method: 'POST', body: JSON.stringify(body) }),
     pagamentos: (id: string) =>
       req<any[]>(`/api/dividas/${id}/pagamentos`),
     toggleLembrete: (id: string, body: { phone: string; ativo: boolean }) =>
@@ -561,7 +564,7 @@ export const api = {
       req<any>(`/api/metas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deletar: (id: string, phone: string) =>
       req(`/api/metas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
-    aportar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string }) =>
+    aportar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string; wallet_id?: string | null }) =>
       req<any>(`/api/metas/${id}/aporte`, { method: 'POST', body: JSON.stringify(body) }),
     resgatar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string }) =>
       req<any>(`/api/metas/${id}/resgate`, { method: 'POST', body: JSON.stringify(body) }),
