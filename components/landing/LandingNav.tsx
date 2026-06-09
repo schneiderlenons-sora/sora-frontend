@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
-import { Menu, X, Moon, Sun, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
 
 const LINKS = [
   { href: '#solucao',    label: 'Solução'  },
@@ -16,20 +15,15 @@ const LINKS = [
 
 export default function LandingNav() {
   const { user } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [open, setOpen]       = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-
-  const isDark = mounted && resolvedTheme === 'dark';
 
   return (
     <>
@@ -66,15 +60,6 @@ export default function LandingNav() {
 
           {/* Ações */}
           <div className="flex items-center gap-2">
-            {/* Theme toggle */}
-            <button
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              aria-label="Alternar tema"
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
-            >
-              {mounted && (isDark ? <Sun size={16} /> : <Moon size={16} />)}
-            </button>
-
             {/* Login link */}
             {user ? (
               <Link href="/dashboard"

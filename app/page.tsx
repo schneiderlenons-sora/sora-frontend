@@ -12,6 +12,7 @@ import Features        from '@/components/landing/Features';
 import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import Showcase        from '@/components/landing/Showcase';
+import SaudeShowcase   from '@/components/landing/SaudeShowcase';
 import Carrossel       from '@/components/landing/Carrossel';
 import SoraLabs        from '@/components/landing/SoraLabs';
 import SocialProof     from '@/components/landing/SocialProof';
@@ -22,16 +23,21 @@ import Footer          from '@/components/landing/Footer';
 
 export default function LandingPage() {
   return (
-    <main className="bg-white dark:bg-[#0a0a0a] text-zinc-950 dark:text-white antialiased overflow-x-hidden">
+    // Landing sempre em tema escuro (independente da preferência salva): a
+    // classe `dark` no root ativa todas as variantes dark: dos filhos e o bg
+    // é definido direto (não via dark:) pra não depender do <html>.
+    <main className="dark bg-[#0a0a0a] text-white antialiased overflow-x-hidden">
       <LandingNav />
       <Hero />
       <Problema />
       <Solucao />
       <ComoFunciona />
       <Features />
+      {/* Clareza total + Em conjunto, logo após os 8 cards; depois a Saúde */}
+      <Showcase />
+      <SaudeShowcase />
       <TestDrive />
       <OpenFinance />
-      <Showcase />
       <Carrossel />
       <SoraLabs />
       <SocialProof />
