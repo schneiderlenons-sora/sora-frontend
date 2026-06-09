@@ -322,6 +322,14 @@ export const COMANDOS: Comando[] = [
     descricao: 'Mostra o valor total da fatura atual do cartão. Quando a fatura fecha (e quando vence), a Sora te avisa sozinha e já oferece pagar — é só responder de qual conta.',
     categoria: 'cartoes',
   },
+  {
+    id: 'pagar-fatura',
+    titulo: 'Pagar fatura do cartão',
+    exemplo: 'pagar fatura nubank',
+    descricao: 'A Sora soma a fatura do mês e pergunta de qual conta você quer pagar — ao escolher, ela debita o saldo e registra a saída nas transações.',
+    variantes: ['quitar a fatura do nubank'],
+    categoria: 'cartoes',
+  },
 
   // ─── DÍVIDAS ──────────────────────────────────────────────────────
   {
