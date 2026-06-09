@@ -25,6 +25,11 @@ interface Wallet {
   tipo:   string;
   saldo?: number;
   limite?: number;
+  // Metadados de cartão (migration 023) — fonte da verdade pro fechamento/vencimento
+  dia_fechamento?: number | null;
+  dia_vencimento?: number | null;
+  bandeira?:       string | null;
+  ultimos4?:       string | null;
 }
 
 export default function CartaoDeCreditoPage() {
@@ -473,6 +478,12 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
     setMeta(loadCartaoMeta(cartao.id));
   }, [cartao.id]);
 
+  // Fonte da verdade = banco (wallets.dia_fechamento/vencimento, migration 023);
+  // localStorage só como fallback. Antes lia só o `meta` em state, que não
+  // recarregava após editar (deps [cartao.id] não mudam) → datas "não salvavam".
+  const diaFechamento = cartao.dia_fechamento ?? meta.diaFechamento ?? null;
+  const diaVencimento = cartao.dia_vencimento ?? meta.diaVencimento ?? null;
+
   const logo = bancoLogo(cartao.nome);
   const limite = cartao.limite || 0;
   // "Usado" do limite = total comprometido (fatura atual + parcelas futuras
@@ -492,8 +503,8 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
   }, [cartao.id, mesRef]);
 
   const vencimentoLabel = (() => {
-    if (!meta.diaVencimento) return null;
-    const dia = meta.diaVencimento;
+    if (!diaVencimento) return null;
+    const dia = diaVencimento;
     let m = hoje.getMonth();
     // Se o dia de vencimento já passou neste mês, mostra o próximo (mês seguinte)
     if (hoje.getDate() > dia) m += 1;
@@ -559,7 +570,7 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
         </p>
 
         {/* Alerta de fechamento não configurado */}
-        {!meta.diaFechamento ? (
+        {!diaFechamento ? (
           <>
             <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 leading-snug">
               Configure a data de fechamento do cartão para poder ver faturas mais recentes

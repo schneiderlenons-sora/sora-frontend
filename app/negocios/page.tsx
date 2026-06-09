@@ -256,7 +256,7 @@ function HeroLucro({ dre }: { dre: any }) {
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Lucro líquido</p>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight tabular-nums break-all" style={{ color: BRAND }}>
+            <span className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight tabular-nums leading-tight" style={{ color: BRAND }}>
               {fmt(dre.lucro_liquido)}
             </span>
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold tabular-nums ${
@@ -285,10 +285,10 @@ function HeroLucro({ dre }: { dre: any }) {
 
 function KpiMini({ label, valor, sufixo }: { label: string; valor: string; sufixo?: string }) {
   return (
-    <div className="rounded-2xl bg-muted/40 border border-border/60 px-3 py-2.5">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="text-base font-bold text-foreground tabular-nums leading-tight mt-0.5">{valor}</p>
-      {sufixo && <p className="text-[10px] text-muted-foreground mt-0.5">{sufixo}</p>}
+    <div className="min-w-0 rounded-2xl bg-muted/40 border border-border/60 px-3 py-2.5">
+      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider sm:tracking-widest text-muted-foreground leading-tight">{label}</p>
+      <p className="text-sm sm:text-base font-bold text-foreground tabular-nums leading-tight mt-0.5 truncate">{valor}</p>
+      {sufixo && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sufixo}</p>}
     </div>
   );
 }

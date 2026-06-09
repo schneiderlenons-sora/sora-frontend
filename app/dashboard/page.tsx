@@ -582,7 +582,10 @@ export default function DashboardPage() {
             </div>
 
             {txs.length > 0 ? (
-              <div className="space-y-1">
+              // Mobile: a lista inteira rola junto na horizontal (min-width único)
+              // pra data/banco não se espremerem. Desktop: cabe sem rolar.
+              <div className="overflow-x-auto scrollbar-none -mx-2 px-2">
+              <div className="space-y-1.5 min-w-[480px] sm:min-w-0">
                 {txs.map((tx, i) => {
                   const isGasto   = tx.tipo === 'Gasto';
                   const { emoji, nome } = parseCategoria(tx.categoria || '');
@@ -607,13 +610,13 @@ export default function DashboardPage() {
                           {tx.observacao || nome}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(tx.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                           </span>
                           {tx.wallet_nome && (
                             <>
                               <span className="text-muted-foreground/40 text-xs">·</span>
-                              <span className="text-xs text-muted-foreground truncate max-w-[80px]">{tx.wallet_nome}</span>
+                              <span className="text-xs text-muted-foreground truncate max-w-[160px]">{tx.wallet_nome}</span>
                             </>
                           )}
                         </div>
@@ -640,6 +643,7 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
+              </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-14 text-center">

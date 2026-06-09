@@ -102,14 +102,17 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
       .catch(() => setContasBancarias([]));
   }, [phone]);
 
-  // Carrega metadados existentes em modo edição
+  // Carrega metadados existentes em modo edição.
+  // Banco (wallets.dia_fechamento/vencimento) é a fonte da verdade; localStorage
+  // é só fallback — senão editar um cartão salvo no DB (mas sem cache local)
+  // mostraria campos vazios e os apagaria ao salvar.
   useEffect(() => {
     if (!cartaoExistente) return;
     const meta = loadCartaoMeta(cartaoExistente.id);
-    setBandeira(meta.bandeira || '');
-    setUltimos4(meta.ultimos4 || '');
-    setDiaFechamento(meta.diaFechamento ?? '');
-    setDiaVencimento(meta.diaVencimento ?? '');
+    setBandeira(cartaoExistente.bandeira ?? meta.bandeira ?? '');
+    setUltimos4(cartaoExistente.ultimos4 ?? meta.ultimos4 ?? '');
+    setDiaFechamento(cartaoExistente.dia_fechamento ?? meta.diaFechamento ?? '');
+    setDiaVencimento(cartaoExistente.dia_vencimento ?? meta.diaVencimento ?? '');
   }, [cartaoExistente]);
 
   // Conta selecionada
