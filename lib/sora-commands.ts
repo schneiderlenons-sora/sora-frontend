@@ -593,6 +593,14 @@ export const COMANDOS: Comando[] = [
     categoria: 'sora-grow',
     feature: 'sora_grow',
   },
+  {
+    id: 'grow-agenda-marcar',
+    titulo: 'Marcar compromisso',
+    exemplo: 'marca dentista terça 15h',
+    descricao: 'Cria um compromisso direto pela conversa — a Sora entende o dia e a hora e ainda te lembra.',
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
 
   // ─── NEGÓCIOS ─────────────────────────────────────────────────────
   {

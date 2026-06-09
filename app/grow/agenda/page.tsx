@@ -9,7 +9,7 @@ import {
   CalendarDays, Plus, Loader2, Check, X, Trash2, Pencil, Bell, Clock,
   MapPin, ChevronLeft, ChevronRight, List, CalendarRange, CalendarX,
   User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag, ArrowUpRight,
-  Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench,
+  Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
 } from 'lucide-react';
 
 const BRAND = '#7c3aed';
@@ -179,6 +179,9 @@ export default function AgendaPage() {
           );
         })}
       </div>
+
+      {/* Briefing matinal */}
+      {phone && <BriefingCard phone={phone} />}
 
       {loading ? (
         <div className="card rounded-3xl p-16 flex items-center justify-center">
@@ -510,6 +513,73 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
             {item ? 'Salvar' : 'Criar'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BRIEFING MATINAL (opt-in)
+// ═══════════════════════════════════════════════════════════════════
+function BriefingCard({ phone }: { phone: string }) {
+  const [ativo, setAtivo]     = useState(false);
+  const [horario, setHorario] = useState('07:00');
+  const [carregado, setCarregado] = useState(false);
+  const [status, setStatus]   = useState<'idle' | 'salvando' | 'salvo' | 'erro'>('idle');
+  const [aberto, setAberto]   = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    api.grow.compromissos.briefing.get(phone)
+      .then(r => { if (vivo) { setAtivo(!!r.ativo); setHorario(r.horario || '07:00'); if (r.ativo) setAberto(true); } })
+      .catch(() => {})
+      .finally(() => { if (vivo) setCarregado(true); });
+    return () => { vivo = false; };
+  }, [phone]);
+
+  async function salvar(novoAtivo: boolean, novoHorario: string) {
+    setStatus('salvando');
+    try {
+      await api.grow.compromissos.briefing.salvar({ phone, ativo: novoAtivo, horario: novoHorario });
+      setStatus('salvo'); setTimeout(() => setStatus('idle'), 2000);
+    } catch (e: any) { setStatus('erro'); alert(e.message || 'Não consegui salvar o briefing.'); }
+  }
+  function toggle() {
+    const novo = !ativo; setAtivo(novo); if (novo) setAberto(true);
+    salvar(novo, horario);
+  }
+  function mudarHorario(h: string) { setHorario(h); if (ativo) salvar(true, h); }
+
+  if (!carregado) return null;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4 animate-fade-in" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: 'radial-gradient(circle at top right, #f59e0b24 0%, transparent 70%)' }} />
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#f59e0b1A' }}>
+            <Sun size={16} style={{ color: '#d97706' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground">Briefing matinal</p>
+            <p className="text-[11px] text-muted-foreground">A Sora te manda no WhatsApp tudo do seu dia, toda manhã.</p>
+          </div>
+          <button onClick={toggle} role="switch" aria-checked={ativo} aria-label="Ativar briefing matinal"
+                  className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${ativo ? 'bg-amber-500' : 'bg-muted-foreground/30'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${ativo ? 'translate-x-5' : ''}`} />
+          </button>
+        </div>
+
+        {ativo && aberto && (
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/40 animate-fade-in">
+            <Clock size={14} className="text-muted-foreground flex-shrink-0" />
+            <label className="text-xs font-semibold text-foreground">Horário</label>
+            <input type="time" value={horario} onChange={e => mudarHorario(e.target.value)} className="input w-28 py-1.5 text-sm" />
+            <span className="flex-1" />
+            {status === 'salvando' && <Loader2 size={13} className="animate-spin text-muted-foreground" />}
+            {status === 'salvo' && <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><Check size={12} /> Salvo</span>}
+          </div>
+        )}
       </div>
     </div>
   );

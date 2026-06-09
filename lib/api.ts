@@ -353,6 +353,12 @@ export const api = {
         const q = qs.toString();
         return req<{ eventos: any[] }>(`/api/grow/agenda/feed/${phone}${q ? `?${q}` : ''}`);
       },
+      // Fase 3 — briefing matinal (opt-in)
+      briefing: {
+        get: (phone: string) => req<{ ativo: boolean; horario: string }>(`/api/grow/agenda/briefing/${phone}`),
+        salvar: (body: { phone: string; ativo?: boolean; horario?: string }) =>
+          req<{ ok: boolean }>('/api/grow/agenda/briefing', { method: 'POST', body: JSON.stringify(body) }),
+      },
     },
   },
 
