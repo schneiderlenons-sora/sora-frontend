@@ -568,7 +568,10 @@ export default function DashboardPage() {
         <div className="grid lg:grid-cols-3 gap-5">
 
           {/* ── Transações Recentes ──────────────────────────── */}
-          <div className="card rounded-3xl p-6 lg:col-span-2 animate-fade-in" style={{ animationDelay: '140ms' }}>
+          {/* min-w-0: sem isso, o item do grid cresce até o conteúdo (min-w da
+              lista) e o card estoura a tela. overflow-hidden mantém o scroll
+              horizontal contido dentro do card (igual à aba Transações). */}
+          <div className="card rounded-3xl p-6 lg:col-span-2 min-w-0 overflow-hidden animate-fade-in" style={{ animationDelay: '140ms' }}>
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
