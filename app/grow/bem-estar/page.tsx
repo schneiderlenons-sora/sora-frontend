@@ -88,7 +88,12 @@ export default function BemEstarPage() {
         haloRgba="rgba(236,72,153,0.12)"
         titulo="Bem-estar"
         subtitulo="Como você está hoje? Registrar o humor te ajuda a notar padrões."
-      />
+      >
+        <button onClick={() => setModalOpen(true)}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.98]">
+          <Plus size={16} /> Registrar
+        </button>
+      </GrowHero>
 
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center">
@@ -111,28 +116,27 @@ export default function BemEstarPage() {
               />
             </div>
           ) : (
-            <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '60ms' }}>
+            <div className="card rounded-3xl p-5 sm:p-6 animate-fade-in" style={{ animationDelay: '60ms' }}>
               <div className="flex items-center gap-4">
-                <div className="text-5xl">{HUMOR_EMOJI[registroHoje.humor]}</div>
-                <div className="flex-1">
+                <div className="text-4xl sm:text-5xl flex-shrink-0">{HUMOR_EMOJI[registroHoje.humor]}</div>
+                <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Hoje</p>
-                  <p className="text-xl font-bold text-foreground">{HUMOR_LABEL[registroHoje.humor]} ({registroHoje.humor}/5)</p>
-                  {registroHoje.nota && <p className="text-sm text-muted-foreground mt-1">{registroHoje.nota}</p>}
+                  <p className="text-lg sm:text-xl font-bold text-foreground">{HUMOR_LABEL[registroHoje.humor]} ({registroHoje.humor}/5)</p>
+                  {registroHoje.nota && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{registroHoje.nota}</p>}
                 </div>
-                <button onClick={() => setModalOpen(true)} className="btn-ghost px-3 py-2 text-xs">Atualizar</button>
               </div>
             </div>
           )}
 
           {/* STATS */}
-          <div className="grid grid-cols-3 gap-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
             <StatBox icon={TrendingUp} label="Humor médio (30d)" value={humorMedio ? `${humorMedio}/5` : '—'} cor={BRAND} />
             <StatBox icon={Smile} label="Dias bons (30d)" value={String(diasBons)} cor="#22c55e" />
             <StatBox icon={Heart} label="Check-ins" value={String(registros.length)} cor="#ec4899" />
           </div>
 
           {/* SONO */}
-          {registros.length > 0 && <SonoCard sono={sono} />}
+          {registros.length > 0 && <SonoCard sono={sono} onAdd={() => setModalOpen(true)} />}
 
           {/* GRAFICO */}
           {dadosGrafico.length > 0 && (
@@ -156,7 +160,7 @@ export default function BemEstarPage() {
           )}
 
           {/* MURAL DE GRATIDÃO */}
-          {registros.length > 0 && <GratidaoMural entries={gratidaoEntries} />}
+          {registros.length > 0 && <GratidaoMural entries={gratidaoEntries} onAdd={() => setModalOpen(true)} />}
 
           {registros.length === 0 && (
             <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
@@ -301,16 +305,16 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
 
 function StatBox({ icon: Icon, label, value, cor }: any) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4"
+    <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-3 sm:p-4"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-40"
            style={{ background: `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)` }} />
       <div className="relative">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `${cor}1A` }}>
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `${cor}1A` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-        <p className="text-xl font-bold tabular tracking-tight mt-0.5" style={{ color: cor }}>{value}</p>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider sm:tracking-widest text-muted-foreground leading-tight">{label}</p>
+        <p className="text-lg sm:text-xl font-bold tabular tracking-tight mt-0.5" style={{ color: cor }}>{value}</p>
       </div>
     </div>
   );
@@ -319,7 +323,7 @@ function StatBox({ icon: Icon, label, value, cor }: any) {
 // ═══════════════════════════════════════════════════════════════════
 // SONO — última noite + média 7d + barras com faixa ideal
 // ═══════════════════════════════════════════════════════════════════
-function SonoCard({ sono }: { sono: any }) {
+function SonoCard({ sono, onAdd }: { sono: any; onAdd: () => void }) {
   const { temDados, ultimo, media7, barras } = sono;
   const COR = '#6366f1';
 
@@ -330,10 +334,15 @@ function SonoCard({ sono }: { sono: any }) {
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${COR}1A` }}>
           <Moon size={16} style={{ color: COR }} />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sono</p>
           <p className="text-sm font-bold text-foreground">Suas horas de descanso</p>
         </div>
+        <button onClick={onAdd} aria-label="Registrar horas de sono"
+          className="ml-auto w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-90 hover:brightness-110 outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
+          style={{ background: `${COR}1A`, color: COR }}>
+          <Plus size={18} />
+        </button>
       </div>
 
       {!temDados ? (
@@ -395,13 +404,20 @@ function SonoCard({ sono }: { sono: any }) {
 // ═══════════════════════════════════════════════════════════════════
 // MURAL DE GRATIDÃO — cards com as coisas registradas, por dia
 // ═══════════════════════════════════════════════════════════════════
-function GratidaoMural({ entries }: { entries: any[] }) {
+function GratidaoMural({ entries, onAdd }: { entries: any[]; onAdd: () => void }) {
   const COR = '#f43f5e';
   return (
     <div className="animate-fade-in" style={{ animationDelay: '220ms' }}>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1 flex items-center gap-1.5">
-        <span className="text-sm">🙏</span> Mural de gratidão
-      </p>
+      <div className="flex items-center justify-between mb-3 px-1">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+          <span className="text-sm">🙏</span> Mural de gratidão
+        </p>
+        <button onClick={onAdd} aria-label="Registrar gratidão"
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-90 hover:brightness-110 outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
+          style={{ background: `${COR}1A`, color: COR }}>
+          <Plus size={18} />
+        </button>
+      </div>
 
       {entries.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border/60 py-10 px-6 text-center bg-muted/10">
