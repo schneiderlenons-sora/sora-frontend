@@ -342,14 +342,14 @@ export const COMANDOS: Comando[] = [
     id: 'pagar-divida',
     titulo: 'Pagar parcela',
     exemplo: 'pagar divida nubank 250',
-    descricao: 'Registra o pagamento de uma parcela.',
+    descricao: 'Registra o pagamento de uma parcela. Em seguida a Sora pergunta se quer descontar de uma conta — responda o número e ela debita o saldo e lança nas transações.',
     categoria: 'dividas',
   },
   {
     id: 'quitar-divida',
     titulo: 'Quitar dívida',
     exemplo: 'quitar divida nubank',
-    descricao: 'Marca a dívida como totalmente paga.',
+    descricao: 'Marca a dívida como totalmente paga. Também pergunta se quer descontar o valor de uma conta.',
     categoria: 'dividas',
   },
   {
@@ -392,6 +392,14 @@ export const COMANDOS: Comando[] = [
     exemplo: 'limite mercado 500',
     descricao: 'Define teto específico para uma categoria.',
     variantes: ['limite lazer 300', 'limite transporte 400'],
+    categoria: 'limites',
+  },
+  {
+    id: 'meta-aporte',
+    titulo: 'Guardar dinheiro numa meta',
+    exemplo: 'guardar 500 na meta viagem',
+    descricao: 'Adiciona o valor à meta e atualiza o progresso. Em seguida a Sora pergunta se você quer descontar de uma conta — é só responder o número.',
+    variantes: ['aplicar 200 na meta carro', 'aportar 300 na meta reserva'],
     categoria: 'limites',
   },
 
@@ -456,9 +464,9 @@ export const COMANDOS: Comando[] = [
   // ─── INVESTIMENTOS ────────────────────────────────────────────────
   {
     id: 'inv-comprar',
-    titulo: 'Registrar compra de ativo',
+    titulo: 'Registrar compra / aporte',
     exemplo: 'comprei 10 PETR4 a 35',
-    descricao: 'Adiciona ao portfólio. Funciona com ações, FIIs, ETFs e cripto.',
+    descricao: 'Adiciona ao portfólio (ações, FIIs, ETFs e cripto). Depois a Sora pergunta se quer descontar o valor de uma conta — responda o número e ela debita o saldo e lança nas transações.',
     variantes: ['investi 1000 em CDB 110% CDI'],
     categoria: 'investimentos',
     feature: 'investimentos',
