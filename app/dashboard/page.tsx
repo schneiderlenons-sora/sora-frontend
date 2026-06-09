@@ -254,18 +254,18 @@ export default function DashboardPage() {
               </div>
 
               {/* Mini stats */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div className="rounded-2xl p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
-                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-1">
+              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                <div className="min-w-0 rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
+                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium mb-1 leading-tight">
                     Gasto em {monthName.slice(0,3)}
                   </p>
-                  <p className="text-foreground font-bold text-base tabular">{fmt(resumo?.gastos||0)}</p>
+                  <p className="text-foreground font-bold text-sm sm:text-base tabular leading-tight truncate">{fmt(resumo?.gastos||0)}</p>
                 </div>
-                <div className="rounded-2xl p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
-                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-1">
+                <div className="min-w-0 rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
+                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium mb-1 leading-tight">
                     VS mês anterior
                   </p>
-                  <p className={`font-bold text-base mt-0.5 ${
+                  <p className={`font-bold text-sm sm:text-base mt-0.5 tabular leading-tight truncate ${
                     !resumoAnt?.gastos
                       ? 'text-muted-foreground'
                       : varGastos > 0
@@ -275,11 +275,11 @@ export default function DashboardPage() {
                     {resumoAnt?.gastos ? (varGastos > 0 ? '+' : '') + varGastos + '%' : '—'}
                   </p>
                 </div>
-                <div className="rounded-2xl p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
-                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-1">
+                <div className="min-w-0 rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
+                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium mb-1 leading-tight">
                     Maior gasto
                   </p>
-                  <p className="text-foreground font-bold text-sm mt-0.5 truncate">
+                  <p className="text-foreground font-bold text-sm mt-0.5 truncate leading-tight">
                     {maiorCat ? parseCategoria(maiorCat.categoria).nome : '—'}
                   </p>
                 </div>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
               </p>
               {resumoAnt?.gastos ? <VarBadge val={varGastos} invert /> : null}
             </div>
-            <p className="text-4xl sm:text-5xl font-bold tabular tracking-tight text-foreground mt-1">
+            <p className="text-3xl sm:text-4xl lg:text-5xl font-bold tabular tracking-tight text-foreground mt-1 truncate leading-tight">
               {fmt(resumo?.gastos||0)}
             </p>
             <p className="text-xs text-muted-foreground mt-1 mb-4">
@@ -414,7 +414,7 @@ export default function DashboardPage() {
                   <card.icon size={15} style={{ color: card.iconColor }} />
                 </div>
               </div>
-              <p className="text-xl sm:text-2xl font-bold tabular tracking-tight"
+              <p className="text-lg sm:text-2xl font-bold tabular tracking-tight truncate leading-tight"
                  style={{ color: card.valueColor || 'hsl(var(--fg))' }}>
                 {card.value}
               </p>
