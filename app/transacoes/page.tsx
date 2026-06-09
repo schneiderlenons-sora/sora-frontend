@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
@@ -605,6 +606,9 @@ function TransactionRow({
   const theme   = getCategoriaTheme(tx.categoria || '');
   const nome    = nomeCategoria(tx.categoria);
   const desc    = tx.observacao || nome;
+  // Ícone: prioriza a MARCA da descrição (ex.: "Shopee", "[Recorrente] Spotify")
+  // e só cai no emoji da categoria quando a descrição não tem marca conhecida.
+  const iconeNome = temMarcaConhecida(desc) ? desc : nome;
 
   return (
     <div
@@ -633,7 +637,7 @@ function TransactionRow({
       {/* Emoji ou logo da marca + descrição */}
       <div className="flex items-center gap-3 min-w-0">
         <CategoriaIcon
-          nome={nome}
+          nome={iconeNome}
           icone={theme.emoji}
           bg={theme.bg}
           color={theme.color}
