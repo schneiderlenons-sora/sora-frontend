@@ -263,7 +263,7 @@ function EventoCard({ e, onAbrir, onDelete }: any) {
       </div>
       {/* corpo */}
       <button onClick={onAbrir} className="flex-1 min-w-0 py-2.5 px-3 text-left">
-        <p className="text-sm font-bold text-foreground truncate">{e.titulo}</p>
+        <p className="text-sm font-bold text-foreground line-clamp-2 break-words">{e.titulo}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: e.cor }}>
             {cat ? <cat.icon size={10} /> : <FamIcon size={10} />} {cat ? cat.label : fam.label}
@@ -340,12 +340,12 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
       </div>
 
       <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-2 sm:p-3" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
-        <div className="grid grid-cols-7 mb-1">
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-1">
           {DIAS_MIN.map((d, i) => (
-            <div key={i} className="text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-1.5">{d}</div>
+            <div key={i} className="text-center sm:text-left sm:px-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-1.5">{d}</div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
           {celulas.map((d, i) => {
             const ds = iso(d);
             const noMes = d.getMonth() === refMes.mes;
@@ -353,22 +353,50 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
             const sel = ds === selecionado;
             const evs = porDia[ds] || [];
             return (
-              <button key={i} onClick={() => setSelecionado(ds)} aria-label={`${d.getDate()} — ${evs.length} item(ns)`} aria-pressed={sel}
-                className={`relative aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${
-                  sel ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/25'
-                      : ehHoje ? 'bg-violet-500/10 text-foreground'
-                      : noMes ? 'text-foreground hover:bg-muted/60' : 'text-muted-foreground/40 hover:bg-muted/40'
+              <div key={i} role="button" tabIndex={0}
+                onClick={() => setSelecionado(ds)}
+                onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setSelecionado(ds); } }}
+                aria-label={`${d.getDate()} — ${evs.length} compromisso${evs.length === 1 ? '' : 's'}`} aria-pressed={sel}
+                className={`relative rounded-xl p-1 sm:p-1.5 min-h-[44px] sm:min-h-[112px] flex flex-col gap-1 cursor-pointer transition-all outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
+                  sel ? 'ring-2 ring-violet-500 bg-violet-500/5'
+                      : ehHoje ? 'bg-violet-500/10'
+                      : noMes ? 'hover:bg-muted/50' : 'opacity-40 hover:bg-muted/30'
                 }`}>
-                <span className={`text-[13px] tabular ${ehHoje && !sel ? 'font-bold text-violet-600 dark:text-violet-400' : sel ? 'font-bold' : 'font-medium'}`}>{d.getDate()}</span>
+                {/* Número do dia + (mobile) pontinhos */}
+                <div className="flex items-center justify-between gap-1">
+                  <span className={`text-[12px] sm:text-[13px] tabular leading-none w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 ${
+                    ehHoje ? 'bg-violet-600 text-white font-bold' : noMes ? 'text-muted-foreground/50' : 'text-foreground font-medium'
+                  }`}>{d.getDate()}</span>
+                  {evs.length > 0 && (
+                    <span className="flex sm:hidden items-center gap-0.5" aria-hidden="true">
+                      {evs.slice(0, 3).map((e: any, k: number) => (
+                        <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: e.cor }} />
+                      ))}
+                      {evs.length > 3 && <span className="text-[8px] font-bold text-muted-foreground">+</span>}
+                    </span>
+                  )}
+                </div>
+                {/* Chips com o título (desktop/tablet) */}
                 {evs.length > 0 && (
-                  <div className="flex items-center gap-0.5">
-                    {evs.slice(0, 3).map((e: any, k: number) => (
-                      <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: sel ? 'rgba(255,255,255,0.9)' : e.cor }} />
+                  <div className="hidden sm:flex flex-col gap-0.5 min-w-0">
+                    {evs.slice(0, 3).map((e: any) => (
+                      <button key={e.id} onClick={(ev) => { ev.stopPropagation(); onAbrir(e); }}
+                        title={e.titulo}
+                        className="w-full text-left rounded-md px-1.5 py-1 text-[10px] font-semibold leading-tight flex items-center gap-1 min-w-0 transition-all hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current"
+                        style={{ background: `${e.cor}1f`, color: e.cor }}>
+                        {e.hora && <span className="tabular shrink-0 opacity-80">{e.hora}</span>}
+                        <span className="truncate">{e.titulo}</span>
+                      </button>
                     ))}
-                    {evs.length > 3 && <span className={`text-[8px] font-bold ${sel ? 'text-white/90' : 'text-muted-foreground'}`}>+</span>}
+                    {evs.length > 3 && (
+                      <button onClick={(ev) => { ev.stopPropagation(); setSelecionado(ds); }}
+                        className="text-left text-[10px] font-bold text-muted-foreground hover:text-foreground px-1.5 transition-colors">
+                        +{evs.length - 3} mais
+                      </button>
+                    )}
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
