@@ -16,8 +16,8 @@ import {
   Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
+  AreaChart, Area,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
 // ── Constantes ────────────────────────────────────────────────
@@ -58,19 +58,6 @@ function computeDailyCumulative(txs: any[], today: number) {
   });
 }
 
-// Gasto NÃO acumulado — cada dia só com o que foi efetivamente gasto naquele dia.
-function computeDailyAmount(txs: any[], today: number) {
-  const byDay: Record<number, number> = {};
-  txs.forEach(tx => {
-    const d = new Date(tx.data).getDate();
-    byDay[d] = (byDay[d] || 0) + (tx.valor || 0);
-  });
-  return Array.from({ length: Math.max(today, 1) }, (_, i) => ({
-    dia: String(i + 1),
-    valor: byDay[i + 1] || 0,
-  }));
-}
-
 // ── Tooltip customizado ────────────────────────────────────────
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -106,23 +93,6 @@ function VarBadge({ val, invert = false, size = 'sm' }: { val: number; invert?: 
   );
 }
 
-// ── Mapa de gradiente dos bancos ──────────────────────────────
-const BANCO_GRAD: Record<string, [string,string]> = {
-  nubank:   ['#8b16f0','#5e1ba8'], inter:    ['#ff7a00','#e85a00'],
-  itau:     ['#ec7000','#cc5500'], bradesco: ['#cc092f','#7a061d'],
-  santander:['#ec0000','#a30000'], caixa:    ['#0067b1','#003d6b'],
-  c6:       ['#27272a','#0a0a0a'], mercado:  ['#00b4ff','#0070b8'],
-  picpay:   ['#21c25e','#0d8a3a'], bb:       ['#fcc100','#c69b00'],
-};
-function bancoGrad(nome: string): [string,string] {
-  const lower = (nome||'').toLowerCase();
-  for (const [k,g] of Object.entries(BANCO_GRAD)) if (lower.includes(k)) return g;
-  let hash = 0;
-  for (let i = 0; i < lower.length; i++) hash = lower.charCodeAt(i) + ((hash << 5) - hash);
-  const h = Math.abs(hash) % 360;
-  return [`hsl(${h} 65% 50%)`,`hsl(${h} 70% 35%)`];
-}
-
 // ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { phone, perfil } = useAuth();
@@ -134,7 +104,6 @@ export default function DashboardPage() {
   const [txsMes,    setTxsMes]    = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
 
   const hoje        = new Date();
   const today       = hoje.getDate();
@@ -183,9 +152,6 @@ export default function DashboardPage() {
     ...d,
     anterior: gastoAntTotal > 0 ? Math.round((gastoAntTotal / daysInMonth) * (i + 1)) : 0,
   }));
-
-  // Gastos por dia (não acumulado) — usado no Fluxo de Caixa modo Área
-  const dadosDiarios = computeDailyAmount(txsMes, today);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
   const cats = (resumo?.por_categoria||[]) as any[];
@@ -436,79 +402,9 @@ export default function DashboardPage() {
         <GrowResumo />
 
         {/* ══════════════════════════════════════════════════════
-            GRÁFICO + CATEGORIAS
+            CATEGORIAS
         ══════════════════════════════════════════════════════ */}
-        <div className="grid lg:grid-cols-3 gap-5">
-
-          {/* ── Fluxo de Caixa ──────────────────────────────── */}
-          <div className="card rounded-3xl p-6 lg:col-span-2 animate-fade-in" style={{ animationDelay: '80ms' }}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
-                  Fluxo de Caixa
-                </p>
-                <p className="text-lg font-bold text-foreground">
-                  {chartMode === 'area' ? `Gastos por dia — ${monthName}` : `Por categoria — ${monthName}`}
-                </p>
-              </div>
-              <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
-                {(['area', 'bar'] as const).map(m => (
-                  <button key={m} onClick={() => setChartMode(m)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      chartMode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}>
-                    {m === 'area' ? 'Área' : 'Barra'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <ResponsiveContainer width="100%" height={220}>
-              {chartMode === 'bar' ? (
-                <BarChart data={catsComPct.map(c => ({ name: parseCategoria(c.categoria).nome.slice(0,10), gastos: c.total, color: c.color }))} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: 'hsl(var(--bg-muted))' }} />
-                  <Bar dataKey="gastos" name="Gastos" radius={[6,6,0,0]}>
-                    {catsComPct.map((c: any, i: number) => <Cell key={i} fill={c.color} />)}
-                  </Bar>
-                </BarChart>
-              ) : (
-                <AreaChart data={dadosDiarios} margin={{ left: -24 }}>
-                  <defs>
-                    <linearGradient id="gAreaDia" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.55} />
-                      <stop offset="60%"  stopColor={BRAND2} stopOpacity={0.18} />
-                      <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="dia" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                         tickFormatter={v => Number(v) % 5 === 0 ? v : ''} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="valor"
-                    name="Gasto no dia"
-                    stroke={BRAND}
-                    fill="url(#gAreaDia)"
-                    strokeWidth={2.5}
-                    dot={{ r: 2.5, fill: BRAND, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              )}
-            </ResponsiveContainer>
-
-            {/* Sub-texto explicativo — clarifica o que cada modo mostra */}
-            <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-border/60">
-              {chartMode === 'area'
-                ? <>Quanto você gastou em cada dia. Para ver a distribuição por categoria, use o modo <strong className="text-foreground">Barra</strong>.</>
-                : <>Total gasto em cada categoria neste mês.</>}
-            </p>
-          </div>
+        <div className="grid grid-cols-1 gap-5">
 
           {/* ── Principais Categorias ───────────────────────── */}
           <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '120ms' }}>
@@ -569,9 +465,9 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════════════════════════════════════════════════
-            TRANSAÇÕES + CONTAS
+            TRANSAÇÕES RECENTES
         ══════════════════════════════════════════════════════ */}
-        <div className="grid lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5">
 
           {/* ── Transações Recentes ──────────────────────────── */}
           {/* min-w-0: sem isso, o item do grid cresce até o conteúdo (min-w da
@@ -668,64 +564,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* ── Contas Bancárias ─────────────────────────────── */}
-          <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '180ms' }}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
-                  Contas
-                </p>
-                <p className="text-base font-bold text-foreground">Suas carteiras</p>
-              </div>
-              <a href="/contas-bancarias" className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                Gerenciar <ChevronRight size={12} />
-              </a>
-            </div>
-
-            {wallets.length > 0 ? (
-              <div className="space-y-2.5">
-                {wallets.map((w, i) => {
-                  const [g1, g2] = bancoGrad(w.nome);
-                  return (
-                    <div key={w.id}
-                         className="relative overflow-hidden rounded-2xl p-4 animate-fade-in"
-                         style={{ animationDelay: `${i * 60}ms`, background: `linear-gradient(135deg, ${g1}, ${g2})` }}>
-                      {/* Halo decorativo */}
-                      <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-20"
-                           style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{w.tipo}</p>
-                          <p className="text-sm font-bold text-white mt-0.5">{w.nome}</p>
-                        </div>
-                        <p className={`text-sm font-bold tabular ${w.saldo < 0 ? 'text-red-300' : 'text-white'}`}>
-                          {fmt(w.saldo)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/60">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Saldo total</span>
-                  <span className="text-base font-bold tabular text-foreground">{fmt(saldoTotal)}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center mb-3">
-                  <Wallet size={20} className="text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Nenhuma conta</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Vincule suas contas no WhatsApp
-                </p>
-                <a href="/contas-bancarias"
-                   className="mt-3 text-xs text-primary font-semibold hover:underline flex items-center gap-1">
-                  Adicionar conta <ChevronRight size={11} />
-                </a>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

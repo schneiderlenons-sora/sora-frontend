@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Sun, Moon, Flag, Download, Receipt, Briefcase,
-  Sprout, Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
+  Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -24,8 +24,10 @@ type NavItem = {
 };
 
 // ── Grupo FINANCE (núcleo) ──────────────────────────────────────────
+// Dashboard unifica Finance + Grow — fica fora dos grupos, no topo.
+const NAV_DASHBOARD: NavItem = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
+
 const NAV_FINANCE: NavItem[] = [
-  { href: '/dashboard',          label: 'Dashboard',        icon: LayoutDashboard },
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
   { href: '/contas-bancarias',   label: 'Contas',            icon: Landmark },
@@ -196,6 +198,11 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
+        {/* DASHBOARD — unificado, acima dos grupos */}
+        <div className="space-y-0.5 mb-2">
+          <NavLink item={NAV_DASHBOARD} />
+        </div>
+
         {/* FINANCE */}
         <GroupHeader label="Finance" open={openFin} onToggle={toggleFin} />
         {openFin && (
