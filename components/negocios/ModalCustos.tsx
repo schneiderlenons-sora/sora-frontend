@@ -5,7 +5,7 @@ import { X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 const CATEGORIAS = [
   { v: 'trafego_pago',  label: 'Tráfego pago',  emoji: '📣' },
@@ -138,7 +138,7 @@ export default function ModalCustos({ periodo, onClose }: { periodo: string; onC
             <button onClick={adicionar}
                     disabled={enviando || !descricao.trim() || !valor}
                     className="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5"
-                    style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+                    style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
               {enviando ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               Adicionar
             </button>

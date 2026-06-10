@@ -105,7 +105,7 @@ export default function EstudosDashboard() {
              style={{ background: 'radial-gradient(ellipse at top right, color-mix(in srgb, hsl(var(--primary)) 12%, transparent) 0%, transparent 60%)' }} />
         <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/10/40 mb-3">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/15 mb-3">
               <Sparkles size={12} style={{ color: BRAND }} />
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Estudos</span>
             </div>

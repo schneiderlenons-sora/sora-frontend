@@ -1065,7 +1065,7 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
               {ICONES_MANUT.map(ic => (
                 <button key={ic} onClick={() => setIcone(ic)}
                   className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all ${
-                    icone === ic ? 'ring-2 ring-primary bg-primary/10 dark:bg-primary/10/40 scale-105' : 'bg-muted/40 hover:bg-muted'
+                    icone === ic ? 'ring-2 ring-primary bg-primary/10 dark:bg-primary/15 scale-105' : 'bg-muted/40 hover:bg-muted'
                   }`}>{ic}</button>
               ))}
             </div>

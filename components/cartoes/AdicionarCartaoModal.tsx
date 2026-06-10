@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2, CreditCard, AlertCircle, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 // Cores por banco — extraídas do nome da conta vinculada
 const CORES_BANCOS: Record<string, { bg: string; text: string }> = {

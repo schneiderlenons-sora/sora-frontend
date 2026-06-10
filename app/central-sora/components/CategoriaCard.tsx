@@ -31,7 +31,7 @@ export default function CategoriaCard({
       {/* Glow no hover */}
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-        style={{ background: `radial-gradient(ellipse 100% 60% at 50% 0%, ${categoria.cor}1A 0%, transparent 60%)` }}
+        style={{ background: `radial-gradient(ellipse 100% 60% at 50% 0%, color-mix(in srgb, ${categoria.cor} 10%, transparent) 0%, transparent 60%)` }}
       />
 
       <div className="relative">

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useOnboarding, TOTAL_STEPS } from '../OnboardingContext';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 interface Props {
   children: React.ReactNode;
@@ -69,7 +69,7 @@ function ProgressBar({ value }: { value: number }) {
         style={{
           width: `${pct}%`,
           background: `linear-gradient(90deg, ${BRAND}, #3FA85A)`,
-          boxShadow: `0 0 12px ${BRAND}80`,
+          boxShadow: `0 0 12px color-mix(in srgb, ${BRAND} 50%, transparent)`,
         }}
       />
     </div>

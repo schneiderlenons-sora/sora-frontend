@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react';
 import { useOnboarding } from '../OnboardingContext';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 export default function Step1Boasvindas() {
   const { state, setNome } = useOnboarding();

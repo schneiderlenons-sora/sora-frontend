@@ -47,7 +47,7 @@ export default function ComandoCard({ comando, cor, phoneSora, mostrarCategoria 
             {mostrarCategoria && cat && (
               <span
                 className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest"
-                style={{ background: `${cor}1A`, color: cor }}
+                style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)`, color: cor }}
               >
                 {cat.emoji} {cat.nome}
               </span>
@@ -60,7 +60,7 @@ export default function ComandoCard({ comando, cor, phoneSora, mostrarCategoria 
         {/* Exemplo principal */}
         <div
           className="rounded-xl px-3 py-2.5 border bg-muted/30 font-mono text-sm text-foreground mb-3"
-          style={{ borderColor: `${cor}30` }}
+          style={{ borderColor: `color-mix(in srgb, ${cor} 19%, transparent)` }}
         >
           <span className="opacity-50 mr-1">›</span>
           {comando.exemplo}

@@ -275,7 +275,7 @@ function Resultado({ label, value, unit, sub }: any) {
 
 function MacroBox({ label, value, unit, cor }: any) {
   return (
-    <div className="text-center p-2 rounded-lg" style={{ background: `${cor}15` }}>
+    <div className="text-center p-2 rounded-lg" style={{ background: `color-mix(in srgb, ${cor} 8%, transparent)` }}>
       <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: cor }}>{label}</p>
       <p className="text-base font-bold text-foreground tabular tracking-tight mt-0.5">
         {value}<span className="text-[10px] font-medium text-muted-foreground">{unit}</span>

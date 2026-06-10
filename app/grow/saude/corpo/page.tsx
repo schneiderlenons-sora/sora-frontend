@@ -107,8 +107,8 @@ export default function CorpoPage() {
       </div>
 
       {medidas.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/10/30 dark:bg-primary/10/10 animate-fade-in text-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-primary/10 dark:bg-primary/10/40">
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/15 dark:bg-primary/15 animate-fade-in text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-primary/10 dark:bg-primary/15">
             <Ruler size={28} className="text-primary dark:text-primary" />
           </div>
           <p className="text-base font-bold text-foreground">Sem medidas registradas</p>
@@ -207,7 +207,7 @@ export default function CorpoPage() {
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {ordenadas.slice(0, 20).map(m => (
                 <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/15">
                     <Ruler size={14} className="text-primary dark:text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -234,7 +234,7 @@ export default function CorpoPage() {
           <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Em construção</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/15">
             <ImageIcon size={22} className="text-primary dark:text-primary" />
           </div>
           <div>

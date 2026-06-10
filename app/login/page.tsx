@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 import AuthHero from '@/components/auth/AuthHero';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -110,8 +110,8 @@ export default function LoginPage() {
                          disabled:opacity-50 disabled:cursor-not-allowed
                          shadow-lg flex items-center justify-center gap-2"
               style={{
-                background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)`,
-                boxShadow: `0 8px 24px -8px ${BRAND}80`,
+                background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)`,
+                boxShadow: `0 8px 24px -8px color-mix(in srgb, ${BRAND} 50%, transparent)`,
               }}
             >
               {loading

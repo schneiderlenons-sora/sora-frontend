@@ -21,12 +21,12 @@ export default function ComingSoon({ icon: Icon, badge, titulo, subtitulo, featu
       >
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{ background: `radial-gradient(ellipse at top right, ${accentColor}1F 0%, transparent 55%)` }}
+          style={{ background: `radial-gradient(ellipse at top right, color-mix(in srgb, ${accentColor} 12%, transparent) 0%, transparent 55%)` }}
         />
         <div className="relative">
           <div
             className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full mb-4"
-            style={{ background: `${accentColor}1A` }}
+            style={{ background: `color-mix(in srgb, ${accentColor} 10%, transparent)` }}
           >
             <Sparkles size={11} style={{ color: accentColor }} />
             <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: accentColor }}>{badge}</span>
@@ -35,7 +35,7 @@ export default function ComingSoon({ icon: Icon, badge, titulo, subtitulo, featu
           <div className="flex items-center gap-4 mb-3">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `${accentColor}1F` }}
+              style={{ background: `color-mix(in srgb, ${accentColor} 12%, transparent)` }}
             >
               <Icon size={26} style={{ color: accentColor }} />
             </div>
@@ -70,7 +70,7 @@ export default function ComingSoon({ icon: Icon, badge, titulo, subtitulo, featu
             >
               <div
                 className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: `${accentColor}22` }}
+                style={{ background: `color-mix(in srgb, ${accentColor} 13%, transparent)` }}
               >
                 <Check size={11} style={{ color: accentColor }} strokeWidth={3} />
               </div>

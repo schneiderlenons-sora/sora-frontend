@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Target, Bell } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 interface Props {
   phone: string;
@@ -82,7 +82,7 @@ export default function EditarLimiteGeralModal({
           <div className="flex items-center gap-3">
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `${BRAND}22` }}
+              style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}
             >
               <Target size={20} style={{ color: BRAND }} />
             </div>

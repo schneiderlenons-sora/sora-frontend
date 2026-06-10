@@ -8,7 +8,7 @@ import { PLANOS_INFO, type PlanoId } from '@/lib/stripe';
 import { PLANO_LABEL } from '@/lib/plans';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 type Gasto = {
   descricao: string;
@@ -97,7 +97,7 @@ export default function Step6GastosFixos() {
   return (
     <>
       <div className="space-y-3 mb-8">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-2" style={{ background: `${BRAND}1A` }}>
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-2" style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)` }}>
           <Receipt size={20} style={{ color: BRAND }} />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">

@@ -83,9 +83,6 @@ export default function BemEstarPage() {
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
         badge="Bem-estar"
-        badgeColor="#db2777"
-        badgeBgClass="bg-pink-100 dark:bg-pink-950/40"
-        haloRgba="rgba(236,72,153,0.12)"
         titulo="Bem-estar"
         subtitulo="Como você está hoje? Registrar o humor te ajuda a notar padrões."
       >
@@ -258,7 +255,7 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
               {[1,2,3,4,5].map(h => (
                 <button key={h} onClick={() => setHumor(h)}
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
-                    humor === h ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/10/40' : 'bg-muted/30 hover:bg-muted/60'
+                    humor === h ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/15' : 'bg-muted/30 hover:bg-muted/60'
                   }`}>
                   <span className="text-2xl">{HUMOR_EMOJI[h]}</span>
                 </button>

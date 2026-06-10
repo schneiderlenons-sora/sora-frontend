@@ -196,7 +196,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
               style={{
                 width: 'calc(50% - 4px)',
                 left: tipo === 'Gasto' ? '4px' : 'calc(50%)',
-                background: tipo === 'Gasto' ? 'hsl(0 72% 58%)' : '#61D17B',
+                background: tipo === 'Gasto' ? 'hsl(0 72% 58%)' : 'hsl(var(--primary))',
               }}
             />
             {(['Gasto', 'Recebimento'] as const).map(t => (
@@ -409,7 +409,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             <button
               onClick={() => setRecorrente(v => !v)}
               className="relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0"
-              style={{ background: recorrente ? '#61D17B' : 'hsl(var(--fg-muted) / .3)' }}
+              style={{ background: recorrente ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}
             >
               <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${recorrente ? 'translate-x-5' : 'translate-x-0.5'}`} />
             </button>

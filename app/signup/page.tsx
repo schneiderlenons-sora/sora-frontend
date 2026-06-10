@@ -16,7 +16,7 @@ import {
   Check, User, Smartphone, CreditCard, Sparkles, Crown,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 // Carrega o Stripe uma vez (publishable key). Se faltar a env, fica null e a
 // etapa de pagamento avisa.
@@ -368,7 +368,7 @@ function DadosStep(p: any) {
         </Campo>
 
         <label className="flex items-start gap-2 cursor-pointer select-none">
-          <input type="checkbox" checked={p.aceito} onChange={(e: any) => p.setAceito(e.target.checked)} className="w-4 h-4 mt-0.5 accent-[#61ce70] cursor-pointer" />
+          <input type="checkbox" checked={p.aceito} onChange={(e: any) => p.setAceito(e.target.checked)} className="w-4 h-4 mt-0.5 accent-[hsl(var(--primary))] cursor-pointer" />
           <span className="text-[11px] text-muted-foreground leading-relaxed">
             Aceito os <Link href="/termos" target="_blank" className="font-semibold hover:underline" style={{ color: BRAND }}>Termos de uso</Link> e a <Link href="/privacidade" target="_blank" className="font-semibold hover:underline" style={{ color: BRAND }}>Política de privacidade</Link>.
           </span>
@@ -378,7 +378,7 @@ function DadosStep(p: any) {
           type="submit"
           disabled={p.loading || !p.nome || !p.whatsapp || !p.email || !p.password || !p.confirm}
           className="w-full px-4 py-3.5 rounded-2xl text-white text-sm font-bold transition-all hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
-          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)`, boxShadow: `0 8px 24px -8px ${BRAND}80` }}
+          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)`, boxShadow: `0 8px 24px -8px color-mix(in srgb, ${BRAND} 50%, transparent)` }}
         >
           {p.loading ? <><Loader2 size={16} className="animate-spin" /> Criando conta…</> : <>Continuar <ArrowRight size={15} /></>}
         </button>
@@ -422,7 +422,7 @@ function PlanoStep({
               key={pl.id}
               onClick={() => setPlanoSel(pl.id)}
               className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${sel ? 'shadow-md' : 'border-border bg-card hover:border-border/80'}`}
-              style={sel ? { borderColor: pl.cor, background: `${pl.cor}0D` } : undefined}
+              style={sel ? { borderColor: pl.cor, background: `color-mix(in srgb, ${pl.cor} 5%, transparent)` } : undefined}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -456,7 +456,7 @@ function PlanoStep({
         <button
           onClick={onContinuar}
           className="flex-1 px-4 py-3.5 rounded-2xl text-white text-sm font-bold transition-all hover:scale-[1.005] active:scale-[0.99] shadow-lg flex items-center justify-center gap-2"
-          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)`, boxShadow: `0 8px 24px -8px ${BRAND}80` }}
+          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)`, boxShadow: `0 8px 24px -8px color-mix(in srgb, ${BRAND} 50%, transparent)` }}
         >
           Ir para o pagamento <ArrowRight size={15} />
         </button>

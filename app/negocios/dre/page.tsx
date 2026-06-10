@@ -9,7 +9,7 @@ import {
   ArrowLeft, ChevronRight, Calendar, Loader2, Download, RefreshCw,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 
 const NOME_PLAT: Record<string, string> = {

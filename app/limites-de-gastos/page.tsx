@@ -13,7 +13,7 @@ import {
   AlertCircle, Wallet, ChevronRight,
 } from 'lucide-react';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -176,7 +176,7 @@ export default function LimitesPage() {
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
@@ -453,7 +453,7 @@ export default function LimitesPage() {
             {limites.length === 0 ? (
               <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-glow-sm"
-                     style={{ background: `${BRAND}22` }}>
+                     style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
                   <Target size={26} style={{ color: BRAND }} />
                 </div>
                 <p className="text-base font-bold text-foreground">Nenhum limite por categoria</p>
@@ -492,7 +492,7 @@ export default function LimitesPage() {
                   style={{ animationDelay: `${limites.length * 50}ms` }}
                 >
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-all group-hover:scale-110"
-                       style={{ background: `${BRAND}22` }}>
+                       style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
                     <Plus size={22} style={{ color: BRAND }} />
                   </div>
                   <p className="text-sm font-semibold text-foreground">Adicionar limite</p>

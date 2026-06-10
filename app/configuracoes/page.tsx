@@ -581,8 +581,8 @@ function HeroPlanoAtual({
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse 90% 60% at 100% 0%, ${planoVisual.cor}1F 0%, transparent 55%),
-            radial-gradient(ellipse 60% 50% at 0% 100%, ${planoVisual.cor}14 0%, transparent 50%)
+            radial-gradient(ellipse 90% 60% at 100% 0%, color-mix(in srgb, ${planoVisual.cor} 12%, transparent) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 50% at 0% 100%, color-mix(in srgb, ${planoVisual.cor} 8%, transparent) 0%, transparent 50%)
           `,
         }}
       />
@@ -725,7 +725,7 @@ function PlanoCard({
     <div
       className={`relative rounded-3xl p-7 transition-all hover:-translate-y-1 duration-300 ${
         plano.destaque
-          ? 'border-2 shadow-[0_20px_60px_-20px_rgba(97,206,112,0.4)] bg-card'
+          ? 'border-2 shadow-[0_20px_60px_-20px_color-mix(in srgb, hsl(var(--primary)) 40%, transparent)] bg-card'
           : 'border border-border hover:border-foreground/20 shadow-sm bg-card/60'
       }`}
       style={plano.destaque ? { borderColor: plano.cor } : {}}
@@ -735,7 +735,7 @@ function PlanoCard({
         <div
           aria-hidden
           className="absolute inset-0 rounded-3xl pointer-events-none"
-          style={{ background: 'linear-gradient(180deg, rgba(97,206,112,0.06), transparent 60%)' }}
+          style={{ background: 'linear-gradient(180deg, color-mix(in srgb, hsl(var(--primary)) 6%, transparent), transparent 60%)' }}
         />
       )}
 
@@ -764,7 +764,7 @@ function PlanoCard({
           {Icon && (
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: `${plano.cor}18` }}
+              style={{ background: `color-mix(in srgb, ${plano.cor} 9%, transparent)` }}
             >
               <Icon size={13} style={{ color: plano.cor }} />
             </div>
@@ -814,7 +814,7 @@ function PlanoCard({
             >
               <span
                 className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center"
-                style={{ background: `${plano.cor}22` }}
+                style={{ background: `color-mix(in srgb, ${plano.cor} 13%, transparent)` }}
               >
                 <Check size={9} style={{ color: plano.cor }} strokeWidth={3} />
               </span>

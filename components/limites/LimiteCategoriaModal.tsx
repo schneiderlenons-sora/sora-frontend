@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 interface Categoria {
   id:         string;
@@ -133,7 +133,7 @@ export default function LimiteCategoriaModal({
             ) : (
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `${BRAND}22` }}
+                style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}
               >
                 <Target size={18} style={{ color: BRAND }} />
               </div>

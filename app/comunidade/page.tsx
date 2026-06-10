@@ -14,7 +14,7 @@ import {
   Trash2, Shield,
 } from 'lucide-react';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -180,7 +180,7 @@ export default function ComunidadePage() {
               {/* Avatar + identidade */}
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl flex-shrink-0 shadow-glow-sm"
-                     style={{ background: `linear-gradient(135deg, ${BRAND}40, ${BRAND}15)` }}>
+                     style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 25%, transparent), color-mix(in srgb, ${BRAND} 8%, transparent))` }}>
                   {grupoAtivoInfo.emoji || '👨‍👩‍👧'}
                 </div>
                 <div className="min-w-0">
@@ -270,7 +270,7 @@ export default function ComunidadePage() {
                      style={{ animationDelay: `${i * 40}ms` }}>
                   <div className="flex items-start gap-3">
                     <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm"
-                         style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND}aa)` }}>
+                         style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 67%, transparent))` }}>
                       {initial}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -288,7 +288,7 @@ export default function ComunidadePage() {
                         {maskPhone(m.users?.phone || '')}
                       </p>
                       <div className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                           style={{ background: `${papel.color}22`, color: papel.color }}>
+                           style={{ background: `color-mix(in srgb, ${papel.color} 13%, transparent)`, color: papel.color }}>
                         {papel.emoji} {papel.label}
                       </div>
                     </div>
@@ -333,7 +333,7 @@ export default function ComunidadePage() {
                 className="rounded-2xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/20 transition-all p-4 min-h-[110px] flex flex-col items-center justify-center group"
               >
                 <div className="w-11 h-11 rounded-full flex items-center justify-center mb-2 transition-all group-hover:scale-110"
-                     style={{ background: `${BRAND}22` }}>
+                     style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
                   <UserPlus size={18} style={{ color: BRAND }} />
                 </div>
                 <p className="text-xs font-semibold text-foreground">Convidar membro</p>
@@ -370,7 +370,7 @@ export default function ComunidadePage() {
                        style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                           style={{ background: `${BRAND}15` }}>
+                           style={{ background: `color-mix(in srgb, ${BRAND} 8%, transparent)` }}>
                         {g.grupos?.emoji || '👨‍👩‍👧'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -485,7 +485,7 @@ function HeroHeader({ title, actions }: { title: string; actions?: React.ReactNo
     <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
          style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-50"
-           style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+           style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
       <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
@@ -541,7 +541,7 @@ function PaywallGrupos() {
   return (
     <div className="card rounded-3xl p-8 sm:p-10 text-center animate-fade-in" style={{ animationDelay: '60ms' }}>
       <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-glow"
-           style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND}aa)` }}>
+           style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 67%, transparent))` }}>
         <Users size={36} className="text-white" />
       </div>
       <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
@@ -576,7 +576,7 @@ function PaywallGrupos() {
 
         {/* Black */}
         <div className="relative card rounded-2xl p-5 border-2"
-             style={{ borderColor: BRAND, background: `linear-gradient(135deg, hsl(var(--bg-card)), ${BRAND}08)` }}>
+             style={{ borderColor: BRAND, background: `linear-gradient(135deg, hsl(var(--bg-card)), color-mix(in srgb, ${BRAND} 3%, transparent))` }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold text-foreground inline-flex items-center gap-1.5">
               <Crown size={14} style={{ color: BRAND }} /> Black
@@ -595,7 +595,7 @@ function PaywallGrupos() {
             ))}
           </ul>
           <button className="btn w-full py-2 text-sm gap-2 text-white shadow-glow-sm"
-                  style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND}cc)` }}>
+                  style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 80%, transparent))` }}>
             Assinar Black
           </button>
         </div>

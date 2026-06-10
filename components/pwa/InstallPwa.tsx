@@ -141,10 +141,10 @@ function Modal({ deferred, onClose }: { deferred: any; onClose: (m?: 'x' | 'inst
       >
         {/* Header com gradient */}
         <div className="relative overflow-hidden p-6 pb-4 border-b border-border"
-             style={{ background: 'linear-gradient(135deg, hsl(134 55% 60% / .12) 0%, hsl(134 55% 60% / .03) 100%)' }}>
+             style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / .12) 0%, hsl(var(--primary) / .03) 100%)' }}>
           {/* Halo decorativo */}
           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-30 pointer-events-none"
-               style={{ background: 'radial-gradient(circle, #61D17B 0%, transparent 70%)' }} />
+               style={{ background: 'radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)' }} />
 
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -194,7 +194,7 @@ function Modal({ deferred, onClose }: { deferred: any; onClose: (m?: 'x' | 'inst
           {/* Por que instalar */}
           <div className="rounded-2xl p-4 bg-muted/30 border border-border/60 mt-5">
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 inline-flex items-center gap-1.5">
-              <Sparkles size={11} style={{ color: '#61D17B' }} />
+              <Sparkles size={11} style={{ color: 'hsl(var(--primary))' }} />
               Por que instalar?
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

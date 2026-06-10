@@ -11,7 +11,7 @@ import {
   User, FileText, Tag, Building2, Filter, Download,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 const PAGE  = 25;
 
@@ -248,7 +248,7 @@ function LinhaEvento({ evento, onClick }: { evento: any; onClick: () => void }) 
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
         {/* Ícone tipo */}
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-             style={{ background: `${tipo.cor}15` }}>
+             style={{ background: `color-mix(in srgb, ${tipo.cor} 8%, transparent)` }}>
           <Icon size={14} style={{ color: tipo.cor }} />
         </div>
 
@@ -259,7 +259,7 @@ function LinhaEvento({ evento, onClick }: { evento: any; onClick: () => void }) 
               {evento.produto_nome || 'Produto sem nome'}
             </p>
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex-shrink-0"
-                  style={{ background: `${corPlat}15`, color: corPlat }}>
+                  style={{ background: `color-mix(in srgb, ${corPlat} 8%, transparent)`, color: corPlat }}>
               <span className="w-1 h-1 rounded-full" style={{ background: corPlat }} />
               {NOME_PLAT[evento.plataforma] || evento.plataforma}
             </span>
@@ -295,7 +295,7 @@ function ModalDetalhe({ evento, onClose }: { evento: any; onClose: () => void })
         {/* Header */}
         <div className="p-5 border-b border-border flex items-start gap-3">
           <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ background: `${tipo.cor}15` }}>
+               style={{ background: `color-mix(in srgb, ${tipo.cor} 8%, transparent)` }}>
             <tipo.icon size={16} style={{ color: tipo.cor }} />
           </div>
           <div className="flex-1 min-w-0">
@@ -320,7 +320,7 @@ function ModalDetalhe({ evento, onClose }: { evento: any; onClose: () => void })
             </p>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider"
-                    style={{ background: `${corPlat}15`, color: corPlat }}>
+                    style={{ background: `color-mix(in srgb, ${corPlat} 8%, transparent)`, color: corPlat }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: corPlat }} />
                 {NOME_PLAT[evento.plataforma] || evento.plataforma}
               </span>

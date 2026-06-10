@@ -13,7 +13,7 @@ import {
   CreditCard, Settings, Zap,
 } from 'lucide-react';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 // Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
 const PLANOS = PLANOS_DISPLAY;
@@ -159,8 +159,8 @@ function PlanosContent() {
           <div
             className="relative overflow-hidden rounded-2xl p-5 animate-fade-in border"
             style={{
-              background: `linear-gradient(135deg, ${BRAND}0F 0%, ${BRAND}04 100%)`,
-              borderColor: `${BRAND}40`,
+              background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 6%, transparent) 0%, color-mix(in srgb, ${BRAND} 2%, transparent) 100%)`,
+              borderColor: `color-mix(in srgb, ${BRAND} 25%, transparent)`,
             }}
           >
             <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none opacity-20"
@@ -276,16 +276,16 @@ function PlanosContent() {
                 ref={(el) => { cardRefs.current[p.id] = el; }}
                 className={`relative rounded-3xl p-7 transition-all duration-300 ${
                   ehIntencao
-                    ? 'border-2 shadow-[0_20px_60px_-20px_rgba(97,206,112,0.5)] bg-card animate-pulse-glow'
+                    ? 'border-2 shadow-[0_20px_60px_-20px_color-mix(in srgb, hsl(var(--primary)) 50%, transparent)] bg-card animate-pulse-glow'
                     : p.destaque
-                      ? 'border-2 shadow-[0_20px_60px_-20px_rgba(97,206,112,0.35)] bg-card'
+                      ? 'border-2 shadow-[0_20px_60px_-20px_color-mix(in srgb, hsl(var(--primary)) 35%, transparent)] bg-card'
                       : ehAtual
                         ? 'border-2 bg-card'
                         : 'border border-border/70 bg-card/60 hover:border-border'
                 }`}
                 style={{
                   borderColor: ehIntencao || p.destaque || ehAtual ? p.cor : undefined,
-                  boxShadow: ehIntencao ? `0 0 0 4px ${p.cor}22, 0 20px 60px -20px ${p.cor}80` : undefined,
+                  boxShadow: ehIntencao ? `0 0 0 4px color-mix(in srgb, ${p.cor} 13%, transparent), 0 20px 60px -20px color-mix(in srgb, ${p.cor} 50%, transparent)` : undefined,
                 }}
               >
                 {/* Badge */}
@@ -303,7 +303,7 @@ function PlanosContent() {
                 {/* Plano atual badge */}
                 {ehAtual && (
                   <div className="absolute top-4 right-4 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold"
-                       style={{ background: `${p.cor}22`, color: p.cor }}>
+                       style={{ background: `color-mix(in srgb, ${p.cor} 13%, transparent)`, color: p.cor }}>
                     <CheckCircle2 size={10} /> Atual
                   </div>
                 )}
@@ -382,7 +382,7 @@ function PlanosContent() {
                       <li key={f} className="flex items-start gap-2 text-[13px] text-foreground/80 leading-snug">
                         <span
                           className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center"
-                          style={{ background: `${p.cor}22` }}
+                          style={{ background: `color-mix(in srgb, ${p.cor} 13%, transparent)` }}
                         >
                           <Check size={9} style={{ color: p.cor }} strokeWidth={3} />
                         </span>
@@ -396,10 +396,10 @@ function PlanosContent() {
                     <div className="mt-4 pt-4 border-t border-border/60">
                       <div
                         className="flex items-start gap-2.5 rounded-xl p-3"
-                        style={{ background: `${BRAND}0F`, border: `1px solid ${BRAND}33` }}
+                        style={{ background: `color-mix(in srgb, ${BRAND} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${BRAND} 20%, transparent)` }}
                       >
                         <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
-                              style={{ background: `${BRAND}22` }}>
+                              style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
                           <Sparkles size={11} style={{ color: BRAND }} />
                         </span>
                         <div className="leading-snug">

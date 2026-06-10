@@ -14,7 +14,7 @@ import {
   XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from 'recharts';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const CORES_TIPO: Record<string, string> = {
   'Ações':           '#3b82f6',
@@ -222,7 +222,7 @@ function Header({ actions }: { actions?: React.ReactNode }) {
     <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
          style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-50"
-           style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+           style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
       <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 mb-3">
@@ -465,7 +465,7 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
       {filtrados.length === 0 ? (
         <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-glow-sm"
-               style={{ background: `${BRAND}22` }}>
+               style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
             <Briefcase size={26} style={{ color: BRAND }} />
           </div>
           <p className="text-base font-bold text-foreground">Nenhum investimento</p>
@@ -565,7 +565,7 @@ function TabReserva({ reserva, invs, onChangeMeses }: any) {
     <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
       <div className="card rounded-3xl p-6 sm:p-8">
         <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: `${BRAND}22` }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
             <Shield size={20} style={{ color: BRAND }} />
           </div>
           <div>
@@ -575,14 +575,14 @@ function TabReserva({ reserva, invs, onChangeMeses }: any) {
         </div>
 
         <p className="text-5xl font-bold text-foreground tabular tracking-tight leading-none">{fmt(reserva.valorAtual || 0)}</p>
-        <div className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full" style={{ background: `${status.color}22` }}>
+        <div className="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full" style={{ background: `color-mix(in srgb, ${status.color} 13%, transparent)` }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.color }} />
           <span className="text-xs font-bold uppercase tracking-wider" style={{ color: status.color }}>{status.label}</span>
         </div>
 
         <div className="h-6 rounded-full bg-muted mt-5 overflow-hidden">
           <div className="h-full rounded-full transition-all duration-700"
-               style={{ width: `${Math.min(pct, 100)}%`, background: `linear-gradient(90deg, ${status.color}, ${status.color}aa)` }} />
+               style={{ width: `${Math.min(pct, 100)}%`, background: `linear-gradient(90deg, ${status.color}, color-mix(in srgb, ${status.color} 67%, transparent))` }} />
         </div>
 
         <div className="flex items-center justify-between mt-3 text-sm">
@@ -807,7 +807,7 @@ function TabAportes({ aportes, invs }: { aportes: any[]; invs: any[] }) {
       {aportes.length === 0 ? (
         <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-               style={{ background: `${BRAND}22` }}>
+               style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
             <Coins size={26} style={{ color: BRAND }} />
           </div>
           <p className="text-base font-bold text-foreground">Nenhum aporte ainda</p>

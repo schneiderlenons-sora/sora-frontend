@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 
 // ── Constantes ────────────────────────────────────────────────
-const BRAND  = '#61D17B';
+const BRAND  = 'hsl(var(--primary))';
 const BRAND2 = '#3dd68c';
 
 const mesAtual    = new Date().toISOString().slice(0, 7);
@@ -410,7 +410,7 @@ export default function DashboardPage() {
                   {card.label}
                 </p>
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                     style={{ background: `${card.iconColor}18` }}>
+                     style={{ background: `color-mix(in srgb, ${card.iconColor} 9%, transparent)` }}>
                   <card.icon size={15} style={{ color: card.iconColor }} />
                 </div>
               </div>
@@ -528,7 +528,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2 min-w-0">
                           <span
                             className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                            style={{ background: `${c.color}22` }}
+                            style={{ background: `color-mix(in srgb, ${c.color} 13%, transparent)` }}
                           >
                             {c.emoji}
                           </span>
@@ -537,7 +537,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-muted-foreground tabular">{fmt(c.total)}</span>
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                                style={{ background: `${c.color}22`, color: c.color }}>
+                                style={{ background: `color-mix(in srgb, ${c.color} 13%, transparent)`, color: c.color }}>
                             {c.pct}%
                           </span>
                         </div>
@@ -602,7 +602,7 @@ export default function DashboardPage() {
                       <CategoriaIcon
                         nome={iconeNome}
                         icone={emoji}
-                        bg={isGasto ? '#ef444418' : `${BRAND}18`}
+                        bg={isGasto ? '#ef444418' : `color-mix(in srgb, ${BRAND} 9%, transparent)`}
                         color={isGasto ? '#ef4444' : BRAND}
                         size={36}
                       />
@@ -651,7 +651,7 @@ export default function DashboardPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-14 text-center">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-                     style={{ background: `${BRAND}18` }}>
+                     style={{ background: `color-mix(in srgb, ${BRAND} 9%, transparent)` }}>
                   <Clock size={22} style={{ color: BRAND }} />
                 </div>
                 <p className="font-semibold text-foreground">Nenhuma transação ainda</p>

@@ -11,7 +11,7 @@ import {
   CheckCircle2, AlertCircle, Info as InfoIcon,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 
 type Severidade = 'info' | 'sucesso' | 'atencao' | 'critico';
@@ -106,7 +106,7 @@ export default function InsightsPage() {
           <div className="flex items-start justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                   style={{ background: `linear-gradient(135deg, ${BRAND}25 0%, ${BRAND}10 100%)`, border: `1px solid ${BRAND}40` }}>
+                   style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 15%, transparent) 0%, color-mix(in srgb, ${BRAND} 6%, transparent) 100%)`, border: `1px solid color-mix(in srgb, ${BRAND} 25%, transparent)` }}>
                 <Sparkles size={18} style={{ color: BRAND }} />
               </div>
               <div>
@@ -118,7 +118,7 @@ export default function InsightsPage() {
             </div>
             <button onClick={handleGerar} disabled={gerando}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-sm disabled:opacity-50"
-                    style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+                    style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
               {gerando
                 ? <><Loader2 size={13} className="animate-spin" /> Analisando…</>
                 : <><RefreshCw size={13} /> Analisar agora</>}
@@ -126,7 +126,7 @@ export default function InsightsPage() {
           </div>
           {feedback && (
             <div className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold animate-fade-in"
-                 style={{ background: `${BRAND}15`, color: BRAND }}>
+                 style={{ background: `color-mix(in srgb, ${BRAND} 8%, transparent)`, color: BRAND }}>
               {feedback}
             </div>
           )}
@@ -191,7 +191,7 @@ function CardInsight({ insight, onDispensar }: { insight: any; onDispensar: () =
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
               {ehClaude && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"
-                      style={{ background: `${BRAND}15`, color: BRAND }}>
+                      style={{ background: `color-mix(in srgb, ${BRAND} 8%, transparent)`, color: BRAND }}>
                   <Sparkles size={8} /> Sora IA
                 </span>
               )}
@@ -215,7 +215,7 @@ function EmptyState({ onGerar }: { onGerar: () => void }) {
   return (
     <div className="rounded-3xl border border-dashed border-border bg-muted/20 p-10 text-center animate-fade-in">
       <div className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-3"
-           style={{ background: `linear-gradient(135deg, ${BRAND}20 0%, ${BRAND}05 100%)` }}>
+           style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 13%, transparent) 0%, color-mix(in srgb, ${BRAND} 2%, transparent) 100%)` }}>
         <Sparkles size={22} style={{ color: BRAND }} />
       </div>
       <h2 className="text-base font-bold text-foreground mb-1">Nenhum insight ainda</h2>
@@ -224,7 +224,7 @@ function EmptyState({ onGerar }: { onGerar: () => void }) {
       </p>
       <button onClick={onGerar}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm"
-              style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+              style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
         <RefreshCw size={13} /> Analisar agora
       </button>
     </div>

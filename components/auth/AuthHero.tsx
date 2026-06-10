@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Sparkles, Star } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 const TESTIMONIALS = [
   {
@@ -51,8 +51,8 @@ export default function AuthHero() {
       {/* Glow verde sutil */}
       <div className="absolute inset-0 pointer-events-none opacity-50"
            style={{
-             background: `radial-gradient(ellipse 80% 50% at 50% -20%, ${BRAND}25 0%, transparent 60%),
-                          radial-gradient(circle at 90% 90%, ${BRAND}15 0%, transparent 50%)`,
+             background: `radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in srgb, ${BRAND} 15%, transparent) 0%, transparent 60%),
+                          radial-gradient(circle at 90% 90%, color-mix(in srgb, ${BRAND} 8%, transparent) 0%, transparent 50%)`,
            }} />
 
       {/* Ruído sutil (textura premium) */}
@@ -92,7 +92,7 @@ export default function AuthHero() {
         <div className="hidden lg:block relative rounded-2xl p-5 border border-white/10 backdrop-blur-sm overflow-hidden"
              style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)' }}>
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: `radial-gradient(circle at top right, ${BRAND}1A 0%, transparent 60%)` }} />
+               style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${BRAND} 10%, transparent) 0%, transparent 60%)` }} />
 
           <div className="relative space-y-3">
             <DataRow icon="💰" label="Saldo este mês"    value="R$ 3.450"   cor="#fff" />
@@ -185,7 +185,7 @@ function RatingStars({ stars }: { stars: number }) {
               size={13}
               fill="currentColor"
               className="absolute inset-0"
-              style={{ color: 'rgba(97, 206, 112, 0.22)' }}
+              style={{ color: 'color-mix(in srgb, hsl(var(--primary)) 22%, transparent)' }}
             />
             {/* Estrela colorida (cheia ou metade) */}
             {(full || half) && (

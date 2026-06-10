@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta } from './AdicionarCartaoModal';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const MES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 

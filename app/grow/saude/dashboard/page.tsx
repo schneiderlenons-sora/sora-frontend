@@ -187,7 +187,7 @@ function HeroCard({ peso, pesoData, imc, imcClass, metaProjecao, semPerfil, semP
            style={{ background: 'radial-gradient(ellipse at top right, color-mix(in srgb, hsl(var(--primary)) 12%, transparent) 0%, transparent 60%)' }} />
 
       <div className="relative">
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/10/40 mb-3">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/15 mb-3">
           <Sparkles size={12} style={{ color: BRAND }} />
           <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Saúde</span>
         </div>
@@ -381,7 +381,7 @@ function CardMacros({ macros, meta }: any) {
       </div>
 
       {semMeta ? (
-        <div className="rounded-xl p-4 bg-primary/10 dark:bg-primary/10/30 border border-primary/30 dark:border-primary/30/60 text-xs">
+        <div className="rounded-xl p-4 bg-primary/10 dark:bg-primary/15 border border-primary/30 dark:border-primary/15 text-xs">
           <p className="text-foreground font-semibold mb-1">Calculadora nutricional</p>
           <p className="text-muted-foreground leading-relaxed mb-3">
             Defina seu objetivo, atividade e perfil pra Sora calcular suas metas diárias.
@@ -505,7 +505,7 @@ function CardCompromissos({ consultas, medicamentos }: any) {
         {proximaConsulta ? (
           <Link href="/grow/saude/consultas" className="group block p-3 rounded-xl bg-muted/40 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
             <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/15">
                 <CalendarHeart size={14} className="text-primary dark:text-primary" />
               </div>
               <div className="min-w-0 flex-1">
@@ -613,7 +613,7 @@ function ModalPeso({ phone, onClose, onSuccess }: { phone: string; onClose: () =
       <div className="relative w-full max-w-sm bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/10/40">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/15">
               <Scale size={16} className="text-primary dark:text-primary" />
             </div>
             <h2 className="text-base font-bold text-foreground">Registrar peso</h2>

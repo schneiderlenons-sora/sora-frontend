@@ -5,7 +5,7 @@ import { useOnboarding } from '../OnboardingContext';
 import type { ObjetivoPrincipal } from '@/contexts/AuthContext';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 type Opcao = {
   id:     ObjetivoPrincipal;
@@ -55,7 +55,7 @@ export default function Step3Objetivo() {
             >
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: `${opcao.cor}1A` }}
+                style={{ background: `color-mix(in srgb, ${opcao.cor} 10%, transparent)` }}
               >
                 <Icon size={20} style={{ color: opcao.cor }} />
               </div>

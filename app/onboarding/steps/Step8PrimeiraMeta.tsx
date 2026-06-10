@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 type Sugestao = {
   id:     string;
@@ -73,7 +73,7 @@ export default function Step8PrimeiraMeta() {
     <>
       <div className="space-y-3 mb-8">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-2"
-             style={{ background: `${BRAND}1A` }}>
+             style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)` }}>
           <Target size={20} style={{ color: BRAND }} />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
@@ -97,10 +97,10 @@ export default function Step8PrimeiraMeta() {
               onClick={() => escolher(s)}
               className={`text-left p-4 rounded-2xl border-2 transition-all
                 ${ativo ? 'shadow-glow-sm' : 'border-border bg-card hover:border-primary/40'}`}
-              style={ativo ? { borderColor: s.cor, background: `${s.cor}08` } : undefined}
+              style={ativo ? { borderColor: s.cor, background: `color-mix(in srgb, ${s.cor} 3%, transparent)` } : undefined}
             >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2"
-                   style={{ background: `${s.cor}1A` }}>
+                   style={{ background: `color-mix(in srgb, ${s.cor} 10%, transparent)` }}>
                 <Icon size={16} style={{ color: s.cor }} />
               </div>
               <p className="text-sm font-bold text-foreground leading-tight">{s.titulo}</p>

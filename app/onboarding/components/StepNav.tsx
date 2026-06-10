@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { useOnboarding, TOTAL_STEPS } from '../OnboardingContext';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 interface Props {
   /** Permite avançar (controla disable do botão principal). */

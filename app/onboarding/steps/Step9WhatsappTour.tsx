@@ -4,7 +4,7 @@ import { MessageCircle, Mic, Camera, FileText, Sparkles, CheckCircle2 } from 'lu
 import { useAuth } from '@/contexts/AuthContext';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const CANAIS = [
   { icon: MessageCircle, titulo: 'Texto',  desc: '"Gastei 50 no mercado"',           cor: BRAND     },
@@ -68,7 +68,7 @@ export default function Step9WhatsappTour() {
           return (
             <div key={c.titulo} className="p-4 rounded-2xl border border-border bg-card">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2"
-                   style={{ background: `${c.cor}1A` }}>
+                   style={{ background: `color-mix(in srgb, ${c.cor} 10%, transparent)` }}>
                 <Icon size={16} style={{ color: c.cor }} />
               </div>
               <p className="text-sm font-bold text-foreground">{c.titulo}</p>
@@ -80,7 +80,7 @@ export default function Step9WhatsappTour() {
 
       {/* Highlight final */}
       <div className="p-5 rounded-2xl border border-primary/20"
-           style={{ background: `linear-gradient(135deg, ${BRAND}10, transparent)` }}>
+           style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 6%, transparent), transparent)` }}>
         <div className="flex items-start gap-3">
           <Sparkles size={18} style={{ color: BRAND }} className="mt-0.5 flex-shrink-0" />
           <div>

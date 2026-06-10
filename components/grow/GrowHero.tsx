@@ -32,7 +32,7 @@ export default function GrowHero({
   badge,
   badgeIcon: Icon = Sparkles,
   badgeColor = VIOLET,
-  badgeBgClass = 'bg-primary/10 dark:bg-primary/10/40',
+  badgeBgClass = 'bg-primary/10 dark:bg-primary/15',
   haloRgba = 'color-mix(in srgb, hsl(var(--primary)) 12%, transparent)',
   titulo,
   subtitulo,

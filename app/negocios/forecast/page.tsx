@@ -10,7 +10,7 @@ import {
   AlertCircle, ChevronRight, Info,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 const NEUTRAL = '#94a3b8';
 
@@ -95,7 +95,7 @@ export default function ForecastPage() {
             </p>
             <Link href="/negocios/integracoes"
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm"
-                  style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+                  style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
               Conectar plataforma <ChevronRight size={11} />
             </Link>
           </div>
@@ -171,7 +171,7 @@ export default function ForecastPage() {
                       <td className="px-4 py-2.5 hidden sm:table-cell">
                         {m.tipo === 'projecao' ? (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
-                                style={{ background: `${BRAND}15`, color: BRAND }}>
+                                style={{ background: `color-mix(in srgb, ${BRAND} 8%, transparent)`, color: BRAND }}>
                             Projeção
                           </span>
                         ) : (
@@ -239,7 +239,7 @@ function GraficoBarras({ meses, campo }: { meses: any[]; campo: string }) {
                      style={{
                        height: `${alturaBarra}px`,
                        background: projecao
-                         ? `repeating-linear-gradient(45deg, ${cor}, ${cor} 4px, ${cor}80 4px, ${cor}80 8px)`
+                         ? `repeating-linear-gradient(45deg, ${cor}, ${cor} 4px, color-mix(in srgb, ${cor} 50%, transparent) 4px, color-mix(in srgb, ${cor} 50%, transparent) 8px)`
                          : cor,
                        opacity: projecao ? 0.8 : 0.85,
                      }} />
@@ -263,7 +263,7 @@ function Legenda() {
         Histórico
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="w-3 h-3 rounded-sm" style={{ background: `repeating-linear-gradient(45deg, ${BRAND}, ${BRAND} 2px, ${BRAND}80 2px, ${BRAND}80 4px)` }} />
+        <span className="w-3 h-3 rounded-sm" style={{ background: `repeating-linear-gradient(45deg, ${BRAND}, ${BRAND} 2px, color-mix(in srgb, ${BRAND} 50%, transparent) 2px, color-mix(in srgb, ${BRAND} 50%, transparent) 4px)` }} />
         Projeção
       </div>
     </div>
@@ -301,7 +301,7 @@ function BadgeConfianca({ confianca }: { confianca: string }) {
   }[confianca] || { cor: NEUTRAL, label: confianca, desc: '' };
 
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ borderColor: `${cores.cor}40`, background: `${cores.cor}10` }}>
+    <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border" style={{ borderColor: `color-mix(in srgb, ${cores.cor} 25%, transparent)`, background: `color-mix(in srgb, ${cores.cor} 6%, transparent)` }}>
       <span className="w-2 h-2 rounded-full" style={{ background: cores.cor }} />
       <div className="text-left">
         <p className="text-xs font-bold leading-none" style={{ color: cores.cor }}>{cores.label}</p>

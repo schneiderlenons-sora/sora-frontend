@@ -109,7 +109,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/10/40">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/15">
               <Target size={16} className="text-primary dark:text-primary" />
             </div>
             <h2 className="text-base font-bold text-foreground">{ed ? 'Editar hábito' : 'Novo hábito'}</h2>
@@ -121,7 +121,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
 
           {/* PREVIEW LIVE */}
           <div className="rounded-2xl p-4 border border-border/40 backdrop-blur-xl"
-               style={{ background: `linear-gradient(135deg, ${corPreview}1A 0%, ${corPreview}08 100%)`, borderColor: `${corPreview}40` }}>
+               style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${corPreview} 10%, transparent) 0%, color-mix(in srgb, ${corPreview} 3%, transparent) 100%)`, borderColor: `color-mix(in srgb, ${corPreview} 25%, transparent)` }}>
             <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Preview</p>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl shadow-md"
@@ -132,7 +132,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
                 <p className="text-sm font-bold text-foreground truncate">{nome || (isConstruir ? 'Novo hábito' : 'Hábito a eliminar')}</p>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                        style={{ background: `${corPreview}26`, color: corPreview }}>
+                        style={{ background: `color-mix(in srgb, ${corPreview} 15%, transparent)`, color: corPreview }}>
                     {isConstruir ? '✅ construir' : '❌ eliminar'}
                   </span>
                   {horarioFinal && (
@@ -186,7 +186,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
               {ICONES.map(i => (
                 <button key={i} type="button" onClick={() => setIcone(i)}
                   className={`aspect-square rounded-xl text-2xl flex items-center justify-center transition-all ${
-                    icone === i ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/10/40' : 'bg-muted/40 hover:bg-muted'
+                    icone === i ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/15' : 'bg-muted/40 hover:bg-muted'
                   }`}>
                   {i}
                 </button>
@@ -221,7 +221,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
                 return (
                   <button key={d.v} type="button" onClick={() => toggleDia(d.v)}
                           className={`py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                            ativo ? 'border-primary bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary/20' : 'border-border bg-muted/20 text-muted-foreground hover:border-primary/40'
+                            ativo ? 'border-primary bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary/20' : 'border-border bg-muted/20 text-muted-foreground hover:border-primary/40'
                           }`}>
                     {d.l}
                   </button>
@@ -237,7 +237,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
               {PERIODOS.map(p => (
                 <button key={p.v} type="button" onClick={() => setPeriodo(p.v)}
                   className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
-                    periodo === p.v ? 'border-primary bg-primary/10 dark:bg-primary/10/40 ring-1 ring-primary' : 'border-border bg-muted/20 hover:border-primary/40'
+                    periodo === p.v ? 'border-primary bg-primary/10 dark:bg-primary/15 ring-1 ring-primary' : 'border-border bg-muted/20 hover:border-primary/40'
                   }`}>
                   <span className="text-base">{p.emoji}</span>
                   <span className="text-[9px] font-bold text-foreground leading-tight text-center">{p.l}</span>

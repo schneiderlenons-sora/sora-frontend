@@ -13,7 +13,7 @@ import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
   ChevronRight, ChevronLeft, AlertCircle, BarChart3, Calendar, Loader2,
 } from 'lucide-react';
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NOMES  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 
@@ -198,7 +198,7 @@ export default function CartaoDeCreditoPage() {
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
 
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>

@@ -209,7 +209,7 @@ export default function TreinosPage() {
                 return (
                   <button key={t.id} onClick={() => setFiltroId(ativo ? null : t.id)}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-all text-left ${
-                      ativo ? 'border-primary bg-primary/10 dark:bg-primary/10/40 ring-1 ring-primary' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
+                      ativo ? 'border-primary bg-primary/10 dark:bg-primary/15 ring-1 ring-primary' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
                     }`}>
                     <span className="text-xl">{t.icone}</span>
                     <span className="text-xs font-bold text-foreground flex-1">{t.nome}</span>

@@ -178,8 +178,8 @@ export default function NutricaoPage() {
 
       {/* Sem meta → CTA pra calculadora */}
       {!meta && (
-        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-6 sm:p-8 bg-primary/10/50 dark:bg-primary/10/20 animate-fade-in flex flex-col sm:flex-row items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-6 sm:p-8 bg-primary/15 dark:bg-primary/15 animate-fade-in flex flex-col sm:flex-row items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/15">
             <Calculator size={22} className="text-primary dark:text-primary" />
           </div>
           <div className="flex-1">
@@ -419,7 +419,7 @@ function CardRefeicao({ refeicao, mostrarData, onDelete }: any) {
 
   return (
     <div className="group flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/15">
         <Icon size={16} className="text-primary dark:text-primary" />
       </div>
       <div className="flex-1 min-w-0">

@@ -10,7 +10,7 @@ import {
   ShieldCheck, RefreshCw, Zap, Trash2, Copy, Loader2, ChevronRight,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 type Status = 'disponivel' | 'em_breve' | 'conectada';
 type Plataforma = {
@@ -443,7 +443,7 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
               onClick={handleConectar}
               disabled={enviando}
               className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
-              style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}
+              style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}
             >
               {enviando ? <><Loader2 size={14} className="animate-spin" /> Conectando…</> : 'Conectar'}
             </button>
@@ -452,7 +452,7 @@ function ModalConectar({ plataforma, onClose }: { plataforma: Plataforma; onClos
         {sucesso && (
           <div className="p-5 border-t border-border bg-muted/20">
             <button onClick={onClose} className="w-full px-4 py-3 rounded-xl text-sm font-bold text-white shadow-sm"
-                    style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+                    style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
               Concluído
             </button>
           </div>
@@ -506,7 +506,7 @@ function TelaConectada({ plataforma, integ, onImportar }: { plataforma: Platafor
           onClick={handleImportar}
           disabled={importando}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-sm disabled:opacity-50"
-          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}
+          style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}
         >
           {importando
             ? <><Loader2 size={12} className="animate-spin" /> Importando…</>
@@ -527,7 +527,7 @@ function TelaSucesso({ webhookUrl, plataforma }: { webhookUrl: string; plataform
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${BRAND}20` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
           <Check size={16} style={{ color: BRAND }} />
         </div>
         <div>

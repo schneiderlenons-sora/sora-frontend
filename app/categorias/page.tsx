@@ -17,7 +17,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
 } from 'recharts';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -276,7 +276,7 @@ export default function CategoriasPage() {
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
 
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
@@ -339,7 +339,7 @@ export default function CategoriasPage() {
               style={{
                 width: 'calc(50% - 4px)',
                 left: tipoTab === 'despesa' ? '4px' : 'calc(50%)',
-                background: tipoTab === 'despesa' ? 'hsl(0 72% 58%)' : '#61D17B',
+                background: tipoTab === 'despesa' ? 'hsl(0 72% 58%)' : 'hsl(var(--primary))',
               }}
             />
             <button

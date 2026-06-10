@@ -19,7 +19,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -171,7 +171,7 @@ export default function TransacoesPage() {
 
           {/* Mesh decorativo */}
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
@@ -296,7 +296,7 @@ export default function TransacoesPage() {
             <div className="relative">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold">Saldo</p>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND}30` }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `color-mix(in srgb, ${BRAND} 19%, transparent)` }}>
                   <Wallet size={13} style={{ color: BRAND }} />
                 </div>
               </div>
@@ -764,11 +764,11 @@ function EmptyState({ temFiltro, onLimpar, onCriar }: { temFiltro: boolean; onLi
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6 text-center relative">
       <div className="absolute inset-0 pointer-events-none opacity-30"
-           style={{ background: `radial-gradient(ellipse at center, ${BRAND}15 0%, transparent 60%)` }} />
+           style={{ background: `radial-gradient(ellipse at center, color-mix(in srgb, ${BRAND} 8%, transparent) 0%, transparent 60%)` }} />
 
       <div className="relative">
         <div className="mx-auto w-20 h-20 rounded-3xl flex items-center justify-center mb-5 ring-1 ring-primary/20"
-             style={{ background: `linear-gradient(135deg, ${BRAND}25, ${BRAND}10)` }}>
+             style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 15%, transparent), color-mix(in srgb, ${BRAND} 6%, transparent))` }}>
           {temFiltro
             ? <Filter size={28} style={{ color: BRAND }} />
             : <Plus   size={28} style={{ color: BRAND }} />}
@@ -798,7 +798,7 @@ function EmptyState({ temFiltro, onLimpar, onCriar }: { temFiltro: boolean; onLi
               className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-2xl font-semibold text-sm text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 background: `linear-gradient(135deg, ${BRAND}, hsl(154 55% 50%))`,
-                boxShadow: `0 8px 24px ${BRAND}45, 0 2px 6px ${BRAND}33`,
+                boxShadow: `0 8px 24px color-mix(in srgb, ${BRAND} 27%, transparent), 0 2px 6px color-mix(in srgb, ${BRAND} 20%, transparent)`,
               }}
             >
               <Plus size={16} strokeWidth={2.5} /> Adicionar transação

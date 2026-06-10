@@ -15,7 +15,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
@@ -126,7 +126,7 @@ export default function MetasPage() {
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
@@ -159,7 +159,7 @@ export default function MetasPage() {
         ) : metas.length === 0 ? (
           <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6 animate-fade-in">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-glow-sm"
-                 style={{ background: `${BRAND}22` }}>
+                 style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
               <Flag size={26} style={{ color: BRAND }} />
             </div>
             <p className="text-base font-bold text-foreground">Crie sua primeira meta</p>
@@ -286,7 +286,7 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* ─── Banner com foto ─── */}
-      <div className="relative h-44 overflow-hidden" style={{ background: `linear-gradient(135deg, ${cor}22, ${cor}05)` }}>
+      <div className="relative h-44 overflow-hidden" style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${cor} 13%, transparent), color-mix(in srgb, ${cor} 2%, transparent))` }}>
         {meta.imagem_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={meta.imagem_url} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -300,7 +300,7 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
 
         {/* Status badge top-left */}
         <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-md text-[10px] font-bold uppercase tracking-wider shadow-sm"
-             style={{ background: `${status.cor}40`, color: 'white', border: `1px solid ${status.cor}80` }}>
+             style={{ background: `color-mix(in srgb, ${status.cor} 25%, transparent)`, color: 'white', border: `1px solid color-mix(in srgb, ${status.cor} 50%, transparent)` }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.cor }} />
           {status.label}
         </div>
@@ -324,7 +324,7 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
         {/* Título + ícone sobrepostos no fim do banner */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl backdrop-blur-md flex-shrink-0 shadow-sm"
-               style={{ background: `${cor}40`, border: `1px solid ${cor}` }}>
+               style={{ background: `color-mix(in srgb, ${cor} 25%, transparent)`, border: `1px solid ${cor}` }}>
             {meta.icone || '🎯'}
           </div>
           <h3 className="text-lg font-bold text-white drop-shadow-md truncate flex-1">{meta.titulo}</h3>
@@ -391,7 +391,7 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
           </div>
           <div className="h-2.5 rounded-full bg-muted overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"
-                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${corBarra}, ${corBarra}aa)` }} />
+                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${corBarra}, color-mix(in srgb, ${corBarra} 67%, transparent))` }} />
           </div>
         </div>
 
@@ -505,7 +505,7 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                 style={{ background: `${cor}22`, color: cor }}>
+                 style={{ background: `color-mix(in srgb, ${cor} 13%, transparent)`, color: cor }}>
               {ehAporte ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
             </div>
             <div className="min-w-0">
@@ -586,7 +586,7 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
                   className={`px-4 py-2 text-sm gap-2 inline-flex items-center rounded-xl font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] shadow-glow-sm ${
                     ehAporte ? '' : 'opacity-95'
                   }`}
-                  style={{ background: `linear-gradient(135deg, ${cor}, ${cor}cc)` }}>
+                  style={{ background: `linear-gradient(135deg, ${cor}, color-mix(in srgb, ${cor} 80%, transparent))` }}>
             {loading ? <Loader2 size={14} className="animate-spin" /> : (ehAporte ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />)}
             {ehAporte ? 'Aplicar' : 'Resgatar'}
           </button>

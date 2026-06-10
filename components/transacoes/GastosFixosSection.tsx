@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -85,7 +85,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         <div className="flex items-center gap-3 min-w-0">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: `${BRAND}1A` }}
+            style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)` }}
           >
             <Repeat size={18} style={{ color: BRAND }} />
           </div>
@@ -94,7 +94,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               Fixos do mês
               {!carregando && itens.length > 0 && (
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
-                      style={{ background: `${BRAND}1A`, color: BRAND }}>
+                      style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}>
                   {itens.length}
                 </span>
               )}
@@ -111,7 +111,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           onClick={() => setAddOpen((v) => !v)}
           className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
                      hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
-          style={{ background: addOpen ? 'hsl(var(--bg-muted))' : `${BRAND}1A`, color: addOpen ? undefined : BRAND }}
+          style={{ background: addOpen ? 'hsl(var(--bg-muted))' : `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: addOpen ? undefined : BRAND }}
           aria-expanded={addOpen}
         >
           {addOpen ? <X size={16} /> : <Plus size={16} />}
@@ -147,7 +147,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
             <button
               onClick={() => setAddOpen(true)}
               className="mt-1 flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold"
-              style={{ background: `${BRAND}1A`, color: BRAND }}
+              style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}
             >
               <Plus size={16} /> Adicionar gasto fixo
             </button>

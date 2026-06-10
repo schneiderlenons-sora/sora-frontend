@@ -159,8 +159,8 @@ export default function FaculdadePage() {
       )}
 
       {faculdades.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/10/30 dark:bg-primary/10/10 animate-fade-in text-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-primary/10 dark:bg-primary/10/40">
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/15 dark:bg-primary/15 animate-fade-in text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-primary/10 dark:bg-primary/15">
             <GraduationCap size={28} className="text-primary dark:text-primary" />
           </div>
           <p className="text-base font-bold text-foreground">Nenhuma faculdade cadastrada</p>
@@ -184,7 +184,7 @@ export default function FaculdadePage() {
                   <p className="text-base font-bold text-foreground">{proximasProvas.length} agendada{proximasProvas.length === 1 ? '' : 's'}</p>
                 </div>
                 <button onClick={() => { setEdProva(null); setModalProva(true); }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/10/60">
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/15">
                   <Plus size={11} /> Nova
                 </button>
               </div>
@@ -222,7 +222,7 @@ export default function FaculdadePage() {
               </div>
               {curso && (
                 <button onClick={() => { setEdDisc(null); setModalDisc(true); }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10">
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10">
                   <Plus size={11} /> Adicionar
                 </button>
               )}

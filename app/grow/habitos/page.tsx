@@ -258,7 +258,7 @@ function TabVisao({ habitos, registros, concluidos, onToggle, onNew, onEdit }: a
 
   if (total === 0) {
     return (
-      <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-14 bg-primary/10/30 dark:bg-primary/10/10 text-center animate-fade-in">
+      <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-14 bg-primary/15 dark:bg-primary/15 text-center animate-fade-in">
         <div className="text-7xl mb-4">🐋</div>
         <p className="text-lg font-bold text-foreground">Nenhum hábito pra hoje</p>
         <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
@@ -452,7 +452,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
         </div>
         <div className="flex items-center gap-1">
           {offset !== 0 && (
-            <button onClick={() => setOffset(0)} className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-primary dark:text-primary hover:bg-primary/10 dark:hover:bg-primary/10/40">
+            <button onClick={() => setOffset(0)} className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-primary dark:text-primary hover:bg-primary/10 dark:hover:bg-primary/15">
               hoje
             </button>
           )}
@@ -477,7 +477,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
             const ehAntiga = offset < 0;
             return (
               <div key={i} className={`p-2 text-center border-l border-border/40 transition-all ${
-                ehHoje ? 'bg-primary/10 dark:bg-primary/10/30' : ehAntiga ? 'opacity-60' : ''
+                ehHoje ? 'bg-primary/10 dark:bg-primary/15' : ehAntiga ? 'opacity-60' : ''
               }`}>
                 <p className={`text-[9px] font-bold uppercase tracking-wider ${ehHoje ? 'text-primary dark:text-primary' : 'text-muted-foreground'}`}>
                   {d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').slice(0, 3)}
@@ -514,7 +514,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
                     onClick={() => onToggle(h, dIso)}
                     className={`p-2 border-l border-border/40 flex items-center justify-center transition-all ${
                       programado && !futuro ? 'hover:bg-muted/60 cursor-pointer' : 'cursor-default'
-                    } ${ehHoje ? 'bg-primary/10/60 dark:bg-primary/10/20' : ''}`}
+                    } ${ehHoje ? 'bg-primary/15 dark:bg-primary/15' : ''}`}
                     title={!programado ? 'Não programado pra este dia' : futuro ? 'Dia ainda não chegou' : feito ? 'Concluído' : 'Marcar'}
                   >
                     {!programado ? (
@@ -552,7 +552,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
             const ehHoje = dIso === hojeIso;
             const completo = !futuro && total > 0 && feitos === total;
             return (
-              <div key={i} className={`p-2 text-center border-l border-border/40 ${ehHoje ? 'bg-primary/10 dark:bg-primary/10/30' : ''}`}>
+              <div key={i} className={`p-2 text-center border-l border-border/40 ${ehHoje ? 'bg-primary/10 dark:bg-primary/15' : ''}`}>
                 {futuro ? (
                   <span className="text-[10px] text-muted-foreground/50">·</span>
                 ) : total === 0 ? (

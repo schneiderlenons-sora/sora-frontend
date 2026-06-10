@@ -37,7 +37,7 @@ const BANCOS_OPEN_FINANCE = [
   { nome: 'Neon' },
 ];
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -262,7 +262,7 @@ export default function ContasBancariasPage() {
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
 
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
@@ -344,9 +344,9 @@ export default function ContasBancariasPage() {
               {/* Ícone decorativo elegante */}
               <div className="hidden sm:flex flex-shrink-0 w-20 h-20 rounded-2xl items-center justify-center"
                    style={{
-                     background: `linear-gradient(135deg, ${BRAND}30, ${BRAND}10)`,
+                     background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 19%, transparent), color-mix(in srgb, ${BRAND} 6%, transparent))`,
                      animation: 'float 3s ease-in-out infinite',
-                     border: `1px solid ${BRAND}30`,
+                     border: `1px solid color-mix(in srgb, ${BRAND} 19%, transparent)`,
                    }}>
                 <WalletIcon size={32} style={{ color: BRAND }} />
               </div>
@@ -447,7 +447,7 @@ export default function ContasBancariasPage() {
             aria-expanded={openFinanceAberto}
           >
             <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-glow-sm"
-                 style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND}aa)` }}>
+                 style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 67%, transparent))` }}>
               <Link2 size={16} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -781,7 +781,7 @@ function ContaModal({
         {/* Header com gradient sutil */}
         <div className="relative px-6 py-5 border-b border-border/60 overflow-hidden">
           <div className="absolute inset-0 opacity-30 pointer-events-none"
-               style={{ background: `radial-gradient(ellipse at top right, ${BRAND}40 0%, transparent 70%)` }} />
+               style={{ background: `radial-gradient(ellipse at top right, color-mix(in srgb, ${BRAND} 25%, transparent) 0%, transparent 70%)` }} />
           <div className="relative flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground tracking-tight">

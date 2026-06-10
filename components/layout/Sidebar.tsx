@@ -65,8 +65,9 @@ const PLANO_BADGE: Record<string, string> = {
   inativo: 'bg-white text-emerald-800',
 };
 
-const SIDEBAR_BG_LIGHT = 'linear-gradient(180deg, #5BC571 0%, #4DAE61 100%)';
-const SIDEBAR_BG_DARK  = 'linear-gradient(180deg, #4DAE61 0%, #3C9450 100%)';
+// Sidebar segue a cor temática escolhida (--primary)
+const SIDEBAR_BG_LIGHT = 'linear-gradient(180deg, hsl(var(--primary)) 0%, color-mix(in srgb, hsl(var(--primary)) 82%, #000) 100%)';
+const SIDEBAR_BG_DARK  = 'linear-gradient(180deg, color-mix(in srgb, hsl(var(--primary)) 86%, #000) 0%, color-mix(in srgb, hsl(var(--primary)) 68%, #000) 100%)';
 const SIDEBAR_BG_BLACK = '#000000';
 
 export default function Sidebar() {

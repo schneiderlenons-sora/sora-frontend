@@ -355,7 +355,7 @@ export default function ConcursosPage() {
                 </div>
                 {concurso && (
                   <button onClick={() => setModalDisc(true)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/10/60">
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/15">
                     <Plus size={11} /> Adicionar
                   </button>
                 )}

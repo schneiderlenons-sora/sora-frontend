@@ -15,7 +15,7 @@ import {
   GraduationCap, FileText, MoreVertical, Bell, BellOff,
 } from 'lucide-react';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 const TIPO_INFO: Record<string, { label: string; cor: string; icon: any }> = {
   emprestimo:       { label: 'Empréstimo',      cor: '#3b82f6', icon: Briefcase    },
@@ -125,7 +125,7 @@ export default function DividasPage() {
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
@@ -313,7 +313,7 @@ function CardStat({ label, value, sub, icon: Icon, cor, alerta }: {
           <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>
         </div>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-             style={{ background: `${cor}18` }}>
+             style={{ background: `color-mix(in srgb, ${cor} 9%, transparent)` }}>
           <Icon size={18} style={{ color: cor }} />
         </div>
       </div>
@@ -368,14 +368,14 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
     >
       {/* Linha decorativa superior com a cor do tipo */}
       <div className="absolute top-0 left-0 right-0 h-1 opacity-90"
-           style={{ background: `linear-gradient(90deg, ${tipo.cor}, ${tipo.cor}66)` }} />
+           style={{ background: `linear-gradient(90deg, ${tipo.cor}, color-mix(in srgb, ${tipo.cor} 40%, transparent))` }} />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
           {/* Avatar — logo da marca ou ícone do tipo */}
           <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-               style={{ background: `${tipo.cor}18` }}>
+               style={{ background: `color-mix(in srgb, ${tipo.cor} 9%, transparent)` }}>
             {temLogoOficial ? (
               <IconeMarca
                 nome={credor}
@@ -390,7 +390,7 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
             <p className="text-sm font-bold text-foreground truncate">{divida.titulo}</p>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                    style={{ background: `${tipo.cor}22`, color: tipo.cor }}>
+                    style={{ background: `color-mix(in srgb, ${tipo.cor} 13%, transparent)`, color: tipo.cor }}>
                 {tipo.label}
               </span>
               {divida.credor && (
@@ -403,7 +403,7 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
         {/* Status badge + menu */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                style={{ background: `${status.cor}22`, color: status.cor }}>
+                style={{ background: `color-mix(in srgb, ${status.cor} 13%, transparent)`, color: status.cor }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.cor }} />
             {status.label}
           </span>
@@ -479,7 +479,7 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"
-                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tipo.cor}, ${tipo.cor}aa)` }} />
+                 style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tipo.cor}, color-mix(in srgb, ${tipo.cor} 67%, transparent))` }} />
           </div>
         </div>
       )}
@@ -580,7 +580,7 @@ function EmptyState({ filtro, totalDividas, onCriar }: { filtro: string; totalDi
   return (
     <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6 animate-fade-in">
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-glow-sm"
-           style={{ background: `${BRAND}22` }}>
+           style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
         <Receipt size={26} style={{ color: BRAND }} />
       </div>
       <p className="text-base font-bold text-foreground">Sem dívidas registradas</p>

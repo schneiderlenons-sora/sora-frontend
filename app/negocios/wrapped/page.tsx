@@ -9,7 +9,7 @@ import {
   Crown, Sparkles, TrendingUp, Trophy, Users, Clock, Zap, Award,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 const MES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const periodoLabel = (iso: string) => {
@@ -210,7 +210,7 @@ function SlideNumero({ slide }: { slide: Slide }) {
       )}
       {slide.delta != null && (
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold mt-2 backdrop-blur-sm"
-             style={{ background: slide.delta >= 0 ? 'rgba(97,206,112,0.2)' : 'rgba(255,255,255,0.15)' }}>
+             style={{ background: slide.delta >= 0 ? 'color-mix(in srgb, hsl(var(--primary)) 20%, transparent)' : 'rgba(255,255,255,0.15)' }}>
           {slide.delta >= 0 ? '↑' : '↓'} {Math.abs(slide.delta).toFixed(0)}% vs mês anterior
         </div>
       )}
@@ -384,7 +384,7 @@ function construirSlides(data: any): Slide[] {
     const platCor = CORES_PLAT[data.plataforma_top.plataforma] || BRAND;
     slides.push({
       tipo: 'destaque',
-      bg: `linear-gradient(135deg, #0a0a0a 0%, ${platCor}30 100%)`,
+      bg: `linear-gradient(135deg, #0a0a0a 0%, color-mix(in srgb, ${platCor} 19%, transparent) 100%)`,
       icon: Zap,
       label: 'Sua plataforma top',
       titulo: NOMES_PLAT[data.plataforma_top.plataforma] || data.plataforma_top.plataforma,

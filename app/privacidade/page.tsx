@@ -7,7 +7,7 @@ export default function PrivacidadePage() {
   return (
     <main className="min-h-dvh bg-white dark:bg-[#0a0a0a] text-zinc-900 dark:text-white">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-16">
-        <Link href="/" className="text-sm font-semibold" style={{ color: '#61ce70' }}>← Voltar</Link>
+        <Link href="/" className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>← Voltar</Link>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mt-6 mb-2">Política de Privacidade</h1>
         <p className="text-sm text-zinc-500 dark:text-white/50 mb-10">Última atualização: 31/05/2026 · Conforme a LGPD (Lei 13.709/2018)</p>
 

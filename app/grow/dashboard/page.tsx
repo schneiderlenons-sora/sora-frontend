@@ -112,7 +112,7 @@ export default function GrowDashboardPage() {
         <div className="absolute inset-0 pointer-events-none opacity-60"
              style={{ background: 'radial-gradient(ellipse at top right, color-mix(in srgb, hsl(var(--primary)) 14%, transparent) 0%, transparent 60%)' }} />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/10/40 mb-3">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/15 mb-3">
             <Sprout size={11} style={{ color: BRAND }} />
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND }}>Sora Grow</span>
           </div>
@@ -186,7 +186,7 @@ export default function GrowDashboardPage() {
                         onClick={() => toggleHabito(h)}
                         className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all border ${
                           feito
-                            ? 'bg-primary/10 dark:bg-primary/10/30 border-primary/30 dark:border-primary/30/60'
+                            ? 'bg-primary/10 dark:bg-primary/15 border-primary/30 dark:border-primary/15'
                             : 'bg-muted/30 border-border/60 hover:border-primary/40 dark:hover:border-primary'
                         }`}
                       >

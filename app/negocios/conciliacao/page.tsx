@@ -10,7 +10,7 @@ import {
   Sparkles, ShieldCheck, Info,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 const NOMES_PLAT: Record<string, string> = {
   hotmart: 'Hotmart', kiwify: 'Kiwify', eduzz: 'Eduzz',
@@ -199,7 +199,7 @@ function CardSugestao({ s, agindo, onAprovar, onRejeitar }: { s: any; agindo: bo
       {/* Header com confiança */}
       <div className="flex items-center justify-between mb-3">
         <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-             style={{ background: `${BRAND}15`, color: BRAND }}>
+             style={{ background: `color-mix(in srgb, ${BRAND} 8%, transparent)`, color: BRAND }}>
           <Sparkles size={10} /> Sugestão automática · {confiancaPct}%
         </div>
         <span className="text-[10px] text-muted-foreground">Valor exato · ±3d</span>
@@ -211,7 +211,7 @@ function CardSugestao({ s, agindo, onAprovar, onRejeitar }: { s: any; agindo: bo
         <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
-                  style={{ background: `${corPlat}15`, color: corPlat }}>
+                  style={{ background: `color-mix(in srgb, ${corPlat} 8%, transparent)`, color: corPlat }}>
               <span className="w-1 h-1 rounded-full" style={{ background: corPlat }} />
               {nomePlat}
             </span>
@@ -237,7 +237,7 @@ function CardSugestao({ s, agindo, onAprovar, onRejeitar }: { s: any; agindo: bo
         <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
-                  style={{ background: 'rgba(97,206,112,0.15)', color: BRAND }}>
+                  style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 15%, transparent)', color: BRAND }}>
               Sora Finance
             </span>
             <span className="text-[10px] text-muted-foreground">{dataBr(s.transacao.data)}</span>
@@ -259,7 +259,7 @@ function CardSugestao({ s, agindo, onAprovar, onRejeitar }: { s: any; agindo: bo
         <button onClick={onAprovar}
                 disabled={agindo}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm disabled:opacity-50 transition-transform active:scale-[0.98]"
-                style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+                style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
           {agindo ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
           Aprovar conciliação
         </button>

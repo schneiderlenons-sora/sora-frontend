@@ -14,7 +14,7 @@ import {
   Wallet, Landmark,
 } from 'lucide-react';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 
 const fmt   = (centavos: number) =>
@@ -235,7 +235,7 @@ function DemoBanner() {
       </div>
       <Link href="/negocios/integracoes"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex-shrink-0"
-            style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+            style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
         <Plug size={13} /> Conectar
       </Link>
     </div>
@@ -494,7 +494,7 @@ function CardInsight() {
 
   return (
     <div className="rounded-2xl border bg-card p-5 animate-fade-in relative overflow-hidden"
-         style={{ animationDelay: '240ms', borderColor: `${BRAND}40` }}>
+         style={{ animationDelay: '240ms', borderColor: `color-mix(in srgb, ${BRAND} 25%, transparent)` }}>
       <div className="absolute top-0 right-0 w-32 h-32 pointer-events-none opacity-30"
            style={{ background: `radial-gradient(circle at top right, ${BRAND} 0%, transparent 70%)` }} />
       <div className="relative">
@@ -585,7 +585,7 @@ function PaywallBlack() {
     <div className="max-w-2xl mx-auto pb-20 pt-12 px-4">
       <div className="relative overflow-hidden rounded-3xl bg-black text-white p-10 text-center">
         <div className="absolute inset-0 pointer-events-none opacity-40"
-             style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, ${BRAND}30 0%, transparent 60%)` }} />
+             style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, ${BRAND} 19%, transparent) 0%, transparent 60%)` }} />
         <div className="relative">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }}>

@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 
 const ICONES = ['🎯','🏠','🚗','✈️','💍','🎓','💼','👶','🐶','💻','📚','🛒','🎮','💎','🎁','🪙'];
 const CORES  = [
-  { hex: '#61D17B', label: 'Verde'    },
+  { hex: 'hsl(var(--primary))', label: 'Verde'    },
   { hex: '#3b82f6', label: 'Azul'     },
   { hex: '#8b5cf6', label: 'Roxo'     },
   { hex: '#ec4899', label: 'Rosa'     },
@@ -60,7 +60,7 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
   );
   const [dataAlvo,      setDataAlvo]      = useState(edicao?.data_alvo || '');
   const [imagem,        setImagem]        = useState<string | null>(edicao?.imagem_url || null);
-  const [cor,           setCor]           = useState(edicao?.cor || '#61D17B');
+  const [cor,           setCor]           = useState(edicao?.cor || 'hsl(var(--primary))');
   const [icone,         setIcone]         = useState(edicao?.icone || '🎯');
 
   const [uploading, setUploading] = useState(false);
@@ -133,7 +133,7 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 transition-all"
-              style={{ background: `${corPreview}22`, color: corPreview }}
+              style={{ background: `color-mix(in srgb, ${corPreview} 13%, transparent)`, color: corPreview }}
             >
               {icone}
             </div>
@@ -271,7 +271,7 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500"
-                     style={{ width: `${pctPreview}%`, background: `linear-gradient(90deg, ${corPreview}, ${corPreview}aa)` }} />
+                     style={{ width: `${pctPreview}%`, background: `linear-gradient(90deg, ${corPreview}, color-mix(in srgb, ${corPreview} 67%, transparent))` }} />
               </div>
             </div>
           )}

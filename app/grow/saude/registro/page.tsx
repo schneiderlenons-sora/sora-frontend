@@ -217,7 +217,7 @@ export default function RegistroPage() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Perfil de saúde</p>
               <p className="text-base font-bold text-foreground">{perfil?.altura_cm ? 'Configurado' : 'Sem configuração'}</p>
             </div>
-            <button onClick={() => setModalPerfil(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/10/60">
+            <button onClick={() => setModalPerfil(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/15">
               <Pencil size={11} /> {perfil?.altura_cm ? 'Editar' : 'Configurar'}
             </button>
           </div>

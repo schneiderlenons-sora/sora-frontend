@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { podeUsar } from '@/lib/plans';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 type Opcao = {
   id:     PerfilUso;
@@ -33,7 +33,7 @@ const OPCOES: Opcao[] = [
     titulo: 'Casal / família',
     desc: 'Gestão compartilhada com parceiro(a) ou família',
     icon: Users,
-    cor: '#61ce70',
+    cor: 'hsl(var(--primary))',
     requerPremium: true,
   },
   {
@@ -95,7 +95,7 @@ export default function Step2PerfilUso() {
               <div className="flex items-center gap-4">
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${opcao.cor}1A` }}
+                  style={{ background: `color-mix(in srgb, ${opcao.cor} 10%, transparent)` }}
                 >
                   <Icon size={20} style={{ color: opcao.cor }} />
                 </div>

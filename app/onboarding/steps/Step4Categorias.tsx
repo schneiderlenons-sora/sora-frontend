@@ -8,7 +8,7 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
 import StepNav from '../components/StepNav';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 type Cat = {
   id:        string;
@@ -75,7 +75,7 @@ export default function Step4Categorias() {
     <>
       <div className="space-y-3 mb-8">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-2"
-             style={{ background: `${BRAND}1A` }}>
+             style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)` }}>
           <Tag size={20} style={{ color: BRAND }} />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
@@ -100,7 +100,7 @@ export default function Step4Categorias() {
                 <span
                   key={c.id}
                   className="group inline-flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl border text-sm font-medium transition-all"
-                  style={{ borderColor: `${tema.color}40`, background: `${tema.color}10` }}
+                  style={{ borderColor: `color-mix(in srgb, ${tema.color} 25%, transparent)`, background: `color-mix(in srgb, ${tema.color} 6%, transparent)` }}
                 >
                   <CategoriaIcon nome={c.nome} icone={emoji} size={22} bg={tema.bg} color={tema.color} rounded="rounded-lg" />
                   <span className="text-foreground">{c.nome}</span>

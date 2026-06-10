@@ -152,7 +152,7 @@ export default function RemediosPage() {
       )}
 
       {meds.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/10/30 dark:bg-primary/10/10 animate-fade-in text-center">
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/15 dark:bg-primary/15 animate-fade-in text-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-rose-100 dark:bg-rose-950/40">
             <Pill size={28} className="text-rose-600 dark:text-rose-400" />
           </div>

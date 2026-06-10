@@ -5,7 +5,7 @@ import { X, Loader2, Check, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
-const BRAND = '#61ce70';
+const BRAND = 'hsl(var(--primary))';
 
 const REGIMES = [
   { v: 'mei',              label: 'MEI',                desc: 'Microempreendedor — DAS fixo mensal', aliq: 0 },
@@ -160,7 +160,7 @@ export default function ModalConfigTributaria({ onClose }: { onClose: () => void
           <button onClick={salvar}
                   disabled={salvando}
                   className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-50 inline-flex items-center justify-center gap-2"
-                  style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
+                  style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
             {salvando ? <><Loader2 size={14} className="animate-spin" /> Salvando…</>
               : salvo ? <><Check size={14} /> Salvo!</>
               : 'Salvar'}

@@ -19,7 +19,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
-const BRAND       = '#61D17B';
+const BRAND       = 'hsl(var(--primary))';
 const RED         = '#ef4444';
 const BLUE        = '#3b82f6';
 
@@ -226,7 +226,7 @@ export default function RelatoriosPage() {
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
 
           <div className="absolute inset-0 pointer-events-none opacity-60"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(217 91% 60% / .10) 0%, transparent 60%), radial-gradient(ellipse at bottom left, hsl(134 55% 60% / .10) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(217 91% 60% / .10) 0%, transparent 60%), radial-gradient(ellipse at bottom left, hsl(var(--primary) / .10) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
@@ -482,7 +482,7 @@ export default function RelatoriosPage() {
                             <span className="text-base">{cat.emoji}</span>
                             <span className="text-sm font-medium text-foreground">{cat.name}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular"
-                                  style={{ background: `${cat.color}20`, color: cat.color }}>
+                                  style={{ background: `color-mix(in srgb, ${cat.color} 13%, transparent)`, color: cat.color }}>
                               {pct.toFixed(0)}%
                             </span>
                           </div>
@@ -493,8 +493,8 @@ export default function RelatoriosPage() {
                             className="h-full rounded-full transition-all duration-700"
                             style={{
                               width: `${pct}%`,
-                              background: `linear-gradient(90deg, ${cat.color}, ${cat.color}dd)`,
-                              boxShadow: `0 0 12px ${cat.color}40`,
+                              background: `linear-gradient(90deg, ${cat.color}, color-mix(in srgb, ${cat.color} 87%, transparent))`,
+                              boxShadow: `0 0 12px color-mix(in srgb, ${cat.color} 25%, transparent)`,
                             }}
                           />
                         </div>
@@ -527,7 +527,7 @@ export default function RelatoriosPage() {
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-sm font-bold text-foreground tabular">{fmt(m.total)}</span>
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular"
-                                  style={{ background: `${cor}22`, color: cor }}>
+                                  style={{ background: `color-mix(in srgb, ${cor} 13%, transparent)`, color: cor }}>
                               {pct.toFixed(0)}%
                             </span>
                           </div>
@@ -878,7 +878,7 @@ function CategoryDonut({ data }: { data: any[] }) {
               <span className="text-base flex-shrink-0">{d.emoji}</span>
               <span className="flex-1 truncate text-muted-foreground">{d.name}</span>
               <span className="text-[10px] font-bold tabular px-1.5 py-0.5 rounded-full"
-                    style={{ background: `${d.color}20`, color: d.color }}>
+                    style={{ background: `color-mix(in srgb, ${d.color} 13%, transparent)`, color: d.color }}>
                 {pct.toFixed(0)}%
               </span>
               <span className="font-semibold text-foreground tabular w-20 text-right text-[11px]">{fmt(d.value)}</span>

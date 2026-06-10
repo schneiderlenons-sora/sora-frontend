@@ -118,7 +118,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `${tipoSel.cor}22`, color: tipoSel.cor }}
+              style={{ background: `color-mix(in srgb, ${tipoSel.cor} 13%, transparent)`, color: tipoSel.cor }}
             >
               <tipoSel.icon size={20} />
             </div>
@@ -161,7 +161,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                   >
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: `${t.cor}22`, color: t.cor }}
+                      style={{ background: `color-mix(in srgb, ${t.cor} 13%, transparent)`, color: t.cor }}
                     >
                       <Icon size={16} />
                     </div>
@@ -277,7 +277,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500"
-                     style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tipoSel.cor}, ${tipoSel.cor}aa)` }} />
+                     style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tipoSel.cor}, color-mix(in srgb, ${tipoSel.cor} 67%, transparent))` }} />
               </div>
             </div>
           )}

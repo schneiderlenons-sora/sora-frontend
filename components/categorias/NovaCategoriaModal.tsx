@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle, Check, Smile } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 // Paleta de 12 cores vibrantes em HSL (hue)
 export const PALETA_CORES = [
@@ -178,7 +178,7 @@ export default function NovaCategoriaModal({
                   style={{
                     width: 'calc(50% - 4px)',
                     left: tipo === 'despesa' ? '4px' : 'calc(50%)',
-                    background: tipo === 'despesa' ? 'hsl(0 72% 58%)' : '#61D17B',
+                    background: tipo === 'despesa' ? 'hsl(0 72% 58%)' : 'hsl(var(--primary))',
                   }}
                 />
                 {(['despesa', 'receita'] as const).map(t => (

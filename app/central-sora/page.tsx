@@ -9,7 +9,7 @@ import ComandoCard from './components/ComandoCard';
 import CategoriaCard from './components/CategoriaCard';
 import { Search, Sparkles, MessageCircle, ArrowLeft, X } from 'lucide-react';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
 type View = { tipo: 'home' } | { tipo: 'categoria'; id: CategoriaCmdId } | { tipo: 'busca'; q: string };
 
@@ -36,7 +36,7 @@ export default function CentralSoraPage() {
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-10 border border-border/60"
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
           <div className="absolute inset-0 pointer-events-none opacity-60"
-               style={{ background: `radial-gradient(ellipse 80% 60% at 20% 0%, ${BRAND}1A 0%, transparent 60%)` }} />
+               style={{ background: `radial-gradient(ellipse 80% 60% at 20% 0%, color-mix(in srgb, ${BRAND} 10%, transparent) 0%, transparent 60%)` }} />
 
           <div className="relative">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-4">

@@ -264,7 +264,7 @@ export default function ConsultasPage() {
                 return (
                   <button key={nome} onClick={() => setExameSel(nome)}
                           className={`w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-xl border transition-all ${
-                            exameSel === nome ? 'border-primary bg-primary/10 dark:bg-primary/10/40' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
+                            exameSel === nome ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
                           }`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-foreground truncate">{nome}</p>

@@ -140,7 +140,7 @@ export default function CursosPage() {
                     ativo ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}>
                   {f.l}
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular ${ativo ? 'bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary' : 'bg-muted-foreground/15 text-muted-foreground'}`}>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular ${ativo ? 'bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary' : 'bg-muted-foreground/15 text-muted-foreground'}`}>
                     {count}
                   </span>
                 </button>

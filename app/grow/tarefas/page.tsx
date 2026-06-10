@@ -177,7 +177,7 @@ export default function TarefasPage() {
                           <button
                             key={c.v}
                             onClick={(e) => { e.stopPropagation(); moverTarefa(t, c.v); }}
-                            className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-muted/40 hover:bg-primary/10 dark:hover:bg-primary/10/40 text-muted-foreground hover:text-primary dark:hover:text-primary/20 transition-colors inline-flex items-center gap-0.5"
+                            className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-muted/40 hover:bg-primary/10 dark:hover:bg-primary/15 text-muted-foreground hover:text-primary dark:hover:text-primary/20 transition-colors inline-flex items-center gap-0.5"
                           >
                             <ChevronRight size={8} /> {c.l}
                           </button>
@@ -325,7 +325,7 @@ function ModalProjeto({ phone, onClose, onSuccess }: any) {
           <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do projeto" className="input" autoFocus />
           <div className="grid grid-cols-6 gap-2">
             {ICONES_PROJ.map(i => (
-              <button key={i} onClick={() => setIcone(i)} className={`w-10 h-10 rounded-xl text-xl transition-all ${icone === i ? 'ring-2 ring-primary scale-110 bg-primary/10 dark:bg-primary/10/40' : 'bg-muted/40 hover:bg-muted'}`}>{i}</button>
+              <button key={i} onClick={() => setIcone(i)} className={`w-10 h-10 rounded-xl text-xl transition-all ${icone === i ? 'ring-2 ring-primary scale-110 bg-primary/10 dark:bg-primary/15' : 'bg-muted/40 hover:bg-muted'}`}>{i}</button>
             ))}
           </div>
           <div className="flex gap-2 flex-wrap">
