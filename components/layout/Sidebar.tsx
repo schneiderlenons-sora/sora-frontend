@@ -82,6 +82,9 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
+  // Tema "escuro" foi removido — quem tinha 'dark' salvo migra pra 'black'.
+  useEffect(() => { if (mounted && theme === 'dark') setTheme('black'); }, [mounted, theme, setTheme]);
+
   // Estado inicial dos grupos: lê localStorage; Grow default = tem acesso
   useEffect(() => {
     try {
@@ -101,21 +104,16 @@ export default function Sidebar() {
   function toggleFin()  { setOpenFin(v => { const n = !v; try { localStorage.setItem('sora-sb-fin', n ? '1' : '0'); } catch {} return n; }); }
   function toggleGrow() { setOpenGrow(v => { const n = !v; try { localStorage.setItem('sora-sb-grow', n ? '1' : '0'); } catch {} return n; }); }
 
-  // Tema efetivo: light | dark | black
-  const efetivo: 'light' | 'dark' | 'black' = mounted
-    ? theme === 'black' ? 'black'
-    : theme === 'system' ? (resolvedTheme === 'dark' ? 'dark' : 'light')
-    : theme === 'dark' ? 'dark'
-    : 'light'
-    : 'light';
+  // Tema efetivo: light | black (o "escuro" foi removido)
+  const efetivo: 'light' | 'black' = mounted ? (theme === 'black' ? 'black' : 'light') : 'light';
   const isTemaBlack = efetivo === 'black';
-  const isDark      = efetivo === 'dark' || isTemaBlack;
+  const isDark      = isTemaBlack; // black usa as variáveis .dark
 
   function ciclarTema() {
-    setTheme(efetivo === 'light' ? 'dark' : efetivo === 'dark' ? 'black' : 'light');
+    setTheme(efetivo === 'light' ? 'black' : 'light');
   }
-  const proxLabel = efetivo === 'light' ? 'Tema escuro' : efetivo === 'dark' ? 'Tema black' : 'Tema claro';
-  const ProxIcon  = efetivo === 'light' ? Moon : efetivo === 'dark' ? Sparkles : Sun;
+  const proxLabel = efetivo === 'light' ? 'Tema black' : 'Tema claro';
+  const ProxIcon  = efetivo === 'light' ? Moon : Sun;
   const { abrir: abrirInstall } = usePwa();
 
   const plano = perfil?.plano || 'inativo';
@@ -226,7 +224,7 @@ export default function Sidebar() {
           <ProxIcon size={18} />
           <span>{proxLabel}</span>
           <span className="ml-auto flex items-center gap-0.5">
-            {(['light','dark','black'] as const).map(t => (
+            {(['light','black'] as const).map(t => (
               <span key={t} className={`block w-1.5 h-1.5 rounded-full transition-all ${efetivo === t ? 'bg-white opacity-100' : 'bg-white opacity-25'}`} />
             ))}
           </span>

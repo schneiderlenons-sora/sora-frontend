@@ -21,10 +21,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
+      defaultTheme="light"
       enableSystem={false}
-      themes={['light', 'dark', 'black']}
-      value={{ light: 'light', dark: 'dark', black: 'dark' }}
+      themes={['light', 'black']}
+      value={{ light: 'light', black: 'dark' }}
       storageKey="sora-theme"
       disableTransitionOnChange={false}
     >
