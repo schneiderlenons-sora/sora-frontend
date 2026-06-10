@@ -17,7 +17,7 @@ import {
   Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
 } from 'lucide-react';
 import {
-  AreaChart, Area,
+  AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
@@ -46,17 +46,17 @@ function parseCategoria(cat: string) {
   return { emoji: hasEmoji ? parts[0] : '📦', nome: hasEmoji ? parts.slice(1).join(' ') : cat };
 }
 
-function computeDailyCumulative(txs: any[], today: number) {
+// Gasto NÃO acumulado — cada dia só com o que foi efetivamente gasto nele.
+function computeDailyAmount(txs: any[], today: number) {
   const byDay: Record<number, number> = {};
   txs.forEach(tx => {
     const d = new Date(tx.data).getDate();
     byDay[d] = (byDay[d] || 0) + (tx.valor || 0);
   });
-  let acc = 0;
-  return Array.from({ length: Math.max(today, 1) }, (_, i) => {
-    acc += byDay[i + 1] || 0;
-    return { dia: String(i + 1), atual: acc };
-  });
+  return Array.from({ length: Math.max(today, 1) }, (_, i) => ({
+    dia: String(i + 1),
+    valor: byDay[i + 1] || 0,
+  }));
 }
 
 // ── Tooltip customizado ────────────────────────────────────────
@@ -105,10 +105,10 @@ export default function DashboardPage() {
   const [txsMes,    setTxsMes]    = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
 
   const hoje        = new Date();
   const today       = hoje.getDate();
-  const daysInMonth = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
   const monthName   = hoje.toLocaleDateString('pt-BR', { month: 'long' });
   const primeiroNome = perfil?.name?.split(' ')[0] || 'amigo';
 
@@ -146,13 +146,8 @@ export default function DashboardPage() {
   const maiorCat    = resumo?.por_categoria?.[0];
   const temDados    = (resumo?.gastos||0) > 0 || (resumo?.receitas||0) > 0;
 
-  // Ritmo de gastos — curva acumulada este mês vs mês anterior (linear)
-  const dadosRitmoBase = computeDailyCumulative(txsMes, today);
-  const gastoAntTotal  = resumoAnt?.gastos || 0;
-  const dadosRitmo = dadosRitmoBase.map((d, i) => ({
-    ...d,
-    anterior: gastoAntTotal > 0 ? Math.round((gastoAntTotal / daysInMonth) * (i + 1)) : 0,
-  }));
+  // Fluxo de caixa — gasto por dia (não acumulado), pro gráfico de área
+  const dadosDiarios = computeDailyAmount(txsMes, today);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
   const cats = (resumo?.por_categoria||[]) as any[];
@@ -179,77 +174,78 @@ export default function DashboardPage() {
           : 'Gastos estáveis em relação ao mês anterior.'}`
     : `Olá, ${primeiroNome}! Registre seus gastos pelo WhatsApp para receber insights personalizados aqui.`;
 
-  // Card "Ritmo de Gastos" — extraído pra poder ir ao hero (sem Grow) ou
-  // à linha do Grow (com Grow, ao lado de "Próximos eventos"). Sem col-span:
-  // quem posiciona é o wrapper.
-  const ritmoCard = (
+  // Card "Fluxo de Caixa" — gasto por dia (Área) ou por categoria (Barra).
+  // Extraído pra poder ir ao hero (sem Grow) ou à linha do Grow (ao lado de
+  // "Próximos eventos"). Sem col-span: quem posiciona é o wrapper.
+  const fluxoCard = (
     <div className="card rounded-3xl p-6 flex flex-col h-full animate-fade-in" style={{ animationDelay: '60ms' }}>
-      <div className="flex items-start justify-between mb-1">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          Ritmo de Gastos
-        </p>
-        {resumoAnt?.gastos ? <VarBadge val={varGastos} invert /> : null}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+            Fluxo de Caixa
+          </p>
+          <p className="text-base font-bold text-foreground">
+            {chartMode === 'area' ? `Gastos por dia — ${monthName}` : `Por categoria — ${monthName}`}
+          </p>
+        </div>
+        <div className="flex gap-1 bg-muted/60 rounded-xl p-1">
+          {(['area', 'bar'] as const).map(m => (
+            <button key={m} onClick={() => setChartMode(m)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                chartMode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}>
+              {m === 'area' ? 'Área' : 'Barra'}
+            </button>
+          ))}
+        </div>
       </div>
-      <p className="text-3xl sm:text-4xl lg:text-5xl font-bold tabular tracking-tight text-foreground mt-1 truncate leading-tight">
-        {fmt(resumo?.gastos||0)}
-      </p>
-      <p className="text-xs text-muted-foreground mt-1 mb-4">
-        acumulado em {monthName}
-      </p>
 
-      <div className="flex-1 min-h-0" style={{ height: 130 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={dadosRitmo} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-            <defs>
-              <linearGradient id="gRitmoArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.5} />
-                <stop offset="50%"  stopColor={BRAND2} stopOpacity={0.22} />
-                <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="gRitmoStroke" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stopColor={BRAND}  />
-                <stop offset="100%" stopColor={BRAND2} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-            <XAxis dataKey="dia" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                   tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-            <Tooltip content={<ChartTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="anterior"
-              name="Mês anterior"
-              stroke="hsl(var(--fg-muted))"
-              strokeWidth={1.5}
-              strokeDasharray="5 4"
-              fill="none"
-              dot={false}
-            />
-            <Area
-              type="monotone"
-              dataKey="atual"
-              name="Este mês"
-              stroke="url(#gRitmoStroke)"
-              strokeWidth={2.5}
-              fill="url(#gRitmoArea)"
-              dot={false}
-              activeDot={{ r: 4, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
-            />
-          </AreaChart>
+      <div className="flex-1 flex items-center" style={{ minHeight: 220 }}>
+        <ResponsiveContainer width="100%" height={220}>
+          {chartMode === 'bar' ? (
+            <BarChart data={catsComPct.map((c: any) => ({ name: parseCategoria(c.categoria).nome.slice(0,10), gastos: c.total, color: c.color }))} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'hsl(var(--bg-muted))' }} />
+              <Bar dataKey="gastos" name="Gastos" radius={[6,6,0,0]}>
+                {catsComPct.map((c: any, i: number) => <Cell key={i} fill={c.color} />)}
+              </Bar>
+            </BarChart>
+          ) : (
+            <AreaChart data={dadosDiarios} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gFluxoArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.55} />
+                  <stop offset="60%"  stopColor={BRAND2} stopOpacity={0.18} />
+                  <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="dia" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
+                     tickFormatter={v => Number(v) % 5 === 0 ? v : ''} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
+              <Tooltip content={<ChartTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="valor"
+                name="Gasto no dia"
+                stroke={BRAND}
+                fill="url(#gFluxoArea)"
+                strokeWidth={2.5}
+                dot={{ r: 2, fill: BRAND, strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
+              />
+            </AreaChart>
+          )}
         </ResponsiveContainer>
       </div>
 
-      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 rounded-full" style={{ background: BRAND }} />
-          <span className="text-xs text-muted-foreground">Este mês</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 border-t border-dashed border-muted-foreground/60" />
-          <span className="text-xs text-muted-foreground">Mês anterior</span>
-        </div>
-      </div>
+      <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-border/60">
+        {chartMode === 'area'
+          ? <>Quanto você gastou em cada dia de {monthName}. Toque em <strong className="text-foreground">Barra</strong> pra ver por categoria.</>
+          : <>Total gasto por categoria em {monthName}. Toque em <strong className="text-foreground">Área</strong> pra ver o dia a dia.</>}
+      </p>
     </div>
   );
 
@@ -338,7 +334,7 @@ export default function DashboardPage() {
 
           {/* ── Hábitos de hoje (Grow) no topo — ou Ritmo se sem Grow ── */}
           <div className="lg:col-span-2">
-            {temAcessoGrow ? <GrowHabitosCard /> : ritmoCard}
+            {temAcessoGrow ? <GrowHabitosCard /> : fluxoCard}
           </div>
         </div>
 
@@ -409,7 +405,7 @@ export default function DashboardPage() {
         {/* ══════════════════════════════════════════════════════
             SORA GROW — seu dia (hábitos, tarefas, bem-estar, agenda)
         ══════════════════════════════════════════════════════ */}
-        <GrowResumo ritmoSlot={ritmoCard} />
+        <GrowResumo ritmoSlot={fluxoCard} />
 
         {/* ══════════════════════════════════════════════════════
             CATEGORIAS

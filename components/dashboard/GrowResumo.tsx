@@ -50,7 +50,7 @@ export default function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
   return (
     <section className="space-y-3 sm:space-y-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
 
-      {/* ── RITMO DE GASTOS + PRÓXIMOS EVENTOS ──────────────────── */}
+      {/* ── FLUXO DE CAIXA + PRÓXIMOS EVENTOS ───────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
         {ritmoSlot && <div className="lg:col-span-2">{ritmoSlot}</div>}
 
