@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
   Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight, Send,
   Wrench, Bell, Clock, CheckCircle2, Calendar, Pencil, RotateCcw,
-  ChefHat, Flame, Users, ChevronDown, UtensilsCrossed,
+  ChefHat, Flame, Users, ChevronDown, UtensilsCrossed, Lock,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 
@@ -15,10 +16,10 @@ const BRAND = 'hsl(var(--primary))';
 const LARANJA = '#f97316';   // accent das receitas (cozinha)
 
 const TABS = [
-  { v: 'compras',    l: 'Compras',     icon: ShoppingCart },
-  { v: 'despensa',   l: 'Despensa',    icon: Package },
-  { v: 'receitas',   l: 'Receitas',    icon: ChefHat },
-  { v: 'manutencao', l: 'Manutenções', icon: Wrench },
+  { v: 'compras',    l: 'Compras',     icon: ShoppingCart, pro: false },
+  { v: 'despensa',   l: 'Despensa',    icon: Package,      pro: true },
+  { v: 'receitas',   l: 'Receitas',    icon: ChefHat,      pro: true },
+  { v: 'manutencao', l: 'Manutenções', icon: Wrench,       pro: true },
 ];
 
 const ICONES_RECEITA = ['🍳', '🍝', '🥘', '🍲', '🥗', '🍛', '🍜', '🧆', '🥞', '🍰', '🍞', '🥩'];
@@ -90,7 +91,9 @@ const STATUS: Record<StatusKey, { label: string; cor: string; icon: typeof Packa
 const STORAGE_KEY = 'sora-grow-casa-tab';
 
 export default function CasaPage() {
-  const { phone } = useAuth();
+  const { phone, podeUsar } = useAuth();
+  const router = useRouter();
+  const temCasaPlus = podeUsar('grow_despensa'); // Despensa/Receitas/Manutenções = Premium+
   const [tab, setTab] = useState('compras');
   const [itens, setItens]       = useState<any[]>([]);   // lista de compras
   const [despensa, setDespensa] = useState<any[]>([]);   // itens da despensa
@@ -99,8 +102,12 @@ export default function CasaPage() {
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    try { const s = localStorage.getItem(STORAGE_KEY); if (s) setTab(s); } catch {}
-  }, []);
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      const pro = TABS.find(t => t.v === s)?.pro;
+      if (s && !(pro && !temCasaPlus)) setTab(s); // não restaura aba Premium no Básico
+    } catch {}
+  }, [temCasaPlus]);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, tab); } catch {} }, [tab]);
 
   const carregar = useCallback(async (silent = false) => {
@@ -155,17 +162,23 @@ export default function CasaPage() {
 
       {/* TABS */}
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1 animate-fade-in" style={{ animationDelay: '60ms' }}>
-        {TABS.map(({ v, l, icon: Icon }) => {
+        {TABS.map(({ v, l, icon: Icon, pro }) => {
           const ativo = tab === v;
+          const bloqueado = pro && !temCasaPlus;
           const badge = v === 'compras' ? pendentesCompra : v === 'despensa' ? faltandoDespensa : v === 'receitas' ? receitasProntas : manutAtencao;
           return (
-            <button key={v} onClick={() => setTab(v)}
+            <button key={v} onClick={() => bloqueado ? router.push('/planos') : setTab(v)}
+              title={bloqueado ? 'Disponível no Premium' : l}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                ativo ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                ativo ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                : bloqueado ? 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}>
               <Icon size={12} />
               {l}
-              {badge > 0 && (
+              {bloqueado ? (
+                <Lock size={10} className="ml-0.5 opacity-70" />
+              ) : badge > 0 && (
                 <span className={`ml-0.5 min-w-[16px] h-[16px] px-1 rounded-full text-[9px] font-bold inline-flex items-center justify-center ${
                   ativo ? 'bg-white/25 text-white' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                 }`}>{badge}</span>

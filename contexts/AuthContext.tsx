@@ -197,13 +197,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const agora     = new Date();
   const trialAtivo = planoGrow === 'trial' && trialFim != null && trialFim > agora;
   const diasTrialRestantes = trialFim ? Math.max(0, Math.ceil((trialFim.getTime() - agora.getTime()) / 86400000)) : 0;
+  // Todos os planos têm acesso base ao Grow (hábitos, tarefas, bem-estar,
+  // lista de compras, agenda). Saúde/Estudos/Casa-avançada são gated por
+  // sub-feature (grow_saude, grow_estudos, grow_despensa) no Premium+.
   const temAcessoGrow =
     podeUsar('sora_grow') ||
     ['grow_basico', 'grow_premium'].includes(planoGrow) ||
     trialAtivo;
-  // Só quem não tem acesso direto e ainda não consumiu o trial pode ativar.
-  const podeAtivarTrialGrow =
-    podeUsar('sora_grow_trial') && planoGrow === 'sem_acesso';
+  // Trial descontinuado — todos já têm o Grow base.
+  const podeAtivarTrialGrow = false;
   // Painel ativo é DERIVADO da URL — fonte de verdade única, sem race
   // condition entre state local e navegação. Sidebar/UI ficam sempre
   // consistentes com a rota atual.

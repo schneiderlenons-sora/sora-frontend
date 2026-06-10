@@ -45,8 +45,8 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/habitos',    label: 'Hábitos',    icon: Target },
   { href: '/grow/tarefas',    label: 'Tarefas',    icon: ListChecks },
   { href: '/grow/bem-estar',  label: 'Bem-estar',  icon: Heart },
-  { href: '/grow/saude',      label: 'Saúde',      icon: Activity },
-  { href: '/grow/estudos',    label: 'Estudos',    icon: GraduationCap },
+  { href: '/grow/saude',      label: 'Saúde',      icon: Activity,      gate: 'grow_saude',   badge: 'Premium' },
+  { href: '/grow/estudos',    label: 'Estudos',    icon: GraduationCap, gate: 'grow_estudos', badge: 'Premium' },
   { href: '/grow/casa',       label: 'Casa',       icon: HomeIcon },
   { href: '/grow/agenda',     label: 'Agenda',     icon: CalendarDays },
 ];

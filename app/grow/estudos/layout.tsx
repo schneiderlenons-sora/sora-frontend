@@ -2,9 +2,10 @@
 
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
-  LayoutDashboard, GraduationCap, BookOpen, Trophy,
+  LayoutDashboard, GraduationCap, BookOpen, Trophy, Loader2,
 } from 'lucide-react';
 
 const TABS = [
@@ -16,8 +17,23 @@ const TABS = [
 
 export default function EstudosLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { perfil, podeUsar } = useAuth();
   const navRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState({ left: 0, width: 0, visible: false });
+
+  // Estudos é Premium+. Básico vai pro upgrade.
+  const liberado = podeUsar('grow_estudos');
+  useEffect(() => {
+    if (perfil && !liberado) router.replace('/planos');
+  }, [perfil, liberado, router]);
+  if (perfil && !liberado) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   useEffect(() => {
     const el = navRef.current?.querySelector<HTMLAnchorElement>(`a[data-active="true"]`);

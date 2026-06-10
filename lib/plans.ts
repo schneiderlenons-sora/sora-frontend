@@ -14,8 +14,12 @@ export type Feature =
   | 'cartoes_ilimitados'
   | 'investimentos'          // Premium+: aba Investimentos (era Black-only)
   | 'negocios'               // Black: aba Negócios (DRE, vendas, etc.)
-  | 'sora_grow'              // Premium+: acesso direto ao Sora Grow
-  | 'sora_grow_trial'        // Básico: pode ativar 7 dias grátis
+  | 'sora_grow'              // Todos os planos: acesso base ao Sora Grow
+                             // (hábitos, tarefas, bem-estar, lista de compras, agenda)
+  | 'grow_saude'             // Premium+: aba Saúde do Grow
+  | 'grow_estudos'           // Premium+: aba Estudos do Grow
+  | 'grow_despensa'          // Premium+: Casa avançada (despensa, receitas, manutenções)
+  | 'sora_grow_trial'        // (legado) Básico: trial — descontinuado, todos já têm Grow
   | 'compartilhamento'       // Premium+: grupos casal/família
   | 'import_ofx'             // Premium+: importação de extrato OFX
   | 'import_csv'             // Premium+: importação CSV
@@ -36,8 +40,11 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   cartoes_ilimitados: ['premium', 'black'],
   investimentos:      ['premium', 'black'],
   negocios:           ['black'],
-  sora_grow:          ['premium', 'black'],
-  sora_grow_trial:    ['basico', 'inativo'],
+  sora_grow:          ['basico', 'premium', 'black'], // acesso base pra todos
+  grow_saude:         ['premium', 'black'],
+  grow_estudos:       ['premium', 'black'],
+  grow_despensa:      ['premium', 'black'],
+  sora_grow_trial:    [], // descontinuado
   compartilhamento:   ['premium', 'black'],
   import_ofx:         ['premium', 'black'],
   import_csv:         ['premium', 'black'],
