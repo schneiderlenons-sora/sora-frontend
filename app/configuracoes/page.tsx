@@ -13,12 +13,13 @@ import {
   Check, Crown, Loader2, AlertCircle, Camera, Pencil, ExternalLink,
   Download, Trash2, Mail, Phone, Lock, Info, Upload,
   Zap, Calendar, Receipt, Settings as SettingsIcon,
-  ArrowUpRight, ArrowDownRight, ShieldX, Gem,
+  ArrowUpRight, ArrowDownRight, ShieldX, Gem, Palette,
 } from 'lucide-react';
+import { PALETAS, getPaletaSalva, aplicarPaleta } from '@/lib/theme-colors';
 
-const BRAND = '#61D17B';
+const BRAND = 'hsl(var(--primary))';
 
-type Secao = 'perfil' | 'plano' | 'whatsapp' | 'dados';
+type Secao = 'perfil' | 'plano' | 'whatsapp' | 'aparencia' | 'dados';
 
 export default function ConfiguracoesPage() {
   const [secao, setSecao] = useState<Secao>('perfil');
@@ -27,6 +28,7 @@ export default function ConfiguracoesPage() {
     { id: 'perfil',   label: 'Meu Perfil',         desc: 'Foto, nome, email e senha',        icon: User        },
     { id: 'plano',    label: 'Plano e Cobrança',   desc: 'Plano atual e comparação',         icon: CreditCard  },
     { id: 'whatsapp', label: 'WhatsApp',           desc: 'Vínculo da conta com o número',    icon: MessageCircle },
+    { id: 'aparencia',label: 'Aparência',          desc: 'Cor do tema do app',               icon: Palette },
     { id: 'dados',    label: 'Privacidade e Dados', desc: 'Exportar, excluir conta',         icon: ShieldCheck },
   ];
 
@@ -37,7 +39,7 @@ export default function ConfiguracoesPage() {
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
           <div className="absolute inset-0 pointer-events-none opacity-50"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(134 55% 60% / .12) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
           <div className="relative">
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
               <Sparkles size={12} style={{ color: BRAND }} />
@@ -75,7 +77,7 @@ export default function ConfiguracoesPage() {
                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       ativo ? '' : 'bg-muted/60'
                     }`}
-                    style={ativo ? { background: `${BRAND}22` } : undefined}>
+                    style={ativo ? { background: 'color-mix(in srgb, hsl(var(--primary)) 14%, transparent)' } : undefined}>
                       <Icon size={16} style={{ color: ativo ? BRAND : 'hsl(var(--fg-muted))' }} />
                     </div>
                     <div className="min-w-0 hidden sm:block">
@@ -94,6 +96,7 @@ export default function ConfiguracoesPage() {
             {secao === 'perfil'   && <SecaoPerfil />}
             {secao === 'plano'    && <SecaoPlano />}
             {secao === 'whatsapp' && <SecaoWhatsApp />}
+            {secao === 'aparencia'&& <SecaoAparencia />}
             {secao === 'dados'    && <SecaoDados />}
           </section>
         </div>
@@ -105,6 +108,49 @@ export default function ConfiguracoesPage() {
 // ═══════════════════════════════════════════════════════════════
 // SEÇÃO: MEU PERFIL
 // ═══════════════════════════════════════════════════════════════
+function SecaoAparencia() {
+  const [sel, setSel] = useState<string>(getPaletaSalva());
+  function escolher(id: string) { setSel(id); aplicarPaleta(id); }
+
+  return (
+    <div className="space-y-6">
+      <div className="card rounded-3xl p-6 sm:p-8">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+               style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 14%, transparent)' }}>
+            <Palette size={18} style={{ color: 'hsl(var(--primary))' }} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-foreground">Cor do tema</h2>
+            <p className="text-sm text-muted-foreground">Escolha a cor que mais combina com você — vale pro Finance e pro Grow.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
+          {PALETAS.map(p => {
+            const ativo = sel === p.id;
+            return (
+              <button key={p.id} onClick={() => escolher(p.id)} aria-pressed={ativo}
+                className={`relative flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.98] ${
+                  ativo ? 'border-transparent ring-2 shadow-sm' : 'border-border hover:bg-muted/40'
+                }`}
+                style={ativo ? ({ ['--tw-ring-color']: p.hex, background: `${p.hex}14` } as any) : undefined}>
+                <span className="w-9 h-9 rounded-full flex-shrink-0 shadow-inner ring-1 ring-black/5" style={{ background: p.hex }} />
+                <span className="text-sm font-semibold text-foreground flex-1 truncate">{p.nome}</span>
+                {ativo && <Check size={16} className="flex-shrink-0" style={{ color: p.hex }} />}
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-muted-foreground mt-5 flex items-center gap-1.5">
+          <Info size={13} className="flex-shrink-0" /> A mudança é instantânea e fica salva neste dispositivo.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function SecaoPerfil() {
   const { perfil, user, recarregar } = useAuth();
   const [nome,         setNome]         = useState(perfil?.name || '');
@@ -495,7 +541,7 @@ function HeroPlanoAtual({
         {/* Mesh decorativo */}
         <div
           className="absolute inset-0 pointer-events-none opacity-60"
-          style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, ${BRAND}1A 0%, transparent 60%)` }}
+          style={{ background: 'radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, hsl(var(--primary)) 10%, transparent) 0%, transparent 60%)' }}
         />
         <div className="relative p-7 sm:p-9 text-center">
           <div

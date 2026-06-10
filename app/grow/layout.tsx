@@ -35,7 +35,7 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
   if (loading || !user || perfil === null) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <Loader2 size={28} className="animate-spin text-violet-600" />
+        <Loader2 size={28} className="animate-spin text-primary" />
         {timeout6s && (
           <>
             <p className="text-sm text-muted-foreground max-w-xs">
@@ -43,7 +43,7 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
             </p>
             <button
               onClick={() => { setTimeout6s(false); recarregar(); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:opacity-90 transition-colors"
             >
               <RefreshCw size={15} /> Recarregar
             </button>

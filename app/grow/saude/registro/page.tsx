@@ -10,7 +10,7 @@ import {
   Salad, Moon, Brain, Activity as ActivityIcon, Plus, Check, X, Pencil, Trash2,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const COR_REG = '#06b6d4';
 
 const ITENS_CHECKUP = [
@@ -107,7 +107,7 @@ export default function RegistroPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -159,7 +159,7 @@ export default function RegistroPage() {
                 className={`group flex items-center gap-3 p-3 rounded-2xl border transition-all ${
                   ativo
                     ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60'
-                    : 'bg-muted/30 border-border/40 hover:border-violet-300 dark:hover:border-violet-800'
+                    : 'bg-muted/30 border-border/40 hover:border-primary/40 dark:hover:border-primary'
                 }`}>
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                   ativo ? 'bg-emerald-600 scale-110 shadow-md' : 'bg-card border-2 border-muted-foreground/30'
@@ -187,7 +187,7 @@ export default function RegistroPage() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Peso de hoje</p>
               <p className="text-base font-bold text-foreground">Registrar agora</p>
             </div>
-            <Scale size={20} className="text-violet-500" />
+            <Scale size={20} className="text-primary" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1 relative">
@@ -202,7 +202,7 @@ export default function RegistroPage() {
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">kg</span>
             </div>
             <button onClick={salvarPeso} disabled={pesoLoading || !pesoHoje}
-                    className="inline-flex items-center gap-1.5 px-4 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                    className="inline-flex items-center gap-1.5 px-4 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
               {pesoLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             </button>
           </div>
@@ -217,7 +217,7 @@ export default function RegistroPage() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Perfil de saúde</p>
               <p className="text-base font-bold text-foreground">{perfil?.altura_cm ? 'Configurado' : 'Sem configuração'}</p>
             </div>
-            <button onClick={() => setModalPerfil(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-bold hover:bg-violet-200 dark:hover:bg-violet-900/60">
+            <button onClick={() => setModalPerfil(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/10/60">
               <Pencil size={11} /> {perfil?.altura_cm ? 'Editar' : 'Configurar'}
             </button>
           </div>
@@ -262,7 +262,7 @@ export default function RegistroPage() {
             const bg = n === 0 ? 'hsl(var(--muted))' : `rgba(124, 58, 237, ${0.2 + n * 0.16})`;
             return (
               <div key={i} title={`${fmtData(data)} · ${n}/5`}
-                   className="w-4 h-4 rounded-sm transition-transform hover:scale-125 hover:ring-1 hover:ring-violet-500"
+                   className="w-4 h-4 rounded-sm transition-transform hover:scale-125 hover:ring-1 hover:ring-primary"
                    style={{ background: bg }} />
             );
           })}

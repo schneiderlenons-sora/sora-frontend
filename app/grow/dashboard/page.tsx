@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const FRASES = [
   'Pequenos passos consistentes vencem grandes saltos esporádicos.',
@@ -110,9 +110,9 @@ export default function GrowDashboardPage() {
         style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}
       >
         <div className="absolute inset-0 pointer-events-none opacity-60"
-             style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.14) 0%, transparent 60%)' }} />
+             style={{ background: 'radial-gradient(ellipse at top right, color-mix(in srgb, hsl(var(--primary)) 14%, transparent) 0%, transparent 60%)' }} />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/10/40 mb-3">
             <Sprout size={11} style={{ color: BRAND }} />
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: BRAND }}>Sora Grow</span>
           </div>
@@ -125,7 +125,7 @@ export default function GrowDashboardPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center">
-          <Loader2 size={20} className="animate-spin text-violet-600" />
+          <Loader2 size={20} className="animate-spin text-primary" />
         </div>
       ) : (
         <>
@@ -166,7 +166,7 @@ export default function GrowDashboardPage() {
             <div className="card rounded-3xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-foreground">Hábitos de hoje</h2>
-                <Link href="/grow/habitos" className="text-xs font-semibold text-violet-600 hover:underline flex items-center gap-1">
+                <Link href="/grow/habitos" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
                   Ver todos <ArrowRight size={11} />
                 </Link>
               </div>
@@ -186,17 +186,17 @@ export default function GrowDashboardPage() {
                         onClick={() => toggleHabito(h)}
                         className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all border ${
                           feito
-                            ? 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-900/60'
-                            : 'bg-muted/30 border-border/60 hover:border-violet-300 dark:hover:border-violet-800'
+                            ? 'bg-primary/10 dark:bg-primary/10/30 border-primary/30 dark:border-primary/30/60'
+                            : 'bg-muted/30 border-border/60 hover:border-primary/40 dark:hover:border-primary'
                         }`}
                       >
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                          feito ? 'bg-violet-600 scale-110' : 'bg-card border-2 border-muted-foreground/30'
+                          feito ? 'bg-primary scale-110' : 'bg-card border-2 border-muted-foreground/30'
                         }`}>
                           {feito && <Check size={13} className="text-white" strokeWidth={3} />}
                         </div>
                         <span className="text-xl">{h.icone}</span>
-                        <span className={`text-sm font-medium flex-1 text-left ${feito ? 'text-violet-700 dark:text-violet-300 line-through' : 'text-foreground'}`}>
+                        <span className={`text-sm font-medium flex-1 text-left ${feito ? 'text-primary dark:text-primary/20 line-through' : 'text-foreground'}`}>
                           {h.nome}
                         </span>
                       </button>
@@ -210,7 +210,7 @@ export default function GrowDashboardPage() {
             <div className="card rounded-3xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-foreground">Humor — últimos 7 dias</h2>
-                <Link href="/grow/bem-estar" className="text-xs font-semibold text-violet-600 hover:underline flex items-center gap-1">
+                <Link href="/grow/bem-estar" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
                   Detalhes <ArrowRight size={11} />
                 </Link>
               </div>
@@ -248,7 +248,7 @@ export default function GrowDashboardPage() {
           <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '180ms' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-foreground">Tarefas pendentes</h2>
-              <Link href="/grow/tarefas" className="text-xs font-semibold text-violet-600 hover:underline flex items-center gap-1">
+              <Link href="/grow/tarefas" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
                 Ver Kanban <ArrowRight size={11} />
               </Link>
             </div>
@@ -264,7 +264,7 @@ export default function GrowDashboardPage() {
                       <p className="text-sm font-medium text-foreground flex-1">{t.titulo}</p>
                       {t.projetos && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                              style={{ background: `${t.projetos.cor}22`, color: t.projetos.cor }}>
+                              style={{ background: `color-mix(in srgb, ${t.projetos.cor} 13%, transparent)`, color: t.projetos.cor }}>
                           {t.projetos.icone} {t.projetos.nome}
                         </span>
                       )}
@@ -288,7 +288,7 @@ function StatCard({ icon: Icon, label, value, cor, href }: any) {
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
           <p className="text-2xl font-bold tabular tracking-tight mt-1.5" style={{ color: cor }}>{value}</p>
         </div>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${cor}18` }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${cor} 9%, transparent)` }}>
           <Icon size={18} style={{ color: cor }} />
         </div>
       </div>
@@ -300,7 +300,7 @@ function EmptyMini({ texto, link, cta }: { texto: string; link: string; cta: str
   return (
     <div className="rounded-2xl py-8 text-center">
       <p className="text-sm text-muted-foreground mb-3">{texto}</p>
-      <Link href={link} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-all">
+      <Link href={link} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-90 transition-all">
         {cta} <ArrowRight size={11} />
       </Link>
     </div>

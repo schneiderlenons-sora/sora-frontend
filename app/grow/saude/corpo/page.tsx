@@ -14,7 +14,7 @@ const COR_GORD  = '#f59e0b';
 const COR_MUSC  = '#10b981';
 
 const CAMPOS = [
-  { k: 'cintura_cm',  l: 'Cintura',   un: 'cm', cor: '#7c3aed' },
+  { k: 'cintura_cm',  l: 'Cintura',   un: 'cm', cor: 'hsl(var(--primary))' },
   { k: 'quadril_cm',  l: 'Quadril',   un: 'cm', cor: '#a78bfa' },
   { k: 'peito_cm',    l: 'Peito',     un: 'cm', cor: '#6366f1' },
   { k: 'braco_cm',    l: 'Braço',     un: 'cm', cor: '#3b82f6' },
@@ -75,7 +75,7 @@ export default function CorpoPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -100,16 +100,16 @@ export default function CorpoPage() {
             </p>
           </div>
           <button onClick={() => setModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
             <Plus size={14} /> Nova medição
           </button>
         </div>
       </div>
 
       {medidas.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-violet-300 dark:border-violet-800 p-10 sm:p-12 bg-violet-50/30 dark:bg-violet-950/10 animate-fade-in text-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-violet-100 dark:bg-violet-900/40">
-            <Ruler size={28} className="text-violet-600 dark:text-violet-400" />
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/10/30 dark:bg-primary/10/10 animate-fade-in text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-primary/10 dark:bg-primary/10/40">
+            <Ruler size={28} className="text-primary dark:text-primary" />
           </div>
           <p className="text-base font-bold text-foreground">Sem medidas registradas</p>
           <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
@@ -117,7 +117,7 @@ export default function CorpoPage() {
             a Sora calcula evolução automaticamente.
           </p>
           <button onClick={() => setModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700">
+                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90">
             <Plus size={13} /> Primeira medição
           </button>
         </div>
@@ -132,7 +132,7 @@ export default function CorpoPage() {
               return (
                 <button key={k} onClick={() => setCampoSel(k)}
                   className={`text-left rounded-2xl border backdrop-blur-xl p-4 transition-all hover:scale-[1.015] ${
-                    campoSel === k ? 'border-violet-500 ring-1 ring-violet-500/50' : 'border-border/40 hover:border-violet-300 dark:hover:border-violet-800'
+                    campoSel === k ? 'border-primary ring-1 ring-primary/50' : 'border-border/40 hover:border-primary/40 dark:hover:border-primary'
                   }`}
                   style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{l}</p>
@@ -174,7 +174,7 @@ export default function CorpoPage() {
               </div>
               {tendencia && (
                 <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                     style={{ background: `${tendencia.cor}1A`, color: tendencia.cor }}>
+                     style={{ background: `color-mix(in srgb, ${tendencia.cor} 10%, transparent)`, color: tendencia.cor }}>
                   <tendencia.icon size={10} />
                   {tendencia.label}
                 </div>
@@ -207,8 +207,8 @@ export default function CorpoPage() {
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {ordenadas.slice(0, 20).map(m => (
                 <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-violet-100 dark:bg-violet-950/40">
-                    <Ruler size={14} className="text-violet-600 dark:text-violet-400" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+                    <Ruler size={14} className="text-primary dark:text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-foreground">{fmtData(m.data)}</p>
@@ -234,8 +234,8 @@ export default function CorpoPage() {
           <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Em construção</p>
         </div>
         <div className="flex flex-col sm:flex-row items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-violet-100 dark:bg-violet-950/40">
-            <ImageIcon size={22} className="text-violet-600 dark:text-violet-400" />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+            <ImageIcon size={22} className="text-primary dark:text-primary" />
           </div>
           <div>
             <h3 className="text-base font-bold text-foreground">Fotos de progresso</h3>
@@ -258,7 +258,7 @@ function BioCard({ label, value, unit, cor, hint }: any) {
     <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-5 relative overflow-hidden"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-40"
-           style={{ background: `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 14%, transparent) 0%, transparent 70%)` }} />
       <div className="relative">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
         <p className="text-3xl font-bold tabular tracking-tight mt-1.5" style={{ color: cor }}>

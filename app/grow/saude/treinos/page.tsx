@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const COR_TREINO = '#f59e0b';
 
 const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
@@ -104,7 +104,7 @@ export default function TreinosPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -131,7 +131,7 @@ export default function TreinosPage() {
             </p>
           </div>
           <button onClick={() => setModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
             <Plus size={14} /> Registrar treino
           </button>
         </div>
@@ -187,7 +187,7 @@ export default function TreinosPage() {
               <p className="text-base font-bold text-foreground">Modalidades</p>
             </div>
             {filtroId && (
-              <button onClick={() => setFiltroId(null)} className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold hover:underline">
+              <button onClick={() => setFiltroId(null)} className="text-[10px] text-primary dark:text-primary font-semibold hover:underline">
                 limpar filtro
               </button>
             )}
@@ -197,7 +197,7 @@ export default function TreinosPage() {
             <div className="rounded-xl py-6 text-center bg-muted/20 border border-dashed border-border/60">
               <Dumbbell size={18} className="text-muted-foreground mx-auto mb-2" />
               <p className="text-xs text-muted-foreground mb-2">Nenhuma modalidade ainda</p>
-              <button onClick={() => setModalOpen(true)} className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
+              <button onClick={() => setModalOpen(true)} className="text-xs font-bold text-primary dark:text-primary hover:underline">
                 + Criar primeira
               </button>
             </div>
@@ -209,7 +209,7 @@ export default function TreinosPage() {
                 return (
                   <button key={t.id} onClick={() => setFiltroId(ativo ? null : t.id)}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-all text-left ${
-                      ativo ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40 ring-1 ring-violet-500' : 'border-border/40 bg-muted/20 hover:border-violet-300 dark:hover:border-violet-800'
+                      ativo ? 'border-primary bg-primary/10 dark:bg-primary/10/40 ring-1 ring-primary' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
                     }`}>
                     <span className="text-xl">{t.icone}</span>
                     <span className="text-xs font-bold text-foreground flex-1">{t.nome}</span>
@@ -241,7 +241,7 @@ export default function TreinosPage() {
             <Dumbbell size={20} className="text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Nenhuma sessão registrada ainda.</p>
             <button onClick={() => setModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700">
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-primary text-white text-xs font-bold hover:opacity-90">
               <Plus size={11} /> Registrar primeiro treino
             </button>
           </div>
@@ -250,7 +250,7 @@ export default function TreinosPage() {
             {registrosFiltrados.slice(0, 30).map(r => {
               const treino = catalogo.find(t => t.id === r.treino_id);
               return (
-                <div key={r.id} className="group flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+                <div key={r.id} className="group flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: `${COR_TREINO}1A` }}>
                     {treino?.icone || '💪'}
                   </div>
@@ -293,7 +293,7 @@ function StatCard({ label, value, sub, cor }: any) {
     <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-4 relative overflow-hidden"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-40"
-           style={{ background: `radial-gradient(circle at top right, ${cor}1F 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 12%, transparent) 0%, transparent 70%)` }} />
       <div className="relative">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
         <p className="text-2xl font-bold tabular tracking-tight mt-1.5 text-foreground">{value}</p>

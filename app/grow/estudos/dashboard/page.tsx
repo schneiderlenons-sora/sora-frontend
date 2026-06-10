@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 const fmtMin = (min: number) => {
@@ -81,7 +81,7 @@ export default function EstudosDashboard() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -102,10 +102,10 @@ export default function EstudosDashboard() {
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
            style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
         <div className="absolute inset-0 pointer-events-none opacity-50"
-             style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.12) 0%, transparent 60%)' }} />
+             style={{ background: 'radial-gradient(ellipse at top right, color-mix(in srgb, hsl(var(--primary)) 12%, transparent) 0%, transparent 60%)' }} />
         <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/10/40 mb-3">
               <Sparkles size={12} style={{ color: BRAND }} />
               <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Estudos</span>
             </div>
@@ -120,11 +120,11 @@ export default function EstudosDashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setModalProva(true)}
-                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40 dark:hover:border-primary transition-all">
               <FileText size={14} /> Prova
             </button>
             <button onClick={() => setModalSessao(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
               <Play size={14} fill="currentColor" /> Iniciar sessão
             </button>
           </div>
@@ -167,7 +167,7 @@ export default function EstudosDashboard() {
             const bg = nivel === 0 ? 'hsl(var(--muted))' : `rgba(124, 58, 237, ${0.2 + nivel * 0.2})`;
             return (
               <div key={d} title={`${fmtData(d)} · ${fmtMin(min)}`}
-                   className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-150 hover:ring-1 hover:ring-violet-500"
+                   className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-150 hover:ring-1 hover:ring-primary"
                    style={{ background: bg }} />
             );
           })}
@@ -212,7 +212,7 @@ export default function EstudosDashboard() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Próximas</p>
               <p className="text-base font-bold text-foreground">Provas & simulados</p>
             </div>
-            <button onClick={() => setModalProva(true)} className="text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-0.5">
+            <button onClick={() => setModalProva(true)} className="text-[10px] font-bold text-primary dark:text-primary hover:underline inline-flex items-center gap-0.5">
               <Plus size={11} />
             </button>
           </div>
@@ -255,7 +255,7 @@ export default function EstudosDashboard() {
               const link = c.tipo === 'concurso' ? '/grow/estudos/concursos' : c.tipo === 'faculdade' ? '/grow/estudos/faculdade' : '/grow/estudos/cursos';
               return (
                 <Link key={c.id} href={link}
-                      className="group rounded-2xl border border-border/40 backdrop-blur-xl p-4 hover:border-violet-300 dark:hover:border-violet-800 hover:scale-[1.01] transition-all"
+                      className="group rounded-2xl border border-border/40 backdrop-blur-xl p-4 hover:border-primary/40 dark:hover:border-primary hover:scale-[1.01] transition-all"
                       style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: `${c.cor || BRAND}1A` }}>
@@ -294,7 +294,7 @@ function StatTile({ icon: Icon, label, value, unit, cor, highlight }: any) {
     }`}
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-50"
-           style={{ background: `radial-gradient(circle at top right, ${cor}18 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 9%, transparent) 0%, transparent 70%)` }} />
       <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -302,7 +302,7 @@ function StatTile({ icon: Icon, label, value, unit, cor, highlight }: any) {
             {value}{unit && <span className="text-xs font-medium text-muted-foreground">{unit}</span>}
           </p>
         </div>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${cor}1A` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
       </div>

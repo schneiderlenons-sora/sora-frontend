@@ -100,7 +100,7 @@ export default function RemediosPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function RemediosPage() {
             </p>
           </div>
           <button onClick={() => { setEdMed(null); setModalOpen(true); }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
             <Plus size={14} /> Novo medicamento
           </button>
         </div>
@@ -152,7 +152,7 @@ export default function RemediosPage() {
       )}
 
       {meds.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-violet-300 dark:border-violet-800 p-10 sm:p-12 bg-violet-50/30 dark:bg-violet-950/10 animate-fade-in text-center">
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/10/30 dark:bg-primary/10/10 animate-fade-in text-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-rose-100 dark:bg-rose-950/40">
             <Pill size={28} className="text-rose-600 dark:text-rose-400" />
           </div>
@@ -161,7 +161,7 @@ export default function RemediosPage() {
             Cadastre cada medicamento com nome, dosagem, horários e estoque. A Sora envia o lembrete no WhatsApp no horário certo.
           </p>
           <button onClick={() => { setEdMed(null); setModalOpen(true); }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700">
+                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90">
             <Plus size={13} /> Cadastrar primeiro
           </button>
         </div>
@@ -197,7 +197,7 @@ export default function RemediosPage() {
                       {med.dosagem && <p className="text-[10px] text-muted-foreground truncate">{med.dosagem}</p>}
                       {!tomado && (
                         <button onClick={() => tomarDose(med)} disabled={tomando === med.id}
-                                className="w-full mt-2 px-2 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold inline-flex items-center justify-center gap-1 disabled:opacity-50">
+                                className="w-full mt-2 px-2 py-1 rounded-lg bg-primary hover:opacity-90 text-white text-[10px] font-bold inline-flex items-center justify-center gap-1 disabled:opacity-50">
                           {tomando === med.id ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
                           Tomar
                         </button>
@@ -261,7 +261,7 @@ function CardMedicamento({ med, doses, onEdit, onTomar, tomando }: any) {
   });
 
   return (
-    <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-5 hover:border-violet-300 dark:hover:border-violet-800 transition-all"
+    <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-5 hover:border-primary/40 dark:hover:border-primary transition-all"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -303,9 +303,9 @@ function CardMedicamento({ med, doses, onEdit, onTomar, tomando }: any) {
       )}
 
       <button onClick={onTomar} disabled={tomando}
-              className="w-full px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
+              className="w-full px-3 py-2 rounded-xl bg-primary hover:opacity-90 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
         {tomando ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-        Tomei agora {dosesHoje.length > 0 && <span className="text-violet-200 text-[10px]">· {dosesHoje.length}× hoje</span>}
+        Tomei agora {dosesHoje.length > 0 && <span className="text-primary/10 text-[10px]">· {dosesHoje.length}× hoje</span>}
       </button>
     </div>
   );

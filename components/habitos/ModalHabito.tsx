@@ -13,7 +13,7 @@ const ICONES = [
 ];
 
 const CORES = [
-  '#7c3aed','#ec4899','#f59e0b','#10b981','#06b6d4',
+  'hsl(var(--primary))','#ec4899','#f59e0b','#10b981','#06b6d4',
   '#3b82f6','#ef4444','#84cc16','#f97316','#a855f7',
 ];
 
@@ -50,7 +50,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
   const ed = !!habito;
   const [nome, setNome]           = useState(habito?.nome || '');
   const [icone, setIcone]         = useState(habito?.icone || '🎯');
-  const [cor, setCor]             = useState(habito?.cor || '#7c3aed');
+  const [cor, setCor]             = useState(habito?.cor || 'hsl(var(--primary))');
   const [dias, setDias]           = useState<number[]>(habito?.dias_semana || [1,2,3,4,5,6,7]);
   const [periodo, setPeriodo]     = useState(habito?.horario_lembrete ? 'custom' : 'livre');
   const [horarioCustom, setHorario] = useState(habito?.horario_lembrete?.slice(0, 5) || '07:00');
@@ -109,8 +109,8 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-violet-100 dark:bg-violet-950/40">
-              <Target size={16} className="text-violet-600 dark:text-violet-400" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/10/40">
+              <Target size={16} className="text-primary dark:text-primary" />
             </div>
             <h2 className="text-base font-bold text-foreground">{ed ? 'Editar hábito' : 'Novo hábito'}</h2>
           </div>
@@ -186,7 +186,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
               {ICONES.map(i => (
                 <button key={i} type="button" onClick={() => setIcone(i)}
                   className={`aspect-square rounded-xl text-2xl flex items-center justify-center transition-all ${
-                    icone === i ? 'scale-110 ring-2 ring-violet-500 bg-violet-100 dark:bg-violet-950/40' : 'bg-muted/40 hover:bg-muted'
+                    icone === i ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/10/40' : 'bg-muted/40 hover:bg-muted'
                   }`}>
                   {i}
                 </button>
@@ -211,7 +211,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center justify-between">
               <span>Dias da semana</span>
               <button type="button" onClick={() => setDias(dias.length === 7 ? [1,2,3,4,5] : [1,2,3,4,5,6,7])}
-                      className="normal-case font-semibold text-violet-600 dark:text-violet-400 hover:underline tracking-normal">
+                      className="normal-case font-semibold text-primary dark:text-primary hover:underline tracking-normal">
                 {dias.length === 7 ? 'só semana' : 'todo dia'}
               </button>
             </label>
@@ -221,7 +221,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
                 return (
                   <button key={d.v} type="button" onClick={() => toggleDia(d.v)}
                           className={`py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                            ativo ? 'border-violet-500 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300' : 'border-border bg-muted/20 text-muted-foreground hover:border-violet-300'
+                            ativo ? 'border-primary bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary/20' : 'border-border bg-muted/20 text-muted-foreground hover:border-primary/40'
                           }`}>
                     {d.l}
                   </button>
@@ -237,7 +237,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
               {PERIODOS.map(p => (
                 <button key={p.v} type="button" onClick={() => setPeriodo(p.v)}
                   className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition-all ${
-                    periodo === p.v ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40 ring-1 ring-violet-500' : 'border-border bg-muted/20 hover:border-violet-300'
+                    periodo === p.v ? 'border-primary bg-primary/10 dark:bg-primary/10/40 ring-1 ring-primary' : 'border-border bg-muted/20 hover:border-primary/40'
                   }`}>
                   <span className="text-base">{p.emoji}</span>
                   <span className="text-[9px] font-bold text-foreground leading-tight text-center">{p.l}</span>
@@ -253,7 +253,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           {periodo !== 'livre' && (
             <div className="rounded-xl p-3 bg-muted/30 border border-border/40 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {lembreteAtivo ? <Bell size={14} className="text-violet-500" /> : <BellOff size={14} className="text-muted-foreground" />}
+                {lembreteAtivo ? <Bell size={14} className="text-primary" /> : <BellOff size={14} className="text-muted-foreground" />}
                 <div>
                   <p className="text-xs font-bold text-foreground">Lembrete no WhatsApp</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -262,7 +262,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
                 </div>
               </div>
               <button type="button" onClick={() => setLembrete(!lembreteAtivo)}
-                      className={`relative w-11 h-6 rounded-full transition-all ${lembreteAtivo ? 'bg-violet-600' : 'bg-muted'}`}>
+                      className={`relative w-11 h-6 rounded-full transition-all ${lembreteAtivo ? 'bg-primary' : 'bg-muted'}`}>
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-all ${lembreteAtivo ? 'translate-x-5' : ''}`} />
               </button>
             </div>
@@ -293,7 +293,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           <div className="flex gap-2 ml-auto">
             <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
             <button onClick={salvar} disabled={loading || !nome.trim()}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
               {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               {ed ? 'Salvar' : 'Criar hábito'}
             </button>

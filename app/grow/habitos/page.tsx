@@ -12,7 +12,7 @@ import {
   Archive, ArchiveRestore, Activity, Bell, Clock,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const TABS = [
   { v: 'visao',      l: 'Visão',      icon: Target },
@@ -136,7 +136,7 @@ export default function HabitosPage() {
   function dispararConfete(habitoId: string, cor: string) {
     const el = document.querySelector(`[data-confete="${habitoId}"]`);
     if (!el) return;
-    const partes = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', cor, '#06b6d4', '#f97316', '#84cc16'];
+    const partes = ['hsl(var(--primary))', '#ec4899', '#f59e0b', '#10b981', cor, '#06b6d4', '#f97316', '#84cc16'];
     partes.forEach((c, i) => {
       const p = document.createElement('span');
       p.className = 'sora-confete';
@@ -171,7 +171,7 @@ export default function HabitosPage() {
         subtitulo={progressoHoje}
       >
         <button onClick={() => { setEditando(null); setModalOpen(true); }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30 transition-all">
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30 transition-all">
           <Plus size={14} /> Novo hábito
         </button>
       </GrowHero>
@@ -184,7 +184,7 @@ export default function HabitosPage() {
             <button key={v} onClick={() => setTab(v)}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 ativo
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20'
+                  ? 'bg-primary text-white shadow-sm shadow-primary/20'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}>
               <Icon size={12} />
@@ -196,7 +196,7 @@ export default function HabitosPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-16 flex items-center justify-center">
-          <Loader2 size={22} className="animate-spin text-violet-600" />
+          <Loader2 size={22} className="animate-spin text-primary" />
         </div>
       ) : (
         <div className="animate-fade-in">
@@ -210,7 +210,7 @@ export default function HabitosPage() {
 
       {/* FAB */}
       <button onClick={() => { setEditando(null); setModalOpen(true); }}
-              className="md:hidden fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/40 flex items-center justify-center active:scale-95 transition-all"
+              className="md:hidden fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-primary hover:opacity-90 text-white shadow-xl shadow-primary/40 flex items-center justify-center active:scale-95 transition-all"
               aria-label="Novo hábito">
         <Plus size={22} />
       </button>
@@ -258,14 +258,14 @@ function TabVisao({ habitos, registros, concluidos, onToggle, onNew, onEdit }: a
 
   if (total === 0) {
     return (
-      <div className="rounded-3xl border-2 border-dashed border-violet-300 dark:border-violet-800 p-10 sm:p-14 bg-violet-50/30 dark:bg-violet-950/10 text-center animate-fade-in">
+      <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-14 bg-primary/10/30 dark:bg-primary/10/10 text-center animate-fade-in">
         <div className="text-7xl mb-4">🐋</div>
         <p className="text-lg font-bold text-foreground">Nenhum hábito pra hoje</p>
         <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
           Crie seu primeiro hábito — beber água, ler, treinar, meditar. Comece pequeno e seja consistente.
         </p>
         <button onClick={onNew}
-                className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700">
+                className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90">
           <Plus size={14} /> Criar primeiro hábito
         </button>
       </div>
@@ -336,7 +336,7 @@ function HabitoCard({ habito, feito, streak, onToggle, onEdit }: any) {
       className={`group relative cursor-pointer rounded-2xl border backdrop-blur-xl p-4 transition-all active:scale-[0.98] ${
         feito
           ? 'border-emerald-200 dark:border-emerald-900/60 opacity-60'
-          : 'border-border/40 hover:border-violet-300 dark:hover:border-violet-800 hover:scale-[1.005]'
+          : 'border-border/40 hover:border-primary/40 dark:hover:border-primary hover:scale-[1.005]'
       }`}
       style={{ background: 'hsl(var(--bg-card) / 0.5)' }}
     >
@@ -348,9 +348,9 @@ function HabitoCard({ habito, feito, streak, onToggle, onEdit }: any) {
               feito ? 'scale-110' : 'hover:scale-105'
             }`}
             style={{
-              background: feito ? cor : `${cor}1A`,
+              background: feito ? cor : `color-mix(in srgb, ${cor} 10%, transparent)`,
               boxShadow: feito ? `0 6px 18px -4px ${cor}` : 'none',
-              border: feito ? 'none' : `2px solid ${cor}40`,
+              border: feito ? 'none' : `2px solid color-mix(in srgb, ${cor} 25%, transparent)`,
             }}
             aria-label={feito ? 'Desmarcar' : 'Marcar como feito'}
           >
@@ -452,7 +452,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
         </div>
         <div className="flex items-center gap-1">
           {offset !== 0 && (
-            <button onClick={() => setOffset(0)} className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40">
+            <button onClick={() => setOffset(0)} className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-primary dark:text-primary hover:bg-primary/10 dark:hover:bg-primary/10/40">
               hoje
             </button>
           )}
@@ -477,12 +477,12 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
             const ehAntiga = offset < 0;
             return (
               <div key={i} className={`p-2 text-center border-l border-border/40 transition-all ${
-                ehHoje ? 'bg-violet-50 dark:bg-violet-950/30' : ehAntiga ? 'opacity-60' : ''
+                ehHoje ? 'bg-primary/10 dark:bg-primary/10/30' : ehAntiga ? 'opacity-60' : ''
               }`}>
-                <p className={`text-[9px] font-bold uppercase tracking-wider ${ehHoje ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`}>
+                <p className={`text-[9px] font-bold uppercase tracking-wider ${ehHoje ? 'text-primary dark:text-primary' : 'text-muted-foreground'}`}>
                   {d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').slice(0, 3)}
                 </p>
-                <p className={`text-sm font-bold tabular mt-0.5 ${ehHoje ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>
+                <p className={`text-sm font-bold tabular mt-0.5 ${ehHoje ? 'text-primary dark:text-primary/20' : 'text-foreground'}`}>
                   {d.getDate()}
                 </p>
               </div>
@@ -514,7 +514,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
                     onClick={() => onToggle(h, dIso)}
                     className={`p-2 border-l border-border/40 flex items-center justify-center transition-all ${
                       programado && !futuro ? 'hover:bg-muted/60 cursor-pointer' : 'cursor-default'
-                    } ${ehHoje ? 'bg-violet-50/60 dark:bg-violet-950/20' : ''}`}
+                    } ${ehHoje ? 'bg-primary/10/60 dark:bg-primary/10/20' : ''}`}
                     title={!programado ? 'Não programado pra este dia' : futuro ? 'Dia ainda não chegou' : feito ? 'Concluído' : 'Marcar'}
                   >
                     {!programado ? (
@@ -552,7 +552,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
             const ehHoje = dIso === hojeIso;
             const completo = !futuro && total > 0 && feitos === total;
             return (
-              <div key={i} className={`p-2 text-center border-l border-border/40 ${ehHoje ? 'bg-violet-50 dark:bg-violet-950/30' : ''}`}>
+              <div key={i} className={`p-2 text-center border-l border-border/40 ${ehHoje ? 'bg-primary/10 dark:bg-primary/10/30' : ''}`}>
                 {futuro ? (
                   <span className="text-[10px] text-muted-foreground/50">·</span>
                 ) : total === 0 ? (
@@ -717,7 +717,7 @@ function TabHeatmap({ habitosAtivos, registros }: any) {
                     return (
                       <div key={ri}
                            title={`${fmtData(d.data)}: ${d.feitos}/${d.total} hábitos (${d.pct}%)`}
-                           className="w-2.5 h-2.5 rounded-sm transition-transform hover:scale-150 hover:ring-1 hover:ring-violet-500 cursor-help"
+                           className="w-2.5 h-2.5 rounded-sm transition-transform hover:scale-150 hover:ring-1 hover:ring-primary cursor-help"
                            style={{ background: bg }} />
                     );
                   })}
@@ -744,7 +744,7 @@ function StatHeat({ icon: Icon, label, value, unit, cor, pulse }: any) {
     <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-40"
-           style={{ background: `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 14%, transparent) 0%, transparent 70%)` }} />
       <div className="relative flex items-start justify-between gap-2">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -752,7 +752,7 @@ function StatHeat({ icon: Icon, label, value, unit, cor, pulse }: any) {
             {value}{unit && <span className="text-xs text-muted-foreground font-medium">{unit}</span>}
           </p>
         </div>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`} style={{ background: `${cor}1A` }}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`} style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
       </div>
@@ -870,7 +870,7 @@ function TabConquistas({ habitos, registros }: any) {
                    style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
                 <div className="flex items-start gap-3 mb-3">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-                       style={{ background: `${cor}1A` }}>
+                       style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
                     {h.icone}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -915,10 +915,10 @@ function TabConquistas({ habitos, registros }: any) {
               <div key={c.id}
                    className={`rounded-2xl border backdrop-blur-xl p-4 text-center transition-all ${
                      c.ok
-                       ? 'border-border/40 hover:scale-[1.03] hover:border-violet-300 dark:hover:border-violet-800'
+                       ? 'border-border/40 hover:scale-[1.03] hover:border-primary/40 dark:hover:border-primary'
                        : 'border-border/20 opacity-40 grayscale'
                    }`}
-                   style={{ background: c.ok ? `${c.cor}10` : 'hsl(var(--bg-card) / 0.3)' }}>
+                   style={{ background: c.ok ? `color-mix(in srgb, ${c.cor} 6%, transparent)` : 'hsl(var(--bg-card) / 0.3)' }}>
                 <div className="text-4xl mb-2 relative inline-flex">
                   {c.emoji}
                   {!c.ok && <Lock size={12} className="absolute -bottom-1 -right-1 text-muted-foreground bg-card rounded-full p-0.5" />}
@@ -1005,12 +1005,12 @@ function TabGerenciar({ phone, habitos, registros, incluirArquivados, setInclArq
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button onClick={onNew}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/30">
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary hover:opacity-90 text-white text-xs font-bold shadow-lg shadow-primary/30">
           <Plus size={13} /> Novo hábito
         </button>
 
         <button onClick={() => setInclArq(!incluirArquivados)}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300">
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40">
           {incluirArquivados ? <EyeOff size={12} /> : <Eye size={12} />}
           {incluirArquivados ? 'Ocultar arquivados' : `Mostrar arquivados (${arquivados.length})`}
         </button>
@@ -1113,11 +1113,11 @@ function LembreteCard({ phone, inicial }: { phone: string; inicial: { ativo: boo
     <div className="relative overflow-hidden rounded-3xl border border-border/40 backdrop-blur-xl p-5"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-40"
-           style={{ background: 'radial-gradient(circle at top right, #7c3aed24 0%, transparent 70%)' }} />
+           style={{ background: 'radial-gradient(circle at top right, color-mix(in srgb, hsl(var(--primary)) 14%, transparent) 0%, transparent 70%)' }} />
       <div className="relative">
         <div className="flex items-start gap-3">
           <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-               style={{ background: `${BRAND}1A` }}>
+               style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)` }}>
             <Bell size={18} style={{ color: BRAND }} />
           </div>
           <div className="flex-1 min-w-0">
@@ -1128,7 +1128,7 @@ function LembreteCard({ phone, inicial }: { phone: string; inicial: { ativo: boo
           </div>
           {/* Toggle */}
           <button onClick={toggle} role="switch" aria-checked={ativo} aria-label="Ativar lembrete"
-                  className={`relative w-12 h-7 rounded-full flex-shrink-0 transition-colors ${ativo ? 'bg-violet-600' : 'bg-muted'}`}>
+                  className={`relative w-12 h-7 rounded-full flex-shrink-0 transition-colors ${ativo ? 'bg-primary' : 'bg-muted'}`}>
             <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${ativo ? 'translate-x-5' : ''}`} />
           </button>
         </div>
@@ -1143,7 +1143,7 @@ function LembreteCard({ phone, inicial }: { phone: string; inicial: { ativo: boo
               type="time"
               value={horario}
               onChange={e => mudarHorario(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-background border border-border text-sm font-bold tabular text-foreground focus:outline-none focus:border-violet-500"
+              className="px-3 py-1.5 rounded-xl bg-background border border-border text-sm font-bold tabular text-foreground focus:outline-none focus:border-primary"
             />
             <span className="text-[11px] text-muted-foreground">
               {estado === 'salvando' ? 'Salvando…'

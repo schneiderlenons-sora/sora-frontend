@@ -26,16 +26,16 @@
   --danger:      0 72% 58%;
   --warning:     38 95% 53%;
   --info:        217 91% 60%;
-  --success:     134 55% 60%;
+  --success:     var(--primary);
 
   --sidebar-bg:  0 0% 100%;
 
-  --shadow-glow:    0 0 24px hsl(134 55% 60% / .35), 0 4px 12px hsl(134 55% 60% / .2);
-  --shadow-glow-sm: 0 0 12px hsl(134 55% 60% / .25);
+  --shadow-glow:    0 0 24px hsl(var(--primary) / .35), 0 4px 12px hsl(var(--primary) / .2);
+  --shadow-glow-sm: 0 0 12px hsl(var(--primary) / .25);
 
-  --gradient-primary:      linear-gradient(135deg, hsl(134 55% 60%) 0%, hsl(154 55% 55%) 100%);
+  --gradient-primary:      linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(154 55% 55%) 100%);
   --gradient-primary-soft: linear-gradient(135deg, hsl(134 55% 96%) 0%, hsl(154 55% 94%) 100%);
-  --gradient-hero:         linear-gradient(135deg, hsl(134 55% 60%) 0%, hsl(200 80% 45%) 100%);
+  --gradient-hero:         linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(200 80% 45%) 100%);
   --gradient-mesh:
     radial-gradient(at 40% 20%, hsl(134 55% 65% / .15) 0px, transparent 50%),
     radial-gradient(at 80% 0%,  hsl(200 80% 65% / .12) 0px, transparent 50%),
@@ -71,13 +71,13 @@
 
   --sidebar-bg: 240 10% 4%;
 
-  --shadow-glow:    0 0 28px hsl(134 55% 60% / .4), 0 4px 16px hsl(134 55% 60% / .25);
-  --shadow-glow-sm: 0 0 14px hsl(134 55% 60% / .3);
+  --shadow-glow:    0 0 28px hsl(var(--primary) / .4), 0 4px 16px hsl(var(--primary) / .25);
+  --shadow-glow-sm: 0 0 14px hsl(var(--primary) / .3);
 
   --gradient-mesh:
-    radial-gradient(at 40% 20%, hsl(134 55% 60% / .12) 0px, transparent 50%),
+    radial-gradient(at 40% 20%, hsl(var(--primary) / .12) 0px, transparent 50%),
     radial-gradient(at 80% 0%,  hsl(200 80% 55% / .08) 0px, transparent 50%),
-    radial-gradient(at 0% 50%,  hsl(134 55% 60% / .06) 0px, transparent 50%);
+    radial-gradient(at 0% 50%,  hsl(var(--primary) / .06) 0px, transparent 50%);
 
   /* Gradiente sutil em cards no modo escuro — mantém base #09090B com leve elevação */
   --card-gradient-dark:
@@ -158,8 +158,8 @@
     to   { opacity: 1; transform: translateY(0); }
   }
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 12px hsl(134 55% 60% / .3); }
-    50%       { box-shadow: 0 0 28px hsl(134 55% 60% / .6); }
+    0%, 100% { box-shadow: 0 0 12px hsl(var(--primary) / .3); }
+    50%       { box-shadow: 0 0 28px hsl(var(--primary) / .6); }
   }
   @keyframes float {
     0%, 100% { transform: translateY(0); }
@@ -474,11 +474,11 @@
       hsl(240 8% 14%) 0%,
       hsl(240 10% 9%) 100%
     );
-    border-color: hsl(134 55% 60% / .4) !important;
+    border-color: hsl(var(--primary) / .4) !important;
     box-shadow:
       0 1px 0 hsl(0 0% 100% / .06) inset,
       0 6px 16px hsl(0 0% 0% / .45),
-      0 0 0 1px hsl(134 55% 60% / .08);
+      0 0 0 1px hsl(var(--primary) / .08);
   }
 
   /* ─── btn-danger ─── */

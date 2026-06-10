@@ -98,7 +98,7 @@ export default function ConsultasPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -130,7 +130,7 @@ export default function ConsultasPage() {
               <TestTube size={14} /> Exame
             </button>
             <button onClick={() => { setEd(null); setModalCons(true); }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
               <Plus size={14} /> Agendar consulta
             </button>
           </div>
@@ -152,7 +152,7 @@ export default function ConsultasPage() {
             <CalendarHeart size={20} className="text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Nenhuma consulta agendada.</p>
             <button onClick={() => { setEd(null); setModalCons(true); }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700">
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-primary text-white text-xs font-bold hover:opacity-90">
               <Plus size={11} /> Agendar primeira
             </button>
           </div>
@@ -163,7 +163,7 @@ export default function ConsultasPage() {
               const urgente = dias <= 1;
               return (
                 <button key={c.id} onClick={() => { setEd(c); setModalCons(true); }}
-                        className={`group text-left rounded-2xl border backdrop-blur-xl p-4 transition-all hover:scale-[1.01] hover:border-violet-300 dark:hover:border-violet-800 ${
+                        className={`group text-left rounded-2xl border backdrop-blur-xl p-4 transition-all hover:scale-[1.01] hover:border-primary/40 dark:hover:border-primary ${
                           urgente ? 'border-pink-300 dark:border-pink-900/60 ring-1 ring-pink-300/40' : 'border-border/40'
                         }`}
                         style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
@@ -228,7 +228,7 @@ export default function ConsultasPage() {
             <div className="h-44 flex flex-col items-center justify-center text-center">
               <TestTube size={20} className="text-muted-foreground mb-2" />
               <p className="text-xs text-muted-foreground">Sem exames registrados ainda.</p>
-              <button onClick={() => setModalExa(true)} className="inline-flex items-center gap-1 px-2.5 py-1 mt-2 rounded-lg bg-violet-600 text-white text-[11px] font-bold hover:bg-violet-700">
+              <button onClick={() => setModalExa(true)} className="inline-flex items-center gap-1 px-2.5 py-1 mt-2 rounded-lg bg-primary text-white text-[11px] font-bold hover:opacity-90">
                 <Plus size={10} /> Registrar exame
               </button>
             </div>
@@ -264,7 +264,7 @@ export default function ConsultasPage() {
                 return (
                   <button key={nome} onClick={() => setExameSel(nome)}
                           className={`w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-xl border transition-all ${
-                            exameSel === nome ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40' : 'border-border/40 bg-muted/20 hover:border-violet-300 dark:hover:border-violet-800'
+                            exameSel === nome ? 'border-primary bg-primary/10 dark:bg-primary/10/40' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
                           }`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-foreground truncate">{nome}</p>
@@ -292,7 +292,7 @@ export default function ConsultasPage() {
           <div className="space-y-2 max-h-72 overflow-y-auto">
             {historico.slice(0, 15).map(c => (
               <button key={c.id} onClick={() => { setEd(c); setModalCons(true); }}
-                      className="w-full text-left group flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+                      className="w-full text-left group flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${STATUS_COR[c.status] || '#94a3b8'}1A` }}>
                   <CalendarHeart size={14} style={{ color: STATUS_COR[c.status] || '#94a3b8' }} />
                 </div>

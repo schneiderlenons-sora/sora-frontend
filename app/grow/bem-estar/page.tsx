@@ -17,8 +17,8 @@ import {
 const corSono = (h: number) => h < 6 ? '#ef4444' : h < 7 ? '#f59e0b' : h <= 9 ? '#22c55e' : '#6366f1';
 const labelSono = (h: number) => h < 6 ? 'Pouco' : h < 7 ? 'Ok' : h <= 9 ? 'Ideal' : 'Bastante';
 
-const BRAND = '#7c3aed';
-const HUMOR_COR = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#7c3aed']; // 1-5
+const BRAND = 'hsl(var(--primary))';
+const HUMOR_COR = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', 'hsl(var(--primary))']; // 1-5
 const HUMOR_EMOJI = ['', '😔', '😕', '😐', '🙂', '😄'];
 const HUMOR_LABEL = ['', 'Péssimo', 'Mal', 'Normal', 'Bem', 'Ótimo'];
 
@@ -90,7 +90,7 @@ export default function BemEstarPage() {
         subtitulo="Como você está hoje? Registrar o humor te ajuda a notar padrões."
       >
         <button onClick={() => setModalOpen(true)}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.98]">
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
           <Plus size={16} /> Registrar
         </button>
       </GrowHero>
@@ -165,7 +165,7 @@ export default function BemEstarPage() {
           {registros.length === 0 && (
             <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                   style={{ background: `${BRAND}22` }}>
+                   style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
                 <Heart size={26} style={{ color: BRAND }} />
               </div>
               <p className="text-base font-bold text-foreground">Sem registros ainda</p>
@@ -212,7 +212,7 @@ function CheckinHumor({ phone, onOtimista, onSuccess }: {
         <button
           key={h}
           onClick={() => registrar(h)}
-          className="flex flex-col items-center gap-1 p-4 rounded-2xl transition-all border bg-muted/30 border-border/60 hover:border-violet-300 dark:hover:border-violet-800 hover:scale-105 active:scale-95"
+          className="flex flex-col items-center gap-1 p-4 rounded-2xl transition-all border bg-muted/30 border-border/60 hover:border-primary/40 dark:hover:border-primary hover:scale-105 active:scale-95"
         >
           <span className="text-4xl">{HUMOR_EMOJI[h]}</span>
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{HUMOR_LABEL[h]}</span>
@@ -258,7 +258,7 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
               {[1,2,3,4,5].map(h => (
                 <button key={h} onClick={() => setHumor(h)}
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
-                    humor === h ? 'scale-110 ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-950/40' : 'bg-muted/30 hover:bg-muted/60'
+                    humor === h ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/10/40' : 'bg-muted/30 hover:bg-muted/60'
                   }`}>
                   <span className="text-2xl">{HUMOR_EMOJI[h]}</span>
                 </button>
@@ -267,7 +267,7 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Zap size={11} /> Energia</label>
-            <input type="range" min={1} max={5} value={energia} onChange={e => setEnergia(parseInt(e.target.value))} className="w-full accent-violet-600" />
+            <input type="range" min={1} max={5} value={energia} onChange={e => setEnergia(parseInt(e.target.value))} className="w-full accent-primary" />
             <p className="text-xs text-muted-foreground text-center mt-1 tabular">{energia}/5</p>
           </div>
           <div>
@@ -293,7 +293,7 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={loading}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             Registrar
           </button>
@@ -308,9 +308,9 @@ function StatBox({ icon: Icon, label, value, cor }: any) {
     <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-3 sm:p-4"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-40"
-           style={{ background: `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 14%, transparent) 0%, transparent 70%)` }} />
       <div className="relative">
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `${cor}1A` }}>
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
         <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider sm:tracking-widest text-muted-foreground leading-tight">{label}</p>
@@ -331,7 +331,7 @@ function SonoCard({ sono, onAdd }: { sono: any; onAdd: () => void }) {
     <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"
          style={{ animationDelay: '160ms', background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${COR}1A` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${COR} 10%, transparent)` }}>
           <Moon size={16} style={{ color: COR }} />
         </div>
         <div className="min-w-0">
@@ -340,7 +340,7 @@ function SonoCard({ sono, onAdd }: { sono: any; onAdd: () => void }) {
         </div>
         <button onClick={onAdd} aria-label="Registrar horas de sono"
           className="ml-auto w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-90 hover:brightness-110 outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
-          style={{ background: `${COR}1A`, color: COR }}>
+          style={{ background: `color-mix(in srgb, ${COR} 10%, transparent)`, color: COR }}>
           <Plus size={18} />
         </button>
       </div>
@@ -414,7 +414,7 @@ function GratidaoMural({ entries, onAdd }: { entries: any[]; onAdd: () => void }
         </p>
         <button onClick={onAdd} aria-label="Registrar gratidão"
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-90 hover:brightness-110 outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent"
-          style={{ background: `${COR}1A`, color: COR }}>
+          style={{ background: `color-mix(in srgb, ${COR} 10%, transparent)`, color: COR }}>
           <Plus size={18} />
         </button>
       </div>
@@ -436,7 +436,7 @@ function GratidaoMural({ entries, onAdd }: { entries: any[]; onAdd: () => void }
                    className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4"
                    style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
                 <div className="absolute inset-0 pointer-events-none opacity-40"
-                     style={{ background: `radial-gradient(circle at top right, ${COR}18 0%, transparent 70%)` }} />
+                     style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${COR} 9%, transparent) 0%, transparent 70%)` }} />
                 <div className="relative">
                   <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: COR }}>
                     {new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).replace(/\./g, '')}

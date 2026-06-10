@@ -12,14 +12,14 @@ import {
   Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const STORAGE_KEY = 'sora-grow-agenda-view';
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 // ─── Categorias dos compromissos nativos (cor + ícone) ──────────────
 type CatKey = 'pessoal' | 'trabalho' | 'familia' | 'saude' | 'financas' | 'estudos' | 'outro';
 const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
-  pessoal:  { label: 'Pessoal',  cor: '#7c3aed', icon: User },
+  pessoal:  { label: 'Pessoal',  cor: 'hsl(var(--primary))', icon: User },
   trabalho: { label: 'Trabalho', cor: '#2563eb', icon: Briefcase },
   familia:  { label: 'Família',  cor: '#db2777', icon: Heart },
   saude:    { label: 'Saúde',    cor: '#0d9488', icon: Activity },
@@ -31,7 +31,7 @@ const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
 // ─── Famílias de origem (pro filtro + legenda do agregador) ─────────
 type FamKey = 'compromisso' | 'saude' | 'financas' | 'casa';
 const FAMILIAS: Record<FamKey, { label: string; cor: string; icon: any }> = {
-  compromisso: { label: 'Compromissos', cor: '#7c3aed', icon: CalendarDays },
+  compromisso: { label: 'Compromissos', cor: 'hsl(var(--primary))', icon: CalendarDays },
   saude:       { label: 'Saúde',        cor: '#0d9488', icon: Stethoscope },
   financas:    { label: 'Finanças',     cor: '#16a34a', icon: Wallet },
   casa:        { label: 'Casa',         cor: '#d97706', icon: HomeIcon },
@@ -151,7 +151,7 @@ export default function AgendaPage() {
             return (
               <button key={v} onClick={() => setView(v)} aria-pressed={ativo}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                  ativo ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20' : 'text-muted-foreground hover:text-foreground'
+                  ativo ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-muted-foreground hover:text-foreground'
                 }`}>
                 <Icon size={13} /> {l}
               </button>
@@ -159,7 +159,7 @@ export default function AgendaPage() {
           })}
         </div>
         <button onClick={() => abrirNovo()}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.98]">
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
           <Plus size={15} /> <span className="hidden sm:inline">Novo compromisso</span><span className="sm:hidden">Novo</span>
         </button>
       </div>
@@ -172,7 +172,7 @@ export default function AgendaPage() {
             <button key={f} onClick={() => toggleFamilia(f)} aria-pressed={on}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all border"
               style={on
-                ? { background: `${fam.cor}14`, color: fam.cor, borderColor: `${fam.cor}40` }
+                ? { background: `color-mix(in srgb, ${fam.cor} 8%, transparent)`, color: fam.cor, borderColor: `color-mix(in srgb, ${fam.cor} 25%, transparent)` }
                 : { background: 'transparent', color: 'hsl(var(--muted-foreground))', borderColor: 'hsl(var(--border))', opacity: 0.55 }}>
               <Icon size={12} /> {fam.label}
             </button>
@@ -185,7 +185,7 @@ export default function AgendaPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-16 flex items-center justify-center">
-          <Loader2 size={22} className="animate-spin text-violet-600" />
+          <Loader2 size={22} className="animate-spin text-primary" />
         </div>
       ) : (
         <div className="animate-fade-in">
@@ -221,7 +221,7 @@ function ViewLista({ eventos, onAbrir, onDelete, onNovo }: any) {
   if (!grupos.length) {
     return <EmptyCard icon={CalendarX} titulo="Nada à frente"
       desc="Adicione um compromisso, ou ajuste o filtro de origem acima. Consultas, contas e manutenções com data aparecem aqui automaticamente."
-      acao={<button onClick={onNovo} className="mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold transition-colors"><Plus size={15} /> Criar compromisso</button>} />;
+      acao={<button onClick={onNovo} className="mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold transition-colors"><Plus size={15} /> Criar compromisso</button>} />;
   }
 
   return (
@@ -277,7 +277,7 @@ function EventoCard({ e, onAbrir, onDelete }: any) {
             </span>
           )}
           {e.editavel && e.raw?.lembrete_ativo && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary dark:text-primary">
               <Bell size={10} fill="currentColor" /> lembrete
             </span>
           )}
@@ -333,7 +333,7 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
           {MESES[refMes.mes]} <span className="text-muted-foreground font-semibold">{refMes.ano}</span>
         </h2>
         <div className="flex items-center gap-1">
-          <button onClick={irHoje} className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 transition-colors">Hoje</button>
+          <button onClick={irHoje} className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-primary dark:text-primary hover:bg-primary/10 transition-colors">Hoje</button>
           <button onClick={() => navMes(-1)} aria-label="Mês anterior" className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors"><ChevronLeft size={16} /></button>
           <button onClick={() => navMes(1)} aria-label="Próximo mês" className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors"><ChevronRight size={16} /></button>
         </div>
@@ -357,15 +357,15 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                 onClick={() => setSelecionado(ds)}
                 onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setSelecionado(ds); } }}
                 aria-label={`${d.getDate()} — ${evs.length} compromisso${evs.length === 1 ? '' : 's'}`} aria-pressed={sel}
-                className={`relative rounded-xl p-1 sm:p-1.5 min-h-[44px] sm:min-h-[112px] flex flex-col gap-1 cursor-pointer transition-all outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${
-                  sel ? 'ring-2 ring-violet-500 bg-violet-500/5'
-                      : ehHoje ? 'bg-violet-500/10'
+                className={`relative rounded-xl p-1 sm:p-1.5 min-h-[44px] sm:min-h-[112px] flex flex-col gap-1 cursor-pointer transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  sel ? 'ring-2 ring-primary bg-primary/5'
+                      : ehHoje ? 'bg-primary/10'
                       : noMes ? 'hover:bg-muted/50' : 'opacity-40 hover:bg-muted/30'
                 }`}>
                 {/* Número do dia */}
                 <div className="flex items-center justify-between gap-1">
                   <span className={`text-[12px] sm:text-[13px] tabular leading-none w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 ${
-                    ehHoje ? 'bg-violet-600 text-white font-bold' : noMes ? 'text-muted-foreground/50' : 'text-foreground font-medium'
+                    ehHoje ? 'bg-primary text-white font-bold' : noMes ? 'text-muted-foreground/50' : 'text-foreground font-medium'
                   }`}>{d.getDate()}</span>
                 </div>
                 {/* Pontinhos (mobile) — abaixo do número, centralizados e contidos
@@ -385,7 +385,7 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                       <button key={e.id} onClick={(ev) => { ev.stopPropagation(); onAbrir(e); }}
                         title={e.titulo}
                         className="w-full text-left rounded-md px-1.5 py-1 text-[10px] font-semibold leading-tight flex items-center gap-1 min-w-0 transition-all hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current"
-                        style={{ background: `${e.cor}1f`, color: e.cor }}>
+                        style={{ background: `color-mix(in srgb, ${e.cor} 12%, transparent)`, color: e.cor }}>
                         {e.hora && <span className="tabular shrink-0 opacity-80">{e.hora}</span>}
                         <span className="truncate">{e.titulo}</span>
                       </button>
@@ -408,7 +408,7 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
         <div className="flex items-center justify-between px-1">
           <p className="text-sm font-bold text-foreground capitalize">{rotuloDia(selecionado)}</p>
           <button onClick={() => onNovoNoDia(selecionado)}
-            className="inline-flex items-center gap-1 text-[12px] font-bold text-violet-600 dark:text-violet-400 hover:underline">
+            className="inline-flex items-center gap-1 text-[12px] font-bold text-primary dark:text-primary hover:underline">
             <Plus size={13} /> Adicionar nesse dia
           </button>
         </div>
@@ -483,7 +483,7 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
             </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer select-none -mt-2">
-            <input type="checkbox" checked={diaTodo} onChange={e => setDiaTodo(e.target.checked)} className="w-4 h-4 accent-violet-600" />
+            <input type="checkbox" checked={diaTodo} onChange={e => setDiaTodo(e.target.checked)} className="w-4 h-4 accent-primary" />
             <span className="text-xs font-semibold text-foreground">Dia todo (sem horário)</span>
           </label>
 
@@ -495,7 +495,7 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
                 return (
                   <button key={k} onClick={() => setCategoria(k)} aria-pressed={ativo}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all"
-                    style={ativo ? { background: cat.cor, color: '#fff' } : { background: `${cat.cor}14`, color: cat.cor }}>
+                    style={ativo ? { background: cat.cor, color: '#fff' } : { background: `color-mix(in srgb, ${cat.cor} 8%, transparent)`, color: cat.cor }}>
                     <Icon size={12} /> {cat.label}
                   </button>
                 );
@@ -511,10 +511,10 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
           <div className="rounded-xl bg-muted/30 p-3 space-y-3">
             <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
               <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Bell size={15} className="text-violet-600 dark:text-violet-400" /> Lembrar no WhatsApp
+                <Bell size={15} className="text-primary dark:text-primary" /> Lembrar no WhatsApp
               </span>
               <button type="button" onClick={() => setLembrete(v => !v)} role="switch" aria-checked={lembrete}
-                      className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${lembrete ? 'bg-violet-600' : 'bg-muted-foreground/30'}`}>
+                      className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${lembrete ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${lembrete ? 'translate-x-5' : ''}`} />
               </button>
             </label>
@@ -523,7 +523,7 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
                 {ANTEC.map(a => (
                   <button key={a.v} onClick={() => setAntec(a.v)} aria-pressed={antec === a.v}
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                      antec === a.v ? 'bg-violet-600 text-white' : 'bg-card text-muted-foreground hover:bg-muted'
+                      antec === a.v ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'
                     }`}>
                     <Clock size={10} /> {a.l}
                   </button>
@@ -538,7 +538,7 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={salvando || !titulo.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             {item ? 'Salvar' : 'Criar'}
           </button>
@@ -619,7 +619,7 @@ function BriefingCard({ phone }: { phone: string }) {
 function EmptyCard({ icon: Icon, titulo, desc, acao }: any) {
   return (
     <div className="rounded-3xl border border-dashed border-border/60 py-14 flex flex-col items-center text-center px-6 animate-fade-in bg-muted/10">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: `${BRAND}18` }}>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: `color-mix(in srgb, ${BRAND} 9%, transparent)` }}>
         <Icon size={26} style={{ color: BRAND }} />
       </div>
       <p className="text-base font-bold text-foreground">{titulo}</p>

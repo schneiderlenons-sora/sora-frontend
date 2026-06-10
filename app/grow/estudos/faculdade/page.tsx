@@ -12,7 +12,7 @@ import {
   BookOpen, Clock, ChevronRight, Trophy, Play,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const COR_FAC = '#6366f1';
 
 const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
@@ -90,7 +90,7 @@ export default function FaculdadePage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -127,16 +127,16 @@ export default function FaculdadePage() {
           <div className="flex flex-wrap gap-2">
             {curso && (
               <button onClick={() => { setEdCurso(curso); setModalCurso(true); }}
-                      className="inline-flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300">
+                      className="inline-flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40">
                 <Pencil size={13} />
               </button>
             )}
             <button onClick={() => { setEdCurso(null); setModalCurso(true); }}
-                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40 dark:hover:border-primary transition-all">
               <Plus size={14} /> Curso
             </button>
             <button onClick={() => setModalSessao(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
               <Play size={14} fill="currentColor" /> Estudar
             </button>
           </div>
@@ -159,16 +159,16 @@ export default function FaculdadePage() {
       )}
 
       {faculdades.length === 0 ? (
-        <div className="rounded-3xl border-2 border-dashed border-indigo-300 dark:border-indigo-800 p-10 sm:p-12 bg-indigo-50/30 dark:bg-indigo-950/10 animate-fade-in text-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-indigo-100 dark:bg-indigo-900/40">
-            <GraduationCap size={28} className="text-indigo-600 dark:text-indigo-400" />
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/10/30 dark:bg-primary/10/10 animate-fade-in text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-primary/10 dark:bg-primary/10/40">
+            <GraduationCap size={28} className="text-primary dark:text-primary" />
           </div>
           <p className="text-base font-bold text-foreground">Nenhuma faculdade cadastrada</p>
           <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
             Adicione sua graduação, mestrado, doutorado ou curso técnico pra organizar disciplinas, provas e acompanhar médias.
           </p>
           <button onClick={() => { setEdCurso(null); setModalCurso(true); }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700">
+                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90">
             <Plus size={13} /> Cadastrar faculdade
           </button>
         </div>
@@ -184,7 +184,7 @@ export default function FaculdadePage() {
                   <p className="text-base font-bold text-foreground">{proximasProvas.length} agendada{proximasProvas.length === 1 ? '' : 's'}</p>
                 </div>
                 <button onClick={() => { setEdProva(null); setModalProva(true); }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-bold hover:bg-violet-200 dark:hover:bg-violet-900/60">
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/10/60">
                   <Plus size={11} /> Nova
                 </button>
               </div>
@@ -195,7 +195,7 @@ export default function FaculdadePage() {
                   return (
                     <button key={p.id} onClick={() => { setEdProva(p); setModalProva(true); }}
                             className={`text-left rounded-xl p-3 border transition-all hover:scale-[1.01] ${
-                              urgente ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 ring-1 ring-amber-300/30' : 'bg-muted/30 border-border/40 hover:border-violet-300'
+                              urgente ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 ring-1 ring-amber-300/30' : 'bg-muted/30 border-border/40 hover:border-primary/40'
                             }`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-xs font-bold text-foreground truncate flex-1">{p.titulo}</p>
@@ -222,7 +222,7 @@ export default function FaculdadePage() {
               </div>
               {curso && (
                 <button onClick={() => { setEdDisc(null); setModalDisc(true); }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-bold hover:bg-violet-200">
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10">
                   <Plus size={11} /> Adicionar
                 </button>
               )}
@@ -233,7 +233,7 @@ export default function FaculdadePage() {
                 <BookOpen size={18} className="text-muted-foreground mx-auto mb-2" />
                 <p className="text-xs text-muted-foreground">Nenhuma disciplina ainda.</p>
                 <button onClick={() => { setEdDisc(null); setModalDisc(true); }}
-                        className="text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline mt-2 inline-flex items-center gap-1">
+                        className="text-[11px] font-bold text-primary dark:text-primary hover:underline mt-2 inline-flex items-center gap-1">
                   <Plus size={10} /> Primeira disciplina
                 </button>
               </div>
@@ -244,7 +244,7 @@ export default function FaculdadePage() {
                   const corMedia = stats && stats.media >= 7 ? '#22c55e' : stats && stats.media >= 5 ? '#f59e0b' : stats ? '#ef4444' : '#94a3b8';
                   return (
                     <button key={d.id} onClick={() => { setEdDisc(d); setModalDisc(true); }}
-                            className="text-left rounded-2xl border border-border/40 p-4 hover:border-violet-300 dark:hover:border-violet-800 transition-all"
+                            className="text-left rounded-2xl border border-border/40 p-4 hover:border-primary/40 dark:hover:border-primary transition-all"
                             style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
                       <div className="flex items-start gap-3">
                         <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: `${d.cor || BRAND}1A` }}>
@@ -289,8 +289,8 @@ export default function FaculdadePage() {
                   const cor = pct >= 70 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
                   return (
                     <button key={p.id} onClick={() => { setEdProva(p); setModalProva(true); }}
-                            className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl bg-muted/30 border border-border/40 hover:border-violet-300 dark:hover:border-violet-800 transition-all">
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${cor}1A` }}>
+                            className="w-full text-left flex items-center gap-3 p-2.5 rounded-xl bg-muted/30 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
                         <FileText size={13} style={{ color: cor }} />
                       </div>
                       <div className="flex-1 min-w-0">

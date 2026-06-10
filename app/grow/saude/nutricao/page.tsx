@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const COR_PROT = '#ec4899';
 const COR_CARB = '#f59e0b';
@@ -128,7 +128,7 @@ export default function NutricaoPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -148,7 +148,7 @@ export default function NutricaoPage() {
         style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card) / 0.7) 0%, hsl(var(--bg-subtle) / 0.5) 100%)' }}
       >
         <div className="absolute inset-0 pointer-events-none"
-             style={{ background: 'radial-gradient(ellipse at top right, rgba(16,185,129,0.14) 0%, transparent 55%), radial-gradient(circle at bottom left, rgba(124,58,237,0.10) 0%, transparent 50%)' }} />
+             style={{ background: 'radial-gradient(ellipse at top right, rgba(16,185,129,0.14) 0%, transparent 55%), radial-gradient(circle at bottom left, color-mix(in srgb, hsl(var(--primary)) 10%, transparent) 0%, transparent 50%)' }} />
         <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/40 mb-3">
@@ -165,11 +165,11 @@ export default function NutricaoPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setModalCalc(true)}
-                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40 dark:hover:border-primary transition-all">
               <Calculator size={14} /> Calculadora
             </button>
             <button onClick={() => setModalRefeicao(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
               <Plus size={14} /> Nova refeição
             </button>
           </div>
@@ -178,9 +178,9 @@ export default function NutricaoPage() {
 
       {/* Sem meta → CTA pra calculadora */}
       {!meta && (
-        <div className="rounded-3xl border-2 border-dashed border-violet-300 dark:border-violet-800 p-6 sm:p-8 bg-violet-50/50 dark:bg-violet-950/20 animate-fade-in flex flex-col sm:flex-row items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-violet-100 dark:bg-violet-900/40">
-            <Calculator size={22} className="text-violet-600 dark:text-violet-400" />
+        <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-6 sm:p-8 bg-primary/10/50 dark:bg-primary/10/20 animate-fade-in flex flex-col sm:flex-row items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+            <Calculator size={22} className="text-primary dark:text-primary" />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-bold text-foreground">Configure suas metas em 30 segundos</h3>
@@ -189,7 +189,7 @@ export default function NutricaoPage() {
               {' '}Sem isso, o diagnóstico não fica preciso.
             </p>
             <button onClick={() => setModalCalc(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 mt-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold">
+                    className="inline-flex items-center gap-2 px-4 py-2 mt-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold">
               <Calculator size={13} /> Abrir calculadora
             </button>
           </div>
@@ -326,7 +326,7 @@ export default function NutricaoPage() {
             <p className="text-base font-bold text-foreground">{refeicoesHoje.length} registrada{refeicoesHoje.length === 1 ? '' : 's'}</p>
           </div>
           <button onClick={() => setModalRefeicao(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 hover:gap-2 transition-all">
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary dark:text-primary hover:gap-2 transition-all">
             <Plus size={12} /> Adicionar
           </button>
         </div>
@@ -336,7 +336,7 @@ export default function NutricaoPage() {
             <Apple size={20} className="text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Nenhuma refeição registrada hoje.</p>
             <button onClick={() => setModalRefeicao(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700">
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-primary text-white text-xs font-bold hover:opacity-90">
               <Sparkles size={11} /> Registrar com IA
             </button>
           </div>
@@ -418,9 +418,9 @@ function CardRefeicao({ refeicao, mostrarData, onDelete }: any) {
   }), { calorias: 0, proteinas: 0, carbos: 0, gorduras: 0 });
 
   return (
-    <div className="group flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-violet-300 dark:hover:border-violet-800 transition-all">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-violet-100 dark:bg-violet-950/40">
-        <Icon size={16} className="text-violet-600 dark:text-violet-400" />
+    <div className="group flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+        <Icon size={16} className="text-primary dark:text-primary" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const COR_CONCURSO = '#f59e0b';
 
 const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
@@ -164,7 +164,7 @@ export default function ConcursosPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -212,16 +212,16 @@ export default function ConcursosPage() {
           <div className="flex flex-wrap gap-2">
             {concurso && (
               <button onClick={() => { setEdCurso(concurso); setModalCurso(true); }}
-                      className="inline-flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300">
+                      className="inline-flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40">
                 <Pencil size={13} />
               </button>
             )}
             <button onClick={() => { setEdCurso(null); setModalCurso(true); }}
-                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-sm font-bold border border-border/60 bg-card/60 backdrop-blur-xl hover:border-primary/40 dark:hover:border-primary transition-all">
               <Plus size={14} /> Concurso
             </button>
             <button onClick={() => setModalSessao(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
               <Play size={14} fill="currentColor" /> Estudar
             </button>
           </div>
@@ -253,7 +253,7 @@ export default function ConcursosPage() {
             Cadastre o concurso (BB, INSS, OAB, ENEM...) com banca, cargo e data da prova. A Sora calcula a contagem regressiva e mostra a evolução do seu estudo.
           </p>
           <button onClick={() => { setEdCurso(null); setModalCurso(true); }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700">
+                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90">
             <Plus size={13} /> Primeiro concurso
           </button>
         </div>
@@ -355,7 +355,7 @@ export default function ConcursosPage() {
                 </div>
                 {concurso && (
                   <button onClick={() => setModalDisc(true)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[11px] font-bold hover:bg-violet-200 dark:hover:bg-violet-900/60">
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary text-[11px] font-bold hover:bg-primary/10 dark:hover:bg-primary/10/60">
                     <Plus size={11} /> Adicionar
                   </button>
                 )}
@@ -395,7 +395,7 @@ export default function ConcursosPage() {
                   <p className="text-base font-bold text-foreground">{simulados.length} realizado{simulados.length === 1 ? '' : 's'}</p>
                 </div>
                 <button onClick={() => setModalProva(true)}
-                        className="text-[10px] font-bold text-violet-600 dark:text-violet-400 inline-flex items-center gap-0.5">
+                        className="text-[10px] font-bold text-primary dark:text-primary inline-flex items-center gap-0.5">
                   <Plus size={11} />
                 </button>
               </div>
@@ -451,7 +451,7 @@ function StatBig({ icon: Icon, label, value, unit, cor, destaque }: any) {
     }`}
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="absolute inset-0 pointer-events-none opacity-50"
-           style={{ background: `radial-gradient(circle at top right, ${cor}1F 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 12%, transparent) 0%, transparent 70%)` }} />
       <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -459,7 +459,7 @@ function StatBig({ icon: Icon, label, value, unit, cor, destaque }: any) {
             {value}{unit && <span className="text-xs font-medium text-muted-foreground">{unit}</span>}
           </p>
         </div>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${cor}1A` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
       </div>

@@ -10,7 +10,7 @@ import {
   Pencil, Check, Pause,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const COR_CURSOS = '#06b6d4';
 
 const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
@@ -80,7 +80,7 @@ export default function CursosPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -107,7 +107,7 @@ export default function CursosPage() {
             </p>
           </div>
           <button onClick={() => { setEdCurso(null); setModalCurso(true); }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
             <Plus size={14} /> Novo curso
           </button>
         </div>
@@ -123,7 +123,7 @@ export default function CursosPage() {
             Cadastre cursos online, idiomas e outras formações. Acompanhe progresso, tempo dedicado e mantenha tudo organizado.
           </p>
           <button onClick={() => { setEdCurso(null); setModalCurso(true); }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700">
+                  className="inline-flex items-center gap-1.5 px-4 py-2 mt-5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90">
             <Plus size={13} /> Cadastrar curso
           </button>
         </div>
@@ -140,7 +140,7 @@ export default function CursosPage() {
                     ativo ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}>
                   {f.l}
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular ${ativo ? 'bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400' : 'bg-muted-foreground/15 text-muted-foreground'}`}>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular ${ativo ? 'bg-primary/10 dark:bg-primary/10/40 text-primary dark:text-primary' : 'bg-muted-foreground/15 text-muted-foreground'}`}>
                     {count}
                   </span>
                 </button>
@@ -163,7 +163,7 @@ export default function CursosPage() {
                        className={`group rounded-2xl border backdrop-blur-xl p-5 transition-all relative overflow-hidden ${
                          concluido ? 'border-emerald-200 dark:border-emerald-900/60 opacity-80' :
                          pausado   ? 'border-border/40 opacity-60' :
-                         'border-border/40 hover:border-violet-300 dark:hover:border-violet-800 hover:scale-[1.01]'
+                         'border-border/40 hover:border-primary/40 dark:hover:border-primary hover:scale-[1.01]'
                        }`}
                        style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
                     {/* Linha decorativa */}
@@ -212,7 +212,7 @@ export default function CursosPage() {
                       ) : (
                         <>
                           <button onClick={() => { setCursoSessao(c); setModalSessao(true); }}
-                                  className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold">
+                                  className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-primary hover:opacity-90 text-white text-[11px] font-bold">
                             <Play size={11} fill="currentColor" /> Estudar
                           </button>
                           <button onClick={() => alternarStatus(c)} className="px-2 py-2 rounded-lg bg-muted hover:bg-muted/70 text-muted-foreground" title={pausado ? 'Retomar' : 'Pausar'}>

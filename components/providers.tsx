@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/contexts/AuthContext';
 import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
+import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   // Garante o domínio canônico (www). O cookie de sessão é do www; se o usuário
@@ -17,6 +18,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       );
     }
   }, []);
+
+  // Reaplica a cor temática salva (consistência após hidratação)
+  useEffect(() => { aplicarPaleta(getPaletaSalva()); }, []);
 
   return (
     <ThemeProvider

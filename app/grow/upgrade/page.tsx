@@ -8,7 +8,7 @@ import {
   Home, ShoppingCart, Calendar, Loader2, Crown, Zap,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const FEATURES = [
   { icon: Target,      label: 'Hábitos com streak e calendário heatmap' },
@@ -46,7 +46,7 @@ export default function GrowUpgradePage() {
         {/* HERO */}
         <div
           className="relative overflow-hidden rounded-3xl p-8 sm:p-12 text-white shadow-2xl"
-          style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #6366f1 100%)' }}
+          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, color-mix(in srgb, hsl(var(--primary)) 60%, #1e1b4b) 100%)' }}
         >
           <div className="absolute inset-0 opacity-30"
                style={{ background: 'radial-gradient(circle at top right, rgba(255,255,255,0.4), transparent 60%)' }} />
@@ -68,14 +68,14 @@ export default function GrowUpgradePage() {
                 <button
                   onClick={ativarTrial}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-primary font-bold text-sm shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
                   Ativar 7 dias grátis
                 </button>
               ) : (
                 <button
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl opacity-60 cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-primary font-bold text-sm shadow-xl opacity-60 cursor-not-allowed"
                   disabled
                   title="Trial já utilizado — faça upgrade para Premium ou Black"
                 >
@@ -102,7 +102,7 @@ export default function GrowUpgradePage() {
               style={{ animationDelay: `${i * 60}ms` }}
             >
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
-                   style={{ background: `${BRAND}18` }}>
+                   style={{ background: `color-mix(in srgb, ${BRAND} 9%, transparent)` }}>
                 <Icon size={20} style={{ color: BRAND }} />
               </div>
               <p className="text-sm font-semibold text-foreground leading-snug">{label}</p>
@@ -152,7 +152,7 @@ export default function GrowUpgradePage() {
 function PlanoCard({ nome, preco, sub, badge, features, cta, destaque, disabled }: any) {
   return (
     <div className={`card rounded-3xl p-7 relative ${destaque ? 'ring-2' : ''}`}
-         style={destaque ? { boxShadow: '0 0 40px -10px rgba(124, 58, 237, 0.4)', ['--tw-ring-color' as any]: BRAND } : {}}>
+         style={destaque ? { boxShadow: '0 0 40px -10px color-mix(in srgb, hsl(var(--primary)) 40%, transparent)', ['--tw-ring-color' as any]: BRAND } : {}}>
       {badge && (
         <span className="absolute -top-3 left-7 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white"
               style={{ background: BRAND }}>
@@ -176,7 +176,7 @@ function PlanoCard({ nome, preco, sub, badge, features, cta, destaque, disabled 
         disabled={disabled}
         className={`mt-6 w-full px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
           destaque
-            ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50'
+            ? 'bg-primary text-white hover:opacity-90 disabled:opacity-50'
             : 'bg-muted text-foreground hover:bg-muted/70 disabled:opacity-50'
         }`}
       >

@@ -26,14 +26,14 @@ interface Props {
   children?:  ReactNode;                       // ações (botões) à direita
 }
 
-const VIOLET   = '#7c3aed';
+const VIOLET   = 'hsl(var(--primary))';
 
 export default function GrowHero({
   badge,
   badgeIcon: Icon = Sparkles,
   badgeColor = VIOLET,
-  badgeBgClass = 'bg-violet-100 dark:bg-violet-950/40',
-  haloRgba = 'rgba(124,58,237,0.12)',
+  badgeBgClass = 'bg-primary/10 dark:bg-primary/10/40',
+  haloRgba = 'color-mix(in srgb, hsl(var(--primary)) 12%, transparent)',
   titulo,
   subtitulo,
   children,

@@ -55,7 +55,7 @@ export default function EstudosLayout({ children }: { children: React.ReactNode 
                 data-active={ativo}
                 className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
                   ativo
-                    ? 'text-violet-600 dark:text-violet-400'
+                    ? 'text-primary dark:text-primary'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -65,7 +65,7 @@ export default function EstudosLayout({ children }: { children: React.ReactNode 
             );
           })}
           <span
-            className="absolute bottom-0 h-[2px] bg-violet-600 dark:bg-violet-400 rounded-full transition-all duration-300 ease-out pointer-events-none"
+            className="absolute bottom-0 h-[2px] bg-primary dark:bg-primary rounded-full transition-all duration-300 ease-out pointer-events-none"
             style={{
               left:  indicator.left,
               width: indicator.width,

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const PRIORIDADES = [
   { v: 'urgente', l: 'Urgente', cor: '#ef4444', desc: 'Faça agora' },
@@ -90,7 +90,7 @@ export default function TarefasPage() {
           <FolderPlus size={14} /> Novo projeto
         </button>
         <button onClick={() => { setEditando(null); setNovaOpen(true); }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/30">
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/30">
           <Plus size={16} /> Nova tarefa
         </button>
       </GrowHero>
@@ -100,7 +100,7 @@ export default function TarefasPage() {
         <div className="flex flex-wrap gap-2 animate-fade-in" style={{ animationDelay: '60ms' }}>
           <button onClick={() => setFiltroProjeto(null)}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              filtroProjeto === null ? 'bg-violet-600 text-white shadow-sm' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              filtroProjeto === null ? 'bg-primary text-white shadow-sm' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
             }`}>
             Todos
           </button>
@@ -119,7 +119,7 @@ export default function TarefasPage() {
       {/* Kanban */}
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center">
-          <Loader2 size={20} className="animate-spin text-violet-600" />
+          <Loader2 size={20} className="animate-spin text-primary" />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
@@ -142,7 +142,7 @@ export default function TarefasPage() {
                   return (
                     <div
                       key={t.id}
-                      className="group bg-card border border-border/60 rounded-xl p-3 hover:border-violet-300 dark:hover:border-violet-800 transition-all cursor-pointer"
+                      className="group bg-card border border-border/60 rounded-xl p-3 hover:border-primary/40 dark:hover:border-primary transition-all cursor-pointer"
                       onClick={() => { setEditando(t); setNovaOpen(true); }}
                     >
                       <div className="flex items-start gap-2">
@@ -161,7 +161,7 @@ export default function TarefasPage() {
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap pl-3.5">
                           {t.projetos && (
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                                  style={{ background: `${t.projetos.cor}22`, color: t.projetos.cor }}>
+                                  style={{ background: `color-mix(in srgb, ${t.projetos.cor} 13%, transparent)`, color: t.projetos.cor }}>
                               {t.projetos.icone} {t.projetos.nome}
                             </span>
                           )}
@@ -177,7 +177,7 @@ export default function TarefasPage() {
                           <button
                             key={c.v}
                             onClick={(e) => { e.stopPropagation(); moverTarefa(t, c.v); }}
-                            className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-muted/40 hover:bg-violet-100 dark:hover:bg-violet-950/40 text-muted-foreground hover:text-violet-700 dark:hover:text-violet-300 transition-colors inline-flex items-center gap-0.5"
+                            className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-muted/40 hover:bg-primary/10 dark:hover:bg-primary/10/40 text-muted-foreground hover:text-primary dark:hover:text-primary/20 transition-colors inline-flex items-center gap-0.5"
                           >
                             <ChevronRight size={8} /> {c.l}
                           </button>
@@ -257,8 +257,8 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
             <div className="grid grid-cols-4 gap-1.5">
               {PRIORIDADES.map(p => (
                 <button key={p.v} type="button" onClick={() => setPrioridade(p.v)}
-                  className={`p-2.5 rounded-xl border transition-all ${prioridade === p.v ? 'ring-1' : 'border-border bg-muted/20 hover:border-violet-300'}`}
-                  style={prioridade === p.v ? { borderColor: p.cor, background: `${p.cor}15`, ['--tw-ring-color' as any]: p.cor } : {}}>
+                  className={`p-2.5 rounded-xl border transition-all ${prioridade === p.v ? 'ring-1' : 'border-border bg-muted/20 hover:border-primary/40'}`}
+                  style={prioridade === p.v ? { borderColor: p.cor, background: `color-mix(in srgb, ${p.cor} 8%, transparent)`, ['--tw-ring-color' as any]: p.cor } : {}}>
                   <span className="w-2 h-2 rounded-full inline-block mx-auto mb-1" style={{ background: p.cor }} />
                   <p className="text-[10px] font-bold text-foreground">{p.l}</p>
                 </button>
@@ -286,7 +286,7 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={loading || !titulo.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             {ed ? 'Salvar' : 'Criar tarefa'}
           </button>
@@ -303,7 +303,7 @@ function ModalProjeto({ phone, onClose, onSuccess }: any) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
   const ICONES_PROJ = ['📋','💼','🏠','🎓','💪','✈️','🎨','🔬','💻','📚','🎮','🛒'];
-  const CORES_PROJ = ['#7c3aed','#ec4899','#f59e0b','#10b981','#06b6d4','#3b82f6','#ef4444','#84cc16'];
+  const CORES_PROJ = ['hsl(var(--primary))','#ec4899','#f59e0b','#10b981','#06b6d4','#3b82f6','#ef4444','#84cc16'];
 
   async function salvar() {
     setErro('');
@@ -325,7 +325,7 @@ function ModalProjeto({ phone, onClose, onSuccess }: any) {
           <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do projeto" className="input" autoFocus />
           <div className="grid grid-cols-6 gap-2">
             {ICONES_PROJ.map(i => (
-              <button key={i} onClick={() => setIcone(i)} className={`w-10 h-10 rounded-xl text-xl transition-all ${icone === i ? 'ring-2 ring-violet-500 scale-110 bg-violet-100 dark:bg-violet-950/40' : 'bg-muted/40 hover:bg-muted'}`}>{i}</button>
+              <button key={i} onClick={() => setIcone(i)} className={`w-10 h-10 rounded-xl text-xl transition-all ${icone === i ? 'ring-2 ring-primary scale-110 bg-primary/10 dark:bg-primary/10/40' : 'bg-muted/40 hover:bg-muted'}`}>{i}</button>
             ))}
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -340,7 +340,7 @@ function ModalProjeto({ phone, onClose, onSuccess }: any) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={loading || !nome.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             Criar
           </button>

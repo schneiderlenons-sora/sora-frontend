@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 const LARANJA = '#f97316';   // accent das receitas (cozinha)
 
 const TABS = [
@@ -50,7 +50,7 @@ const STATUS_MANUT: Record<StatusManut, { label: string; cor: string; icon: any 
   emdia:    { label: 'Em dia',        cor: '#10b981', icon: CheckCircle2 },
   breve:    { label: 'Vence em breve', cor: '#f59e0b', icon: Clock },
   atrasada: { label: 'Atrasada',      cor: '#ef4444', icon: AlertTriangle },
-  fazer:    { label: 'Nunca feita',   cor: '#7c3aed', icon: RotateCcw },
+  fazer:    { label: 'Nunca feita',   cor: 'hsl(var(--primary))', icon: RotateCcw },
 };
 
 function calcManut(m: any): { status: StatusManut; dias: number | null; proxima: Date | null; pct: number } {
@@ -161,7 +161,7 @@ export default function CasaPage() {
           return (
             <button key={v} onClick={() => setTab(v)}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                ativo ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                ativo ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}>
               <Icon size={12} />
               {l}
@@ -177,7 +177,7 @@ export default function CasaPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-16 flex items-center justify-center">
-          <Loader2 size={22} className="animate-spin text-violet-600" />
+          <Loader2 size={22} className="animate-spin text-primary" />
         </div>
       ) : (
         <div className="animate-fade-in">
@@ -279,7 +279,7 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
                  placeholder="Adicionar item..." className="input flex-1" />
           <input value={novaQtd} onChange={e => setNovaQtd(e.target.value)} placeholder="1" className="input w-14 text-center" />
           <button onClick={adicionar} disabled={!novoNome.trim()}
-                  className="inline-flex items-center gap-1.5 px-4 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-1.5 px-4 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             <Plus size={14} />
           </button>
         </div>
@@ -287,7 +287,7 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
           {CATEGORIAS.map(c => (
             <button key={c} onClick={() => setNovaCat(c)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                novaCat === c ? 'bg-violet-600 text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                novaCat === c ? 'bg-primary text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
               }`}>{c}</button>
           ))}
         </div>
@@ -322,7 +322,7 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
                   <div key={item.id} className="group flex items-center gap-3 p-2 rounded-xl hover:bg-muted/40 transition-colors">
                     <button onClick={() => toggleItem(item)} aria-label={item.comprado ? 'Desmarcar' : 'Marcar comprado'}
                       className={`w-7 h-7 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
-                        item.comprado ? 'bg-violet-600 scale-110' : 'bg-card border-2 border-muted-foreground/30 hover:border-violet-500'
+                        item.comprado ? 'bg-primary scale-110' : 'bg-card border-2 border-muted-foreground/30 hover:border-primary'
                       }`}>
                       {item.comprado && <Check size={14} className="text-white" strokeWidth={3} />}
                     </button>
@@ -405,7 +405,7 @@ function TabDespensa({ phone, despensa, setDespensa, onReload, onVerCompras }: a
       {/* Stats */}
       {despensa.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
-          <StatBox icon={Boxes}          label="Itens"    value={contagem.total}    cor="#7c3aed" />
+          <StatBox icon={Boxes}          label="Itens"    value={contagem.total}    cor='hsl(var(--primary))' />
           <StatBox icon={AlertTriangle}  label="Acabando" value={contagem.acabando} cor="#f59e0b" />
           <StatBox icon={PackageX}       label="Acabou"   value={contagem.acabou}   cor="#ef4444" />
         </div>
@@ -432,7 +432,7 @@ function TabDespensa({ phone, despensa, setDespensa, onReload, onVerCompras }: a
           <input value={novoNome} onChange={e => setNovoNome(e.target.value)} onKeyDown={e => e.key === 'Enter' && adicionar()}
                  placeholder="O que você sempre tem em casa..." className="input flex-1" />
           <button onClick={adicionar} disabled={!novoNome.trim()}
-                  className="inline-flex items-center gap-1.5 px-4 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-1.5 px-4 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             <Plus size={14} />
           </button>
         </div>
@@ -440,7 +440,7 @@ function TabDespensa({ phone, despensa, setDespensa, onReload, onVerCompras }: a
           {CATEGORIAS.map(c => (
             <button key={c} onClick={() => setNovaCat(c)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                novaCat === c ? 'bg-violet-600 text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                novaCat === c ? 'bg-primary text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
               }`}>{c}</button>
           ))}
         </div>
@@ -478,19 +478,19 @@ function DespensaCard({ item, index, onStatus, onDelete }: any) {
          style={{
            animationDelay: `${index * 40}ms`,
            background: 'hsl(var(--bg-card) / 0.5)',
-           borderColor: naLista ? `${st.cor}55` : 'hsl(var(--border) / 0.4)',
+           borderColor: naLista ? `color-mix(in srgb, ${st.cor} 33%, transparent)` : 'hsl(var(--border) / 0.4)',
          }}>
       {/* halo de status */}
       {naLista && (
         <div className="absolute inset-0 pointer-events-none opacity-40"
-             style={{ background: `radial-gradient(circle at top right, ${st.cor}22 0%, transparent 70%)` }} />
+             style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${st.cor} 13%, transparent) 0%, transparent 70%)` }} />
       )}
       <div className="relative">
         <div className="flex items-center gap-2 mb-2.5">
           <p className="flex-1 text-sm font-bold text-foreground truncate">{item.nome}</p>
           {naLista && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
-                  style={{ background: `${st.cor}1A`, color: st.cor }}>
+                  style={{ background: `color-mix(in srgb, ${st.cor} 10%, transparent)`, color: st.cor }}>
               <ShoppingCart size={9} /> na lista
             </span>
           )}
@@ -570,7 +570,7 @@ function TabReceitas({ phone, receitas, setReceitas, despensa, onReload, onVerCo
 
       {/* Nova receita */}
       <button onClick={() => { setEditando(null); setModalOpen(true); }}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.99]">
+        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.99]">
         <Plus size={15} /> Nova receita
       </button>
 
@@ -846,7 +846,7 @@ function ModalReceita({ phone, item, onClose, onSaved }: any) {
                 </div>
               ))}
             </div>
-            <button onClick={addIng} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
+            <button onClick={addIng} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary dark:text-primary hover:underline">
               <Plus size={13} /> Adicionar ingrediente
             </button>
           </div>
@@ -865,7 +865,7 @@ function ModalReceita({ phone, item, onClose, onSaved }: any) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={salvando || !nome.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             {item ? 'Salvar' : 'Criar'}
           </button>
@@ -926,7 +926,7 @@ function TabManutencoes({ phone, manutencoes, setManut, onReload }: any) {
 
       {/* Nova manutenção */}
       <button onClick={() => { setEditando(null); setModalOpen(true); }}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold shadow-lg shadow-violet-600/25 transition-all active:scale-[0.99]">
+        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.99]">
         <Plus size={15} /> Nova manutenção
       </button>
 
@@ -967,16 +967,16 @@ function ManutencaoCard({ item, calc, index, onFeito, onToggleLembrete, onEdit, 
          style={{
            animationDelay: `${index * 40}ms`,
            background: 'hsl(var(--bg-card) / 0.5)',
-           borderColor: calc.status === 'emdia' ? 'hsl(var(--border) / 0.4)' : `${st.cor}55`,
+           borderColor: calc.status === 'emdia' ? 'hsl(var(--border) / 0.4)' : `color-mix(in srgb, ${st.cor} 33%, transparent)`,
          }}>
       {calc.status !== 'emdia' && (
         <div className="absolute inset-0 pointer-events-none opacity-40"
-             style={{ background: `radial-gradient(circle at top right, ${st.cor}22 0%, transparent 70%)` }} />
+             style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${st.cor} 13%, transparent) 0%, transparent 70%)` }} />
       )}
       <div className="relative">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: `${st.cor}1A` }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: `color-mix(in srgb, ${st.cor} 10%, transparent)` }}>
             {item.icone || '🔧'}
           </div>
           <div className="flex-1 min-w-0">
@@ -988,7 +988,7 @@ function ManutencaoCard({ item, calc, index, onFeito, onToggleLembrete, onEdit, 
           </div>
           {/* Lembrete + editar + excluir */}
           <button onClick={onToggleLembrete} aria-label={item.lembrete_ativo ? 'Desativar lembrete' : 'Ativar lembrete'} aria-pressed={item.lembrete_ativo}
-                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${item.lembrete_ativo ? 'text-violet-600 dark:text-violet-400 bg-violet-500/10' : 'text-muted-foreground hover:bg-muted'}`}>
+                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${item.lembrete_ativo ? 'text-primary dark:text-primary bg-primary/10' : 'text-muted-foreground hover:bg-muted'}`}>
             <Bell size={15} fill={item.lembrete_ativo ? 'currentColor' : 'none'} />
           </button>
           <button onClick={onEdit} aria-label="Editar" className="lg:opacity-0 lg:group-hover:opacity-100 p-2 rounded-lg text-muted-foreground hover:bg-muted flex-shrink-0">
@@ -1013,7 +1013,7 @@ function ManutencaoCard({ item, calc, index, onFeito, onToggleLembrete, onEdit, 
             </button>
             <button onClick={onFeito}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-                    style={{ background: `${st.cor}1A`, color: st.cor }}>
+                    style={{ background: `color-mix(in srgb, ${st.cor} 10%, transparent)`, color: st.cor }}>
               <Check size={13} /> Fiz hoje
             </button>
           </div>
@@ -1065,7 +1065,7 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
               {ICONES_MANUT.map(ic => (
                 <button key={ic} onClick={() => setIcone(ic)}
                   className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all ${
-                    icone === ic ? 'ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-950/40 scale-105' : 'bg-muted/40 hover:bg-muted'
+                    icone === ic ? 'ring-2 ring-primary bg-primary/10 dark:bg-primary/10/40 scale-105' : 'bg-muted/40 hover:bg-muted'
                   }`}>{ic}</button>
               ))}
             </div>
@@ -1084,7 +1084,7 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
               {FREQUENCIAS.map(f => (
                 <button key={f.dias} onClick={() => setFreq(f.dias)}
                   className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
-                    freq === f.dias ? 'bg-violet-600 text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    freq === f.dias ? 'bg-primary text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                   }`}>{f.label}</button>
               ))}
             </div>
@@ -1097,7 +1097,7 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
           {/* Última vez */}
           <div>
             <label className="flex items-center gap-2 cursor-pointer select-none mb-2">
-              <input type="checkbox" checked={primeiraVez} onChange={e => setPrimeiraVez(e.target.checked)} className="w-4 h-4 accent-violet-600" />
+              <input type="checkbox" checked={primeiraVez} onChange={e => setPrimeiraVez(e.target.checked)} className="w-4 h-4 accent-primary" />
               <span className="text-xs font-semibold text-foreground">Nunca fiz / não sei a última vez</span>
             </label>
             {!primeiraVez && (
@@ -1111,10 +1111,10 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
           {/* Lembrete */}
           <label className="flex items-center justify-between gap-3 cursor-pointer select-none rounded-xl bg-muted/30 p-3">
             <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Bell size={15} className="text-violet-600 dark:text-violet-400" /> Avisar no WhatsApp quando vencer
+              <Bell size={15} className="text-primary dark:text-primary" /> Avisar no WhatsApp quando vencer
             </span>
             <button type="button" onClick={() => setLembrete(v => !v)} role="switch" aria-checked={lembrete}
-                    className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${lembrete ? 'bg-violet-600' : 'bg-muted-foreground/30'}`}>
+                    className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${lembrete ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${lembrete ? 'translate-x-5' : ''}`} />
             </button>
           </label>
@@ -1125,7 +1125,7 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={salvando || !nome.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             {item ? 'Salvar' : 'Criar'}
           </button>
@@ -1139,9 +1139,9 @@ function ModalManutencao({ phone, item, onClose, onSaved }: any) {
 function StatBox({ icon: Icon, label, value, cor }: any) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl p-4" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
-      <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: `radial-gradient(circle at top right, ${cor}24 0%, transparent 70%)` }} />
+      <div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 14%, transparent) 0%, transparent 70%)` }} />
       <div className="relative">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `${cor}1A` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -1155,7 +1155,7 @@ function StatBox({ icon: Icon, label, value, cor }: any) {
 function EmptyCard({ icon: Icon, titulo, desc }: any) {
   return (
     <div className="rounded-3xl border border-dashed border-border/60 py-14 flex flex-col items-center text-center px-6 animate-fade-in bg-muted/10">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: `${BRAND}18` }}>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: `color-mix(in srgb, ${BRAND} 9%, transparent)` }}>
         <Icon size={26} style={{ color: BRAND }} />
       </div>
       <p className="text-base font-bold text-foreground">{titulo}</p>

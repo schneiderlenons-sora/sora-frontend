@@ -14,7 +14,7 @@ import {
   RadialBarChart, RadialBar, PolarAngleAxis,
 } from 'recharts';
 
-const BRAND = '#7c3aed';
+const BRAND = 'hsl(var(--primary))';
 
 const MACRO_CORES = {
   calorias: { fg: '#a78bfa', bg: 'rgba(167, 139, 250, 0.15)', label: 'Calorias',  unidade: 'kcal' },
@@ -83,7 +83,7 @@ export default function SaudeDashboardPage() {
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-violet-600" />
+        <Loader2 size={22} className="animate-spin text-primary" />
       </div>
     );
   }
@@ -184,10 +184,10 @@ function HeroCard({ peso, pesoData, imc, imcClass, metaProjecao, semPerfil, semP
       style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}
     >
       <div className="absolute inset-0 pointer-events-none opacity-50"
-           style={{ background: 'radial-gradient(ellipse at top right, rgba(124,58,237,0.12) 0%, transparent 60%)' }} />
+           style={{ background: 'radial-gradient(ellipse at top right, color-mix(in srgb, hsl(var(--primary)) 12%, transparent) 0%, transparent 60%)' }} />
 
       <div className="relative">
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/40 mb-3">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 dark:bg-primary/10/40 mb-3">
           <Sparkles size={12} style={{ color: BRAND }} />
           <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>Saúde</span>
         </div>
@@ -200,8 +200,8 @@ function HeroCard({ peso, pesoData, imc, imcClass, metaProjecao, semPerfil, semP
         {semPerfil || semPeso ? (
           <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
             {semPerfil
-              ? <>Configure sua <Link href="/grow/saude/registro" className="text-violet-600 dark:text-violet-400 font-semibold underline-offset-2 hover:underline">altura e perfil</Link> pra ativar IMC e metas inteligentes.</>
-              : <>Registre seu <button onClick={onAddPeso} className="text-violet-600 dark:text-violet-400 font-semibold underline underline-offset-2">primeiro peso</button> pra acompanhar evolução.</>
+              ? <>Configure sua <Link href="/grow/saude/registro" className="text-primary dark:text-primary font-semibold underline-offset-2 hover:underline">altura e perfil</Link> pra ativar IMC e metas inteligentes.</>
+              : <>Registre seu <button onClick={onAddPeso} className="text-primary dark:text-primary font-semibold underline underline-offset-2">primeiro peso</button> pra acompanhar evolução.</>
             }
           </p>
         ) : metaProjecao ? (
@@ -264,7 +264,7 @@ function StatTile({ icon: Icon, label, value, subtitle, cor }: any) {
       style={{ background: 'hsl(var(--bg-card) / 0.5)' }}
     >
       <div className="absolute inset-0 pointer-events-none opacity-50"
-           style={{ background: `radial-gradient(circle at top right, ${cor}18 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, color-mix(in srgb, ${cor} 9%, transparent) 0%, transparent 70%)` }} />
       <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -272,7 +272,7 @@ function StatTile({ icon: Icon, label, value, subtitle, cor }: any) {
           <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{subtitle}</p>
         </div>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-             style={{ background: `${cor}1A` }}>
+             style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
           <Icon size={16} style={{ color: cor }} />
         </div>
       </div>
@@ -312,7 +312,7 @@ function CardPeso({ historico, pesoAtual, metaPeso }: any) {
         </div>
         {tendencia && (
           <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-               style={{ background: `${tendencia.cor}1A`, color: tendencia.cor }}>
+               style={{ background: `color-mix(in srgb, ${tendencia.cor} 10%, transparent)`, color: tendencia.cor }}>
             <tendencia.icon size={10} />
             {tendencia.label}
           </div>
@@ -375,18 +375,18 @@ function CardMacros({ macros, meta }: any) {
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Macros hoje</p>
           <p className="text-base font-bold text-foreground">{semMeta ? 'Configure metas' : 'Progresso diário'}</p>
         </div>
-        <Link href="/grow/saude/nutricao" className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold inline-flex items-center gap-0.5 hover:gap-1 transition-all">
+        <Link href="/grow/saude/nutricao" className="text-[11px] text-primary dark:text-primary font-semibold inline-flex items-center gap-0.5 hover:gap-1 transition-all">
           Detalhes <ArrowRight size={11} />
         </Link>
       </div>
 
       {semMeta ? (
-        <div className="rounded-xl p-4 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-900/60 text-xs">
+        <div className="rounded-xl p-4 bg-primary/10 dark:bg-primary/10/30 border border-primary/30 dark:border-primary/30/60 text-xs">
           <p className="text-foreground font-semibold mb-1">Calculadora nutricional</p>
           <p className="text-muted-foreground leading-relaxed mb-3">
             Defina seu objetivo, atividade e perfil pra Sora calcular suas metas diárias.
           </p>
-          <Link href="/grow/saude/nutricao" className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400 font-semibold">
+          <Link href="/grow/saude/nutricao" className="inline-flex items-center gap-1 text-primary dark:text-primary font-semibold">
             Calcular metas <ChevronRight size={12} />
           </Link>
         </div>
@@ -503,10 +503,10 @@ function CardCompromissos({ consultas, medicamentos }: any) {
 
       <div className="space-y-2">
         {proximaConsulta ? (
-          <Link href="/grow/saude/consultas" className="group block p-3 rounded-xl bg-muted/40 border border-border/40 hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+          <Link href="/grow/saude/consultas" className="group block p-3 rounded-xl bg-muted/40 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
             <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-violet-100 dark:bg-violet-950/40">
-                <CalendarHeart size={14} className="text-violet-600 dark:text-violet-400" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary/10 dark:bg-primary/10/40">
+                <CalendarHeart size={14} className="text-primary dark:text-primary" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-foreground truncate">
@@ -516,13 +516,13 @@ function CardCompromissos({ consultas, medicamentos }: any) {
                   {fmtData(proximaConsulta.data)}{proximaConsulta.hora ? ` · ${proximaConsulta.hora?.slice(0,5)}` : ''}
                 </p>
               </div>
-              <ChevronRight size={12} className="text-muted-foreground self-center group-hover:text-violet-500 transition-colors" />
+              <ChevronRight size={12} className="text-muted-foreground self-center group-hover:text-primary transition-colors" />
             </div>
           </Link>
         ) : null}
 
         {remediosComHorario.slice(0, 2).map((m: any) => (
-          <Link key={m.id} href="/grow/saude/remedios" className="group block p-3 rounded-xl bg-muted/40 border border-border/40 hover:border-violet-300 dark:hover:border-violet-800 transition-all">
+          <Link key={m.id} href="/grow/saude/remedios" className="group block p-3 rounded-xl bg-muted/40 border border-border/40 hover:border-primary/40 dark:hover:border-primary transition-all">
             <div className="flex items-start gap-2.5">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-rose-100 dark:bg-rose-950/40">
                 <Pill size={14} className="text-rose-600 dark:text-rose-400" />
@@ -536,7 +536,7 @@ function CardCompromissos({ consultas, medicamentos }: any) {
                   )}
                 </p>
               </div>
-              <ChevronRight size={12} className="text-muted-foreground self-center group-hover:text-violet-500 transition-colors" />
+              <ChevronRight size={12} className="text-muted-foreground self-center group-hover:text-primary transition-colors" />
             </div>
           </Link>
         ))}
@@ -547,9 +547,9 @@ function CardCompromissos({ consultas, medicamentos }: any) {
               Nenhum compromisso agendado.
             </p>
             <div className="flex gap-2 justify-center mt-2">
-              <Link href="/grow/saude/consultas" className="text-[10px] font-semibold text-violet-600 hover:underline">+ Consulta</Link>
+              <Link href="/grow/saude/consultas" className="text-[10px] font-semibold text-primary hover:underline">+ Consulta</Link>
               <span className="text-[10px] text-muted-foreground">·</span>
-              <Link href="/grow/saude/remedios" className="text-[10px] font-semibold text-violet-600 hover:underline">+ Remédio</Link>
+              <Link href="/grow/saude/remedios" className="text-[10px] font-semibold text-primary hover:underline">+ Remédio</Link>
             </div>
           </div>
         )}
@@ -566,10 +566,10 @@ function QuickAction({ icon: Icon, label, onClick }: any) {
     <button
       onClick={onClick}
       className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-foreground transition-all
-        border border-border/40 backdrop-blur-xl hover:border-violet-300 dark:hover:border-violet-800 hover:scale-[1.02] active:scale-95"
+        border border-border/40 backdrop-blur-xl hover:border-primary/40 dark:hover:border-primary hover:scale-[1.02] active:scale-95"
       style={{ background: 'hsl(var(--bg-card) / 0.5)' }}
     >
-      <Icon size={13} className="text-violet-600 dark:text-violet-400" /> {label}
+      <Icon size={13} className="text-primary dark:text-primary" /> {label}
     </button>
   );
 }
@@ -579,10 +579,10 @@ function QuickActionLink({ icon: Icon, label, href }: any) {
     <Link
       href={href}
       className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-foreground transition-all
-        border border-border/40 backdrop-blur-xl hover:border-violet-300 dark:hover:border-violet-800 hover:scale-[1.02] active:scale-95"
+        border border-border/40 backdrop-blur-xl hover:border-primary/40 dark:hover:border-primary hover:scale-[1.02] active:scale-95"
       style={{ background: 'hsl(var(--bg-card) / 0.5)' }}
     >
-      <Icon size={13} className="text-violet-600 dark:text-violet-400" /> {label}
+      <Icon size={13} className="text-primary dark:text-primary" /> {label}
     </Link>
   );
 }
@@ -613,8 +613,8 @@ function ModalPeso({ phone, onClose, onSuccess }: { phone: string; onClose: () =
       <div className="relative w-full max-w-sm bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-violet-100 dark:bg-violet-950/40">
-              <Scale size={16} className="text-violet-600 dark:text-violet-400" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/10/40">
+              <Scale size={16} className="text-primary dark:text-primary" />
             </div>
             <h2 className="text-base font-bold text-foreground">Registrar peso</h2>
           </div>
@@ -653,7 +653,7 @@ function ModalPeso({ phone, onClose, onSuccess }: { phone: string; onClose: () =
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={loading || !peso}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             Registrar
           </button>
