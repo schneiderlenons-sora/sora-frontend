@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
+import GrowResumo from '@/components/dashboard/GrowResumo';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
@@ -428,6 +429,11 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* ══════════════════════════════════════════════════════
+            SORA GROW — seu dia (hábitos, tarefas, bem-estar, agenda)
+        ══════════════════════════════════════════════════════ */}
+        <GrowResumo />
 
         {/* ══════════════════════════════════════════════════════
             GRÁFICO + CATEGORIAS

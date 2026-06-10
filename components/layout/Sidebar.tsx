@@ -41,7 +41,6 @@ const NAV_FINANCE: NavItem[] = [
 
 // ── Grupo GROW ──────────────────────────────────────────────────────
 const NAV_GROW: NavItem[] = [
-  { href: '/grow/dashboard',  label: 'Dashboard',  icon: Sprout },
   { href: '/grow/habitos',    label: 'Hábitos',    icon: Target },
   { href: '/grow/tarefas',    label: 'Tarefas',    icon: ListChecks },
   { href: '/grow/bem-estar',  label: 'Bem-estar',  icon: Heart },
