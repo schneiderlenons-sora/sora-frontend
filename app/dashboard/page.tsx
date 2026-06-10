@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import GrowResumo from '@/components/dashboard/GrowResumo';
+import GrowHabitosCard from '@/components/dashboard/GrowHabitosCard';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
@@ -95,7 +96,7 @@ function VarBadge({ val, invert = false, size = 'sm' }: { val: number; invert?: 
 
 // ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { phone, perfil } = useAuth();
+  const { phone, perfil, temAcessoGrow } = useAuth();
 
   const [resumo,    setResumo]    = useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
   const [resumoAnt, setResumoAnt] = useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
@@ -178,12 +179,86 @@ export default function DashboardPage() {
           : 'Gastos estáveis em relação ao mês anterior.'}`
     : `Olá, ${primeiroNome}! Registre seus gastos pelo WhatsApp para receber insights personalizados aqui.`;
 
+  // Card "Ritmo de Gastos" — extraído pra poder ir ao hero (sem Grow) ou
+  // à linha do Grow (com Grow, ao lado de "Próximos eventos"). Sem col-span:
+  // quem posiciona é o wrapper.
+  const ritmoCard = (
+    <div className="card rounded-3xl p-6 flex flex-col h-full animate-fade-in" style={{ animationDelay: '60ms' }}>
+      <div className="flex items-start justify-between mb-1">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          Ritmo de Gastos
+        </p>
+        {resumoAnt?.gastos ? <VarBadge val={varGastos} invert /> : null}
+      </div>
+      <p className="text-3xl sm:text-4xl lg:text-5xl font-bold tabular tracking-tight text-foreground mt-1 truncate leading-tight">
+        {fmt(resumo?.gastos||0)}
+      </p>
+      <p className="text-xs text-muted-foreground mt-1 mb-4">
+        acumulado em {monthName}
+      </p>
+
+      <div className="flex-1 min-h-0" style={{ height: 130 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={dadosRitmo} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gRitmoArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.5} />
+                <stop offset="50%"  stopColor={BRAND2} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gRitmoStroke" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stopColor={BRAND}  />
+                <stop offset="100%" stopColor={BRAND2} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <XAxis dataKey="dia" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
+                   tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
+            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
+            <Tooltip content={<ChartTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="anterior"
+              name="Mês anterior"
+              stroke="hsl(var(--fg-muted))"
+              strokeWidth={1.5}
+              strokeDasharray="5 4"
+              fill="none"
+              dot={false}
+            />
+            <Area
+              type="monotone"
+              dataKey="atual"
+              name="Este mês"
+              stroke="url(#gRitmoStroke)"
+              strokeWidth={2.5}
+              fill="url(#gRitmoArea)"
+              dot={false}
+              activeDot={{ r: 4, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60">
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-0.5 rounded-full" style={{ background: BRAND }} />
+          <span className="text-xs text-muted-foreground">Este mês</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 border-t border-dashed border-muted-foreground/60" />
+          <span className="text-xs text-muted-foreground">Mês anterior</span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto pb-28 space-y-5">
 
         {/* ══════════════════════════════════════════════════════
-            HERO ROW — Insight + Ritmo de gastos
+            HERO ROW — Insight + Hábitos de hoje (Grow)
         ══════════════════════════════════════════════════════ */}
         <div className="grid lg:grid-cols-5 gap-5">
 
@@ -261,74 +336,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ── Ritmo de Gastos ──────────────────────────────── */}
-          <div className="lg:col-span-2 card rounded-3xl p-6 flex flex-col animate-fade-in" style={{ animationDelay: '60ms' }}>
-            <div className="flex items-start justify-between mb-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Ritmo de Gastos
-              </p>
-              {resumoAnt?.gastos ? <VarBadge val={varGastos} invert /> : null}
-            </div>
-            <p className="text-3xl sm:text-4xl lg:text-5xl font-bold tabular tracking-tight text-foreground mt-1 truncate leading-tight">
-              {fmt(resumo?.gastos||0)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">
-              acumulado em {monthName}
-            </p>
-
-            <div className="flex-1 min-h-0" style={{ height: 130 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dadosRitmo} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gRitmoArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.5} />
-                      <stop offset="50%"  stopColor={BRAND2} stopOpacity={0.22} />
-                      <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gRitmoStroke" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%"   stopColor={BRAND}  />
-                      <stop offset="100%" stopColor={BRAND2} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="dia" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                         tickFormatter={v => Number(v) % 10 === 1 ? v : ''} />
-                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="anterior"
-                    name="Mês anterior"
-                    stroke="hsl(var(--fg-muted))"
-                    strokeWidth={1.5}
-                    strokeDasharray="5 4"
-                    fill="none"
-                    dot={false}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="atual"
-                    name="Este mês"
-                    stroke="url(#gRitmoStroke)"
-                    strokeWidth={2.5}
-                    fill="url(#gRitmoArea)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/60">
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-0.5 rounded-full" style={{ background: BRAND }} />
-                <span className="text-xs text-muted-foreground">Este mês</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 border-t border-dashed border-muted-foreground/60" />
-                <span className="text-xs text-muted-foreground">Mês anterior</span>
-              </div>
-            </div>
+          {/* ── Hábitos de hoje (Grow) no topo — ou Ritmo se sem Grow ── */}
+          <div className="lg:col-span-2">
+            {temAcessoGrow ? <GrowHabitosCard /> : ritmoCard}
           </div>
         </div>
 
@@ -399,7 +409,7 @@ export default function DashboardPage() {
         {/* ══════════════════════════════════════════════════════
             SORA GROW — seu dia (hábitos, tarefas, bem-estar, agenda)
         ══════════════════════════════════════════════════════ */}
-        <GrowResumo />
+        <GrowResumo ritmoSlot={ritmoCard} />
 
         {/* ══════════════════════════════════════════════════════
             CATEGORIAS
