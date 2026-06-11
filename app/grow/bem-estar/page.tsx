@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   Heart, Sparkles, Loader2, Check, Smile, Plus, TrendingUp,
   Moon, Zap, X,
@@ -24,24 +25,15 @@ const HUMOR_LABEL = ['', 'Péssimo', 'Mal', 'Normal', 'Bem', 'Ótimo'];
 
 export default function BemEstarPage() {
   const { phone } = useAuth();
-  const [registros, setRegistros] = useState<any[]>([]);
-  const [loading, setLoading]     = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
 
   const hoje = new Date().toISOString().slice(0, 10);
 
-  // Padrão SWR-style: 1ª chamada pisca loader, subsequentes (após ações
-  // otimistas) revalidam silenciosamente em background sem piscar nada.
-  const carregar = useCallback(async (silent = false) => {
-    if (!phone) return;
-    if (!silent) setLoading(true);
-    try {
-      const r = await api.grow.humor.listar(phone, 30);
-      setRegistros(r || []);
-    } finally { if (!silent) setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // ── Humor via SWR: revisitar a tela é instantâneo (cache em memória). ──
+  const { data: humorData, mutate: mHumor } = useApi(phone ? `bem:humor:${phone}` : null, () => api.grow.humor.listar(phone, 30));
+  const registros: any[] = (humorData as any) ?? [];
+  const loading = humorData === undefined;
+  const carregar = useCallback((_silent = false) => mHumor(), [mHumor]);
 
   const registroHoje = useMemo(() => registros.find(r => r.data === hoje), [registros, hoje]);
   const humorMedio = useMemo(() => registros.length
@@ -105,10 +97,13 @@ export default function BemEstarPage() {
               <p className="text-sm text-muted-foreground mb-5">Um clique e a Sora aprende mais sobre você.</p>
               <CheckinHumor
                 phone={phone!}
-                onOtimista={(humor) => setRegistros(prev => [
-                  { data: hoje, humor, energia: null, nota: null },
-                  ...prev.filter(r => r.data !== hoje),
-                ])}
+                onOtimista={(humor) => mHumor(
+                  (cur: any) => [
+                    { data: hoje, humor, energia: null, nota: null },
+                    ...((cur || []).filter((r: any) => r.data !== hoje)),
+                  ],
+                  { revalidate: false, populateCache: true },
+                )}
                 onSuccess={() => carregar(true)}
               />
             </div>

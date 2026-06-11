@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalHabito, { periodoDoHorario } from '@/components/habitos/ModalHabito';
 import GrowHero from '@/components/grow/GrowHero';
 import {
@@ -66,54 +67,36 @@ function maiorStreak(habitoId: string, registros: any[]) {
 
 export default function HabitosPage() {
   const { phone } = useAuth();
-  const [habitos, setHabitos]       = useState<any[]>([]);
-  const [registros, setRegistros]   = useState<any[]>([]);
-  const [loading, setLoading]       = useState(true);
   const [modalOpen, setModalOpen]   = useState(false);
   const [editando, setEditando]     = useState<any | null>(null);
   const [tab, setTab]               = useState<string>('visao');
   const [incluirArquivados, setInclArq] = useState(false);
   const [toast, setToast]           = useState<{ msg: string; ok: boolean } | null>(null);
-  const [lembrete, setLembrete]     = useState<{ ativo: boolean; horario: string | null }>({ ativo: false, horario: null });
 
   useEffect(() => {
     try { const s = localStorage.getItem(STORAGE_KEY); if (s) setTab(s); } catch {}
   }, []);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, tab); } catch {} }, [tab]);
 
-  const carregar = useCallback(async (silent = false) => {
-    if (!phone) return;
-    if (!silent) setLoading(true);
-    try {
-      const r = await api.grow.habitos.listar(phone, { dias: 120, incluir_arquivados: true });
-      setHabitos(r.habitos || []);
-      setRegistros(r.registros || []);
-      if (r.lembrete) setLembrete(r.lembrete);
-    } finally { if (!silent) setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // ── Dados via SWR: revisitar a tela é instantâneo (cache em memória). ──
+  const { data: habData, mutate: mHab } = useApi(phone ? `hab:full:${phone}` : null, () => api.grow.habitos.listar(phone, { dias: 120, incluir_arquivados: true }));
+  const habitos: any[]   = habData?.habitos ?? [];
+  const registros: any[] = habData?.registros ?? [];
+  const lembrete: { ativo: boolean; horario: string | null } = habData?.lembrete ?? { ativo: false, horario: null };
+  const loading = habData === undefined;
+  const carregar = useCallback((_silent = false) => mHab(), [mHab]);
 
   function flash(msg: string, ok = true) {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2500);
   }
 
-  // Otimistic toggle — atualiza UI, persiste API, reverte se falhar
+  // Toggle otimista — atualiza UI na hora (via SWR), persiste, reverte se falhar.
   async function toggleHabito(habito: any, data?: string) {
     if (!phone) return;
     const targetDate = data || iso(new Date());
     const existing = registros.find(r => r.habito_id === habito.id && r.data === targetDate);
     const novoValor = existing ? !existing.concluido : true;
-
-    // Update otimista
-    if (existing) {
-      setRegistros(prev => prev.map(r =>
-        r.habito_id === habito.id && r.data === targetDate ? { ...r, concluido: novoValor } : r
-      ));
-    } else {
-      setRegistros(prev => [...prev, { habito_id: habito.id, data: targetDate, concluido: true }]);
-    }
 
     // Confete só na primeira vez do dia
     if (novoValor && targetDate === iso(new Date())) {
@@ -121,14 +104,23 @@ export default function HabitosPage() {
     }
 
     try {
-      await api.grow.habitos.toggle(habito.id, { phone, data: targetDate });
+      await mHab(
+        async () => { await api.grow.habitos.toggle(habito.id, { phone, data: targetDate }); return undefined; },
+        {
+          optimisticData: (cur: any) => {
+            const regs = cur?.registros || [];
+            const newRegs = existing
+              ? regs.map((r: any) => r.habito_id === habito.id && r.data === targetDate ? { ...r, concluido: novoValor } : r)
+              : [...regs, { habito_id: habito.id, data: targetDate, concluido: true }];
+            return { ...cur, registros: newRegs };
+          },
+          rollbackOnError: true,
+          populateCache: false,
+          revalidate: false,
+        },
+      );
       if (data && data !== iso(new Date())) flash(`✓ Registrado em ${fmtData(targetDate)}`);
     } catch (e: any) {
-      // Reverte
-      setRegistros(prev => existing
-        ? prev.map(r => r.habito_id === habito.id && r.data === targetDate ? { ...r, concluido: !novoValor } : r)
-        : prev.filter(r => !(r.habito_id === habito.id && r.data === targetDate))
-      );
       flash(e.message || 'Falhou ao registrar', false);
     }
   }
