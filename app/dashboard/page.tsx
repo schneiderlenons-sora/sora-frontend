@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useSWRConfig } from 'swr';
+import { useApi } from '@/lib/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
@@ -99,12 +101,6 @@ function VarBadge({ val, invert = false, size = 'sm' }: { val: number; invert?: 
 export default function DashboardPage() {
   const { phone, perfil, temAcessoGrow } = useAuth();
 
-  const [resumo,    setResumo]    = useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
-  const [resumoAnt, setResumoAnt] = useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
-  const [wallets,   setWallets]   = useState<any[]>([]);
-  const [txs,       setTxs]       = useState<any[]>([]);
-  const [txsMes,    setTxsMes]    = useState<any[]>([]);
-  const [categorias, setCategorias] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
@@ -114,28 +110,30 @@ export default function DashboardPage() {
   const monthName   = hoje.toLocaleDateString('pt-BR', { month: 'long' });
   const primeiroNome = perfil?.name?.split(' ')[0] || 'amigo';
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    // Paraleliza tudo — antes eram 6 awaits sequenciais (cada um esperando
-    // o anterior) que somavam ~3-6s. Agora roda em paralelo e cada erro é
-    // isolado: se a categorias falha as outras 5 ainda preenchem.
-    const [r, rAnt, w, tRec, tMes, cats] = await Promise.allSettled([
-      api.transacoes.resumo(phone, mesAtual),
-      api.transacoes.resumo(phone, mesAnterior),
-      api.wallets.listar(phone),
-      api.transacoes.listar(phone, { limit: 8 }),
-      api.transacoes.listar(phone, { mes: mesAtual, tipo: 'Gasto', limit: 500 }),
-      api.categorias.listar(phone),
-    ]);
-    if (r.status    === 'fulfilled') setResumo(r.value);
-    if (rAnt.status === 'fulfilled') setResumoAnt(rAnt.value);
-    if (w.status    === 'fulfilled') setWallets(w.value);
-    if (tRec.status === 'fulfilled') setTxs(tRec.value.transacoes || []);
-    if (tMes.status === 'fulfilled') setTxsMes(tMes.value.transacoes || []);
-    if (cats.status === 'fulfilled') setCategorias(cats.value || []);
-  }, [phone]);
+  // ── Dados via SWR: cache em memória compartilhado → revisitar o dashboard
+  // é instantâneo (mostra o último dado e revalida em silêncio, sem flash).
+  // Cada chamada é isolada; se uma falha, as outras preenchem.
+  const k = phone || null;
+  const { data: resumoData }    = useApi(k && `dash:resumo:${phone}:${mesAtual}`,    () => api.transacoes.resumo(phone, mesAtual));
+  const { data: resumoAntData } = useApi(k && `dash:resumo:${phone}:${mesAnterior}`, () => api.transacoes.resumo(phone, mesAnterior));
+  const { data: walletsData }   = useApi(k && `dash:wallets:${phone}`,               () => api.wallets.listar(phone));
+  const { data: txsData }       = useApi(k && `dash:txrec:${phone}`,                 () => api.transacoes.listar(phone, { limit: 8 }));
+  const { data: txsMesData }    = useApi(k && `dash:txmes:${phone}:${mesAtual}`,      () => api.transacoes.listar(phone, { mes: mesAtual, tipo: 'Gasto', limit: 500 }));
+  const { data: catsData }      = useApi(k && `dash:cats:${phone}`,                   () => api.categorias.listar(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const resumo     = resumoData    ?? { receitas: 0, gastos: 0, por_categoria: [] };
+  const resumoAnt  = resumoAntData ?? { receitas: 0, gastos: 0, por_categoria: [] };
+  const wallets    = walletsData   ?? [];
+  const txs        = txsData?.transacoes    ?? [];
+  const txsMes     = txsMesData?.transacoes ?? [];
+  const categorias = catsData ?? [];
+
+  // Revalida os dados do dashboard (ex.: após criar uma transação no modal).
+  const { mutate } = useSWRConfig();
+  const revalidar = useCallback(
+    () => { mutate((key) => typeof key === 'string' && key.startsWith('dash:')); },
+    [mutate],
+  );
 
   // ── Métricas (memoizadas — só recalculam quando os dados mudam) ──
   const saldoTotal  = useMemo(
@@ -611,7 +609,7 @@ export default function DashboardPage() {
           phone={phone}
           wallets={wallets}
           onClose={() => setModalOpen(false)}
-          onSuccess={carregar}
+          onSuccess={revalidar}
         />
       )}
     </DashboardLayout>

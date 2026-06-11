@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, memo, type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ListChecks, Heart, CalendarDays, ChevronRight, Crown, ArrowRight,
 } from 'lucide-react';
@@ -13,23 +14,16 @@ const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset(
 
 function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
   const { phone, temAcessoGrow, podeUsar } = useAuth();
-  const [tarefas, setTarefas] = useState<any[]>([]);
-  const [humor, setHumor]     = useState<any[]>([]);
-  const [eventos, setEventos] = useState<any[]>([]);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    const [t, m, ev] = await Promise.allSettled([
-      api.grow.tarefas.listar(phone, { concluida: false }),
-      api.grow.humor.listar(phone, 1),
-      api.grow.compromissos.feed(phone),
-    ]);
-    if (t.status === 'fulfilled')  setTarefas(Array.isArray(t.value) ? t.value : []);
-    if (m.status === 'fulfilled')  setHumor(Array.isArray(m.value) ? m.value : []);
-    if (ev.status === 'fulfilled') setEventos(ev.value.eventos || []);
-  }, [phone]);
+  // SWR: só busca quando há phone E acesso ao Grow (não desperdiça request).
+  const ativo = phone && temAcessoGrow;
+  const { data: tarefasData } = useApi(ativo ? `grow:tarefas:${phone}` : null, () => api.grow.tarefas.listar(phone, { concluida: false }));
+  const { data: humorData }   = useApi(ativo ? `grow:humor:${phone}`   : null, () => api.grow.humor.listar(phone, 1));
+  const { data: eventosData } = useApi(ativo ? `grow:feed:${phone}`    : null, () => api.grow.compromissos.feed(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const tarefas = Array.isArray(tarefasData) ? tarefasData : [];
+  const humor   = Array.isArray(humorData)   ? humorData   : [];
+  const eventos = (eventosData?.eventos ?? []) as any[];
 
   const hojeStr = iso(new Date());
   const humorHoje = humor.find(r => r.data === hojeStr);
