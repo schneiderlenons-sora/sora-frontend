@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalTreino from '@/components/saude/ModalTreino';
 import {
   Dumbbell, Sparkles, Loader2, Plus, Trash2, Flame, Clock, Calendar, ChevronRight,
@@ -27,26 +28,16 @@ function dentroDe(data: string, dias: number) {
 
 export default function TreinosPage() {
   const { phone } = useAuth();
-  const [catalogo, setCatalogo]   = useState<any[]>([]);
-  const [registros, setRegistros] = useState<any[]>([]);
-  const [loading, setLoading]     = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [filtroId, setFiltroId]   = useState<string | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [cat, regs] = await Promise.all([
-        api.saude.treinos.catalogo(phone),
-        api.saude.treinos.registros(phone, 365),
-      ]);
-      setCatalogo(cat || []);
-      setRegistros(regs || []);
-    } catch (e) { console.warn('[treinos]', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: catData, mutate: mCat } = useApi(phone ? `treino:cat:${phone}` : null,  () => api.saude.treinos.catalogo(phone));
+  const { data: regData, mutate: mReg } = useApi(phone ? `treino:regs:${phone}` : null, () => api.saude.treinos.registros(phone, 365));
+  const catalogo: any[]  = (catData as any) ?? [];
+  const registros: any[] = (regData as any) ?? [];
+  const loading = catData === undefined;
+  const carregar = useCallback(() => Promise.all([mCat(), mReg()]), [mCat, mReg]);
 
   const hojeStr = new Date().toISOString().slice(0, 10);
   const registrosFiltrados = useMemo(() => filtroId ? registros.filter(r => r.treino_id === filtroId) : registros, [registros, filtroId]);

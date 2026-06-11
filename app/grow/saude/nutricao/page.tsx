@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalRefeicao    from '@/components/saude/ModalRefeicao';
 import ModalCalculadora from '@/components/saude/ModalCalculadora';
 import {
@@ -44,37 +45,24 @@ const fmtHora = (h?: string) => h ? h.slice(0, 5) : '';
 
 export default function NutricaoPage() {
   const { phone, perfil } = useAuth();
-  const [meta, setMeta]             = useState<any>(null);
-  const [diagnostico, setDiag]      = useState<any[]>([]);
-  const [macrosHoje, setMacrosHoje] = useState({ calorias: 0, proteinas_g: 0, carboidratos_g: 0, gorduras_g: 0 });
-  const [refeicoes, setRefeicoes]   = useState<any[]>([]);
-  const [agua, setAgua]             = useState<any[]>([]);
-  const [perfilSaude, setPerfilSaude] = useState<any>(null);
-  const [loading, setLoading]       = useState(true);
   const [modalRefeicao, setModalRefeicao] = useState(false);
   const [modalCalc, setModalCalc]   = useState(false);
   const [adicionandoAgua, setAdicionandoAgua] = useState<number | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [diag, refs, ag, pSaude] = await Promise.all([
-        api.saude.nutricao.diagnostico(phone),
-        api.saude.refeicoes.listar(phone, 7),
-        api.saude.agua.listar(phone, 7),
-        api.saude.perfil.get(phone).catch(() => null),
-      ]);
-      setMacrosHoje(diag.macros_hoje);
-      setMeta(diag.meta);
-      setDiag(diag.diagnostico || []);
-      setRefeicoes(refs || []);
-      setAgua(ag || []);
-      setPerfilSaude(pSaude || null);
-    } catch (e) { console.warn('[nutricao]', e); }
-    finally { setLoading(false); }
-  }, [phone]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: diagData,   mutate: mDiag } = useApi(phone ? `nut:diag:${phone}` : null,   () => api.saude.nutricao.diagnostico(phone));
+  const { data: refsData,   mutate: mRefs } = useApi(phone ? `nut:refs:${phone}` : null,   () => api.saude.refeicoes.listar(phone, 7));
+  const { data: agData,     mutate: mAg }   = useApi(phone ? `nut:agua:${phone}` : null,   () => api.saude.agua.listar(phone, 7));
+  const { data: pSaudeData, mutate: mPS }   = useApi(phone ? `nut:perfil:${phone}` : null, () => api.saude.perfil.get(phone).catch(() => null));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const macrosHoje         = (diagData as any)?.macros_hoje ?? { calorias: 0, proteinas_g: 0, carboidratos_g: 0, gorduras_g: 0 };
+  const meta: any          = (diagData as any)?.meta ?? null;
+  const diagnostico: any[] = (diagData as any)?.diagnostico ?? [];
+  const refeicoes: any[]   = (refsData as any) ?? [];
+  const agua: any[]        = (agData as any) ?? [];
+  const perfilSaude: any   = (pSaudeData as any) ?? null;
+  const loading = diagData === undefined;
+  const carregar = useCallback(() => Promise.all([mDiag(), mRefs(), mAg(), mPS()]), [mDiag, mRefs, mAg, mPS]);
 
   const hojeStr = new Date().toISOString().slice(0, 10);
   const refeicoesHoje = useMemo(() => refeicoes.filter(r => r.data === hojeStr), [refeicoes, hojeStr]);

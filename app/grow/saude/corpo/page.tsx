@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalMedida from '@/components/saude/ModalMedida';
 import {
   Ruler, Sparkles, Loader2, Plus, Image as ImageIcon, TrendingDown, TrendingUp, Minus,
@@ -26,21 +27,14 @@ const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString(
 
 export default function CorpoPage() {
   const { phone } = useAuth();
-  const [medidas, setMedidas]   = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [campoSel, setCampoSel] = useState('cintura_cm');
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const m = await api.saude.medidas.listar(phone);
-      setMedidas(m || []);
-    } catch (e) { console.warn('[corpo]', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: mData, mutate: mM } = useApi(phone ? `saude:medidas:${phone}` : null, () => api.saude.medidas.listar(phone));
+  const medidas: any[] = (mData as any) ?? [];
+  const loading = mData === undefined;
+  const carregar = useCallback(() => mM(), [mM]);
 
   // Ordena por data (mais recente primeiro)
   const ordenadas = useMemo(() => [...medidas].sort((a, b) => b.data.localeCompare(a.data)), [medidas]);

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalMedicamento from '@/components/saude/ModalMedicamento';
 import {
   Pill, Sparkles, Loader2, Plus, Clock, Check, Pencil, AlertTriangle,
@@ -30,33 +31,30 @@ function minutosEntreAgoraEHorario(horario: string) {
   return Math.round((alvo.getTime() - agora.getTime()) / 60000);
 }
 
+// Busca meds ativos + doses de cada um (N+1) consolidado pro cache do SWR.
+async function fetchRemedios(phone: string) {
+  const r = await api.saude.medicamentos.listar(phone);
+  const ativos = (r || []).filter((m: any) => m.ativo !== false);
+  const doses: Record<string, any[]> = {};
+  await Promise.all(ativos.map(async (m: any) => {
+    try { doses[m.id] = await api.saude.medicamentos.doses(m.id, phone); }
+    catch { doses[m.id] = []; }
+  }));
+  return { meds: ativos, doses };
+}
+
 export default function RemediosPage() {
   const { phone } = useAuth();
-  const [meds, setMeds]   = useState<any[]>([]);
-  const [doses, setDoses] = useState<Record<string, any[]>>({});
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [edMed, setEdMed] = useState<any | null>(null);
   const [tomando, setTomando] = useState<string | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const r = await api.saude.medicamentos.listar(phone);
-      const ativos = (r || []).filter((m: any) => m.ativo !== false);
-      setMeds(ativos);
-      // Doses de cada medicamento (paralelo)
-      const dosesMap: Record<string, any[]> = {};
-      await Promise.all(ativos.map(async (m: any) => {
-        try { dosesMap[m.id] = await api.saude.medicamentos.doses(m.id, phone); }
-        catch { dosesMap[m.id] = []; }
-      }));
-      setDoses(dosesMap);
-    } catch (e) { console.warn('[remedios]', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data, mutate: mLoad } = useApi(phone ? `rem:all:${phone}` : null, () => fetchRemedios(phone));
+  const meds: any[] = (data as any)?.meds ?? [];
+  const doses: Record<string, any[]> = (data as any)?.doses ?? {};
+  const loading = data === undefined;
+  const carregar = useCallback(() => mLoad(), [mLoad]);
 
   async function tomarDose(med: any) {
     if (!phone) return;

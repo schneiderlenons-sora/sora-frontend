@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalPerfilSaude from '@/components/saude/ModalPerfilSaude';
 import ModalSintoma from '@/components/saude/ModalSintoma';
 import {
@@ -25,35 +26,31 @@ const fmtData = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString(
 
 export default function RegistroPage() {
   const { phone } = useAuth();
-  const [perfil, setPerfil]     = useState<any>(null);
   const [checkupHoje, setCh]    = useState<any>(null);
-  const [checkupsAll, setAll]   = useState<any[]>([]);
-  const [sintomas, setSintomas] = useState<any[]>([]);
   const [pesoHoje, setPesoHoje] = useState('');
   const [pesoLoading, setPesoLoading] = useState(false);
-  const [loading, setLoading]   = useState(true);
   const [modalPerfil, setModalPerfil] = useState(false);
   const [modalSintoma, setModalSintoma] = useState(false);
 
   const hojeStr = new Date().toISOString().slice(0, 10);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [p, cks, sin] = await Promise.all([
-        api.saude.perfil.get(phone).catch(() => null),
-        api.saude.checkups.listar(phone, 60),
-        api.saude.sintomas.listar(phone, 30),
-      ]);
-      setPerfil(p || null);
-      setAll(cks || []);
-      setCh((cks || []).find((c: any) => c.data === hojeStr) || null);
-      setSintomas(sin || []);
-    } catch (e) { console.warn('[registro]', e); }
-    finally { setLoading(false); }
-  }, [phone, hojeStr]);
+  // Dados via SWR — revisita instantânea. checkupHoje fica local (toggle otimista).
+  const { data: pData,   mutate: mP }   = useApi(phone ? `reg:perfil:${phone}` : null,   () => api.saude.perfil.get(phone).catch(() => null));
+  const { data: cksData, mutate: mCks } = useApi(phone ? `reg:checkups:${phone}` : null, () => api.saude.checkups.listar(phone, 60));
+  const { data: sinData, mutate: mSin } = useApi(phone ? `reg:sintomas:${phone}` : null, () => api.saude.sintomas.listar(phone, 30));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const perfil: any        = (pData as any) ?? null;
+  const checkupsAll: any[] = (cksData as any) ?? [];
+  const sintomas: any[]    = (sinData as any) ?? [];
+  const loading = cksData === undefined;
+
+  // Semeia o check-up de hoje a partir do SWR (o toggle abaixo é otimista local).
+  useEffect(() => {
+    const arr = (cksData as any[]) || [];
+    setCh(arr.find((c: any) => c.data === hojeStr) || null);
+  }, [cksData, hojeStr]);
+
+  const carregar = useCallback(() => Promise.all([mP(), mCks(), mSin()]), [mP, mCks, mSin]);
 
   async function toggleCheckup(k: string) {
     if (!phone) return;

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalDisciplina from '@/components/estudos/ModalDisciplina';
 import ModalProva from '@/components/estudos/ModalProva';
@@ -25,10 +26,6 @@ function diasAte(iso: string) {
 
 export default function FaculdadePage() {
   const { phone } = useAuth();
-  const [faculdades, setFaculdades]   = useState<any[]>([]);
-  const [disciplinas, setDisciplinas] = useState<any[]>([]);
-  const [provas, setProvas]           = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
   const [cursoSel, setCursoSel]       = useState<string | null>(null);
   const [modalCurso, setModalCurso]   = useState(false);
   const [edCurso, setEdCurso]         = useState<any | null>(null);
@@ -38,23 +35,21 @@ export default function FaculdadePage() {
   const [edProva, setEdProva]         = useState<any | null>(null);
   const [modalSessao, setModalSessao] = useState(false);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [f, d, p] = await Promise.all([
-        api.estudos.cursos.listar(phone, { tipo: 'faculdade' }),
-        api.estudos.disciplinas.listar(phone),
-        api.estudos.provas.listar(phone),
-      ]);
-      setFaculdades(f || []);
-      setDisciplinas(d || []);
-      setProvas(p || []);
-      if (!cursoSel && f && f.length > 0) setCursoSel(f[0].id);
-    } catch (e) { console.warn('[faculdade]', e); }
-    finally { setLoading(false); }
-  }, [phone, cursoSel]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: fData, mutate: mF } = useApi(phone ? `fac:cursos:${phone}` : null, () => api.estudos.cursos.listar(phone, { tipo: 'faculdade' }));
+  const { data: dData, mutate: mD } = useApi(phone ? `fac:disc:${phone}` : null,   () => api.estudos.disciplinas.listar(phone));
+  const { data: pData, mutate: mP } = useApi(phone ? `fac:provas:${phone}` : null, () => api.estudos.provas.listar(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const faculdades: any[]  = (fData as any) ?? [];
+  const disciplinas: any[] = (dData as any) ?? [];
+  const provas: any[]      = (pData as any) ?? [];
+  const loading = fData === undefined;
+  const carregar = useCallback(() => Promise.all([mF(), mD(), mP()]), [mF, mD, mP]);
+
+  // Seleciona o primeiro curso por padrão quando os dados chegam.
+  useEffect(() => {
+    if (!cursoSel && faculdades.length > 0) setCursoSel(faculdades[0].id);
+  }, [fData, cursoSel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const curso = useMemo(() => faculdades.find(c => c.id === cursoSel), [faculdades, cursoSel]);
   const discsDoCurso = useMemo(() => disciplinas.filter(d => d.curso_id === cursoSel), [disciplinas, cursoSel]);

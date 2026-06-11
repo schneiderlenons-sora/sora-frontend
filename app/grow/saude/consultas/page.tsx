@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalConsulta from '@/components/saude/ModalConsulta';
 import ModalExame from '@/components/saude/ModalExame';
 import {
@@ -35,29 +36,21 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function ConsultasPage() {
   const { phone } = useAuth();
-  const [consultas, setConsultas] = useState<any[]>([]);
-  const [exames, setExames]       = useState<any[]>([]);
-  const [loading, setLoading]     = useState(true);
   const [modalCons, setModalCons] = useState(false);
   const [modalExa, setModalExa]   = useState(false);
   const [edConsulta, setEd]       = useState<any | null>(null);
   const [exameSel, setExameSel]   = useState<string>('');
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [c, e] = await Promise.all([
-        api.saude.consultas.listar(phone),
-        api.saude.exames.listar(phone),
-      ]);
-      setConsultas(c || []);
-      setExames(e || []);
-      if (!exameSel && (e || []).length) setExameSel(e[0].nome);
-    } catch (err) { console.warn('[consultas]', err); }
-    finally { setLoading(false); }
-  }, [phone, exameSel]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: cData, mutate: mC } = useApi(phone ? `saude:consultas:${phone}` : null, () => api.saude.consultas.listar(phone));
+  const { data: eData, mutate: mE } = useApi(phone ? `saude:exames:${phone}` : null,    () => api.saude.exames.listar(phone));
+  const consultas: any[] = (cData as any) ?? [];
+  const exames: any[]    = (eData as any) ?? [];
+  const loading = cData === undefined;
+  const carregar = useCallback(() => Promise.all([mC(), mE()]), [mC, mE]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  // Default da seleção de exame quando os dados chegam.
+  useEffect(() => { if (!exameSel && exames.length) setExameSel(exames[0].nome); }, [exames, exameSel]);
 
   const proximas = useMemo(() =>
     consultas.filter(c => c.status === 'agendada' && diasAte(c.data) >= 0)

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalDisciplina from '@/components/estudos/ModalDisciplina';
 import ModalSessao from '@/components/estudos/ModalSessao';
@@ -33,11 +34,6 @@ function diasAte(iso: string) {
 
 export default function ConcursosPage() {
   const { phone } = useAuth();
-  const [concursos, setConcursos]     = useState<any[]>([]);
-  const [disciplinas, setDisciplinas] = useState<any[]>([]);
-  const [sessoes, setSessoes]         = useState<any[]>([]);
-  const [provas, setProvas]           = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
   const [concursoSel, setConcursoSel] = useState<string | null>(null);
   const [modalCurso, setModalCurso]   = useState(false);
   const [edCurso, setEdCurso]         = useState<any | null>(null);
@@ -46,28 +42,26 @@ export default function ConcursosPage() {
   const [modalProva, setModalProva]   = useState(false);
   const [periodo, setPeriodo]         = useState<7 | 30 | 90>(30);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [c, d, s, p] = await Promise.all([
-        api.estudos.cursos.listar(phone, { tipo: 'concurso' }),
-        api.estudos.disciplinas.listar(phone),
-        api.estudos.sessoes.listar(phone, { dias: 365 }),
-        api.estudos.provas.listar(phone),
-      ]);
-      setConcursos(c || []);
-      setDisciplinas(d || []);
-      setSessoes(s || []);
-      setProvas(p || []);
-      if (!concursoSel && c && c.length > 0) {
-        const ativo = c.find((x: any) => x.status === 'ativo');
-        if (ativo) setConcursoSel(ativo.id);
-      }
-    } catch (e) { console.warn('[concursos]', e); }
-    finally { setLoading(false); }
-  }, [phone, concursoSel]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: cData, mutate: mC } = useApi(phone ? `conc:cursos:${phone}` : null,  () => api.estudos.cursos.listar(phone, { tipo: 'concurso' }));
+  const { data: dData, mutate: mD } = useApi(phone ? `conc:disc:${phone}` : null,    () => api.estudos.disciplinas.listar(phone));
+  const { data: sData, mutate: mS } = useApi(phone ? `conc:sessoes:${phone}` : null, () => api.estudos.sessoes.listar(phone, { dias: 365 }));
+  const { data: pData, mutate: mP } = useApi(phone ? `conc:provas:${phone}` : null,  () => api.estudos.provas.listar(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const concursos: any[]   = (cData as any) ?? [];
+  const disciplinas: any[] = (dData as any) ?? [];
+  const sessoes: any[]     = (sData as any) ?? [];
+  const provas: any[]      = (pData as any) ?? [];
+  const loading = cData === undefined;
+  const carregar = useCallback(() => Promise.all([mC(), mD(), mS(), mP()]), [mC, mD, mS, mP]);
+
+  // Seleciona o concurso ativo por padrão quando os dados chegam.
+  useEffect(() => {
+    if (!concursoSel && concursos.length > 0) {
+      const ativo = concursos.find((x: any) => x.status === 'ativo');
+      if (ativo) setConcursoSel(ativo.id);
+    }
+  }, [cData, concursoSel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const concurso = useMemo(() => concursos.find(c => c.id === concursoSel), [concursos, concursoSel]);
 

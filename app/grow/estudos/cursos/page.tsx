@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import {
@@ -24,31 +25,29 @@ const FILTROS = [
   { v: 'pausado',    l: 'Pausado' },
 ];
 
+// Cursos online + idioma + outro (não faculdade/concurso) consolidados.
+async function fetchCursos(phone: string) {
+  const [online, idioma, outro] = await Promise.all([
+    api.estudos.cursos.listar(phone, { tipo: 'online' }),
+    api.estudos.cursos.listar(phone, { tipo: 'idioma' }),
+    api.estudos.cursos.listar(phone, { tipo: 'outro' }),
+  ]);
+  return [...(online || []), ...(idioma || []), ...(outro || [])];
+}
+
 export default function CursosPage() {
   const { phone } = useAuth();
-  const [cursos, setCursos]   = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filtro, setFiltro]   = useState('todos');
   const [modalCurso, setModalCurso] = useState(false);
   const [edCurso, setEdCurso] = useState<any | null>(null);
   const [modalSessao, setModalSessao] = useState(false);
   const [cursoSessao, setCursoSessao] = useState<any | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      // Cursos online + idioma + outro (não faculdade nem concurso)
-      const [online, idioma, outro] = await Promise.all([
-        api.estudos.cursos.listar(phone, { tipo: 'online' }),
-        api.estudos.cursos.listar(phone, { tipo: 'idioma' }),
-        api.estudos.cursos.listar(phone, { tipo: 'outro' }),
-      ]);
-      setCursos([...(online || []), ...(idioma || []), ...(outro || [])]);
-    } catch (e) { console.warn('[cursos]', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data, mutate: mLoad } = useApi(phone ? `cursos:all:${phone}` : null, () => fetchCursos(phone));
+  const cursos: any[] = (data as any) ?? [];
+  const loading = data === undefined;
+  const carregar = useCallback(() => mLoad(), [mLoad]);
 
   const filtrados = useMemo(() => {
     if (filtro === 'todos') return cursos;
