@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { supabase } from '@/lib/supabase';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -145,20 +146,19 @@ export default function ContasBancariasPage() {
   // ── Carregamento sem bloquear UI ───────────────────────────
   // Marca a wallet padrão (perfil.wallet_padrao_id) com padrao:true
   // pra UI renderizar corretamente.
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const data = await api.wallets.listar(phone);
-      const walletPadraoId = perfil?.wallet_padrao_id || null;
-      const comPadrao = (data || []).map((w: Wallet) => ({
-        ...w,
-        padrao: walletPadraoId ? w.id === walletPadraoId : !!w.padrao,
-      }));
-      setWallets(comPadrao);
-    } catch (e) { console.warn('[contas] listar erro:', e); }
-  }, [phone, perfil]);
+  // SWR cacheia (revisita instantânea); mantém `wallets` local pro otimismo
+  // (definir padrão, arquivar e excluir atualizam a UI na hora).
+  const { data: walletsRaw, mutate: mWallets } = useApi(phone ? `contas:wallets:${phone}` : null, () => api.wallets.listar(phone));
+  useEffect(() => {
+    if (walletsRaw === undefined) return;
+    const walletPadraoId = perfil?.wallet_padrao_id || null;
+    setWallets((walletsRaw as Wallet[]).map((w: Wallet) => ({
+      ...w,
+      padrao: walletPadraoId ? w.id === walletPadraoId : !!w.padrao,
+    })));
+  }, [walletsRaw, perfil?.wallet_padrao_id]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const carregar = useCallback(() => mWallets(), [mWallets]);
 
   // ── Helpers ────────────────────────────────────────────────
   const walletsAtivas    = useMemo(() => wallets.filter(w => !w.arquivada), [wallets]);

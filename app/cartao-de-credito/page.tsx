@@ -9,6 +9,7 @@ import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
   ChevronRight, ChevronLeft, AlertCircle, BarChart3, Calendar, Loader2,
@@ -37,11 +38,7 @@ export default function CartaoDeCreditoPage() {
   const { phone, limiteDe } = useAuth();
   const limiteCartoes = limiteDe('cartoes');
 
-  const [wallets,        setWallets]        = useState<Wallet[]>([]);
-  const [txsMes,         setTxsMes]         = useState<any[]>([]);
-  const [txsTodas,       setTxsTodas]       = useState<any[]>([]); // p/ limite comprometido (parcelas futuras)
   const [txsHistorico,   setTxsHistorico]   = useState<Record<string, any[]>>({});
-  const [loading,        setLoading]        = useState(false);
   const [ocultar,        setOcultar]        = useState(false);
   const [addOpen,        setAddOpen]        = useState(false);
   const [edicao,         setEdicao]         = useState<Wallet | null>(null);
@@ -60,36 +57,16 @@ export default function CartaoDeCreditoPage() {
 
   const refMesLabel = `${MES_NOMES[refDate.getMonth()].charAt(0).toUpperCase() + MES_NOMES[refDate.getMonth()].slice(1)} de ${refDate.getFullYear()}`;
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    setLoading(true);
-    try {
-      const ws = await api.wallets.listar(phone);
-      setWallets((ws || []).filter((w: any) => w.tipo === 'Crédito'));
-    } catch (e) {
-      console.warn('[cartoes] wallets erro:', e);
-    }
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: wRaw,     mutate: mW }  = useApi(phone ? `cart:wallets:${phone}` : null, () => api.wallets.listar(phone));
+  const { data: tMesData, mutate: mTM } = useApi(phone ? `cart:txmes:${phone}:${mesAtualRef}` : null, () => api.transacoes.listar(phone, { mes: mesAtualRef, limit: 500 }));
+  const { data: tAllData, mutate: mTA } = useApi(phone ? `cart:txall:${phone}` : null, () => api.transacoes.listar(phone, { limit: 1000 }));
 
-    try {
-      const t = await api.transacoes.listar(phone, { mes: mesAtualRef, limit: 500 });
-      setTxsMes(t.transacoes || []);
-    } catch (e) {
-      console.warn('[cartoes] txs mes erro:', e);
-    }
-    try {
-      // Sem filtro de mês → traz futuras também (parcelas). Usado p/ calcular
-      // o limite comprometido (soma de todas as parcelas em aberto do cartão).
-      const all = await api.transacoes.listar(phone, { limit: 1000 });
-      setTxsTodas(all.transacoes || []);
-    } catch (e) {
-      console.warn('[cartoes] txs todas erro:', e);
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  const wallets: Wallet[] = ((wRaw as Wallet[]) ?? []).filter((w: any) => w.tipo === 'Crédito');
+  const txsMes: any[]     = (tMesData as any)?.transacoes ?? [];
+  const txsTodas: any[]   = (tAllData as any)?.transacoes ?? [];
+  const loading = wRaw === undefined;
+  const carregar = useCallback(() => Promise.all([mW(), mTM(), mTA()]), [mW, mTM, mTA]);
 
   // Carrega 6 últimos meses para o gráfico de histórico
   useEffect(() => {

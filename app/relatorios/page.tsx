@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -72,12 +73,6 @@ export default function RelatoriosPage() {
   const [ano,      setAno]      = useState(hoje.getFullYear());
   const [mes,      setMes]      = useState(hoje.getMonth());
 
-  const [resumo,   setResumo]   = useState<any>({ receitas: 0, gastos: 0, por_categoria: [], por_membro: [] });
-  const [resumoAnt,setResumoAnt]= useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
-  const [txs,      setTxs]      = useState<any[]>([]);
-  const [wallets,  setWallets]  = useState<any[]>([]);
-  const [categorias, setCategorias] = useState<any[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [apenasMeus, setApenasMeus] = useState(false);
 
   const mesRef = `${ano}-${String(mes + 1).padStart(2, '0')}`;
@@ -86,28 +81,24 @@ export default function RelatoriosPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   })();
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    setRefreshing(true);
+  // Dados via SWR — revisita/troca de mês instantânea (cache em memória).
+  const { data: rData, isValidating: refreshing, mutate: mR } =
+    useApi(phone ? `rel:resumo:${phone}:${mesRef}:${apenasMeus}` : null, () => api.transacoes.resumo(phone, mesRef, { criado_por_me: apenasMeus }));
+  const { data: rAntData, mutate: mRAnt } =
+    useApi(phone ? `rel:resumoAnt:${phone}:${mesAntRef}` : null, () => api.transacoes.resumo(phone, mesAntRef));
+  const { data: tData, mutate: mT } =
+    useApi(phone ? `rel:txs:${phone}:${mesRef}:${apenasMeus}` : null, () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por_me: apenasMeus || undefined }));
+  const { data: wData, mutate: mW } =
+    useApi(phone ? `rel:wallets:${phone}` : null, () => api.wallets.listar(phone));
+  const { data: cData, mutate: mC } =
+    useApi(phone ? `rel:cats:${phone}` : null, () => api.categorias.listar(phone));
 
-    // Paralelo — antes eram 5 awaits sequenciais
-    const [r, rAnt, t, w, cats] = await Promise.allSettled([
-      api.transacoes.resumo(phone, mesRef, { criado_por_me: apenasMeus }),
-      api.transacoes.resumo(phone, mesAntRef),
-      api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por_me: apenasMeus || undefined }),
-      api.wallets.listar(phone),
-      api.categorias.listar(phone),
-    ]);
-    if (r.status    === 'fulfilled') setResumo(r.value);
-    if (rAnt.status === 'fulfilled') setResumoAnt(rAnt.value);
-    if (t.status    === 'fulfilled') setTxs(t.value.transacoes || []);
-    if (w.status    === 'fulfilled') setWallets(w.value || []);
-    if (cats.status === 'fulfilled') setCategorias(cats.value || []);
-
-    setRefreshing(false);
-  }, [phone, mesRef, mesAntRef, apenasMeus]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
+  const resumoAnt: any    = (rAntData as any) ?? { receitas: 0, gastos: 0, por_categoria: [] };
+  const txs: any[]        = (tData as any)?.transacoes ?? [];
+  const wallets: any[]    = (wData as any) ?? [];
+  const categorias: any[] = (cData as any) ?? [];
+  const carregar = useCallback(() => Promise.all([mR(), mRAnt(), mT(), mW(), mC()]), [mR, mRAnt, mT, mW, mC]);
 
   function navMes(dir: number) {
     let nm = mes + dir;

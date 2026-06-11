@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ArrowLeft, ChevronRight, Calendar, Loader2, Download, RefreshCw,
 } from 'lucide-react';
@@ -49,19 +50,13 @@ type Tipo = 'positivo' | 'negativo' | 'neutro' | 'total';
 export default function DreDetalhadoPage() {
   const { isBlack, phone } = useAuth();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
-  const [dre, setDre]         = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
-  async function carregar() {
-    if (!phone || !isBlack) return;
-    setLoading(true);
-    try { setDre(await api.negocios.dre.detalhado(phone, periodo)); }
-    catch { setDre(null); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone, isBlack, periodo]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: dreData, mutate: mDre } = useApi((phone && isBlack) ? `negdre:${phone}:${periodo}` : null, () => api.negocios.dre.detalhado(phone, periodo));
+  const dre: any = (dreData as any) ?? null;
+  const loading = dreData === undefined;
+  const carregar = () => mDre();
 
   function toggle(key: string) {
     setExpandidos(s => {

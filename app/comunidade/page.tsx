@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import CriarGrupoModal from '@/components/grupos/CriarGrupoModal';
 import ConvidarModal from '@/components/grupos/ConvidarModal';
 import EntrarGrupoModal from '@/components/grupos/EntrarGrupoModal';
@@ -50,9 +51,8 @@ interface Membro {
 export default function ComunidadePage() {
   const { phone, perfil, isPremium, isBlack, recarregar } = useAuth();
 
-  const [grupos,  setGrupos]  = useState<GrupoListItem[]>([]);
-  const [membros, setMembros] = useState<Membro[]>([]);
-  const [stats,   setStats]   = useState<any>({ total_membros: 0, limite_membros: 1, total_categorias: 0, total_transacoes_mes: 0, valor_movimentado_mes: 0 });
+  const { data: gruposData, mutate: mGrupos } = useApi(phone ? `grupos:${phone}` : null, () => api.grupos.listar(phone));
+  const grupos: GrupoListItem[] = Array.isArray(gruposData) ? gruposData : [];
 
   // Modais
   const [criarOpen,   setCriarOpen]   = useState(false);
@@ -72,29 +72,15 @@ export default function ComunidadePage() {
   const meuPapelNoAtivo = grupoAtivo?.papel || 'leitura';
   const souAdmin = meuPapelNoAtivo === 'admin';
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const gs = await api.grupos.listar(phone);
-      setGrupos(Array.isArray(gs) ? gs : []);
-    } catch (e) { console.warn('[grupos] listar erro:', e); }
-  }, [phone]);
+  // Membros + stats do grupo ativo via SWR (key depende do grupo selecionado).
+  const gid = grupoAtivo?.grupo_id || null;
+  const { data: membrosData, mutate: mMembros } = useApi(gid ? `grupos:membros:${gid}` : null, () => api.grupos.membros(gid!));
+  const { data: statsData,   mutate: mStats }   = useApi(gid ? `grupos:stats:${gid}` : null,   () => api.grupos.stats(gid!));
+  const membros: Membro[] = Array.isArray(membrosData) ? membrosData : [];
+  const stats: any = statsData ?? { total_membros: 0, limite_membros: 1, total_categorias: 0, total_transacoes_mes: 0, valor_movimentado_mes: 0 };
 
-  const carregarMembros = useCallback(async () => {
-    if (!grupoAtivo?.grupo_id) { setMembros([]); return; }
-    try {
-      const ms = await api.grupos.membros(grupoAtivo.grupo_id);
-      setMembros(Array.isArray(ms) ? ms : []);
-    } catch (e) { console.warn('[grupos] membros erro:', e); }
-    try {
-      const s = await api.grupos.stats(grupoAtivo.grupo_id);
-      setStats(s || stats);
-    } catch (e) { console.warn('[grupos] stats erro:', e); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grupoAtivo?.grupo_id]);
-
-  useEffect(() => { carregar(); }, [carregar]);
-  useEffect(() => { carregarMembros(); }, [carregarMembros]);
+  const carregar = useCallback(() => mGrupos(), [mGrupos]);
+  const carregarMembros = useCallback(() => Promise.all([mMembros(), mStats()]), [mMembros, mStats]);
 
   async function trocarPara(grupoId: string) {
     if (!phone || grupoId === grupoAtivoId) return;

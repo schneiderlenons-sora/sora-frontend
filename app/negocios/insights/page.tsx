@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ArrowLeft, Sparkles, TrendingUp, TrendingDown, AlertTriangle, Trophy,
   Receipt, Zap, Lightbulb, X, Loader2, RefreshCw, ChevronRight,
@@ -50,19 +51,14 @@ function tempoAtras(iso: string) {
 export default function InsightsPage() {
   const { isBlack, phone } = useAuth();
   const [insights, setInsights] = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
   const [gerando, setGerando]   = useState(false);
   const [feedback, setFeedback] = useState('');
 
-  async function carregar() {
-    if (!phone || !isBlack) return;
-    setLoading(true);
-    try { setInsights(await api.negocios.insights.listar(phone)); }
-    catch { setInsights([]); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone, isBlack]);
+  // SWR cacheia (revisita instantânea); mantém `insights` local pro dispensar otimista.
+  const { data: insData, mutate: mIns } = useApi((phone && isBlack) ? `neg:insights:${phone}` : null, () => api.negocios.insights.listar(phone));
+  useEffect(() => { if (insData !== undefined) setInsights((insData as any) || []); }, [insData]);
+  const loading = insData === undefined;
+  const carregar = () => mIns();
 
   async function handleGerar() {
     if (!phone || gerando) return;

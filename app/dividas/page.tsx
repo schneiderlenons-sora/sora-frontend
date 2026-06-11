@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import NovaDividaModal from '@/components/dividas/NovaDividaModal';
 import PagarParcelaModal from '@/components/dividas/PagarParcelaModal';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
@@ -49,7 +50,6 @@ export default function DividasPage() {
   });
   const [lembretesGlobais, setLembretesGlobais] = useState(true);
   const [salvandoLembrete, setSalvandoLembrete] = useState(false);
-  const [loading,   setLoading]   = useState(false);
   const [ocultar,   setOcultar]   = useState(false);
   const [novaOpen,  setNovaOpen]  = useState(false);
   const [edicao,    setEdicao]    = useState<any | null>(null);
@@ -58,19 +58,17 @@ export default function DividasPage() {
   const [toast,     setToast]     = useState<string>('');
   const [filtro,    setFiltro]    = useState<'ativas' | 'quitadas' | 'todas'>('ativas');
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    setLoading(true);
-    try {
-      const r = await api.dividas.listar(phone);
-      setDividas(r.dividas || []);
-      setResumo(r.resumo || {});
-      setLembretesGlobais((r.resumo as any)?.lembretes_dividas !== false);
-    } catch (e) { console.warn('[dividas] listar erro:', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // SWR cacheia (revisita instantânea); mantém os states locais pro otimismo
+  // dos toggles de lembrete.
+  const { data: divData, mutate: mDiv } = useApi(phone ? `dividas:${phone}` : null, () => api.dividas.listar(phone));
+  useEffect(() => {
+    if (divData === undefined) return;
+    setDividas((divData as any).dividas || []);
+    setResumo((divData as any).resumo || {});
+    setLembretesGlobais(((divData as any).resumo)?.lembretes_dividas !== false);
+  }, [divData]);
+  const loading = divData === undefined;
+  const carregar = useCallback(() => mDiv(), [mDiv]);
 
   function flash(txt: string) { setToast(txt); setTimeout(() => setToast(''), 4000); }
 

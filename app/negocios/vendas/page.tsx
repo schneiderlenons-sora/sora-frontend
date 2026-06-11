@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ArrowLeft, Calendar, Loader2, Search, ChevronLeft, ChevronRight,
   X, ArrowUpRight, ArrowDownRight, AlertTriangle, CreditCard, Mail,
@@ -56,30 +57,18 @@ export default function VendasPage() {
   const [busca, setBusca]     = useState('');
   const [page, setPage]       = useState(0);
 
-  const [eventos, setEventos] = useState<any[]>([]);
-  const [total, setTotal]     = useState(0);
-  const [loading, setLoading] = useState(true);
-
   const [detalhe, setDetalhe] = useState<any>(null);
 
-  async function carregar() {
-    if (!phone || !isBlack) return;
-    setLoading(true);
-    try {
-      const { eventos, total } = await api.negocios.eventos.listar(phone, {
-        limit: PAGE,
-        offset: page * PAGE,
-        tipo: tipo || undefined,
-        plataforma: plataforma || undefined,
-        periodo,
-      });
-      setEventos(eventos);
-      setTotal(total);
-    } catch { setEventos([]); setTotal(0); }
-    finally { setLoading(false); }
-  }
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: vData, mutate: mV } = useApi(
+    (phone && isBlack) ? `neg:vendas:${phone}:${periodo}:${tipo}:${plataforma}:${page}` : null,
+    () => api.negocios.eventos.listar(phone, { limit: PAGE, offset: page * PAGE, tipo: tipo || undefined, plataforma: plataforma || undefined, periodo }),
+  );
+  const eventos: any[] = (vData as any)?.eventos ?? [];
+  const total: number  = (vData as any)?.total ?? 0;
+  const loading = vData === undefined;
+  const carregar = () => mV();
 
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone, isBlack, periodo, tipo, plataforma, page]);
   useEffect(() => { setPage(0); }, [periodo, tipo, plataforma]);
 
   const filtrados = useMemo(() => {

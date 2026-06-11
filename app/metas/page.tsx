@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import NovaMetaModal from '@/components/metas/NovaMetaModal';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
@@ -90,24 +91,16 @@ function monthsBetween(a: Date, b: Date) {
 
 export default function MetasPage() {
   const { phone } = useAuth();
-  const [metas, setMetas] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [novaOpen, setNovaOpen] = useState(false);
   const [edicao,   setEdicao]   = useState<any | null>(null);
   const [confirmDel, setConfirmDel] = useState<any | null>(null);
   const [aporteModal, setAporteModal] = useState<{ meta: any; tipo: 'aporte' | 'resgate' } | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    setLoading(true);
-    try {
-      const r = await api.metas.listar(phone);
-      setMetas(Array.isArray(r) ? r : []);
-    } catch (e) { console.warn('[metas] listar erro:', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: metasData, mutate: mMetas } = useApi(phone ? `metas:${phone}` : null, () => api.metas.listar(phone));
+  const metas: any[] = Array.isArray(metasData) ? metasData : [];
+  const loading = metasData === undefined;
+  const carregar = useCallback(() => mMetas(), [mMetas]);
 
   async function handleDelete(m: any) {
     if (!phone) return;

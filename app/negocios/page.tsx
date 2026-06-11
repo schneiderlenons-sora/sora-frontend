@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
 import ModalCustos from '@/components/negocios/ModalCustos';
 import {
@@ -83,35 +84,25 @@ export default function NegociosPage() {
 
   const hojeIso = new Date().toISOString().slice(0, 7);
   const [periodo, setPeriodo] = useState(hojeIso); // YYYY-MM
-  const [dre, setDre]         = useState<any>(null);
-  const [usandoMock, setUsandoMock] = useState(false);
-  const [loading, setLoading]       = useState(true);
   const [recalculando, setRecalc]   = useState(false);
   const [modalCfg, setModalCfg]     = useState(false);
   const [modalCustos, setModalCustos] = useState(false);
 
-  async function carregar() {
-    if (!phone || !isBlack) return;
-    setLoading(true);
-    try {
-      const data = await api.negocios.dre.get(phone, periodo);
-      // Sem eventos → mostra mock como demo
-      if (!data || data.total_vendas === 0) {
-        setDre(MOCK_DRE);
-        setUsandoMock(true);
-      } else {
-        setDre(data);
-        setUsandoMock(false);
-      }
-    } catch {
-      setDre(MOCK_DRE);
-      setUsandoMock(true);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone, isBlack, periodo]);
+  // Dados via SWR (com fallback de mock quando não há eventos). Revisita instantânea.
+  const { data: dreWrap, mutate: mDre } = useApi(
+    (phone && isBlack) ? `neg:dre:${phone}:${periodo}` : null,
+    async () => {
+      try {
+        const d = await api.negocios.dre.get(phone, periodo);
+        if (!d || d.total_vendas === 0) return { dre: MOCK_DRE, usandoMock: true };
+        return { dre: d, usandoMock: false };
+      } catch { return { dre: MOCK_DRE, usandoMock: true }; }
+    },
+  );
+  const dre: any = (dreWrap as any)?.dre ?? null;
+  const usandoMock: boolean = (dreWrap as any)?.usandoMock ?? false;
+  const loading = dreWrap === undefined;
+  const carregar = () => mDre();
 
   async function handleRecalcular() {
     if (!phone || recalculando) return;

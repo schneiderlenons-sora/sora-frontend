@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoModal';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
@@ -42,23 +43,22 @@ export default function InvestimentosPage() {
   const temAcesso = podeUsar('investimentos');
 
   const [tab, setTab] = useState<Tab>('resumo');
-  const [invs,         setInvs]         = useState<any[]>([]);
-  const [aportes,      setAportes]      = useState<any[]>([]);
-  const [patrimonio,   setPatrimonio]   = useState<any[]>([]);
-  const [reserva,      setReserva]      = useState<any>({ valorAtual: 0, gastoMedioMensal: 0, mesesObjetivo: 6, valorObjetivo: 0, percentual: 0, mesesCobertos: 0 });
   const [atualizando,  setAtualizando]  = useState(false);
   const [novoOpen,     setNovoOpen]     = useState(false);
   const [feedback,     setFeedback]     = useState('');
 
-  const carregar = useCallback(async () => {
-    if (!phone || !temAcesso) return;
-    try { setInvs(await api.investimentos.listar(phone) || []); } catch {}
-    try { setAportes(await api.investimentos.aportes.listar(phone) || []); } catch {}
-    try { setPatrimonio(await api.investimentos.patrimonio(phone) || []); } catch {}
-    try { setReserva(await api.investimentos.reserva(phone)); } catch {}
-  }, [phone, temAcesso]);
+  // Dados via SWR — revisita instantânea (só busca com acesso ao recurso).
+  const ativo = phone && temAcesso;
+  const { data: invsData,    mutate: mInvs } = useApi(ativo ? `inv:lista:${phone}` : null,      () => api.investimentos.listar(phone));
+  const { data: aportesData, mutate: mAp }   = useApi(ativo ? `inv:aportes:${phone}` : null,    () => api.investimentos.aportes.listar(phone));
+  const { data: patData,     mutate: mPat }  = useApi(ativo ? `inv:patrimonio:${phone}` : null, () => api.investimentos.patrimonio(phone));
+  const { data: resData,     mutate: mRes }  = useApi(ativo ? `inv:reserva:${phone}` : null,    () => api.investimentos.reserva(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const invs: any[]       = (invsData as any) ?? [];
+  const aportes: any[]    = (aportesData as any) ?? [];
+  const patrimonio: any[] = (patData as any) ?? [];
+  const reserva: any      = (resData as any) ?? { valorAtual: 0, gastoMedioMensal: 0, mesesObjetivo: 6, valorObjetivo: 0, percentual: 0, mesesCobertos: 0 };
+  const carregar = useCallback(() => Promise.all([mInvs(), mAp(), mPat(), mRes()]), [mInvs, mAp, mPat, mRes]);
 
   async function handleAtualizar() {
     if (!phone || atualizando) return;

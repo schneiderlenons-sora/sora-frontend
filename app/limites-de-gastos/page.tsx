@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import EditarLimiteGeralModal from '@/components/limites/EditarLimiteGeralModal';
 import LimiteCategoriaModal from '@/components/limites/LimiteCategoriaModal';
 import { nomeCategoria } from '@/lib/categorias';
@@ -73,29 +74,25 @@ export default function LimitesPage() {
   const [catModal, setCatModal] = useState<{ edicao?: CategoryLimit; categoriaAlvo?: string } | null>(null);
   const [confirmDel, setConfirmDel] = useState<CategoryLimit | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const cats = await api.categorias.listar(phone);
-      setCategorias(cats || []);
-    } catch (e) { console.warn('[limites] categorias erro:', e); }
+  // SWR cacheia (revisita instantânea); mantém os states locais pro otimismo
+  // dos toggles do limite geral.
+  const { data: catsRaw,    mutate: mCats } = useApi(phone ? `lim:cats:${phone}` : null,             () => api.categorias.listar(phone));
+  const { data: resumoRaw,  mutate: mRes }  = useApi(phone ? `lim:resumo:${phone}:${mesRef}` : null, () => api.transacoes.resumo(phone, mesRef));
+  const { data: limitesRaw, mutate: mLim }  = useApi(phone ? `lim:config:${phone}:${mesRef}` : null, () => api.limites.listar(phone, mesRef));
 
-    try {
-      const r = await api.transacoes.resumo(phone, mesRef);
-      setResumo(r || { gastos: 0, por_categoria: [] });
-    } catch (e) { console.warn('[limites] resumo erro:', e); }
+  useEffect(() => { if (catsRaw   !== undefined) setCategorias((catsRaw as any) || []); }, [catsRaw]);
+  useEffect(() => { if (resumoRaw !== undefined) setResumo((resumoRaw as any) || { gastos: 0, por_categoria: [] }); }, [resumoRaw]);
+  useEffect(() => {
+    if (limitesRaw === undefined) return;
+    const ls: any = limitesRaw;
+    setMetaMensal(ls?.meta_mensal || 0);
+    setGeralAtivo(ls?.meta_mensal_ativo ?? true);
+    setGeralAlertaAtivo(ls?.meta_mensal_alerta_ativo ?? true);
+    setGeralAlertaPct(ls?.meta_mensal_alerta_pct ?? 80);
+    setLimites(Array.isArray(ls?.categorias) ? ls.categorias : []);
+  }, [limitesRaw]);
 
-    try {
-      const ls = await api.limites.listar(phone, mesRef);
-      setMetaMensal(ls?.meta_mensal || 0);
-      setGeralAtivo(ls?.meta_mensal_ativo ?? true);
-      setGeralAlertaAtivo(ls?.meta_mensal_alerta_ativo ?? true);
-      setGeralAlertaPct(ls?.meta_mensal_alerta_pct ?? 80);
-      setLimites(Array.isArray(ls?.categorias) ? ls.categorias : []);
-    } catch (e) { console.warn('[limites] listar erro:', e); }
-  }, [phone, mesRef]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  const carregar = useCallback(() => Promise.all([mCats(), mRes(), mLim()]), [mCats, mRes, mLim]);
 
   // ── Métricas ───────────────────────────────────────────────
   const gastoTotal = resumo?.gastos || 0;

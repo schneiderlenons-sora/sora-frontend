@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ArrowLeft, Plug, Check, Clock, Sparkles, X, Lock, ExternalLink,
   ShieldCheck, RefreshCw, Zap, Trash2, Copy, Loader2, ChevronRight,
@@ -87,18 +88,11 @@ const CATEGORIAS: Plataforma['categoria'][] = ['Infoprodutos', 'Pagamentos', 'E-
 export default function IntegracoesPage() {
   const { isBlack, phone } = useAuth();
   const [modal, setModal] = useState<Plataforma | null>(null);
-  const [conectadas, setConectadas] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  async function carregar() {
-    if (!phone) return;
-    setLoading(true);
-    try { setConectadas(await api.negocios.integracoes.listar(phone)); }
-    catch { setConectadas([]); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: conData, mutate: mCon } = useApi((phone && isBlack) ? `neg:integ:${phone}` : null, () => api.negocios.integracoes.listar(phone));
+  const conectadas: any[] = (conData as any) ?? [];
+  const loading = conData === undefined;
+  const carregar = () => mCon();
 
   if (!isBlack) return <DashboardLayout><BloqueioBlack /></DashboardLayout>;
 

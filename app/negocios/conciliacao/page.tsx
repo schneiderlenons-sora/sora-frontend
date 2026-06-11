@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ArrowLeft, Loader2, ArrowRight, Check, X, Link2, Unlink,
   Sparkles, ShieldCheck, Info,
@@ -31,25 +32,17 @@ export default function ConciliacaoPage() {
   const { isBlack, phone } = useAuth();
   const [sugestoes, setSugestoes]   = useState<any[]>([]);
   const [conciliadas, setConciliadas] = useState<any[]>([]);
-  const [loading, setLoading]       = useState(true);
   const [tab, setTab]               = useState<'sugeridas' | 'conciliadas'>('sugeridas');
   const [agindo, setAgindo]         = useState<Set<string>>(new Set());
 
-  async function carregar() {
-    if (!phone || !isBlack) return;
-    setLoading(true);
-    try {
-      const [sug, conc] = await Promise.all([
-        api.negocios.conciliacao.sugerir(phone),
-        api.negocios.conciliacao.conciliadas(phone),
-      ]);
-      setSugestoes(sug);
-      setConciliadas(conc);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [phone, isBlack]);
+  // SWR cacheia (revisita instantânea); mantém states locais pro otimismo
+  // (aprovar/desfazer somem da lista na hora).
+  const { data: sugData,  mutate: mSug }  = useApi((phone && isBlack) ? `concil:sug:${phone}` : null,  () => api.negocios.conciliacao.sugerir(phone));
+  const { data: concData, mutate: mConc } = useApi((phone && isBlack) ? `concil:conc:${phone}` : null, () => api.negocios.conciliacao.conciliadas(phone));
+  useEffect(() => { if (sugData  !== undefined) setSugestoes((sugData as any) || []); }, [sugData]);
+  useEffect(() => { if (concData !== undefined) setConciliadas((concData as any) || []); }, [concData]);
+  const loading = sugData === undefined;
+  const carregar = () => Promise.all([mSug(), mConc()]);
 
   async function aprovar(s: any) {
     if (!phone) return;
