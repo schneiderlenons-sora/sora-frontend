@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
   Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight, Send,
@@ -99,7 +100,6 @@ export default function CasaPage() {
   const [despensa, setDespensa] = useState<any[]>([]);   // itens da despensa
   const [manutencoes, setManut] = useState<any[]>([]);   // manutenções
   const [receitas, setReceitas] = useState<any[]>([]);   // receitas
-  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     try {
@@ -110,24 +110,23 @@ export default function CasaPage() {
   }, [temCasaPlus]);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, tab); } catch {} }, [tab]);
 
-  const carregar = useCallback(async (silent = false) => {
-    if (!phone) return;
-    if (!silent) setLoading(true);
-    try {
-      const [c, d, mn, rc] = await Promise.allSettled([
-        api.grow.compras.listar(phone),
-        api.grow.despensa.listar(phone),
-        api.grow.manutencoes.listar(phone),
-        api.grow.receitas.listar(phone),
-      ]);
-      if (c.status === 'fulfilled') setItens(c.value.itens || []);
-      if (d.status === 'fulfilled') setDespensa(d.value.itens || []);
-      if (mn.status === 'fulfilled') setManut(mn.value.itens || []);
-      if (rc.status === 'fulfilled') setReceitas(rc.value.itens || []);
-    } finally { if (!silent) setLoading(false); }
-  }, [phone]);
+  // ── SWR pra cachear (revisita instantânea). Mantém state local pra não mexer
+  // no otimismo das sub-abas (usam setItens/setDespensa/... pra updates). ──
+  const { data: comprasData,  mutate: mC }  = useApi(phone ? `casa:compras:${phone}` : null,  () => api.grow.compras.listar(phone));
+  const { data: despensaData, mutate: mD }  = useApi(phone ? `casa:despensa:${phone}` : null, () => api.grow.despensa.listar(phone));
+  const { data: manutData,    mutate: mM }  = useApi(phone ? `casa:manut:${phone}` : null,    () => api.grow.manutencoes.listar(phone));
+  const { data: receitasData, mutate: mRe } = useApi(phone ? `casa:receitas:${phone}` : null, () => api.grow.receitas.listar(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const loading = comprasData === undefined;
+
+  // Semeia/atualiza o state local sempre que o SWR traz dado novo.
+  useEffect(() => { if (comprasData)  setItens((comprasData as any).itens || []); }, [comprasData]);
+  useEffect(() => { if (despensaData) setDespensa((despensaData as any).itens || []); }, [despensaData]);
+  useEffect(() => { if (manutData)    setManut((manutData as any).itens || []); }, [manutData]);
+  useEffect(() => { if (receitasData) setReceitas((receitasData as any).itens || []); }, [receitasData]);
+
+  // onReload das abas → revalida o SWR (as useEffects acima re-semeiam o local).
+  const carregar = useCallback((_silent = false) => Promise.all([mC(), mD(), mM(), mRe()]), [mC, mD, mM, mRe]);
 
   // ── stats do hero por aba ──
   const pendentesCompra = itens.filter(i => !i.comprado).length;
