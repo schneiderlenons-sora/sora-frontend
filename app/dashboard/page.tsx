@@ -462,12 +462,15 @@ export default function DashboardPage() {
                     <div key={i} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                       <div className="flex items-center justify-between text-xs mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                            style={{ background: `color-mix(in srgb, ${c.color} 13%, transparent)` }}
-                          >
-                            {c.emoji}
-                          </span>
+                          {/* Usa logo oficial pra marcas conhecidas (Shein, iFood, Uber…) */}
+                          <CategoriaIcon
+                            nome={nome}
+                            icone={c.emoji}
+                            bg={`color-mix(in srgb, ${c.color} 13%, transparent)`}
+                            color={c.color}
+                            size={24}
+                            rounded="rounded-lg"
+                          />
                           <span className="font-medium text-foreground truncate">{nome}</span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
