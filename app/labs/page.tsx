@@ -56,7 +56,7 @@ export default function SoraLabsPage() {
             </h1>
 
             <p className="text-muted-foreground text-sm sm:text-base mt-4 max-w-xl leading-relaxed">
-              Cursos, guias e desafios em <strong className="text-foreground">leitura</strong> — direto ao ponto, pra você evoluir no seu ritmo.
+              Cursos, guias e desafios — direto ao ponto, pra você evoluir no seu ritmo.
               Tudo incluso na sua assinatura, sem custo extra.
             </p>
 
