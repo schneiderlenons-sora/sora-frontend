@@ -288,13 +288,12 @@ export default function Sidebar() {
         {conteudo}
       </aside>
 
-      {/* Botão de menu — centro inferior (alcance do polegar). O dashboard
-          posiciona o "+" de atalhos logo à direita deste. */}
+      {/* Botão de menu — canto superior esquerdo, flutuando sobre os cards. */}
       <button
         onClick={() => setOpen(true)}
         aria-label="Abrir menu"
-        className="md:hidden fixed left-1/2 -translate-x-1/2 z-40 w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+        className="md:hidden fixed left-3 z-50 w-11 h-11 rounded-xl bg-card/95 backdrop-blur-md border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
       >
         <Menu size={20} className="text-foreground" />
       </button>

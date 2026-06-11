@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -9,7 +9,7 @@ import { Target, Check, Plus } from 'lucide-react';
 const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
 const diaSemBR = () => { const j = new Date().getDay(); return j === 0 ? 7 : j; };
 
-export default function GrowHabitosCard() {
+function GrowHabitosCard() {
   const { phone, temAcessoGrow } = useAuth();
   const [habitos, setHabitos]     = useState<any[]>([]);
   const [registros, setRegistros] = useState<any[]>([]);
@@ -126,3 +126,5 @@ export default function GrowHabitosCard() {
     </div>
   );
 }
+
+export default memo(GrowHabitosCard);

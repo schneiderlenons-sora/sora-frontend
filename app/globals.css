@@ -222,6 +222,21 @@
     font-feature-settings: 'cv11', 'ss01';
   }
 
+  /* Pinta a faixa da safe-area inferior (home indicator do iOS) com a cor
+     do tema — senão o sistema mostra uma barra branca embaixo no PWA.
+     Fica abaixo dos overlays (drawer/sheet usam z >= 60). */
+  body::after {
+    content: '';
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: env(safe-area-inset-bottom, 0px);
+    background-color: hsl(var(--bg));
+    z-index: 10;
+    pointer-events: none;
+  }
+
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }

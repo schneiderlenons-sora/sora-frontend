@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, memo, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -11,7 +11,7 @@ import {
 const HUMOR = ['', { e: '😔', l: 'Péssimo' }, { e: '😕', l: 'Mal' }, { e: '😐', l: 'Normal' }, { e: '🙂', l: 'Bem' }, { e: '😄', l: 'Ótimo' }] as const;
 const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
 
-export default function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
+function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
   const { phone, temAcessoGrow, podeUsar } = useAuth();
   const [tarefas, setTarefas] = useState<any[]>([]);
   const [humor, setHumor]     = useState<any[]>([]);
@@ -138,3 +138,5 @@ export default function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
     </section>
   );
 }
+
+export default memo(GrowResumo);

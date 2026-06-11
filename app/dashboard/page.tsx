@@ -148,21 +148,24 @@ export default function DashboardPage() {
   const maiorCat    = resumo?.por_categoria?.[0];
   const temDados    = (resumo?.gastos||0) > 0 || (resumo?.receitas||0) > 0;
 
-  // Fluxo de caixa — gasto por dia (não acumulado), pro gráfico de área
-  const dadosDiarios = computeDailyAmount(txsMes, today);
+  // Fluxo de caixa — gasto por dia (não acumulado), pro gráfico de área.
+  // Memoizado: percorre até 500 transações; sem isso recalcula a cada toggle.
+  const dadosDiarios = useMemo(() => computeDailyAmount(txsMes, today), [txsMes, today]);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
-  const cats = (resumo?.por_categoria||[]) as any[];
   const totalGastos = resumo?.gastos || 0;
-  const catsComPct = cats.slice(0, 7).map((c: any) => {
-    const theme = getCategoriaTheme(c.categoria || '', categorias);
-    return {
-      ...c,
-      pct: totalGastos > 0 ? Math.round((c.total / totalGastos) * 100) : 0,
-      color: theme.color,
-      emoji: theme.emoji,
-    };
-  });
+  const catsComPct = useMemo(() => {
+    const cats = (resumo?.por_categoria || []) as any[];
+    return cats.slice(0, 7).map((c: any) => {
+      const theme = getCategoriaTheme(c.categoria || '', categorias);
+      return {
+        ...c,
+        pct: totalGastos > 0 ? Math.round((c.total / totalGastos) * 100) : 0,
+        color: theme.color,
+        emoji: theme.emoji,
+      };
+    });
+  }, [resumo, categorias, totalGastos]);
 
 
   // Insight personalizado
@@ -179,7 +182,8 @@ export default function DashboardPage() {
   // Card "Fluxo de Caixa" — gasto por dia (Área) ou por categoria (Barra).
   // Extraído pra poder ir ao hero (sem Grow) ou à linha do Grow (ao lado de
   // "Próximos eventos"). Sem col-span: quem posiciona é o wrapper.
-  const fluxoCard = (
+  // Memoizado: identidade estável evita re-render do <GrowResumo> a cada toggle.
+  const fluxoCard = useMemo(() => (
     <div className="card rounded-3xl p-6 flex flex-col h-full animate-fade-in" style={{ animationDelay: '60ms' }}>
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -249,7 +253,7 @@ export default function DashboardPage() {
           : <>Total gasto por categoria em {monthName}. Toque em <strong className="text-foreground">Área</strong> pra ver o dia a dia.</>}
       </p>
     </div>
-  );
+  ), [chartMode, dadosDiarios, catsComPct, monthName]);
 
   return (
     <DashboardLayout>
@@ -584,7 +588,7 @@ export default function DashboardPage() {
       ══════════════════════════════════════════════════════ */}
       <div
         className="md:hidden fixed z-40"
-        style={{ left: 'calc(50% + 3.75rem)', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)', transform: 'translateX(-50%)' }}
+        style={{ left: '50%', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)', transform: 'translateX(-50%)' }}
       >
         <button
           onClick={() => setQuickOpen(true)}
