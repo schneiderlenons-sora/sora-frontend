@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
 import { nomeCategoria, getCategoriaTheme, isHexGrayscale } from '@/lib/categorias';
@@ -103,12 +104,6 @@ export default function CategoriasPage() {
   const mesRef = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`;
   const mesLabel = `${MESES_NOMES[refDate.getMonth()]} de ${refDate.getFullYear()}`;
 
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [resumo,     setResumo]     = useState<any>({ por_categoria: [], gastos: 0 });
-  const [limites,    setLimites]    = useState<Limite[]>([]);
-
-  const [loading,    setLoading]    = useState(false);
-  const [erroFetch,  setErroFetch]  = useState<string | null>(null);
   const [restaurando, setRestaurando] = useState(false);
   const [ocultar,    setOcultar]    = useState(false);
   const [busca,      setBusca]      = useState('');
@@ -122,34 +117,27 @@ export default function CategoriasPage() {
   const [modalLim,  setModalLim]   = useState<Categoria | null>(null);
   const [confirmDel,setConfirmDel] = useState<Categoria | null>(null);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    setLoading(true);
-    setErroFetch(null);
+  // ── Dados via SWR: cache em memória → revisitar/trocar de mês é instantâneo.
+  const { data: catsData, error: catsError, isLoading: catsLoading, mutate: mCats } =
+    useApi(phone ? `cat:list:${phone}` : null, () => api.categorias.listar(phone));
+  const { data: resumoData, mutate: mResumo } =
+    useApi(phone ? `cat:resumo:${phone}:${mesRef}` : null, () => api.transacoes.resumo(phone, mesRef));
+  const { data: limitesData, mutate: mLimites } =
+    useApi(phone ? `cat:limites:${phone}:${mesRef}` : null, () => api.limites.listar(phone, mesRef));
 
-    // Paraleliza as 3 chamadas — listar é a crítica (decide se mostra erro)
-    const [cats, r, ls] = await Promise.allSettled([
-      api.categorias.listar(phone),
-      api.transacoes.resumo(phone, mesRef),
-      api.limites.listar(phone, mesRef),
-    ]);
+  const categorias = (catsData ?? []) as Categoria[];
+  const resumo: any = resumoData ?? { por_categoria: [], gastos: 0 };
+  const limites = (Array.isArray(limitesData) ? limitesData : ((limitesData as any)?.limites ?? [])) as Limite[];
 
-    if (cats.status === 'rejected') {
-      console.error('[categorias] listar falhou:', cats.reason);
-      setErroFetch(cats.reason?.message || 'Erro desconhecido ao buscar categorias.');
-      setLoading(false);
-      return;
-    }
-    setCategorias(cats.value || []);
+  const loading   = catsLoading && !catsData;
+  const erroFetch = catsError ? (catsError.message || 'Erro desconhecido ao buscar categorias.') : null;
 
-    if (r.status === 'fulfilled') setResumo(r.value || { por_categoria: [], gastos: 0 });
-    if (ls.status === 'fulfilled') {
-      const arr = Array.isArray(ls.value) ? ls.value : (ls.value?.limites || []);
-      setLimites(arr);
-    }
-
-    setLoading(false);
-  }, [phone, mesRef]);
+  // Revalida tudo (usado após excluir/editar/restaurar). Retorna promise
+  // pra quem precisa aguardar (ex.: restaurarPadrao).
+  const carregar = useCallback(
+    () => Promise.all([mCats(), mResumo(), mLimites()]),
+    [mCats, mResumo, mLimites],
+  );
 
   async function restaurarPadrao() {
     if (!phone || restaurando) return;
@@ -165,8 +153,6 @@ export default function CategoriasPage() {
       setRestaurando(false);
     }
   }
-
-  useEffect(() => { carregar(); }, [carregar]);
 
   // ── Helpers ────────────────────────────────────────────────
   const gastoDeNome = (nomeBruto: string): number => {
@@ -252,14 +238,20 @@ export default function CategoriasPage() {
     }
   }
 
-  // Edição rápida de cor pelo popover do ícone — otimista
+  // Edição rápida de cor pelo popover do ícone — otimista (via SWR).
   async function handleMudarCor(c: Categoria, hue: number) {
-    setCategorias(prev => prev.map(x => x.id === c.id ? { ...x, cor: hue } : x));
     try {
-      await api.categorias.editar(c.id, { nome: c.nome, icone: c.icone, cor: hue, tipo: c.tipo });
+      await mCats(
+        async () => { await api.categorias.editar(c.id, { nome: c.nome, icone: c.icone, cor: hue, tipo: c.tipo }); return undefined; },
+        {
+          optimisticData: (cur: any) => (cur || []).map((x: any) => x.id === c.id ? { ...x, cor: hue } : x),
+          rollbackOnError: true,
+          populateCache: false,
+          revalidate: false,
+        },
+      );
     } catch (e: any) {
       console.warn('[categorias] mudar cor falhou:', e);
-      carregar(); // reverte do banco
     }
   }
 

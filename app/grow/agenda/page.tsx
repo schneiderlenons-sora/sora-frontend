@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import GrowHero from '@/components/grow/GrowHero';
 import {
   CalendarDays, Plus, Loader2, Check, X, Trash2, Pencil, Bell, Clock,
@@ -82,8 +83,6 @@ const ordenarDia = (a: any, b: any) => (a.hora || '99:99').localeCompare(b.hora 
 export default function AgendaPage() {
   const { phone } = useAuth();
   const router = useRouter();
-  const [eventos, setEventos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [view, setView]       = useState<'lista' | 'mes'>('lista');
   const [ocultas, setOcultas] = useState<Set<FamKey>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
@@ -95,17 +94,12 @@ export default function AgendaPage() {
   }, []);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, view); } catch {} }, [view]);
 
-  const carregar = useCallback(async (silent = false) => {
-    if (!phone) return;
-    if (!silent) setLoading(true);
-    try {
-      const r = await api.grow.compromissos.feed(phone);
-      setEventos(r.eventos || []);
-    } catch { /* tolerante */ }
-    finally { if (!silent) setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // ── Feed via SWR: mesma key do dashboard (GrowResumo) → cache compartilhado,
+  // navegação instantânea entre o painel e a agenda.
+  const { data: feedData, mutate: mFeed } = useApi(phone ? `grow:feed:${phone}` : null, () => api.grow.compromissos.feed(phone));
+  const eventos: any[] = feedData?.eventos ?? [];
+  const loading = feedData === undefined;
+  const carregar = useCallback((_silent = false) => mFeed(), [mFeed]);
 
   // aplica filtro de famílias
   const visiveis = useMemo(() => eventos.filter(e => !ocultas.has(familiaDe(e.source))), [eventos, ocultas]);
@@ -135,8 +129,16 @@ export default function AgendaPage() {
   async function deletar(e: any) {
     if (!e.editavel) return;
     if (!confirm(`Excluir "${e.titulo}"?`)) return;
-    setEventos(prev => prev.filter(x => x.id !== e.id));
-    try { await api.grow.compromissos.deletar(e.raw.id, phone!); } catch (err: any) { alert(err.message); carregar(); }
+    // Remoção otimista via SWR.
+    try {
+      await mFeed(
+        async () => { await api.grow.compromissos.deletar(e.raw.id, phone!); return undefined; },
+        {
+          optimisticData: (cur: any) => ({ ...(cur || { eventos: [] }), eventos: (cur?.eventos || []).filter((x: any) => x.id !== e.id) }),
+          rollbackOnError: true, populateCache: false, revalidate: true,
+        },
+      );
+    } catch (err: any) { alert(err.message); }
   }
 
   return (

@@ -8,6 +8,7 @@ import ImportarModal from '@/components/transacoes/ImportarModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
@@ -42,9 +43,6 @@ export default function TransacoesPage() {
   const podeImportar = podeImportarOFX || podeImportarCSV;
   const podeExportar = podeUsar('export_dados');
 
-  const [txs,      setTxs]      = useState<any[]>([]);
-  const [wallets,  setWallets]  = useState<any[]>([]);
-  const [resumo,   setResumo]   = useState<any>({ receitas: 0, gastos: 0, por_categoria: [] });
   const [modalOpen,setModalOpen]= useState(false);
   const [ocultar,  setOcultar]  = useState(false);
   const [importMenuOpen, setImportMenuOpen] = useState(false);
@@ -70,24 +68,19 @@ export default function TransacoesPage() {
   const mesRef = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`;
   const mesLabel = refDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-  // ── Carregamento sem bloquear UI ───────────────────────────
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const t = await api.transacoes.listar(phone, { mes: mesRef, limit: 500 });
-      setTxs(t.transacoes || []);
-    } catch (e) { console.warn('[transacoes] listar erro:', e); }
-    try {
-      const w = await api.wallets.listar(phone);
-      setWallets(w || []);
-    } catch (e) { console.warn('[transacoes] wallets erro:', e); }
-    try {
-      const r = await api.transacoes.resumo(phone, mesRef);
-      setResumo(r);
-    } catch (e) { console.warn('[transacoes] resumo erro:', e); }
-  }, [phone, mesRef]);
+  // ── Dados via SWR: cache em memória → revisitar a tela ou trocar de mês é
+  // instantâneo (mostra o último dado e revalida em silêncio). keepPreviousData
+  // evita piscar pra vazio ao navegar entre meses.
+  const { data: txData, mutate: mTx } = useApi(phone ? `tx:list:${phone}:${mesRef}` : null,    () => api.transacoes.listar(phone, { mes: mesRef, limit: 500 }));
+  const { data: wData,  mutate: mW }  = useApi(phone ? `tx:wallets:${phone}` : null,            () => api.wallets.listar(phone));
+  const { data: rData,  mutate: mR }  = useApi(phone ? `tx:resumo:${phone}:${mesRef}` : null,   () => api.transacoes.resumo(phone, mesRef));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const txs: any[]     = txData?.transacoes ?? [];
+  const wallets: any[] = wData ?? [];
+  const resumo: any    = rData ?? { receitas: 0, gastos: 0, por_categoria: [] };
+
+  // Revalida tudo (usado após criar/importar transação).
+  const carregar = useCallback(() => { mTx(); mW(); mR(); }, [mTx, mW, mR]);
 
   // ── Filtros aplicados ──────────────────────────────────────
   const txsFiltradas = useMemo(() => {
@@ -127,14 +120,20 @@ export default function TransacoesPage() {
   // ── Ações ──────────────────────────────────────────────────
   async function handleDeletar(id: string) {
     if (!confirm('Excluir esta transação?')) return;
-    // Remoção otimista — some da lista na hora
-    const backup = txs;
-    setTxs(prev => prev.filter(t => t.id !== id));
     setRowMenuOpen(null);
+    // Remoção otimista via SWR — some da lista na hora, reverte se a API falhar.
     try {
-      await api.transacoes.deletar(id, phone);
+      await mTx(
+        async () => { await api.transacoes.deletar(id, phone); return undefined; },
+        {
+          optimisticData: (cur: any) => ({ ...(cur || { transacoes: [], total: 0 }), transacoes: (cur?.transacoes || []).filter((t: any) => t.id !== id) }),
+          rollbackOnError: true,
+          populateCache: false,
+          revalidate: true,
+        },
+      );
+      mR(); // os totais do resumo mudam após excluir
     } catch (e: any) {
-      setTxs(backup); // reverte se falhar
       alert('Erro ao excluir: ' + (e.message || ''));
     }
   }

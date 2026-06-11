@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   Plus, ListChecks, Loader2, X, Check, Trash2, Sparkles, Tag,
   ChevronRight, AlertCircle, Pencil, FolderPlus,
@@ -26,28 +27,22 @@ const COLUNAS: { v: 'a_fazer' | 'em_progresso' | 'concluida'; l: string; sub: st
 
 export default function TarefasPage() {
   const { phone } = useAuth();
-  const [tarefas, setTarefas]   = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
   const [novaOpen, setNovaOpen] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
   const [novoProjeto, setNovoProjeto] = useState(false);
   const [filtroProjeto, setFiltroProjeto] = useState<string | null>(null);
 
-  const carregar = useCallback(async (silent = false) => {
-    if (!phone) return;
-    if (!silent) setLoading(true);
-    try {
-      const [t, p] = await Promise.all([
-        api.grow.tarefas.listar(phone),
-        api.grow.projetos.listar(phone),
-      ]);
-      setTarefas(t || []);
-      setProjetos(p || []);
-    } finally { if (!silent) setLoading(false); }
-  }, [phone]);
+  // ── Dados via SWR: revisitar a tela é instantâneo (cache em memória). ──
+  const { data: tData, mutate: mT } = useApi(phone ? `grow:tarefas-all:${phone}` : null, () => api.grow.tarefas.listar(phone));
+  const { data: pData, mutate: mP } = useApi(phone ? `grow:projetos:${phone}` : null,    () => api.grow.projetos.listar(phone));
 
-  useEffect(() => { carregar(); }, [carregar]);
+  const tarefas: any[]  = (tData as any) ?? [];
+  const projetos: any[] = (pData as any) ?? [];
+  const loading = tData === undefined;
+
+  // Revalida (usado após criar/editar). `silent` é ignorado — SWR já mantém o
+  // dado anterior enquanto revalida (nunca pisca pra vazio).
+  const carregar = useCallback((_silent = false) => Promise.all([mT(), mP()]), [mT, mP]);
 
   const tarefasFiltradas = useMemo(() => {
     return filtroProjeto ? tarefas.filter(t => t.projeto_id === filtroProjeto) : tarefas;
@@ -63,19 +58,31 @@ export default function TarefasPage() {
   }, [tarefasFiltradas]);
 
   async function moverTarefa(t: any, novaCol: string) {
-    setTarefas(prev => prev.map(x => x.id === t.id ? { ...x, status_kanban: novaCol, concluida: novaCol === 'concluida' } : x));
+    // Move otimista (Kanban) via SWR — atualiza na hora, reverte se falhar.
     try {
-      await api.grow.tarefas.editar(t.id, { status_kanban: novaCol, concluida: novaCol === 'concluida' });
-    } catch (e: any) { alert(e.message); carregar(true); }
+      await mT(
+        async () => { await api.grow.tarefas.editar(t.id, { status_kanban: novaCol, concluida: novaCol === 'concluida' }); return undefined; },
+        {
+          optimisticData: (cur: any) => (cur || []).map((x: any) => x.id === t.id ? { ...x, status_kanban: novaCol, concluida: novaCol === 'concluida' } : x),
+          rollbackOnError: true, populateCache: false, revalidate: false,
+        },
+      );
+    } catch (e: any) { alert(e.message); }
   }
 
   async function deletarTarefa(t: any) {
     if (!phone) return;
     if (!confirm(`Excluir "${t.titulo}"?`)) return;
-    // Remove otimisticamente
-    setTarefas(prev => prev.filter(x => x.id !== t.id));
-    try { await api.grow.tarefas.deletar(t.id, phone); }
-    catch (e: any) { alert(e.message); carregar(true); }
+    // Remoção otimista via SWR.
+    try {
+      await mT(
+        async () => { await api.grow.tarefas.deletar(t.id, phone); return undefined; },
+        {
+          optimisticData: (cur: any) => (cur || []).filter((x: any) => x.id !== t.id),
+          rollbackOnError: true, populateCache: false, revalidate: false,
+        },
+      );
+    } catch (e: any) { alert(e.message); }
   }
 
   return (
@@ -227,7 +234,7 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
     setErro('');
     if (!titulo.trim()) { setErro('Título obrigatório.'); return; }
     setLoading(true);
-    const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+    const tags = tagsStr.split(',').map((t: string) => t.trim()).filter(Boolean);
     try {
       if (ed) await api.grow.tarefas.editar(tarefa.id, { titulo: titulo.trim(), descricao, prioridade, projeto_id: projetoId || null, tags });
       else    await api.grow.tarefas.criar({ phone, titulo: titulo.trim(), descricao, prioridade, projeto_id: projetoId || null, tags });
