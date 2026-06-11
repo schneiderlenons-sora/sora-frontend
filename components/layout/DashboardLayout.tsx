@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className="
           flex-1 overflow-y-auto relative
           px-4 sm:px-6
-          pt-[calc(env(safe-area-inset-top,0px)+4rem)] md:pt-6
+          pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:pt-6
           pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-6
         "
       >

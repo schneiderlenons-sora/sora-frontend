@@ -204,10 +204,18 @@
 @layer base {
   * { border-color: hsl(var(--border)); }
 
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    /* Fundo temático no html também — evita faixa branca na safe-area
+       inferior (PWA iOS) e no rubber-band/overscroll. */
+    background-color: hsl(var(--bg));
+    overscroll-behavior-y: none;
+  }
 
   body {
     background-color: hsl(var(--bg));
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
     color: hsl(var(--fg));
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;

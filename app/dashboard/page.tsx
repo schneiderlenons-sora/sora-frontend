@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import GrowResumo from '@/components/dashboard/GrowResumo';
 import GrowHabitosCard from '@/components/dashboard/GrowHabitosCard';
+import QuickAddSheet from '@/components/dashboard/QuickAddSheet';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
@@ -14,7 +15,7 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
-  Wallet, MessageCircle, ChevronRight, Clock, BarChart3,
+  Wallet, ChevronRight, Clock, BarChart3,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, Cell,
@@ -105,6 +106,7 @@ export default function DashboardPage() {
   const [txsMes,    setTxsMes]    = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
 
   const hoje        = new Date();
@@ -323,12 +325,15 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* CTA WhatsApp */}
-              <button className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] w-fit shadow-glow-sm"
-                      style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})` }}>
-                <MessageCircle size={16} className="text-white" />
-                Conversar com a Sora
-              </button>
+              {/* CTA — Nova transação (só com permissão de escrita) */}
+              <PermissaoGuard>
+                <button onClick={() => setModalOpen(true)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] w-fit shadow-glow-sm"
+                        style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})` }}>
+                  <Plus size={16} className="text-white" />
+                  Nova transação
+                </button>
+              </PermissaoGuard>
             </div>
           </div>
 
@@ -574,21 +579,28 @@ export default function DashboardPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          FAB — Nova Transação (só com permissão de escrita)
+          Botão "+" de atalhos — ao lado do menu (centro inferior), mobile.
+          Abre a folha de atalhos rápidos (transação, compromisso, etc).
       ══════════════════════════════════════════════════════ */}
-      <PermissaoGuard>
+      <div
+        className="md:hidden fixed z-40"
+        style={{ left: 'calc(50% + 3.75rem)', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)', transform: 'translateX(-50%)' }}
+      >
         <button
-          onClick={() => setModalOpen(true)}
-          className="fixed right-4 sm:right-6 flex items-center gap-2 px-5 py-3.5 rounded-2xl z-40 text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-glow"
-          style={{
-            background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})`,
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
-          }}
+          onClick={() => setQuickOpen(true)}
+          aria-label="Atalhos de adição"
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-glow active:scale-95 transition-transform"
+          style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})` }}
         >
-          <Plus size={18} />
-          Nova transação
+          <Plus size={22} />
         </button>
-      </PermissaoGuard>
+      </div>
+
+      <QuickAddSheet
+        open={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        onNovaTransacao={() => setModalOpen(true)}
+      />
 
       {modalOpen && (
         <NovaTransacaoModal

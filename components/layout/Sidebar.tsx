@@ -87,6 +87,16 @@ export default function Sidebar() {
   // Tema "escuro" foi removido — quem tinha 'dark' salvo migra pra 'black'.
   useEffect(() => { if (mounted && theme === 'dark') setTheme('black'); }, [mounted, theme, setTheme]);
 
+  // Trava o scroll do conteúdo atrás enquanto o drawer está aberto (mobile).
+  // Sem isso, arrastar na sidebar acaba rolando a página de baixo.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prev = root.style.overflow;
+    root.style.overflow = 'hidden';
+    return () => { root.style.overflow = prev; };
+  }, [open]);
+
   // Estado inicial dos grupos: lê localStorage; Grow default = tem acesso
   useEffect(() => {
     try {
@@ -188,16 +198,26 @@ export default function Sidebar() {
 
   const conteudo = (
     <div className="flex flex-col h-full">
-      {/* Logo Sora */}
-      <div className="px-4 py-4 border-b border-white/10 flex items-center gap-2.5">
+      {/* Logo Sora (+ fechar no drawer mobile, na mesma linha) */}
+      <div
+        className="px-4 pb-4 border-b border-white/10 flex items-center gap-2.5"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+      >
         <img src="/brands/sora.png" alt="Sora" width={36} height={36} className="w-9 h-9 rounded-xl flex-shrink-0 shadow-sm" draggable={false} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-white font-bold text-lg leading-none">Sora</p>
           <p className="text-white/55 text-[10px] leading-none mt-1">Sua vida organizada</p>
         </div>
+        <button
+          onClick={() => setOpen(false)}
+          aria-label="Fechar menu"
+          className="md:hidden -mr-1 w-10 h-10 rounded-xl flex items-center justify-center text-white/80 hover:text-white hover:bg-white/15 active:scale-95 transition-all flex-shrink-0"
+        >
+          <X size={20} />
+        </button>
       </div>
 
-      <nav className="flex-1 px-3 py-3 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-3 py-3 overflow-y-auto overscroll-contain">
         {/* DASHBOARD — unificado, acima dos grupos */}
         <div className="space-y-0.5 mb-2">
           <NavLink item={NAV_DASHBOARD} />
@@ -268,27 +288,20 @@ export default function Sidebar() {
         {conteudo}
       </aside>
 
+      {/* Botão de menu — centro inferior (alcance do polegar). O dashboard
+          posiciona o "+" de atalhos logo à direita deste. */}
       <button
         onClick={() => setOpen(true)}
         aria-label="Abrir menu"
-        className="md:hidden fixed left-3 z-50 w-11 h-11 rounded-xl bg-card/95 backdrop-blur-md border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+        className="md:hidden fixed left-1/2 -translate-x-1/2 z-40 w-12 h-12 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
       >
         <Menu size={20} className="text-foreground" />
       </button>
 
       {open && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-72 flex flex-col shadow-xl" style={sidebarStyle}>
-            <div className="flex justify-end px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Fechar menu"
-                className="w-11 h-11 rounded-xl flex items-center justify-center text-white/80 hover:text-white hover:bg-white/15 active:scale-95 transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <div className="md:hidden fixed inset-0 z-[60] flex">
+          <div className="w-72 h-dvh flex flex-col shadow-xl overscroll-contain" style={sidebarStyle}>
             {conteudo}
           </div>
           <div className="flex-1 bg-black/40" onClick={() => setOpen(false)} />
