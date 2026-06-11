@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import ModalProva from '@/components/estudos/ModalProva';
 import {
@@ -32,26 +33,16 @@ const TIPO_COR: any = {
 
 export default function EstudosDashboard() {
   const { phone, perfil } = useAuth();
-  const [data, setData] = useState<any>(null);
-  const [sessoes, setSessoes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalSessao, setModalSessao] = useState(false);
   const [modalProva, setModalProva] = useState(false);
 
-  const carregar = useCallback(async () => {
-    if (!phone) return;
-    try {
-      const [d, s] = await Promise.all([
-        api.estudos.dashboard(phone),
-        api.estudos.sessoes.listar(phone, { dias: 90 }),
-      ]);
-      setData(d);
-      setSessoes(s || []);
-    } catch (e) { console.warn('[estudos]', e); }
-    finally { setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // Dados via SWR — revisita instantânea (cache em memória).
+  const { data: dData, mutate: mD } = useApi(phone ? `est:dash:${phone}` : null,    () => api.estudos.dashboard(phone));
+  const { data: sData, mutate: mS } = useApi(phone ? `est:sessoes:${phone}` : null, () => api.estudos.sessoes.listar(phone, { dias: 90 }));
+  const data = dData ?? null;
+  const sessoes: any[] = (sData as any) ?? [];
+  const loading = dData === undefined;
+  const carregar = useCallback(() => Promise.all([mD(), mS()]), [mD, mS]);
 
   // Heatmap 90 dias
   const heatmap = useMemo(() => {

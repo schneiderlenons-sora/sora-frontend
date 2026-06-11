@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
 import {
   Activity, Loader2, Scale, Droplets, Dumbbell, Sparkles, Plus, ArrowRight,
   CalendarHeart, Pill, AlertCircle, TrendingDown, TrendingUp, Minus,
@@ -40,21 +41,14 @@ const fmtData = (iso?: string) => {
 export default function SaudeDashboardPage() {
   const { phone, perfil } = useAuth();
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [modalPeso, setModalPeso] = useState(false);
   const [addingAgua, setAddingAgua] = useState<number | null>(null);
 
-  const carregar = useCallback(async (silent = false) => {
-    if (!phone) return;
-    if (!silent) setLoading(true);
-    try {
-      const r = await api.saude.dashboard(phone);
-      setData(r);
-    } catch (e) { console.warn('[saude] dashboard', e); }
-    finally { if (!silent) setLoading(false); }
-  }, [phone]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  // SWR cacheia (revisita instantânea); mantém `data` local pro otimismo da água.
+  const { data: swrData, mutate: mDash } = useApi(phone ? `saude:dash:${phone}` : null, () => api.saude.dashboard(phone));
+  useEffect(() => { if (swrData !== undefined) setData(swrData); }, [swrData]);
+  const loading = data == null;
+  const carregar = useCallback((_silent = false) => mDash(), [mDash]);
 
   // Água — totalmente otimista. Sem disable de botão, sem piscar nada.
   // Recalcula hoje_ml + pct na hora e revalida em background.
