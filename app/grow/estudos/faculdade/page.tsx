@@ -9,7 +9,7 @@ import ModalProva from '@/components/estudos/ModalProva';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import {
   GraduationCap, Sparkles, Loader2, Plus, Pencil, FileText, Calendar,
-  BookOpen, Clock, ChevronRight, Trophy, Play,
+  BookOpen, Clock, ChevronRight, Trophy, Play, Target,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';

@@ -141,8 +141,8 @@ export default function ModalPerfilSaude({ phone, perfil, onClose, onSuccess }: 
             </div>
           </div>
 
-          <ListaTag titulo="Condições crônicas" items={condicoes} novo={novaCond} setNovo={setNovaCond} onAdd={() => { if (novaCond.trim()) { setCondicoes([...condicoes, novaCond.trim()]); setNovaCond(''); } }} onRemove={(i) => setCondicoes(condicoes.filter((_, idx) => idx !== i))} placeholder="Ex: hipertensão, diabetes tipo 2" />
-          <ListaTag titulo="Alergias" items={alergias} novo={novaAl} setNovo={setNovaAl} onAdd={() => { if (novaAl.trim()) { setAlergias([...alergias, novaAl.trim()]); setNovaAl(''); } }} onRemove={(i) => setAlergias(alergias.filter((_, idx) => idx !== i))} placeholder="Ex: lactose, glúten, amendoim" />
+          <ListaTag titulo="Condições crônicas" items={condicoes} novo={novaCond} setNovo={setNovaCond} onAdd={() => { if (novaCond.trim()) { setCondicoes([...condicoes, novaCond.trim()]); setNovaCond(''); } }} onRemove={(i: number) => setCondicoes(condicoes.filter((_, idx) => idx !== i))} placeholder="Ex: hipertensão, diabetes tipo 2" />
+          <ListaTag titulo="Alergias" items={alergias} novo={novaAl} setNovo={setNovaAl} onAdd={() => { if (novaAl.trim()) { setAlergias([...alergias, novaAl.trim()]); setNovaAl(''); } }} onRemove={(i: number) => setAlergias(alergias.filter((_, idx) => idx !== i))} placeholder="Ex: lactose, glúten, amendoim" />
 
           {sexo === 'F' && (
             <div className="rounded-xl p-3 bg-muted/30 border border-border/40 flex items-center justify-between">

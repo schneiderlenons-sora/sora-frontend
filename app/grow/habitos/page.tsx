@@ -192,11 +192,11 @@ export default function HabitosPage() {
         </div>
       ) : (
         <div className="animate-fade-in">
-          {tab === 'visao'      && <TabVisao habitos={habitosDeHoje} registros={registros} concluidos={concluidosHoje} onToggle={toggleHabito} onNew={() => { setEditando(null); setModalOpen(true); }} onEdit={h => { setEditando(h); setModalOpen(true); }} />}
+          {tab === 'visao'      && <TabVisao habitos={habitosDeHoje} registros={registros} concluidos={concluidosHoje} onToggle={toggleHabito} onNew={() => { setEditando(null); setModalOpen(true); }} onEdit={(h: any) => { setEditando(h); setModalOpen(true); }} />}
           {tab === 'semana'     && <TabSemana habitosAtivos={habitosAtivos} registros={registros} onToggle={toggleHabito} />}
           {tab === 'heatmap'    && <TabHeatmap habitosAtivos={habitosAtivos} registros={registros} />}
           {tab === 'conquistas' && <TabConquistas habitos={habitos} registros={registros} />}
-          {tab === 'gerenciar'  && <TabGerenciar phone={phone!} habitos={habitos} registros={registros} incluirArquivados={incluirArquivados} setInclArq={setInclArq} onEdit={h => { setEditando(h); setModalOpen(true); }} onReload={carregar} onNew={() => { setEditando(null); setModalOpen(true); }} lembreteInicial={lembrete} />}
+          {tab === 'gerenciar'  && <TabGerenciar phone={phone!} habitos={habitos} registros={registros} incluirArquivados={incluirArquivados} setInclArq={setInclArq} onEdit={(h: any) => { setEditando(h); setModalOpen(true); }} onReload={carregar} onNew={() => { setEditando(null); setModalOpen(true); }} lembreteInicial={lembrete} />}
         </div>
       )}
 
@@ -416,7 +416,7 @@ function TabSemana({ habitosAtivos, registros, onToggle }: any) {
 
   const concluidosPorDia = useMemo(() => {
     const m: Record<string, Set<string>> = {};
-    registros.filter(r => r.concluido).forEach(r => {
+    registros.filter((r: any) => r.concluido).forEach((r: any) => {
       if (!m[r.data]) m[r.data] = new Set();
       m[r.data].add(r.habito_id);
     });
