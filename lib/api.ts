@@ -60,6 +60,15 @@ export const api = {
       }),
   },
 
+  // ── DASHBOARD (consolidado) ───────────────────────────────────
+  // Junta resumo (mês + mês anterior), carteiras, transações recentes,
+  // gastos do mês e categorias numa única chamada. O painel tem fallback
+  // pras chamadas individuais caso este endpoint falhe.
+  dashboard: {
+    get: (phone: string, mes: string, mesAnt: string) =>
+      req<any>(`/api/dashboard/${phone}?mes=${mes}&mesAnt=${mesAnt}`),
+  },
+
   // ── TRANSAÇÕES ────────────────────────────────────────────────
   transacoes: {
     listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por_me?: boolean; criado_por_phone?: string }) => {

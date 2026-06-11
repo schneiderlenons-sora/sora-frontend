@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useSWRConfig } from 'swr';
 import { useApi } from '@/lib/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -97,6 +96,35 @@ function VarBadge({ val, invert = false, size = 'sm' }: { val: number; invert?: 
   );
 }
 
+// Busca consolidada do dashboard: tenta o endpoint único e, se ele falhar
+// (backend ainda atualizando, erro, etc.), cai automaticamente nas 6 chamadas
+// antigas — mesma forma de dado. Garante que o painel nunca quebra.
+async function fetchDashboard(phone: string, mes: string, mesAnt: string) {
+  try {
+    const d = await api.dashboard.get(phone, mes, mesAnt);
+    if (d && d.resumo) return d;
+    throw new Error('forma inesperada');
+  } catch {
+    const [r, rAnt, w, tRec, tMes, cats] = await Promise.allSettled([
+      api.transacoes.resumo(phone, mes),
+      api.transacoes.resumo(phone, mesAnt),
+      api.wallets.listar(phone),
+      api.transacoes.listar(phone, { limit: 8 }),
+      api.transacoes.listar(phone, { mes, tipo: 'Gasto', limit: 500 }),
+      api.categorias.listar(phone),
+    ]);
+    const v = (x: PromiseSettledResult<any>, def: any) => (x.status === 'fulfilled' ? x.value : def);
+    return {
+      resumo:     v(r,    { receitas: 0, gastos: 0, por_categoria: [] }),
+      resumoAnt:  v(rAnt, { receitas: 0, gastos: 0, por_categoria: [] }),
+      wallets:    v(w, []),
+      txsRec:     v(tRec, { transacoes: [], total: 0 }),
+      txsMes:     v(tMes, { transacoes: [], total: 0 }),
+      categorias: v(cats, []),
+    };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { phone, perfil, temAcessoGrow } = useAuth();
@@ -110,30 +138,23 @@ export default function DashboardPage() {
   const monthName   = hoje.toLocaleDateString('pt-BR', { month: 'long' });
   const primeiroNome = perfil?.name?.split(' ')[0] || 'amigo';
 
-  // ── Dados via SWR: cache em memória compartilhado → revisitar o dashboard
-  // é instantâneo (mostra o último dado e revalida em silêncio, sem flash).
-  // Cada chamada é isolada; se uma falha, as outras preenchem.
-  const k = phone || null;
-  const { data: resumoData }    = useApi(k && `dash:resumo:${phone}:${mesAtual}`,    () => api.transacoes.resumo(phone, mesAtual));
-  const { data: resumoAntData } = useApi(k && `dash:resumo:${phone}:${mesAnterior}`, () => api.transacoes.resumo(phone, mesAnterior));
-  const { data: walletsData }   = useApi(k && `dash:wallets:${phone}`,               () => api.wallets.listar(phone));
-  const { data: txsData }       = useApi(k && `dash:txrec:${phone}`,                 () => api.transacoes.listar(phone, { limit: 8 }));
-  const { data: txsMesData }    = useApi(k && `dash:txmes:${phone}:${mesAtual}`,      () => api.transacoes.listar(phone, { mes: mesAtual, tipo: 'Gasto', limit: 500 }));
-  const { data: catsData }      = useApi(k && `dash:cats:${phone}`,                   () => api.categorias.listar(phone));
-
-  const resumo     = resumoData    ?? { receitas: 0, gastos: 0, por_categoria: [] };
-  const resumoAnt  = resumoAntData ?? { receitas: 0, gastos: 0, por_categoria: [] };
-  const wallets    = walletsData   ?? [];
-  const txs        = txsData?.transacoes    ?? [];
-  const txsMes     = txsMesData?.transacoes ?? [];
-  const categorias = catsData ?? [];
-
-  // Revalida os dados do dashboard (ex.: após criar uma transação no modal).
-  const { mutate } = useSWRConfig();
-  const revalidar = useCallback(
-    () => { mutate((key) => typeof key === 'string' && key.startsWith('dash:')); },
-    [mutate],
+  // ── Dados via SWR: 1 chamada consolidada (com fallback automático pras 6
+  // antigas). Cache em memória compartilhado → revisitar o dashboard é
+  // instantâneo (mostra o último dado e revalida em silêncio, sem flash).
+  const { data, mutate: revalidarDados } = useApi(
+    phone ? `dash:all:${phone}:${mesAtual}` : null,
+    () => fetchDashboard(phone, mesAtual, mesAnterior),
   );
+
+  const resumo:    any   = data?.resumo    ?? { receitas: 0, gastos: 0, por_categoria: [] };
+  const resumoAnt: any   = data?.resumoAnt ?? { receitas: 0, gastos: 0, por_categoria: [] };
+  const wallets:   any[] = data?.wallets   ?? [];
+  const txs:       any[] = data?.txsRec?.transacoes ?? [];
+  const txsMes:    any[] = data?.txsMes?.transacoes ?? [];
+  const categorias: any[] = data?.categorias ?? [];
+
+  // Revalida o dashboard (ex.: após criar uma transação no modal).
+  const revalidar = useCallback(() => { revalidarDados(); }, [revalidarDados]);
 
   // ── Métricas (memoizadas — só recalculam quando os dados mudam) ──
   const saldoTotal  = useMemo(
