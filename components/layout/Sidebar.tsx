@@ -246,7 +246,7 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/20">
+      <div className="px-3 pt-4 border-t border-white/20" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
         <button onClick={ciclarTema} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
           <ProxIcon size={18} />
           <span>{proxLabel}</span>
@@ -300,7 +300,7 @@ export default function Sidebar() {
 
       {open && (
         <div className="md:hidden fixed inset-0 z-[60] flex">
-          <div className="w-72 h-dvh flex flex-col shadow-xl overscroll-contain" style={sidebarStyle}>
+          <div className="w-72 h-full flex flex-col shadow-xl overscroll-contain" style={sidebarStyle}>
             {conteudo}
           </div>
           <div className="flex-1 bg-black/40" onClick={() => setOpen(false)} />

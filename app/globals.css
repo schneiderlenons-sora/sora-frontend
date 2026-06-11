@@ -4,6 +4,13 @@
 /* Dark mode via classe .dark */
 @variant dark (&:where(.dark, .dark *));
 
+/* Fundo do canvas SEMPRE com a cor do tema (regra fora de @layer = prioridade
+   sobre o preflight). O background do <html> é propagado para toda a área de
+   pintura, incluindo a safe-area do iOS — evita qualquer faixa branca no PWA,
+   sem nenhum elemento por cima do conteúdo. */
+html { background-color: hsl(var(--bg)); }
+body { background-color: hsl(var(--bg)); }
+
 /* ─────────────────────────────────────────────────────────────
    CSS VARIABLES — MODO CLARO
 ───────────────────────────────────────────────────────────── */
@@ -206,35 +213,15 @@
 
   html {
     scroll-behavior: smooth;
-    /* Fundo temático no html também — evita faixa branca na safe-area
-       inferior (PWA iOS) e no rubber-band/overscroll. */
-    background-color: hsl(var(--bg));
     overscroll-behavior-y: none;
   }
 
   body {
-    background-color: hsl(var(--bg));
-    min-height: 100dvh;
-    overscroll-behavior-y: none;
     color: hsl(var(--fg));
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: 'cv11', 'ss01';
-  }
-
-  /* Pinta a faixa da safe-area inferior (home indicator do iOS) com a cor
-     do tema — senão o sistema mostra uma barra branca embaixo no PWA.
-     Fica abaixo dos overlays (drawer/sheet usam z >= 60). */
-  body::after {
-    content: '';
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: env(safe-area-inset-bottom, 0px);
-    background-color: hsl(var(--bg));
-    z-index: 10;
-    pointer-events: none;
+    overscroll-behavior-y: none;
   }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
