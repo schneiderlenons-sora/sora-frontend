@@ -167,6 +167,23 @@ export function ModalShell({ titulo, onClose, onSubmit, loading, onDelete, child
   );
 }
 
+// ── Erro de carregamento (com retry) ──────────────────────────────────
+export function ErroCard({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="card rounded-3xl py-14 flex flex-col items-center text-center px-6 animate-fade-in">
+      <div className="text-4xl mb-3">😕</div>
+      <p className="text-base font-bold text-foreground">Não consegui carregar agora</p>
+      <p className="text-sm text-muted-foreground mt-1.5 max-w-sm">
+        Pode ser instabilidade momentânea. Se acabou de atualizar, dá só um instante e tenta de novo.
+      </p>
+      <button onClick={onRetry}
+        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all">
+        Tentar de novo
+      </button>
+    </div>
+  );
+}
+
 // ── Estado vazio padrão ───────────────────────────────────────────────
 export function Vazio({ emoji, titulo, sub }: { emoji: string; titulo: string; sub: string }) {
   return (

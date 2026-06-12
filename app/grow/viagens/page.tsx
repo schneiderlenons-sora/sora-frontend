@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { Plane, Plus, Loader2, MapPin, Wallet, CheckCircle2, X, Sparkles, Trash2 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import { Capa, Segmented, Campo, ModalShell, Vazio } from '@/components/grow/colecao';
+import { Capa, Segmented, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
 
 const fmtBRL = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n || 0);
 const fmtDia = (d?: string) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '';
@@ -49,11 +49,13 @@ export default function ViagensPage() {
   const { phone } = useAuth();
   const [aba, setAba] = useState<'viagens' | 'bucket'>('viagens');
 
-  const { data: vData, mutate: mV } = useApi(phone ? `viagens:${phone}` : null, () => api.grow.viagens.listar(phone));
-  const { data: bData, mutate: mB } = useApi(phone ? `bucket:${phone}` : null, () => api.grow.bucketList.listar(phone));
+  const { data: vData, error: vErr, mutate: mV } = useApi(phone ? `viagens:${phone}` : null, () => api.grow.viagens.listar(phone), { shouldRetryOnError: false });
+  const { data: bData, error: bErr, mutate: mB } = useApi(phone ? `bucket:${phone}` : null, () => api.grow.bucketList.listar(phone), { shouldRetryOnError: false });
   const viagens: any[] = (vData as any) ?? [];
   const bucket: any[]  = (bData as any) ?? [];
-  const loading = vData === undefined && bData === undefined;
+  const erroAtivo = aba === 'viagens' ? vErr : bErr;
+  const dataAtiva = aba === 'viagens' ? vData : bData;
+  const loading = dataAtiva === undefined && !erroAtivo;
 
   const [editarV, setEditarV] = useState<any | null>(null);
   const [novoV, setNovoV] = useState(false);
@@ -97,6 +99,8 @@ export default function ViagensPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-primary" /></div>
+      ) : erroAtivo ? (
+        <ErroCard onRetry={() => { mV(); mB(); }} />
       ) : aba === 'viagens' ? (
         viagens.length === 0 ? (
           <Vazio emoji="🗺️" titulo="Nenhuma viagem ainda" sub="Planeje a próxima: destino, datas, orçamento e um checklist do que levar." />

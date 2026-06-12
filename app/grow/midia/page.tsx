@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { Clapperboard, Plus, Loader2, Star, Film, Eye, Trophy } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio } from '@/components/grow/colecao';
+import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
 
 const TIPOS = [
   { value: 'filme',   label: 'Filme',   emoji: '🎬' },
@@ -26,9 +26,9 @@ const labelStatus = (s: string) => STATUS.find(x => x.value === s)?.label || s;
 
 export default function MidiaPage() {
   const { phone } = useAuth();
-  const { data, mutate } = useApi(phone ? `midia:${phone}` : null, () => api.grow.midia.listar(phone));
+  const { data, error, mutate } = useApi(phone ? `midia:${phone}` : null, () => api.grow.midia.listar(phone), { shouldRetryOnError: false });
   const itens: any[] = (data as any) ?? [];
-  const loading = data === undefined;
+  const loading = data === undefined && !error;
 
   const [fTipo, setFTipo]     = useState<string>('todos');
   const [fStatus, setFStatus] = useState<string>('todos');
@@ -73,6 +73,8 @@ export default function MidiaPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-primary" /></div>
+      ) : error ? (
+        <ErroCard onRetry={() => mutate()} />
       ) : itens.length === 0 ? (
         <Vazio emoji="🍿" titulo="Sua estante tá vazia" sub="Adicione o primeiro filme ou série, dê sua nota e monte sua coleção." />
       ) : (

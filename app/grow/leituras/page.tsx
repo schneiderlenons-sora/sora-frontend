@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { BookOpen, Plus, Loader2, Star, BookMarked, CheckCircle2, Trophy } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio } from '@/components/grow/colecao';
+import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
 
 const STATUS = [
   { value: 'quero',     label: 'Quero ler', emoji: '🔖' },
@@ -19,9 +19,9 @@ const pct = (a?: number, t?: number) => (t && t > 0 ? Math.min(100, Math.round((
 
 export default function LeiturasPage() {
   const { phone } = useAuth();
-  const { data, mutate } = useApi(phone ? `leituras:${phone}` : null, () => api.grow.leituras.listar(phone));
+  const { data, error, mutate } = useApi(phone ? `leituras:${phone}` : null, () => api.grow.leituras.listar(phone), { shouldRetryOnError: false });
   const itens: any[] = (data as any) ?? [];
-  const loading = data === undefined;
+  const loading = data === undefined && !error;
 
   const [fStatus, setFStatus] = useState<string>('todos');
   const [editar, setEditar]   = useState<any | null>(null);
@@ -63,6 +63,8 @@ export default function LeiturasPage() {
 
       {loading ? (
         <div className="card rounded-3xl p-12 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-primary" /></div>
+      ) : error ? (
+        <ErroCard onRetry={() => mutate()} />
       ) : itens.length === 0 ? (
         <Vazio emoji="📚" titulo="Sua estante tá vazia" sub="Adicione o primeiro livro — pode ser um que você quer ler, tá lendo ou já leu." />
       ) : (
