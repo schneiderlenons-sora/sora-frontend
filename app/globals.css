@@ -221,6 +221,45 @@ body { background-color: hsl(var(--bg)); }
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }
   }
+  /* ── Sora Wrapped ── */
+  @keyframes wr-reveal {
+    from { opacity: 0; transform: translateY(115%) rotate(2deg); }
+    to   { opacity: 1; transform: translateY(0) rotate(0); }
+  }
+  @keyframes wr-pop {
+    0%   { opacity: 0; transform: scale(0.6); }
+    60%  { transform: scale(1.06); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes wr-blob {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(8%, -6%) scale(1.12); }
+    66%      { transform: translate(-6%, 7%) scale(0.92); }
+  }
+  @keyframes wr-float {
+    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+    50%      { transform: translateY(-14px) rotate(var(--r, 0deg)); }
+  }
+  @keyframes wr-grain {
+    0%   { transform: translate(0, 0); }
+    10%  { transform: translate(-5%, -8%); }
+    20%  { transform: translate(-12%, 4%); }
+    30%  { transform: translate(7%, -12%); }
+    40%  { transform: translate(-5%, 13%); }
+    50%  { transform: translate(-12%, 8%); }
+    60%  { transform: translate(9%, 2%); }
+    70%  { transform: translate(0, 14%); }
+    80%  { transform: translate(-13%, 6%); }
+    90%  { transform: translate(11%, -4%); }
+    100% { transform: translate(0, 0); }
+  }
+  @keyframes wr-spin-slow {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes wr-shine {
+    from { background-position: -150% 0; }
+    to   { background-position: 250% 0; }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────
