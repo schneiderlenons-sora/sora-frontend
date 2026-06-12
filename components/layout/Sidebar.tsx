@@ -9,6 +9,7 @@ import {
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
+  Plane, Clapperboard, BookOpen,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -51,6 +52,9 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/estudos',    label: 'Estudos',    icon: GraduationCap, gate: 'grow_estudos', badge: 'Premium' },
   { href: '/grow/casa',       label: 'Casa',       icon: HomeIcon },
   { href: '/grow/agenda',     label: 'Agenda',     icon: CalendarDays },
+  { href: '/grow/viagens',    label: 'Viagens',    icon: Plane },
+  { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard },
+  { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen },
 ];
 
 // ── Geral (app-wide, sempre visível) ────────────────────────────────

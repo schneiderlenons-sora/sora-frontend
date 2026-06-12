@@ -240,6 +240,32 @@ export const api = {
     trocarPainel: (phone: string, painel: 'finance' | 'grow') =>
       req<{ ok: boolean; painelAtivo: 'finance' | 'grow' }>(`/api/grow/trocar-painel/${phone}`, { method: 'POST', body: JSON.stringify({ painel }) }),
 
+    // ── Coleções (Viagens, Bucket list, Mídia, Leituras) ──
+    viagens: {
+      listar:  (phone: string) => req<any[]>(`/api/grow/viagens/${phone}`),
+      criar:   (body: any) => req<any>('/api/grow/viagens', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/grow/viagens/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/grow/viagens/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+    bucketList: {
+      listar:  (phone: string) => req<any[]>(`/api/grow/bucket_list/${phone}`),
+      criar:   (body: any) => req<any>('/api/grow/bucket_list', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/grow/bucket_list/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/grow/bucket_list/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+    midia: {
+      listar:  (phone: string) => req<any[]>(`/api/grow/midia/${phone}`),
+      criar:   (body: any) => req<any>('/api/grow/midia', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/grow/midia/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/grow/midia/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+    leituras: {
+      listar:  (phone: string) => req<any[]>(`/api/grow/leituras/${phone}`),
+      criar:   (body: any) => req<any>('/api/grow/leituras', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/grow/leituras/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/grow/leituras/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
     habitos: {
       listar: (phone: string, params?: { dias?: number; incluir_arquivados?: boolean }) => {
         const q = new URLSearchParams();
