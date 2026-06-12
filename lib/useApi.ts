@@ -1,6 +1,7 @@
 'use client';
 
 import useSWR, { type SWRConfiguration, type Key } from 'swr';
+import { useGateRegister } from '@/components/ui/LoadingGate';
 
 /**
  * Wrapper fino do SWR pros endpoints da Sora (lib/api).
@@ -20,10 +21,13 @@ export function useApi<T>(
   fetcher: () => Promise<T>,
   config?: SWRConfiguration<T>,
 ) {
-  return useSWR<T>(key, fetcher, {
+  const swr = useSWR<T>(key, fetcher, {
     revalidateOnFocus: false,
     keepPreviousData: true,
     dedupingInterval: 4000,
     ...config,
   });
+  // 1º carregamento (sem dado em cache) → mostra a baleia cobrindo a tela.
+  useGateRegister(swr.isLoading);
+  return swr;
 }
