@@ -13,6 +13,7 @@ import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import Showcase        from '@/components/landing/Showcase';
 import SaudeShowcase   from '@/components/landing/SaudeShowcase';
+import WrappedShowcase from '@/components/landing/WrappedShowcase';
 import Carrossel       from '@/components/landing/Carrossel';
 import SoraLabs        from '@/components/landing/SoraLabs';
 import SocialProof     from '@/components/landing/SocialProof';
@@ -36,6 +37,7 @@ export default function LandingPage() {
       {/* Clareza total + Em conjunto, logo após os 8 cards; depois a Saúde */}
       <Showcase />
       <SaudeShowcase />
+      <WrappedShowcase />
       <TestDrive />
       <OpenFinance />
       <Carrossel />
