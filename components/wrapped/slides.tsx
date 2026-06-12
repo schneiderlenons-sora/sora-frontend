@@ -10,6 +10,20 @@ const fmtMoney = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum = (n: number) => new Intl.NumberFormat('pt-BR').format(Math.round(n || 0));
 
+// Tamanho da fonte do número gigante em função do comprimento, pra nunca
+// estourar a largura do card (que tem overflow-hidden).
+function bigSize(texto: string): number {
+  const len = texto.replace(/\s/g, '').length;
+  if (len <= 4) return 96;
+  if (len === 5) return 86;
+  if (len === 6) return 76;
+  if (len === 7) return 66;
+  if (len === 8) return 58;
+  if (len === 9) return 51;
+  if (len === 10) return 45;
+  return 40;
+}
+
 // ─── Frame + roteador de arquétipos ──────────────────────────────────────
 export function SlideView({ slide, deck }: { slide: Slide; deck: WrappedDeck }) {
   const th = slide.theme;
@@ -81,6 +95,7 @@ function Numero({ s }: { s: Extract<Slide, { tipo: 'numero' }> }) {
   const { theme: th } = s;
   const isMoney = s.prefixo === 'R$ ';
   const fmt = (n: number) => isMoney ? fmtMoney(n) : `${fmtNum(n)}${s.sufixo || ''}`;
+  const px = bigSize(fmt(s.valor)); // dimensiona pelo valor FINAL (o mais largo)
   return (
     <div>
       <Reveal delay={120}>
@@ -89,8 +104,8 @@ function Numero({ s }: { s: Extract<Slide, { tipo: 'numero' }> }) {
         </span>
       </Reveal>
       <Reveal delay={260} className="mt-3">
-        <span className="block font-black tabular-nums tracking-[-0.05em] leading-[0.82] text-[80px] sm:text-[104px]"
-          style={{ color: th.fg, textShadow: th.dark ? '0 8px 40px rgba(0,0,0,0.35)' : 'none' }}>
+        <span className="block font-black tabular-nums tracking-[-0.04em] leading-[0.85] whitespace-nowrap"
+          style={{ color: th.fg, fontSize: px, textShadow: th.dark ? '0 8px 40px rgba(0,0,0,0.35)' : 'none' }}>
           <CountUp valor={s.valor} format={fmt} />
         </span>
       </Reveal>
@@ -206,17 +221,17 @@ function Streak({ s }: { s: Extract<Slide, { tipo: 'streak' }> }) {
       <Reveal delay={120}>
         <span className="text-sm font-bold uppercase tracking-[0.18em]" style={{ color: th.dim }}>{s.label}</span>
       </Reveal>
-      <div className="mt-3 flex items-end gap-3">
+      <div className="mt-3 flex items-end gap-2.5 whitespace-nowrap">
         <Pop delay={500}>
-          <Flame size={64} style={{ color: th.accent }} className="motion-safe:animate-[wr-float_3s_ease-in-out_infinite]" />
+          <Flame size={52} style={{ color: th.accent }} className="motion-safe:animate-[wr-float_3s_ease-in-out_infinite] mb-3" />
         </Pop>
         <Reveal delay={260}>
-          <span className="font-black tabular-nums tracking-[-0.05em] leading-[0.8] text-[110px] sm:text-[128px]" style={{ color: th.fg }}>
+          <span className="font-black tabular-nums tracking-[-0.04em] leading-[0.8]" style={{ color: th.fg, fontSize: bigSize(fmtNum(s.valor) + '0') }}>
             <CountUp valor={s.valor} format={(n) => fmtNum(n)} />
           </span>
         </Reveal>
         <Reveal delay={420}>
-          <span className="font-black text-[28px] pb-4" style={{ color: th.accent }}>{s.sufixo}</span>
+          <span className="font-black text-[26px] pb-3" style={{ color: th.accent }}>{s.sufixo}</span>
         </Reveal>
       </div>
       <Reveal delay={640} className="mt-4">
