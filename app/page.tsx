@@ -32,11 +32,11 @@ export default function LandingPage() {
       <Problema />
       <Solucao />
       <ComoFunciona />
-      <Features />
-      {/* Clareza total + Em conjunto, logo após os 8 cards; depois a Saúde */}
+      {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
       <SaudeShowcase />
       <WrappedShowcase />
+      <Features />
       <TestDrive />
       <OpenFinance />
       <Carrossel />
