@@ -3,7 +3,7 @@
 // Kit compartilhado das abas de coleção do Grow (Viagens, Filmes/Séries,
 // Leituras). 100% theme-aware (usa --primary / --bg-card / tokens). Otimizado.
 import { useState, type ReactNode } from 'react';
-import { X, Loader2, Check, Trash2 } from 'lucide-react';
+import { X, Loader2, Check, Trash2, Star, Crown } from 'lucide-react';
 
 // ── Cor da nota (0–10) ────────────────────────────────────────────────
 export const notaCor = (n: number) =>
@@ -92,25 +92,63 @@ export function Segmented({ value, onChange, options }:
   );
 }
 
-// ── Nota 0–10 (slider com cor viva) ───────────────────────────────────
+// ── Nota 0–10 (barra de segmentos clicáveis, cor por faixa) ───────────
 export function NotaInput({ value, onChange }: { value: number | null; onChange: (n: number | null) => void }) {
-  const v = value ?? 0;
+  const cheio = value != null ? Math.round(value) : 0;
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sua nota</span>
-        {value == null ? (
-          <button type="button" onClick={() => onChange(7)} className="text-xs font-bold text-primary">avaliar</button>
-        ) : (
-          <span className="text-lg font-black tabular" style={{ color: notaCor(v) }}>{v.toFixed(1).replace('.0', '')}<span className="text-xs text-muted-foreground font-bold">/10</span></span>
-        )}
+        {value == null
+          ? <span className="text-[11px] text-muted-foreground">toque pra avaliar →</span>
+          : <button type="button" onClick={() => onChange(null)} className="text-[11px] font-bold text-muted-foreground hover:text-red-500 transition-colors">limpar</button>}
       </div>
-      <input type="range" min={0} max={10} step={0.5} value={v}
-        onChange={e => onChange(parseFloat(e.target.value))}
-        className="w-full h-2 rounded-full appearance-none cursor-pointer"
-        style={{ accentColor: notaCor(v), background: `linear-gradient(to right, ${notaCor(v)} ${v * 10}%, hsl(var(--muted)) ${v * 10}%)` }} />
+      <div className="flex items-center gap-3">
+        <span className="text-3xl font-black tabular w-11 text-center flex-shrink-0 leading-none"
+          style={{ color: value == null ? 'hsl(var(--muted-foreground) / 0.5)' : notaCor(value) }}>
+          {value == null ? '–' : Number(value).toFixed(1).replace('.0', '')}
+        </span>
+        <div className="flex-1 flex gap-1">
+          {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+            const ativo = n <= cheio;
+            return (
+              <button key={n} type="button" onClick={() => onChange(n)} aria-label={`Nota ${n}`}
+                className="flex-1 h-8 rounded-md transition-all hover:scale-y-110 active:scale-90"
+                style={{ background: ativo ? notaCor(value!) : 'hsl(var(--muted))', opacity: ativo ? 1 : 0.7 }} />
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex justify-between text-[9px] font-semibold text-muted-foreground/70 mt-1 pl-[3.5rem]">
+        <span>ruim</span><span>👑 obra-prima</span>
+      </div>
     </div>
   );
+}
+
+// ── Destaque de favorito (anel + glow dourado) ───────────────────────
+export const favRing = (fav: boolean) =>
+  fav ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/30' : 'ring-1 ring-border/40';
+
+export function FavBadge() {
+  return (
+    <div className="absolute top-0 left-0 z-10">
+      <div className="w-9 h-9 rounded-br-2xl rounded-tl-2xl flex items-center justify-center shadow-md"
+        style={{ background: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%)' }}>
+        <Crown size={15} className="fill-white text-white" />
+      </div>
+    </div>
+  );
+}
+
+// Ordena: favoritos primeiro, depois maior nota (sem nota por último).
+export function ordenarPorNota(lista: any[]): any[] {
+  return [...lista].sort((a, b) => {
+    if (!!b.favorito !== !!a.favorito) return (b.favorito ? 1 : 0) - (a.favorito ? 1 : 0);
+    const na = a.nota ?? -1, nb = b.nota ?? -1;
+    if (nb !== na) return nb - na;
+    return 0;
+  });
 }
 
 export function NotaBadge({ nota }: { nota: number }) {

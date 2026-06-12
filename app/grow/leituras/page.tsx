@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { BookOpen, Plus, Loader2, Star, BookMarked, CheckCircle2, Trophy } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
+import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard, favRing, FavBadge, ordenarPorNota } from '@/components/grow/colecao';
 
 const STATUS = [
   { value: 'quero',     label: 'Quero ler', emoji: '🔖' },
@@ -35,7 +35,7 @@ export default function LeiturasPage() {
     return { total: itens.length, lidos, lendo, media };
   }, [itens]);
 
-  const filtrados = useMemo(() => itens.filter(i => fStatus === 'todos' || i.status === fStatus), [itens, fStatus]);
+  const filtrados = useMemo(() => ordenarPorNota(itens.filter(i => fStatus === 'todos' || i.status === fStatus)), [itens, fStatus]);
 
   const salvar = useCallback(async (form: any, id?: string) => {
     if (id) mutate((cur: any) => (cur || []).map((x: any) => x.id === id ? { ...x, ...form } : x), { revalidate: false });
@@ -89,11 +89,11 @@ export default function LeiturasPage() {
                 const p = pct(b.pagina_atual, b.total_paginas);
                 return (
                   <button key={b.id} onClick={() => setEditar(b)}
-                    className="group relative rounded-2xl overflow-hidden text-left aspect-[2/3] bg-muted/40 ring-1 ring-border/40 transition-all hover:-translate-y-1 hover:ring-primary/50 hover:shadow-xl active:scale-[0.98] animate-[slide-up_500ms_ease-out_both]"
+                    className={`group relative rounded-2xl overflow-hidden text-left aspect-[2/3] bg-muted/40 ${favRing(b.favorito)} transition-all hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] animate-[slide-up_500ms_ease-out_both]`}
                     style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}>
                     <Capa url={b.cover_url} emoji="📖" titulo={b.titulo} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                    {b.favorito && <Star size={15} className="absolute top-2 left-2 fill-yellow-300 text-yellow-300 drop-shadow" />}
+                    {b.favorito && <FavBadge />}
                     {b.nota != null && <span className="absolute top-2 right-2"><NotaBadge nota={b.nota} /></span>}
                     <div className="absolute inset-x-0 bottom-0 p-2.5">
                       <p className="text-white text-[13px] font-bold leading-tight line-clamp-2 drop-shadow">{b.titulo}</p>

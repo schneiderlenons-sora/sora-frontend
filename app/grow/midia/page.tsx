@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { Clapperboard, Plus, Loader2, Star, Film, Eye, Trophy } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
+import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard, favRing, FavBadge, ordenarPorNota } from '@/components/grow/colecao';
 
 const TIPOS = [
   { value: 'filme',   label: 'Filme',   emoji: '🎬' },
@@ -43,9 +43,9 @@ export default function MidiaPage() {
     return { total: itens.length, vistos, media, favs };
   }, [itens]);
 
-  const filtrados = useMemo(() => itens.filter(i =>
+  const filtrados = useMemo(() => ordenarPorNota(itens.filter(i =>
     (fTipo === 'todos' || i.tipo === fTipo) && (fStatus === 'todos' || i.status === fStatus)
-  ), [itens, fTipo, fStatus]);
+  )), [itens, fTipo, fStatus]);
 
   const salvar = useCallback(async (form: any, id?: string) => {
     if (id) mutate((cur: any) => (cur || []).map((x: any) => x.id === id ? { ...x, ...form } : x), { revalidate: false });
@@ -99,11 +99,11 @@ export default function MidiaPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {filtrados.map((m, i) => (
                 <button key={m.id} onClick={() => setEditar(m)}
-                  className="group relative rounded-2xl overflow-hidden text-left aspect-[2/3] bg-muted/40 ring-1 ring-border/40 transition-all hover:-translate-y-1 hover:ring-primary/50 hover:shadow-xl active:scale-[0.98] animate-[slide-up_500ms_ease-out_both]"
+                  className={`group relative rounded-2xl overflow-hidden text-left aspect-[2/3] bg-muted/40 ${favRing(m.favorito)} transition-all hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] animate-[slide-up_500ms_ease-out_both]`}
                   style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}>
                   <Capa url={m.cover_url} emoji={emojiTipo(m.tipo)} titulo={m.titulo} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                  {m.favorito && <Star size={15} className="absolute top-2 left-2 fill-yellow-300 text-yellow-300 drop-shadow" />}
+                  {m.favorito && <FavBadge />}
                   {m.nota != null && <span className="absolute top-2 right-2"><NotaBadge nota={m.nota} /></span>}
                   <div className="absolute inset-x-0 bottom-0 p-2.5">
                     <p className="text-white text-[13px] font-bold leading-tight line-clamp-2 drop-shadow">{m.titulo}</p>
