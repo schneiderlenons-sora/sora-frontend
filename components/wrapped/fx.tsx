@@ -73,6 +73,93 @@ export function Pop({
   );
 }
 
+// ─── Baleia mascote (orca streetwear com óculos verdes) ──────────────────
+export function WhaleMascot({ accent = '#a3e635', className = '', style }:
+  { accent?: string; className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 200 150" className={className} style={style} aria-hidden>
+      {/* cauda */}
+      <path d="M148 76 L190 50 Q181 76 190 102 Z" fill="#0b1015" />
+      {/* corpo */}
+      <ellipse cx="92" cy="80" rx="63" ry="43" fill="#0b1015" />
+      {/* barriga branca */}
+      <path d="M38 98 Q92 126 152 94 Q118 112 92 112 Q66 112 38 98 Z" fill="#f4f7f5" />
+      {/* nadadeira de cima */}
+      <path d="M84 38 Q95 20 113 33 Q100 40 84 43 Z" fill="#0b1015" />
+      {/* nadadeira lateral */}
+      <path d="M68 98 Q77 116 96 106 Q84 102 75 93 Z" fill="#070b0e" />
+      {/* mancha branca do olho */}
+      <ellipse cx="58" cy="66" rx="13" ry="8.5" fill="#f4f7f5" transform="rotate(-14 58 66)" />
+      {/* óculos verdes */}
+      <g>
+        <rect x="40" y="60" width="18" height="13" rx="5.5" fill={accent} stroke="#0b1015" strokeWidth="1.5" />
+        <rect x="60" y="60" width="18" height="13" rx="5.5" fill={accent} stroke="#0b1015" strokeWidth="1.5" />
+        <rect x="57" y="64" width="5" height="3" fill="#0b1015" />
+        <circle cx="46" cy="65" r="2" fill="#fff" opacity="0.85" />
+        <circle cx="66" cy="65" r="2" fill="#fff" opacity="0.85" />
+      </g>
+      {/* sorriso */}
+      <path d="M48 88 Q60 95 74 88" stroke="#f4f7f5" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Baleia nadando (ambiente) — atravessa o slide num loop longo; congela na captura.
+export function WhaleSwim({ accent, bottom = '14%' }: { accent: string; bottom?: string }) {
+  return (
+    <div aria-hidden className="absolute left-0 right-0 pointer-events-none overflow-hidden" style={{ bottom, height: 120 }}>
+      <div className="absolute w-[150px] motion-safe:animate-[whale-cross_17s_linear_infinite] motion-reduce:left-[8%]" style={{ ['--r' as string]: '0deg' }}>
+        <div className="motion-safe:animate-[wr-float_3.5s_ease-in-out_infinite]">
+          <WhaleMascot accent={accent} className="w-[150px] h-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.35)]" style={{ opacity: 0.96 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Halftone (textura de pontos, look de impressão/IG) ──────────────────
+export function Halftone({ color = '#000000', opacity = 0.12, size = 9 }:
+  { color?: string; opacity?: number; size?: number }) {
+  return (
+    <div aria-hidden className="absolute inset-0 pointer-events-none"
+      style={{ opacity, backgroundImage: `radial-gradient(${color} 1.1px, transparent 1.3px)`, backgroundSize: `${size}px ${size}px` }} />
+  );
+}
+
+// ─── Carimbo hinomaru (círculo vermelho + kanji) ─────────────────────────
+export function Stamp({ kanji = '鯨', sub = 'クジラ', className = '' }:
+  { kanji?: string; sub?: string; className?: string }) {
+  return (
+    <div aria-hidden className={`absolute flex flex-col items-center gap-1 ${className}`}>
+      <div className="w-14 h-14 rounded-full flex items-center justify-center font-black text-[22px] text-white"
+        style={{ background: '#e0202a', boxShadow: '0 4px 14px rgba(224,32,42,0.45)' }}>
+        {kanji}
+      </div>
+      {sub && <span className="text-[9px] font-bold tracking-[0.2em]" style={{ color: 'currentColor', opacity: 0.6 }}>{sub}</span>}
+    </div>
+  );
+}
+
+// ─── Texto gigante de fundo (preenche espaço, estilo cartaz) ──────────────
+export function BgWord({ children, color = '#ffffff' }: { children: React.ReactNode; color?: string }) {
+  return (
+    <span aria-hidden className="absolute -right-4 top-1/2 -translate-y-1/2 font-black uppercase leading-[0.8] tracking-tighter select-none pointer-events-none"
+      style={{
+        writingMode: 'vertical-rl', fontSize: 150, color: 'transparent',
+        WebkitTextStroke: `1.5px ${color}`, opacity: 0.07,
+      }}>
+      {children}
+    </span>
+  );
+}
+
+// Divisória dupla fina (assinatura dos posts da Sora)
+export function Divider({ color }: { color: string }) {
+  return (
+    <span aria-hidden className="block w-12 my-2" style={{ borderTop: `2px solid ${color}`, boxShadow: `0 4px 0 -2px ${color}` }} />
+  );
+}
+
 // ─── Número com count-up (ease-out cubic) ────────────────────────────────
 export function CountUp({
   valor, format, duration = 1500, delay = 250,

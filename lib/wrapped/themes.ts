@@ -85,7 +85,9 @@ export const THEMES: Record<string, WrappedTheme> = {
 export const themeList = Object.values(THEMES);
 
 // ─── Modelo de slide ────────────────────────────────────────────────────
-export type SlideBase = { theme: WrappedTheme; kicker?: string };
+// `art`: URL de PNG transparente (ex.: baleias dos posts) — se presente, vira
+// o personagem-herói do slide no lugar da baleia vetorial ambiente.
+export type SlideBase = { theme: WrappedTheme; kicker?: string; art?: string };
 
 export type Slide =
   | (SlideBase & { tipo: 'cover'; titulo: string; sub: string; selo: string; emoji?: string })

@@ -260,6 +260,10 @@ body { background-color: hsl(var(--bg)); }
     from { background-position: -150% 0; }
     to   { background-position: 250% 0; }
   }
+  @keyframes whale-cross {
+    from { transform: translateX(300%); }
+    to   { transform: translateX(-140%); }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────

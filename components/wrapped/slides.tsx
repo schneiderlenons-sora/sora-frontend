@@ -1,7 +1,7 @@
 'use client';
 
 import type { Slide, WrappedDeck } from '@/lib/wrapped/themes';
-import { Grain, Blobs, Reveal, Pop, CountUp } from './fx';
+import { Grain, Blobs, Reveal, Pop, CountUp, Halftone, WhaleSwim, WhaleMascot, Stamp, BgWord, Divider } from './fx';
 import { Flame, TrendingDown, TrendingUp, ArrowUpRight } from 'lucide-react';
 
 const SERIF = 'Georgia, "Times New Roman", serif';
@@ -27,14 +27,30 @@ function bigSize(texto: string): number {
 // ─── Frame + roteador de arquétipos ──────────────────────────────────────
 export function SlideView({ slide, deck }: { slide: Slide; deck: WrappedDeck }) {
   const th = slide.theme;
+  const fgHex = th.dark ? '#ffffff' : '#0a2e16';
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: th.gradient, color: th.fg }}>
+      {/* ── camadas de fundo (preenchem o espaço, identidade dos posts) ── */}
       <Blobs theme={th} />
+      <BgWord color={fgHex}>WRAPPED</BgWord>
+      <Halftone color={fgHex} opacity={th.dark ? 0.14 : 0.10} />
+
+      {/* personagem: baleia dos posts (PNG) ou a baleia vetorial ambiente */}
+      {slide.art ? (
+        <img src={slide.art} alt="" aria-hidden
+          className="absolute bottom-0 right-0 w-[62%] max-w-[280px] object-contain pointer-events-none drop-shadow-[0_12px_24px_rgba(0,0,0,0.4)]" />
+      ) : slide.tipo !== 'final' ? (
+        <WhaleSwim accent={th.accent} />
+      ) : null}
+
+      {/* carimbo japonês (hinomaru) */}
+      <Stamp className="top-16 left-7" />
+
       {/* vinheta pra contraste do texto */}
       <div aria-hidden className="absolute inset-0 pointer-events-none"
         style={{ background: th.dark
-          ? 'radial-gradient(120% 80% at 30% 20%, transparent 40%, rgba(0,0,0,0.45) 100%)'
-          : 'radial-gradient(120% 80% at 30% 20%, transparent 45%, rgba(0,0,0,0.12) 100%)' }} />
+          ? 'radial-gradient(130% 75% at 25% 35%, rgba(0,0,0,0.28) 0%, transparent 45%, rgba(0,0,0,0.5) 100%)'
+          : 'radial-gradient(130% 75% at 25% 35%, rgba(0,0,0,0.10) 0%, transparent 50%, rgba(0,0,0,0.14) 100%)' }} />
       <Grain opacity={th.dark ? 0.16 : 0.10} />
 
       <div className="relative h-full flex flex-col p-7 sm:p-8">
@@ -103,7 +119,8 @@ function Numero({ s }: { s: Extract<Slide, { tipo: 'numero' }> }) {
           {s.emoji} {s.label}
         </span>
       </Reveal>
-      <Reveal delay={260} className="mt-3">
+      <Pop delay={220}><Divider color={th.accent} /></Pop>
+      <Reveal delay={260} className="mt-2">
         <span className="block font-black tabular-nums tracking-[-0.04em] leading-[0.85] whitespace-nowrap"
           style={{ color: th.fg, fontSize: px, textShadow: th.dark ? '0 8px 40px rgba(0,0,0,0.35)' : 'none' }}>
           <CountUp valor={s.valor} format={fmt} />
@@ -246,6 +263,9 @@ function Final({ s, deck }: { s: Extract<Slide, { tipo: 'final' }>; deck: Wrappe
   const { theme: th } = s;
   return (
     <div className="flex flex-col h-full justify-center">
+      <Pop delay={300} className="absolute top-0 right-0">
+        <WhaleMascot accent={th.accent} className="w-[96px] h-auto motion-safe:animate-[wr-float_4s_ease-in-out_infinite]" />
+      </Pop>
       <Pop delay={120}>
         <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: th.accent }}>
           ✦ {deck.marca} · {deck.periodoLabel}
