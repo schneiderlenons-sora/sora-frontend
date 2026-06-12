@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Calendar, Wallet, Sprout, Share2 } from 'lucide-react';
 import { SlideView } from '@/components/wrapped/slides';
+import { WrappedStill } from '@/components/wrapped/fx';
 import { THEMES, type Slide, type WrappedDeck } from '@/lib/wrapped/themes';
 
 // Renderiza um slide REAL do Wrapped em tamanho de "design" (380px) e escala
@@ -25,10 +26,30 @@ function MiniWrapped({ slide, deck }: { slide: Slide; deck: WrappedDeck }) {
   return (
     <div ref={ref} className="relative w-full aspect-[9/16] rounded-[22px] overflow-hidden shadow-2xl ring-1 ring-black/20 dark:ring-white/10">
       <div style={{ width: DW, height: DH, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-        <SlideView slide={slide} deck={deck} />
+        <WrappedStill.Provider value={true}>
+          <SlideView slide={slide} deck={deck} />
+        </WrappedStill.Provider>
       </div>
       {/* brilho de vidro */}
       <div aria-hidden className="absolute inset-x-0 top-0 h-1/4 pointer-events-none bg-gradient-to-b from-white/15 to-transparent" />
+    </div>
+  );
+}
+
+// Card do leque com efeito no HOVER (desktop) E no TOQUE (mobile).
+function FanItem({ base, children }: { base: string; children: React.ReactNode }) {
+  const [active, setActive] = useState(false);
+  return (
+    <div
+      className={`absolute transition-transform duration-300 ease-out ${base} ${active ? 'scale-[1.06] z-40' : ''}`}
+      style={{ touchAction: 'manipulation' }}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onTouchStart={() => setActive(true)}
+      onTouchEnd={() => setActive(false)}
+      onTouchCancel={() => setActive(false)}
+    >
+      {children}
     </div>
   );
 }
@@ -91,17 +112,17 @@ export default function WrappedShowcase() {
 
           <div className="absolute inset-0 flex items-center justify-center">
             {/* esquerda — academia */}
-            <div className="absolute w-[164px] sm:w-[210px] z-10 -rotate-[10deg] -translate-x-[60%] sm:-translate-x-[78%] translate-y-5 transition-transform duration-500 hover:-translate-y-1 hover:-rotate-[6deg]">
+            <FanItem base="w-[164px] sm:w-[210px] z-10 -rotate-[10deg] -translate-x-[60%] sm:-translate-x-[78%] translate-y-5">
               <MiniWrapped slide={slideAcademia} deck={deckGrowMes} />
-            </div>
+            </FanItem>
             {/* direita — anual finanças */}
-            <div className="absolute w-[164px] sm:w-[210px] z-10 rotate-[10deg] translate-x-[60%] sm:translate-x-[78%] translate-y-5 transition-transform duration-500 hover:-translate-y-1 hover:rotate-[6deg]">
+            <FanItem base="w-[164px] sm:w-[210px] z-10 rotate-[10deg] translate-x-[60%] sm:translate-x-[78%] translate-y-5">
               <MiniWrapped slide={slideAno} deck={deckFinAno} />
-            </div>
+            </FanItem>
             {/* centro — vilão dos gastos (a estrela) */}
-            <div className="absolute w-[210px] sm:w-[258px] z-30 transition-transform duration-500 hover:-translate-y-2">
+            <FanItem base="w-[210px] sm:w-[258px] z-30">
               <MiniWrapped slide={slideVilao} deck={deckFinMes} />
-            </div>
+            </FanItem>
           </div>
         </div>
 

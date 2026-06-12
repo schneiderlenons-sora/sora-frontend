@@ -24,10 +24,9 @@ import Footer          from '@/components/landing/Footer';
 
 export default function LandingPage() {
   return (
-    // Landing sempre em tema escuro (independente da preferência salva): a
-    // classe `dark` no root ativa todas as variantes dark: dos filhos e o bg
-    // é definido direto (não via dark:) pra não depender do <html>.
-    <main className="dark bg-[#0a0a0a] text-white antialiased overflow-x-hidden">
+    // Landing segue o tema escolhido (toggle na nav). bg/text theme-aware;
+    // as seções já têm variantes light + dark:.
+    <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-hidden">
       <LandingNav />
       <Hero />
       <Problema />

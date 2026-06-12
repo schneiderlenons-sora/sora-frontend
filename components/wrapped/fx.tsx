@@ -1,14 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { WrappedTheme } from '@/lib/wrapped/themes';
+
+// "Still" = sem animação contínua (usado nos mockups da landing pra evitar
+// jank/repaint constante). No player fica false (animação completa).
+export const WrappedStill = createContext(false);
 
 // ─── Grão de filme animado (textura premium, estilo capa de disco) ───────
 export function Grain({ opacity = 0.18 }: { opacity?: number }) {
+  const still = useContext(WrappedStill);
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden mix-blend-overlay">
       <div
-        className="absolute -inset-[60%] motion-safe:animate-[wr-grain_1.1s_steps(6)_infinite]"
+        className={`absolute -inset-[60%] ${still ? '' : 'motion-safe:animate-[wr-grain_1.1s_steps(6)_infinite]'}`}
         style={{
           opacity,
           backgroundImage:
@@ -22,6 +27,7 @@ export function Grain({ opacity = 0.18 }: { opacity?: number }) {
 
 // ─── Blobs orgânicos derivando no fundo ──────────────────────────────────
 export function Blobs({ theme }: { theme: WrappedTheme }) {
+  const still = useContext(WrappedStill);
   const cfg = [
     { c: theme.blobs[0], top: '-12%', left: '-18%', size: 320, dur: 9,  r: -8 },
     { c: theme.blobs[1], top: '38%',  left: '52%',  size: 300, dur: 12, r: 6 },
@@ -31,7 +37,7 @@ export function Blobs({ theme }: { theme: WrappedTheme }) {
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {cfg.map((b, i) => (
         <div key={i}
-          className="absolute rounded-full blur-[60px] opacity-50 motion-safe:animate-[wr-blob_var(--d)_ease-in-out_infinite]"
+          className={`absolute rounded-full blur-[60px] opacity-50 ${still ? '' : 'motion-safe:animate-[wr-blob_var(--d)_ease-in-out_infinite]'}`}
           style={{
             top: b.top, left: b.left, width: b.size, height: b.size,
             background: `radial-gradient(circle, ${b.c} 0%, transparent 70%)`,
@@ -106,10 +112,11 @@ export function WhaleMascot({ accent = '#a3e635', className = '', style }:
 
 // Baleia nadando (ambiente) — atravessa o slide num loop longo; congela na captura.
 export function WhaleSwim({ accent, bottom = '14%' }: { accent: string; bottom?: string }) {
+  const still = useContext(WrappedStill);
   return (
     <div aria-hidden className="absolute left-0 right-0 pointer-events-none overflow-hidden" style={{ bottom, height: 120 }}>
-      <div className="absolute w-[150px] motion-safe:animate-[whale-cross_17s_linear_infinite] motion-reduce:left-[8%]" style={{ ['--r' as string]: '0deg' }}>
-        <div className="motion-safe:animate-[wr-float_3.5s_ease-in-out_infinite]">
+      <div className={`absolute w-[150px] ${still ? 'left-[7%]' : 'motion-safe:animate-[whale-cross_17s_linear_infinite] motion-reduce:left-[8%]'}`} style={{ ['--r' as string]: '0deg' }}>
+        <div className={still ? '' : 'motion-safe:animate-[wr-float_3.5s_ease-in-out_infinite]'}>
           <WhaleMascot accent={accent} className="w-[150px] h-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.35)]" style={{ opacity: 0.96 }} />
         </div>
       </div>
@@ -164,12 +171,13 @@ export function Divider({ color }: { color: string }) {
 export function CountUp({
   valor, format, duration = 1500, delay = 250,
 }: { valor: number; format: (n: number) => string; duration?: number; delay?: number }) {
+  const still = useContext(WrappedStill);
   const [v, setV] = useState(0);
   const raf = useRef(0);
 
   useEffect(() => {
-    const reduce = typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const reduce = still || (typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     if (reduce) { setV(valor); return; }
     let startTs = 0;
     const begin = performance.now() + delay;

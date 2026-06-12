@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
 
 const LINKS = [
   { href: '#solucao',    label: 'Solução'  },
@@ -15,15 +16,21 @@ const LINKS = [
 
 export default function LandingNav() {
   const { user } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
   const [open, setOpen]       = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const isDark = mounted && resolvedTheme === 'dark';
+  const toggleTema = () => setTheme(isDark ? 'light' : 'black');
 
   return (
     <>
@@ -60,6 +67,15 @@ export default function LandingNav() {
 
           {/* Ações */}
           <div className="flex items-center gap-2">
+            {/* Toggle de tema */}
+            <button
+              onClick={toggleTema}
+              aria-label="Alternar tema claro/escuro"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
+            >
+              {mounted && (isDark ? <Sun size={16} /> : <Moon size={16} />)}
+            </button>
+
             {/* Login link */}
             {user ? (
               <Link href="/dashboard"
