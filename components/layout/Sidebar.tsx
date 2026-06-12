@@ -8,7 +8,7 @@ import {
   Sun, Moon, Flag, Download, Receipt, Briefcase,
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
-  Beaker, ArrowLeft, Wallet, Rocket, Check,
+  Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -55,6 +55,7 @@ const NAV_GROW: NavItem[] = [
 
 // ── Geral (app-wide, sempre visível) ────────────────────────────────
 const NAV_GERAL: NavItem[] = [
+  { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
   { href: '/central-sora',  label: 'Central da Sora', icon: MessageCircle },
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/configuracoes', label: 'Configurações',   icon: Settings },

@@ -579,6 +579,14 @@ export const api = {
       req<any>(`/api/metas/${id}/resgate`, { method: 'POST', body: JSON.stringify(body) }),
   },
 
+  // ── SORA WRAPPED (resumos compartilháveis) ───────────────────
+  wrapped: {
+    financas: (phone: string, periodo?: string) =>
+      req<any>(`/api/wrapped/financas/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+    grow: (phone: string, periodo?: string) =>
+      req<any>(`/api/wrapped/grow/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+  },
+
   // ── NEGÓCIOS (CFO de bolso — DRE, integrações, custos, IA) ────
   negocios: {
     integracoes: {
