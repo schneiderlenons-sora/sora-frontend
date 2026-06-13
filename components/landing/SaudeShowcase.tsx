@@ -68,13 +68,16 @@ export default function SaudeShowcase() {
             <div className="flex transition-transform duration-500 ease-out"
                  style={{ transform: `translateX(-${idx * 100}%)` }}>
               {SLIDES.map((s, i) => (
-                <div key={s.src} className="w-full flex-shrink-0">
+                <div key={s.src} className="w-full flex-shrink-0 aspect-[2/1]">
+                  {/* aspect-[2/1] reserva a altura ANTES da imagem carregar —
+                      sem isso o frame nasce com ~0px e "estoura" ao carregar,
+                      empurrando tudo abaixo (Wrapped + resto da landing). */}
                   <img
                     src={s.src}
                     alt={s.titulo}
                     loading={i === 0 ? 'eager' : 'lazy'}
                     aria-hidden={i !== idx}
-                    className="block w-full h-auto object-contain select-none"
+                    className="block w-full h-full object-contain select-none"
                     draggable={false}
                   />
                 </div>

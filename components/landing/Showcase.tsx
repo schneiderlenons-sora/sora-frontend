@@ -47,19 +47,21 @@ export default function Showcase() {
               {s.titulo}
             </h2>
 
-            {/* Imagem limpa, sem moldura — troca por tema via CSS */}
+            {/* Imagem limpa, sem moldura — troca por tema via CSS.
+                aspect-[17/12] (= 1530×1080) reserva o espaço antes da imagem
+                carregar, evitando o "estouro" que empurra as seções abaixo. */}
             <div className="mt-10 mb-8">
               <img
                 src={s.imgLight}
                 alt={s.alt}
                 loading="lazy"
-                className="block dark:hidden mx-auto w-full h-auto max-h-[640px] object-contain"
+                className="block dark:hidden mx-auto w-full h-auto max-h-[640px] aspect-[17/12] object-contain"
               />
               <img
                 src={s.imgDark}
                 alt={s.alt}
                 loading="lazy"
-                className="hidden dark:block mx-auto w-full h-auto max-h-[640px] object-contain"
+                className="hidden dark:block mx-auto w-full h-auto max-h-[640px] aspect-[17/12] object-contain"
               />
             </div>
 
