@@ -138,6 +138,29 @@ export default function TransacoesPage() {
     }
   }
 
+  // Exclui todas as transações selecionadas de uma vez (otimista).
+  async function handleExcluirSelecionados() {
+    const ids = Array.from(selecionados);
+    if (!ids.length) return;
+    if (!confirm(`Excluir ${ids.length} transação${ids.length > 1 ? 'ões' : ''} selecionada${ids.length > 1 ? 's' : ''}?`)) return;
+    const alvo = new Set(ids);
+    try {
+      await mTx(
+        async () => { await Promise.all(ids.map(id => api.transacoes.deletar(id, phone))); return undefined; },
+        {
+          optimisticData: (cur: any) => ({ ...(cur || { transacoes: [], total: 0 }), transacoes: (cur?.transacoes || []).filter((t: any) => !alvo.has(t.id)) }),
+          rollbackOnError: true,
+          populateCache: false,
+          revalidate: true,
+        },
+      );
+      setSelecionados(new Set());
+      mR();
+    } catch (e: any) {
+      alert('Erro ao excluir: ' + (e.message || ''));
+    }
+  }
+
   function exportarCSV() {
     const header = 'Data,Tipo,Categoria,Descrição,Valor,Conta,Status\n';
     const rows = txsFiltradas.map(t =>
@@ -446,7 +469,8 @@ export default function TransacoesPage() {
                   Limpar
                 </button>
                 <span className="text-muted-foreground">·</span>
-                <button className="text-xs text-red-500 hover:text-red-600 font-medium">
+                <button onClick={handleExcluirSelecionados}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium">
                   Excluir
                 </button>
               </div>
