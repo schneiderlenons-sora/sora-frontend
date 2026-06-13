@@ -57,7 +57,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning data-scroll-behavior="smooth" className={pacifico.variable}>
+    <html lang="pt-BR" suppressHydrationWarning className={pacifico.variable}>
       <body className={inter.className} suppressHydrationWarning>
         {/* Cor temática escolhida — aplica --primary antes do paint (anti-flash) */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m={verde:'134 55% 60%',azul:'217 91% 60%',roxo:'262 83% 58%',laranja:'25 95% 53%',rosa:'330 81% 60%',vermelho:'0 72% 55%'};var id=localStorage.getItem('sora-brand')||'verde';document.documentElement.style.setProperty('--primary',m[id]||m.verde);}catch(e){}})();` }} />

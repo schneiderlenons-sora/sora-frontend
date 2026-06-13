@@ -27,7 +27,7 @@ export default function LandingPage() {
   return (
     // Landing segue o tema escolhido (toggle na nav). bg/text theme-aware;
     // as seções já têm variantes light + dark:.
-    <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-hidden">
+    <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-clip">
       <LandingNav />
       <Hero />
       <Problema />

@@ -40,7 +40,7 @@ export default function LandingNav() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'backdrop-blur-xl bg-white/70 dark:bg-black/40 border-b border-zinc-200/60 dark:border-white/[0.06]'
+            ? 'bg-white/95 dark:bg-[#0a0a0a]/90 border-b border-zinc-200/60 dark:border-white/[0.06] shadow-sm'
             : 'bg-transparent border-b border-transparent'
         }`}
       >
