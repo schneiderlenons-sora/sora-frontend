@@ -67,7 +67,7 @@ export default function TestDrive() {
   }
 
   return (
-    <section id="demo" className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
+    <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
 
       {/* BG glow */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
@@ -94,8 +94,8 @@ export default function TestDrive() {
           </p>
         </div>
 
-        {/* Grid: phone (esquerda) + controles (direita) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-10 lg:gap-14 items-start">
+        {/* Grid: phone (esquerda) + controles (direita) — alvo da âncora #demo */}
+        <div id="demo" className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-10 lg:gap-14 items-start scroll-mt-24">
 
           {/* iPhone — width fixa em lg pra grid auto resolver corretamente */}
           <div className="mx-auto w-full max-w-[320px] lg:max-w-none lg:sticky lg:top-24">
