@@ -63,10 +63,10 @@ export default function Hero() {
 
           {/* CTAs */}
           <div className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-3 animate-[slide-up_900ms_ease-out_both]" style={{ animationDelay: '240ms' }}>
-            <Link href={user ? '/dashboard' : '/signup'}
+            <Link href={user ? '/dashboard' : '#pricing'}
                   className="group inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold text-white rounded-xl shadow-[0_8px_30px_-8px_rgba(97,206,112,0.6)] hover:shadow-[0_12px_40px_-8px_rgba(97,206,112,0.7)] hover:-translate-y-0.5 transition-all"
                   style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-              {user ? 'Abrir meu painel' : 'Criar conta'}
+              {user ? 'Abrir meu painel' : 'Começar agora'}
               <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </Link>
 

@@ -90,7 +90,7 @@ export default function LandingNav() {
             )}
 
             {/* Primary CTA */}
-            <Link href={user ? '/dashboard' : '/signup'}
+            <Link href={user ? '/dashboard' : '#pricing'}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white shadow-[0_2px_10px_-2px_rgba(97,206,112,0.5)] rounded-lg transition-all hover:shadow-[0_4px_20px_-4px_rgba(97,206,112,0.6)] hover:-translate-y-[1px]"
                   style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
               {user ? 'Abrir Sora' : 'Começar'} <ArrowRight size={13} />
@@ -132,7 +132,7 @@ export default function LandingNav() {
                 </li>
               ))}
               <li className="pt-4 mt-4 border-t border-zinc-200 dark:border-white/[0.06]">
-                <Link href={user ? '/dashboard' : '/signup'}
+                <Link href={user ? '/dashboard' : '#pricing'}
                       onClick={() => setOpen(false)}
                       className="block w-full text-center px-4 py-3 text-sm font-bold text-white rounded-xl shadow-md"
                       style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>

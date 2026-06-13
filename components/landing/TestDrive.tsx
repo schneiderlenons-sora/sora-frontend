@@ -163,10 +163,10 @@ export default function TestDrive() {
               <p className="text-sm text-zinc-600 dark:text-white/60 mb-3">
                 Isso é uma simulação. A Sora real entende qualquer pergunta — texto, áudio, foto.
               </p>
-              <a href="/signup"
+              <a href="#pricing"
                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all"
                  style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-                Criar conta e conectar meu zap →
+                Escolher meu plano e conectar o zap →
               </a>
             </div>
           </div>

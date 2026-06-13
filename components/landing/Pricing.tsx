@@ -14,7 +14,7 @@ export default function Pricing() {
   const [anual, setAnual] = useState(false);
 
   return (
-    <section id="pricing" className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
+    <section id="pricing" className="relative scroll-mt-24 py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
       <div aria-hidden className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[600px] opacity-30 dark:opacity-15"
              style={{ background: 'radial-gradient(ellipse, rgba(97,206,112,0.18) 0%, transparent 60%)' }} />

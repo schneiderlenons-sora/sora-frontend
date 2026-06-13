@@ -60,10 +60,10 @@ export default function CtaFinal() {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <Link href={user ? '/dashboard' : '/signup'}
+              <Link href={user ? '/dashboard' : '#pricing'}
                     className="group inline-flex items-center gap-2 px-6 py-4 text-base font-bold text-white rounded-2xl shadow-[0_15px_50px_-10px_rgba(97,206,112,0.6)] hover:-translate-y-0.5 transition-all"
                     style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-                {user ? 'Abrir meu painel' : 'Criar conta agora'}
+                {user ? 'Abrir meu painel' : 'Escolher meu plano'}
                 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </Link>
 
