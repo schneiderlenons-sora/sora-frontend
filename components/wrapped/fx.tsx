@@ -10,6 +10,7 @@ export const WrappedStill = createContext(false);
 // ─── Grão de filme animado (textura premium, estilo capa de disco) ───────
 export function Grain({ opacity = 0.18 }: { opacity?: number }) {
   const still = useContext(WrappedStill);
+  if (still) return null; // mockups da landing: sem grão (pintura mais leve)
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden mix-blend-overlay">
       <div
@@ -28,6 +29,7 @@ export function Grain({ opacity = 0.18 }: { opacity?: number }) {
 // ─── Blobs orgânicos derivando no fundo ──────────────────────────────────
 export function Blobs({ theme }: { theme: WrappedTheme }) {
   const still = useContext(WrappedStill);
+  if (still) return null; // mockups da landing: sem blur pesado (evita jank no scroll)
   const cfg = [
     { c: theme.blobs[0], top: '-12%', left: '-18%', size: 320, dur: 9,  r: -8 },
     { c: theme.blobs[1], top: '38%',  left: '52%',  size: 300, dur: 12, r: 6 },
