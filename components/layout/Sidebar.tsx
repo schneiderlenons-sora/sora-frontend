@@ -55,6 +55,7 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/viagens',    label: 'Viagens',    icon: Plane },
   { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard },
   { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen },
+  { href: '/grow/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
 // ── Geral (app-wide, sempre visível) ────────────────────────────────

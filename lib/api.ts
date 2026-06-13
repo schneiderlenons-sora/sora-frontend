@@ -240,6 +240,14 @@ export const api = {
     trocarPainel: (phone: string, painel: 'finance' | 'grow') =>
       req<{ ok: boolean; painelAtivo: 'finance' | 'grow' }>(`/api/grow/trocar-painel/${phone}`, { method: 'POST', body: JSON.stringify({ painel }) }),
 
+    // ── Compartilhamento por aba (Casa + Coleções), por grupo ──
+    shareConfig: {
+      get: (phone: string) =>
+        req<{ config: { casa: boolean; viagens: boolean; midia: boolean; leituras: boolean }; totalMembros: number; isAdmin: boolean }>(`/api/grow/share-config/${phone}`),
+      set: (phone: string, aba: 'casa' | 'viagens' | 'midia' | 'leituras', valor: boolean) =>
+        req<{ ok: boolean; config: { casa: boolean; viagens: boolean; midia: boolean; leituras: boolean } }>('/api/grow/share-config', { method: 'POST', body: JSON.stringify({ phone, aba, valor }) }),
+    },
+
     // ── Coleções (Viagens, Bucket list, Mídia, Leituras) ──
     viagens: {
       listar:  (phone: string) => req<any[]>(`/api/grow/viagens/${phone}`),
