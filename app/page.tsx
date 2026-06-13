@@ -33,12 +33,12 @@ export default function LandingPage() {
       <Problema />
       <Solucao />
       <ComoFunciona />
-      <CtaPlanos frase="Começar agora" sub="Pronto pra colocar sua vida no controle?" />
+      <CtaPlanos frase="Começar agora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
       <SaudeShowcase />
       <WrappedShowcase />
-      <CtaPlanos frase="Quero meu Wrapped também 🐳" sub="Ative a Sora e receba seus resumos todo mês." />
+      <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <Features />
       <TestDrive />
       <OpenFinance />

@@ -273,8 +273,16 @@ body { background-color: hsl(var(--bg)); }
   * { border-color: hsl(var(--border)); }
 
   html {
-    scroll-behavior: smooth;
     overscroll-behavior-y: none;
+  }
+
+  /* Smooth scroll APENAS em navegação por âncora (algo com foco dentro do doc,
+     ex.: clicar num <a href="#pricing">). NUNCA aplicar smooth no <html> de
+     forma global: a restauração de scroll do navegador (reload / voltar aba /
+     hidratação) vira uma animação lenta de milhares de px e a página "anda
+     sozinha pra cima/baixo". O :focus-within deixa o restore instantâneo. */
+  @media (prefers-reduced-motion: no-preference) {
+    html:focus-within { scroll-behavior: smooth; }
   }
 
   body {
