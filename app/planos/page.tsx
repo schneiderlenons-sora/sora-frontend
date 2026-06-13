@@ -391,28 +391,6 @@ function PlanosContent() {
                     ))}
                   </ul>
 
-                  {/* Callout do Grow como teste (Básico) — distinto do checklist */}
-                  {p.growTrialDias && (
-                    <div className="mt-4 pt-4 border-t border-border/60">
-                      <div
-                        className="flex items-start gap-2.5 rounded-xl p-3"
-                        style={{ background: `color-mix(in srgb, ${BRAND} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${BRAND} 20%, transparent)` }}
-                      >
-                        <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
-                              style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
-                          <Sparkles size={11} style={{ color: BRAND }} />
-                        </span>
-                        <div className="leading-snug">
-                          <p className="text-[13px] font-semibold text-foreground">
-                            Sora Grow — {p.growTrialDias} dias grátis
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Hábitos, saúde e estudos. Incluso de vez no Premium e Black.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             );

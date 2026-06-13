@@ -50,11 +50,11 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/bem-estar',  label: 'Bem-estar',  icon: Heart },
   { href: '/grow/saude',      label: 'Saúde',      icon: Activity,      gate: 'grow_saude',   badge: 'Premium' },
   { href: '/grow/estudos',    label: 'Estudos',    icon: GraduationCap, gate: 'grow_estudos', badge: 'Premium' },
-  { href: '/grow/casa',       label: 'Casa',       icon: HomeIcon },
+  { href: '/grow/casa',       label: 'Casa',       icon: HomeIcon,      gate: 'grow_casa',     badge: 'Premium' },
   { href: '/grow/agenda',     label: 'Agenda',     icon: CalendarDays },
-  { href: '/grow/viagens',    label: 'Viagens',    icon: Plane },
-  { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard },
-  { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen },
+  { href: '/grow/viagens',    label: 'Viagens',    icon: Plane,         gate: 'grow_colecoes', badge: 'Premium' },
+  { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard, gate: 'grow_colecoes', badge: 'Premium' },
+  { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen,      gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/configuracoes', label: 'Configurações', icon: Settings },
 ];
 

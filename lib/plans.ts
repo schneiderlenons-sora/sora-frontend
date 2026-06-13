@@ -15,9 +15,11 @@ export type Feature =
   | 'investimentos'          // Premium+: aba Investimentos (era Black-only)
   | 'negocios'               // Black: aba Negócios (DRE, vendas, etc.)
   | 'sora_grow'              // Todos os planos: acesso base ao Sora Grow
-                             // (hábitos, tarefas, bem-estar, lista de compras, agenda)
+                             // (hábitos, tarefas, bem-estar, agenda)
   | 'grow_saude'             // Premium+: aba Saúde do Grow
   | 'grow_estudos'           // Premium+: aba Estudos do Grow
+  | 'grow_casa'              // Premium+: aba Casa inteira (compras, despensa, receitas, manutenções)
+  | 'grow_colecoes'          // Premium+: Coleções (Viagens, Filmes & Séries, Leituras)
   | 'grow_despensa'          // Premium+: Casa avançada (despensa, receitas, manutenções)
   | 'sora_grow_trial'        // (legado) Básico: trial — descontinuado, todos já têm Grow
   | 'compartilhamento'       // Premium+: grupos casal/família
@@ -40,9 +42,11 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   cartoes_ilimitados: ['premium', 'black'],
   investimentos:      ['premium', 'black'],
   negocios:           ['black'],
-  sora_grow:          ['basico', 'premium', 'black'], // acesso base pra todos
+  sora_grow:          ['basico', 'premium', 'black'], // base: hábitos, tarefas, agenda, bem-estar
   grow_saude:         ['premium', 'black'],
   grow_estudos:       ['premium', 'black'],
+  grow_casa:          ['premium', 'black'],
+  grow_colecoes:      ['premium', 'black'],
   grow_despensa:      ['premium', 'black'],
   sora_grow_trial:    [], // descontinuado
   compartilhamento:   ['premium', 'black'],
