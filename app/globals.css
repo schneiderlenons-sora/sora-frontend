@@ -274,15 +274,11 @@ body { background-color: hsl(var(--bg)); }
 
   html {
     overscroll-behavior-y: none;
-  }
-
-  /* Smooth scroll APENAS em navegação por âncora (algo com foco dentro do doc,
-     ex.: clicar num <a href="#pricing">). NUNCA aplicar smooth no <html> de
-     forma global: a restauração de scroll do navegador (reload / voltar aba /
-     hidratação) vira uma animação lenta de milhares de px e a página "anda
-     sozinha pra cima/baixo". O :focus-within deixa o restore instantâneo. */
-  @media (prefers-reduced-motion: no-preference) {
-    html:focus-within { scroll-behavior: smooth; }
+    /* SEM scroll-behavior: smooth. Já tentamos no <html> (animava a restauração
+       de scroll = "anda sozinha") e no :focus-within (assim que algo ganhava
+       foco, toda rolagem virava animada e a página "pulava ao parar de rolar").
+       Âncoras dão jump instantâneo com scroll-mt — sem nenhum efeito colateral.
+       Se um dia quiser glide nos CTAs, fazer por JS no clique do link específico. */
   }
 
   body {
