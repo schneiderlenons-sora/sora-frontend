@@ -194,10 +194,8 @@ function WhatsAppChat({ mensagens, scrollRef }: { mensagens: MsgRender[]; scroll
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/80">
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-             style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
-          S
-        </div>
+        <img src="/sora-icon.png" alt="Sora" width={32} height={32}
+             className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-white/15" draggable={false} />
         <div className="flex-1 min-w-0 leading-tight">
           <p className="font-semibold text-[12px] truncate">Sora</p>
           <p className="text-[9px] text-white/55">online</p>
@@ -380,6 +378,42 @@ function BolhaSora({ msg, hora }: { msg: MsgSora; hora: string }) {
                 <p className="text-[12px] font-bold tabular-nums">{msg.margem}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {msg.tipo === 'card_agenda' && (
+          <div className="my-1 min-w-[185px]">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0" style={{ background: `${BRAND}22` }}>📅</div>
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold leading-tight truncate">{msg.titulo}</p>
+                <p className="text-[10px] text-white/55">{msg.quando}</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: 'rgba(97,206,112,0.18)', color: BRAND }}>🔔 {msg.lembrete}</span>
+          </div>
+        )}
+
+        {msg.tipo === 'card_macros' && (
+          <div className="my-1 min-w-[195px]">
+            <p className="text-[9px] uppercase tracking-wider text-white/55 mb-0.5 font-bold">{msg.refeicao}</p>
+            <p className="text-[20px] font-bold tabular-nums leading-none" style={{ color: BRAND }}>
+              {msg.kcal} <span className="text-[10px] text-white/50 font-medium">kcal</span>
+            </p>
+            <div className="mt-1.5 space-y-0.5">
+              {msg.itens.map(it => (
+                <div key={it.nome} className="flex justify-between text-[10px] text-white/70">
+                  <span>• {it.nome}</span><span className="tabular-nums">{it.kcal} kcal</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex gap-1.5">
+              <span className="flex-1 text-center px-1 py-1 rounded-lg text-[9px] font-bold" style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>P {msg.prot}g</span>
+              <span className="flex-1 text-center px-1 py-1 rounded-lg text-[9px] font-bold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>C {msg.carb}g</span>
+              <span className="flex-1 text-center px-1 py-1 rounded-lg text-[9px] font-bold" style={{ background: 'rgba(244,114,182,0.15)', color: '#f472b6' }}>G {msg.gord}g</span>
+            </div>
+            {msg.meta && <p className="text-[9px] text-white/50 mt-1.5">{msg.meta}</p>}
           </div>
         )}
 
