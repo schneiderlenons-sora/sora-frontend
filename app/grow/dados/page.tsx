@@ -8,16 +8,17 @@ import { useApi } from '@/lib/useApi';
 import GrowHero from '@/components/grow/GrowHero';
 import {
   Lock, ShieldCheck, ShieldOff, Loader2, Plus, ChevronLeft, ChevronRight, X,
-  Pencil, Trash2, Copy, Check, Eye, EyeOff, KeyRound, FileText,
+  Pencil, Trash2, Copy, Check, Eye, EyeOff, KeyRound, FileText, Paperclip, Download,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 const PALETA = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#64748b'];
 const ICONES_QUADRO = ['📁', '🗂️', '🔐', '🏦', '🪪', '📄', '🏥', '🚗', '🎓', '🏠', '💼', '⭐'];
 const TIPOS = [
-  { v: 'campo', l: 'Campo', icon: FileText, desc: 'Rótulo + valor curto' },
-  { v: 'nota',  l: 'Nota',  icon: FileText, desc: 'Texto longo' },
-  { v: 'senha', l: 'Senha', icon: KeyRound, desc: 'Valor oculto' },
+  { v: 'campo',   l: 'Campo',   icon: FileText,  desc: 'Rótulo + valor curto' },
+  { v: 'nota',    l: 'Nota',    icon: FileText,  desc: 'Texto longo' },
+  { v: 'senha',   l: 'Senha',   icon: KeyRound,  desc: 'Valor oculto' },
+  { v: 'arquivo', l: 'Arquivo', icon: Paperclip, desc: 'PDF, doc, imagem' },
 ];
 
 export default function DadosPessoaisPage() {
@@ -323,21 +324,36 @@ function NivelItens({ phone, secao, onVoltar }: { phone: string; secao: any; onV
 function ItemCard({ item, phone, onEditar, onMudou, delay }: { item: any; phone: string; onEditar: () => void; onMudou: () => void; delay: number }) {
   const [revelado, setRevelado] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [baixando, setBaixando] = useState(false);
   const isSenha = item.tipo === 'senha';
+  const isArquivo = item.tipo === 'arquivo';
   const copiar = async () => { try { await navigator.clipboard.writeText(item.valor || ''); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } catch {} };
+  const baixar = async () => {
+    if (!item.arquivo_url) return; setBaixando(true);
+    try { const { url } = await api.dados.arquivo.downloadUrl({ phone, path: item.arquivo_url }); window.open(url, '_blank', 'noopener'); } catch {}
+    finally { setBaixando(false); }
+  };
 
   return (
     <div className="group rounded-2xl p-4 border border-border/40 animate-[slide-up_500ms_ease-out_both]" style={{ background: 'hsl(var(--bg-card) / 0.5)', animationDelay: `${delay}ms` }}>
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           {item.titulo && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{item.titulo}</p>}
-          <p className={`text-foreground break-words ${item.tipo === 'nota' ? 'whitespace-pre-wrap text-sm' : 'font-medium'} ${isSenha && !revelado ? 'tracking-widest' : ''}`}>
-            {isSenha && !revelado ? '••••••••' : (item.valor || '—')}
-          </p>
+          {isArquivo ? (
+            <button onClick={baixar} className="inline-flex items-center gap-2 text-foreground font-medium hover:text-primary transition-colors max-w-full">
+              <Paperclip size={15} className="flex-shrink-0" style={{ color: BRAND }} />
+              <span className="truncate">{item.arquivo_nome || 'arquivo'}</span>
+            </button>
+          ) : (
+            <p className={`text-foreground break-words ${item.tipo === 'nota' ? 'whitespace-pre-wrap text-sm' : 'font-medium'} ${isSenha && !revelado ? 'tracking-widest' : ''}`}>
+              {isSenha && !revelado ? '••••••••' : (item.valor || '—')}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
+          {isArquivo && <button onClick={baixar} className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10" aria-label="Baixar">{baixando ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}</button>}
           {isSenha && <button onClick={() => setRevelado(v => !v)} className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10" aria-label="Mostrar">{revelado ? <EyeOff size={15} /> : <Eye size={15} />}</button>}
-          {item.valor && <button onClick={copiar} className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10" aria-label="Copiar">{copiado ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}</button>}
+          {!isArquivo && item.valor && <button onClick={copiar} className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10" aria-label="Copiar">{copiado ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}</button>}
           <button onClick={onEditar} className="p-2 rounded-lg text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 hover:bg-foreground/10" aria-label="Editar"><Pencil size={14} /></button>
         </div>
       </div>
@@ -421,26 +437,65 @@ function ModalItem({ phone, secaoId, item, onFechar, onSalvo }: any) {
   const [tipo, setTipo] = useState(ed?.tipo || 'campo');
   const [titulo, setTitulo] = useState(ed?.titulo || '');
   const [valor, setValor] = useState(ed?.valor || '');
+  const [arquivoUrl, setArquivoUrl] = useState(ed?.arquivo_url || '');
+  const [arquivoNome, setArquivoNome] = useState(ed?.arquivo_nome || '');
+  const [uploading, setUploading] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const onFile = async (e: any) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { setErro('Arquivo muito grande (máx. 10 MB).'); return; }
+    setUploading(true); setErro('');
+    try {
+      const { path, token, nome } = await api.dados.arquivo.uploadUrl({ phone, filename: f.name });
+      const { error } = await supabase.storage.from('dados-arquivos').uploadToSignedUrl(path, token, f);
+      if (error) throw error;
+      setArquivoUrl(path); setArquivoNome(nome); if (!titulo.trim()) setTitulo(f.name);
+    } catch { setErro('Falha no upload. Tente de novo.'); }
+    finally { setUploading(false); }
+  };
+
   const salvar = async () => {
-    if (!valor.trim() && !titulo.trim()) return; setSalvando(true);
-    const body = { phone, tipo, titulo: titulo.trim() || null, valor };
+    if (tipo === 'arquivo' && !arquivoUrl) { setErro('Anexe um arquivo.'); return; }
+    if (tipo !== 'arquivo' && !valor.trim() && !titulo.trim()) return;
+    setSalvando(true); setErro('');
+    const body: any = { phone, tipo, titulo: titulo.trim() || null };
+    if (tipo === 'arquivo') { body.arquivo_url = arquivoUrl; body.arquivo_nome = arquivoNome; body.valor = null; }
+    else body.valor = valor;
     try { ed ? await api.dados.itens.editar(ed.id, body) : await api.dados.itens.criar({ ...body, secao_id: secaoId }); onSalvo(); }
-    finally { setSalvando(false); }
+    catch { setErro('Não consegui salvar.'); setSalvando(false); }
   };
   const excluir = async () => { if (!ed || !confirm('Excluir este item?')) return; await api.dados.itens.deletar(ed.id, phone); onSalvo(); };
+
   return (
     <ModalShell titulo={ed ? 'Editar item' : 'Adicionar item'} onFechar={onFechar}>
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {TIPOS.map(t => <button key={t.v} onClick={() => setTipo(t.v)} className={`rounded-xl p-2.5 text-center border transition-all ${tipo === t.v ? 'border-primary bg-primary/10' : 'border-border/50'}`}><t.icon size={16} className="mx-auto mb-1" style={{ color: tipo === t.v ? BRAND : 'hsl(var(--muted-foreground))' }} /><span className="text-xs font-semibold text-foreground">{t.l}</span></button>)}
+      <div className="grid grid-cols-4 gap-1.5 mb-4">
+        {TIPOS.map(t => <button key={t.v} onClick={() => setTipo(t.v)} className={`rounded-xl p-2 text-center border transition-all ${tipo === t.v ? 'border-primary bg-primary/10' : 'border-border/50'}`}><t.icon size={15} className="mx-auto mb-1" style={{ color: tipo === t.v ? BRAND : 'hsl(var(--muted-foreground))' }} /><span className="text-[11px] font-semibold text-foreground">{t.l}</span></button>)}
       </div>
       <label className="text-xs font-semibold text-muted-foreground">Rótulo (opcional)</label>
-      <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ex.: Banco, Login, Validade…" className={`${inputCls} mt-1 mb-4`} autoFocus />
-      <label className="text-xs font-semibold text-muted-foreground">{tipo === 'nota' ? 'Conteúdo' : 'Valor'}</label>
-      {tipo === 'nota'
-        ? <textarea value={valor} onChange={e => setValor(e.target.value)} rows={4} className={`${inputCls} mt-1 mb-5 resize-y`} />
-        : <input value={valor} onChange={e => setValor(e.target.value)} className={`${inputCls} mt-1 mb-5`} type={tipo === 'senha' ? 'text' : 'text'} />}
-      <BotoesModal onSalvar={salvar} salvando={salvando} podeExcluir={!!ed} onExcluir={excluir} />
+      <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={tipo === 'arquivo' ? 'Ex.: Currículo 2026' : 'Ex.: Banco, Login, Validade…'} className={`${inputCls} mt-1 mb-4`} />
+
+      {tipo === 'arquivo' ? (
+        <>
+          <label className="text-xs font-semibold text-muted-foreground">Arquivo (até 10 MB)</label>
+          <label className="mt-1 mb-5 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 py-5 cursor-pointer hover:bg-foreground/[0.03] transition-colors text-sm">
+            {uploading ? <><Loader2 size={16} className="animate-spin" /> Enviando…</>
+              : arquivoUrl ? <><Check size={16} className="text-green-500" /> <span className="truncate max-w-[200px]">{arquivoNome}</span> · trocar</>
+              : <><Paperclip size={16} /> Escolher arquivo</>}
+            <input type="file" className="hidden" onChange={onFile} disabled={uploading} />
+          </label>
+        </>
+      ) : tipo === 'nota' ? (
+        <><label className="text-xs font-semibold text-muted-foreground">Conteúdo</label>
+        <textarea value={valor} onChange={e => setValor(e.target.value)} rows={4} className={`${inputCls} mt-1 mb-5 resize-y`} autoFocus /></>
+      ) : (
+        <><label className="text-xs font-semibold text-muted-foreground">Valor</label>
+        <input value={valor} onChange={e => setValor(e.target.value)} className={`${inputCls} mt-1 mb-5`} autoFocus /></>
+      )}
+
+      {erro && <p className="text-sm text-red-500 mb-3 -mt-2">{erro}</p>}
+      <BotoesModal onSalvar={salvar} salvando={salvando || uploading} podeExcluir={!!ed} onExcluir={excluir} />
     </ModalShell>
   );
 }

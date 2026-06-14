@@ -258,6 +258,10 @@ export const api = {
       editar:  (id: string, body: any) => req<any>(`/api/dados/dados_itens/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string, phone: string) => req(`/api/dados/dados_itens/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
+    arquivo: {
+      uploadUrl:   (body: { phone: string; filename: string }) => req<{ path: string; token: string; nome: string }>('/api/dados/upload-url', { method: 'POST', body: JSON.stringify(body) }),
+      downloadUrl: (body: { phone: string; path: string }) => req<{ url: string }>('/api/dados/download-url', { method: 'POST', body: JSON.stringify(body) }),
+    },
   },
 
   // ── GROW (segundo painel: hábitos, tarefas, humor, casa) ─────
