@@ -85,12 +85,22 @@ function SignupWizard() {
       const uid = await signUp(email, password, nome, numero);
       if (!uid) throw new Error('Não consegui criar a conta. Tente novamente.');
 
-      // Salva o número no backend e (depois do pagamento) dispara boas-vindas.
-      // Logo após o signUp o token pode não estar pronto → 1ª tentativa pode dar
-      // 401; por isso retentamos algumas vezes até salvar o phone.
+      // Vincula o WhatsApp. Se o número já estiver em uso por OUTRA conta (409),
+      // não adianta retentar — avisa e NÃO segue pro pagamento (evita pagar numa
+      // conta que ficaria quebrada, pois o app é keyed by phone). Erros
+      // transitórios (token ainda não pronto → 401) retentam.
+      let linkErro = '';
       for (let i = 0; i < 4; i++) {
-        try { await api.user.welcome({ user_id: uid, phone: numero, nome }); break; }
-        catch { await new Promise((r) => setTimeout(r, 500 + i * 400)); }
+        try { await api.user.welcome({ user_id: uid, phone: numero, nome }); linkErro = ''; break; }
+        catch (e: any) {
+          linkErro = e?.message || '';
+          if (/já está vinculado|outra conta/i.test(linkErro)) break; // não-transitório
+          await new Promise((r) => setTimeout(r, 500 + i * 400));
+        }
+      }
+      if (/já está vinculado|outra conta/i.test(linkErro)) {
+        setErro(linkErro);
+        return; // permanece no passo de dados, sem ir pro pagamento
       }
       await recarregar();
       trackSignUp();
