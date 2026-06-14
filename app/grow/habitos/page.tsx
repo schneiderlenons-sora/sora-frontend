@@ -217,7 +217,15 @@ export default function HabitosPage() {
       )}
 
       {modalOpen && phone && (
-        <ModalHabito phone={phone} habito={editando} onClose={() => { setModalOpen(false); setEditando(null); }} onSuccess={() => { carregar(true); setModalOpen(false); setEditando(null); }} />
+        <ModalHabito phone={phone} habito={editando} onClose={() => { setModalOpen(false); setEditando(null); }} onSuccess={(info) => {
+          carregar(true); setModalOpen(false); setEditando(null);
+          if (info?.novo) {
+            const praHoje = (info.dias?.length ? info.dias : [1,2,3,4,5,6,7]).includes(diaSemanaBR(new Date()));
+            flash(praHoje
+              ? `✓ Hábito "${info.nome}" criado!`
+              : `✓ "${info.nome}" criado! Hoje não é dia dele — aparece na Visão nos dias marcados (ou veja em Gerenciar).`, true);
+          }
+        }} />
       )}
     </div>
   );
