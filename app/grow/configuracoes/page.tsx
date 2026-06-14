@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import GrowHero from '@/components/grow/GrowHero';
 import {
-  Settings, Lock, Users, Home, Plane, Clapperboard, BookOpen,
+  Lock, Users, Home, Plane, Clapperboard, BookOpen,
   Loader2, ShieldCheck, Info,
 } from 'lucide-react';
 
@@ -62,11 +62,11 @@ export default function GrowConfiguracoesPage() {
   }, [phone, isAdmin, cfg, mutate]);
 
   return (
-    <div className="max-w-3xl mx-auto pb-20 space-y-6">
+    <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
-        badge="Configurações"
-        badgeIcon={Settings}
-        titulo="Configurações"
+        badge="Compartilhamento"
+        badgeIcon={Users}
+        titulo="Compartilhamento"
         subtitulo="Controle o que é só seu e o que o seu grupo enxerga no Sora Grow."
       />
 

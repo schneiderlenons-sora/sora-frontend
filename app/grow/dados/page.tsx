@@ -199,7 +199,7 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
   const [modalPin, setModalPin] = useState(false);
 
   return (
-    <div className="max-w-5xl mx-auto pb-20 space-y-6">
+    <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
         badge="Dados Pessoais" badgeIcon={Lock}
         titulo={secao ? secao.nome : quadro ? quadro.nome : 'Dados Pessoais'}

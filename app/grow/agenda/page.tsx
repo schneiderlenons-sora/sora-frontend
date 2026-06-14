@@ -142,7 +142,7 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto pb-24 space-y-6">
+    <div className="max-w-7xl mx-auto pb-24 space-y-6">
       <GrowHero badge="Agenda" badgeIcon={CalendarDays} titulo="Agenda" subtitulo={subtitulo} />
 
       {/* Toggle de visão + Novo */}

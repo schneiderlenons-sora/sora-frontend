@@ -56,7 +56,7 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard, gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen,      gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/dados',      label: 'Dados Pessoais', icon: Lock },
-  { href: '/grow/configuracoes', label: 'Configurações', icon: Settings },
+  { href: '/grow/configuracoes', label: 'Compartilhamento', icon: Users },
 ];
 
 // ── Geral (app-wide, sempre visível) ────────────────────────────────
