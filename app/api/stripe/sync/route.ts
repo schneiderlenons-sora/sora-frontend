@@ -33,8 +33,14 @@ export async function POST(_req: NextRequest) {
     }
 
     const priceId   = sub.items.data[0]?.price.id;
-    const plano     = priceId ? priceIdToPlano(priceId) : null;
-    const intervalo = priceId ? priceIdToIntervalo(priceId) : null;
+    // Deriva pelo price map; se não bater (ex.: price ID novo fora do mapa),
+    // cai no metadata.plano que o checkout/embedded gravou na assinatura.
+    const plano     = (priceId ? priceIdToPlano(priceId) : null)
+                      || (sub.metadata?.plano as string | undefined)
+                      || null;
+    const intervalo = (priceId ? priceIdToIntervalo(priceId) : null)
+                      || (sub.metadata?.intervalo as string | undefined)
+                      || null;
     const periodEnd = (sub.items.data[0] as { current_period_end?: number })?.current_period_end;
     const valido_ate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
 
