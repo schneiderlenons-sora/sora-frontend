@@ -19,6 +19,18 @@ export async function GET() {
       .eq('id', user.id)
       .maybeSingle();
 
+    // Backfill do WhatsApp: se a linha existe mas phone está null (ex.: a
+    // chamada /welcome do cadastro falhou/deu 401), recupera o número do
+    // user_metadata (gravado atomicamente no signUp) e persiste. Sem o phone,
+    // todo o app — que é keyed by phone — quebra (categorias, contas, etc.).
+    if (perfil && !perfil.phone) {
+      const metaPhone = (user.user_metadata?.phone as string | undefined)?.replace(/\D/g, '');
+      if (metaPhone && metaPhone.length >= 12) {
+        await supabaseAdmin.from('users').update({ phone: metaPhone }).eq('id', user.id);
+        (perfil as { phone?: string | null }).phone = metaPhone;
+      }
+    }
+
     let papel: 'admin' | 'escrita' | 'leitura' = 'admin';
     const grupoId = (perfil as { grupo_ativo?: { id?: string; dono_id?: string } } | null)?.grupo_ativo?.id;
     const donoId  = (perfil as { grupo_ativo?: { id?: string; dono_id?: string } } | null)?.grupo_ativo?.dono_id;

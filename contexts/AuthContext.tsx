@@ -68,7 +68,7 @@ interface AuthContextType {
   signIn:           (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithApple:  () => Promise<void>;
-  signUp:           (email: string, password: string, name: string) => Promise<string | null>;
+  signUp:           (email: string, password: string, name: string, phone?: string) => Promise<string | null>;
   signOut:          () => Promise<void>;
   recarregar:       () => Promise<void>;
 }
@@ -158,10 +158,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = () => signInWithProvider('google');
   const signInWithApple  = () => signInWithProvider('apple');
 
-  async function signUp(email: string, password: string, name: string): Promise<string | null> {
+  async function signUp(email: string, password: string, name: string, phone?: string): Promise<string | null> {
     const { data, error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { name } }
+      // Guarda o phone no user_metadata: é ATÔMICO com a criação da conta, então
+      // nunca se perde (ao contrário da chamada /welcome, que podia dar 401 logo
+      // após o signUp). O /api/me faz backfill desse phone pra public.users.
+      options: { data: { name, ...(phone ? { phone } : {}) } }
     });
     if (error) throw new Error(error.message);
     // Trigger do Supabase cria o perfil automaticamente. NÃO navega aqui — o

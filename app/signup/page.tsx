@@ -80,13 +80,18 @@ function SignupWizard() {
 
     setLoading(true);
     try {
-      const uid = await signUp(email, password, nome);
+      // Passa o phone no signUp (vai pro user_metadata, atômico) — assim o
+      // /api/me consegue fazer backfill mesmo se o /welcome abaixo falhar.
+      const uid = await signUp(email, password, nome, numero);
       if (!uid) throw new Error('Não consegui criar a conta. Tente novamente.');
 
-      // Salva o número no backend (service role, confiável) e dispara boas-vindas.
-      // Aguardamos pra garantir o phone salvo, e recarregamos o perfil pra que
-      // o onboarding já enxergue o número vinculado.
-      try { await api.user.welcome({ user_id: uid, phone: numero, nome }); } catch { /* não bloqueia */ }
+      // Salva o número no backend e (depois do pagamento) dispara boas-vindas.
+      // Logo após o signUp o token pode não estar pronto → 1ª tentativa pode dar
+      // 401; por isso retentamos algumas vezes até salvar o phone.
+      for (let i = 0; i < 4; i++) {
+        try { await api.user.welcome({ user_id: uid, phone: numero, nome }); break; }
+        catch { await new Promise((r) => setTimeout(r, 500 + i * 400)); }
+      }
       await recarregar();
       trackSignUp();
 
