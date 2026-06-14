@@ -99,8 +99,11 @@ export default function SaudeShowcase() {
           </button>
         </div>
 
-        {/* Legenda do slide ativo (troca junto) */}
-        <div key={idx} className="animate-fade-in mb-5">
+        {/* Legenda do slide ativo (troca junto).
+            min-h fixo: as descrições têm 1 ou 2 linhas (46↔66px). Sem reservar
+            a altura, cada troca do autoplay (5s) mudava a altura e empurrava
+            TODA a landing abaixo uns 20px — os "pulos frequentes" relatados. */}
+        <div key={idx} className="animate-fade-in mb-5 min-h-[66px] flex flex-col justify-center">
           <p className="text-base font-bold text-zinc-900 dark:text-white">{ativo.titulo}</p>
           <p className="text-sm text-zinc-500 dark:text-white/50 mt-0.5">{ativo.desc}</p>
         </div>
