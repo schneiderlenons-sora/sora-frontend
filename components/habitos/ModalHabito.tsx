@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { api } from '@/lib/api';
 import { X, Loader2, Check, AlertCircle, Target, Trash2, Bell, BellOff, Sparkles } from 'lucide-react';
 
@@ -59,6 +59,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
   const [tipo, setTipo]           = useState<'construir' | 'eliminar'>(habito?.tipo || 'construir');
   const [loading, setLoading]     = useState(false);
   const [erro, setErro]           = useState('');
+  const nomeRef = useRef<HTMLInputElement>(null);
 
   // Determina horário final
   const horarioFinal = useMemo(() => {
@@ -74,7 +75,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
 
   async function salvar() {
     setErro('');
-    if (!nome.trim()) { setErro('Dê um nome ao hábito.'); return; }
+    if (!nome.trim()) { setErro('Dê um nome ao hábito.'); nomeRef.current?.focus(); nomeRef.current?.scrollIntoView({ block: 'center' }); return; }
     if (dias.length === 0) { setErro('Selecione pelo menos um dia.'); return; }
     setLoading(true);
     try {
@@ -149,7 +150,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           {/* Nome */}
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Nome</label>
-            <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Beber 2L de água" className="input" maxLength={60} autoFocus />
+            <input ref={nomeRef} value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Beber 2L de água" className="input" maxLength={60} autoFocus />
           </div>
 
           {/* Tipo: construir vs eliminar */}
@@ -292,7 +293,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           )}
           <div className="flex gap-2 ml-auto">
             <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
-            <button onClick={salvar} disabled={loading || !nome.trim()}
+            <button onClick={salvar} disabled={loading}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
               {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               {ed ? 'Salvar' : 'Criar hábito'}
