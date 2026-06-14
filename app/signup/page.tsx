@@ -285,9 +285,9 @@ function SignupWizard() {
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    Recebemos seu pagamento. A ativação está levando mais que o normal —
-                    <strong className="text-foreground"> não pague de novo</strong>. Toque abaixo
-                    pra concluir; se persistir, é só atualizar a página em instantes.
+                    Recebemos seu pagamento. A ativação está levando um pouquinho mais que o
+                    normal — toque abaixo pra concluir; se persistir, é só atualizar a página
+                    em instantes.
                   </p>
                   <button
                     onClick={tentarAtivarDeNovo}

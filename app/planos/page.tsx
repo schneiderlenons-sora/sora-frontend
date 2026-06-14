@@ -191,7 +191,7 @@ function PlanosContent() {
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">Pagamento confirmado!</p>
               <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
                 {planoAtual === 'inativo'
-                  ? <>Seu plano está sendo ativado — <strong>não pague de novo</strong>. Se demorar, toque em “Concluir ativação”.</>
+                  ? <>Seu plano está sendo ativado. Se demorar, toque em “Concluir ativação”.</>
                   : <>Plano ativado. Em alguns instantes o painel será atualizado.</>}
               </p>
               {planoAtual === 'inativo' && (

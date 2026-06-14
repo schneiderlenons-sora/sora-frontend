@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/contexts/AuthContext';
 import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
+import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
 import { LoadingGateProvider } from '@/components/ui/LoadingGate';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
@@ -36,6 +37,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <PaywallRedirect />
         <OnboardingRedirect />
+        <WelcomeTrigger />
         <LoadingGateProvider>
           {children}
         </LoadingGateProvider>
