@@ -185,13 +185,27 @@ function PlanosContent() {
 
         {/* Banners de feedback */}
         {success && (
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900/60 animate-fade-in">
-            <CheckCircle2 size={18} className="text-green-600 dark:text-green-400 flex-shrink-0" />
-            <div>
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900/60 animate-fade-in">
+            <CheckCircle2 size={18} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">Pagamento confirmado!</p>
               <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
-                Seu plano está sendo ativado. Em alguns instantes o painel será atualizado.
+                {planoAtual === 'inativo'
+                  ? <>Seu plano está sendo ativado — <strong>não pague de novo</strong>. Se demorar, toque em “Concluir ativação”.</>
+                  : <>Plano ativado. Em alguns instantes o painel será atualizado.</>}
               </p>
+              {planoAtual === 'inativo' && (
+                <button
+                  onClick={async () => {
+                    setLoading('__sync__'); // sentinela: desabilita os botões durante o sync
+                    try { await fetch('/api/stripe/sync', { method: 'POST' }); await recarregarRef.current(); }
+                    finally { setLoading(null); }
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-green-800 dark:text-green-300 underline"
+                >
+                  Concluir ativação
+                </button>
+              )}
             </div>
           </div>
         )}

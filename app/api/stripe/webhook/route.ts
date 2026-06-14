@@ -66,21 +66,31 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const intervalo = session.metadata?.intervalo;
   if (!userId || !plano) return;
 
-  // Busca a subscription para pegar current_period_end (está nos items na API dahlia)
-  const sub = typeof session.subscription === 'string'
-    ? await stripe.subscriptions.retrieve(session.subscription)
-    : (session.subscription as Stripe.Subscription);
-
-  const periodEnd = sub.items.data[0]?.current_period_end;
-  const valido_ate = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
-
+  // 1) ATIVA O PLANO JÁ a partir do metadata — NÃO depende de buscar a
+  //    assinatura. Antes, se o subscriptions.retrieve falhasse, o plano nunca
+  //    era setado e o cliente ficava "inativo" mesmo tendo pago (e re-pagava).
   await supabaseAdmin.from('users').update({
     plano,
-    plano_intervalo:         intervalo ?? null,
-    plano_valido_ate:        valido_ate,
-    stripe_customer_id:      session.customer as string,
-    stripe_subscription_id:  sub.id,
+    plano_intervalo:    intervalo ?? null,
+    stripe_customer_id: (session.customer as string) ?? null,
   }).eq('id', userId);
+
+  // 2) Enriquece com validade + id da assinatura (best-effort — se falhar, o
+  //    plano já está ativo; o /api/stripe/sync completa depois).
+  try {
+    const sub = typeof session.subscription === 'string'
+      ? await stripe.subscriptions.retrieve(session.subscription)
+      : (session.subscription as Stripe.Subscription | null);
+    if (sub) {
+      const periodEnd = sub.items.data[0]?.current_period_end;
+      await supabaseAdmin.from('users').update({
+        plano_valido_ate:       periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        stripe_subscription_id: sub.id,
+      }).eq('id', userId);
+    }
+  } catch (e) {
+    console.error('[stripe/webhook] enrich pós-ativação falhou (plano já ativo):', e instanceof Error ? e.message : e);
+  }
 
   // CAPI: Purchase server-side (mais confiável que o pixel client-side)
   const amount = session.amount_total ? session.amount_total / 100 : 0;

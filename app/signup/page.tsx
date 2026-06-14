@@ -63,6 +63,8 @@ function SignupWizard() {
 
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState('');
+  // Pagamento aprovado mas plano ainda não ativou após ~40s (webhook lento).
+  const [ativacaoPendente, setAtivacaoPendente] = useState(false);
 
   // ── PASSO 1: cria conta + vincula WhatsApp ────────────────────────
   async function handleDados(e: React.FormEvent) {
@@ -142,17 +144,50 @@ function SignupWizard() {
   useEffect(() => {
     if (step !== 'ativando') return;
     let tries = 0;
+    let cancelado = false;
+    setAtivacaoPendente(false);
+
+    // /api/stripe/sync lê a assinatura direto no Stripe e ativa o plano —
+    // não depende do webhook chegar. Como o usuário acabou de se cadastrar,
+    // a sessão (cookie www) está presente, então o sync funciona aqui.
+    const sync = () =>
+      fetch('/api/stripe/sync', { method: 'POST' }).catch(() => {});
+
+    sync().finally(() => recarregarRef.current());
+
     const iv = setInterval(async () => {
+      if (cancelado) return;
       tries += 1;
+      // Re-sincroniza nas primeiras tentativas (cobre webhook lento/falho).
+      if (tries === 3 || tries === 8) await sync();
       await recarregarRef.current();
-      if (tries >= 15) { clearInterval(iv); router.push('/onboarding'); }
+      // Depois de ~40s sem ativar: NÃO empurra pro onboarding (o guard
+      // rebateria pro /planos e o cliente acharia que precisa pagar de novo).
+      // Mostra um estado de "ativação pendente" com botão de tentar de novo.
+      if (tries >= 20) { clearInterval(iv); setAtivacaoPendente(true); }
     }, 2000);
-    return () => clearInterval(iv);
-  }, [step, router]);
+    return () => { cancelado = true; clearInterval(iv); };
+  }, [step]);
   // Assim que o plano ativa, segue pro onboarding
   useEffect(() => {
     if (step === 'ativando' && planoAtual !== 'inativo') router.push('/onboarding');
   }, [step, planoAtual, router]);
+
+  // Botão "Já paguei — tentar de novo": re-sincroniza com o Stripe.
+  const [retrying, setRetrying] = useState(false);
+  async function tentarAtivarDeNovo() {
+    setRetrying(true);
+    setAtivacaoPendente(false);
+    try {
+      await fetch('/api/stripe/sync', { method: 'POST' });
+      await recarregarRef.current();
+      // O effect de planoAtual redireciona pro onboarding se ativou.
+      // Se não ativou, reexibe o estado pendente (sem empurrar pro /planos).
+      setAtivacaoPendente(true);
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   return (
     <div className="min-h-dvh flex flex-col lg:flex-row bg-white dark:bg-zinc-950">
@@ -239,10 +274,40 @@ function SignupWizard() {
                 <CheckCircle2 size={32} className="text-white" />
               </div>
               <h2 className="text-2xl font-bold text-foreground tracking-tight">Pagamento confirmado!</h2>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                Ativando seu plano… você será levado às configurações iniciais em instantes.
-              </p>
-              <Loader2 size={22} className="animate-spin text-muted-foreground" />
+
+              {!ativacaoPendente ? (
+                <>
+                  <p className="text-sm text-muted-foreground max-w-xs">
+                    Ativando seu plano… você será levado às configurações iniciais em instantes.
+                  </p>
+                  <Loader2 size={22} className="animate-spin text-muted-foreground" />
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground max-w-xs">
+                    Recebemos seu pagamento. A ativação está levando mais que o normal —
+                    <strong className="text-foreground"> não pague de novo</strong>. Toque abaixo
+                    pra concluir; se persistir, é só atualizar a página em instantes.
+                  </p>
+                  <button
+                    onClick={tentarAtivarDeNovo}
+                    disabled={retrying}
+                    className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl
+                               font-semibold text-white shadow-lg disabled:opacity-60 transition"
+                    style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}
+                  >
+                    {retrying
+                      ? <><Loader2 size={18} className="animate-spin" /> Ativando…</>
+                      : <>Já paguei — concluir ativação</>}
+                  </button>
+                  <a
+                    href="https://wa.me/5511967600315"
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground underline"
+                  >
+                    Precisa de ajuda? Fale com o suporte
+                  </a>
+                </>
+              )}
             </div>
           )}
 
