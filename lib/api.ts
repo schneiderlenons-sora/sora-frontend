@@ -231,6 +231,35 @@ export const api = {
       req<{ phone: string; lembretes_dividas: boolean }>(`/api/dividas/lembretes/${phone}`, { method: 'PATCH', body: JSON.stringify({ ativo }) }),
   },
 
+  // ── DADOS PESSOAIS (aba privada do Grow, com PIN) ─────
+  dados: {
+    pin: {
+      status:    (phone: string) => req<{ definido: boolean; travadoAte: string | null }>(`/api/dados/pin/status/${phone}`),
+      definir:   (body: { phone: string; pinAtual?: string; pinNovo: string }) => req<{ ok: boolean }>('/api/dados/pin/definir', { method: 'POST', body: JSON.stringify(body) }),
+      verificar: (body: { phone: string; pin: string }) => req<{ ok: boolean; restantes?: number; travadoAte?: string | null }>('/api/dados/pin/verificar', { method: 'POST', body: JSON.stringify(body) }),
+      remover:   (body: { phone: string; pin: string }) => req<{ ok: boolean }>('/api/dados/pin/remover', { method: 'POST', body: JSON.stringify(body) }),
+      resetar:   (body: { phone: string; pinNovo: string }) => req<{ ok: boolean }>('/api/dados/pin/resetar', { method: 'POST', body: JSON.stringify(body) }),
+    },
+    quadros: {
+      listar:  (phone: string) => req<any[]>(`/api/dados/dados_quadros/${phone}`),
+      criar:   (body: any) => req<any>('/api/dados/dados_quadros', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/dados/dados_quadros/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/dados/dados_quadros/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+    secoes: {
+      listar:  (phone: string, quadro_id: string) => req<any[]>(`/api/dados/dados_secoes/${phone}?quadro_id=${quadro_id}`),
+      criar:   (body: any) => req<any>('/api/dados/dados_secoes', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/dados/dados_secoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/dados/dados_secoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+    itens: {
+      listar:  (phone: string, secao_id: string) => req<any[]>(`/api/dados/dados_itens/${phone}?secao_id=${secao_id}`),
+      criar:   (body: any) => req<any>('/api/dados/dados_itens', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: any) => req<any>(`/api/dados/dados_itens/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) => req(`/api/dados/dados_itens/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+  },
+
   // ── GROW (segundo painel: hábitos, tarefas, humor, casa) ─────
   grow: {
     status: (phone: string) =>
