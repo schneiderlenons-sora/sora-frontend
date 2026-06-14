@@ -247,7 +247,8 @@ export const api = {
       deletar: (id: string, phone: string) => req(`/api/dados/dados_quadros/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
     secoes: {
-      listar:  (phone: string, quadro_id: string) => req<any[]>(`/api/dados/dados_secoes/${phone}?quadro_id=${quadro_id}`),
+      listar:      (phone: string, quadro_id: string) => req<any[]>(`/api/dados/dados_secoes/${phone}?quadro_id=${quadro_id}`),
+      listarTodas: (phone: string) => req<any[]>(`/api/dados/dados_secoes/${phone}`),
       criar:   (body: any) => req<any>('/api/dados/dados_secoes', { method: 'POST', body: JSON.stringify(body) }),
       editar:  (id: string, body: any) => req<any>(`/api/dados/dados_secoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string, phone: string) => req(`/api/dados/dados_secoes/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),

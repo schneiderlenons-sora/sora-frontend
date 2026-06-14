@@ -194,7 +194,6 @@ function EsqueciPin({ phone, email, onPronto, onVoltar }: { phone: string; email
 
 // ════════════════ COFRE (quadros → seções → itens) ════════════════
 function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean; onPinChange: (definido: boolean) => void }) {
-  const [quadro, setQuadro] = useState<any | null>(null);
   const [secao, setSecao] = useState<any | null>(null);
   const [modalPin, setModalPin] = useState(false);
 
@@ -202,8 +201,8 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
         badge="Dados Pessoais" badgeIcon={Lock}
-        titulo={secao ? secao.nome : quadro ? quadro.nome : 'Dados Pessoais'}
-        subtitulo={secao ? 'Suas informações desta seção' : quadro ? 'Organize em seções (mini-quadros)' : 'Seu cofre pessoal — organizado do seu jeito, só pra você.'}
+        titulo={secao ? secao.nome : 'Dados Pessoais'}
+        subtitulo={secao ? 'Suas informações desta seção' : 'Seu cofre pessoal — organizado do seu jeito, só pra você.'}
       >
         <button onClick={() => setModalPin(true)}
           className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-border/60 text-foreground hover:bg-foreground/[0.04] transition-all">
@@ -220,81 +219,94 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
         </button>
       )}
 
-      {secao ? (
-        <NivelItens phone={phone} secao={secao} onVoltar={() => setSecao(null)} />
-      ) : quadro ? (
-        <NivelSecoes phone={phone} quadro={quadro} onVoltar={() => setQuadro(null)} onAbrir={setSecao} />
-      ) : (
-        <NivelQuadros phone={phone} onAbrir={setQuadro} />
-      )}
+      {secao
+        ? <NivelItens phone={phone} secao={secao} onVoltar={() => setSecao(null)} />
+        : <Board phone={phone} onAbrirSecao={setSecao} />}
 
       {modalPin && <ModalPin phone={phone} temPin={temPin} onFechar={() => setModalPin(false)} onMudou={onPinChange} />}
     </div>
   );
 }
 
-// ── Nível 1: Quadros ──
-function NivelQuadros({ phone, onAbrir }: { phone: string; onAbrir: (q: any) => void }) {
-  const { data, mutate } = useApi(`dados:quadros:${phone}`, () => api.dados.quadros.listar(phone));
-  const [modal, setModal] = useState<any | null | undefined>(undefined); // undefined=fechado, null=novo
-  const lista: any[] = data ?? [];
-  const loading = data === undefined;
+// ── Visão principal: BOARD (colunas = quadros, cards = seções dentro) ──
+// Mostra as seções dentro de cada quadro pai (estilo Notion) pra acessar direto.
+function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) => void }) {
+  const { data: quadrosData, mutate: mutQuadros } = useApi(`dados:quadros:${phone}`, () => api.dados.quadros.listar(phone));
+  const { data: secoesData, mutate: mutSecoes } = useApi(`dados:secoes:all:${phone}`, () => api.dados.secoes.listarTodas(phone));
+  const [modalQuadro, setModalQuadro] = useState<any | null | undefined>(undefined); // undefined=fechado, null=novo, obj=editar
+  const [modalSecao, setModalSecao] = useState<{ quadroId: string; secao?: any } | null>(null);
 
-  return (
+  const quadros: any[] = quadrosData ?? [];
+  const secoes: any[] = secoesData ?? [];
+  const loading = quadrosData === undefined || secoesData === undefined;
+  const porQuadro: Record<string, any[]> = {};
+  for (const s of secoes) (porQuadro[s.quadro_id] = porQuadro[s.quadro_id] || []).push(s);
+
+  const modais = (
     <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Seus quadros</h2>
-        <button onClick={() => setModal(null)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Novo quadro</button>
-      </div>
-      {loading ? <Spinner /> : lista.length === 0 ? (
-        <Vazio icone="📁" texto="Nenhum quadro ainda. Crie o primeiro — ex.: Documentos, Senhas, Saúde." />
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {lista.map((q, i) => (
-            <button key={q.id} onClick={() => onAbrir(q)}
-              className="group relative text-left rounded-2xl p-4 border border-border/40 backdrop-blur-xl hover:-translate-y-0.5 transition-all animate-[slide-up_500ms_ease-out_both]"
-              style={{ background: 'hsl(var(--bg-card) / 0.5)', animationDelay: `${i * 40}ms` }}>
-              <div aria-hidden className="absolute inset-0 rounded-2xl pointer-events-none opacity-60" style={{ background: `radial-gradient(circle at top right, ${q.cor}24 0%, transparent 70%)` }} />
-              <div className="relative">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl mb-3" style={{ background: `${q.cor}22` }}>{q.icone || '📁'}</div>
-                <p className="font-bold text-foreground leading-tight">{q.nome}</p>
-                <span onClick={(e) => { e.stopPropagation(); setModal(q); }} className="absolute -top-1 -right-1 p-1.5 rounded-lg text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 hover:bg-foreground/10 cursor-pointer"><Pencil size={13} /></span>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-      {modal !== undefined && <ModalQuadro phone={phone} quadro={modal} onFechar={() => setModal(undefined)} onSalvo={() => { setModal(undefined); mutate(); }} />}
+      {modalQuadro !== undefined && <ModalQuadro phone={phone} quadro={modalQuadro} onFechar={() => setModalQuadro(undefined)} onSalvo={() => { setModalQuadro(undefined); mutQuadros(); mutSecoes(); }} />}
+      {modalSecao && <ModalSecao phone={phone} quadroId={modalSecao.quadroId} secao={modalSecao.secao || null} onFechar={() => setModalSecao(null)} onSalvo={() => { setModalSecao(null); mutSecoes(); }} />}
     </>
   );
-}
 
-// ── Nível 2: Seções ──
-function NivelSecoes({ phone, quadro, onVoltar, onAbrir }: { phone: string; quadro: any; onVoltar: () => void; onAbrir: (s: any) => void }) {
-  const { data, mutate } = useApi(`dados:secoes:${quadro.id}`, () => api.dados.secoes.listar(phone, quadro.id));
-  const [modal, setModal] = useState<any | null | undefined>(undefined);
-  const lista: any[] = data ?? [];
-  const loading = data === undefined;
+  if (loading) return <Spinner />;
+  if (quadros.length === 0) return (
+    <>
+      <Vazio icone="📁" texto="Crie seu primeiro quadro — ex.: Informações Pessoais, Saúde, Profissional. Dentro dele você adiciona seções (dados bancários, documentos…)." />
+      <div className="flex justify-center"><button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Novo quadro</button></div>
+      {modais}
+    </>
+  );
 
   return (
     <>
-      <BarraVoltar onVoltar={onVoltar} label="Quadros" acao={() => setModal(null)} acaoLabel="Nova seção" />
-      {loading ? <Spinner /> : lista.length === 0 ? (
-        <Vazio icone="🗂️" texto="Sem seções aqui. Crie mini-quadros — ex.: Dados bancários, Documentos, Acessos." />
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {lista.map((s, i) => (
-            <button key={s.id} onClick={() => onAbrir(s)}
-              className="group relative text-left rounded-2xl p-4 border border-border/40 hover:-translate-y-0.5 transition-all animate-[slide-up_500ms_ease-out_both]"
-              style={{ background: 'hsl(var(--bg-subtle) / 0.5)', animationDelay: `${i * 40}ms` }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg mb-2.5" style={{ background: `${quadro.cor}1e` }}>{s.icone || '🗂️'}</div>
-              <p className="font-semibold text-foreground text-sm leading-tight">{s.nome}</p>
-              <span onClick={(e) => { e.stopPropagation(); setModal(s); }} className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 hover:bg-foreground/10 cursor-pointer"><Pencil size={13} /></span>
-            </button>
-          ))}
+      <div className="flex items-center justify-end">
+        <button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Novo quadro</button>
+      </div>
+
+      <div className="overflow-x-auto pb-3 -mx-1 px-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+        <div className="flex gap-4 items-start" style={{ minWidth: 'min-content' }}>
+          {quadros.map((q, i) => {
+            const filhas = porQuadro[q.id] || [];
+            return (
+              <div key={q.id} className="w-[268px] sm:w-[288px] shrink-0 animate-[slide-up_500ms_ease-out_both]" style={{ animationDelay: `${i * 50}ms` }}>
+                {/* cabeçalho colorido do quadro */}
+                <div className="flex items-center gap-2 mb-2.5 px-0.5">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-bold text-white shadow-sm max-w-[180px]" style={{ background: q.cor }}>
+                    <span className="text-sm leading-none">{q.icone || '📁'}</span>
+                    <span className="truncate">{q.nome}</span>
+                  </span>
+                  <span className="text-xs font-semibold text-muted-foreground tabular-nums">{filhas.length}</span>
+                  <div className="ml-auto flex items-center">
+                    <button onClick={() => setModalSecao({ quadroId: q.id })} className="p-1.5 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors" aria-label="Nova seção"><Plus size={15} /></button>
+                    <button onClick={() => setModalQuadro(q)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors" aria-label="Editar quadro"><Pencil size={13} /></button>
+                  </div>
+                </div>
+                {/* painel com as seções dentro */}
+                <div className="rounded-2xl p-2 border border-border/40 space-y-2" style={{ background: 'hsl(var(--bg-subtle) / 0.4)' }}>
+                  {filhas.map(s => (
+                    <button key={s.id} onClick={() => onAbrirSecao(s)}
+                      className="group w-full text-left flex items-center gap-2.5 rounded-xl px-3 py-2.5 border border-border/40 hover:-translate-y-0.5 hover:border-border transition-all"
+                      style={{ background: 'hsl(var(--bg-card) / 0.85)' }}>
+                      <span className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0" style={{ background: `${q.cor}22` }}>{s.icone || '🗂️'}</span>
+                      <span className="font-medium text-foreground text-sm leading-tight flex-1 min-w-0 truncate">{s.nome}</span>
+                      <span onClick={(e) => { e.stopPropagation(); setModalSecao({ quadroId: q.id, secao: s }); }} className="p-1 rounded text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 hover:bg-foreground/10 flex-shrink-0"><Pencil size={12} /></span>
+                    </button>
+                  ))}
+                  <button onClick={() => setModalSecao({ quadroId: q.id })} className="w-full flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors">
+                    <Plus size={15} /> Adicionar seção
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {/* coluna pra novo quadro */}
+          <button onClick={() => setModalQuadro(null)} className="w-[200px] shrink-0 self-start mt-9 rounded-2xl border border-dashed border-border/60 py-4 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors flex items-center justify-center gap-1.5">
+            <Plus size={16} /> Novo quadro
+          </button>
         </div>
-      )}
-      {modal !== undefined && <ModalSecao phone={phone} quadroId={quadro.id} secao={modal} onFechar={() => setModal(undefined)} onSalvo={() => { setModal(undefined); mutate(); }} />}
+      </div>
+      {modais}
     </>
   );
 }
@@ -308,7 +320,7 @@ function NivelItens({ phone, secao, onVoltar }: { phone: string; secao: any; onV
 
   return (
     <>
-      <BarraVoltar onVoltar={onVoltar} label="Seções" acao={() => setModal(null)} acaoLabel="Adicionar" />
+      <BarraVoltar onVoltar={onVoltar} label="Voltar" acao={() => setModal(null)} acaoLabel="Adicionar" />
       {loading ? <Spinner /> : lista.length === 0 ? (
         <Vazio icone="📝" texto="Nada guardado aqui ainda. Adicione um campo, nota ou senha." />
       ) : (
