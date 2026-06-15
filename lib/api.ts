@@ -60,6 +60,16 @@ export const api = {
       }),
   },
 
+  // ── RELATAR BUG ───────────────────────────────────────────────
+  bug: {
+    /** Envia um relato de bug (texto + imagem base64 opcional) pro suporte. */
+    reportar: (body: { mensagem: string; imagem?: string }) =>
+      req<{ ok: boolean; id?: string }>('/api/bug', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
   // ── DASHBOARD (consolidado) ───────────────────────────────────
   // Junta resumo (mês + mês anterior), carteiras, transações recentes,
   // gastos do mês e categorias numa única chamada. O painel tem fallback
