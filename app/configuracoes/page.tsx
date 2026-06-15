@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY, type PlanoDisplay } from '@/lib/planos-display';
@@ -1000,6 +1001,8 @@ function SecaoWhatsApp() {
         )}
       </Card>
 
+      {phone && <ResumosCard />}
+
       <Card titulo="Como funciona" subtitulo="O que dá pra fazer pelo WhatsApp">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Recurso emoji="💬" titulo="Registrar gastos por texto"
@@ -1203,6 +1206,62 @@ function SecaoDados() {
 // ═══════════════════════════════════════════════════════════════
 // COMPONENTES AUXILIARES
 // ═══════════════════════════════════════════════════════════════
+function ResumosCard() {
+  const [semanal, setSemanal] = useState(true);
+  const [mensal, setMensal]   = useState(true);
+  const [loaded, setLoaded]   = useState(false);
+
+  useEffect(() => {
+    api.user.resumos.get()
+      .then((r) => { setSemanal(r.semanal); setMensal(r.mensal); })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  function toggle(tipo: 'semanal' | 'mensal') {
+    if (tipo === 'semanal') {
+      const v = !semanal; setSemanal(v);
+      api.user.resumos.set({ semanal: v }).catch(() => setSemanal(!v));
+    } else {
+      const v = !mensal; setMensal(v);
+      api.user.resumos.set({ mensal: v }).catch(() => setMensal(!v));
+    }
+  }
+
+  return (
+    <Card titulo="Resumos no WhatsApp" subtitulo="A Sora te manda um resumo automático dos seus números">
+      <div className="space-y-2.5">
+        <ToggleRow icon={Calendar} titulo="Resumo semanal" desc="Todo domingo de manhã — seus gastos da semana"
+                   on={semanal} onToggle={() => toggle('semanal')} disabled={!loaded} />
+        <ToggleRow icon={Receipt} titulo="Fechamento mensal" desc="No dia 1º — o resumo do mês anterior"
+                   on={mensal} onToggle={() => toggle('mensal')} disabled={!loaded} />
+      </div>
+    </Card>
+  );
+}
+
+function ToggleRow({ icon: Icon, titulo, desc, on, onToggle, disabled }: {
+  icon: any; titulo: string; desc: string; on: boolean; onToggle: () => void; disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl p-3 bg-muted/20 border border-border/40">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Icon size={16} className="text-primary" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-foreground">{titulo}</p>
+          <p className="text-xs text-muted-foreground">{desc}</p>
+        </div>
+      </div>
+      <button role="switch" aria-checked={on} aria-label={titulo} disabled={disabled} onClick={onToggle}
+              className={`relative w-11 h-6 rounded-full transition-all flex-shrink-0 disabled:opacity-50 ${on ? 'bg-primary' : 'bg-muted'}`}>
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
+      </button>
+    </div>
+  );
+}
+
 function Card({ titulo, subtitulo, perigo, children }: { titulo: string; subtitulo?: string; perigo?: boolean; children: React.ReactNode }) {
   return (
     <div className={`card rounded-2xl p-5 sm:p-6 ${perigo ? 'border-red-200/50 dark:border-red-900/30' : ''}`}>

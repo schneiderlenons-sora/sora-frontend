@@ -58,6 +58,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    /** Preferência de resumos proativos (semanal/mensal) no WhatsApp. */
+    resumos: {
+      get: () => req<{ semanal: boolean; mensal: boolean }>('/api/user/resumos'),
+      set: (body: { semanal?: boolean; mensal?: boolean }) =>
+        req<{ ok: boolean }>('/api/user/resumos', { method: 'POST', body: JSON.stringify(body) }),
+    },
   },
 
   // ── RELATAR BUG ───────────────────────────────────────────────
