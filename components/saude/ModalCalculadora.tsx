@@ -100,7 +100,7 @@ export default function ModalCalculadora({ phone, inicial, onClose, onSuccess }:
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
 
           {/* Dados básicos */}
           <div className="grid grid-cols-3 gap-3">

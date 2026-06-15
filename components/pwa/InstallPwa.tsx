@@ -186,7 +186,7 @@ function Modal({ deferred, onClose }: { deferred: any; onClose: (m?: 'x' | 'inst
         </div>
 
         {/* Conteúdo rolável */}
-        <div key={aba} className="flex-1 overflow-y-auto p-6 space-y-4 animate-fade-in">
+        <div key={aba} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 animate-fade-in">
           {aba === 'ios'     && <PassosIos />}
           {aba === 'android' && <PassosAndroid podeNativo={!!deferred} onInstalar={instalarNativo} instalando={instalando} />}
           {aba === 'desktop' && <PassosDesktop podeNativo={!!deferred} onInstalar={instalarNativo} instalando={instalando} />}

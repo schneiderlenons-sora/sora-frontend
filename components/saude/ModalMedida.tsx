@@ -64,7 +64,7 @@ export default function ModalMedida({ phone, inicial, onClose, onSuccess }: Prop
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Data</label>
             <input type="date" value={data} onChange={e => setData(e.target.value)} max={new Date().toISOString().slice(0, 10)} className="input" />

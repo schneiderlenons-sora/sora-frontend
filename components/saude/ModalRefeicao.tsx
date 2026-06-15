@@ -104,7 +104,7 @@ export default function ModalRefeicao({ phone, onClose, onSuccess }: Props) {
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
           {/* Tipo de refeição */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Tipo</label>

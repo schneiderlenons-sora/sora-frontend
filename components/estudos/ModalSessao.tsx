@@ -119,7 +119,7 @@ export default function ModalSessao({ phone, disciplinas, cursos, onClose, onSuc
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
           {aba === 'pomodoro' ? (
             <>
               <div className="text-center py-3">

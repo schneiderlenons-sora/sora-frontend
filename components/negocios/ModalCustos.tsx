@@ -146,7 +146,7 @@ export default function ModalCustos({ periodo, onClose }: { periodo: string; onC
         </div>
 
         {/* Lista */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5">
           {carregando ? (
             <div className="text-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground mx-auto" /></div>
           ) : custos.length === 0 ? (

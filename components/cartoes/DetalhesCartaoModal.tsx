@@ -246,7 +246,7 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
         </div>
 
         {/* Conteúdo rolável */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
 
           {/* Navegação entre faturas (passadas e futuras com parcelas) */}
           <div className="flex items-center justify-between bg-muted/40 rounded-xl p-1">
