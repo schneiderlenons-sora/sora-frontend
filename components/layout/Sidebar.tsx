@@ -9,8 +9,9 @@ import {
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
-  Plane, Clapperboard, BookOpen, Bug,
+  Plane, Clapperboard, BookOpen, Bug, Shield,
 } from 'lucide-react';
+import { isAdminEmail } from '@/lib/admin';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -345,6 +346,7 @@ export default function Sidebar() {
         {/* GERAL — sempre visível */}
         <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
           {NAV_GERAL.map(item => <NavLink key={item.href} item={item} />)}
+          {isAdminEmail(perfil?.email) && <NavLink item={{ href: '/admin', label: 'Admin', icon: Shield }} />}
         </div>
       </nav>
 
