@@ -104,10 +104,10 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-lg bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[92vh] flex flex-col"
+      <div className="relative w-full max-w-lg bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90dvh] flex flex-col"
            onClick={e => e.stopPropagation()}>
 
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/15">
               <Target size={16} className="text-primary dark:text-primary" />
@@ -117,7 +117,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
 
           {/* PREVIEW LIVE */}
           <div className="rounded-2xl p-4 border border-border/40 backdrop-blur-xl"
@@ -284,7 +284,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border bg-muted/20">
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border bg-muted/20 shrink-0">
           {ed && (
             <button onClick={arquivar} disabled={loading} className="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 p-2 rounded-lg" title="Arquivar">
               <Trash2 size={14} />
