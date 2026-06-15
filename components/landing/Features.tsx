@@ -38,11 +38,15 @@ const PILARES: Pilar[] = [
     titulo: 'A vida que você quer, dia após dia.',
     features: [
       { titulo: 'Hábitos com streak',        desc: 'Check-in pelo zap. Heatmap GitHub-style, conquistas dinâmicas, próximo marco visível.' },
+      { titulo: 'Tarefas e checklist',       desc: 'Lembretes contextuais. Sora avisa no momento certo, não te enche fora da hora.' },
+      { titulo: 'Agenda inteligente',        desc: 'Compromissos, consultas, contas e faturas num só calendário. "Marca dentista terça 15h" pelo zap — e um briefing do seu dia toda manhã.' },
       { titulo: 'Saúde completa',            desc: 'Consultas, remédios (com lembrete automático no horário), treinos, peso, pressão e nutrição.' },
       { titulo: 'Estudos integrados',        desc: 'Faculdade, concursos, cursos. Sessões cronometradas, provas, notas, metas semanais.' },
-      { titulo: 'Tarefas e checklist',       desc: 'Lembretes contextuais. Sora avisa no momento certo, não te enche fora da hora.' },
-      { titulo: 'Casa',                      desc: 'Lista de compras, manutenção, pets, IPTU. Tudo que faz a casa funcionar sem você lembrar.' },
+      { titulo: 'Casa',                      desc: 'Lista de compras, despensa, manutenção, receitas, pets e IPTU. Tudo que faz a casa funcionar sem você lembrar.' },
       { titulo: 'Bem-estar',                 desc: 'Mood tracking, sono, gratidão. Conecta com hábitos e mostra padrões.' },
+      { titulo: 'Leituras',                  desc: 'Sua estante: quero ler, lendo e lidos. Acompanhe o progresso e nunca esqueça aquele livro que te indicaram.' },
+      { titulo: 'Filmes e séries',           desc: 'Watchlist pra não esquecer o que prometeu assistir. Marque o que já viu e dê a sua nota.' },
+      { titulo: 'Viagens e lazer',           desc: 'Planeje destinos, monte a bucket list e organize cada rolê — do fim de semana à viagem dos sonhos.' },
     ],
   },
   {

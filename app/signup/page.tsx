@@ -498,33 +498,59 @@ function PlanoStep({
           const sel = planoSel === pl.id;
           const preco = anual ? PLANOS_INFO[pl.id].anual : PLANOS_INFO[pl.id].mensal;
           return (
-            <button
+            <div
               key={pl.id}
-              onClick={() => setPlanoSel(pl.id)}
-              className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${sel ? 'shadow-md' : 'border-border bg-card hover:border-border/80'}`}
+              className={`rounded-2xl border-2 transition-all overflow-hidden ${sel ? 'shadow-md' : 'border-border bg-card hover:border-border/80'}`}
               style={sel ? { borderColor: pl.cor, background: `color-mix(in srgb, ${pl.cor} 5%, transparent)` } : undefined}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                       style={{ border: sel ? 'none' : '2px solid hsl(var(--border))', background: sel ? pl.cor : 'transparent' }}>
-                    {sel && <Check size={12} className="text-white" strokeWidth={3} />}
+              <button
+                type="button"
+                onClick={() => setPlanoSel(pl.id)}
+                aria-expanded={sel}
+                className="w-full text-left p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                         style={{ border: sel ? 'none' : '2px solid hsl(var(--border))', background: sel ? pl.cor : 'transparent' }}>
+                      {sel && <Check size={12} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground flex items-center gap-1.5">
+                        {pl.nome}
+                        {pl.id === 'premium' && <Sparkles size={12} style={{ color: pl.cor }} />}
+                        {pl.id === 'black' && <Crown size={12} style={{ color: pl.cor }} />}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{pl.subtitulo}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-foreground flex items-center gap-1.5">
-                      {pl.nome}
-                      {pl.id === 'premium' && <Sparkles size={12} style={{ color: pl.cor }} />}
-                      {pl.id === 'black' && <Crown size={12} style={{ color: pl.cor }} />}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">{pl.subtitulo}</p>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-bold text-foreground tabular-nums">{fmtPreco(preco)}</p>
+                    <p className="text-[10px] text-muted-foreground">/mês{anual && ' · anual'}</p>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-foreground tabular-nums">{fmtPreco(preco)}</p>
-                  <p className="text-[10px] text-muted-foreground">/mês{anual && ' · anual'}</p>
+              </button>
+
+              {/* Features do plano selecionado (progressive disclosure) */}
+              {sel && (
+                <div className="px-4 pb-4 animate-fade-in">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: pl.cor }}>
+                    O que está incluído
+                  </p>
+                  <ul className="space-y-2">
+                    {pl.features.map((f) => {
+                      const herda = f.startsWith('Tudo do');
+                      return (
+                        <li key={f} className="flex items-start gap-2">
+                          <Check size={14} strokeWidth={3} className="mt-[1px] flex-shrink-0" style={{ color: pl.cor }} />
+                          <span className={`text-xs leading-snug ${herda ? 'font-bold text-foreground' : 'text-foreground/75'}`}>{f}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
-              </div>
-            </button>
+              )}
+            </div>
           );
         })}
       </div>
