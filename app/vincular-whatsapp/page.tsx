@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
-import { Loader2, Smartphone, CheckCircle2 } from 'lucide-react';
+import { Loader2, Smartphone, CheckCircle2, Check } from 'lucide-react';
+import WhatsappInput, { whatsappBRValido } from '@/components/ui/WhatsappInput';
 
 export default function VincularWhatsapp() {
   const { user, perfil, recarregar } = useAuth();
@@ -17,13 +18,13 @@ export default function VincularWhatsapp() {
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
     setErro('');
-    let numero = phone.replace(/\D/g, '');
-    // Garante código do país Brasil (55) — Z-API sempre envia com ele
-    if (!numero.startsWith('55')) numero = '55' + numero;
-    if (numero.length < 12) {
-      setErro('Digite um número válido com DDD. Ex: 11999998888');
+    const local = phone.replace(/\D/g, '');
+    if (!whatsappBRValido(local)) {
+      setErro('Confira o número: precisa ser (DD) 9XXXX-XXXX, com DDD e o 9.');
       return;
     }
+    // Z-API sempre envia com o código do país (55). E.164 sem o "+".
+    const numero = '55' + local;
     if (!user?.id) {
       setErro('Sessão expirada. Faça login novamente.');
       return;
@@ -71,17 +72,19 @@ export default function VincularWhatsapp() {
             <label className="text-sm font-medium text-foreground">
               Número do WhatsApp
             </label>
-            <input
-              type="tel"
-              placeholder="(11) 99999-9999"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              required
-              className="input text-lg tracking-wide"
-            />
-            <p className="text-xs text-muted-foreground">
-              Com DDD. Ex: 11999998888
-            </p>
+            <div className="flex gap-2">
+              <span className="inline-flex items-center gap-1 px-3 rounded-lg bg-card border border-border text-sm text-foreground">
+                <span aria-hidden>🇧🇷</span> +55
+              </span>
+              <WhatsappInput value={phone} onChange={setPhone} required className="input text-lg tracking-wide flex-1" />
+            </div>
+            {whatsappBRValido(phone) ? (
+              <p className="text-xs text-green-600 dark:text-green-400 inline-flex items-center gap-1">
+                <Check size={12} strokeWidth={3} /> Número válido
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Com DDD — ex.: (11) 99999-9999</p>
+            )}
           </div>
 
           {erro && (

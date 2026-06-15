@@ -11,9 +11,10 @@ import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { loadStripe } from '@stripe/stripe-js';
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import AuthHero from '@/components/auth/AuthHero';
+import WhatsappInput, { whatsappBRValido } from '@/components/ui/WhatsappInput';
 import {
   Eye, EyeOff, Loader2, ArrowRight, ArrowLeft, CheckCircle2, Circle,
-  Check, User, Smartphone, CreditCard, Sparkles, Crown,
+  Check, User, CreditCard, Sparkles, Crown,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -74,9 +75,12 @@ function SignupWizard() {
     if (password.length < 8)  { setErro('A senha deve ter pelo menos 8 caracteres.'); return; }
     if (!aceito)              { setErro('Você precisa aceitar os termos de uso.'); return; }
 
-    let numero = whatsapp.replace(/\D/g, '');
-    if (!numero.startsWith('55')) numero = '55' + numero;
-    if (numero.length < 12) { setErro('Informe um WhatsApp válido com DDD.'); return; }
+    const local = whatsapp.replace(/\D/g, '');
+    if (!whatsappBRValido(local)) {
+      setErro('Confira o WhatsApp: precisa ser (DD) 9XXXX-XXXX, com DDD e o 9.');
+      return;
+    }
+    const numero = '55' + local; // E.164 sem o "+", igual o resto do sistema
 
     setLoading(true);
     try {
@@ -410,11 +414,17 @@ function DadosStep(p: any) {
         <Campo label="WhatsApp">
           <div className="flex gap-2">
             <span className="inline-flex items-center gap-1 px-3 rounded-2xl bg-card border border-border text-sm text-foreground">
-              <Smartphone size={14} className="text-muted-foreground" /> +55
+              <span aria-hidden>🇧🇷</span> +55
             </span>
-            <input type="tel" inputMode="numeric" placeholder="(11) 99999-9999" value={p.whatsapp} onChange={(e: any) => p.setWhatsapp(e.target.value)} required disabled={p.loading} className={inputCls} />
+            <WhatsappInput value={p.whatsapp} onChange={p.setWhatsapp} required disabled={p.loading} className={inputCls} />
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">Com DDD — é por aqui que você fala com a Sora.</p>
+          {whatsappBRValido(p.whatsapp) ? (
+            <p className="text-[11px] text-green-600 dark:text-green-400 mt-1 inline-flex items-center gap-1">
+              <Check size={12} strokeWidth={3} /> Número válido
+            </p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground mt-1">Com DDD — é por aqui que você fala com a Sora.</p>
+          )}
         </Campo>
 
         <Campo label="E-mail">
