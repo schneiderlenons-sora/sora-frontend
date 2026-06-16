@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import SaudeNav from '../SaudeNav';
 import ModalRefeicao    from '@/components/saude/ModalRefeicao';
 import ModalCalculadora from '@/components/saude/ModalCalculadora';
 import {
@@ -163,6 +164,8 @@ export default function NutricaoPage() {
           </div>
         </div>
       </div>
+
+      <SaudeNav />
 
       {/* Sem meta → CTA pra calculadora */}
       {!meta && (

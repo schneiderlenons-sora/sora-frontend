@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalTreino from '@/components/saude/ModalTreino';
+import SaudeNav from '../SaudeNav';
 import {
   Dumbbell, Sparkles, Loader2, Plus, Trash2, Flame, Clock, Calendar, ChevronRight,
 } from 'lucide-react';
@@ -127,6 +128,8 @@ export default function TreinosPage() {
           </button>
         </div>
       </div>
+
+      <SaudeNav />
 
       {/* STATS */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>

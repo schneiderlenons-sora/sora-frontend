@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import EstudosNav from '../EstudosNav';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalDisciplina from '@/components/estudos/ModalDisciplina';
 import ModalSessao from '@/components/estudos/ModalSessao';
@@ -221,6 +222,8 @@ export default function ConcursosPage() {
           </div>
         </div>
       </div>
+
+      <EstudosNav />
 
       {/* Tabs de concursos (se mais de 1) */}
       {concursos.length > 1 && (

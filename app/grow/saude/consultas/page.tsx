@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import SaudeNav from '../SaudeNav';
 import ModalConsulta from '@/components/saude/ModalConsulta';
 import ModalExame from '@/components/saude/ModalExame';
 import {
@@ -129,6 +130,8 @@ export default function ConsultasPage() {
           </div>
         </div>
       </div>
+
+      <SaudeNav />
 
       {/* PRÓXIMAS CONSULTAS */}
       <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"

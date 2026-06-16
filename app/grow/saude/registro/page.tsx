@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import SaudeNav from '../SaudeNav';
 import ModalPerfilSaude from '@/components/saude/ModalPerfilSaude';
 import ModalSintoma from '@/components/saude/ModalSintoma';
 import {
@@ -131,6 +132,8 @@ export default function RegistroPage() {
           </p>
         </div>
       </div>
+
+      <SaudeNav />
 
       {/* CHECK-UP DE HOJE */}
       <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"

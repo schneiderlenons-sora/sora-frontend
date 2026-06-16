@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import SaudeNav from '../SaudeNav';
 import {
   Activity, Loader2, Scale, Droplets, Dumbbell, Sparkles, Plus, ArrowRight,
   CalendarHeart, Pill, AlertCircle, TrendingDown, TrendingUp, Minus,
@@ -99,6 +100,8 @@ export default function SaudeDashboardPage() {
         semPeso={semPeso}
         onAddPeso={() => setModalPeso(true)}
       />
+
+      <SaudeNav />
 
       {/* ═══════════ STAT TILES ═══════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>

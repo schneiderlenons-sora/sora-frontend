@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import SaudeNav from '../SaudeNav';
 import ModalMedicamento from '@/components/saude/ModalMedicamento';
 import {
   Pill, Sparkles, Loader2, Plus, Clock, Check, Pencil, AlertTriangle,
@@ -132,6 +133,8 @@ export default function RemediosPage() {
           </button>
         </div>
       </div>
+
+      <SaudeNav />
 
       {/* Alerta de estoque baixo */}
       {estoqueBaixo.length > 0 && (

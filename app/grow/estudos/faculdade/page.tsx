@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import EstudosNav from '../EstudosNav';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalDisciplina from '@/components/estudos/ModalDisciplina';
 import ModalProva from '@/components/estudos/ModalProva';
@@ -137,6 +138,8 @@ export default function FaculdadePage() {
           </div>
         </div>
       </div>
+
+      <EstudosNav />
 
       {/* Tabs (se mais de 1) */}
       {faculdades.length > 1 && (

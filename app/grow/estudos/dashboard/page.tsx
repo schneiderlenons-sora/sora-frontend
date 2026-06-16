@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import EstudosNav from '../EstudosNav';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import ModalProva from '@/components/estudos/ModalProva';
 import {
@@ -121,6 +122,8 @@ export default function EstudosDashboard() {
           </div>
         </div>
       </div>
+
+      <EstudosNav />
 
       {/* STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>

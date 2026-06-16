@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import EstudosNav from '../EstudosNav';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import {
@@ -111,6 +112,8 @@ export default function CursosPage() {
           </button>
         </div>
       </div>
+
+      <EstudosNav />
 
       {cursos.length === 0 ? (
         <div className="rounded-3xl border-2 border-dashed border-cyan-300 dark:border-cyan-800 p-10 sm:p-12 bg-cyan-50/30 dark:bg-cyan-950/10 animate-fade-in text-center">

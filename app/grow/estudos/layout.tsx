@@ -1,32 +1,20 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  LayoutDashboard, GraduationCap, BookOpen, Trophy, Loader2,
-} from 'lucide-react';
-
-const TABS = [
-  { href: '/grow/estudos/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
-  { href: '/grow/estudos/faculdade', label: 'Faculdade',  icon: GraduationCap },
-  { href: '/grow/estudos/cursos',    label: 'Cursos',     icon: BookOpen },
-  { href: '/grow/estudos/concursos', label: 'Concursos',  icon: Trophy },
-];
+import { Loader2 } from 'lucide-react';
 
 export default function EstudosLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const { perfil, podeUsar } = useAuth();
-  const navRef = useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = useState({ left: 0, width: 0, visible: false });
 
   // Estudos é Premium+. Básico vai pro upgrade.
   const liberado = podeUsar('grow_estudos');
   useEffect(() => {
     if (perfil && !liberado) router.replace('/planos');
   }, [perfil, liberado, router]);
+
   if (perfil && !liberado) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -35,65 +23,7 @@ export default function EstudosLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  useEffect(() => {
-    const el = navRef.current?.querySelector<HTMLAnchorElement>(`a[data-active="true"]`);
-    if (el && navRef.current) {
-      const navBox = navRef.current.getBoundingClientRect();
-      const elBox  = el.getBoundingClientRect();
-      setIndicator({
-        left: elBox.left - navBox.left + navRef.current.scrollLeft,
-        width: elBox.width,
-        visible: true,
-      });
-      const scrollLeft = el.offsetLeft - navRef.current.offsetWidth / 2 + el.offsetWidth / 2;
-      navRef.current.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
-    }
-  }, [pathname]);
-
-  return (
-    <div className="-mx-4 sm:-mx-6 mb-2">
-      <div
-        className="sticky top-0 z-20 backdrop-blur-xl border-b border-border/40"
-        style={{
-          background: 'color-mix(in srgb, hsl(var(--background)) 85%, transparent)',
-        }}
-      >
-        <div
-          ref={navRef}
-          className="relative flex items-center gap-1 px-4 sm:px-6 py-3 overflow-x-auto scrollbar-none"
-        >
-          {TABS.map(({ href, label, icon: Icon }) => {
-            const ativo = pathname === href || (pathname === '/grow/estudos' && href === '/grow/estudos/dashboard');
-            return (
-              <Link
-                key={href}
-                href={href}
-                data-active={ativo}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                  ativo
-                    ? 'text-primary dark:text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Icon size={13} />
-                {label}
-              </Link>
-            );
-          })}
-          <span
-            className="absolute bottom-0 h-[2px] bg-primary dark:bg-primary rounded-full transition-all duration-300 ease-out pointer-events-none"
-            style={{
-              left:  indicator.left,
-              width: indicator.width,
-              opacity: indicator.visible ? 1 : 0,
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="px-4 sm:px-6 pt-6">
-        {children}
-      </div>
-    </div>
-  );
+  // A sub-nav das seções não fica mais aqui (era sticky e "arrastava"). Cada
+  // página renderiza <EstudosNav /> logo abaixo do seu card de título, igual Hábitos.
+  return <>{children}</>;
 }
