@@ -11,11 +11,18 @@ import {
   MapPin, ChevronLeft, ChevronRight, List, CalendarRange, CalendarX,
   User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag, ArrowUpRight,
   Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
+  ArrowLeftRight, TrendingUp, TrendingDown,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 const STORAGE_KEY = 'sora-grow-agenda-view';
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+// Formato compacto pra caber na célula do calendário: R$120 · R$1,2k · R$15k
+const brlCompact = (v: number) => {
+  const a = Math.abs(v);
+  if (a >= 1000) return `R$${(a / 1000).toFixed(a >= 10000 ? 0 : 1).replace('.', ',')}k`;
+  return `R$${Math.round(a)}`;
+};
 
 // ─── Categorias dos compromissos nativos (cor + ícone) ──────────────
 type CatKey = 'pessoal' | 'trabalho' | 'familia' | 'saude' | 'financas' | 'estudos' | 'outro';
@@ -30,17 +37,19 @@ const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
 };
 
 // ─── Famílias de origem (pro filtro + legenda do agregador) ─────────
-type FamKey = 'compromisso' | 'saude' | 'financas' | 'casa';
+type FamKey = 'compromisso' | 'saude' | 'financas' | 'casa' | 'transacao';
 const FAMILIAS: Record<FamKey, { label: string; cor: string; icon: any }> = {
   compromisso: { label: 'Compromissos', cor: 'hsl(var(--primary))', icon: CalendarDays },
   saude:       { label: 'Saúde',        cor: '#0d9488', icon: Stethoscope },
   financas:    { label: 'Finanças',     cor: '#16a34a', icon: Wallet },
   casa:        { label: 'Casa',         cor: '#d97706', icon: HomeIcon },
+  transacao:   { label: 'Movimentações', cor: '#0ea5e9', icon: ArrowLeftRight },
 };
 function familiaDe(source: string): FamKey {
   if (source === 'compromisso') return 'compromisso';
   if (source === 'consulta') return 'saude';
   if (source === 'manutencao') return 'casa';
+  if (source === 'transacao') return 'transacao';
   return 'financas';
 }
 // Ícone por source (mostrado na coluna de hora quando não há horário)
@@ -103,16 +112,19 @@ export default function AgendaPage() {
 
   // aplica filtro de famílias
   const visiveis = useMemo(() => eventos.filter(e => !ocultas.has(familiaDe(e.source))), [eventos, ocultas]);
+  // Lista "Próximos" e as stats são só de AGENDA (compromissos, consultas,
+  // contas…) — transações (passadas) só aparecem no calendário.
+  const agendaVisiveis = useMemo(() => visiveis.filter(e => e.source !== 'transacao'), [visiveis]);
 
   const proximos7 = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const lim = new Date(hoje); lim.setDate(lim.getDate() + 7);
-    return visiveis.filter(c => { const d = parseD(c.data); return d >= hoje && d <= lim; });
-  }, [visiveis]);
+    return agendaVisiveis.filter(c => { const d = parseD(c.data); return d >= hoje && d <= lim; });
+  }, [agendaVisiveis]);
   const proximo = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    return [...visiveis].filter(c => parseD(c.data) >= hoje).sort((a, b) => a.data.localeCompare(b.data) || ordenarDia(a, b))[0] || null;
-  }, [visiveis]);
+    return [...agendaVisiveis].filter(c => parseD(c.data) >= hoje).sort((a, b) => a.data.localeCompare(b.data) || ordenarDia(a, b))[0] || null;
+  }, [agendaVisiveis]);
 
   const subtitulo = eventos.length === 0
     ? 'Seus compromissos e tudo que tem data na Sora, num lugar só.'
@@ -192,7 +204,7 @@ export default function AgendaPage() {
       ) : (
         <div className="animate-fade-in">
           {view === 'lista'
-            ? <ViewLista eventos={visiveis} onAbrir={abrirEvento} onDelete={deletar} onNovo={() => abrirNovo()} />
+            ? <ViewLista eventos={agendaVisiveis} onAbrir={abrirEvento} onDelete={deletar} onNovo={() => abrirNovo()} />
             : <ViewMes eventos={visiveis} onAbrir={abrirEvento} onDelete={deletar} onNovoNoDia={abrirNovo} />}
         </div>
       )}
@@ -314,11 +326,23 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
   const [refMes, setRefMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [selecionado, setSelecionado] = useState<string>(hojeStr);
 
-  const porDia = useMemo(() => {
-    const m: Record<string, any[]> = {};
-    eventos.forEach((c: any) => { (m[c.data] = m[c.data] || []).push(c); });
-    Object.values(m).forEach(l => l.sort(ordenarDia));
-    return m;
+  // Separa AGENDA (compromissos, consultas, contas…) das TRANSAÇÕES (gastos/
+  // receitas). Agenda vira chip/card; transação vira total do dia + lista no detalhe.
+  const { porDiaAgenda, txPorDia } = useMemo(() => {
+    const ag: Record<string, any[]> = {};
+    const tx: Record<string, { gasto: number; receita: number; net: number; itens: any[] }> = {};
+    for (const e of eventos as any[]) {
+      if (e.source === 'transacao') {
+        const d = (tx[e.data] = tx[e.data] || { gasto: 0, receita: 0, net: 0, itens: [] });
+        if (e.tipo === 'gasto') d.gasto += e.valor || 0; else d.receita += e.valor || 0;
+        d.itens.push(e);
+      } else {
+        (ag[e.data] = ag[e.data] || []).push(e);
+      }
+    }
+    Object.values(ag).forEach(l => l.sort(ordenarDia));
+    Object.values(tx).forEach(d => { d.net = d.receita - d.gasto; d.itens.sort((a, b) => (b.valor || 0) - (a.valor || 0)); });
+    return { porDiaAgenda: ag, txPorDia: tx };
   }, [eventos]);
 
   const celulas = useMemo(() => matrizMes(refMes.ano, refMes.mes), [refMes]);
@@ -326,7 +350,8 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
     const d = new Date(ano, mes + delta, 1); return { ano: d.getFullYear(), mes: d.getMonth() };
   });
   const irHoje = () => { const d = new Date(); setRefMes({ ano: d.getFullYear(), mes: d.getMonth() }); setSelecionado(hojeStr); };
-  const eventosDoDia = (porDia[selecionado] || []);
+  const eventosDoDia = (porDiaAgenda[selecionado] || []);
+  const txDoDia = txPorDia[selecionado];
 
   return (
     <div className="space-y-4">
@@ -353,7 +378,8 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
             const noMes = d.getMonth() === refMes.mes;
             const ehHoje = ds === hojeStr;
             const sel = ds === selecionado;
-            const evs = porDia[ds] || [];
+            const evs = porDiaAgenda[ds] || [];
+            const tx = txPorDia[ds];
             return (
               <div key={i} role="button" tabIndex={0}
                 onClick={() => setSelecionado(ds)}
@@ -400,6 +426,14 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                     )}
                   </div>
                 )}
+                {/* Total líquido do dia (transações) */}
+                {tx && (
+                  <div className="mt-auto flex items-center justify-center sm:justify-start px-0.5 pt-0.5">
+                    <span className={`text-[9px] sm:text-[10px] font-bold tabular leading-none truncate ${tx.net < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {tx.net < 0 ? '−' : '+'}{brlCompact(tx.net)}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -414,16 +448,75 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
             <Plus size={13} /> Adicionar nesse dia
           </button>
         </div>
-        {eventosDoDia.length === 0 ? (
+        {eventosDoDia.length === 0 && !txDoDia ? (
           <div className="rounded-2xl border border-dashed border-border/60 py-8 text-center bg-muted/10">
             <p className="text-sm text-muted-foreground">Nada nesse dia.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {eventosDoDia.map((e: any) => <EventoCard key={e.id} e={e} onAbrir={() => onAbrir(e)} onDelete={() => onDelete(e)} />)}
+            {txDoDia && <MovimentacoesDoDia tx={txDoDia} onAbrir={onAbrir} />}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Card "Movimentações do dia" — gastos/receitas do dia selecionado
+// ═══════════════════════════════════════════════════════════════════
+function MovimentacoesDoDia({ tx, onAbrir }: any) {
+  return (
+    <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-4 space-y-3" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'color-mix(in srgb, #0ea5e9 14%, transparent)' }}>
+            <ArrowLeftRight size={13} style={{ color: '#0ea5e9' }} />
+          </div>
+          <p className="text-sm font-bold text-foreground">Movimentações</p>
+        </div>
+        <span className={`text-sm font-bold tabular ${tx.net < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+          {tx.net < 0 ? '−' : '+'}{brl(Math.abs(tx.net))}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-red-200/60 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/20 px-3 py-2 flex items-center gap-2 min-w-0">
+          <TrendingDown size={14} className="text-red-500 flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Gastos</p>
+            <p className="text-sm font-bold text-red-600 dark:text-red-400 tabular truncate">{brl(tx.gasto)}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 px-3 py-2 flex items-center gap-2 min-w-0">
+          <TrendingUp size={14} className="text-emerald-500 flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Receitas</p>
+            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular truncate">{brl(tx.receita)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-0.5">
+        {tx.itens.map((t: any) => (
+          <button key={t.id} onClick={() => onAbrir(t)}
+            className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-left">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.tipo === 'gasto' ? 'bg-red-500' : 'bg-emerald-500'}`} />
+              <span className="text-xs text-foreground truncate">{t.titulo}</span>
+            </span>
+            <span className={`text-xs font-bold tabular flex-shrink-0 ${t.tipo === 'gasto' ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {t.tipo === 'gasto' ? '−' : '+'}{brl(t.valor)}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <button onClick={() => onAbrir(tx.itens[0])}
+        className="w-full text-center text-[11px] font-bold text-muted-foreground hover:text-foreground pt-1 transition-colors">
+        Ver no painel →
+      </button>
     </div>
   );
 }
