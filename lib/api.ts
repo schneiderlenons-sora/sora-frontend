@@ -509,6 +509,8 @@ export const api = {
     treinos: {
       catalogo:    (phone: string) => req<any[]>(`/api/saude/treinos/${phone}`),
       criar:       (body: any)     => req<any>('/api/saude/treinos', { method: 'POST', body: JSON.stringify(body) }),
+      deletar:     (id: string, phone: string) =>
+        req(`/api/saude/treinos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
       registros:   (phone: string, dias?: number) =>
         req<any[]>(`/api/saude/treino-registros/${phone}${dias ? `?dias=${dias}` : ''}`),
       registrar:   (body: any) => req<any>('/api/saude/treino-registros', { method: 'POST', body: JSON.stringify(body) }),

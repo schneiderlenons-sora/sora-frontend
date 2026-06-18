@@ -93,6 +93,20 @@ export default function TreinosPage() {
     } catch (e: any) { alert(e.message); }
   }
 
+  async function deletarTreino(t: any) {
+    if (!phone) return;
+    const count = registros.filter(r => r.treino_id === t.id).length;
+    const aviso = count > 0
+      ? `Excluir a modalidade "${t.nome}"? As ${count} sessões já registradas continuam no histórico.`
+      : `Excluir a modalidade "${t.nome}"?`;
+    if (!confirm(aviso)) return;
+    if (filtroId === t.id) setFiltroId(null);
+    try {
+      await api.saude.treinos.deletar(t.id, phone);
+      carregar();
+    } catch (e: any) { alert(e.message); }
+  }
+
   if (loading) {
     return (
       <div className="card rounded-3xl p-16 flex items-center justify-center">
@@ -201,14 +215,21 @@ export default function TreinosPage() {
                 const count = registros.filter(r => r.treino_id === t.id).length;
                 const ativo = filtroId === t.id;
                 return (
-                  <button key={t.id} onClick={() => setFiltroId(ativo ? null : t.id)}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-all text-left ${
+                  <div key={t.id}
+                    className={`group flex items-center gap-1 pr-1 rounded-xl border transition-all ${
                       ativo ? 'border-primary bg-primary/10 dark:bg-primary/15 ring-1 ring-primary' : 'border-border/40 bg-muted/20 hover:border-primary/40 dark:hover:border-primary'
                     }`}>
-                    <span className="text-xl">{t.icone}</span>
-                    <span className="text-xs font-bold text-foreground flex-1">{t.nome}</span>
-                    <span className="text-[10px] text-muted-foreground tabular">{count}×</span>
-                  </button>
+                    <button onClick={() => setFiltroId(ativo ? null : t.id)}
+                      className="flex items-center gap-2.5 px-2.5 py-2 flex-1 min-w-0 text-left">
+                      <span className="text-xl">{t.icone}</span>
+                      <span className="text-xs font-bold text-foreground flex-1 truncate">{t.nome}</span>
+                      <span className="text-[10px] text-muted-foreground tabular">{count}×</span>
+                    </button>
+                    <button onClick={() => deletarTreino(t)} title={`Excluir "${t.nome}"`}
+                      className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <Trash2 size={12} className="text-red-500" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
