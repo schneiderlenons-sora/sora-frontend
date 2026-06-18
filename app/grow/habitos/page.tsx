@@ -10,7 +10,7 @@ import {
   Plus, Target, Loader2, Check, Flame, Trash2, X, Sparkles, Pencil,
   Sun, Sunrise, Moon, Trophy, Calendar, BarChart3, Settings,
   ChevronLeft, ChevronRight, Award, Lock, GripVertical, Eye, EyeOff,
-  Archive, ArchiveRestore, Activity, Bell, Clock,
+  Archive, ArchiveRestore, Activity, Bell, Clock, Dumbbell,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -375,6 +375,11 @@ function HabitoCard({ habito, feito, streak, onToggle, onEdit }: any) {
             )}
             {habito.horario_lembrete && (
               <span className="text-[10px] text-muted-foreground tabular">⏰ {habito.horario_lembrete.slice(0, 5)}</span>
+            )}
+            {habito.treino_id && (
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400" title="Marcar registra a sessão no Treinos">
+                <Dumbbell size={9} /> treino
+              </span>
             )}
             {habito.tipo === 'eliminar' && <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">eliminar</span>}
           </div>

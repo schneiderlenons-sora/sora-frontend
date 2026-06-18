@@ -332,7 +332,7 @@ export const api = {
         const qs = q.toString();
         return req<{ habitos: any[]; registros: any[]; lembrete?: { ativo: boolean; horario: string | null } }>(`/api/grow/habitos/${phone}${qs ? `?${qs}` : ''}`);
       },
-      criar: (body: { phone: string; nome: string; descricao?: string; icone?: string; cor?: string; frequencia?: string; dias_semana?: number[]; horario_lembrete?: string | null; motivo?: string; tipo?: 'construir'|'eliminar'; ordem?: number }) =>
+      criar: (body: { phone: string; nome: string; descricao?: string; icone?: string; cor?: string; frequencia?: string; dias_semana?: number[]; horario_lembrete?: string | null; motivo?: string; tipo?: 'construir'|'eliminar'; ordem?: number; treino_id?: string; treino_duracao_padrao?: number | null }) =>
         req<any>('/api/grow/habitos', { method: 'POST', body: JSON.stringify(body) }),
       editar: (id: string, body: any) =>
         req<any>(`/api/grow/habitos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

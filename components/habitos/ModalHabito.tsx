@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { api } from '@/lib/api';
-import { X, Loader2, Check, AlertCircle, Target, Trash2, Bell, BellOff, Sparkles } from 'lucide-react';
+import { X, Loader2, Check, AlertCircle, Target, Trash2, Bell, BellOff, Sparkles, Dumbbell } from 'lucide-react';
 
 const ICONES = [
   '🏋️','🧘','🚴','🏊','🎯','💧',
@@ -118,6 +118,16 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+
+          {/* Vínculo com treino (somente leitura) */}
+          {habito?.treino_id && (
+            <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
+              <Dumbbell size={15} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                Vinculado a um <strong>treino</strong>. Marcar este hábito registra a sessão automaticamente na aba Treinos.
+              </p>
+            </div>
+          )}
 
           {/* PREVIEW LIVE */}
           <div className="rounded-2xl p-4 border border-border/40 backdrop-blur-xl"
