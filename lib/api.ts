@@ -518,11 +518,6 @@ export const api = {
         req(`/api/saude/treino-registros/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
 
-    checkups: {
-      listar: (phone: string, dias?: number) => req<any[]>(`/api/saude/checkups/${phone}${dias ? `?dias=${dias}` : ''}`),
-      salvar: (body: any) => req<any>('/api/saude/checkups', { method: 'POST', body: JSON.stringify(body) }),
-    },
-
     consultas: {
       listar:  (phone: string, status?: string) =>
         req<any[]>(`/api/saude/consultas/${phone}${status ? `?status=${status}` : ''}`),
@@ -562,11 +557,6 @@ export const api = {
       criar:  (body: any) => req<any>('/api/saude/fotos', { method: 'POST', body: JSON.stringify(body) }),
     },
 
-    sintomas: {
-      listar: (phone: string, dias?: number) =>
-        req<any[]>(`/api/saude/sintomas/${phone}${dias ? `?dias=${dias}` : ''}`),
-      criar:  (body: any) => req<any>('/api/saude/sintomas', { method: 'POST', body: JSON.stringify(body) }),
-    },
 
     vacinas: {
       listar: (phone: string) => req<any[]>(`/api/saude/vacinas/${phone}`),
