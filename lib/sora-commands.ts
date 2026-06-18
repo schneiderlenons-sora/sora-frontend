@@ -522,6 +522,15 @@ export const COMANDOS: Comando[] = [
     feature: 'sora_grow',
   },
   {
+    id: 'grow-macros-foto',
+    titulo: 'Macros por foto 📸',
+    exemplo: 'macros',
+    descricao: 'Mande a *foto da comida* no WhatsApp com a legenda "macros" (ou "calorias") e a Sora identifica os alimentos e devolve os macros estimados: calorias, proteínas, carboidratos e gorduras. Premium/Black.',
+    variantes: ['calorias', 'quantas calorias tem nessa comida'],
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
     id: 'grow-tarefa',
     titulo: 'Adicionar tarefa',
     exemplo: 'tarefa: estudar SQL amanhã',
