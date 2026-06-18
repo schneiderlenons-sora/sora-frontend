@@ -14,7 +14,7 @@ import AuthHero from '@/components/auth/AuthHero';
 import WhatsappInput, { whatsappBRValido } from '@/components/ui/WhatsappInput';
 import {
   Eye, EyeOff, Loader2, ArrowRight, ArrowLeft, CheckCircle2, Circle,
-  Check, User, CreditCard, Sparkles, Crown,
+  Check, User, CreditCard, Sparkles, Crown, ShieldCheck,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -251,6 +251,9 @@ function SignupWizard() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Plano <strong className="text-foreground capitalize">{planoSel}</strong> · {fmtPreco(PLANOS_INFO[planoSel][intervalo])}/{anual ? 'mês (anual)' : 'mês'}
                 </p>
+                <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold" style={{ color: BRAND }}>
+                  <ShieldCheck size={14} /> Garantia de 7 dias — reembolso de 100% se não curtir.
+                </div>
               </div>
 
               {!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? (

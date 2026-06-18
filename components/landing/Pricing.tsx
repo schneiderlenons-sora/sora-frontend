@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Check, Crown, Sparkles } from 'lucide-react';
+import { Check, Crown, Sparkles, ShieldCheck } from 'lucide-react';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANOS_INFO } from '@/lib/stripe';
 
@@ -152,10 +152,28 @@ export default function Pricing() {
           })}
         </div>
 
-        <p className="text-center mt-10 text-sm text-zinc-500 dark:text-white/50">
-          Cancele a qualquer momento.{' '}
-          <span className="text-zinc-900 dark:text-white font-semibold">Sem letras miúdas.</span>
-        </p>
+        {/* Garantia de 7 dias — reversão de risco bem destacada */}
+        <div className="mt-12 max-w-2xl mx-auto">
+          <div className="relative flex items-center gap-4 sm:gap-5 rounded-3xl p-5 sm:p-6 border-2 bg-white dark:bg-zinc-950 shadow-[0_20px_60px_-24px_rgba(97,206,112,0.5)]"
+               style={{ borderColor: '#61ce70' }}>
+            <div aria-hidden className="absolute inset-0 rounded-3xl pointer-events-none"
+                 style={{ background: 'linear-gradient(135deg, rgba(97,206,112,0.08), transparent 60%)' }} />
+            <div className="relative flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-lg"
+                 style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
+              <ShieldCheck size={30} className="text-white" />
+            </div>
+            <div className="relative">
+              <p className="text-lg sm:text-xl font-bold tracking-tight">Garantia de 7 dias</p>
+              <p className="text-sm text-zinc-600 dark:text-white/65 mt-0.5 leading-relaxed">
+                Não curtiu? Devolvemos <span className="font-bold text-zinc-900 dark:text-white">100% do valor</span> em até 7 dias. Sem perguntas, sem burocracia.
+              </p>
+            </div>
+          </div>
+          <p className="text-center mt-5 text-sm text-zinc-500 dark:text-white/50">
+            Cancele a qualquer momento.{' '}
+            <span className="text-zinc-900 dark:text-white font-semibold">Sem letras miúdas.</span>
+          </p>
+        </div>
       </div>
     </section>
   );

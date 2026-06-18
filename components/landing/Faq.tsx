@@ -21,8 +21,8 @@ const PERGUNTAS = [
     a: 'Não. A Sora roda no seu WhatsApp (que você já tem) e num painel web que você acessa pelo navegador. Tem versão PWA — se quiser, dá pra "instalar" o painel como se fosse um app, sem passar pela App Store.',
   },
   {
-    q: 'Como funciona o teste grátis?',
-    a: 'No plano Premium e Black, o Sora Grow vem incluso. No Básico, você tem 7 dias pra testar o Grow gratuitamente. Pode cancelar a qualquer momento. Sem letras miúdas.',
+    q: 'Tem garantia? E se eu não gostar?',
+    a: 'Tem garantia de 7 dias. Se você assinar e não curtir, devolvemos 100% do valor em até 7 dias — é só pedir pelo suporte, sem perguntas e sem burocracia.',
   },
   {
     q: 'Como cancelo? Perco meus dados?',
