@@ -2,6 +2,13 @@
 
 Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 
+## ⚠️ Regras de trabalho (LER SEMPRE)
+
+- **Sem servidor local.** O backend roda no **Render + GitHub** e o frontend na **Vercel**. Não usamos `npm run dev` como ambiente oficial — tudo vive em produção.
+- **Commit + push automático.** Depois de QUALQUER alteração de código, faça `git commit` e `git push` por conta própria, sem o usuário pedir. Push no `master` (frontend) / `main` (backend) → deploy automático.
+- **Domínio oficial:** **https://www.forsora.com** (site + painel da Sora).
+- **Preview só quando pedido.** Às vezes o usuário pede um **preview** das alterações (painel ou landing) sem mandar pra produção — esses previews ficam na **Vercel**. Só gere preview se o usuário pedir explicitamente; o padrão é sempre deploy direto pra produção.
+
 ## Comandos essenciais
 
 ```bash
