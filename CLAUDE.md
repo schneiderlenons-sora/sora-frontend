@@ -35,7 +35,7 @@ git push           # Vercel deploya automaticamente do GitHub (branch master)
 | Auth/DB | Supabase (ssr client) |
 | Backend | Express.js (Node.js, JS puro) |
 | WhatsApp | Z-API |
-| IA | Claude API (Anthropic) via backend |
+| IA | OpenAI **gpt-4o-mini** via backend (multimodal: texto + visão). Whisper p/ áudio |
 | Pagamentos | Stripe (integrado, webhooks em `/api/stripe/webhook`) |
 | Analytics | Meta Pixel + Conversions API (CAPI) |
 | Charts | Recharts |
@@ -160,7 +160,11 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `/transacoes` | Lista de transações com scroll horizontal no mobile |
 | `/investimentos` | Premium+ (era Black-only, mudou) |
 | `/negocios` | Black-only (DRE, vendas, forecast, integrações) |
-| `/grow/*` | Sora Grow — hábitos, tarefas, bem-estar, saúde, estudos, casa, agenda |
+| `/grow/*` | Sora Grow — hábitos, tarefas, bem-estar, saúde, estudos, casa, agenda, **coleções (viagens/midia/leituras)**, **dados pessoais**, **configurações** |
+| `/wrapped` | Sora Wrapped — retrospectiva financeira do mês (aviso WhatsApp dedup via `wrapped_avisado`) |
+| `/admin` | Painel admin (métricas internas) — acesso restrito |
+| `/reportar-bug` | Aba "Relatar um problema" — relato cai no WhatsApp de suporte via Z-API (migration 043) |
+| `/comunidade` | Comunidade |
 
 ---
 
@@ -176,7 +180,7 @@ Central da Sora → sem gate (todos)
 Planos        → sem gate (todos)
 ```
 
-`NAV_GROW` (sub-nav do Sora Grow): Dashboard · Hábitos · Tarefas · Bem-estar · Saúde · Estudos · Casa · **Agenda** · Configurações.
+`NAV_GROW` (sub-nav do Sora Grow): Dashboard · Hábitos · Tarefas · Bem-estar · Saúde · Estudos · Casa · Agenda · **Viagens & Lazer** · **Filmes & Séries** · **Leituras** · **Dados** · Configurações.
 
 ---
 
@@ -210,6 +214,47 @@ Central de tudo que tem data na Sora. Construída em 3 fases (ver memória `proj
 
 ---
 
+## Nutrição & macros por foto (Saúde do Grow)
+
+- **Banco local de alimentos:** `sora-backend/src/data/alimentos.json` — **617 itens** de comida brasileira (carnes, peixes, aves, ovos, laticínios, grãos, massas, pães, frutas, legumes, doces, fast food, pratos prontos, bebidas, suplementos, padaria…). Cada entrada: `{nome, aliases[], porcao:{descricao,g}, kcal_100, p_100, c_100, g_100}` (macros por 100g).
+- **Service:** `sora-backend/src/services/nutricao.js` — `lookupLocal(termo)`, `macrosParaQuantidade(alimento, gramas)` e **`analisarFotoComida(imageUrl)`** (visão via gpt-4o-mini, refinado com o banco local). Local-first: tenta o banco antes da IA.
+- **Roteamento de foto no webhook** (`src/routes/webhook.js`): se a legenda tem palavra de comida (`macro|caloria|kcal|nutri|proteina|carboidrato|gordura|comida|refei|prato|calcula…`) → `analisarFotoComida` → `formatarMacrosFoto`. Senão → OCR de nota fiscal (`lerNotaFiscal`). Gate: `premium`/`black`.
+- Comando na Central: `grow-macros-foto` em `lib/sora-commands.ts`.
+
+## FAQ local-first no WhatsApp
+
+- **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.
+
+## Resumos proativos no WhatsApp (semanal + mensal)
+
+- **`src/services/resumoFinanceiro.js`** — resumo semanal + fechamento mensal, independentes do Wrapped. Opt-out via colunas `resumo_*` em `users`; dedup à prova de restart (`resumo_*_em`). Cron em `jobs/index.js`. Migration **044**.
+- Toggle na Central: `resumos-toggle`. Comando de suporte: `suporte`. Lembrete de hábito: `grow-lembrete`.
+
+## Privacidade do Grow em grupos (compartilhamento por aba)
+
+Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`user_id` (dono) + `grupo_id`**; a leitura troca o filtro conforme o modo.
+- **Sempre privado (cada um o seu):** Hábitos, Tarefas, Agenda (+ Saúde/Estudos/Bem-estar que já eram por `user_id`).
+- **Opcional (toggle por aba, default privado):** **Casa** (Compras/Despensa/Receitas/Manutenções) e as 3 **Coleções** (Viagens & Lazer, Filmes & Séries, Leituras).
+- Toggles em colunas `grow_compartilha_*` na tabela `grupos`. Helper: `src/services/growShare.js`. Migrations **039** (user_id + backfill) e **040** (flags). UI em `app/grow/configuracoes/`.
+- **Crons** mandam lembrete pro **dono real** (`user_id`), não mais pro dono do grupo.
+
+## Outras features novas
+
+- **Coleções do Grow** (`app/grow/viagens|midia|leituras`, migration 038): Viagens & Lazer, Filmes/Séries/Desenhos, Leituras.
+- **Dados Pessoais** (`app/grow/dados`, migrations 041/042): quadros → seções → itens (campo/nota/senha/arquivo), PIN de 4 dígitos (trava de UI), arquivos em bucket **privado** com URLs assinadas geradas no backend.
+- **Desconto de conta destino** (migration 037, `src/services/descontoConta.js` + `contaDebito.js`): ao registrar aporte/pagamento (meta/investimento/dívida/fatura) a Sora pergunta de qual conta descontar.
+- **Sora Wrapped** (`app/wrapped`, migration 037_wrapped_aviso): retrospectiva do mês + aviso WhatsApp com dedup.
+- **Transações na Agenda** (`agendaFeed.montarFeed` com flag `incluirTransacoes`, origem `transacao`): calendário mostra movimentações do dia + total líquido por dia. Fora do briefing.
+- **Relatar um problema** (`app/reportar-bug`, migration 043): relato vai pro WhatsApp de suporte via Z-API.
+- **Máscara de telefone WhatsApp** (`components/ui/WhatsappInput.tsx`): máscara BR; telefone sempre E.164 sem `+`. Futuro i18n via libphonenumber-js nesse ponto.
+- **Landing "Corpo em Dia"** (`components/landing/SaudeShowcase.tsx`): carrossel de 6 imagens 9:16 (3-up desktop / 1-up mobile, bordas redondas + sombra), imagens em `public/landing/corpo/1.png…6.png`, destaque do macros por foto.
+
+## Limites do Z-API (lição aprendida)
+
+Z-API é gateway **não-oficial** do WhatsApp. `send-text`, `send-image` e `send-link` funcionam; **`send-button-actions` NÃO é entregue de forma confiável**. O card estilo "header image + botão CTA + selo verificado" exige a **API oficial do WhatsApp Business** — não dá pra reproduzir no Z-API. Boas-vindas usa `send-image` (banner no topo); demais CTAs usam texto (pra não encher a galeria do usuário).
+
+---
+
 ## Responsividade mobile — regras aplicadas
 
 - **Sidebar:** botão fechar com `safe-area-inset-top` + toque 44pt
@@ -229,7 +274,7 @@ Central de tudo que tem data na Sora. Construída em 3 fases (ver memória `proj
 - **Cores:** Brand `#61D17B` (Sora green). Dark mode via classe `.dark`.
 - **Moeda:** `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`
 - **Plano guard:** sempre usar `podeUsar(plano, feature)` de `lib/plans.ts`
-- **IA local-first:** preferir parsers locais antes de chamar Claude API
+- **IA local-first:** preferir parsers/banco locais (regex, lookup) antes de chamar a OpenAI (gpt-4o-mini); sempre manter fallback local
 
 ---
 
@@ -255,9 +300,10 @@ FB_ACCESS_TOKEN
 **Backend `.env` (Render — configurar em render.com → serviço → Environment):**
 ```
 ZAPI_INSTANCE, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN (WhatsApp Z-API)
-ANTHROPIC_API_KEY (IA)
+OPENAI_API_KEY (IA — gpt-4o-mini + Whisper)
 API_SECRET_TOKEN (autenticação entre frontend e backend)
 SUPABASE_URL, SUPABASE_KEY
+SORA_CAPA_URL (capa 1200x630 da Sora; default ${APP_URL}/sora-capa.png)
 ```
 
 ---
@@ -274,6 +320,8 @@ SUPABASE_URL, SUPABASE_KEY
 
 ## Migrations SQL a rodar (se ainda não rodou)
 
+> **Local dos arquivos:** todas em `sora-backend/sql/` (NÃO no frontend). Rodar à mão no Supabase → SQL Editor; são idempotentes.
+
 ```
 sql/018_stripe.sql              — colunas Stripe em users
 sql/019_onboarding.sql          — colunas onboarding em users
@@ -288,6 +336,17 @@ sql/033_manutencoes.sql         — tabela manutencoes (upkeep recorrente da cas
 sql/034_receitas.sql            — tabelas receitas + receita_ingredientes
 sql/035_compromissos.sql        — tabela compromissos (Agenda do Grow)
 sql/036_agenda_briefing.sql     — colunas agenda_briefing_* em users (briefing matinal)
+sql/037_pendente_descontar.sql  — tipo de pendente 'descontar_destino' (aporte/pagamento → descontar de conta)
+sql/037_wrapped_aviso.sql       — coluna wrapped_avisado em users (dedup do aviso mensal do Wrapped)
+sql/038_grow_colecoes.sql       — tabelas das Coleções do Grow (viagens, bucket_list, midia, leituras)
+sql/039_grow_user_id.sql        — user_id (dono) + backfill nas tabelas do Grow (privacidade em grupo)
+sql/040_grow_share_flags.sql    — flags grow_compartilha_* na tabela grupos (toggle por aba)
+sql/041_dados_pessoais.sql      — aba "Dados Pessoais" do Grow (quadros/seções/itens) + PIN
+sql/042_dados_arquivos_bucket.sql — bucket PRIVADO p/ arquivos dos Dados Pessoais (URLs assinadas)
+sql/043_bug_reports.sql         — tabela bug_reports (aba Relatar um problema)
+sql/044_resumos.sql             — colunas resumo_* em users (resumos proativos semanal/mensal no WhatsApp)
 ```
+
+> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos), 043 (bug_reports), 044 (resumos). Sem elas as features respectivas não funcionam.
 
 > **Atenção (lição aprendida):** colunas novas NÃO podem entrar no `select()` de queries do caminho crítico (ex.: `getUser` em `routes/grow.js`) ANTES da migration rodar — o Supabase erra e a feature inteira quebra ("Usuário não encontrado"). Buscar colunas novas em query separada/tolerante (try/catch ou maybeSingle) e retornar default se faltar. **Sempre mandar o link da migration nova pro usuário** (ele roda à mão no Supabase).
