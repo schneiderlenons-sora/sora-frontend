@@ -7,10 +7,11 @@ import { useApi } from '@/lib/useApi';
 import SaudeNav from '../SaudeNav';
 import ModalRefeicao    from '@/components/saude/ModalRefeicao';
 import ModalCalculadora from '@/components/saude/ModalCalculadora';
+import ModalPerfilSaude from '@/components/saude/ModalPerfilSaude';
 import {
   Apple, Sparkles, Loader2, Plus, Calculator, Droplets,
   Sun, Coffee, Cookie, UtensilsCrossed, Moon as MoonIcon,
-  Trash2, ChevronRight, Flame, ArrowRight,
+  Trash2, ChevronRight, Flame, ArrowRight, Scale, Pencil, Check,
 } from 'lucide-react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -48,7 +49,10 @@ export default function NutricaoPage() {
   const { phone, perfil } = useAuth();
   const [modalRefeicao, setModalRefeicao] = useState(false);
   const [modalCalc, setModalCalc]   = useState(false);
+  const [modalPerfil, setModalPerfil] = useState(false);
   const [adicionandoAgua, setAdicionandoAgua] = useState<number | null>(null);
+  const [pesoHoje, setPesoHoje] = useState('');
+  const [pesoLoading, setPesoLoading] = useState(false);
 
   // Dados via SWR — revisita instantânea (cache em memória).
   const { data: diagData,   mutate: mDiag } = useApi(phone ? `nut:diag:${phone}` : null,   () => api.saude.nutricao.diagnostico(phone));
@@ -96,6 +100,19 @@ export default function NutricaoPage() {
       carregar();
     } catch (e: any) { alert(e.message); }
     finally { setTimeout(() => setAdicionandoAgua(null), 250); }
+  }
+
+  async function salvarPeso() {
+    if (!phone || !pesoHoje) return;
+    const v = parseFloat(pesoHoje.replace(',', '.'));
+    if (!v || v <= 0) { alert('Peso inválido.'); return; }
+    setPesoLoading(true);
+    try {
+      await api.saude.pesos.criar({ phone, peso_kg: v, data: hojeStr });
+      setPesoHoje('');
+      carregar();
+    } catch (e: any) { alert(e.message); }
+    finally { setPesoLoading(false); }
   }
 
   async function deletarRefeicao(id: string) {
@@ -206,6 +223,70 @@ export default function NutricaoPage() {
           </div>
         </div>
       )}
+
+      {/* PESO DE HOJE + PERFIL DE SAÚDE */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '120ms' }}>
+
+        {/* Peso de hoje */}
+        <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-5"
+             style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Peso de hoje</p>
+              <p className="text-base font-bold text-foreground">Registrar agora</p>
+            </div>
+            <Scale size={20} className="text-primary flex-shrink-0" />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1 relative min-w-0">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={pesoHoje}
+                onChange={e => setPesoHoje(e.target.value.replace(/[^\d.,]/g, ''))}
+                placeholder="ex: 75,2"
+                className="input pr-10 text-base tabular font-bold w-full"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">kg</span>
+            </div>
+            <button onClick={salvarPeso} disabled={pesoLoading || !pesoHoje}
+                    className="inline-flex items-center justify-center px-4 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50 flex-shrink-0"
+                    aria-label="Salvar peso">
+              {pesoLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">A evolução de peso aparece no Dashboard.</p>
+        </div>
+
+        {/* Perfil de saúde */}
+        <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-5"
+             style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Perfil de saúde</p>
+              <p className="text-base font-bold text-foreground truncate">{perfilSaude?.altura_cm ? 'Configurado' : 'Sem configuração'}</p>
+            </div>
+            <button onClick={() => setModalPerfil(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary dark:text-primary text-[11px] font-bold hover:opacity-90 flex-shrink-0">
+              <Pencil size={11} /> {perfilSaude?.altura_cm ? 'Editar' : 'Configurar'}
+            </button>
+          </div>
+          {perfilSaude?.altura_cm ? (
+            <div className="grid grid-cols-3 gap-x-3 gap-y-3">
+              <Mini label="Altura"    value={`${perfilSaude.altura_cm} cm`} />
+              <Mini label="Sexo"      value={perfilSaude.sexo === 'M' ? 'Masc' : perfilSaude.sexo === 'F' ? 'Fem' : 'Outro'} />
+              <Mini label="Idade"     value={idadeUsuario ? `${idadeUsuario} anos` : '—'} />
+              <Mini label="Objetivo"  value={perfilSaude.objetivo} cap />
+              <Mini label="Atividade" value={perfilSaude.nivel_atividade} cap />
+              <Mini label="Meta peso" value={perfilSaude.meta_peso_kg ? `${perfilSaude.meta_peso_kg} kg` : '—'} />
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Sem perfil configurado, IMC e cálculos nutricionais ficam indisponíveis.
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* DIAGNÓSTICO */}
       {diagnostico.length > 0 && (
@@ -373,6 +454,24 @@ export default function NutricaoPage() {
           onSuccess={() => { carregar(); setModalCalc(false); }}
         />
       )}
+      {modalPerfil && phone && (
+        <ModalPerfilSaude
+          phone={phone}
+          perfil={perfilSaude}
+          onClose={() => setModalPerfil(false)}
+          onSuccess={() => { carregar(); setModalPerfil(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── MINI CAMPO DO PERFIL ──────────────────────────────────────────
+function Mini({ label, value, cap }: { label: string; value: any; cap?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground truncate">{label}</p>
+      <p className={`text-xs font-bold text-foreground mt-0.5 truncate ${cap ? 'capitalize' : ''}`}>{value}</p>
     </div>
   );
 }

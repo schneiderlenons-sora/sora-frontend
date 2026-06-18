@@ -161,7 +161,7 @@ export default function SaudeDashboardPage() {
         <QuickAction icon={Scale}     label="Registrar peso"  onClick={() => setModalPeso(true)} />
         <QuickActionLink icon={Plus}  label="Registrar refeição" href="/grow/saude/nutricao" />
         <QuickActionLink icon={Dumbbell} label="Registrar treino" href="/grow/saude/treinos" />
-        <QuickActionLink icon={Check} label="Check-up de hoje"  href="/grow/saude/registro" />
+        <QuickActionLink icon={CalendarHeart} label="Consultas" href="/grow/saude/consultas" />
       </div>
 
       {modalPeso && phone && (
@@ -197,7 +197,7 @@ function HeroCard({ peso, pesoData, imc, imcClass, metaProjecao, semPerfil, semP
         {semPerfil || semPeso ? (
           <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
             {semPerfil
-              ? <>Configure sua <Link href="/grow/saude/registro" className="text-primary dark:text-primary font-semibold underline-offset-2 hover:underline">altura e perfil</Link> pra ativar IMC e metas inteligentes.</>
+              ? <>Configure sua <Link href="/grow/saude/nutricao" className="text-primary dark:text-primary font-semibold underline-offset-2 hover:underline">altura e perfil</Link> pra ativar IMC e metas inteligentes.</>
               : <>Registre seu <button onClick={onAddPeso} className="text-primary dark:text-primary font-semibold underline underline-offset-2">primeiro peso</button> pra acompanhar evolução.</>
             }
           </p>

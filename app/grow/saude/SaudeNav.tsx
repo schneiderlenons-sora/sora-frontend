@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Dumbbell, Apple, ClipboardCheck,
+  LayoutDashboard, Dumbbell, Apple,
   CalendarHeart, Pill, Ruler,
 } from 'lucide-react';
 
@@ -11,7 +11,6 @@ const TABS = [
   { href: '/grow/saude/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
   { href: '/grow/saude/treinos',   label: 'Treinos',    icon: Dumbbell },
   { href: '/grow/saude/nutricao',  label: 'Nutrição',   icon: Apple },
-  { href: '/grow/saude/registro',  label: 'Registro',   icon: ClipboardCheck },
   { href: '/grow/saude/consultas', label: 'Consultas',  icon: CalendarHeart },
   { href: '/grow/saude/remedios',  label: 'Remédios',   icon: Pill },
   { href: '/grow/saude/corpo',     label: 'Corpo',      icon: Ruler },
