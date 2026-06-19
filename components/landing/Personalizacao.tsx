@@ -134,7 +134,7 @@ export default function Personalizacao() {
                 src={ativo.img}
                 alt={`Painel da Sora no tema ${ativo.nome}`}
                 onError={() => onImgError(ativo.id)}
-                className="absolute inset-0 w-full h-full object-contain animate-[fade-in_500ms_ease-out_both]"
+                className="absolute inset-0 w-full h-full object-cover object-top animate-[fade-in_500ms_ease-out_both]"
                 loading="lazy"
                 draggable={false}
               />
