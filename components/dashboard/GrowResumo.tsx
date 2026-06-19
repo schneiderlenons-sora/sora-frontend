@@ -28,8 +28,12 @@ function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
   const hojeStr = iso(new Date());
   const humorHoje = humor.find(r => r.data === hojeStr);
 
+  // "Próximos eventos" = agendamentos/obrigações futuras (compromissos, consultas,
+  // faturas a pagar, dívidas, recorrências, manutenções). Exclui transações já
+  // lançadas (source 'transacao') — elas já aconteceram, não são "próximo evento".
+  // Na Agenda completa elas continuam aparecendo no calendário.
   const proximos = [...eventos]
-    .filter(e => e.data >= hojeStr)
+    .filter(e => e.data >= hojeStr && e.source !== 'transacao')
     .sort((a, b) => a.data.localeCompare(b.data) || (a.hora || '99').localeCompare(b.hora || '99'))
     .slice(0, 4);
   const rotuloDia = (d: string) => {
