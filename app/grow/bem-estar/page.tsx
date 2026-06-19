@@ -238,7 +238,7 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-base font-bold text-foreground">Como foi seu dia?</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>

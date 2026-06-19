@@ -172,13 +172,14 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
 
-      <div
-        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[90dvh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="relative min-h-full flex items-end sm:items-center justify-center p-4">
+        <div
+          className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[90dvh] flex flex-col"
+          onClick={e => e.stopPropagation()}
+        >
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-lg font-bold text-foreground">Nova Transação</h2>
@@ -433,6 +434,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
           >
             {loading ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : 'Salvar transação'}
           </button>
+        </div>
         </div>
       </div>
     </div>

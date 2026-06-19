@@ -202,11 +202,12 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
+      className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
 
+      <div className="relative min-h-full flex items-end sm:items-center justify-center p-4">
       <div
         className="relative w-full max-w-lg bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[92dvh] flex flex-col"
         onClick={e => e.stopPropagation()}
@@ -441,6 +442,7 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
             {ediMode ? 'Salvar alterações' : 'Salvar cartão'}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
