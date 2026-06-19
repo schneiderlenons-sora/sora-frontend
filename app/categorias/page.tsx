@@ -169,7 +169,9 @@ export default function CategoriasPage() {
 
   // Agrupa categorias em árvore: pais e filhas — só do tipo selecionado (default = despesa)
   const arvore = useMemo(() => {
-    const pais = categorias.filter(c => !c.parent_id && (c.tipo || 'despesa') === tipoTab);
+    // "Fatura cartão" não é uma categoria de consumo (é quitação de dívida) —
+    // nunca listada aqui, mesmo que exista no catálogo.
+    const pais = categorias.filter(c => !c.parent_id && (c.tipo || 'despesa') === tipoTab && nomeCategoria(c.nome) !== 'Fatura cartão');
     return pais.map(p => {
       const filhos = categorias.filter(c => c.parent_id === p.id);
       const gastoProprio = gastoDeNome(p.nome);
