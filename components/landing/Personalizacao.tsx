@@ -124,7 +124,7 @@ export default function Personalizacao() {
           <button
             onClick={() => setZoom(true)}
             aria-label={`Ampliar tema ${ativo.nome}`}
-            className="group relative aspect-[16/9] w-full overflow-hidden bg-zinc-950 block cursor-zoom-in"
+            className="group relative aspect-[1919/864] w-full overflow-hidden bg-zinc-950 block cursor-zoom-in"
           >
             {falhou(ativo.id) ? (
               <PlaceholderTema cor={ativo.hex} nome={ativo.nome} />
@@ -134,7 +134,7 @@ export default function Personalizacao() {
                 src={ativo.img}
                 alt={`Painel da Sora no tema ${ativo.nome}`}
                 onError={() => onImgError(ativo.id)}
-                className="absolute inset-0 w-full h-full object-cover object-top animate-[fade-in_500ms_ease-out_both]"
+                className="absolute inset-0 w-full h-full object-contain animate-[fade-in_500ms_ease-out_both]"
                 loading="lazy"
                 draggable={false}
               />
@@ -244,7 +244,7 @@ export default function Personalizacao() {
           {/* Imagem ampliada */}
           <div className="relative max-w-6xl w-full" onClick={(e) => e.stopPropagation()}>
             {falhou(ativo.id) ? (
-              <div className="w-full aspect-[16/9] max-h-[85dvh] rounded-2xl overflow-hidden ring-1 ring-white/10">
+              <div className="w-full aspect-[1919/864] max-h-[85dvh] rounded-2xl overflow-hidden ring-1 ring-white/10">
                 <PlaceholderTema cor={ativo.hex} nome={ativo.nome} />
               </div>
             ) : (
