@@ -224,6 +224,56 @@ export default function NutricaoPage() {
         </div>
       )}
 
+      {/* DIAGNÓSTICO */}
+      {diagnostico.length > 0 && (
+        <div className="space-y-2 animate-fade-in" style={{ animationDelay: '120ms' }}>
+          {diagnostico.map((d, i) => (
+            <div key={i}
+                 className="flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-xl"
+                 style={{
+                   background: `${SEVERIDADE_COR[d.severidade]}10`,
+                   borderColor: `${SEVERIDADE_COR[d.severidade]}40`,
+                 }}>
+              <span className="text-2xl flex-shrink-0">{d.emoji}</span>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-foreground">{d.titulo}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{d.texto}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* REFEIÇÕES DE HOJE */}
+      <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"
+           style={{ background: 'hsl(var(--bg-card) / 0.5)', animationDelay: '180ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refeições de hoje</p>
+            <p className="text-base font-bold text-foreground">{refeicoesHoje.length} registrada{refeicoesHoje.length === 1 ? '' : 's'}</p>
+          </div>
+          <button onClick={() => setModalRefeicao(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary dark:text-primary hover:gap-2 transition-all">
+            <Plus size={12} /> Adicionar
+          </button>
+        </div>
+
+        {refeicoesHoje.length === 0 ? (
+          <div className="rounded-2xl py-10 text-center bg-muted/20 border border-dashed border-border/60">
+            <Apple size={20} className="text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Nenhuma refeição registrada hoje.</p>
+            <button onClick={() => setModalRefeicao(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-primary text-white text-xs font-bold hover:opacity-90">
+              <Sparkles size={11} /> Registrar com IA
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {refeicoesHoje.map(r => <CardRefeicao key={r.id} refeicao={r} onDelete={() => deletarRefeicao(r.id)} />)}
+          </div>
+        )}
+      </div>
+
       {/* PESO DE HOJE + PERFIL DE SAÚDE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '120ms' }}>
 
@@ -287,26 +337,6 @@ export default function NutricaoPage() {
           )}
         </div>
       </div>
-
-      {/* DIAGNÓSTICO */}
-      {diagnostico.length > 0 && (
-        <div className="space-y-2 animate-fade-in" style={{ animationDelay: '120ms' }}>
-          {diagnostico.map((d, i) => (
-            <div key={i}
-                 className="flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-xl"
-                 style={{
-                   background: `${SEVERIDADE_COR[d.severidade]}10`,
-                   borderColor: `${SEVERIDADE_COR[d.severidade]}40`,
-                 }}>
-              <span className="text-2xl flex-shrink-0">{d.emoji}</span>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-foreground">{d.titulo}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{d.texto}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* AGUA + GRÁFICO CALORIAS 7d */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 animate-fade-in" style={{ animationDelay: '180ms' }}>
@@ -387,36 +417,6 @@ export default function NutricaoPage() {
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
-
-      {/* REFEIÇÕES DE HOJE */}
-      <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"
-           style={{ background: 'hsl(var(--bg-card) / 0.5)', animationDelay: '240ms' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refeições de hoje</p>
-            <p className="text-base font-bold text-foreground">{refeicoesHoje.length} registrada{refeicoesHoje.length === 1 ? '' : 's'}</p>
-          </div>
-          <button onClick={() => setModalRefeicao(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary dark:text-primary hover:gap-2 transition-all">
-            <Plus size={12} /> Adicionar
-          </button>
-        </div>
-
-        {refeicoesHoje.length === 0 ? (
-          <div className="rounded-2xl py-10 text-center bg-muted/20 border border-dashed border-border/60">
-            <Apple size={20} className="text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhuma refeição registrada hoje.</p>
-            <button onClick={() => setModalRefeicao(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-3 rounded-lg bg-primary text-white text-xs font-bold hover:opacity-90">
-              <Sparkles size={11} /> Registrar com IA
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {refeicoesHoje.map(r => <CardRefeicao key={r.id} refeicao={r} onDelete={() => deletarRefeicao(r.id)} />)}
-          </div>
-        )}
       </div>
 
       {/* HISTÓRICO 7 DIAS (refeições anteriores) */}
