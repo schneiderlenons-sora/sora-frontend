@@ -1,0 +1,19 @@
+Prints do painel para a seção "Personalizado por você" da landing.
+
+Coloque 1 print por cor AQUI, nesta pasta (public/landing/cores/),
+com EXATAMENTE estes nomes (tudo minúsculo, .png):
+
+  verde.png      -> tema Verde Sora
+  azul.png       -> tema Azul
+  roxo.png       -> tema Roxo
+  rosa.png       -> tema Rosa
+  vermelho.png   -> tema Vermelho
+  laranja.png    -> tema Laranja
+  black.png      -> tema Black
+
+Recomendações:
+- Proporção próxima de 16:9 (paisagem), ex.: 1920x1080 ou 2560x1440.
+- Mesma tela do painel (ex.: o Dashboard) em todas as cores, pra
+  comparação ficar justa.
+- PNG ou JPG; se for JPG, troque a extensão no arquivo
+  components/landing/Personalizacao.tsx (constante CORES -> img).

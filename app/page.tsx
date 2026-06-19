@@ -14,7 +14,7 @@ import OpenFinance     from '@/components/landing/OpenFinance';
 import Showcase        from '@/components/landing/Showcase';
 import SaudeShowcase   from '@/components/landing/SaudeShowcase';
 import WrappedShowcase from '@/components/landing/WrappedShowcase';
-import Carrossel       from '@/components/landing/Carrossel';
+import Personalizacao  from '@/components/landing/Personalizacao';
 import SoraLabs        from '@/components/landing/SoraLabs';
 import SocialProof     from '@/components/landing/SocialProof';
 import Pricing         from '@/components/landing/Pricing';
@@ -42,7 +42,7 @@ export default function LandingPage() {
       <Features />
       <TestDrive />
       <OpenFinance />
-      <Carrossel />
+      <Personalizacao />
       <SoraLabs />
       <SocialProof />
       <Pricing />
