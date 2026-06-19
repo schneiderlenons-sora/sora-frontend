@@ -117,7 +117,7 @@ export default function ModalHabito({ phone, habito, onClose, onSuccess }: Props
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
 
           {/* Vínculo com treino (somente leitura) */}
           {habito?.treino_id && (

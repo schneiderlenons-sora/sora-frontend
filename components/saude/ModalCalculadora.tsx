@@ -84,10 +84,10 @@ export default function ModalCalculadora({ phone, inicial, onClose, onSuccess }:
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-xl bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[92vh] flex flex-col"
+      <div className="relative w-full max-w-xl bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90dvh] flex flex-col"
            onClick={e => e.stopPropagation()}>
 
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-violet-100 dark:bg-violet-950/40">
               <Calculator size={16} className="text-violet-600 dark:text-violet-400" />
@@ -246,7 +246,7 @@ export default function ModalCalculadora({ phone, inicial, onClose, onSuccess }:
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+        <div className="shrink-0 flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">{resultado ? 'Fechar' : 'Cancelar'}</button>
           {resultado && (
             <button onClick={salvarComoMetas} disabled={loading}

@@ -176,18 +176,18 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border"
+        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[90dvh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-lg font-bold text-foreground">Nova Transação</h2>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted transition-colors">
             <X size={18} className="text-muted-foreground" />
           </button>
         </div>
 
-        <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
 
           {/* Toggle Despesa / Receita */}
           <div className="relative flex bg-muted rounded-2xl p-1">
@@ -421,7 +421,10 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
               <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">{erro}</p>
             </div>
           )}
+        </div>
 
+        {/* Footer fixo — ação sempre visível */}
+        <div className="shrink-0 px-5 py-4 border-t border-border bg-muted/20">
           <button
             onClick={handleSalvar}
             disabled={loading || !valor || valor === '0'}

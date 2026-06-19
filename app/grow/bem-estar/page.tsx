@@ -238,12 +238,12 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-base font-bold text-foreground">Como foi seu dia?</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
-        <div className="p-6 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Humor</label>
             <div className="grid grid-cols-5 gap-1.5">
@@ -282,7 +282,7 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
           </div>
           {erro && <p className="text-xs text-red-600">{erro}</p>}
         </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
+        <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button onClick={salvar} disabled={loading}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
