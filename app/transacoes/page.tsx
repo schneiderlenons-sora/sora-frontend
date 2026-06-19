@@ -101,8 +101,12 @@ export default function TransacoesPage() {
   const receitasTotal = useMemo(() =>
     txsFiltradas.filter(t => t.tipo === 'Recebimento').reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas]);
+  // Exclui transferências/pagamento de fatura do total de despesas (não é
+  // consumo — as compras já contam nas categorias reais). Bate com o /resumo.
   const despesasTotal = useMemo(() =>
-    txsFiltradas.filter(t => t.tipo === 'Gasto').reduce((s, t) => s + (t.valor || 0), 0),
+    txsFiltradas
+      .filter(t => t.tipo === 'Gasto' && !t.transferencia && t.categoria !== 'Fatura cartão')
+      .reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas]);
   const pendentesTotal = useMemo(() =>
     txsFiltradas.filter(t => !t.pago).reduce((s, t) => s + (t.valor || 0), 0),
@@ -348,7 +352,7 @@ export default function TransacoesPage() {
             value={ocultar ? null : despesasTotal}
             icon={TrendingDown}
             colorHue={0}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto').length} saídas`}
+            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && !t.transferencia && t.categoria !== 'Fatura cartão').length} saídas`}
             delay={120}
             negative
           />

@@ -169,7 +169,10 @@ export default function DashboardPage() {
 
   // Fluxo de caixa — gasto por dia (não acumulado), pro gráfico de área.
   // Memoizado: percorre até 500 transações; sem isso recalcula a cada toggle.
-  const dadosDiarios = useMemo(() => computeDailyAmount(txsMes, today), [txsMes, today]);
+  const dadosDiarios = useMemo(
+    // Exclui pagamento de fatura/transferência (não é consumo) — consistente com o total.
+    () => computeDailyAmount(txsMes.filter(t => !t.transferencia && t.categoria !== 'Fatura cartão'), today),
+    [txsMes, today]);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
   const totalGastos = resumo?.gastos || 0;
