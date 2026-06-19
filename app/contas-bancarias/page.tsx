@@ -548,7 +548,9 @@ export default function ContasBancariasPage() {
       {transferOpen && (
         <TransferenciaModal
           wallets={walletsAtivas}
+          phone={phone}
           onClose={() => setTransferOpen(false)}
+          onSuccess={carregar}
         />
       )}
     </DashboardLayout>
@@ -1014,72 +1016,155 @@ function AjusteSaldoModal({
 // MODAL TRANSFERÊNCIA ENTRE CONTAS
 // ─────────────────────────────────────────────────────────────
 function TransferenciaModal({
-  wallets, onClose,
+  wallets, phone, onClose, onSuccess,
 }: {
-  wallets: Wallet[];
-  onClose: () => void;
+  wallets:   Wallet[];
+  phone:     string | null;
+  onClose:   () => void;
+  onSuccess: () => void;
 }) {
   const [origem,  setOrigem]  = useState(wallets[0]?.id || '');
-  const [destino, setDestino] = useState(wallets[1]?.id || '');
+  const [destino, setDestino] = useState(wallets.find(w => w.id !== wallets[0]?.id)?.id || '');
   const [valor,   setValor]   = useState('');
+  const [loading, setLoading] = useState(false);
+  const [erro,    setErro]    = useState('');
+  const [sucesso, setSucesso] = useState(false);
+
+  const contaOrigem  = wallets.find(w => w.id === origem);
+  const contaDestino = wallets.find(w => w.id === destino);
+  const v            = parseFloat((valor || '0').replace(',', '.')) || 0;
+  const saldoOrigem  = contaOrigem?.saldo || 0;
+  const insuficiente = v > saldoOrigem;
+  const valido       = !!origem && !!destino && origem !== destino && v > 0 && !insuficiente;
+
+  function inverter() { setOrigem(destino); setDestino(origem); }
+  function escolherOrigem(id: string) {
+    setOrigem(id);
+    if (id === destino) setDestino(wallets.find(w => w.id !== id)?.id || '');
+  }
+
+  async function confirmar() {
+    if (!valido || !phone) return;
+    setLoading(true); setErro('');
+    try {
+      await api.wallets.transferir({ phone, origem_id: origem, destino_id: destino, valor: v });
+      setSucesso(true);
+      onSuccess();
+      setTimeout(onClose, 1000);
+    } catch (e: any) {
+      setErro(e?.message || 'Erro ao transferir.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border/60">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border/60">
-          <div>
-            <h2 className="text-xl font-bold text-foreground tracking-tight">Transferir entre contas</h2>
-            <p className="text-xs text-muted-foreground mt-1">Movimente valores entre suas contas</p>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
-            <X size={18} className="text-muted-foreground" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">De</label>
-            <select value={origem} onChange={e => setOrigem(e.target.value)} className="input py-3">
-              {wallets.map(w => <option key={w.id} value={w.id}>{w.nome} — {fmt(w.saldo)}</option>)}
-            </select>
-          </div>
-
-          <div className="flex justify-center">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-              <ArrowLeftRight size={16} className="text-primary rotate-90" />
+      <div className="relative min-h-full flex items-center justify-center p-4">
+        <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border/60 max-h-[90dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-border/60">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-primary/10">
+                <ArrowLeftRight size={18} className="text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground tracking-tight leading-tight">Transferir entre contas</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Move o valor e registra no histórico</p>
+              </div>
             </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Para</label>
-            <select value={destino} onChange={e => setDestino(e.target.value)} className="input py-3">
-              {wallets.filter(w => w.id !== origem).map(w => <option key={w.id} value={w.id}>{w.nome} — {fmt(w.saldo)}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Valor</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">R$</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={valor}
-                onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ''))}
-                className="input pl-11 py-3 tabular text-lg font-semibold"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2.5 pt-2">
-            <button onClick={onClose} className="btn-outline flex-1 py-3 text-sm font-semibold">Cancelar</button>
-            <button onClick={onClose} className="btn btn-primary flex-[2] py-3 text-sm font-semibold shadow-glow-sm gap-2">
-              <ArrowLeftRight size={14} /> Confirmar transferência
+            <button onClick={onClose} aria-label="Fechar" className="p-2 rounded-xl hover:bg-muted transition-colors">
+              <X size={18} className="text-muted-foreground" />
             </button>
           </div>
+
+          {sucesso ? (
+            <div className="flex flex-col items-center py-16 px-6 gap-3">
+              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-950/40 flex items-center justify-center animate-fade-in">
+                <CheckCircle2 size={32} className="text-green-600 dark:text-green-400" />
+              </div>
+              <p className="font-bold text-foreground text-lg">Transferência feita!</p>
+              <p className="text-sm text-muted-foreground tabular">{fmt(v)} · {contaOrigem?.nome} → {contaDestino?.nome}</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                {/* De */}
+                <div>
+                  <label htmlFor="transf-origem" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">De</label>
+                  <select id="transf-origem" value={origem} onChange={e => escolherOrigem(e.target.value)} className="input py-3">
+                    {wallets.map(w => <option key={w.id} value={w.id}>{w.nome} — {fmt(w.saldo)}</option>)}
+                  </select>
+                </div>
+
+                {/* Inverter */}
+                <div className="flex justify-center">
+                  <button type="button" onClick={inverter} aria-label="Inverter origem e destino"
+                          className="w-9 h-9 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-all active:scale-95">
+                    <ArrowLeftRight size={16} className="text-primary rotate-90" />
+                  </button>
+                </div>
+
+                {/* Para */}
+                <div>
+                  <label htmlFor="transf-destino" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Para</label>
+                  <select id="transf-destino" value={destino} onChange={e => setDestino(e.target.value)} className="input py-3">
+                    {wallets.filter(w => w.id !== origem).map(w => <option key={w.id} value={w.id}>{w.nome} — {fmt(w.saldo)}</option>)}
+                  </select>
+                </div>
+
+                {/* Valor */}
+                <div>
+                  <label htmlFor="transf-valor" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Valor</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">R$</span>
+                    <input id="transf-valor" type="text" inputMode="decimal" placeholder="0,00" value={valor} autoFocus
+                           onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ''))}
+                           className="input pl-11 py-3 tabular text-lg font-semibold" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5 tabular">
+                    Disponível em {contaOrigem?.nome}: <span className="font-semibold text-foreground">{fmt(saldoOrigem)}</span>
+                  </p>
+                </div>
+
+                {/* Preview dos saldos */}
+                {v > 0 && !insuficiente && contaOrigem && contaDestino && (
+                  <div className="rounded-xl p-3.5 bg-muted/40 border border-border/60 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Depois da transferência</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground truncate mr-2">{contaOrigem.nome}</span>
+                      <span className="tabular text-muted-foreground whitespace-nowrap">{fmt(saldoOrigem)} → <span className="font-bold text-foreground">{fmt(saldoOrigem - v)}</span></span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground truncate mr-2">{contaDestino.nome}</span>
+                      <span className="tabular text-muted-foreground whitespace-nowrap">{fmt(contaDestino.saldo || 0)} → <span className="font-bold text-foreground">{fmt((contaDestino.saldo || 0) + v)}</span></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Erro / saldo insuficiente */}
+                {(erro || insuficiente) && (
+                  <div role="alert" className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
+                    <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                      {erro || `Saldo insuficiente em ${contaOrigem?.nome}.`}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer fixo */}
+              <div className="shrink-0 flex gap-2.5 px-6 py-4 border-t border-border/60 bg-muted/20">
+                <button onClick={onClose} className="btn-outline flex-1 py-3 text-sm font-semibold">Cancelar</button>
+                <button onClick={confirmar} disabled={!valido || loading}
+                        className="btn btn-primary flex-[2] py-3 text-sm font-semibold shadow-glow-sm gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <><Loader2 size={15} className="animate-spin" /> Transferindo...</> : <><ArrowLeftRight size={14} /> Transferir</>}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

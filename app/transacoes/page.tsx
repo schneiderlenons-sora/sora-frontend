@@ -15,7 +15,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
-  Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight,
+  Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
@@ -625,6 +625,7 @@ function TransactionRow({
   tx, index, ocultar, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar,
 }: any) {
+  const isTransfer = tx.transferencia === true || tx.tipo === 'Transferência';
   const isGasto = tx.tipo === 'Gasto';
   const theme   = getCategoriaTheme(tx.categoria || '');
   const nome    = nomeCategoria(tx.categoria);
@@ -694,19 +695,32 @@ function TransactionRow({
 
       {/* Valor + status */}
       <div className="flex flex-col items-end justify-center">
-        <p className={`text-sm font-bold tabular whitespace-nowrap ${
-          isGasto ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-        }`}>
-          {ocultar ? '••••' : `${isGasto ? '−' : '+'}${fmt(tx.valor)}`}
-        </p>
-        {tx.pago ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
-            <CheckCircle2 size={9} /> {isGasto ? 'Pago' : 'Recebido'}
-          </span>
+        {isTransfer ? (
+          <>
+            <p className="text-sm font-bold tabular whitespace-nowrap text-foreground">
+              {ocultar ? '••••' : fmt(tx.valor)}
+            </p>
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+              <ArrowLeftRight size={9} /> Transferência
+            </span>
+          </>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-            <Clock size={9} /> {isGasto ? 'Pendente' : 'A receber'}
-          </span>
+          <>
+            <p className={`text-sm font-bold tabular whitespace-nowrap ${
+              isGasto ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+            }`}>
+              {ocultar ? '••••' : `${isGasto ? '−' : '+'}${fmt(tx.valor)}`}
+            </p>
+            {tx.pago ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
+                <CheckCircle2 size={9} /> {isGasto ? 'Pago' : 'Recebido'}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                <Clock size={9} /> {isGasto ? 'Pendente' : 'A receber'}
+              </span>
+            )}
+          </>
         )}
       </div>
 

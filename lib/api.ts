@@ -121,6 +121,9 @@ export const api = {
     // Paga a fatura do cartão debitando de uma conta (cria a transação de saída)
     pagarFatura: (body: { phone: string; cartao_id: string; wallet_id: string; valor: number }) =>
       req<{ ok: boolean; debito: any }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
+    // Transfere valor entre duas contas (ajusta saldos + grava registro)
+    transferir: (body: { phone: string; origem_id: string; destino_id: string; valor: number }) =>
+      req<{ ok: boolean; tx: any }>('/api/wallets/transferir', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   // ── CATEGORIAS ────────────────────────────────────────────────
