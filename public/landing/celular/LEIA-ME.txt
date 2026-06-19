@@ -1,0 +1,13 @@
+Prints do celular para a seção "E claro, também disponível no seu celular".
+
+Coloque os 2 prints AQUI (public/landing/celular/) com estes nomes:
+
+  1.png   -> mockup da esquerda
+  2.png   -> mockup da direita
+
+Recomendações:
+- Print da TELA do celular (sem a moldura — a moldura de iPhone é
+  desenhada pelo site). Proporção ~9:19.5 (ex.: 1170x2532, tela do
+  iPhone), ou qualquer print vertical do app.
+- PNG ou JPG; se for JPG, troque a extensão em
+  components/landing/MobileShowcase.tsx (constante PRINTS -> img).
