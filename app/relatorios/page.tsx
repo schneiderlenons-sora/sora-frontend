@@ -217,13 +217,13 @@ export default function RelatoriosPage() {
              style={{ background: 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)' }}>
 
           <div className="absolute inset-0 pointer-events-none opacity-60"
-               style={{ background: 'radial-gradient(ellipse at top right, hsl(217 91% 60% / .10) 0%, transparent 60%), radial-gradient(ellipse at bottom left, hsl(var(--primary) / .10) 0%, transparent 60%)' }} />
+               style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%), radial-gradient(ellipse at bottom left, hsl(var(--primary) / .10) 0%, transparent 60%)' }} />
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/10 mb-3">
-                <BarChart3 size={12} className="text-blue-500" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
+                <BarChart3 size={12} className="text-primary" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
                   Análise Financeira
                 </span>
               </div>
