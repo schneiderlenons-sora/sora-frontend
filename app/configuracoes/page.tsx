@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import AvatarMembro from '@/components/ui/AvatarMembro';
+import { AVATAR_CORES, AVATAR_PRESETS, AVATAR_COR_PADRAO } from '@/lib/avatares';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY, type PlanoDisplay } from '@/lib/planos-display';
 import { type Plano } from '@/lib/plans';
@@ -211,7 +212,8 @@ function SecaoPerfil() {
     try {
       // Redimensiona em canvas para 256x256 jpeg ~85% qualidade
       const dataUrl = await redimensionar(file, 256, 0.85);
-      const { error } = await supabase.from('users').update({ avatar_url: dataUrl }).eq('id', perfil.id);
+      // Foto tem prioridade — limpa o preset de baleia ao enviar uma foto.
+      const { error } = await supabase.from('users').update({ avatar_url: dataUrl, avatar_preset: null }).eq('id', perfil.id);
       if (error) throw error;
       await recarregar();
       flash('ok', 'Foto atualizada.');
@@ -233,13 +235,40 @@ function SecaoPerfil() {
     }
   }
 
+  // Escolhe um ícone de baleia — vira o avatar (e tira a foto, que tem prioridade).
+  async function escolherPreset(id: string) {
+    if (!perfil?.id) return;
+    try {
+      await supabase.from('users').update({
+        avatar_preset: id,
+        avatar_cor: perfil.avatar_cor || AVATAR_COR_PADRAO,
+        avatar_url: null,
+      }).eq('id', perfil.id);
+      await recarregar();
+      flash('ok', 'Ícone atualizado.');
+    } catch (e: any) {
+      flash('erro', e.message || 'Erro ao atualizar ícone.');
+    }
+  }
+
+  // Escolhe a cor de fundo do ícone/inicial.
+  async function escolherCor(cor: string) {
+    if (!perfil?.id) return;
+    try {
+      await supabase.from('users').update({ avatar_cor: cor }).eq('id', perfil.id);
+      await recarregar();
+    } catch (e: any) {
+      flash('erro', e.message || 'Erro ao atualizar cor.');
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Card do avatar + identidade */}
       <Card titulo="Foto e identidade" subtitulo="Como você aparece no painel e nos grupos">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           <div className="relative group">
-            <AvatarMembro name={perfil?.name} src={perfil?.avatar_url} size="xl" />
+            <AvatarMembro name={perfil?.name} src={perfil?.avatar_url} preset={perfil?.avatar_preset} cor={perfil?.avatar_cor} size="xl" />
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
@@ -270,6 +299,48 @@ function SecaoPerfil() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Cor do ícone */}
+        <div className="mt-6 pt-5 border-t border-border/60">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-3">Cor do ícone</p>
+          <div className="flex flex-wrap gap-2">
+            {AVATAR_CORES.map(c => {
+              const ativa = (perfil?.avatar_cor || AVATAR_COR_PADRAO) === c;
+              return (
+                <button key={c} onClick={() => escolherCor(c)} aria-label={`Cor ${c}`} title={c}
+                  className={`w-9 h-9 rounded-full inline-flex items-center justify-center transition-all ${ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : 'hover:scale-105'}`}
+                  style={{ background: c, ['--tw-ring-color' as any]: c }}>
+                  {ativa && <Check size={14} className="text-white" strokeWidth={3} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Ícones da Sora (baleias) */}
+        <div className="mt-6 pt-5 border-t border-border/60">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Ícones da Sora</p>
+          <p className="text-sm text-muted-foreground mb-3">Escolha uma baleia pro seu perfil (substitui a foto).</p>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+            {AVATAR_PRESETS.map(p => {
+              const ativo = !perfil?.avatar_url && perfil?.avatar_preset === p.id;
+              return (
+                <button key={p.id} onClick={() => escolherPreset(p.id)} title={p.label}
+                  className="flex flex-col items-center gap-1.5 group">
+                  <AvatarMembro
+                    name={perfil?.name}
+                    preset={p.id}
+                    cor={perfil?.avatar_cor || AVATAR_COR_PADRAO}
+                    size="lg"
+                    showTooltip={false}
+                    className={`transition-all ${ativo ? 'ring-2 ring-primary scale-105' : 'group-hover:scale-105 opacity-90 group-hover:opacity-100'}`}
+                  />
+                  <span className={`text-[10px] font-medium ${ativo ? 'text-primary' : 'text-muted-foreground'}`}>{p.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>

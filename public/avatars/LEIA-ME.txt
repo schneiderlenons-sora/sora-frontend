@@ -1,0 +1,19 @@
+Ícones de baleia pro avatar do usuário (Configurações → Meu Perfil).
+
+Coloque as artes AQUI (public/avatars/) com EXATAMENTE estes nomes (.png,
+fundo TRANSPARENTE — a cor de fundo é escolhida pelo usuário no painel):
+
+  baleia-classica.png     -> Clássica
+  baleia-oculos.png       -> Estilosa (baleia de óculos)
+  baleia-joia.png         -> Joia (baleia mandando 👍)
+  baleia-festa.png        -> Festa
+  baleia-zen.png          -> Zen
+  baleia-heroi.png        -> Herói
+  baleia-apaixonada.png   -> Apaixonada
+  baleia-gamer.png        -> Gamer
+
+Recomendações:
+- Quadrada (ex.: 512x512), PNG com transparência, baleia centralizada.
+- Enquanto a arte não existir, o painel mostra 🐳 (emoji) como fallback —
+  então a feature já funciona; é só caprichar nas artes depois.
+- Quer mais/menos opções? Edite a lista AVATAR_PRESETS em lib/avatares.ts.

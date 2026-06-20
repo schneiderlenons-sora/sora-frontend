@@ -12,6 +12,7 @@ import {
   Plane, Clapperboard, BookOpen, Bug, Shield,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
+import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -365,9 +366,14 @@ export default function Sidebar() {
           <span>Instalar app</span>
         </button>
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm mb-2">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-            {perfil?.name?.charAt(0)?.toUpperCase() || '?'}
-          </div>
+          <AvatarMembro
+            name={perfil?.name}
+            src={perfil?.avatar_url}
+            preset={perfil?.avatar_preset}
+            cor={perfil?.avatar_cor}
+            size="md"
+            showTooltip={false}
+          />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{perfil?.name || 'Usuário'}</p>
             <p className="text-xs text-white/70 truncate">{perfil?.phone || ''}</p>

@@ -20,6 +20,8 @@ interface Perfil {
   name:             string;
   email?:           string | null;
   avatar_url?:      string | null;
+  avatar_preset?:   string | null;
+  avatar_cor?:      string | null;
   created_at?:      string | null;
   plano:            Plano;
   plano_intervalo?: 'mensal' | 'anual' | null;
