@@ -46,8 +46,16 @@ export async function POST(req: NextRequest) {
         await handleSubscriptionDeleted(sub);
         break;
       }
-      // invoice.payment_failed — Stripe já retenta automaticamente por padrão.
-      // O plano só é desativado quando a assinatura é cancelada (evento acima).
+      // Pagamento recusado (ex.: assinatura nova que falhou por falta de fundos).
+      // Marca o lead pra recuperação (o cron do backend manda o WhatsApp).
+      // Renovação de assinatura ATIVA também cai aqui, mas o handler só age se o
+      // usuário ainda estiver `inativo` — então não afeta quem já é cliente.
+      case 'invoice.payment_failed':
+      case 'payment_intent.payment_failed': {
+        const obj = event.data.object as { customer?: string | null };
+        await handlePagamentoFalhou(obj.customer ?? null);
+        break;
+      }
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Erro processando evento';
@@ -106,6 +114,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       content_name: `Plano ${plano} ${intervalo}`,
     },
   }).catch(() => {}); // non-blocking
+}
+
+// Pagamento recusado → marca o usuário pra recuperação (cron do backend envia
+// o WhatsApp). Só age em conta ainda `inativo` que nunca recebeu recuperação.
+// Tolerante: se a migration 047 não rodou, só loga (não derruba o webhook).
+async function handlePagamentoFalhou(customerId: string | null) {
+  if (!customerId) return;
+  try {
+    const { data: user } = await supabaseAdmin
+      .from('users')
+      .select('id, plano, phone, recuperacao_enviada_em')
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle();
+
+    // Recupera só lead que ainda não pagou, tem WhatsApp e nunca foi recuperado.
+    if (!user || user.plano !== 'inativo' || !user.phone || user.recuperacao_enviada_em) return;
+
+    await supabaseAdmin
+      .from('users')
+      .update({ recuperacao_pendente_em: new Date().toISOString() })
+      .eq('id', user.id);
+  } catch (e) {
+    console.error('[stripe/webhook] recuperação (migration 047?):', e instanceof Error ? e.message : e);
+  }
 }
 
 async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
