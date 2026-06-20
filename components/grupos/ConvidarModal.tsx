@@ -41,7 +41,12 @@ export default function ConvidarModal({ phone, grupoId, grupoNome, onClose }: Pr
   }
 
   const mensagemWA = encodeURIComponent(
-    `🌱 Você foi convidado para o grupo "${grupoNome}" no Sora!\n\nUse o código *${codigo}* para entrar:\nhttps://sora.app\n\nO código expira em 7 dias.`
+    `🌱 Você foi convidado para o grupo "${grupoNome}" na Sora!\n\n` +
+    `Pra entrar:\n` +
+    `1️⃣ Acesse https://www.forsora.com e entre na sua conta\n` +
+    `2️⃣ Vá em *Comunidade → Entrar em grupo*\n` +
+    `3️⃣ Use o código *${codigo}*\n\n` +
+    `O código expira em 7 dias.`
   );
   const qrUrl = codigo
     ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(codigo)}`

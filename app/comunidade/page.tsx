@@ -555,9 +555,9 @@ function PaywallGrupos() {
               </li>
             ))}
           </ul>
-          <button className="btn btn-primary w-full py-2 text-sm gap-2">
+          <a href="/planos" className="btn btn-primary w-full py-2 text-sm gap-2 inline-flex items-center justify-center">
             Assinar Premium
-          </button>
+          </a>
         </div>
 
         {/* Black */}
@@ -571,7 +571,7 @@ function PaywallGrupos() {
               Top
             </span>
           </div>
-          <p className="text-3xl font-bold text-foreground tabular tracking-tight">R$ 37,00<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
+          <p className="text-3xl font-bold text-foreground tabular tracking-tight">R$ 79,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
           <ul className="space-y-2 mt-4 mb-5">
             {features.black.map(f => (
               <li key={f} className="flex items-start gap-2 text-xs text-foreground">
@@ -580,10 +580,10 @@ function PaywallGrupos() {
               </li>
             ))}
           </ul>
-          <button className="btn w-full py-2 text-sm gap-2 text-white shadow-glow-sm"
-                  style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 80%, transparent))` }}>
+          <a href="/planos" className="btn w-full py-2 text-sm gap-2 text-white shadow-glow-sm inline-flex items-center justify-center"
+             style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 80%, transparent))` }}>
             Assinar Black
-          </button>
+          </a>
         </div>
       </div>
 
