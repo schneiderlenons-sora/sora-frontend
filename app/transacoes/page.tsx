@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
+import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -37,8 +38,10 @@ const mesAtual = new Date().toISOString().slice(0, 7);
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function TransacoesPage() {
-  const { phone, podeUsar } = useAuth();
+  const { phone, podeUsar, perfil } = useAuth();
   const podeImportarOFX = podeUsar('import_ofx');
+  // Em grupo compartilhado (não-Pessoal), mostra o avatar de quem fez cada lançamento.
+  const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
   const podeImportarCSV = podeUsar('import_csv');
   const podeImportar = podeImportarOFX || podeImportarCSV;
   const podeExportar = podeUsar('export_dados');
@@ -526,6 +529,7 @@ export default function TransacoesPage() {
                     tx={tx}
                     index={i}
                     ocultar={ocultar}
+                    compartilhado={compartilhado}
                     selecionado={selecionados.has(tx.id)}
                     onToggleSelect={() => {
                       const novo = new Set(selecionados);
@@ -626,7 +630,7 @@ function StatCard({
 }
 
 function TransactionRow({
-  tx, index, ocultar, selecionado, onToggleSelect,
+  tx, index, ocultar, compartilhado, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar,
 }: any) {
   const isTransfer = tx.transferencia === true || tx.tipo === 'Transferência';
@@ -687,8 +691,17 @@ function TransactionRow({
         </span>
       </div>
 
-      {/* Conta */}
-      <div className="flex items-center min-w-0">
+      {/* Conta (+ avatar de quem lançou, em grupo compartilhado) */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {compartilhado && tx.criador && (
+          <AvatarMembro
+            name={tx.criador.name}
+            src={tx.criador.avatar_url}
+            preset={tx.criador.avatar_preset}
+            cor={tx.criador.avatar_cor}
+            size="sm"
+          />
+        )}
         <span className="text-xs text-muted-foreground truncate">{tx.wallet_nome || '—'}</span>
       </div>
 

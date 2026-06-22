@@ -8,6 +8,7 @@ import { useApi } from '@/lib/useApi';
 import { supabase } from '@/lib/supabase';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import AvatarMembro from '@/components/ui/AvatarMembro';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
@@ -108,6 +109,7 @@ interface Wallet {
   limite: number;
   padrao?: boolean;
   arquivada?: boolean;
+  dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
 }
 
 interface Form {
@@ -142,6 +144,8 @@ export default function ContasBancariasPage() {
 
   const plano        = perfil?.plano || 'inativo';
   const limiteContas = limiteDe('contas');
+  // Em grupo compartilhado (não-Pessoal), mostra de quem é cada conta.
+  const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
 
   // ── Carregamento sem bloquear UI ───────────────────────────
   // Marca a wallet padrão (perfil.wallet_padrao_id) com padrao:true
@@ -400,6 +404,7 @@ export default function ContasBancariasPage() {
                 wallet={w}
                 index={i}
                 ocultar={ocultar}
+                compartilhado={compartilhado}
                 deletando={deletando === w.id}
                 onEditar={() => abrirModal(w)}
                 onDeletar={() => deletar(w.id)}
@@ -561,13 +566,14 @@ export default function ContasBancariasPage() {
 // CARD DE CONTA — HORIZONTAL, INSPIRADO NA REFERÊNCIA MAS MAIS POLIDO
 // ─────────────────────────────────────────────────────────────
 function WalletCard({
-  wallet, index, ocultar, deletando,
+  wallet, index, ocultar, deletando, compartilhado,
   onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir,
 }: {
   wallet:        Wallet;
   index:         number;
   ocultar:       boolean;
   deletando:     boolean;
+  compartilhado: boolean;
   onEditar:      () => void;
   onDeletar:     () => void;
   onTornarPadrao:() => void;
@@ -641,6 +647,20 @@ function WalletCard({
           {deletando ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
         </button>
       </div>
+
+      {/* ─── Dono (em grupo compartilhado) ─── */}
+      {compartilhado && wallet.dono && (
+        <div className="relative flex items-center gap-1.5 mb-3 -mt-1">
+          <AvatarMembro
+            name={wallet.dono.name}
+            src={wallet.dono.avatar_url}
+            preset={wallet.dono.avatar_preset}
+            cor={wallet.dono.avatar_cor}
+            size="sm"
+          />
+          <span className="text-[11px] text-muted-foreground">de <strong className="text-foreground font-semibold">{wallet.dono.name?.split(' ')[0]}</strong></span>
+        </div>
+      )}
 
       {/* ─── Saldo ─── */}
       <div className="relative rounded-2xl p-4 mb-3"
