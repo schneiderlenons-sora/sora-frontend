@@ -29,7 +29,10 @@ export default function LandingNav() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const isDark = mounted && resolvedTheme === 'dark';
+  // O tema escuro é registrado como 'black' (classe .dark) no ThemeProvider —
+  // resolvedTheme nunca é 'dark'. Comparar com 'dark' deixava isDark sempre
+  // false → o toggle só ia pro escuro e nunca voltava. Cobre os dois nomes.
+  const isDark = mounted && (resolvedTheme === 'black' || resolvedTheme === 'dark');
   const toggleTema = () => setTheme(isDark ? 'light' : 'black');
 
   return (
