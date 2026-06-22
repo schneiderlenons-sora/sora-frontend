@@ -100,6 +100,15 @@ export default function CriarGrupoModal({ phone, limiteMembros, onClose, onSucce
             </p>
           </div>
 
+          {/* Aviso importante: grupo é um espaço NOVO e vazio — dados pessoais ficam no Pessoal. */}
+          <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
+            <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+              É um espaço <strong>novo e vazio</strong>. Suas transações e contas atuais continuam no
+              grupo <strong>Pessoal</strong> (nada é apagado) — você troca entre eles aqui na Comunidade.
+            </p>
+          </div>
+
           {erro && (
             <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
               <AlertCircle size={16} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
