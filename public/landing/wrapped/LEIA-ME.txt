@@ -1,0 +1,15 @@
+Imagens de exemplo do Sora Wrapped (seção "Sora Wrapped" da landing).
+
+Coloque as 3 artes AQUI (public/landing/wrapped/) com estes nomes:
+
+  1.png   -> card do CENTRO (o destaque, maior)
+  2.png   -> card da ESQUERDA (inclinado)
+  3.png   -> card da DIREITA (inclinado)
+
+Recomendações:
+- Proporção 9:16 (formato story), ex.: 1080x1920. PNG ou JPG.
+- O card tem cantos arredondados — o conteúdo importante não deve encostar
+  nas bordas (uns ~6% de margem segura).
+- Enquanto não existirem, a landing mostra um placeholder 🐳 "Wrapped em breve".
+- Se forem .jpg, troque a extensão em components/landing/WrappedShowcase.tsx
+  (constante WRAPPED_IMGS) ou renomeie pra .png.

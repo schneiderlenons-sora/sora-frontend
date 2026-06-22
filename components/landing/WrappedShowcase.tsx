@@ -1,37 +1,39 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Calendar, Wallet, Sprout, Share2 } from 'lucide-react';
-import { SlideView } from '@/components/wrapped/slides';
-import { WrappedStill } from '@/components/wrapped/fx';
-import { THEMES, type Slide, type WrappedDeck } from '@/lib/wrapped/themes';
 
-// Renderiza um slide REAL do Wrapped em tamanho de "design" (380px) e escala
-// pro tamanho do container — fidelidade total ao produto.
-const DW = 380;
-const DH = Math.round((DW * 16) / 9);
+// Imagens de exemplo do Wrapped (artes 9:16, formato story).
+// Coloque em public/landing/wrapped/ — índice 0 = centro (destaque).
+const WRAPPED_IMGS = [
+  '/landing/wrapped/1.png', // centro (a estrela)
+  '/landing/wrapped/2.png', // esquerda
+  '/landing/wrapped/3.png', // direita
+];
 
-function MiniWrapped({ slide, deck }: { slide: Slide; deck: WrappedDeck }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.55);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => setScale(el.clientWidth / DW);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+// Card 9:16 com a arte do Wrapped (+ brilho de vidro). Fallback elegante
+// enquanto a imagem não existe — a feature já fica apresentável.
+function WrappedImg({ src }: { src: string }) {
+  const [erro, setErro] = useState(false);
   return (
-    <div ref={ref} className="relative w-full aspect-[9/16] rounded-[22px] overflow-hidden shadow-2xl ring-1 ring-black/20 dark:ring-white/10">
-      <div style={{ width: DW, height: DH, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-        {/* still=false → slides RICOS: baleia, blobs, grão, contadores e
-            animações (respeitam prefers-reduced-motion via motion-safe). */}
-        <WrappedStill.Provider value={false}>
-          <SlideView slide={slide} deck={deck} />
-        </WrappedStill.Provider>
-      </div>
+    <div className="relative w-full aspect-[9/16] rounded-[22px] overflow-hidden shadow-2xl ring-1 ring-black/20 dark:ring-white/10 bg-zinc-900">
+      {erro ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center px-3"
+             style={{ background: 'linear-gradient(160deg, rgba(97,206,112,0.22), rgba(124,58,237,0.12) 55%, #0a0a0c)' }}>
+          <span className="text-3xl" aria-hidden>🐳</span>
+          <span className="text-[10px] text-white/60">Wrapped em breve</span>
+        </div>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt="Exemplo do Sora Wrapped"
+          loading="lazy"
+          draggable={false}
+          onError={() => setErro(true)}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
       {/* brilho de vidro */}
       <div aria-hidden className="absolute inset-x-0 top-0 h-1/4 pointer-events-none bg-gradient-to-b from-white/15 to-transparent" />
     </div>
@@ -56,27 +58,6 @@ function FanItem({ base, children }: { base: string; children: React.ReactNode }
     </div>
   );
 }
-
-// ── Cards de exemplo (slides reais) ──────────────────────────────────────
-const deckFinMes: WrappedDeck = { marca: 'Sora · Finance', periodoLabel: 'Maio 2026', accent: '#61D17B', slides: [] };
-const deckFinAno: WrappedDeck = { marca: 'Sora · Finance', periodoLabel: '2026', accent: '#61D17B', slides: [] };
-const deckGrowMes: WrappedDeck = { marca: 'Sora · Grow', periodoLabel: 'Maio 2026', accent: '#7c3aed', slides: [] };
-
-const slideVilao: Slide = {
-  tipo: 'frase', theme: THEMES.sunset,
-  antes: 'seu vilão favorito foi o', destaque: 'iFood', depois: 'de novo, né 🍔',
-  sub: 'R$ 980 no mês — daria 12 idas ao cinema. Sem julgamentos (mentira).',
-};
-const slideAcademia: Slide = {
-  tipo: 'streak', theme: THEMES.magma,
-  label: 'Dias de academia', valor: 23, sufixo: 'treinos',
-  sub: '23 treinos sem furar no mês. Imparável. 🔥',
-};
-const slideAno: Slide = {
-  tipo: 'numero', theme: THEMES.sora,
-  label: 'Você movimentou em 2026', valor: 182400, prefixo: 'R$ ',
-  sub: 'um ano inteiro de controle, registrado lançamento por lançamento.', delta: 18, emoji: '🌀',
-};
 
 const CHIPS = [
   { icon: Calendar, txt: 'Mensal e anual' },
@@ -114,17 +95,17 @@ export default function WrappedShowcase() {
             style={{ background: 'radial-gradient(circle, rgba(97,206,112,0.3) 0%, transparent 70%)' }} />
 
           <div className="absolute inset-0 flex items-center justify-center">
-            {/* esquerda — academia */}
+            {/* esquerda */}
             <FanItem base="w-[164px] sm:w-[210px] z-10 -rotate-[10deg] -translate-x-[60%] sm:-translate-x-[78%] translate-y-5">
-              <MiniWrapped slide={slideAcademia} deck={deckGrowMes} />
+              <WrappedImg src={WRAPPED_IMGS[1]} />
             </FanItem>
-            {/* direita — anual finanças */}
+            {/* direita */}
             <FanItem base="w-[164px] sm:w-[210px] z-10 rotate-[10deg] translate-x-[60%] sm:translate-x-[78%] translate-y-5">
-              <MiniWrapped slide={slideAno} deck={deckFinAno} />
+              <WrappedImg src={WRAPPED_IMGS[2]} />
             </FanItem>
-            {/* centro — vilão dos gastos (a estrela) */}
+            {/* centro — a estrela */}
             <FanItem base="w-[210px] sm:w-[258px] z-30">
-              <MiniWrapped slide={slideVilao} deck={deckFinMes} />
+              <WrappedImg src={WRAPPED_IMGS[0]} />
             </FanItem>
           </div>
         </div>
