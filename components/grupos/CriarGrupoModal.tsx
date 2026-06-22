@@ -16,6 +16,7 @@ interface Props {
 export default function CriarGrupoModal({ phone, limiteMembros, onClose, onSuccess }: Props) {
   const [nome,    setNome]    = useState('');
   const [emoji,   setEmoji]   = useState('👨‍👩‍👧');
+  const [copiar,  setCopiar]  = useState(true);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
 
@@ -24,7 +25,7 @@ export default function CriarGrupoModal({ phone, limiteMembros, onClose, onSucce
     if (!nome.trim()) { setErro('Informe um nome para o grupo.'); return; }
     setLoading(true);
     try {
-      const r = await api.grupos.criar({ phone, nome: nome.trim(), emoji });
+      const r = await api.grupos.criar({ phone, nome: nome.trim(), emoji, copiar_dados: copiar });
       onSuccess(r.grupo);
       onClose();
     } catch (e: any) {
@@ -100,13 +101,28 @@ export default function CriarGrupoModal({ phone, limiteMembros, onClose, onSucce
             </p>
           </div>
 
-          {/* Aviso importante: grupo é um espaço NOVO e vazio — dados pessoais ficam no Pessoal. */}
-          <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
-            <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-              É um espaço <strong>novo e vazio</strong>. Suas transações e contas atuais continuam no
-              grupo <strong>Pessoal</strong> (nada é apagado) — você troca entre eles aqui na Comunidade.
-            </p>
+          {/* Trazer finanças atuais (cópia) — evita começar do zero. */}
+          <div className="rounded-xl border border-border bg-muted/20 overflow-hidden">
+            <button type="button" onClick={() => setCopiar(v => !v)}
+                    className="w-full flex items-center justify-between gap-3 p-3 text-left">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground">Trazer minhas finanças atuais</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                  Copia suas contas, categorias e transações pro grupo novo.
+                </p>
+              </div>
+              <span role="switch" aria-checked={copiar}
+                    className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-all ${copiar ? 'bg-primary' : 'bg-muted'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${copiar ? 'translate-x-5' : ''}`} />
+              </span>
+            </button>
+            <div className="px-3 pb-3 -mt-1">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {copiar
+                  ? <>✅ Vamos <strong className="text-foreground">copiar</strong> tudo pra cá. O grupo <strong className="text-foreground">Pessoal</strong> continua intacto (é cópia, nada é movido nem apagado).</>
+                  : <>O grupo começa <strong className="text-foreground">vazio</strong>. Seus dados continuam no <strong className="text-foreground">Pessoal</strong> — você troca entre eles aqui na Comunidade.</>}
+              </p>
+            </div>
           </div>
 
           {erro && (

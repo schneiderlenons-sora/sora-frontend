@@ -172,7 +172,7 @@ export const api = {
       req('/api/grupos/aceitar', { method: 'POST', body: JSON.stringify({ phone, codigo }) }),
     trocar: (phone: string, grupo_id: string) =>
       req('/api/grupos/trocar', { method: 'POST', body: JSON.stringify({ phone, grupo_id }) }),
-    criar: (body: { phone: string; nome: string; emoji?: string }) =>
+    criar: (body: { phone: string; nome: string; emoji?: string; copiar_dados?: boolean }) =>
       req<{ ok: boolean; grupo: any }>('/api/grupos/criar', { method: 'POST', body: JSON.stringify(body) }),
     sair: (grupo_id: string, phone: string) =>
       req(`/api/grupos/sair/${grupo_id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
