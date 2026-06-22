@@ -77,9 +77,10 @@ function labelFrequencia(dias: number): string {
 }
 
 const CATEGORIAS = [
-  '🥬 Hortifruti', '🥩 Carnes', '🥛 Laticínios', '🍞 Padaria',
-  '🍝 Mercearia', '🧴 Higiene', '🧼 Limpeza', '🥤 Bebidas',
-  '🍫 Doces', '🐾 Pet', '📦 Outros',
+  '🥬 Hortifruti', '🥩 Carnes', '🐟 Peixes', '🌾 Grãos & Cereais',
+  '🍝 Mercearia', '🥫 Enlatados', '🧂 Temperos', '🥛 Laticínios',
+  '🧊 Congelados', '🍞 Padaria', '☕ Matinais', '🥤 Bebidas',
+  '🍫 Doces', '🧴 Higiene', '🧼 Limpeza', '🐾 Pet', '📦 Outros',
 ];
 
 // Estados da despensa — cor + ícone + rótulo (nunca cor sozinha)
