@@ -40,7 +40,6 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
   { href: '/metas',              label: 'Metas',             icon: Flag },
   { href: '/dividas',            label: 'Dívidas',           icon: Receipt },
-  { href: '/comunidade',         label: 'Grupos',            icon: Users,       gate: 'compartilhamento', badge: 'Premium' },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
   { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Black'   },
 ];
@@ -66,6 +65,7 @@ const NAV_GERAL: NavItem[] = [
   { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
   { href: '/central-sora',  label: 'Central da Sora', icon: MessageCircle },
   { href: '/planos',        label: 'Planos',          icon: Zap },
+  { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
   { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
   { href: '/configuracoes', label: 'Configurações',   icon: Settings },
 ];
