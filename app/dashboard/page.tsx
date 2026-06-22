@@ -137,6 +137,8 @@ export default function DashboardPage() {
   const today       = hoje.getDate();
   const monthName   = hoje.toLocaleDateString('pt-BR', { month: 'long' });
   const primeiroNome = perfil?.name?.split(' ')[0] || 'amigo';
+  // Em grupo compartilhado (não-Pessoal), mostra o avatar de quem fez cada lançamento.
+  const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
 
   // ── Dados via SWR: 1 chamada consolidada (com fallback automático pras 6
   // antigas). Cache em memória compartilhado → revisitar o dashboard é
@@ -567,9 +569,15 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* Avatar do criador */}
-                      {tx.criador?.name && (
-                        <AvatarMembro name={tx.criador.name} size="sm" />
+                      {/* Avatar de quem lançou (só em grupo compartilhado) */}
+                      {compartilhado && tx.criador?.name && (
+                        <AvatarMembro
+                          name={tx.criador.name}
+                          src={tx.criador.avatar_url}
+                          preset={tx.criador.avatar_preset}
+                          cor={tx.criador.avatar_cor}
+                          size="sm"
+                        />
                       )}
 
                       {/* Valor + status */}
