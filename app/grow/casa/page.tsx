@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import AvatarMembro from '@/components/ui/AvatarMembro';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
   Package, PackageCheck, PackageX, AlertTriangle, Boxes, ArrowRight, Send,
@@ -255,15 +256,46 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
     catch (e: any) { alert(e.message); onReload(true); }
   }
 
-  async function enviarWhatsapp() {
+  // Grupo compartilhado? (mesma convenção do resto do app)
+  const { perfil } = useAuth();
+  const grupoId = perfil?.grupo_ativo?.id || '';
+  const compartilhado = !!grupoId && !/pessoal/i.test(perfil?.grupo_ativo?.nome || '');
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [membros, setMembros] = useState<any[]>([]);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [loadingMembros, setLoadingMembros] = useState(false);
+
+  async function enviarParaDestinos(ids?: string[]) {
     setEnviando(true); setEnviado(false);
     try {
-      await api.grow.compras.enviarWhatsapp(phone);
-      setEnviado(true);
+      await api.grow.compras.enviarWhatsapp(phone, ids);
+      setEnviado(true); setPickerOpen(false);
       setTimeout(() => setEnviado(false), 3000);
     } catch (e: any) { alert(e.message || 'Não consegui enviar a lista.'); }
     finally { setEnviando(false); }
   }
+
+  // Em grupo: abre o seletor de membros. Sozinho (Pessoal): envia direto pra mim.
+  async function onClickEnviar() {
+    if (!compartilhado) { enviarParaDestinos(); return; }
+    setPickerOpen(true);
+    if (!membros.length) {
+      setLoadingMembros(true);
+      try {
+        const lista = await api.grupos.membros(grupoId);
+        const comFone = (lista || []).filter((m: any) => m.users?.phone);
+        setMembros(comFone);
+        setSel(new Set(comFone.map((m: any) => m.user_id))); // default: todos
+      } catch (e: any) { alert(e.message || 'Não consegui carregar os membros.'); setPickerOpen(false); }
+      finally { setLoadingMembros(false); }
+    }
+  }
+
+  const toggleMembro = (id: string) =>
+    setSel(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const todosSel = membros.length > 0 && sel.size === membros.length;
+  const toggleTodos = () => setSel(todosSel ? new Set() : new Set(membros.map(m => m.user_id)));
 
   return (
     <div className="space-y-4">
@@ -307,7 +339,7 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
 
       {/* Enviar lista pro WhatsApp */}
       {pendentes > 0 && (
-        <button onClick={enviarWhatsapp} disabled={enviando}
+        <button onClick={onClickEnviar} disabled={enviando}
           className={`w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.99] disabled:opacity-60 ${
             enviado
               ? 'bg-emerald-600 text-white'
@@ -319,6 +351,70 @@ function TabCompras({ phone, itens, setItens, onReload }: any) {
             : <Send size={15} />}
           {enviando ? 'Enviando…' : enviado ? 'Enviado! Confira o WhatsApp' : 'Enviar lista pro WhatsApp'}
         </button>
+      )}
+
+      {/* Seletor de destinatários (grupo compartilhado) */}
+      {pickerOpen && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-0 sm:p-4"
+             onClick={() => !enviando && setPickerOpen(false)}>
+          <div className="w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-3xl border border-border/60 shadow-2xl p-5 animate-slide-up max-h-[85vh] overflow-y-auto"
+               onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Send size={16} className="text-emerald-500" /> Enviar lista pra quem?
+              </h3>
+              <button onClick={() => !enviando && setPickerOpen(false)}
+                      className="w-9 h-9 -mr-1 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">A Sora manda a lista no WhatsApp de cada um.</p>
+
+            {loadingMembros ? (
+              <div className="py-8 flex justify-center"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+            ) : membros.length === 0 ? (
+              <p className="py-6 text-sm text-center text-muted-foreground">Nenhum membro do grupo tem WhatsApp vinculado.</p>
+            ) : (
+              <>
+                {/* Todos */}
+                <button onClick={toggleTodos}
+                        className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 mb-2 bg-muted/40 hover:bg-muted transition-colors">
+                  <span className="flex items-center gap-2.5 text-sm font-semibold text-foreground">
+                    <Users size={16} className="text-muted-foreground" /> Todos os membros
+                  </span>
+                  <span className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                    todosSel ? 'bg-emerald-500 border-emerald-500' : 'border-border'
+                  }`}>{todosSel && <Check size={13} className="text-white" />}</span>
+                </button>
+
+                <div className="space-y-1">
+                  {membros.map(m => {
+                    const marcado = sel.has(m.user_id);
+                    return (
+                      <button key={m.user_id} onClick={() => toggleMembro(m.user_id)}
+                              className="w-full flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-muted/60 transition-colors min-h-[44px]">
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <AvatarMembro name={m.users?.name} size="sm" />
+                          <span className="text-sm text-foreground truncate">{m.users?.name || 'Membro'}</span>
+                        </span>
+                        <span className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${
+                          marcado ? 'bg-emerald-500 border-emerald-500' : 'border-border'
+                        }`}>{marcado && <Check size={13} className="text-white" />}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button onClick={() => enviarParaDestinos([...sel])} disabled={enviando || sel.size === 0}
+                        className="w-full mt-4 flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-white transition-all active:scale-[0.99] disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)' }}>
+                  {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
+                  {enviando ? 'Enviando…' : `Enviar${sel.size ? ` (${sel.size})` : ''}`}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Lista */}

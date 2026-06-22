@@ -393,8 +393,8 @@ export const api = {
         req(`/api/grow/lista-compras/item/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
       limpar: (phone: string) =>
         req(`/api/grow/lista-compras/limpar`, { method: 'POST', body: JSON.stringify({ phone }) }),
-      enviarWhatsapp: (phone: string) =>
-        req<{ ok: boolean; enviados: number }>(`/api/grow/lista-compras/enviar`, { method: 'POST', body: JSON.stringify({ phone }) }),
+      enviarWhatsapp: (phone: string, destinatarios?: string[]) =>
+        req<{ ok: boolean; enviados: number; destinatarios?: number }>(`/api/grow/lista-compras/enviar`, { method: 'POST', body: JSON.stringify({ phone, destinatarios }) }),
     },
     despensa: {
       listar: (phone: string) =>
