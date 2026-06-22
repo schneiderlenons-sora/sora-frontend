@@ -60,6 +60,7 @@ export default function TransacoesPage() {
   const [status,   setStatus]   = useState<Status>('todos');
   const [catFiltro,setCatFiltro]= useState('todas');
   const [contaId,  setContaId]  = useState('todas');
+  const [membroFiltro, setMembroFiltro] = useState('todos'); // só em grupo compartilhado
 
   // Mês visualizado (0 = atual, -1 = anterior…) — pra ver meses passados,
   // ex.: transações importadas de um extrato OFX de meses anteriores.
@@ -96,9 +97,10 @@ export default function TransacoesPage() {
       const matchStatus = status === 'todos' ||
                           (status === 'pago' && t.pago) ||
                           (status === 'pendente' && !t.pago);
-      return matchBusca && matchTipo && matchCat && matchConta && matchStatus;
+      const matchMembro = membroFiltro === 'todos' || t.criado_por === membroFiltro;
+      return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro;
     });
-  }, [txs, busca, tipo, status, catFiltro, contaId]);
+  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro]);
 
   // ── Métricas calculadas das filtradas ──────────────────────
   const receitasTotal = useMemo(() =>
@@ -123,6 +125,15 @@ export default function TransacoesPage() {
   const categorias = useMemo(() =>
     Array.from(new Set(txs.map(t => t.categoria).filter(Boolean))),
     [txs]);
+
+  // ── Membros que aparecem nas transações (pro filtro "por membro") ──
+  const membros = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const t of txs) {
+      if (t.criado_por && t.criador && !map.has(t.criado_por)) map.set(t.criado_por, t.criador);
+    }
+    return Array.from(map, ([id, c]) => ({ id, ...c }));
+  }, [txs]);
 
   // ── Ações ──────────────────────────────────────────────────
   async function handleDeletar(id: string) {
@@ -183,10 +194,10 @@ export default function TransacoesPage() {
   }
 
   function limparFiltros() {
-    setBusca(''); setTipo('todos'); setStatus('todos'); setCatFiltro('todas'); setContaId('todas');
+    setBusca(''); setTipo('todos'); setStatus('todos'); setCatFiltro('todas'); setContaId('todas'); setMembroFiltro('todos');
   }
 
-  const temFiltro = busca || tipo !== 'todos' || status !== 'todos' || catFiltro !== 'todas' || contaId !== 'todas';
+  const temFiltro = busca || tipo !== 'todos' || status !== 'todos' || catFiltro !== 'todas' || contaId !== 'todas' || membroFiltro !== 'todos';
 
   return (
     <DashboardLayout>
@@ -453,6 +464,20 @@ export default function TransacoesPage() {
                 ))}
               </select>
             </div>
+
+            {/* Filtro por membro — só em grupo compartilhado com mais de um autor */}
+            {compartilhado && membros.length > 1 && (
+              <select
+                value={membroFiltro}
+                onChange={e => setMembroFiltro(e.target.value)}
+                className="input py-2.5 text-sm text-foreground w-full"
+              >
+                <option value="todos">👥 Todos os membros</option>
+                {membros.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
 
             {temFiltro && (
               <button
