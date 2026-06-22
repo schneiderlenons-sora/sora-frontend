@@ -32,20 +32,30 @@ export async function GET() {
     contar((q) => q.eq('plano', 'inativo').not('stripe_customer_id', 'is', null)),
   ]);
 
+  // Bugs abertos = só os do tipo 'problema' (tolerante a pré-migration 053).
   let bugsAbertos = 0;
+  try {
+    const abertos = () => supabaseAdmin.from('bug_reports').select('*', { count: 'exact', head: true }).neq('status', 'resolvido');
+    let { count, error } = await abertos().eq('tipo', 'problema');
+    if (error) ({ count } = await abertos());
+    bugsAbertos = count || 0;
+  } catch { /* tabela pode não existir ainda */ }
+
+  // Melhorias abertas (sugestões não resolvidas).
+  let melhoriasAbertas = 0;
   try {
     const { count } = await supabaseAdmin
       .from('bug_reports').select('*', { count: 'exact', head: true })
-      .neq('status', 'resolvido');
-    bugsAbertos = count || 0;
-  } catch { /* tabela pode não existir ainda */ }
+      .eq('tipo', 'melhoria').neq('status', 'resolvido');
+    melhoriasAbertas = count || 0;
+  } catch { /* coluna tipo pode não existir ainda */ }
 
   const mrr = basico * PRECO.basico + premium * PRECO.premium + black * PRECO.black;
 
   return NextResponse.json({
     total, inativo, basico, premium, black,
     ativos: basico + premium + black,
-    novos7, novos30, pagouInativo, bugsAbertos,
+    novos7, novos30, pagouInativo, bugsAbertos, melhoriasAbertas,
     mrr: Math.round(mrr * 100) / 100,
   });
 }

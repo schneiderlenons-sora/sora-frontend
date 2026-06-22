@@ -4,13 +4,15 @@ import { useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api } from '@/lib/api';
 import {
-  Bug, ImagePlus, X, Loader2, CheckCircle2, AlertCircle, Send, LifeBuoy,
+  Bug, ImagePlus, X, Loader2, CheckCircle2, AlertCircle, Send, LifeBuoy, Lightbulb,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 const MAX_IMG = 6 * 1024 * 1024; // 6MB (cabe no limite de 10MB do backend após base64)
 
 export default function ReportarBugPage() {
+  const [tipo, setTipo] = useState<'problema' | 'melhoria'>('problema');
+  const ehMelhoria = tipo === 'melhoria';
   const [mensagem, setMensagem] = useState('');
   const [imagem, setImagem]     = useState<string | null>(null); // data URI base64
   const [imagemNome, setImagemNome] = useState('');
@@ -35,7 +37,7 @@ export default function ReportarBugPage() {
     if (!mensagem.trim() || enviando) return;
     setEnviando(true); setErro('');
     try {
-      await api.bug.reportar({ mensagem: mensagem.trim(), imagem: imagem || undefined });
+      await api.bug.reportar({ mensagem: mensagem.trim(), imagem: imagem || undefined, tipo });
       setEnviado(true);
     } catch (e: any) {
       setErro(e?.message || 'Não consegui enviar seu relato. Tente de novo em instantes.');
@@ -52,18 +54,33 @@ export default function ReportarBugPage() {
     <DashboardLayout>
       <div className="max-w-2xl mx-auto px-4 pb-24 space-y-6">
 
+        {/* Alternador problema / melhoria */}
+        {!enviado && (
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60">
+            {([['problema', 'Relatar problema', Bug], ['melhoria', 'Propor melhoria', Lightbulb]] as const).map(([id, label, Icon]) => (
+              <button key={id} onClick={() => { setTipo(id); setErro(''); }}
+                      className={`inline-flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-bold transition-all ${
+                        tipo === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`} style={{ minHeight: 44 }}>
+                <Icon size={15} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Hero */}
         <div className="space-y-3 pt-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl"
                style={{ background: `color-mix(in srgb, ${BRAND} 12%, transparent)` }}>
-            <Bug size={22} style={{ color: BRAND }} />
+            {ehMelhoria ? <Lightbulb size={22} style={{ color: BRAND }} /> : <Bug size={22} style={{ color: BRAND }} />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
-            Relatar um problema
+            {ehMelhoria ? 'Propor uma melhoria' : 'Relatar um problema'}
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Encontrou um bug ou algo estranho? Conta pra gente o que aconteceu — quanto mais
-            detalhe, mais rápido a gente resolve. Você pode anexar um print, se quiser.
+            {ehMelhoria
+              ? 'Tem uma ideia ou sente falta de algo na Sora? Conta pra gente o que você gostaria de ver — toda sugestão é lida e ajuda a definir o que vem por aí.'
+              : 'Encontrou um bug ou algo estranho? Conta pra gente o que aconteceu — quanto mais detalhe, mais rápido a gente resolve. Você pode anexar um print, se quiser.'}
           </p>
         </div>
 
@@ -80,17 +97,18 @@ export default function ReportarBugPage() {
                  style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
               <CheckCircle2 size={30} className="text-white" />
             </div>
-            <h2 className="text-xl font-bold text-foreground">Relato enviado! 💚</h2>
+            <h2 className="text-xl font-bold text-foreground">{ehMelhoria ? 'Sugestão enviada! 💡' : 'Relato enviado! 💚'}</h2>
             <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto leading-relaxed">
-              Recebemos aqui e o time já vai dar uma olhada. Se precisarmos de mais detalhes,
-              a gente te chama no WhatsApp. Obrigado por ajudar a melhorar a Sora!
+              {ehMelhoria
+                ? 'Recebemos sua ideia e ela já entrou na nossa lista pra avaliar. Obrigado por ajudar a construir a Sora! 💚'
+                : 'Recebemos aqui e o time já vai dar uma olhada. Se precisarmos de mais detalhes, a gente te chama no WhatsApp. Obrigado por ajudar a melhorar a Sora!'}
             </p>
             <button
               onClick={novoRelato}
               className="mt-5 inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold text-white shadow-sm"
               style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}
             >
-              Relatar outro problema
+              {ehMelhoria ? 'Propor outra melhoria' : 'Relatar outro problema'}
             </button>
           </div>
         ) : (
@@ -99,7 +117,7 @@ export default function ReportarBugPage() {
             {/* Descrição */}
             <div className="space-y-1.5">
               <label htmlFor="bug-msg" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                O que aconteceu?
+                {ehMelhoria ? 'Qual a sua ideia?' : 'O que aconteceu?'}
               </label>
               <textarea
                 id="bug-msg"
@@ -108,7 +126,9 @@ export default function ReportarBugPage() {
                 rows={6}
                 maxLength={4000}
                 autoFocus
-                placeholder="Ex.: Quando eu clico em 'Salvar conta' no onboarding, o botão não faz nada. Acontece sempre que…"
+                placeholder={ehMelhoria
+                  ? 'Ex.: Seria ótimo poder exportar minhas transações em PDF. Ou: queria uma categoria pra assinaturas…'
+                  : "Ex.: Quando eu clico em 'Salvar conta' no onboarding, o botão não faz nada. Acontece sempre que…"}
                 className="w-full px-3.5 py-3 rounded-2xl bg-background border border-border text-sm leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary resize-y min-h-[120px]"
               />
               <p className="text-[11px] text-muted-foreground text-right tabular-nums">{mensagem.length}/4000</p>
@@ -117,7 +137,7 @@ export default function ReportarBugPage() {
             {/* Anexo de imagem (opcional) */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                Print da tela <span className="font-medium normal-case tracking-normal opacity-70">(opcional)</span>
+                {ehMelhoria ? 'Imagem de referência' : 'Print da tela'} <span className="font-medium normal-case tracking-normal opacity-70">(opcional)</span>
               </span>
 
               {imagem ? (
@@ -162,7 +182,7 @@ export default function ReportarBugPage() {
               className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]"
               style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}
             >
-              {enviando ? <><Loader2 size={17} className="animate-spin" /> Enviando…</> : <><Send size={16} /> Enviar relato</>}
+              {enviando ? <><Loader2 size={17} className="animate-spin" /> Enviando…</> : <><Send size={16} /> {ehMelhoria ? 'Enviar sugestão' : 'Enviar relato'}</>}
             </button>
           </div>
         )}

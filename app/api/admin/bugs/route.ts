@@ -4,14 +4,15 @@ import { checkAdmin } from '@/lib/admin-server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const gate = await checkAdmin();
   if ('error' in gate) return gate.error;
-  const { data, error } = await supabaseAdmin
-    .from('bug_reports')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(200);
+  const tipo = new URL(req.url).searchParams.get('tipo'); // 'problema' | 'melhoria' | null
+
+  const base = () => supabaseAdmin.from('bug_reports').select('*').order('created_at', { ascending: false }).limit(200);
+  let { data, error } = tipo ? await base().eq('tipo', tipo) : await base();
+  // Coluna `tipo` pode não existir ainda (pré-migration 053) → cai sem filtro.
+  if (error && tipo) ({ data, error } = await base());
   if (error) return NextResponse.json({ bugs: [], erro: error.message });
   return NextResponse.json({ bugs: data || [] });
 }

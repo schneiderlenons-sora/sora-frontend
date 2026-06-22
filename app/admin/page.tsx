@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
-  Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot,
+  Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -23,11 +23,12 @@ type User = {
 };
 type Overview = {
   total: number; ativos: number; inativo: number; basico: number; premium: number; black: number;
-  novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; mrr: number;
+  novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
   mensagem: string; tem_imagem: boolean; status: 'aberto' | 'em_andamento' | 'resolvido'; created_at: string;
+  tipo?: 'problema' | 'melhoria';
 };
 
 const PLANO_META: Record<Plano, { label: string; cor: string; icon?: any }> = {
@@ -60,10 +61,11 @@ export default function AdminPage() {
   const router = useRouter();
   const admin = isAdminEmail(perfil?.email);
 
-  const [tab, setTab] = useState<'users' | 'bugs'>('users');
+  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias'>('users');
   const [ov, setOv] = useState<Overview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
+  const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -81,9 +83,10 @@ export default function AdminPage() {
     const p = new URLSearchParams(); if (q) p.set('q', q); if (filter !== 'todos') p.set('filter', filter);
     adminFetch(`/users?${p}`).then((d) => setUsers(d.users || [])).catch(() => setUsers([])).finally(() => setLoadingUsers(false));
   }, [q, filter]);
-  const carregarBugs = useCallback(() => { adminFetch('/bugs').then((d) => setBugs(d.bugs || [])).catch(() => setBugs([])); }, []);
+  const carregarBugs = useCallback(() => { adminFetch('/bugs?tipo=problema').then((d) => setBugs(d.bugs || [])).catch(() => setBugs([])); }, []);
+  const carregarMelhorias = useCallback(() => { adminFetch('/bugs?tipo=melhoria').then((d) => setMelhorias(d.bugs || [])).catch(() => setMelhorias([])); }, []);
 
-  useEffect(() => { if (admin) { carregarOverview(); carregarBugs(); } }, [admin, carregarOverview, carregarBugs]);
+  useEffect(() => { if (admin) { carregarOverview(); carregarBugs(); carregarMelhorias(); } }, [admin, carregarOverview, carregarBugs, carregarMelhorias]);
   useEffect(() => { if (admin) { const t = setTimeout(carregarUsers, q ? 300 : 0); return () => clearTimeout(t); } }, [admin, carregarUsers, q]);
 
   if (loading || !perfil) return <DashboardLayout><div className="p-10 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div></DashboardLayout>;
@@ -113,8 +116,9 @@ export default function AdminPage() {
 
   async function mudarStatusBug(id: string, status: BugReport['status']) {
     setBugs((b) => b.map((x) => x.id === id ? { ...x, status } : x));
+    setMelhorias((m) => m.map((x) => x.id === id ? { ...x, status } : x));
     try { await adminFetch('/bugs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) }); carregarOverview(); }
-    catch { carregarBugs(); }
+    catch { carregarBugs(); carregarMelhorias(); }
   }
 
   const stripeBase = 'https://dashboard.stripe.com'; // troque p/ /test/... se estiver testando
@@ -150,17 +154,21 @@ export default function AdminPage() {
           <Stat label="Pagou mas inativo" value={ov?.pagouInativo ?? '—'} alerta={!!ov && ov.pagouInativo > 0}
                 onClick={() => { setTab('users'); setFilter('pagou_inativo'); }} />
           <Stat label="Bugs abertos" value={ov?.bugsAbertos ?? '—'} alerta={!!ov && ov.bugsAbertos > 0} onClick={() => setTab('bugs')} />
+          <Stat label="Melhorias propostas" value={ov?.melhoriasAbertas ?? '—'} onClick={() => setTab('melhorias')} />
           <Stat label="Premium / Black" value={ov ? `${ov.premium} / ${ov.black}` : '—'} />
         </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60 w-fit">
-          {([['users', 'Usuários', UsersIcon], ['bugs', 'Bugs', Bug]] as const).map(([id, label, Icon]) => (
+          {([['users', 'Usuários', UsersIcon], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
                     className={`inline-flex items-center gap-1.5 px-4 h-9 rounded-xl text-sm font-bold transition-all ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               <Icon size={14} /> {label}
               {id === 'bugs' && ov && ov.bugsAbertos > 0 && (
                 <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-red-500">{ov.bugsAbertos}</span>
+              )}
+              {id === 'melhorias' && ov && (ov.melhoriasAbertas ?? 0) > 0 && (
+                <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-amber-500">{ov.melhoriasAbertas}</span>
               )}
             </button>
           ))}
@@ -217,11 +225,13 @@ export default function AdminPage() {
             <p className="text-[11px] text-muted-foreground text-center">Mostrando até 300. Use a busca para refinar.</p>
           </div>
         ) : (
-          /* ── BUGS ── */
+          /* ── BUGS / MELHORIAS (mesma estrutura) ── */
           <div className="space-y-2.5">
-            {bugs.length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground rounded-2xl border border-border bg-card">Nenhum relato ainda.</div>
-            ) : bugs.map((b) => (
+            {(tab === 'melhorias' ? melhorias : bugs).length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground rounded-2xl border border-border bg-card">
+                {tab === 'melhorias' ? 'Nenhuma melhoria proposta ainda.' : 'Nenhum relato ainda.'}
+              </div>
+            ) : (tab === 'melhorias' ? melhorias : bugs).map((b) => (
               <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

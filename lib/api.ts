@@ -68,8 +68,8 @@ export const api = {
 
   // ── RELATAR BUG ───────────────────────────────────────────────
   bug: {
-    /** Envia um relato de bug (texto + imagem base64 opcional) pro suporte. */
-    reportar: (body: { mensagem: string; imagem?: string }) =>
+    /** Envia um relato de bug ou sugestão de melhoria (texto + imagem base64 opcional) pro suporte. */
+    reportar: (body: { mensagem: string; imagem?: string; tipo?: 'problema' | 'melhoria' }) =>
       req<{ ok: boolean; id?: string }>('/api/bug', {
         method: 'POST',
         body: JSON.stringify(body),
