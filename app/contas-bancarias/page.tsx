@@ -165,8 +165,11 @@ export default function ContasBancariasPage() {
   const carregar = useCallback(() => mWallets(), [mWallets]);
 
   // ── Helpers ────────────────────────────────────────────────
-  const walletsAtivas    = useMemo(() => wallets.filter(w => !w.arquivada), [wallets]);
-  const walletsArquivadas= useMemo(() => wallets.filter(w => w.arquivada),  [wallets]);
+  // Cartões de crédito NÃO aparecem aqui — eles têm a aba própria (Cartão de
+  // crédito). Esta aba é só de contas bancárias, pra não confundir.
+  const semCartoes       = useMemo(() => wallets.filter(w => w.tipo !== 'Crédito'), [wallets]);
+  const walletsAtivas    = useMemo(() => semCartoes.filter(w => !w.arquivada), [semCartoes]);
+  const walletsArquivadas= useMemo(() => semCartoes.filter(w => w.arquivada),  [semCartoes]);
   const walletsList      = tab === 'ativas' ? walletsAtivas : walletsArquivadas;
 
   const saldoTotal = useMemo(() =>

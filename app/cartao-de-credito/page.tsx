@@ -7,6 +7,7 @@ import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
 import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -32,11 +33,14 @@ interface Wallet {
   dia_vencimento?: number | null;
   bandeira?:       string | null;
   ultimos4?:       string | null;
+  dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
 }
 
 export default function CartaoDeCreditoPage() {
-  const { phone, limiteDe } = useAuth();
+  const { phone, perfil, limiteDe } = useAuth();
   const limiteCartoes = limiteDe('cartoes');
+  // Em grupo compartilhado (não-Pessoal), mostra de quem é cada cartão.
+  const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
 
   const [txsHistorico,   setTxsHistorico]   = useState<Record<string, any[]>>({});
   const [ocultar,        setOcultar]        = useState(false);
@@ -295,6 +299,7 @@ export default function CartaoDeCreditoPage() {
                   fatura={faturaPorCartao[w.id] || 0}
                   comprometido={comprometidoPorCartao[w.id] || 0}
                   ocultar={ocultar}
+                  compartilhado={compartilhado}
                   delay={i * 50}
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
                   onExcluir={() => setConfirmDel(w)}
@@ -445,13 +450,14 @@ interface CardCartaoProps {
   comprometido: number;
   ocultar:   boolean;
   delay:     number;
+  compartilhado?: boolean;
   onEditar:  () => void;
   onExcluir: () => void;
   onAbrir:   () => void;
   onRefresh: () => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, onExcluir, onAbrir, onRefresh }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, compartilhado, onEditar, onExcluir, onAbrir, onRefresh }: CardCartaoProps) {
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);
 
@@ -529,6 +535,18 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, onEditar, on
             <p className="text-[11px] text-muted-foreground tabular tracking-widest">
               •••• {meta.ultimos4 || '••••'}
             </p>
+            {compartilhado && cartao.dono && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <AvatarMembro
+                  name={cartao.dono.name}
+                  src={cartao.dono.avatar_url}
+                  preset={cartao.dono.avatar_preset}
+                  cor={cartao.dono.avatar_cor}
+                  size="sm"
+                />
+                <span className="text-[11px] text-muted-foreground">de <strong className="text-foreground font-semibold">{cartao.dono.name?.split(' ')[0]}</strong></span>
+              </div>
+            )}
           </div>
         </div>
 
