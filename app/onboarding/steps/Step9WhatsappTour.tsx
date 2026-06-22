@@ -93,7 +93,7 @@ export default function Step9WhatsappTour() {
         </div>
       </div>
 
-      <StepNav podeAvancar={true} textoContinuar="Entrar no painel" semPular />
+      <StepNav podeAvancar={true} textoContinuar="Ver o que eu sei fazer" semPular />
     </>
   );
 }

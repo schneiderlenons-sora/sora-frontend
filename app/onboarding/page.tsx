@@ -16,6 +16,7 @@ import Step6GastosFixos   from './steps/Step6GastosFixos';
 import Step7ReceitasFixas from './steps/Step7ReceitasFixas';
 import Step8PrimeiraMeta  from './steps/Step8PrimeiraMeta';
 import Step9WhatsappTour  from './steps/Step9WhatsappTour';
+import Step10Comandos     from './steps/Step10Comandos';
 
 export default function OnboardingPage() {
   const { loading, user, perfil, recarregar } = useAuth();
@@ -70,6 +71,7 @@ function StepRouter() {
     case 7: return <Step7ReceitasFixas />;
     case 8: return <Step8PrimeiraMeta />;
     case 9: return <Step9WhatsappTour />;
+    case 10: return <Step10Comandos />;
     default: return <Step1Boasvindas />;
   }
 }

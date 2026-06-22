@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import type { PerfilUso, ObjetivoPrincipal } from '@/contexts/AuthContext';
 
-export const TOTAL_STEPS = 9;
+export const TOTAL_STEPS = 10;
 
 interface OnboardingState {
   step:            number;
