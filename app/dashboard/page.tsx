@@ -109,7 +109,7 @@ async function fetchDashboard(phone: string, mes: string, mesAnt: string) {
       api.transacoes.resumo(phone, mes),
       api.transacoes.resumo(phone, mesAnt),
       api.wallets.listar(phone),
-      api.transacoes.listar(phone, { limit: 8 }),
+      api.transacoes.listar(phone, { limit: 8, ate: new Date().toISOString() }),
       api.transacoes.listar(phone, { mes, tipo: 'Gasto', limit: 500 }),
       api.categorias.listar(phone),
     ]);
@@ -173,7 +173,7 @@ export default function DashboardPage() {
   // Memoizado: percorre até 500 transações; sem isso recalcula a cada toggle.
   const dadosDiarios = useMemo(
     // Exclui pagamento de fatura/transferência (não é consumo) — consistente com o total.
-    () => computeDailyAmount(txsMes.filter(t => !t.transferencia && t.categoria !== 'Fatura cartão'), today),
+    () => computeDailyAmount(txsMes.filter(t => !t.transferencia && t.categoria !== 'Fatura cartão' && t.categoria !== 'Transferências'), today),
     [txsMes, today]);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
@@ -535,7 +535,10 @@ export default function DashboardPage() {
               <div className="space-y-1.5 min-w-[480px] sm:min-w-0">
                 {txs.map((tx, i) => {
                   const isGasto   = tx.tipo === 'Gasto';
-                  const { emoji, nome } = parseCategoria(tx.categoria || '');
+                  const { nome } = parseCategoria(tx.categoria || '');
+                  // Emoji da categoria pelo NOME (catálogo) — categorias do Open
+                  // Finance vêm sem emoji ("Saúde"), então parseCategoria caía no 📦.
+                  const emoji = getCategoriaTheme(tx.categoria || '', categorias).emoji;
                   // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
                   const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : nome;
                   return (

@@ -110,7 +110,7 @@ export default function TransacoesPage() {
   // consumo — as compras já contam nas categorias reais). Bate com o /resumo.
   const despesasTotal = useMemo(() =>
     txsFiltradas
-      .filter(t => t.tipo === 'Gasto' && !t.transferencia && t.categoria !== 'Fatura cartão')
+      .filter(t => t.tipo === 'Gasto' && !t.transferencia && t.categoria !== 'Fatura cartão' && t.categoria !== 'Transferências')
       .reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas]);
   const pendentesTotal = useMemo(() =>

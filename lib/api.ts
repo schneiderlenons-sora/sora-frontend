@@ -127,7 +127,7 @@ export const api = {
 
   // ── TRANSAÇÕES ────────────────────────────────────────────────
   transacoes: {
-    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por_me?: boolean; criado_por_phone?: string }) => {
+    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por_me?: boolean; criado_por_phone?: string; ate?: string }) => {
       const q = new URLSearchParams(params as any).toString();
       return req<{ transacoes: any[]; total: number }>(`/api/transacoes/${phone}${q ? `?${q}` : ''}`);
     },
