@@ -11,13 +11,20 @@ import {
 
 const BRAND = '#61D17B';
 
+const DEFAULTS: AvisosPrefs = {
+  avisos_ativos: true, resumo_semanal: true, resumo_mensal: true,
+  habito_lembrete_ativo: false, habito_lembrete_horario: '21:00',
+  agenda_briefing_ativo: false, agenda_briefing_horario: '07:00',
+  lembretes_ativos: true, lembretes_dividas: true,
+};
+
 export default function AvisosPage() {
   const [prefs, setPrefs] = useState<AvisosPrefs | null>(null);
   const [carregando, setCarregando] = useState(true);
 
   const carregar = useCallback(async () => {
     try { setPrefs(await api.user.avisos.get()); }
-    catch { /* mantém null → mostra erro suave via loading */ }
+    catch { setPrefs(DEFAULTS); } // nunca trava no loading
     finally { setCarregando(false); }
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
@@ -36,7 +43,7 @@ export default function AvisosPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto pb-24 space-y-6">
+      <div className="max-w-7xl mx-auto pb-24 space-y-6">
         <GrowHero
           badge="Avisos"
           badgeIcon={Bell}
