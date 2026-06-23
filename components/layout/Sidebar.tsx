@@ -12,6 +12,7 @@ import {
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2, Bell,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
+import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -37,7 +38,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
   { href: '/contas-bancarias',   label: 'Contas',            icon: Landmark },
-  { href: '/open-finance',       label: 'Open Finance',      icon: Building2,   gate: 'open_finance',     badge: 'Premium' },
+  { href: '/open-finance',       label: 'Open Finance',      icon: Building2 },
   { href: '/cartao-de-credito',  label: 'Cartão de crédito', icon: CreditCard },
   { href: '/categorias',         label: 'Categorias',        icon: Tag },
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
@@ -120,8 +121,9 @@ function PainelOpcao({ ativo, titulo, sub, onClick, logo, icon: Icon }:
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { perfil, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
+  const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
+  const podeOpenFinance = podeVerOpenFinance(perfil?.email, phone);
   const [open, setOpen] = useState(false); // drawer mobile
   const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown Sora ↔ Labs
   const ehLabs = !!pathname?.startsWith('/labs');
@@ -338,7 +340,10 @@ export default function Sidebar() {
             <GroupHeader label="Finance" open={openFin} onToggle={toggleFin} />
             {openFin && (
               <div className="space-y-0.5 mt-0.5 animate-fade-in">
-                {NAV_FINANCE.filter(item => !item.adminOnly || ehAdmin).map(item => <NavLink key={item.href} item={item} />)}
+                {NAV_FINANCE
+                  .filter(item => !item.adminOnly || ehAdmin)
+                  .filter(item => item.href !== '/open-finance' || podeOpenFinance) // allowlist
+                  .map(item => <NavLink key={item.href} item={item} />)}
               </div>
             )}
 

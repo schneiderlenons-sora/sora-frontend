@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Script from 'next/script';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import { api } from '@/lib/api';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
@@ -28,8 +29,8 @@ type Conexao = {
 };
 
 export default function OpenFinancePage() {
-  const { plano } = useAuth();
-  const liberado = plano === 'premium' || plano === 'black';
+  const { perfil, phone } = useAuth();
+  const liberado = podeVerOpenFinance(perfil?.email, phone);
 
   const [sdkPronto, setSdkPronto] = useState(false);
   const [conexoes, setConexoes] = useState<Conexao[]>([]);
@@ -124,18 +125,19 @@ export default function OpenFinancePage() {
         </div>
 
         {!liberado ? (
-          /* Gate de plano — Open Finance é Premium+ */
+          /* Acesso restrito — recurso em rollout fechado (allowlist) */
           <div className="rounded-3xl border border-border bg-card p-8 text-center space-y-3">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-muted">
               <Lock size={24} className="text-muted-foreground" />
             </div>
-            <h2 className="text-lg font-bold text-foreground">Disponível no Premium e Black</h2>
+            <h2 className="text-lg font-bold text-foreground">Recurso indisponível</h2>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              A conexão automática com bancos via Open Finance faz parte dos planos pagos superiores.
+              O Open Finance ainda não está disponível na sua conta. Enquanto isso, você pode
+              importar seu extrato em OFX nas Contas.
             </p>
-            <a href="/planos" className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold text-white"
+            <a href="/contas-bancarias" className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold text-white"
                style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
-              Ver planos
+              Ir pra Contas
             </a>
           </div>
         ) : (
