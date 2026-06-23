@@ -24,7 +24,7 @@ type User = {
 type Overview = {
   total: number; ativos: number; inativo: number; basico: number; premium: number; black: number;
   novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number;
-  semPagamento?: number; recEnviadas?: number; recRecuperados?: number;
+  semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
@@ -158,7 +158,7 @@ export default function AdminPage() {
           <Stat label="Melhorias propostas" value={ov?.melhoriasAbertas ?? '—'} onClick={() => setTab('melhorias')} />
           <Stat label="Premium / Black" value={ov ? `${ov.premium} / ${ov.black}` : '—'} />
           <Stat label="Cadastros sem pagamento" value={ov?.semPagamento ?? '—'}
-                hint={ov ? `${ov.recEnviadas ?? 0} já cutucados` : ''} alerta={!!ov && (ov.semPagamento ?? 0) > 0} />
+                hint={ov ? `${ov.recEnviadas ?? 0} no 1º · ${ov.recEnviadas2 ?? 0} no 2º lembrete` : ''} alerta={!!ov && (ov.semPagamento ?? 0) > 0} />
           <Stat label="Recuperados" value={ov?.recRecuperados ?? '—'}
                 hint={ov && (ov.recEnviadas ?? 0) > 0 ? `${Math.round(((ov.recRecuperados ?? 0) / (ov.recEnviadas as number)) * 100)}% de conversão` : 'pagaram após o nudge'}
                 destaque />
