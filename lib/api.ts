@@ -87,6 +87,9 @@ export const api = {
     /** Lista as conexões (bancos) do grupo. */
     conexoes: () =>
       req<{ conexoes: any[] }>('/api/pluggy/connections'),
+    /** Re-sincroniza uma conexão sob demanda. */
+    sincronizar: (itemId: string) =>
+      req<{ ok: boolean; novas: number }>(`/api/pluggy/connections/${itemId}/sync`, { method: 'POST' }),
     /** Desconecta um banco (mantém o histórico). */
     desconectar: (itemId: string) =>
       req<{ ok: boolean }>(`/api/pluggy/connections/${itemId}`, { method: 'DELETE' }),

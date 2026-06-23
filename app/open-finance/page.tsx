@@ -88,6 +88,17 @@ export default function OpenFinancePage() {
     try { await api.pluggy.desconectar(itemId); } catch (e: any) { setErro(e.message); carregar(); }
   }
 
+  const [sincronizando, setSincronizando] = useState('');
+  async function sincronizar(itemId: string) {
+    setSincronizando(itemId); setErro('');
+    try {
+      const r = await api.pluggy.sincronizar(itemId);
+      await carregar();
+      if (r.novas > 0) alert(`Sincronizado! ${r.novas} nova(s) transação(ões) importada(s).`);
+    } catch (e: any) { setErro(e.message || 'Não consegui sincronizar.'); }
+    finally { setSincronizando(''); }
+  }
+
   return (
     <DashboardLayout>
       <Script src={PLUGGY_SDK} strategy="afterInteractive" onLoad={() => setSdkPronto(true)} />
@@ -169,7 +180,10 @@ export default function OpenFinancePage() {
                 <div className="py-10 text-center text-sm text-muted-foreground rounded-2xl border border-dashed border-border">
                   Nenhum banco conectado ainda. Clique em <b>Conectar banco</b> pra começar.
                 </div>
-              ) : conexoes.map(c => <ConexaoCard key={c.item_id} c={c} onDesconectar={desconectar} />)}
+              ) : conexoes.map(c => (
+                <ConexaoCard key={c.item_id} c={c} onDesconectar={desconectar}
+                  onSincronizar={sincronizar} sincronizando={sincronizando === c.item_id} />
+              ))}
             </div>
           </>
         )}
@@ -178,7 +192,12 @@ export default function OpenFinancePage() {
   );
 }
 
-function ConexaoCard({ c, onDesconectar }: { c: Conexao; onDesconectar: (id: string, nome: string | null) => void }) {
+function ConexaoCard({ c, onDesconectar, onSincronizar, sincronizando }: {
+  c: Conexao;
+  onDesconectar: (id: string, nome: string | null) => void;
+  onSincronizar: (id: string) => void;
+  sincronizando: boolean;
+}) {
   const meta = {
     updated:  { Icon: CheckCircle2, cor: 'text-emerald-500', label: 'Sincronizado' },
     updating: { Icon: Clock,        cor: 'text-amber-500',   label: 'Sincronizando…' },
@@ -205,11 +224,18 @@ function ConexaoCard({ c, onDesconectar }: { c: Conexao; onDesconectar: (id: str
           )}
         </div>
       </div>
-      <button onClick={() => onDesconectar(c.item_id, c.connector_nome)}
-        className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
-        aria-label="Desconectar">
-        <Trash2 size={14} />
-      </button>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button onClick={() => onSincronizar(c.item_id)} disabled={sincronizando}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          aria-label="Sincronizar agora" title="Sincronizar agora">
+          {sincronizando ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+        </button>
+        <button onClick={() => onDesconectar(c.item_id, c.connector_nome)}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+          aria-label="Desconectar" title="Desconectar">
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
   );
 }
