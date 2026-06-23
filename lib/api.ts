@@ -184,6 +184,9 @@ export const api = {
   recorrencias: {
     listar: (phone: string) =>
       req<any[]>(`/api/recorrencias/${phone}`),
+    /** Gastos/receitas fixas detectados nas transações (Open Finance/OFX). */
+    sugestoes: () =>
+      req<{ sugestoes: { descricao: string; valor: number; dia: number; tipo: 'Gasto' | 'Recebimento'; categoria: string; ocorrencias: number; meses: number }[] }>(`/api/recorrencias/sugestoes`),
     criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string }) =>
       req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
     cancelar: (id: string, phone: string) =>
