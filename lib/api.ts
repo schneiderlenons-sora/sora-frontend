@@ -76,6 +76,22 @@ export const api = {
       }),
   },
 
+  // ── OPEN FINANCE (Pluggy) ─────────────────────────────────────
+  pluggy: {
+    /** Gera o connect token pro widget Pluggy Connect. itemId = reconectar. */
+    connectToken: (itemId?: string) =>
+      req<{ connectToken: string }>('/api/pluggy/connect-token', { method: 'POST', body: JSON.stringify({ itemId }) }),
+    /** Registra a conexão criada no widget e dispara a sincronização. */
+    registrarItem: (itemId: string, connectorNome?: string) =>
+      req<{ ok: boolean }>('/api/pluggy/item', { method: 'POST', body: JSON.stringify({ itemId, connectorNome }) }),
+    /** Lista as conexões (bancos) do grupo. */
+    conexoes: () =>
+      req<{ conexoes: any[] }>('/api/pluggy/connections'),
+    /** Desconecta um banco (mantém o histórico). */
+    desconectar: (itemId: string) =>
+      req<{ ok: boolean }>(`/api/pluggy/connections/${itemId}`, { method: 'DELETE' }),
+  },
+
   // ── DASHBOARD (consolidado) ───────────────────────────────────
   // Junta resumo (mês + mês anterior), carteiras, transações recentes,
   // gastos do mês e categorias numa única chamada. O painel tem fallback

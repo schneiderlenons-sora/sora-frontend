@@ -9,7 +9,7 @@ import {
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
-  Plane, Clapperboard, BookOpen, Bug, Shield,
+  Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -35,6 +35,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
   { href: '/contas-bancarias',   label: 'Contas',            icon: Landmark },
+  { href: '/open-finance',       label: 'Open Finance',      icon: Building2,   gate: 'open_finance',     badge: 'Premium' },
   { href: '/cartao-de-credito',  label: 'Cartão de crédito', icon: CreditCard },
   { href: '/categorias',         label: 'Categorias',        icon: Tag },
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },

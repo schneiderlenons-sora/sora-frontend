@@ -23,6 +23,7 @@ export type Feature =
   | 'grow_despensa'          // Premium+: Casa avançada (despensa, receitas, manutenções)
   | 'sora_grow_trial'        // (legado) Básico: trial — descontinuado, todos já têm Grow
   | 'compartilhamento'       // Premium+: grupos casal/família
+  | 'open_finance'           // Premium+: conexão automática com bancos (Pluggy)
   | 'import_ofx'             // Premium+: importação de extrato OFX
   | 'import_csv'             // Premium+: importação CSV
   | 'export_dados'           // Premium+: exportar transações em CSV
@@ -50,6 +51,7 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   grow_despensa:      ['premium', 'black'],
   sora_grow_trial:    [], // descontinuado
   compartilhamento:   ['premium', 'black'],
+  open_finance:       ['premium', 'black'],
   import_ofx:         ['premium', 'black'],
   import_csv:         ['premium', 'black'],
   export_dados:       ['premium', 'black'],
