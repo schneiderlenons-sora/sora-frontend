@@ -94,7 +94,16 @@ export default function OpenFinancePage() {
     try {
       const r = await api.pluggy.sincronizar(itemId);
       await carregar();
-      if (r.novas > 0) alert(`Sincronizado! ${r.novas} nova(s) transação(ões) importada(s).`);
+      // Diagnóstico detalhado (estamos em rollout/admin) — ajuda a ver o que veio.
+      const linhas = (r.contas || []).map(c =>
+        c.erro ? `• ${c.tipo}: erro — ${c.erro}` : `• ${c.tipo} "${c.nome}": ${c.txs ?? 0} txs (${c.novas ?? 0} novas)`);
+      const resumo = [
+        `Status no Pluggy: ${r.statusPluggy || '—'}`,
+        `Total de novas transações: ${r.novas ?? 0}`,
+        r.erro ? `Erro: ${r.erro}` : '',
+        linhas.length ? '\nContas:\n' + linhas.join('\n') : '\nNenhuma conta retornada pelo Pluggy.',
+      ].filter(Boolean).join('\n');
+      alert(resumo);
     } catch (e: any) { setErro(e.message || 'Não consegui sincronizar.'); }
     finally { setSincronizando(''); }
   }
