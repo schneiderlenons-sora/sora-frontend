@@ -25,6 +25,8 @@ type NavItem = {
   icon:    any;
   gate?:   Feature;             // feature requerida (Finance)
   badge?:  'Premium' | 'Black'; // rótulo quando bloqueado por plano
+  adminOnly?: boolean;          // só aparece pro admin (ex.: features em rollout)
+  nota?:   string;              // mini texto abaixo do nome (ex.: status)
 };
 
 // ── Grupo FINANCE (núcleo) ──────────────────────────────────────────
@@ -35,7 +37,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
   { href: '/contas-bancarias',   label: 'Contas',            icon: Landmark },
-  { href: '/open-finance',       label: 'Open Finance',      icon: Building2,   gate: 'open_finance',     badge: 'Premium' },
+  { href: '/open-finance',       label: 'Open Finance',      icon: Building2,   adminOnly: true, nota: 'atualizando open finance' },
   { href: '/cartao-de-credito',  label: 'Cartão de crédito', icon: CreditCard },
   { href: '/categorias',         label: 'Categorias',        icon: Tag },
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
@@ -118,6 +120,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { perfil, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
+  const ehAdmin = isAdminEmail(perfil?.email);
   const [open, setOpen] = useState(false); // drawer mobile
   const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown Sora ↔ Labs
   const ehLabs = !!pathname?.startsWith('/labs');
@@ -193,7 +196,7 @@ export default function Sidebar() {
 
   // ── Item de navegação ──
   function NavLink({ item, grow = false }: { item: NavItem; grow?: boolean }) {
-    const { href, label, icon: Icon, gate, badge } = item;
+    const { href, label, icon: Icon, gate, badge, nota } = item;
     const growLocked = grow && !temAcessoGrow;
     const gateLocked = gate ? !podeUsar(gate) : false;
     const locked     = growLocked || gateLocked;
@@ -217,7 +220,10 @@ export default function Sidebar() {
         title={locked ? `Disponível no plano ${badgeText || 'Premium'}` : label}
       >
         <Icon size={18} className={locked ? 'opacity-70' : ''} />
-        <span className="flex-1 truncate">{label}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block truncate">{label}</span>
+          {nota && <span className="block text-[10px] leading-tight text-white/45 truncate">{nota}</span>}
+        </span>
         {locked && (
           badgeText
             ? <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${corBadge}`}>{badgeText}</span>
@@ -331,7 +337,7 @@ export default function Sidebar() {
             <GroupHeader label="Finance" open={openFin} onToggle={toggleFin} />
             {openFin && (
               <div className="space-y-0.5 mt-0.5 animate-fade-in">
-                {NAV_FINANCE.map(item => <NavLink key={item.href} item={item} />)}
+                {NAV_FINANCE.filter(item => !item.adminOnly || ehAdmin).map(item => <NavLink key={item.href} item={item} />)}
               </div>
             )}
 
@@ -348,7 +354,7 @@ export default function Sidebar() {
         {/* GERAL — sempre visível */}
         <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
           {NAV_GERAL.map(item => <NavLink key={item.href} item={item} />)}
-          {isAdminEmail(perfil?.email) && <NavLink item={{ href: '/admin', label: 'Admin', icon: Shield }} />}
+          {ehAdmin && <NavLink item={{ href: '/admin', label: 'Admin', icon: Shield }} />}
         </div>
       </nav>
 
