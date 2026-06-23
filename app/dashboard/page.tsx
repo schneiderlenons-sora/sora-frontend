@@ -535,10 +535,13 @@ export default function DashboardPage() {
               <div className="space-y-1.5 min-w-[480px] sm:min-w-0">
                 {txs.map((tx, i) => {
                   const isGasto   = tx.tipo === 'Gasto';
-                  const { nome } = parseCategoria(tx.categoria || '');
-                  // Emoji da categoria pelo NOME (catálogo) — categorias do Open
-                  // Finance vêm sem emoji ("Saúde"), então parseCategoria caía no 📦.
-                  const emoji = getCategoriaTheme(tx.categoria || '', categorias).emoji;
+                  const { emoji: emojiProprio, nome } = parseCategoria(tx.categoria || '');
+                  // Emoji da categoria: se o nome já traz um emoji próprio (ex.:
+                  // categoria custom "🎸 Música"), usa ele; senão resolve pelo
+                  // catálogo via nome (categorias sem emoji — manuais, WhatsApp,
+                  // OFX, Open Finance — caíam no 📦 com o parse simples).
+                  const temEmojiProprio = /\p{Emoji}/u.test((tx.categoria || '').trim().split(' ')[0] || '');
+                  const emoji = temEmojiProprio ? emojiProprio : getCategoriaTheme(tx.categoria || '', categorias).emoji;
                   // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
                   const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : nome;
                   return (
