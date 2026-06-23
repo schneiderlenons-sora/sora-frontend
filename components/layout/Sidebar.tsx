@@ -37,7 +37,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
   { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
   { href: '/contas-bancarias',   label: 'Contas',            icon: Landmark },
-  { href: '/open-finance',       label: 'Open Finance',      icon: Building2,   adminOnly: true, nota: 'atualizando open finance' },
+  { href: '/open-finance',       label: 'Open Finance',      icon: Building2,   gate: 'open_finance',     badge: 'Premium' },
   { href: '/cartao-de-credito',  label: 'Cartão de crédito', icon: CreditCard },
   { href: '/categorias',         label: 'Categorias',        icon: Tag },
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },

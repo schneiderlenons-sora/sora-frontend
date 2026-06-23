@@ -4,11 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import Script from 'next/script';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
-  Clock, ShieldCheck,
+  Clock, ShieldCheck, Lock,
 } from 'lucide-react';
 
 declare global {
@@ -29,10 +28,8 @@ type Conexao = {
 };
 
 export default function OpenFinancePage() {
-  const { perfil } = useAuth();
-  // Em rollout: liberado só pro admin enquanto o acesso a dados reais do Pluggy
-  // não sai. Quando liberar pra geral, trocar por: plano premium/black.
-  const liberado = isAdminEmail(perfil?.email);
+  const { plano } = useAuth();
+  const liberado = plano === 'premium' || plano === 'black';
 
   const [sdkPronto, setSdkPronto] = useState(false);
   const [conexoes, setConexoes] = useState<Conexao[]>([]);
@@ -58,7 +55,7 @@ export default function OpenFinancePage() {
       const { connectToken } = await api.pluggy.connectToken();
       const widget = new window.PluggyConnect({
         connectToken,
-        includeSandbox: true, // permite o conector de testes; troque pra false em produção
+        includeSandbox: false, // produção: só bancos reais (sem o conector de testes)
         onSuccess: async (itemData: any) => {
           const item = itemData?.item;
           if (item?.id) {
@@ -127,19 +124,18 @@ export default function OpenFinancePage() {
         </div>
 
         {!liberado ? (
-          /* Em rollout — ainda não liberado pra geral */
+          /* Gate de plano — Open Finance é Premium+ */
           <div className="rounded-3xl border border-border bg-card p-8 text-center space-y-3">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-muted">
-              <Clock size={24} className="text-muted-foreground" />
+              <Lock size={24} className="text-muted-foreground" />
             </div>
-            <h2 className="text-lg font-bold text-foreground">Estamos atualizando o Open Finance</h2>
+            <h2 className="text-lg font-bold text-foreground">Disponível no Premium e Black</h2>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              A conexão automática com bancos está em ativação e ficará disponível em breve.
-              Por enquanto, importe seu extrato em OFX nas Contas.
+              A conexão automática com bancos via Open Finance faz parte dos planos pagos superiores.
             </p>
-            <a href="/contas-bancarias" className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold text-white"
+            <a href="/planos" className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold text-white"
                style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
-              Ir pra Contas
+              Ver planos
             </a>
           </div>
         ) : (
