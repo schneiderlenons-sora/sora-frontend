@@ -2,9 +2,9 @@
 
 // =====================================================================
 // Baleia-mascote da Sora que reage ao mês financeiro do usuário.
-// Expressão muda conforme o humor (economizou → radiante / gastou demais →
-// preocupada). SVG inline (sem assets), animações leves e respeitando
-// prefers-reduced-motion. Acessível via aria-label com o humor.
+// Perfil lateral (estilo 🐳): cabeça à esquerda, cauda em V atrás, esguicho
+// em cima. Expressão muda pelo humor (economizou → radiante / gastou demais →
+// preocupada). SVG inline, animações leves, respeita prefers-reduced-motion.
 // =====================================================================
 
 export type HumorBaleia = 'radiante' | 'feliz' | 'neutro' | 'preocupado' | 'triste';
@@ -19,10 +19,9 @@ export function humorPorFinancas(opts: {
 
   if (meta && meta > 0) {
     const usoMeta = gastos / meta;
-    if (usoMeta > 1) return 'triste';                 // estourou a meta
+    if (usoMeta > 1) return 'triste';
     const pace = diasNoMes ? Math.min(1, diaDoMes / diasNoMes) : 1;
-    const esperado = meta * pace || meta;
-    const ritmo = gastos / esperado;                  // >1 = gastando rápido demais
+    const ritmo = gastos / (meta * pace || meta);
     if (ritmo > 1.25) return 'preocupado';
     if (ritmo < 0.7)  return 'radiante';
     if (ritmo < 0.95) return 'feliz';
@@ -30,7 +29,7 @@ export function humorPorFinancas(opts: {
   }
 
   if (receitas > 0) {
-    const taxa = (receitas - gastos) / receitas;      // taxa de economia
+    const taxa = (receitas - gastos) / receitas;
     if (taxa >= 0.25)  return 'radiante';
     if (taxa >= 0.10)  return 'feliz';
     if (taxa >= 0)     return 'neutro';
@@ -49,7 +48,7 @@ const META: Record<HumorBaleia, { cor: string; legenda: string }> = {
   triste:     { cor: '#ef4444', legenda: 'Gastos altos esse mês' },
 };
 
-export default function BaleiaHumor({ estado, size = 104 }: { estado: HumorBaleia; size?: number }) {
+export default function BaleiaHumor({ estado, size = 108 }: { estado: HumorBaleia; size?: number }) {
   const { cor, legenda } = META[estado];
   const feliz = estado === 'radiante' || estado === 'feliz';
 
@@ -58,38 +57,44 @@ export default function BaleiaHumor({ estado, size = 104 }: { estado: HumorBalei
          aria-label={`Baleia da Sora: ${legenda}`}>
       <style>{CSS}</style>
       <div className="relative" style={{ width: size, height: size }}>
-        {/* halo de humor */}
-        <div className="absolute inset-0 rounded-full blur-2xl opacity-30"
+        <div className="absolute inset-0 rounded-full blur-2xl opacity-25"
              style={{ background: cor }} aria-hidden />
-        <svg viewBox="0 0 120 124" width={size} height={size} className="relative bw-float" aria-hidden>
+        <svg viewBox="0 0 140 120" width={size} height={size} className="relative bw-float" aria-hidden>
           <defs>
             <linearGradient id="bwBody" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7cc4f2" />
-              <stop offset="100%" stopColor="#4a96d6" />
+              <stop offset="0%"  stopColor="#7cc4f2" />
+              <stop offset="100%" stopColor="#4a92d4" />
             </linearGradient>
           </defs>
 
-          {/* esguicho (só nos humores bons) */}
+          {/* esguicho (humores bons) */}
           {feliz && (
             <g className="bw-spout">
-              <circle cx="60" cy="14" r="3.2" fill={cor} />
-              <circle cx="54" cy="9"  r="2.2" fill={cor} opacity="0.8" />
-              <circle cx="66" cy="9"  r="2.2" fill={cor} opacity="0.8" />
-              <circle cx="60" cy="4"  r="1.8" fill={cor} opacity="0.7" />
+              <circle cx="44" cy="26" r="3.4" fill={cor} />
+              <circle cx="38" cy="19" r="2.4" fill={cor} opacity="0.85" />
+              <circle cx="50" cy="19" r="2.4" fill={cor} opacity="0.85" />
+              <circle cx="44" cy="12" r="2"   fill={cor} opacity="0.7" />
             </g>
           )}
 
-          {/* cauda */}
-          <path d="M96,96 q14,-6 20,4 q-10,2 -10,8 q-8,-6 -10,-12 Z" fill="#4a96d6" />
-          {/* corpo */}
-          <ellipse cx="58" cy="68" rx="46" ry="40" fill="url(#bwBody)" />
-          {/* barriga */}
-          <path d="M22,76 q36,30 72,0 q-4,26 -36,26 q-32,0 -36,-26 Z" fill="#eaf6ff" opacity="0.9" />
-          {/* nadadeira */}
-          <path d="M40,96 q6,14 20,12 q-8,-10 -7,-18 Z" fill="#3f8ccb" />
+          {/* cauda (flukes em V) */}
+          <path d="M102,60 C117,50 126,46 137,40 C131,51 131,60 137,72 C127,65 117,67 104,74 Z"
+                fill="#3f8ccb" />
 
-          {/* rosto por humor */}
-          {Rosto(estado, cor)}
+          {/* corpo (cabeça à esquerda, afina pra cauda) */}
+          <path d="M16,64 C14,43 38,34 64,37 C92,40 106,51 110,64 C106,81 86,90 60,90 C34,90 18,83 16,64 Z"
+                fill="url(#bwBody)" />
+
+          {/* barriga clara */}
+          <path d="M22,74 C46,91 82,91 104,74 C96,86 64,92 44,88 C33,86 26,80 22,74 Z"
+                fill="#eaf6ff" opacity="0.92" />
+
+          {/* nadadeira peitoral */}
+          <path d="M54,84 C58,95 70,95 78,90 C70,86 66,80 66,74 C60,77 56,80 54,84 Z"
+                fill="#3f8ccb" />
+
+          {/* linha da boca (mandíbula) + rosto por humor */}
+          {Rosto(estado)}
         </svg>
       </div>
 
@@ -101,68 +106,61 @@ export default function BaleiaHumor({ estado, size = 104 }: { estado: HumorBalei
   );
 }
 
-// Olhos + boca + extras conforme o humor.
-function Rosto(estado: HumorBaleia, cor: string) {
-  const olhoFeliz = (cx: number) => (
-    <path d={`M${cx - 6},62 q6,-8 12,0`} stroke="#16324a" strokeWidth="3" fill="none" strokeLinecap="round" />
-  );
-  const olhoNormal = (cx: number) => (
+// Olho (cabeça, à esquerda ~x44) + boca/mandíbula + extras por humor.
+function Rosto(estado: HumorBaleia) {
+  const INK = '#16324a';
+  const olhoFeliz  = <path d="M38,58 q6,-8 12,0" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />;
+  const olhoNormal = (
     <g>
-      <circle cx={cx} cy={61} r="5" fill="#16324a" className="bw-blink" />
-      <circle cx={cx + 1.6} cy={59} r="1.6" fill="#fff" />
+      <circle cx="44" cy="59" r="5" fill={INK} className="bw-blink" />
+      <circle cx="45.6" cy="57" r="1.6" fill="#fff" />
     </g>
   );
-  const sobrancelha = (cx: number, dir: 1 | -1) => (
-    <path d={`M${cx - 6},${52} q6,${dir * -3} 12,0`} stroke="#16324a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-  );
+  const sobrancelha = <path d="M37,50 q7,-3 14,0" stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />;
 
   switch (estado) {
     case 'radiante':
       return (
         <g>
-          {olhoFeliz(40)}{olhoFeliz(70)}
-          {/* bochechas */}
-          <circle cx="34" cy="72" r="5" fill="#ff8fab" opacity="0.55" />
-          <circle cx="80" cy="72" r="5" fill="#ff8fab" opacity="0.55" />
-          {/* sorrisão aberto */}
-          <path d="M44,76 q11,16 22,0 q-11,7 -22,0 Z" fill="#16324a" />
-          <path d="M48,80 q7,6 14,0 Z" fill="#ff6b81" />
+          {olhoFeliz}
+          <circle cx="32" cy="70" r="5" fill="#ff8fab" opacity="0.5" />
+          {/* sorrisão aberto na mandíbula */}
+          <path d="M26,72 q16,16 34,2 q-17,8 -34,-2 Z" fill={INK} />
+          <path d="M33,77 q9,6 18,1 Z" fill="#ff6b81" />
         </g>
       );
     case 'feliz':
       return (
         <g>
-          {olhoFeliz(40)}{olhoFeliz(70)}
-          <path d="M46,77 q11,11 20,0" stroke="#16324a" strokeWidth="3" fill="none" strokeLinecap="round" />
+          {olhoFeliz}
+          <path d="M28,72 q15,12 30,1" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />
         </g>
       );
     case 'neutro':
       return (
         <g>
-          {olhoNormal(40)}{olhoNormal(70)}
-          <path d="M48,80 h16" stroke="#16324a" strokeWidth="3" fill="none" strokeLinecap="round" />
+          {olhoNormal}
+          <path d="M30,75 q14,4 26,0" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />
         </g>
       );
     case 'preocupado':
       return (
         <g>
-          {sobrancelha(38, 1)}{sobrancelha(68, 1)}
-          {olhoNormal(40)}{olhoNormal(70)}
-          {/* boca preocupada */}
-          <path d="M48,82 q8,-8 16,0" stroke="#16324a" strokeWidth="3" fill="none" strokeLinecap="round" />
+          {sobrancelha}
+          {olhoNormal}
+          <path d="M30,77 q13,-7 26,0" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />
           {/* gota de suor */}
-          <path className="bw-sweat" d="M86,54 q3,5 0,8 q-3,-3 0,-8 Z" fill="#7cc4f2" />
+          <path className="bw-sweat" d="M58,50 q3,5 0,8 q-3,-3 0,-8 Z" fill="#7cc4f2" />
         </g>
       );
     case 'triste':
       return (
         <g>
-          {sobrancelha(38, 1)}{sobrancelha(68, 1)}
-          {olhoNormal(40)}{olhoNormal(70)}
+          {sobrancelha}
+          {olhoNormal}
           {/* lágrima */}
-          <path className="bw-sweat" d="M40,68 q2.6,5 0,8 q-2.6,-3 0,-8 Z" fill="#7cc4f2" />
-          {/* boca triste */}
-          <path d="M46,84 q12,-12 24,0" stroke="#16324a" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <path className="bw-sweat" d="M44,66 q2.6,5 0,8 q-2.6,-3 0,-8 Z" fill="#7cc4f2" />
+          <path d="M28,80 q15,-13 30,0" stroke={INK} strokeWidth="3" fill="none" strokeLinecap="round" />
         </g>
       );
   }

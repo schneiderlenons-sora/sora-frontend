@@ -93,8 +93,6 @@ export default function RelatoriosPage() {
     useApi(phone ? `rel:wallets:${phone}` : null, () => api.wallets.listar(phone));
   const { data: cData, mutate: mC } =
     useApi(phone ? `rel:cats:${phone}` : null, () => api.categorias.listar(phone));
-  const { data: uData } =
-    useApi(phone ? `rel:user:${phone}` : null, () => api.user.get(phone));
 
   const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
   const resumoAnt: any    = (rAntData as any) ?? { receitas: 0, gastos: 0, por_categoria: [] };
@@ -120,17 +118,10 @@ export default function RelatoriosPage() {
   // ── Métricas derivadas ─────────────────────────────────────
   const saldo       = (resumo?.receitas || 0) - (resumo?.gastos || 0);
 
-  // Humor da baleia: reflete o mês selecionado (no mês atual, considera o ritmo
-  // até hoje; em meses passados, o mês inteiro). Usa meta se houver, senão a
-  // taxa de economia (receitas vs gastos).
-  const ehMesAtual = ano === hoje.getFullYear() && mes === hoje.getMonth();
-  const diasNoMes  = new Date(ano, mes + 1, 0).getDate();
-  const diaDoMes   = ehMesAtual ? hoje.getDate() : diasNoMes;
+  // Humor da baleia: taxa de economia do mês (receitas vs gastos).
   const humorBaleia = humorPorFinancas({
     receitas: resumo?.receitas || 0,
     gastos:   resumo?.gastos || 0,
-    meta:     (uData as any)?.meta_mensal || 0,
-    diaDoMes, diasNoMes,
   });
   const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo || 0), 0);
 
