@@ -45,6 +45,19 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+// Preferências da central de avisos (espelha /api/user/avisos no backend).
+export type AvisosPrefs = {
+  avisos_ativos: boolean;          // toggle mestre (kill-switch)
+  resumo_semanal: boolean;
+  resumo_mensal: boolean;
+  habito_lembrete_ativo: boolean;  // "checkup de hábitos"
+  habito_lembrete_horario: string; // 'HH:MM'
+  agenda_briefing_ativo: boolean;  // briefing matinal
+  agenda_briefing_horario: string; // 'HH:MM'
+  lembretes_ativos: boolean;       // contas/recorrências/parcelas/fatura
+  lembretes_dividas: boolean;
+};
+
 // ── USUÁRIO ──────────────────────────────────────────────────────
 export const api = {
   user: {
@@ -63,6 +76,12 @@ export const api = {
       get: () => req<{ semanal: boolean; mensal: boolean }>('/api/user/resumos'),
       set: (body: { semanal?: boolean; mensal?: boolean }) =>
         req<{ ok: boolean }>('/api/user/resumos', { method: 'POST', body: JSON.stringify(body) }),
+    },
+    /** Central de avisos — todas as preferências de notificação da Sora. */
+    avisos: {
+      get: () => req<AvisosPrefs>('/api/user/avisos'),
+      set: (body: Partial<AvisosPrefs>) =>
+        req<{ ok: boolean }>('/api/user/avisos', { method: 'POST', body: JSON.stringify(body) }),
     },
   },
 

@@ -9,7 +9,7 @@ import {
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
-  Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
+  Plane, Clapperboard, BookOpen, Bug, Shield, Building2, Bell,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -66,6 +66,7 @@ const NAV_GROW: NavItem[] = [
 // ── Geral (app-wide, sempre visível) ────────────────────────────────
 const NAV_GERAL: NavItem[] = [
   { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
+  { href: '/avisos',        label: 'Avisos',          icon: Bell },
   { href: '/central-sora',  label: 'Central da Sora', icon: MessageCircle },
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
