@@ -50,12 +50,23 @@ export async function GET() {
     melhoriasAbertas = count || 0;
   } catch { /* coluna tipo pode não existir ainda */ }
 
+  // Recuperação de cadastros sem pagamento (abandono no paywall).
+  // semPagamento = pool elegível; recEnviadas = já cutucados; recRecuperados =
+  // cutucados que viraram pagantes (proxy de conversão da recuperação).
+  let semPagamento = 0, recEnviadas = 0, recRecuperados = 0;
+  try {
+    semPagamento  = await contar((q) => q.eq('plano', 'inativo').is('plano_intervalo', null).not('phone', 'is', null));
+    recEnviadas   = await contar((q) => q.not('recuperacao_signup_em', 'is', null));
+    recRecuperados = await contar((q) => q.not('recuperacao_signup_em', 'is', null).neq('plano', 'inativo'));
+  } catch { /* coluna recuperacao_signup_em pode não existir ainda */ }
+
   const mrr = basico * PRECO.basico + premium * PRECO.premium + black * PRECO.black;
 
   return NextResponse.json({
     total, inativo, basico, premium, black,
     ativos: basico + premium + black,
     novos7, novos30, pagouInativo, bugsAbertos, melhoriasAbertas,
+    semPagamento, recEnviadas, recRecuperados,
     mrr: Math.round(mrr * 100) / 100,
   });
 }
