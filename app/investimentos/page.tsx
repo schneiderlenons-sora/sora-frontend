@@ -225,10 +225,10 @@ function Header({ actions }: { actions?: React.ReactNode }) {
            style={{ background: 'radial-gradient(ellipse at top right, hsl(var(--primary) / .12) 0%, transparent 60%)' }} />
       <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
         <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 mb-3">
-            <Crown size={12} className="text-yellow-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
-              Plano Black
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
+            <Crown size={12} className="text-primary" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+              Premium
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
