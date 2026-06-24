@@ -32,6 +32,12 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   transferencias: { emoji: '💸', hue: 220, label: 'Transferências' },
   investimentos:  { emoji: '📈', hue: 160, label: 'Investimentos' },
   compras:        { emoji: '🛍️', hue: 290, label: 'Compras' },
+  encomendas:     { emoji: '📦', hue: 280, label: 'Encomendas' },
+  contas:         { emoji: '💡', hue: 48,  label: 'Contas' },
+  beleza:         { emoji: '💇', hue: 330, label: 'Beleza' },
+  academia:       { emoji: '🏋️', hue: 12,  label: 'Academia' },
+  impostos:       { emoji: '🧾', hue: 4,   label: 'Impostos' },
+  seguros:        { emoji: '🛡️', hue: 210, label: 'Seguros' },
   outros:         { emoji: '📦', hue: 220, label: 'Outros' },
 };
 
