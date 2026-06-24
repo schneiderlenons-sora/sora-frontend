@@ -51,6 +51,8 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
 
   const [loading, setLoading] = useState(false);
   const [erro, setErro]       = useState('');
+  const [cotacaoInfo, setCotacaoInfo]     = useState<string | null>(null);
+  const [buscandoCotacao, setBuscandoCotacao] = useState(false);
 
   function escolherTipo(t: typeof TIPOS[number]) {
     setTipoSel(t);
@@ -59,9 +61,38 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
     setStep(2);
   }
 
-  function onTickerPick(r: TickerResult) {
-    setTicker(r.cripto ? (r.id || r.ticker.toLowerCase()) : r.ticker);
+  // Preço pro input: 2 casas pra valores >= 1, mais casas pra cripto barata.
+  function fmtPrecoInput(v: number): string {
+    if (v >= 1) return v.toFixed(2);
+    return v.toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+  }
+
+  async function onTickerPick(r: TickerResult) {
+    const tk = r.cripto ? (r.id || r.ticker.toLowerCase()) : r.ticker;
+    setTicker(tk);
     if (!nome) setNome(r.nome);
+    // Busca a cotação atual (já em R$) e preenche o preço automaticamente.
+    setCotacaoInfo(null);
+    setBuscandoCotacao(true);
+    try {
+      const c = await api.investimentos.cotacao(tk, r.cripto ? 'cripto' : 'acao');
+      if (c?.precoBRL) {
+        setPrecoUnitario(fmtPrecoInput(c.precoBRL));
+        const q = parseFloat(quantidade) || 0;
+        if (q > 0) setValorAportado((q * c.precoBRL).toFixed(2));
+        setCotacaoInfo(
+          c.moedaOriginal
+            ? `Cotação: R$ ${c.precoBRL.toFixed(2)} · convertido de ${c.precoOriginal?.toFixed(2)} ${c.moedaOriginal} (câmbio ${c.taxa?.toFixed(2)})`
+            : `Cotação atual: R$ ${fmtPrecoInput(c.precoBRL)}`
+        );
+      } else {
+        setCotacaoInfo('Não achei a cotação automática — preencha o preço manualmente.');
+      }
+    } catch {
+      setCotacaoInfo('Não achei a cotação automática — preencha o preço manualmente.');
+    } finally {
+      setBuscandoCotacao(false);
+    }
   }
 
   function calcValorAportado() {
@@ -169,10 +200,18 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
                     modo={tipoSel.autoCripto ? 'cripto' : 'acao'}
                     onSelect={onTickerPick}
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1.5">
-                    Cotação será atualizada automaticamente via{' '}
-                    {tipoSel.autoCripto ? 'CoinGecko' : 'Yahoo Finance'}.
-                  </p>
+                  {buscandoCotacao ? (
+                    <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                      <Loader2 size={11} className="animate-spin" /> Buscando cotação…
+                    </p>
+                  ) : cotacaoInfo ? (
+                    <p className="text-[11px] text-primary font-medium mt-1.5">{cotacaoInfo}</p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      Cotação será preenchida automaticamente via{' '}
+                      {tipoSel.autoCripto ? 'CoinGecko' : 'Yahoo Finance'}.
+                    </p>
+                  )}
                 </div>
               )}
 
