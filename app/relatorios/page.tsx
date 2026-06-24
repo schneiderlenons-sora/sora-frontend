@@ -117,13 +117,16 @@ export default function RelatoriosPage() {
 
   // ── Métricas derivadas ─────────────────────────────────────
   const saldo       = (resumo?.receitas || 0) - (resumo?.gastos || 0);
-
-  // Humor da baleia: taxa de economia do mês (receitas vs gastos).
-  const humorBaleia = humorPorFinancas({
-    receitas: resumo?.receitas || 0,
-    gastos:   resumo?.gastos || 0,
-  });
   const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo || 0), 0);
+
+  // Humor da baleia: com receita lançada → taxa de economia; sem receita →
+  // quanto do saldo disponível do banco já foi gasto no mês (fica triste se
+  // passar do saldo).
+  const humorBaleia = humorPorFinancas({
+    receitas:   resumo?.receitas || 0,
+    gastos:     resumo?.gastos || 0,
+    saldoBanco,
+  });
 
   const varReceitas = (() => {
     const ant = resumoAnt?.receitas || 0;

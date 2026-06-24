@@ -10,23 +10,13 @@
 export type HumorBaleia = 'radiante' | 'feliz' | 'neutro' | 'preocupado' | 'triste';
 
 // Decide o humor a partir das finanças do mês.
-// Com meta: ritmo de gasto vs meta (proporcional ao dia do mês).
-// Sem meta: taxa de economia (saldo / receitas).
+// Com receita lançada → taxa de economia (quanto sobrou do que entrou).
+// Sem receita → quanto do dinheiro disponível no banco já foi gasto (fica
+// triste ao passar do saldo). Assim reage mesmo pra quem só lança gastos.
 export function humorPorFinancas(opts: {
-  receitas: number; gastos: number; meta?: number; diaDoMes?: number; diasNoMes?: number;
+  receitas: number; gastos: number; saldoBanco?: number;
 }): HumorBaleia {
-  const { receitas = 0, gastos = 0, meta = 0, diaDoMes = 31, diasNoMes = 31 } = opts;
-
-  if (meta && meta > 0) {
-    const usoMeta = gastos / meta;
-    if (usoMeta > 1) return 'triste';
-    const pace = diasNoMes ? Math.min(1, diaDoMes / diasNoMes) : 1;
-    const ritmo = gastos / (meta * pace || meta);
-    if (ritmo > 1.25) return 'preocupado';
-    if (ritmo < 0.7)  return 'radiante';
-    if (ritmo < 0.95) return 'feliz';
-    return 'neutro';
-  }
+  const { receitas = 0, gastos = 0, saldoBanco = 0 } = opts;
 
   if (receitas > 0) {
     const taxa = (receitas - gastos) / receitas;
@@ -37,7 +27,18 @@ export function humorPorFinancas(opts: {
     return 'triste';
   }
 
-  return 'neutro';
+  // disponível ≈ saldo atual do banco + o que já saiu (saldo antes de gastar).
+  const disponivel = saldoBanco + gastos;
+  if (disponivel > 0) {
+    const usado = gastos / disponivel;
+    if (usado <= 0.35) return 'radiante';
+    if (usado <= 0.60) return 'feliz';
+    if (usado <= 0.85) return 'neutro';
+    if (usado <= 1.00) return 'preocupado';
+    return 'triste';
+  }
+  if (saldoBanco < 0) return 'triste';
+  return gastos > 0 ? 'neutro' : 'feliz';
 }
 
 const META: Record<HumorBaleia, { cor: string; legenda: string }> = {
