@@ -38,6 +38,7 @@ export default function OpenFinancePage() {
   const [carregando, setCarregando] = useState(true);
   const [conectando, setConectando] = useState(false);
   const [erro, setErro] = useState('');
+  const [flash, setFlash] = useState('');
 
   const carregar = useCallback(async () => {
     try {
@@ -93,16 +94,12 @@ export default function OpenFinancePage() {
     try {
       const r = await api.pluggy.sincronizar(itemId);
       await carregar();
-      // Diagnóstico detalhado (estamos em rollout/admin) — ajuda a ver o que veio.
-      const linhas = (r.contas || []).map(c =>
-        c.erro ? `• ${c.tipo}: erro — ${c.erro}` : `• ${c.tipo} "${c.nome}": ${c.txs ?? 0} txs (${c.novas ?? 0} novas)`);
-      const resumo = [
-        `Status no Pluggy: ${r.statusPluggy || '—'}`,
-        `Total de novas transações: ${r.novas ?? 0}`,
-        r.erro ? `Erro: ${r.erro}` : '',
-        linhas.length ? '\nContas:\n' + linhas.join('\n') : '\nNenhuma conta retornada pelo Pluggy.',
-      ].filter(Boolean).join('\n');
-      alert(resumo);
+      const n = r.novas ?? 0;
+      setFlash(r.erro
+        ? `Não consegui sincronizar agora. Tente em instantes.`
+        : n > 0 ? `Sincronizado! ${n} nova${n === 1 ? '' : 's'} transaç${n === 1 ? 'ão' : 'ões'} importada${n === 1 ? '' : 's'}.`
+        : 'Tudo sincronizado — nada novo por aqui. ✅');
+      setTimeout(() => setFlash(''), 4000);
     } catch (e: any) { setErro(e.message || 'Não consegui sincronizar.'); }
     finally { setSincronizando(''); }
   }
@@ -176,6 +173,13 @@ export default function OpenFinancePage() {
               <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60" role="alert">
                 <AlertCircle size={16} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-700 dark:text-red-400">{erro}</p>
+              </div>
+            )}
+
+            {flash && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 animate-fade-in">
+                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">{flash}</p>
               </div>
             )}
 
