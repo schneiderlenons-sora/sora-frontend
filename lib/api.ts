@@ -106,6 +106,9 @@ export const api = {
     /** Lista as conexões (bancos) do grupo. */
     conexoes: () =>
       req<{ conexoes: any[] }>('/api/pluggy/connections'),
+    /** Diagnóstico: cartões (final mascarado) nas transações de crédito. */
+    debugCartoes: () =>
+      req<{ contas: { conta: string; total: number; cartoes: { numero: string; qtd: number }[]; sem_identificacao: number }[] }>(`/api/pluggy/debug-cartoes`),
     /** Re-sincroniza uma conexão sob demanda. Retorna diagnóstico. */
     sincronizar: (itemId: string) =>
       req<{ ok: boolean; novas?: number; statusPluggy?: string; erro?: string;

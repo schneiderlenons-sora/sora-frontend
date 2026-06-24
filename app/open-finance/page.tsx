@@ -39,6 +39,15 @@ export default function OpenFinancePage() {
   const [conectando, setConectando] = useState(false);
   const [erro, setErro] = useState('');
   const [flash, setFlash] = useState('');
+  const [diag, setDiag] = useState<{ conta: string; total: number; cartoes: { numero: string; qtd: number }[]; sem_identificacao: number }[] | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+
+  async function verificarCartoes() {
+    setDiagLoading(true); setErro(''); setDiag(null);
+    try { const r = await api.pluggy.debugCartoes(); setDiag(r.contas || []); }
+    catch (e: any) { setErro(e.message || 'Não consegui verificar os cartões.'); }
+    finally { setDiagLoading(false); }
+  }
 
   const carregar = useCallback(async () => {
     try {
@@ -167,7 +176,39 @@ export default function OpenFinancePage() {
                 className="inline-flex items-center justify-center gap-2 h-12 px-4 rounded-2xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
                 <RefreshCw size={15} /> Atualizar
               </button>
+              {conexoes.length > 0 && (
+                <button onClick={verificarCartoes} disabled={diagLoading} title="Verificar cartões virtuais"
+                  className="inline-flex items-center justify-center gap-2 h-12 px-4 rounded-2xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60">
+                  {diagLoading ? <Loader2 size={15} className="animate-spin" /> : <Landmark size={15} />} Verificar cartões
+                </button>
+              )}
             </div>
+
+            {diag && (
+              <div className="rounded-2xl border border-border bg-card p-4 space-y-3 animate-fade-in">
+                <p className="text-sm font-bold text-foreground">Diagnóstico de cartões</p>
+                {diag.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma conta de crédito conectada.</p>
+                ) : diag.map((c, i) => (
+                  <div key={i} className="text-sm">
+                    <p className="font-semibold text-foreground">{c.conta} <span className="font-normal text-muted-foreground">· {c.total} transações</span></p>
+                    {c.cartoes.length > 0 ? (
+                      <ul className="mt-1 space-y-0.5">
+                        {c.cartoes.map(k => (
+                          <li key={k.numero} className="text-muted-foreground tabular-nums">💳 final <b className="text-foreground">{k.numero}</b> — {k.qtd} transações</li>
+                        ))}
+                        {c.sem_identificacao > 0 && <li className="text-muted-foreground">• {c.sem_identificacao} sem identificação de cartão</li>}
+                      </ul>
+                    ) : (
+                      <p className="text-muted-foreground mt-1">O banco não informa o cartão por transação — não dá pra separar os virtuais ({c.sem_identificacao} sem identificação).</p>
+                    )}
+                  </div>
+                ))}
+                <p className="text-[11px] text-muted-foreground border-t border-border/60 pt-2">
+                  Se aparecer mais de um “final” aqui, dá pra separar os cartões virtuais. Me manda esse resultado.
+                </p>
+              </div>
+            )}
 
             {erro && (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60" role="alert">
