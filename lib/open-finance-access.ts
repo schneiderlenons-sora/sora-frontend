@@ -5,6 +5,7 @@
 // =====================================================================
 const EMAILS = [
   'schneider.lenon.s@gmail.com',
+  'schineiderlenon@gmail.com',
   'cassiopellegrim@gmail.com',
 ];
 const PHONES = [

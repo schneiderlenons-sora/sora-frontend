@@ -5,6 +5,7 @@ import Script from 'next/script';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
+import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
@@ -30,7 +31,7 @@ type Conexao = {
 
 export default function OpenFinancePage() {
   const { perfil, phone } = useAuth();
-  const liberado = podeVerOpenFinance(perfil?.email, phone);
+  const liberado = isAdminEmail(perfil?.email) || podeVerOpenFinance(perfil?.email, phone);
 
   const [sdkPronto, setSdkPronto] = useState(false);
   const [conexoes, setConexoes] = useState<Conexao[]>([]);

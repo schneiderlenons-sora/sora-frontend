@@ -123,7 +123,7 @@ export default function Sidebar() {
   const router = useRouter();
   const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
-  const podeOpenFinance = podeVerOpenFinance(perfil?.email, phone);
+  const podeOpenFinance = ehAdmin || podeVerOpenFinance(perfil?.email, phone);
   const [open, setOpen] = useState(false); // drawer mobile
   const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown Sora ↔ Labs
   const ehLabs = !!pathname?.startsWith('/labs');
