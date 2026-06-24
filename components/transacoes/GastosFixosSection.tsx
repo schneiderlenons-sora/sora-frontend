@@ -85,6 +85,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 
   function dispensarSugestao(descricao: string) {
     setSugestoes((prev) => prev.filter((x) => x.descricao !== descricao));
+    // Persiste no backend pra NÃO voltar no próximo carregamento.
+    api.recorrencias.dispensarSugestao(descricao).catch(() => { /* tolerante */ });
   }
 
   const gastos   = useMemo(() => itens.filter((i) => i.tipo === 'Gasto'), [itens]);

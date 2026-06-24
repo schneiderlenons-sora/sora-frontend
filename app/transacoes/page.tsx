@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
+import EditarTransacaoModal from '@/components/transacoes/EditarTransacaoModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ export default function TransacoesPage() {
   const [importarFormato, setImportarFormato] = useState<'ofx' | 'csv' | null>(null);
   const [importToast, setImportToast] = useState<string>('');
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
+  const [editTx, setEditTx] = useState<any | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   // Filtros
@@ -566,6 +568,7 @@ export default function TransacoesPage() {
                     onToggleMenu={() => setRowMenuOpen(rowMenuOpen === tx.id ? null : tx.id)}
                     onCloseMenu={() => setRowMenuOpen(null)}
                     onDeletar={() => handleDeletar(tx.id)}
+                    onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
                   />
                 ))}
               </div>
@@ -594,6 +597,16 @@ export default function TransacoesPage() {
             setTimeout(() => setImportToast(''), 5000);
             carregar();
           }}
+        />
+      )}
+
+      {editTx && phone && (
+        <EditarTransacaoModal
+          tx={editTx}
+          phone={phone}
+          wallets={wallets}
+          onClose={() => setEditTx(null)}
+          onSaved={carregar}
         />
       )}
 
@@ -656,7 +669,7 @@ function StatCard({
 
 function TransactionRow({
   tx, index, ocultar, compartilhado, selecionado, onToggleSelect,
-  menuOpen, onToggleMenu, onCloseMenu, onDeletar,
+  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar,
 }: any) {
   const isTransfer = tx.transferencia === true || tx.tipo === 'Transferência';
   const isGasto = tx.tipo === 'Gasto';
@@ -773,6 +786,7 @@ function TransactionRow({
           onToggleMenu={onToggleMenu}
           onCloseMenu={onCloseMenu}
           onDeletar={onDeletar}
+          onEditar={onEditar}
         />
       </div>
 
@@ -786,11 +800,12 @@ function TransactionRow({
 // MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
 // overflow-x-auto da linha (que cria clipping em ambos os eixos).
 // ─────────────────────────────────────────────────────────────
-function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar }: {
+function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar }: {
   menuOpen: boolean;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onDeletar: () => void;
+  onEditar: () => void;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
@@ -822,7 +837,8 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar }: {
             className="fixed w-40 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-[61] animate-fade-in"
             style={{ top: coords.top, right: coords.right }}
           >
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+            <button onClick={onEditar}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
               <Edit2 size={14} className="text-muted-foreground" /> Editar
             </button>
             <button

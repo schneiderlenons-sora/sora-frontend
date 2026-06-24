@@ -187,6 +187,9 @@ export const api = {
     /** Gastos/receitas fixas detectados nas transações (Open Finance/OFX). */
     sugestoes: () =>
       req<{ sugestoes: { descricao: string; valor: number; dia: number; tipo: 'Gasto' | 'Recebimento'; categoria: string; ocorrencias: number; meses: number }[] }>(`/api/recorrencias/sugestoes`),
+    /** Dispensa uma sugestão de gasto fixo (não volta a aparecer). */
+    dispensarSugestao: (descricao: string) =>
+      req<{ ok: boolean }>('/api/recorrencias/dispensar', { method: 'POST', body: JSON.stringify({ descricao }) }),
     criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string }) =>
       req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
     cancelar: (id: string, phone: string) =>
