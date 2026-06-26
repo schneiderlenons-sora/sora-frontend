@@ -63,6 +63,7 @@ export default function TransacoesPage() {
   const [catFiltro,setCatFiltro]= useState('todas');
   const [contaId,  setContaId]  = useState('todas');
   const [membroFiltro, setMembroFiltro] = useState('todos'); // só em grupo compartilhado
+  const [cartaoFiltro, setCartaoFiltro] = useState('todos'); // por cartão virtual (Open Finance)
 
   // Mês visualizado (0 = atual, -1 = anterior…) — pra ver meses passados,
   // ex.: transações importadas de um extrato OFX de meses anteriores.
@@ -100,9 +101,10 @@ export default function TransacoesPage() {
                           (status === 'pago' && t.pago) ||
                           (status === 'pendente' && !t.pago);
       const matchMembro = membroFiltro === 'todos' || t.criado_por === membroFiltro;
-      return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro;
+      const matchCartao = cartaoFiltro === 'todos' || t.pluggy_card === cartaoFiltro;
+      return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro && matchCartao;
     });
-  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro]);
+  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro]);
 
   // ── Métricas calculadas das filtradas ──────────────────────
   const receitasTotal = useMemo(() =>
@@ -135,6 +137,13 @@ export default function TransacoesPage() {
       if (t.criado_por && t.criador && !map.has(t.criado_por)) map.set(t.criado_por, t.criador);
     }
     return Array.from(map, ([id, c]) => ({ id, ...c }));
+  }, [txs]);
+
+  // ── Cartões virtuais que aparecem nas transações (Open Finance) ──
+  const cartoes = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of txs) if (t.pluggy_card) map.set(t.pluggy_card, (map.get(t.pluggy_card) || 0) + 1);
+    return Array.from(map, ([numero, qtd]) => ({ numero, qtd })).sort((a, b) => b.qtd - a.qtd);
   }, [txs]);
 
   // ── Ações ──────────────────────────────────────────────────
@@ -196,10 +205,10 @@ export default function TransacoesPage() {
   }
 
   function limparFiltros() {
-    setBusca(''); setTipo('todos'); setStatus('todos'); setCatFiltro('todas'); setContaId('todas'); setMembroFiltro('todos');
+    setBusca(''); setTipo('todos'); setStatus('todos'); setCatFiltro('todas'); setContaId('todas'); setMembroFiltro('todos'); setCartaoFiltro('todos');
   }
 
-  const temFiltro = busca || tipo !== 'todos' || status !== 'todos' || catFiltro !== 'todas' || contaId !== 'todas' || membroFiltro !== 'todos';
+  const temFiltro = busca || tipo !== 'todos' || status !== 'todos' || catFiltro !== 'todas' || contaId !== 'todas' || membroFiltro !== 'todos' || cartaoFiltro !== 'todos';
 
   return (
     <DashboardLayout>
@@ -481,6 +490,20 @@ export default function TransacoesPage() {
               </select>
             )}
 
+            {/* Filtro por cartão virtual — quando o Open Finance traz o final do cartão */}
+            {cartoes.length > 1 && (
+              <select
+                value={cartaoFiltro}
+                onChange={e => setCartaoFiltro(e.target.value)}
+                className="input py-2.5 text-sm text-foreground w-full"
+              >
+                <option value="todos">💳 Todos os cartões</option>
+                {cartoes.map(c => (
+                  <option key={c.numero} value={c.numero}>final {c.numero} · {c.qtd}</option>
+                ))}
+              </select>
+            )}
+
             {temFiltro && (
               <button
                 onClick={limparFiltros}
@@ -741,6 +764,11 @@ function TransactionRow({
           />
         )}
         <span className="text-xs text-muted-foreground truncate">{tx.wallet_nome || '—'}</span>
+        {tx.pluggy_card && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap tabular-nums">
+            ••{tx.pluggy_card}
+          </span>
+        )}
       </div>
 
       {/* Data */}
