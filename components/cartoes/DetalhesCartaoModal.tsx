@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap } from 'lucide-react';
+import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta } from './AdicionarCartaoModal';
@@ -147,6 +147,14 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
   }, [txs]);
 
   const maiorCategoria = porCategoria[0]?.total || 1;
+
+  // Gastos por cartão virtual (Open Finance) — fatura/limite seguem únicos.
+  const porCartao = useMemo(() => {
+    const acc: Record<string, number> = {};
+    txs.forEach(t => { if (t.pluggy_card) acc[t.pluggy_card] = (acc[t.pluggy_card] || 0) + (t.valor || 0); });
+    return Object.entries(acc).sort((a, b) => b[1] - a[1]).map(([numero, total]) => ({ numero, total }));
+  }, [txs]);
+  const maiorCartao = porCartao[0]?.total || 1;
   const topCategorias = porCategoria.slice(0, 5);
   const restantes = porCategoria.length - 5;
 
@@ -357,6 +365,35 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
               </div>
             </div>
           </div>
+
+          {/* Por cartão virtual (Open Finance) — só quando há mais de um */}
+          {porCartao.length > 1 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-foreground">Por cartão virtual</p>
+                <span className="text-xs text-muted-foreground">{porCartao.length} cartões · fatura única</span>
+              </div>
+              <div className="space-y-3">
+                {porCartao.map(({ numero, total }, i) => {
+                  const cor = `hsl(${(i * 67) % 360} 70% 50%)`;
+                  const pct = Math.round((total / maiorCartao) * 100);
+                  return (
+                    <div key={numero}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm text-foreground flex items-center gap-2 tabular-nums">
+                          <CreditCard size={14} style={{ color: cor }} /> final ••{numero}
+                        </span>
+                        <span className="text-sm font-semibold text-foreground tabular flex-shrink-0">{fmt(total)}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: cor }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Gastos por categoria */}
           <div>
