@@ -175,7 +175,13 @@ export default function TransacoesPage() {
     const alvo = new Set(ids);
     try {
       await mTx(
-        async () => { await Promise.all(ids.map(id => api.transacoes.deletar(id, phone))); return undefined; },
+        async () => {
+          // Em lotes de 20 (não derruba o rate limit ao excluir centenas).
+          for (let i = 0; i < ids.length; i += 20) {
+            await Promise.all(ids.slice(i, i + 20).map(id => api.transacoes.deletar(id, phone)));
+          }
+          return undefined;
+        },
         {
           optimisticData: (cur: any) => ({ ...(cur || { transacoes: [], total: 0 }), transacoes: (cur?.transacoes || []).filter((t: any) => !alvo.has(t.id)) }),
           rollbackOnError: true,
@@ -515,12 +521,22 @@ export default function TransacoesPage() {
           </div>
 
           {/* Bar de seleção */}
-          {selecionados.size > 0 && (
-            <div className="mt-3 -mb-1 flex items-center justify-between bg-primary/10 rounded-xl px-4 py-2.5 animate-fade-in">
-              <p className="text-xs font-medium text-foreground">
+          {selecionados.size > 0 && (() => {
+            const todasSelec = txsFiltradas.length > 0 && txsFiltradas.every(t => selecionados.has(t.id));
+            return (
+            <div className="mt-3 -mb-1 flex items-center justify-between gap-3 bg-primary/10 rounded-xl px-4 py-2.5 animate-fade-in">
+              <p className="text-xs font-medium text-foreground whitespace-nowrap">
                 {selecionados.size} selecionada{selecionados.size > 1 ? 's' : ''}
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <button
+                  onClick={() => todasSelec
+                    ? setSelecionados(new Set())
+                    : setSelecionados(new Set(txsFiltradas.map(t => t.id)))}
+                  className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+                  {todasSelec ? 'Desmarcar todas' : `Selecionar todas (${txsFiltradas.length})`}
+                </button>
+                <span className="text-muted-foreground">·</span>
                 <button onClick={() => setSelecionados(new Set())}
                         className="text-xs text-muted-foreground hover:text-foreground">
                   Limpar
@@ -532,7 +548,8 @@ export default function TransacoesPage() {
                 </button>
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* ═══════════════════════════════════════════════════════
