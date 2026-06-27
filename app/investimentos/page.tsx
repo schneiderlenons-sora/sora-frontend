@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { useTheme } from 'next-themes';
 import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoModal';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
@@ -295,6 +296,14 @@ function PaywallPremium() {
 // ─────────────────────────────────────────────────────────────
 function TabResumo({ totais, distribuicao, patrimonio }: any) {
   const [periodo, setPeriodo] = useState<'7' | '30' | '90' | '365' | 'all'>('30');
+  // Tema escuro = 'black' (classe .dark). No claro o hero fica branco como os
+  // demais cards; no escuro mantém o visual atual.
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'black' || resolvedTheme === 'dark';
+  const fundoHero = isDark
+    ? 'linear-gradient(135deg, #0a0a0a 0%, #18181b 50%, #0a0a0a 100%)'
+    : 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)';
+  const strokePie = isDark ? '#0a0a0a' : '#ffffff';
 
   const patFiltrado = useMemo(() => {
     if (!patrimonio?.length) return [];
@@ -307,14 +316,14 @@ function TabResumo({ totais, distribuicao, patrimonio }: any) {
   return (
     <div className="space-y-5 animate-fade-in" style={{ animationDelay: '120ms' }}>
       {/* Hero total */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-zinc-800"
-           style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #18181b 50%, #0a0a0a 100%)' }}>
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60"
+           style={{ background: fundoHero }}>
         <div className="absolute -top-16 -right-16 w-60 h-60 rounded-full pointer-events-none opacity-20"
              style={{ background: `radial-gradient(circle, ${BRAND} 0%, transparent 60%)` }} />
         <div className="relative grid lg:grid-cols-5 gap-6 items-center">
           <div className="lg:col-span-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-white/50 mb-1">Patrimônio total</p>
-            <p className="text-5xl sm:text-6xl font-bold text-white tabular tracking-tight leading-none">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Patrimônio total</p>
+            <p className="text-5xl sm:text-6xl font-bold text-foreground tabular tracking-tight leading-none">
               {fmt(totais.atual)}
             </p>
             <div className={`inline-flex items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full text-xs font-bold tabular ${
@@ -334,22 +343,22 @@ function TabResumo({ totais, distribuicao, patrimonio }: any) {
               {distribuicao.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={distribuicao} dataKey="valor" innerRadius="55%" outerRadius="85%" paddingAngle={2} stroke="#0a0a0a" strokeWidth={2}>
+                    <Pie data={distribuicao} dataKey="valor" innerRadius="55%" outerRadius="85%" paddingAngle={2} stroke={strokePie} strokeWidth={2}>
                       {distribuicao.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
                     </Pie>
-                    <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, fontSize: 12 }} />
+                    <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: isDark ? '#18181b' : '#fff', border: `1px solid ${isDark ? '#3f3f46' : 'hsl(var(--border))'}`, borderRadius: 12, fontSize: 12, color: isDark ? '#fff' : '#111' }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="w-full h-full rounded-full border-[14px] border-zinc-800 flex items-center justify-center">
-                  <span className="text-xs text-white/40">Sem dados</span>
+                <div className="w-full h-full rounded-full border-[14px] border-border flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">Sem dados</span>
                 </div>
               )}
             </div>
             {distribuicao.length > 0 && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 justify-center">
                 {distribuicao.slice(0, 6).map((d: any) => (
-                  <div key={d.tipo} className="inline-flex items-center gap-1 text-[10px] text-white/70">
+                  <div key={d.tipo} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                     <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />
                     {d.tipo}
                   </div>
@@ -860,8 +869,8 @@ function Stat({ label, value, sub, color, subColor }: { label: string; value: st
 function DarkStat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50">{label}</p>
-      <p className="text-base font-bold tabular mt-0.5" style={{ color: color || 'white' }}>{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className={`text-base font-bold tabular mt-0.5${color ? '' : ' text-foreground'}`} style={color ? { color } : undefined}>{value}</p>
     </div>
   );
 }
