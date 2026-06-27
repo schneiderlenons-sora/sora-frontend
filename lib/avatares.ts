@@ -28,14 +28,12 @@ export interface AvatarPreset {
 
 // Ícones de baleia pré-definidos (estilo Netflix). O usuário escolhe 1.
 export const AVATAR_PRESETS: AvatarPreset[] = [
-  { id: 'classica', label: 'Clássica',   img: '/avatars/baleia-classica.png',   emoji: '🐳' },
-  { id: 'oculos',   label: 'Estilosa',   img: '/avatars/baleia-oculos.png',     emoji: '🐳' },
-  { id: 'joia',     label: 'Joia',       img: '/avatars/baleia-joia.png',       emoji: '🐳' },
-  { id: 'festa',    label: 'Festa',      img: '/avatars/baleia-festa.png',      emoji: '🐳' },
-  { id: 'zen',      label: 'Zen',        img: '/avatars/baleia-zen.png',        emoji: '🐳' },
-  { id: 'heroi',    label: 'Herói',      img: '/avatars/baleia-heroi.png',      emoji: '🐳' },
+  { id: 'classica',   label: 'Clássica',   img: '/avatars/baleia-classica.png',   emoji: '🐳' },
+  { id: 'estilosa',   label: 'Estilosa',   img: '/avatars/baleia-estilosa.png',   emoji: '🐳' },
+  { id: 'estudiosa',  label: 'Estudiosa',  img: '/avatars/baleia-estudiosa.png',  emoji: '🐳' },
+  { id: 'festa',      label: 'Festa',      img: '/avatars/baleia-festa.png',      emoji: '🐳' },
+  { id: 'zen',        label: 'Zen',        img: '/avatars/baleia-zen.png',        emoji: '🐳' },
   { id: 'apaixonada', label: 'Apaixonada', img: '/avatars/baleia-apaixonada.png', emoji: '🐳' },
-  { id: 'gamer',    label: 'Gamer',      img: '/avatars/baleia-gamer.png',      emoji: '🐳' },
 ];
 
 export function presetById(id?: string | null): AvatarPreset | null {
