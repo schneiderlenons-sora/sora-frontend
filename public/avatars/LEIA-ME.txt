@@ -4,10 +4,10 @@ Coloque as artes AQUI (public/avatars/) com EXATAMENTE estes nomes (.png,
 fundo TRANSPARENTE — a cor de fundo é escolhida pelo usuário no painel):
 
   baleia-classica.png     -> Clássica
-  baleia-estilosa.png     -> Estilosa
+  baleia-grana.png        -> Grana
   baleia-estudiosa.png    -> Estudiosa
   baleia-festa.png        -> Festa
-  baleia-zen.png          -> Zen
+  baleia-dorminhoca.png   -> Dorminhoca
   baleia-apaixonada.png   -> Apaixonada
 
 Recomendações:

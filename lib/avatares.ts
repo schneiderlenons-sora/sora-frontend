@@ -29,10 +29,10 @@ export interface AvatarPreset {
 // Ícones de baleia pré-definidos (estilo Netflix). O usuário escolhe 1.
 export const AVATAR_PRESETS: AvatarPreset[] = [
   { id: 'classica',   label: 'Clássica',   img: '/avatars/baleia-classica.png',   emoji: '🐳' },
-  { id: 'estilosa',   label: 'Estilosa',   img: '/avatars/baleia-estilosa.png',   emoji: '🐳' },
+  { id: 'grana',      label: 'Grana',      img: '/avatars/baleia-grana.png',      emoji: '🐳' },
   { id: 'estudiosa',  label: 'Estudiosa',  img: '/avatars/baleia-estudiosa.png',  emoji: '🐳' },
   { id: 'festa',      label: 'Festa',      img: '/avatars/baleia-festa.png',      emoji: '🐳' },
-  { id: 'zen',        label: 'Zen',        img: '/avatars/baleia-zen.png',        emoji: '🐳' },
+  { id: 'dorminhoca', label: 'Dorminhoca', img: '/avatars/baleia-dorminhoca.png', emoji: '🐳' },
   { id: 'apaixonada', label: 'Apaixonada', img: '/avatars/baleia-apaixonada.png', emoji: '🐳' },
 ];
 
