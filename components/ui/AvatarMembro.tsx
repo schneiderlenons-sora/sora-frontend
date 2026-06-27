@@ -38,7 +38,7 @@ function PresetIcone({ img, emoji, alt, emojiClass }: { img: string; emoji: stri
   const [erro, setErro] = useState(false);
   if (erro) return <span className={emojiClass} aria-hidden>{emoji}</span>;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={img} alt={alt} onError={() => setErro(true)} className="w-[78%] h-[78%] object-contain" draggable={false} />;
+  return <img src={img} alt={alt} onError={() => setErro(true)} className="w-[90%] h-[90%] object-contain" draggable={false} />;
 }
 
 export default function AvatarMembro({ name, src, preset, cor, size = 'md', className = '', showTooltip = true }: Props) {
