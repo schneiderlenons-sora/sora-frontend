@@ -251,9 +251,13 @@ function SignupWizard() {
           {step === 'pagamento' && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-2xl font-bold text-foreground tracking-tight">Finalizar assinatura</h2>
+                <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                  {vitalicioMode ? 'Garantir vitalício' : 'Finalizar assinatura'}
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Plano <strong className="text-foreground capitalize">{planoSel}</strong> · {fmtPreco(PLANOS_INFO[planoSel][intervalo])}/{anual ? 'mês (anual)' : 'mês'}
+                  {vitalicioMode
+                    ? <><strong className="text-foreground">Acesso Vitalício</strong> · pague uma única vez.</>
+                    : <>Plano <strong className="text-foreground capitalize">{planoSel}</strong> · {fmtPreco(PLANOS_INFO[planoSel][intervalo])}/{anual ? 'mês (anual)' : 'mês'}</>}
                 </p>
                 <div className="flex items-center gap-1.5 mt-2 text-xs font-semibold" style={{ color: BRAND }}>
                   <ShieldCheck size={14} /> Garantia de 7 dias — reembolso de 100% se não curtir.

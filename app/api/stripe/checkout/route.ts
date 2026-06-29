@@ -73,10 +73,10 @@ export async function POST(req: NextRequest) {
       metadata: vitalicio
         ? { supabase_user_id: user.id, vitalicio: 'true', plano: 'black' }
         : { supabase_user_id: user.id, plano, intervalo },
-      // subscription_data só vale em mode:subscription.
-      ...(vitalicio ? {} : {
-        subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } },
-      }),
+      // No vitalício (mode:payment) habilita PARCELAMENTO de cartão BR (até 12x).
+      ...(vitalicio
+        ? { payment_method_options: { card: { installments: { enabled: true } } } }
+        : { subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } } }),
     });
 
     return NextResponse.json({ url: session.url });
