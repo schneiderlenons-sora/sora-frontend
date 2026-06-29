@@ -112,8 +112,22 @@ function SignupWizard() {
       await recarregar();
       trackSignUp();
 
-      // Vitalício: pula a escolha de plano e vai direto pro pagamento único.
-      setStep(vitalicioMode ? 'pagamento' : 'plano');
+      if (vitalicioMode) {
+        // Vitalício: vai direto pro checkout do Mercado Pago (parcelamento + Pix).
+        trackInitiateCheckout({ value: 97, currency: 'BRL' });
+        try {
+          const res = await fetch('/api/mercadopago/preference', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+          });
+          const data = await res.json();
+          if (data.url) { window.location.href = data.url; return; }
+          setErro(data.erro || 'Erro ao iniciar o checkout.');
+        } catch {
+          setErro('Falha ao iniciar o checkout. Tente novamente.');
+        }
+        return;
+      }
+      setStep('plano');
     } catch (err: any) {
       setErro(err.message || 'Erro ao criar conta.');
     } finally {

@@ -134,20 +134,21 @@ function PlanosContent() {
     }
   }
 
-  // Oferta vitalícia: pagamento único (mode:payment).
+  // Oferta vitalícia: pagamento único via Mercado Pago (parcelamento até 12x +
+  // Pix). Cria a preferência e redireciona pro checkout do MP.
   async function comprarVitalicio() {
     setErro('');
     setLoading('vitalicio');
     try {
       trackInitiateCheckout({ value: 97, currency: 'BRL' });
-      const res = await fetch('/api/stripe/checkout', {
+      const res = await fetch('/api/mercadopago/preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vitalicio: true }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else setErro(data.erro || 'Erro ao iniciar checkout.');
+      else setErro(data.erro || 'Erro ao iniciar o checkout.');
     } catch {
       setErro('Falha de conexão. Tente novamente.');
     } finally {

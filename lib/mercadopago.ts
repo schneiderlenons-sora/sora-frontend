@@ -1,0 +1,41 @@
+// Cliente Mercado Pago (REST direto, sem SDK). Usado pro checkout do vitalício
+// (parcelamento até 12x + Pix + boleto nativos, aceita CPF).
+// Credencial: MP_ACCESS_TOKEN (Mercado Pago → Desenvolvedores → sua aplicação).
+const MP_API = 'https://api.mercadopago.com';
+
+export const VITALICIO_MP = { titulo: 'Sora Black Vitalício', preco: 97.0, maxParcelas: 12 };
+
+function token(): string {
+  return process.env.MP_ACCESS_TOKEN || '';
+}
+
+// Credencial de TESTE começa com "TEST-" → usamos o sandbox_init_point.
+export function mpIsTest(): boolean {
+  return token().startsWith('TEST-');
+}
+
+export async function mpCreatePreference(body: Record<string, unknown>) {
+  const res = await fetch(`${MP_API}/checkout/preferences`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || 'Erro ao criar preferência no Mercado Pago');
+  return data as { id: string; init_point: string; sandbox_init_point: string };
+}
+
+export async function mpGetPayment(id: string) {
+  const res = await fetch(`${MP_API}/v1/payments/${id}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || 'Erro ao buscar pagamento no Mercado Pago');
+  return data as {
+    id: number;
+    status: string;                 // 'approved' | 'pending' | 'rejected' ...
+    external_reference?: string;     // supabase_user_id
+    transaction_amount?: number;
+    metadata?: Record<string, unknown>;
+  };
+}
