@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode === 'subscription') {
           await handleCheckoutCompleted(session);
+        } else if (session.mode === 'payment' && session.metadata?.vitalicio === 'true') {
+          await handleVitalicioCompleted(session);
         }
         break;
       }
@@ -116,6 +118,53 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }).catch(() => {}); // non-blocking
 }
 
+// VITALÍCIO: pagamento único concluído → Black pra sempre, sem expiração.
+// Tolerante à migration 060: se as colunas vitalicio* ainda não existirem, ao
+// menos ativa o Black (fallback) e loga.
+async function handleVitalicioCompleted(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.supabase_user_id;
+  if (!userId) return;
+
+  const { error } = await supabaseAdmin.from('users').update({
+    plano: 'black',
+    vitalicio: true,
+    vitalicio_em: new Date().toISOString(),
+    plano_intervalo: null,
+    plano_valido_ate: null,
+    stripe_customer_id: (session.customer as string) ?? undefined,
+  }).eq('id', userId);
+
+  if (error) {
+    console.error('[stripe/webhook] vitalício update completo falhou (migration 060?), fallback Black:', error.message);
+    await supabaseAdmin.from('users').update({
+      plano: 'black',
+      plano_intervalo: null,
+      plano_valido_ate: null,
+      stripe_customer_id: (session.customer as string) ?? undefined,
+    }).eq('id', userId);
+  }
+
+  // CAPI: Purchase server-side
+  const amount = session.amount_total ? session.amount_total / 100 : 0;
+  sendCAPIEvent({
+    event_name: 'Purchase',
+    event_source_url: `https://forsora.com/planos?success=1&vitalicio=1`,
+    user_data: { em: session.customer_details?.email || undefined },
+    custom_data: { value: amount, currency: session.currency?.toUpperCase() || 'BRL', content_name: 'Black Vitalício' },
+  }).catch(() => {});
+}
+
+// Vitalício não pode ser rebaixado por evento de assinatura antiga. Tolerante:
+// se a coluna não existir (pré-migration 060), retorna false (não bloqueia).
+async function ehVitalicio(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('users').select('vitalicio').eq('id', userId).maybeSingle();
+    if (error) return false;
+    return !!data?.vitalicio;
+  } catch { return false; }
+}
+
 // Pagamento recusado → marca o usuário pra recuperação (cron do backend envia
 // o WhatsApp). Só age em conta ainda `inativo` que nunca recebeu recuperação.
 // Tolerante: se a migration 047 não rodou, só loga (não derruba o webhook).
@@ -157,26 +206,34 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
 }
 
 async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
-  const userId = sub.metadata?.supabase_user_id;
-  const update = {
+  // Resolve o usuário (metadata da sub ou customer).
+  let targetId = sub.metadata?.supabase_user_id || null;
+  if (!targetId) {
+    const { data } = await supabaseAdmin
+      .from('users').select('id').eq('stripe_customer_id', sub.customer as string).single();
+    targetId = data?.id ?? null;
+  }
+  if (!targetId) return;
+
+  // BLINDAGEM: vitalício nunca é rebaixado — só desvincula a assinatura antiga.
+  if (await ehVitalicio(targetId)) {
+    await supabaseAdmin.from('users').update({ stripe_subscription_id: null }).eq('id', targetId);
+    return;
+  }
+
+  await supabaseAdmin.from('users').update({
     plano: 'inativo' as const,
     stripe_subscription_id: null,
     plano_valido_ate: null,
-  };
-
-  if (userId) {
-    await supabaseAdmin.from('users').update(update).eq('id', userId);
-    return;
-  }
-  const { data } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('stripe_customer_id', sub.customer as string)
-    .single();
-  if (data) await supabaseAdmin.from('users').update(update).eq('id', data.id);
+  }).eq('id', targetId);
 }
 
 async function updateUserFromSub(userId: string, sub: Stripe.Subscription) {
+  // BLINDAGEM: vitalício mantém Black; só registra o id da assinatura.
+  if (await ehVitalicio(userId)) {
+    await supabaseAdmin.from('users').update({ stripe_subscription_id: sub.id }).eq('id', userId);
+    return;
+  }
   const priceId   = sub.items.data[0]?.price.id;
   const plano     = priceId ? priceIdToPlano(priceId) : null;
   const intervalo = priceId ? priceIdToIntervalo(priceId) : null;

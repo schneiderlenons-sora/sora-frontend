@@ -71,3 +71,18 @@ export const PLANOS_INFO: Record<PlanoId, { mensal: number; anual: number; descA
   premium: { mensal: 29.90, anual: 23.92, descAnual: 20 },
   black:   { mensal: 79.90, anual: 47.94, descAnual: 40 },
 };
+
+// ── VITALÍCIO (pagamento único) ──────────────────────────────────────────────
+// Paga uma vez e tem o Black pra sempre. Price one-time no Stripe (mode:payment).
+export const VITALICIO = {
+  plano:   'black' as PlanoId,   // o que libera
+  preco:   97.00,                // exibição
+  priceId: process.env.STRIPE_PRICE_VITALICIO || '',
+  // "Vagas de fundador" — gatilho de escassez (oferta segue permanente; isto é
+  // só a meta exibida; a contagem real de vendidos vem do banco).
+  vagas:   300,
+};
+
+export function isPriceVitalicio(priceId?: string | null): boolean {
+  return !!priceId && !!process.env.STRIPE_PRICE_VITALICIO && priceId === process.env.STRIPE_PRICE_VITALICIO;
+}
