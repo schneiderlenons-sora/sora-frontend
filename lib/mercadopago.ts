@@ -25,6 +25,28 @@ export async function mpCreatePreference(body: Record<string, unknown>) {
   return data as { id: string; init_point: string; sandbox_init_point: string };
 }
 
+// Cria um pagamento (Checkout Transparente / Bricks). `body` vem do Payment
+// Brick (token, installments, payment_method_id, payer…) + nossos campos.
+export async function mpCreatePayment(body: Record<string, unknown>) {
+  const res = await fetch(`${MP_API}/v1/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || data?.error || 'Erro ao criar pagamento no Mercado Pago');
+  return data as {
+    id: number;
+    status: string;
+    status_detail: string;
+    point_of_interaction?: { transaction_data?: { qr_code?: string; qr_code_base64?: string; ticket_url?: string } };
+  };
+}
+
 export async function mpGetPayment(id: string) {
   const res = await fetch(`${MP_API}/v1/payments/${id}`, {
     headers: { Authorization: `Bearer ${token()}` },

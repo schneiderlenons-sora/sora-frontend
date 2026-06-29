@@ -113,18 +113,10 @@ function SignupWizard() {
       trackSignUp();
 
       if (vitalicioMode) {
-        // Vitalício: vai direto pro checkout do Mercado Pago (parcelamento + Pix).
+        // Vitalício: checkout transparente (Mercado Pago) na nossa própria
+        // página, sem sair do site.
         trackInitiateCheckout({ value: 97, currency: 'BRL' });
-        try {
-          const res = await fetch('/api/mercadopago/preference', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-          });
-          const data = await res.json();
-          if (data.url) { window.location.href = data.url; return; }
-          setErro(data.erro || 'Erro ao iniciar o checkout.');
-        } catch {
-          setErro('Falha ao iniciar o checkout. Tente novamente.');
-        }
+        router.push('/checkout-vitalicio');
         return;
       }
       setStep('plano');
