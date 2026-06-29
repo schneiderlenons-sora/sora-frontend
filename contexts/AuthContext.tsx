@@ -28,6 +28,8 @@ interface Perfil {
   plano_valido_ate?: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  vitalicio?:       boolean | null;
+  vitalicio_em?:    string | null;
   plano_grow?:      PlanoGrow;
   grow_trial_inicio?: string | null;
   grow_trial_fim?:    string | null;
@@ -52,6 +54,7 @@ interface AuthContextType {
   // Flags legados — mantidos por compat. Para novo código use `podeUsar`.
   isBlack:         boolean;
   isPremium:       boolean;
+  isVitalicio:     boolean;
   // Helpers centralizados (lib/plans.ts)
   podeUsar:        (feature: Feature) => boolean;
   limiteDe:        (recurso: Recurso) => number;
@@ -188,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const plano: Plano = perfil?.plano || 'inativo';
   const isBlack  = plano === 'black';
   const isPremium = plano === 'premium' || isBlack;
+  const isVitalicio = !!perfil?.vitalicio;
   const podeUsar = (f: Feature) => _podeUsar(plano, f);
   const limiteDe = (r: Recurso) => _limiteDe(plano, r);
   const podeEditar      = papel === 'admin' || papel === 'escrita';
@@ -232,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, perfil, loading, phone,
-      plano, isBlack, isPremium,
+      plano, isBlack, isPremium, isVitalicio,
       podeUsar, limiteDe,
       papel, podeEditar, podeAdministrar,
       painelAtivo, temAcessoGrow, podeAtivarTrialGrow, trialAtivo, diasTrialRestantes,
