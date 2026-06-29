@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
-import { stripe, PRICE_IDS, type PlanoId, type Intervalo } from '@/lib/stripe';
+import { stripe, PRICE_IDS, VITALICIO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -8,15 +8,25 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 // página, sem redirect). Retorna o client_secret pro <EmbeddedCheckout/>.
 export async function POST(req: NextRequest) {
   try {
-    const { plano, intervalo } = (await req.json()) as {
+    const { plano, intervalo, vitalicio } = (await req.json()) as {
       plano: PlanoId;
       intervalo: Intervalo;
+      vitalicio?: boolean;
     };
 
-    if (!PRICE_IDS[plano]?.[intervalo]) {
-      return NextResponse.json({ erro: 'Plano ou intervalo inválido' }, { status: 400 });
+    let priceId: string;
+    const modo: 'subscription' | 'payment' = vitalicio ? 'payment' : 'subscription';
+    if (vitalicio) {
+      if (!VITALICIO.priceId) {
+        return NextResponse.json({ erro: 'Vitalício não configurado (STRIPE_PRICE_VITALICIO)' }, { status: 400 });
+      }
+      priceId = VITALICIO.priceId;
+    } else {
+      if (!PRICE_IDS[plano]?.[intervalo]) {
+        return NextResponse.json({ erro: 'Plano ou intervalo inválido' }, { status: 400 });
+      }
+      priceId = PRICE_IDS[plano][intervalo];
     }
-    const priceId = PRICE_IDS[plano][intervalo];
 
     // Usuário autenticado (logado logo após o cadastro)
     const supabase = await createSupabaseServer();
@@ -51,16 +61,19 @@ export async function POST(req: NextRequest) {
     const params = {
       ui_mode: 'embedded_page', // API "dahlia" renomeou 'embedded' -> 'embedded_page'
       customer: customerId,
-      mode: 'subscription',
+      mode: modo,
       line_items: [{ price: priceId, quantity: 1 }],
       // Não redireciona ao concluir — tratamos no cliente (onComplete) e
       // seguimos pro onboarding depois que o webhook ativa o plano.
       redirect_on_completion: 'never',
       allow_promotion_codes: true,
-      metadata: { supabase_user_id: user.id, plano, intervalo },
-      subscription_data: {
-        metadata: { supabase_user_id: user.id, plano, intervalo },
-      },
+      metadata: vitalicio
+        ? { supabase_user_id: user.id, vitalicio: 'true', plano: 'black' }
+        : { supabase_user_id: user.id, plano, intervalo },
+      // subscription_data só vale em mode:subscription.
+      ...(vitalicio ? {} : {
+        subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } },
+      }),
     } as unknown as Stripe.Checkout.SessionCreateParams;
 
     const session = await stripe.checkout.sessions.create(params);

@@ -45,6 +45,9 @@ function SignupWizard() {
   const planoParam = searchParams.get('plano');
   const planoInicial: PlanoId = PLANOS_VALIDOS.includes(planoParam as PlanoId)
     ? (planoParam as PlanoId) : 'premium';
+  // Vindo da página de oferta (/oferta): pula a escolha de plano e vai direto
+  // pro checkout do VITALÍCIO (pagamento único).
+  const vitalicioMode = searchParams.get('vitalicio') === '1';
 
   const [step, setStep] = useState<Step>('dados');
 
@@ -109,7 +112,8 @@ function SignupWizard() {
       await recarregar();
       trackSignUp();
 
-      setStep('plano');
+      // Vitalício: pula a escolha de plano e vai direto pro pagamento único.
+      setStep(vitalicioMode ? 'pagamento' : 'plano');
     } catch (err: any) {
       setErro(err.message || 'Erro ao criar conta.');
     } finally {
@@ -131,7 +135,7 @@ function SignupWizard() {
         const res = await fetch('/api/stripe/embedded-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plano: planoSel, intervalo }),
+          body: JSON.stringify(vitalicioMode ? { vitalicio: true } : { plano: planoSel, intervalo }),
         });
         const data = await res.json();
         if (!alive) return;
@@ -156,7 +160,7 @@ function SignupWizard() {
   // InitiateCheckout ao entrar no pagamento (Purchase é enviado pelo webhook/CAPI)
   useEffect(() => {
     if (step === 'pagamento') {
-      trackInitiateCheckout({ value: PLANOS_INFO[planoSel][intervalo], currency: 'BRL' });
+      trackInitiateCheckout({ value: vitalicioMode ? 97 : PLANOS_INFO[planoSel][intervalo], currency: 'BRL' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
