@@ -78,9 +78,11 @@ export const VITALICIO = {
   plano:   'black' as PlanoId,   // o que libera
   preco:   97.00,                // exibição
   priceId: process.env.STRIPE_PRICE_VITALICIO || '',
-  // "Vagas de fundador" — gatilho de escassez (oferta segue permanente; isto é
-  // só a meta exibida; a contagem real de vendidos vem do banco).
-  vagas:   41,
+  // "Vagas de fundador" — gatilho de escassez. Total de 300 vagas, partindo de
+  // uma base de 259 já ocupadas → exibe "Restam 41 de 300" no lançamento (barra
+  // quase cheia). A contagem real de vendidos (do banco) soma a essa base.
+  vagas:           300,
+  vagasOcupadasBase: 259,
 };
 
 export function isPriceVitalicio(priceId?: string | null): boolean {

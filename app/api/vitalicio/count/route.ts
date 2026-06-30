@@ -18,6 +18,9 @@ export async function GET() {
     /* coluna ainda não existe — vendidos fica 0 */
   }
   const vagas = VITALICIO.vagas;
-  const restantes = Math.max(0, vagas - vendidos);
-  return NextResponse.json({ vendidos, vagas, restantes, preco: VITALICIO.preco });
+  // Ocupadas = base de escassez + vendas reais (pra barra ficar quase no limite).
+  const ocupadas = Math.min(vagas, VITALICIO.vagasOcupadasBase + vendidos);
+  const restantes = Math.max(0, vagas - ocupadas);
+  // `vendidos` no retorno = ocupadas (é o que a barra usa pra calcular o %).
+  return NextResponse.json({ vendidos: ocupadas, vagas, restantes, preco: VITALICIO.preco });
 }
