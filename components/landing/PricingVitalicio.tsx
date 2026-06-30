@@ -4,14 +4,27 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Check, Crown, Sparkles, Infinity as InfinityIcon, ShieldCheck } from 'lucide-react';
 
-// Itens em destaque do Black (versão enxuta pra oferta).
+// Tudo que o vitalício (Black) inclui — features de todos os planos.
 const INCLUI = [
+  'Lançamentos ilimitados',
+  'WhatsApp ou painel (texto/áudio/imagem)',
   'Contas e cartões ilimitados',
-  'Notas fiscais e comida por foto (OCR + IA)',
-  'Open Finance — conecta seus bancos',
-  'Investimentos e carteira',
-  'Aba Negócios (DRE, vendas, integrações)',
-  'Sora Grow completo (hábitos, saúde, agenda…)',
+  'Gráficos interativos no painel',
+  'Categorias e subcategorias personalizadas',
+  'Lembretes de contas',
+  'Relatórios financeiros',
+  'Alertas e limites de gastos',
+  'Importação OFX',
+  'Exportação de dados',
+  'Gestão compartilhada (casal/família)',
+  'Central de Investimentos',
+  'Metas com aporte automático',
+  'Painel DRE completo',
+  'Integrações Hotmart, Kiwify, Eduzz, Stripe',
+  'Organização de Hábitos, Agenda, Tarefas, Estudos, Bem Estar',
+  'Cálculo de Macros e Calorias por foto ou mensagem',
+  'Controle de Medicação com alertas',
+  'Avisos de Compromissos',
 ];
 
 export default function PricingVitalicio() {
@@ -61,15 +74,19 @@ export default function PricingVitalicio() {
               <span className="text-white font-bold text-lg">Sora Black Vitalício</span>
             </div>
 
-            {/* Preço */}
-            <div className="flex items-end gap-2 mt-4">
-              <span className="text-white/50 text-xl mb-2">R$</span>
-              <span className="text-7xl font-bold text-white tabular-nums leading-none">97</span>
-              <span className="text-white/50 text-lg mb-2">uma vez</span>
+            {/* Preço — só o R$9,87 é grande; "12x de" e o resto ficam pequenos */}
+            <div className="mt-4">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-white/60 text-sm sm:text-base font-semibold">12x de</span>
+                <span className="text-5xl sm:text-6xl font-bold text-white tabular-nums leading-none tracking-tight">R$9,87</span>
+              </div>
+              <p className="text-white/55 text-sm mt-2">
+                ou uma única vez de <span className="font-semibold text-white/80">R$97,00</span>
+              </p>
+              <p className="text-white/40 text-xs mt-1">
+                <span className="line-through">R$79,90/mês</span> na assinatura — aqui você paga uma vez e pronto.
+              </p>
             </div>
-            <p className="text-white/40 text-sm mt-1">
-              <span className="line-through">R$79,90/mês</span> na assinatura — aqui você paga uma vez e pronto.
-            </p>
 
             {/* Vagas de fundador */}
             {vagas && vagas.restantes > 0 && (
@@ -85,10 +102,10 @@ export default function PricingVitalicio() {
               </div>
             )}
 
-            {/* Inclui */}
-            <ul className="mt-7 grid sm:grid-cols-2 gap-x-6 gap-y-3">
+            {/* Inclui — 1 coluna no mobile, 2 no desktop */}
+            <ul className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
               {INCLUI.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-white/85 text-sm">
+                <li key={item} className="flex items-start gap-2.5 text-white/85 text-sm leading-snug">
                   <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full bg-amber-400/20 flex items-center justify-center">
                     <Check size={11} className="text-amber-400" />
                   </span>
@@ -96,6 +113,9 @@ export default function PricingVitalicio() {
                 </li>
               ))}
             </ul>
+            <p className="mt-4 flex items-center gap-2 text-amber-300 font-bold text-sm sm:text-base">
+              <Sparkles size={16} className="flex-shrink-0" /> Tudo isso e muito mais!
+            </p>
 
             {/* CTA */}
             <Link
