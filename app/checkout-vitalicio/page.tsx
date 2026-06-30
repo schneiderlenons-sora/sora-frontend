@@ -30,7 +30,7 @@ export default function CheckoutVitalicioPage() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Garantir acesso vitalício</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Pague uma única vez — <strong className="text-foreground">R$97</strong> em até 12x ou Pix. Black pra sempre. 🐳
+            Pague uma única vez — <strong className="text-foreground">12x de R$9,87</strong> ou 1x de R$97,00. Black para sempre.
           </p>
         </div>
 
