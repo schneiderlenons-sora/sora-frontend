@@ -187,7 +187,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) await carregarPerfil(user);
   }
 
-  const phone    = perfil?.phone || '';
+  // Chave usada no segmento /:phone das rotas (o backend IGNORA e resolve pelo
+  // JWT). Quem não tem WhatsApp cai pro id do usuário — assim o painel funciona
+  // só com e-mail. NÃO usar pra exibir telefone (telas usam perfil.phone direto).
+  const phone    = perfil?.phone || perfil?.id || '';
   const plano: Plano = perfil?.plano || 'inativo';
   const isBlack  = plano === 'black';
   const isPremium = plano === 'premium' || isBlack;
