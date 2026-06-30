@@ -32,6 +32,8 @@ export default function OnboardingRedirect() {
       '/signup',
       '/onboarding',
       '/vincular-whatsapp',
+      '/oferta',
+      '/checkout-vitalicio',
     ];
     if (!pathname) return;
     if (rotasPublicas.some((r) => pathname === r || pathname.startsWith(r + '/'))) return;
