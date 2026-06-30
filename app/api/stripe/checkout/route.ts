@@ -1,30 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, PRICE_IDS, VITALICIO, type PlanoId, type Intervalo } from '@/lib/stripe';
+import { stripe, PRICE_IDS, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
+// Checkout de ASSINATURA (planos mensais/anuais). O vitalício é pago via
+// Mercado Pago (checkout transparente) — ver app/api/mercadopago/*.
 export async function POST(req: NextRequest) {
   try {
-    const { plano, intervalo, vitalicio } = (await req.json()) as {
+    const { plano, intervalo } = (await req.json()) as {
       plano: PlanoId;
       intervalo: Intervalo;
-      vitalicio?: boolean;
     };
 
-    // Modo VITALÍCIO: pagamento único (mode:payment) com o price one-time.
-    let priceId: string;
-    const modo: 'subscription' | 'payment' = vitalicio ? 'payment' : 'subscription';
-    if (vitalicio) {
-      if (!VITALICIO.priceId) {
-        return NextResponse.json({ erro: 'Vitalício não configurado (STRIPE_PRICE_VITALICIO)' }, { status: 400 });
-      }
-      priceId = VITALICIO.priceId;
-    } else {
-      if (!PRICE_IDS[plano]?.[intervalo]) {
-        return NextResponse.json({ erro: 'Plano ou intervalo inválido' }, { status: 400 });
-      }
-      priceId = PRICE_IDS[plano][intervalo];
+    if (!PRICE_IDS[plano]?.[intervalo]) {
+      return NextResponse.json({ erro: 'Plano ou intervalo inválido' }, { status: 400 });
     }
+    const priceId = PRICE_IDS[plano][intervalo];
 
     // Autentica o usuário via cookie de sessão
     const supabase = await createSupabaseServer();
@@ -65,18 +56,13 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: modo,
+      mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/planos?success=1${vitalicio ? '&vitalicio=1' : ''}`,
+      success_url: `${origin}/planos?success=1`,
       cancel_url:  `${origin}/planos?canceled=1`,
       allow_promotion_codes: true,
-      metadata: vitalicio
-        ? { supabase_user_id: user.id, vitalicio: 'true', plano: 'black' }
-        : { supabase_user_id: user.id, plano, intervalo },
-      // No vitalício (mode:payment) habilita PARCELAMENTO de cartão BR (até 12x).
-      ...(vitalicio
-        ? { payment_method_options: { card: { installments: { enabled: true } } } }
-        : { subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } } }),
+      metadata: { supabase_user_id: user.id, plano, intervalo },
+      subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } },
     });
 
     return NextResponse.json({ url: session.url });

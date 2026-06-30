@@ -33,8 +33,6 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode === 'subscription') {
           await handleCheckoutCompleted(session);
-        } else if (session.mode === 'payment' && session.metadata?.vitalicio === 'true') {
-          await handleVitalicioCompleted(session);
         }
         break;
       }
@@ -116,42 +114,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       content_name: `Plano ${plano} ${intervalo}`,
     },
   }).catch(() => {}); // non-blocking
-}
-
-// VITALÍCIO: pagamento único concluído → Black pra sempre, sem expiração.
-// Tolerante à migration 060: se as colunas vitalicio* ainda não existirem, ao
-// menos ativa o Black (fallback) e loga.
-async function handleVitalicioCompleted(session: Stripe.Checkout.Session) {
-  const userId = session.metadata?.supabase_user_id;
-  if (!userId) return;
-
-  const { error } = await supabaseAdmin.from('users').update({
-    plano: 'black',
-    vitalicio: true,
-    vitalicio_em: new Date().toISOString(),
-    plano_intervalo: null,
-    plano_valido_ate: null,
-    stripe_customer_id: (session.customer as string) ?? undefined,
-  }).eq('id', userId);
-
-  if (error) {
-    console.error('[stripe/webhook] vitalício update completo falhou (migration 060?), fallback Black:', error.message);
-    await supabaseAdmin.from('users').update({
-      plano: 'black',
-      plano_intervalo: null,
-      plano_valido_ate: null,
-      stripe_customer_id: (session.customer as string) ?? undefined,
-    }).eq('id', userId);
-  }
-
-  // CAPI: Purchase server-side
-  const amount = session.amount_total ? session.amount_total / 100 : 0;
-  sendCAPIEvent({
-    event_name: 'Purchase',
-    event_source_url: `https://forsora.com/planos?success=1&vitalicio=1`,
-    user_data: { em: session.customer_details?.email || undefined },
-    custom_data: { value: amount, currency: session.currency?.toUpperCase() || 'BRL', content_name: 'Black Vitalício' },
-  }).catch(() => {});
 }
 
 // Vitalício não pode ser rebaixado por evento de assinatura antiga. Tolerante:

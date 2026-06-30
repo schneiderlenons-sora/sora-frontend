@@ -73,18 +73,14 @@ export const PLANOS_INFO: Record<PlanoId, { mensal: number; anual: number; descA
 };
 
 // ── VITALÍCIO (pagamento único) ──────────────────────────────────────────────
-// Paga uma vez e tem o Black pra sempre. Price one-time no Stripe (mode:payment).
+// O pagamento é via Mercado Pago (app/api/mercadopago/*). Aqui ficam só os
+// dados de exibição/escassez usados pelo /api/vitalicio/count.
 export const VITALICIO = {
   plano:   'black' as PlanoId,   // o que libera
   preco:   97.00,                // exibição
-  priceId: process.env.STRIPE_PRICE_VITALICIO || '',
   // "Vagas de fundador" — gatilho de escassez. Total de 300 vagas, partindo de
   // uma base de 259 já ocupadas → exibe "Restam 41 de 300" no lançamento (barra
   // quase cheia). A contagem real de vendidos (do banco) soma a essa base.
   vagas:           300,
   vagasOcupadasBase: 259,
 };
-
-export function isPriceVitalicio(priceId?: string | null): boolean {
-  return !!priceId && !!process.env.STRIPE_PRICE_VITALICIO && priceId === process.env.STRIPE_PRICE_VITALICIO;
-}
