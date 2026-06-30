@@ -98,7 +98,7 @@ export default function Hero() {
  * Bloco dos 2 iPhones + floating chips.
  * Usado tanto no mobile (entre subheadline e CTAs) quanto no desktop (coluna direita).
  */
-function HeroPhones() {
+export function HeroPhones() {
   return (
     <div className="relative h-[440px] sm:h-[540px] lg:h-[680px] flex items-center justify-center mx-auto max-w-md lg:max-w-none">
 
