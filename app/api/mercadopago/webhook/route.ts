@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
 
     const payment = await mpGetPayment(String(paymentId));
     if (payment.status === 'approved' && payment.external_reference) {
-      await ativarVitalicio(payment.external_reference);
+      const plano = payment.metadata?.plano === 'kit' ? 'kit' : 'black';
+      await ativarVitalicio(payment.external_reference, plano);
       console.log(`💎 [mp/webhook] vitalício ativado p/ ${payment.external_reference} (pagamento ${paymentId})`);
 
       sendCAPIEvent({

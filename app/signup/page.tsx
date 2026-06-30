@@ -116,9 +116,10 @@ function SignupWizard() {
 
       if (vitalicioMode) {
         // Vitalício: checkout transparente (Mercado Pago) na nossa própria
-        // página, sem sair do site.
-        trackInitiateCheckout({ value: 97, currency: 'BRL' });
-        router.push('/checkout-vitalicio');
+        // página, sem sair do site. Preserva o tier (kit/completa).
+        const tierQ = searchParams.get('tier') === 'kit' ? '?tier=kit' : '';
+        trackInitiateCheckout({ value: tierQ ? 47 : 97, currency: 'BRL' });
+        router.push('/checkout-vitalicio' + tierQ);
         return;
       }
       setStep('plano');

@@ -23,7 +23,7 @@ function carregarSdk(): Promise<void> {
 
 // Checkout Transparente do Mercado Pago (Payment Brick): cartão com parcelamento
 // (até 12x, o MP já mostra "12x de R$X") + Pix, tudo dentro da página.
-export default function MercadoPagoBrick({ amount = 97, onApproved }: { amount?: number; onApproved: () => void }) {
+export default function MercadoPagoBrick({ amount = 97, tier = 'completa', onApproved }: { amount?: number; tier?: string; onApproved: () => void }) {
   const [erro, setErro] = useState('');
   const [pix, setPix] = useState<{ qr_code: string; qr_code_base64?: string } | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -52,7 +52,7 @@ export default function MercadoPagoBrick({ amount = 97, onApproved }: { amount?:
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onSubmit: ({ formData }: any) =>
               fetch('/api/mercadopago/process', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData),
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, tier }),
               })
                 .then((r) => r.json())
                 .then((res) => {
@@ -73,7 +73,7 @@ export default function MercadoPagoBrick({ amount = 97, onApproved }: { amount?:
       }
     })();
     return () => { cancel = true; try { controllerRef.current?.unmount?.(); } catch { /* noop */ } };
-  }, [amount]);
+  }, [amount, tier]);
 
   if (pix) {
     return (

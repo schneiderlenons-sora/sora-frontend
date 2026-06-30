@@ -1,12 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// Ativa o plano VITALÍCIO (Black pra sempre, sem expiração) pra um usuário.
-// Usado pelos webhooks (Mercado Pago e Stripe). Tolerante à migration 060: se
-// as colunas vitalicio* ainda não existirem, ao menos ativa o Black (fallback).
-export async function ativarVitalicio(userId: string): Promise<void> {
+// Ativa um plano VITALÍCIO (sem expiração) pra um usuário. `plano` define o que
+// libera: 'black' (Sora Completa) ou 'kit' (Kit Organização, sem WhatsApp/Grow).
+// Usado pelos webhooks/process (Mercado Pago). Tolerante à migration 060.
+export async function ativarVitalicio(userId: string, plano: string = 'black'): Promise<void> {
   if (!userId) return;
   const { error } = await supabaseAdmin.from('users').update({
-    plano: 'black',
+    plano,
     vitalicio: true,
     vitalicio_em: new Date().toISOString(),
     plano_intervalo: null,
@@ -14,9 +14,9 @@ export async function ativarVitalicio(userId: string): Promise<void> {
   }).eq('id', userId);
 
   if (error) {
-    console.error('[vitalicio] update completo falhou (migration 060?), fallback Black:', error.message);
+    console.error('[vitalicio] update completo falhou (migration 060?), fallback:', error.message);
     await supabaseAdmin.from('users').update({
-      plano: 'black',
+      plano,
       plano_intervalo: null,
       plano_valido_ate: null,
     }).eq('id', userId);

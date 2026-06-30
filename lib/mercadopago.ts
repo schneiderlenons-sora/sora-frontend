@@ -5,6 +5,16 @@ const MP_API = 'https://api.mercadopago.com';
 
 export const VITALICIO_MP = { titulo: 'Sora Black Vitalício', preco: 97.0, maxParcelas: 12 };
 
+// Tiers do vitalício (valor + plano definidos SEMPRE no servidor pelo tier —
+// nunca confiar no valor vindo do cliente).
+export const VITALICIO_TIERS: Record<string, { amount: number; plano: string; titulo: string }> = {
+  kit:      { amount: 47, plano: 'kit',   titulo: 'Kit Organização Financeira (vitalício)' },
+  completa: { amount: 97, plano: 'black', titulo: 'Sora Completa (vitalício)' },
+};
+export function tierConfig(tier?: string) {
+  return VITALICIO_TIERS[tier === 'kit' ? 'kit' : 'completa'];
+}
+
 function token(): string {
   return process.env.MP_ACCESS_TOKEN || '';
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mpCreatePayment, VITALICIO_MP } from '@/lib/mercadopago';
+import { mpCreatePayment, tierConfig } from '@/lib/mercadopago';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { ativarVitalicio } from '@/lib/vitalicio';
 
@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
       payment_method_id?: string;
       installments?: number;
       payer?: { email?: string; identification?: { type?: string; number?: string } };
+      tier?: string;
     };
+
+    // Valor + plano SEMPRE pelo tier no servidor (nunca confiar no cliente).
+    const cfg = tierConfig(form.tier);
 
     const origin = (
       req.headers.get('origin') ||
@@ -33,22 +37,22 @@ export async function POST(req: NextRequest) {
     ).replace('://forsora.com', '://www.forsora.com');
 
     const payment = await mpCreatePayment({
-      transaction_amount: VITALICIO_MP.preco,
-      description: VITALICIO_MP.titulo,
+      transaction_amount: cfg.amount,
+      description: cfg.titulo,
       token: form.token,
       installments: form.installments || 1,
       payment_method_id: form.payment_method_id,
       issuer_id: form.issuer_id,
       payer: { email: form.payer?.email || user.email, identification: form.payer?.identification },
       external_reference: user.id,
-      metadata: { supabase_user_id: user.id, vitalicio: true },
+      metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano },
       notification_url: `${origin}/api/mercadopago/webhook`,
       statement_descriptor: 'SORA',
     });
 
     // Cartão aprovado na hora → ativa já (o webhook é rede de segurança).
     if (payment.status === 'approved') {
-      await ativarVitalicio(user.id);
+      await ativarVitalicio(user.id, cfg.plano);
     }
 
     const td = payment.point_of_interaction?.transaction_data;
