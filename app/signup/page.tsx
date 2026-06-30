@@ -78,40 +78,38 @@ function SignupWizard() {
     if (password.length < 8)  { setErro('A senha deve ter pelo menos 8 caracteres.'); return; }
     if (!aceito)              { setErro('Você precisa aceitar os termos de uso.'); return; }
 
-    // WhatsApp é OPCIONAL. Se preenchido, valida e vincula; se vazio, a conta
-    // segue só com e-mail (o painel funciona; o número pode ser vinculado
-    // depois em Configurações → WhatsApp).
+    // WhatsApp OBRIGATÓRIO — é por ele que a Sora manda as boas-vindas após o
+    // cadastro/pagamento e o usuário usa o dia a dia (texto/áudio/foto).
     const local = whatsapp.replace(/\D/g, '');
-    if (local && !whatsappBRValido(local)) {
+    if (!whatsappBRValido(local)) {
       setErro('Confira o WhatsApp: precisa ser (DD) 9XXXX-XXXX, com DDD e o 9.');
       return;
     }
-    const numero = local ? '55' + local : null; // E.164 sem o "+", ou null
+    const numero = '55' + local; // E.164 sem o "+", igual o resto do sistema
 
     setLoading(true);
     try {
       // Passa o phone no signUp (vai pro user_metadata, atômico) — assim o
       // /api/me consegue fazer backfill mesmo se o /welcome abaixo falhar.
-      const uid = await signUp(email, password, nome, numero || undefined);
+      const uid = await signUp(email, password, nome, numero);
       if (!uid) throw new Error('Não consegui criar a conta. Tente novamente.');
 
-      // Só vincula se o usuário informou WhatsApp. Se o número já estiver em uso
-      // por OUTRA conta (409), avisa e NÃO segue (evita conta quebrada). Erros
-      // transitórios (token ainda não pronto → 401) retentam.
-      if (numero) {
-        let linkErro = '';
-        for (let i = 0; i < 4; i++) {
-          try { await api.user.welcome({ user_id: uid, phone: numero, nome }); linkErro = ''; break; }
-          catch (e: any) {
-            linkErro = e?.message || '';
-            if (/já está vinculado|outra conta/i.test(linkErro)) break; // não-transitório
-            await new Promise((r) => setTimeout(r, 500 + i * 400));
-          }
+      // Vincula o WhatsApp. Se o número já estiver em uso por OUTRA conta (409),
+      // não adianta retentar — avisa e NÃO segue pro pagamento (evita pagar numa
+      // conta que ficaria quebrada). Erros transitórios (token ainda não pronto
+      // → 401) retentam.
+      let linkErro = '';
+      for (let i = 0; i < 4; i++) {
+        try { await api.user.welcome({ user_id: uid, phone: numero, nome }); linkErro = ''; break; }
+        catch (e: any) {
+          linkErro = e?.message || '';
+          if (/já está vinculado|outra conta/i.test(linkErro)) break; // não-transitório
+          await new Promise((r) => setTimeout(r, 500 + i * 400));
         }
-        if (/já está vinculado|outra conta/i.test(linkErro)) {
-          setErro(linkErro);
-          return; // permanece no passo de dados, sem ir pro pagamento
-        }
+      }
+      if (/já está vinculado|outra conta/i.test(linkErro)) {
+        setErro(linkErro);
+        return; // permanece no passo de dados, sem ir pro pagamento
       }
       await recarregar();
       trackSignUp();
@@ -432,19 +430,19 @@ function DadosStep(p: any) {
           <input type="text" placeholder="João Silva" value={p.nome} onChange={(e: any) => p.setNome(e.target.value)} required disabled={p.loading} className={inputCls} />
         </Campo>
 
-        <Campo label="WhatsApp (opcional)">
+        <Campo label="WhatsApp">
           <div className="flex gap-2">
             <span className="inline-flex items-center gap-1 px-3 rounded-2xl bg-card border border-border text-sm text-foreground">
               <span aria-hidden>🇧🇷</span> +55
             </span>
-            <WhatsappInput value={p.whatsapp} onChange={p.setWhatsapp} disabled={p.loading} className={inputCls} />
+            <WhatsappInput value={p.whatsapp} onChange={p.setWhatsapp} required disabled={p.loading} className={inputCls} />
           </div>
           {whatsappBRValido(p.whatsapp) ? (
             <p className="text-[11px] text-green-600 dark:text-green-400 mt-1 inline-flex items-center gap-1">
               <Check size={12} strokeWidth={3} /> Número válido
             </p>
           ) : (
-            <p className="text-[11px] text-muted-foreground mt-1">Opcional — vincule pra falar com a Sora por texto, áudio e foto. Dá pra adicionar depois em Configurações.</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Com DDD — é por aqui que você fala com a Sora.</p>
           )}
         </Campo>
 
@@ -487,7 +485,7 @@ function DadosStep(p: any) {
 
         <button
           type="submit"
-          disabled={p.loading || !p.nome || !p.email || !p.password || !p.confirm}
+          disabled={p.loading || !p.nome || !p.whatsapp || !p.email || !p.password || !p.confirm}
           className="w-full px-4 py-3.5 rounded-2xl text-white text-sm font-bold transition-all hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
           style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)`, boxShadow: `0 8px 24px -8px color-mix(in srgb, ${BRAND} 50%, transparent)` }}
         >
