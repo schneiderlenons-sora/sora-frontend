@@ -80,7 +80,7 @@ export const VITALICIO = {
   priceId: process.env.STRIPE_PRICE_VITALICIO || '',
   // "Vagas de fundador" — gatilho de escassez (oferta segue permanente; isto é
   // só a meta exibida; a contagem real de vendidos vem do banco).
-  vagas:   300,
+  vagas:   41,
 };
 
 export function isPriceVitalicio(priceId?: string | null): boolean {
