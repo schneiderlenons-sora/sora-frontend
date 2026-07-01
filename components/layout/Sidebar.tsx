@@ -10,6 +10,7 @@ import {
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2, Bell,
+  Percent, CalendarRange,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
@@ -44,6 +45,8 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
   { href: '/metas',              label: 'Metas',             icon: Flag },
   { href: '/dividas',            label: 'Dívidas',           icon: Receipt },
+  { href: '/juros',              label: 'Calculadora de Juros', icon: Percent },
+  { href: '/planejamento',       label: 'Planejamento Anual', icon: CalendarRange },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
   { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Black'   },
 ];
