@@ -5,7 +5,9 @@
 // nada aqui precisa mudar.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type Plano = 'inativo' | 'basico' | 'premium' | 'black';
+// 'kit' = Kit de Organização Financeira (vitalício R$47): finanças + calculadoras,
+// SEM WhatsApp, Grow, Negócios, Open Finance, OCR e painel do casal.
+export type Plano = 'inativo' | 'basico' | 'kit' | 'premium' | 'black';
 
 // Features que podem ser gated. Todas explicitamente nomeadas pra evitar
 // strings mágicas espalhadas pelo código.
@@ -39,34 +41,34 @@ export type Feature =
 // "inativo" entra explicitamente quando faz sentido (ex.: onboarding antes de
 // pagar). Para features pagas, manter inativo fora.
 const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
-  contas_ilimitadas:  ['premium', 'black'],
-  cartoes_ilimitados: ['premium', 'black'],
-  investimentos:      ['premium', 'black'],
+  contas_ilimitadas:  ['kit', 'premium', 'black'],
+  cartoes_ilimitados: ['kit', 'premium', 'black'],
+  investimentos:      ['kit', 'premium', 'black'], // Kit inclui as calculadoras de investimento/reserva
   negocios:           ['black'],
-  sora_grow:          ['basico', 'premium', 'black'], // base: hábitos, tarefas, agenda, bem-estar
+  sora_grow:          ['basico', 'premium', 'black'], // Grow NÃO entra no kit
   grow_saude:         ['premium', 'black'],
   grow_estudos:       ['premium', 'black'],
   grow_casa:          ['premium', 'black'],
   grow_colecoes:      ['premium', 'black'],
   grow_despensa:      ['premium', 'black'],
   sora_grow_trial:    [], // descontinuado
-  compartilhamento:   ['premium', 'black'],
-  open_finance:       ['premium', 'black'],
-  import_ofx:         ['premium', 'black'],
-  import_csv:         ['premium', 'black'],
-  export_dados:       ['premium', 'black'],
-  ocr_imagem:         ['premium', 'black'],
-  metas:              ['inativo', 'basico', 'premium', 'black'],
-  dividas:            ['inativo', 'basico', 'premium', 'black'],
-  limites:            ['inativo', 'basico', 'premium', 'black'],
-  subcategorias:      ['inativo', 'basico', 'premium', 'black'],
-  lembretes:          ['inativo', 'basico', 'premium', 'black'],
+  compartilhamento:   ['premium', 'black'],   // painel do casal — só na Completa
+  open_finance:       ['premium', 'black'],   // conexão com bancos — só na Completa
+  import_ofx:         ['kit', 'premium', 'black'],
+  import_csv:         ['kit', 'premium', 'black'],
+  export_dados:       ['kit', 'premium', 'black'],
+  ocr_imagem:         ['premium', 'black'],    // foto de nota — só na Completa
+  metas:              ['inativo', 'basico', 'kit', 'premium', 'black'],
+  dividas:            ['inativo', 'basico', 'kit', 'premium', 'black'],
+  limites:            ['inativo', 'basico', 'kit', 'premium', 'black'],
+  subcategorias:      ['inativo', 'basico', 'kit', 'premium', 'black'],
+  lembretes:          ['inativo', 'basico', 'kit', 'premium', 'black'],
 };
 
 // Limites quantitativos por plano (use Number.POSITIVE_INFINITY pra "ilimitado").
 export const LIMITES = {
-  contas:  { inativo: 3, basico: 3, premium: Infinity, black: Infinity },
-  cartoes: { inativo: 3, basico: 3, premium: Infinity, black: Infinity },
+  contas:  { inativo: 3, basico: 3, kit: Infinity, premium: Infinity, black: Infinity },
+  cartoes: { inativo: 3, basico: 3, kit: Infinity, premium: Infinity, black: Infinity },
 } as const satisfies Record<string, Record<Plano, number>>;
 
 export type Recurso = keyof typeof LIMITES;
@@ -94,6 +96,7 @@ export function planoMinimo(feature: Feature): Plano {
 export const PLANO_LABEL: Record<Plano, string> = {
   inativo: 'Inativo',
   basico:  'Básico',
+  kit:     'Kit',
   premium: 'Premium',
   black:   'Black',
 };

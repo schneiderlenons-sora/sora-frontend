@@ -28,7 +28,8 @@ export const stripe = new Proxy({} as Stripe, {
   },
 });
 
-export type PlanoId = Exclude<Plano, 'inativo'>;
+// 'kit' e 'inativo' não são planos de assinatura Stripe (kit é vitalício via MP).
+export type PlanoId = Exclude<Plano, 'inativo' | 'kit'>;
 export type Intervalo = 'mensal' | 'anual';
 
 // Price IDs criados no Stripe Dashboard — configurar no .env.local

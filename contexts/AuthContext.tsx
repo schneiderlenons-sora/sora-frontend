@@ -55,6 +55,7 @@ interface AuthContextType {
   isBlack:         boolean;
   isPremium:       boolean;
   isVitalicio:     boolean;
+  isKit:           boolean;
   // Helpers centralizados (lib/plans.ts)
   podeUsar:        (feature: Feature) => boolean;
   limiteDe:        (recurso: Recurso) => number;
@@ -195,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isBlack  = plano === 'black';
   const isPremium = plano === 'premium' || isBlack;
   const isVitalicio = !!perfil?.vitalicio;
+  const isKit = plano === 'kit';
   const podeUsar = (f: Feature) => _podeUsar(plano, f);
   const limiteDe = (r: Recurso) => _limiteDe(plano, r);
   const podeEditar      = papel === 'admin' || papel === 'escrita';
@@ -239,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, perfil, loading, phone,
-      plano, isBlack, isPremium, isVitalicio,
+      plano, isBlack, isPremium, isVitalicio, isKit,
       podeUsar, limiteDe,
       papel, podeEditar, podeAdministrar,
       painelAtivo, temAcessoGrow, podeAtivarTrialGrow, trialAtivo, diasTrialRestantes,

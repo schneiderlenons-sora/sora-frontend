@@ -433,7 +433,7 @@ const ICONE_PLANO = {
 const PLANOS_DETALHE = PLANOS_DISPLAY;
 
 const ORDEM_PLANO: Record<Plano, number> = {
-  inativo: 0, basico: 1, premium: 2, black: 3,
+  inativo: 0, basico: 1, kit: 1, premium: 2, black: 3,
 };
 
 function SecaoPlano() {

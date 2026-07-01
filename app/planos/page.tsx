@@ -6,7 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
-import { PLANO_LABEL } from '@/lib/plans';
+import { PLANO_LABEL, type Plano } from '@/lib/plans';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/analytics';
 import {
   Check, Crown, Sparkles, Loader2, AlertCircle, CheckCircle2,
@@ -18,8 +18,8 @@ const BRAND = 'hsl(var(--primary))';
 // Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
 const PLANOS = PLANOS_DISPLAY;
 
-const ORDEM: Record<PlanoId | 'inativo', number> = {
-  inativo: 0, basico: 1, premium: 2, black: 3,
+const ORDEM: Record<Plano, number> = {
+  inativo: 0, basico: 1, kit: 1, premium: 2, black: 3,
 };
 
 // ─── Componente principal (separado por causa do Suspense) ────────────────────
