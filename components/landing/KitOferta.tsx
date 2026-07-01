@@ -217,12 +217,11 @@ export default function KitOferta() {
               <p className="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: BRAND }}>
                 <Crown size={15} /> Sora Completa
               </p>
-              <div className="flex items-end gap-1 mt-3">
-                <span className="text-white/50 text-lg mb-1">R$</span>
-                <span className="text-5xl font-black tabular-nums leading-none">97</span>
-                <span className="text-white/50 text-sm mb-1">uma vez</span>
+              <div className="mt-3">
+                <p className="text-2xl font-black text-white tabular-nums leading-none">12x de R$9,87</p>
+                <p className="text-white/50 text-sm mt-1">ou R$97 à vista · pra sempre</p>
               </div>
-              <p className="text-white/55 text-sm mt-1">Tudo do Kit <strong className="text-white">+ a Sora no seu WhatsApp</strong> e a Sora inteira.</p>
+              <p className="text-white/55 text-sm mt-2">Tudo do Kit <strong className="text-white">+ a Sora no seu WhatsApp</strong> e a Sora inteira.</p>
               <a href="/checkout-vitalicio?tier=completa"
                  className="mt-6 w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-black text-black active:scale-[0.98] transition"
                  style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)` }}>
@@ -236,7 +235,26 @@ export default function KitOferta() {
                 <li className="flex items-center gap-2.5"><Users size={15} style={{ color: BRAND }} className="flex-shrink-0" /> Painel do casal (gestão a dois)</li>
                 <li className="flex items-center gap-2.5"><Bell size={15} style={{ color: BRAND }} className="flex-shrink-0" /> Avisos e resumos automáticos</li>
                 <li className="flex items-center gap-2.5"><Zap size={15} style={{ color: BRAND }} className="flex-shrink-0" /> + Sora Grow (hábitos, agenda, saúde…)</li>
+                {[
+                  'Importação OFX',
+                  'Avisos de Compromissos',
+                  'Integrações Hotmart, Kiwify, Eduzz, Stripe',
+                  'Lembretes de contas',
+                  'Alertas e limites de gastos',
+                  'Exportação de dados',
+                  'Painel DRE completo',
+                  'Organização de Hábitos, Agenda, Tarefas, Estudos, Bem Estar',
+                  'Controle de Medicação com alertas',
+                  'Cálculo de Macros e Calorias por foto ou mensagem',
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 leading-snug">
+                    <Check size={15} style={{ color: BRAND }} className="flex-shrink-0 mt-0.5" /> {f}
+                  </li>
+                ))}
               </ul>
+              <p className="mt-4 flex items-center gap-2 text-amber-300 font-bold text-sm">
+                <Sparkles size={15} className="flex-shrink-0" /> Tudo isso e muito mais!
+              </p>
             </div>
           </div>
           <p className="text-center text-white/35 text-xs mt-5 flex items-center justify-center gap-1.5">
