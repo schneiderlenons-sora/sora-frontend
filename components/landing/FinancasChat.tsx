@@ -206,7 +206,8 @@ export default function FinancasChat() {
               </div>
 
               {/* barra de input: centralizada quando vazio, desliza pro rodapé quando abre */}
-              <div className={`absolute left-0 right-0 bottom-0 transition-transform duration-[600ms] ease-out ${vazio ? '-translate-y-[204px]' : 'translate-y-0'}`}>
+              <div className="absolute left-0 right-0 bottom-0 transition-transform duration-[600ms] ease-out"
+                   style={{ transform: vazio ? 'translateY(-204px)' : 'translateY(0)' }}>
                 <InputBar />
               </div>
             </div>
