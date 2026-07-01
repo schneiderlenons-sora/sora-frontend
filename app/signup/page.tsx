@@ -48,6 +48,9 @@ function SignupWizard() {
   // Vindo da página de oferta (/oferta): pula a escolha de plano e vai direto
   // pro checkout do VITALÍCIO (pagamento único).
   const vitalicioMode = searchParams.get('vitalicio') === '1';
+  // Kit (R$47) NÃO tem WhatsApp — então nem pede o número no cadastro. (Se o
+  // usuário der upgrade depois, o número é pedido lá.)
+  const kitMode = searchParams.get('tier') === 'kit';
 
   const [step, setStep] = useState<Step>('dados');
 
@@ -78,38 +81,39 @@ function SignupWizard() {
     if (password.length < 8)  { setErro('A senha deve ter pelo menos 8 caracteres.'); return; }
     if (!aceito)              { setErro('Você precisa aceitar os termos de uso.'); return; }
 
-    // WhatsApp OBRIGATÓRIO — é por ele que a Sora manda as boas-vindas após o
-    // cadastro/pagamento e o usuário usa o dia a dia (texto/áudio/foto).
+    // WhatsApp obrigatório — EXCETO no Kit (R$47), que não tem WhatsApp. No Kit
+    // nem pedimos o número; ele é solicitado depois, se o usuário der upgrade.
     const local = whatsapp.replace(/\D/g, '');
-    if (!whatsappBRValido(local)) {
+    if (!kitMode && !whatsappBRValido(local)) {
       setErro('Confira o WhatsApp: precisa ser (DD) 9XXXX-XXXX, com DDD e o 9.');
       return;
     }
-    const numero = '55' + local; // E.164 sem o "+", igual o resto do sistema
+    const numero = kitMode ? null : '55' + local; // E.164 sem o "+", ou null no Kit
 
     setLoading(true);
     try {
       // Passa o phone no signUp (vai pro user_metadata, atômico) — assim o
       // /api/me consegue fazer backfill mesmo se o /welcome abaixo falhar.
-      const uid = await signUp(email, password, nome, numero);
+      const uid = await signUp(email, password, nome, numero || undefined);
       if (!uid) throw new Error('Não consegui criar a conta. Tente novamente.');
 
-      // Vincula o WhatsApp. Se o número já estiver em uso por OUTRA conta (409),
-      // não adianta retentar — avisa e NÃO segue pro pagamento (evita pagar numa
-      // conta que ficaria quebrada). Erros transitórios (token ainda não pronto
-      // → 401) retentam.
-      let linkErro = '';
-      for (let i = 0; i < 4; i++) {
-        try { await api.user.welcome({ user_id: uid, phone: numero, nome }); linkErro = ''; break; }
-        catch (e: any) {
-          linkErro = e?.message || '';
-          if (/já está vinculado|outra conta/i.test(linkErro)) break; // não-transitório
-          await new Promise((r) => setTimeout(r, 500 + i * 400));
+      // Vincula o WhatsApp (fora do Kit). Se o número já estiver em uso por OUTRA
+      // conta (409), avisa e NÃO segue pro pagamento (evita conta quebrada).
+      // Erros transitórios (token ainda não pronto → 401) retentam.
+      if (numero) {
+        let linkErro = '';
+        for (let i = 0; i < 4; i++) {
+          try { await api.user.welcome({ user_id: uid, phone: numero, nome }); linkErro = ''; break; }
+          catch (e: any) {
+            linkErro = e?.message || '';
+            if (/já está vinculado|outra conta/i.test(linkErro)) break; // não-transitório
+            await new Promise((r) => setTimeout(r, 500 + i * 400));
+          }
         }
-      }
-      if (/já está vinculado|outra conta/i.test(linkErro)) {
-        setErro(linkErro);
-        return; // permanece no passo de dados, sem ir pro pagamento
+        if (/já está vinculado|outra conta/i.test(linkErro)) {
+          setErro(linkErro);
+          return; // permanece no passo de dados, sem ir pro pagamento
+        }
       }
       await recarregar();
       trackSignUp();
@@ -244,7 +248,7 @@ function SignupWizard() {
             <DadosStep
               {...{ nome, setNome, whatsapp, setWhatsapp, email, setEmail,
                     password, setPassword, confirm, setConfirm, showPass, setShowPass,
-                    aceito, setAceito, loading, handleDados }}
+                    aceito, setAceito, loading, handleDados, kitMode }}
             />
           )}
 
@@ -431,6 +435,8 @@ function DadosStep(p: any) {
           <input type="text" placeholder="João Silva" value={p.nome} onChange={(e: any) => p.setNome(e.target.value)} required disabled={p.loading} className={inputCls} />
         </Campo>
 
+        {/* Kit (R$47) não tem WhatsApp — não pede o número no cadastro. */}
+        {!p.kitMode && (
         <Campo label="WhatsApp">
           <div className="flex gap-2">
             <span className="inline-flex items-center gap-1 px-3 rounded-2xl bg-card border border-border text-sm text-foreground">
@@ -446,6 +452,7 @@ function DadosStep(p: any) {
             <p className="text-[11px] text-muted-foreground mt-1">Com DDD — é por aqui que você fala com a Sora.</p>
           )}
         </Campo>
+        )}
 
         <Campo label="E-mail">
           <input type="email" placeholder="seu@email.com" value={p.email} onChange={(e: any) => p.setEmail(e.target.value)} required disabled={p.loading} className={inputCls} />
@@ -486,7 +493,7 @@ function DadosStep(p: any) {
 
         <button
           type="submit"
-          disabled={p.loading || !p.nome || !p.whatsapp || !p.email || !p.password || !p.confirm}
+          disabled={p.loading || !p.nome || (!p.kitMode && !p.whatsapp) || !p.email || !p.password || !p.confirm}
           className="w-full px-4 py-3.5 rounded-2xl text-white text-sm font-bold transition-all hover:scale-[1.005] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
           style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)`, boxShadow: `0 8px 24px -8px color-mix(in srgb, ${BRAND} 50%, transparent)` }}
         >

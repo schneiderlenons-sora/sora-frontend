@@ -28,8 +28,9 @@ function CheckoutContent() {
   }, [loading, user, router, tier]);
 
   const onApproved = useCallback(() => {
-    router.replace('/planos?success=1&vitalicio=1');
-  }, [router]);
+    // Upgrade do Kit → Completa: agora ele TEM WhatsApp, então pede o número.
+    router.replace(tier === 'upgrade' ? '/vincular-whatsapp?upgrade=1' : '/planos?success=1&vitalicio=1');
+  }, [router, tier]);
 
   return (
     <main className="min-h-dvh bg-background flex items-center justify-center p-4">
