@@ -12,7 +12,18 @@ const ITENS = [
   'Resumo do dia direto pra você',
 ];
 
-// Dispara `inView` uma vez quando o elemento entra na tela (IntersectionObserver).
+type Msg = { who: 'user' | 'sora'; node: React.ReactNode };
+
+// Roteiro da conversa (sequência do loop). Cada resposta da Sora resolve o
+// "digitando" — nunca fica travado.
+const ROTEIRO: Msg[] = [
+  { who: 'user', node: 'Gastei 82 reais no iFood' },
+  { who: 'sora', node: <>Prontinho! 🚀 Acabei de registrar sua despesa de <strong className="font-semibold text-zinc-900 dark:text-white">R$ 82,00</strong> no iFood.</> },
+  { who: 'user', node: 'Sora, quanto eu gastei com iFood essa semana?' },
+  { who: 'sora', node: <>Essa semana foram <strong className="font-semibold text-zinc-900 dark:text-white">R$ 227,00</strong> no iFood 🍔 Já virou sua categoria que mais pesa.</> },
+];
+
+// Dispara `inView` uma vez quando o elemento entra na tela.
 function useInView<T extends HTMLElement>(threshold = 0.3) {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(false);
@@ -29,7 +40,6 @@ function useInView<T extends HTMLElement>(threshold = 0.3) {
   return { ref, inView };
 }
 
-// Avatar da Sora (círculo verde com o logo).
 function Avatar() {
   return (
     <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm"
@@ -49,7 +59,6 @@ function NomeSora() {
   );
 }
 
-// Bolha da Sora (branca, com avatar + nome + selo verificado).
 function BolhaSora({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-end gap-2 animate-[slide-up_450ms_ease-out_both]">
@@ -62,7 +71,6 @@ function BolhaSora({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Bolha do usuário (verde, à direita, com hora + duplo check).
 function BolhaUsuario({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex justify-end animate-[slide-up_450ms_ease-out_both]">
@@ -76,7 +84,6 @@ function BolhaUsuario({ children }: { children: React.ReactNode }) {
   );
 }
 
-// "Digitando…" — 3 pontinhos com bounce escalonado, no estilo bolha da Sora.
 function Digitando() {
   return (
     <div className="flex items-end gap-2 animate-[slide-up_300ms_ease-out_both]">
@@ -93,21 +100,56 @@ function Digitando() {
   );
 }
 
+function InputBar() {
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-white dark:bg-[#1e2530] border border-zinc-200/70 dark:border-white/[0.06] shadow-sm">
+      <Plus size={18} className="text-zinc-400 dark:text-white/40" />
+      <Smile size={18} className="text-zinc-400 dark:text-white/40" />
+      <span className="flex-1" />
+      <Mic size={18} className="text-zinc-400 dark:text-white/40" />
+    </div>
+  );
+}
+
 export default function FinancasChat() {
   const { ref, inView } = useInView<HTMLDivElement>(0.35);
-  const [step, setStep] = useState(0);
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [typing, setTyping] = useState(false);
 
-  // Sequência: user → digitando → resposta → user → digitando (persiste).
+  // Loop contínuo da conversa: vazio → mensagens (com "digitando") → resposta
+  // do total → segura → limpa → recomeça. À prova de leak (flag + clearTimeout).
   useEffect(() => {
     if (!inView) return;
-    const marcos = [300, 1100, 2200, 3200, 3900]; // ms p/ chegar em step 1..5
-    const timers = marcos.map((t, i) => setTimeout(() => setStep(i + 1), t));
-    return () => timers.forEach(clearTimeout);
+    let vivo = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const espera = (ms: number) => new Promise<void>((res) => { timers.push(setTimeout(res, ms)); });
+
+    (async () => {
+      while (vivo) {
+        setMsgs([]); setTyping(false);
+        await espera(1500); if (!vivo) return;            // estado vazio (input centralizado)
+
+        for (const m of ROTEIRO) {
+          if (m.who === 'sora') {
+            setTyping(true);
+            await espera(1400); if (!vivo) return;         // "digitando…"
+            setTyping(false);
+          }
+          setMsgs((prev) => [...prev, m]);
+          await espera(m.who === 'user' ? 800 : 1100); if (!vivo) return;
+        }
+
+        await espera(3200); if (!vivo) return;             // segura a resposta final
+      }
+    })();
+
+    return () => { vivo = false; timers.forEach(clearTimeout); };
   }, [inView]);
+
+  const vazio = msgs.length === 0 && !typing;
 
   return (
     <section className="relative py-20 lg:py-28 border-t border-zinc-200/50 dark:border-white/[0.04] overflow-hidden">
-      {/* glow verde de fundo */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[700px] h-[500px] opacity-40 dark:opacity-25"
              style={{ background: 'radial-gradient(ellipse, rgba(97,206,112,0.14) 0%, transparent 65%)' }} />
@@ -146,32 +188,26 @@ export default function FinancasChat() {
           </ul>
         </div>
 
-        {/* DIREITA — card de chat animado */}
+        {/* DIREITA — card de chat animado (loop) */}
         <div ref={ref}
              className={`relative mx-auto w-full max-w-md transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="rounded-[28px] p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
-            {/* área de mensagens */}
-            <div className="min-h-[400px] flex flex-col justify-end gap-2.5">
-              <p className="text-center text-[11px] text-zinc-400 dark:text-white/40 mb-1">12:37</p>
+          <div className="relative rounded-[28px] p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
+            <div className="relative h-[460px]">
 
-              {step >= 1 && <BolhaUsuario>Gastei 82 reais no iFood</BolhaUsuario>}
-              {step === 2 && <Digitando />}
-              {step >= 3 && (
-                <BolhaSora>
-                  Prontinho! 🚀 Acabei de registrar sua despesa de <strong className="font-semibold text-zinc-900 dark:text-white">R$ 82,00</strong> no iFood.
-                </BolhaSora>
-              )}
-              {step >= 4 && <BolhaUsuario>Sora, quanto eu gastei com iFood essa semana?</BolhaUsuario>}
-              {step >= 5 && <Digitando />}
-            </div>
+              {/* área de mensagens (empurra pro rodapé; corta as antigas sem scroll) */}
+              <div className="absolute inset-0 flex flex-col justify-end gap-2.5 overflow-hidden pb-[72px]">
+                {!vazio && <p className="text-center text-[11px] text-zinc-400 dark:text-white/40 mb-1">12:37</p>}
+                {msgs.map((m, i) => (
+                  m.who === 'user'
+                    ? <BolhaUsuario key={i}>{m.node}</BolhaUsuario>
+                    : <BolhaSora key={i}>{m.node}</BolhaSora>
+                ))}
+                {typing && <Digitando />}
+              </div>
 
-            {/* barra de input estilo WhatsApp */}
-            <div className="mt-4 flex items-center gap-2">
-              <div className="flex-1 flex items-center gap-2.5 px-4 py-3 rounded-full bg-white dark:bg-[#1e2530] border border-zinc-200/70 dark:border-white/[0.06]">
-                <Plus size={18} className="text-zinc-400 dark:text-white/40" />
-                <Smile size={18} className="text-zinc-400 dark:text-white/40" />
-                <span className="flex-1" />
-                <Mic size={18} className="text-zinc-400 dark:text-white/40" />
+              {/* barra de input: centralizada quando vazio, desliza pro rodapé quando abre */}
+              <div className={`absolute left-0 right-0 bottom-0 transition-transform duration-[600ms] ease-out ${vazio ? '-translate-y-[204px]' : 'translate-y-0'}`}>
+                <InputBar />
               </div>
             </div>
           </div>
