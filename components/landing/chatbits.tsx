@@ -66,13 +66,22 @@ export function Digitando() {
   );
 }
 
-export function InputBar() {
+// Cursor piscando (usado no typewriter e no input).
+export function Caret() {
+  return <span className="inline-block w-[2px] h-[0.95em] align-[-0.1em] ml-0.5 bg-zinc-500 dark:bg-white/70 animate-[blink_1.1s_ease-in-out_infinite]" />;
+}
+
+// Barra de input. Se `text` vier, mostra o texto sendo digitado (com cursor)
+// no lugar do placeholder — simula o usuário digitando a mensagem.
+export function InputBar({ text }: { text?: string }) {
   return (
     <div className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-white dark:bg-[#1e2530] border border-zinc-200/70 dark:border-white/[0.06] shadow-sm">
-      <Plus size={18} className="text-zinc-400 dark:text-white/40" />
-      <Smile size={18} className="text-zinc-400 dark:text-white/40" />
-      <span className="flex-1" />
-      <Mic size={18} className="text-zinc-400 dark:text-white/40" />
+      <Plus size={18} className="text-zinc-400 dark:text-white/40 flex-shrink-0" />
+      <Smile size={18} className="text-zinc-400 dark:text-white/40 flex-shrink-0" />
+      {text
+        ? <span className="flex-1 text-[13px] leading-snug text-zinc-700 dark:text-zinc-200 truncate">{text}<Caret /></span>
+        : <span className="flex-1" />}
+      <Mic size={18} className="text-zinc-400 dark:text-white/40 flex-shrink-0" />
     </div>
   );
 }
