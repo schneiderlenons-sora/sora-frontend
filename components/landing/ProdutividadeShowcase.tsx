@@ -79,6 +79,7 @@ function ProjetosCard() {
   const [nome, setNome] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [prog, setProg] = useState(false);
+  const [visivel, setVisivel] = useState(true);
 
   useEffect(() => {
     if (!inView) return;
@@ -88,13 +89,15 @@ function ProjetosCard() {
     const NOME = 'Mudança de Apartamento';
     (async () => {
       while (vivo) {
-        setFase('form'); setNome(''); setSalvando(false); setProg(false);
+        setFase('form'); setNome(''); setSalvando(false); setProg(false); setVisivel(true);
         await espera(900); if (!vivo) return;
         for (let i = 1; i <= NOME.length; i++) { if (!vivo) return; setNome(NOME.slice(0, i)); await espera(52); }
         await espera(700); if (!vivo) return;
-        setSalvando(true); await espera(550); if (!vivo) return;
-        setFase('dash'); await espera(350); if (!vivo) return;
-        setProg(true); await espera(4200); if (!vivo) return;
+        setSalvando(true); await espera(650); if (!vivo) return;
+        setVisivel(false); await espera(340); if (!vivo) return;                          // some o formulário
+        setFase('dash'); setProg(false); setVisivel(true); await espera(90); if (!vivo) return;
+        setProg(true); await espera(4000); if (!vivo) return;
+        setVisivel(false); await espera(340); if (!vivo) return;                          // some antes de reiniciar
       }
     })();
     return () => { vivo = false; timers.forEach(clearTimeout); };
@@ -109,9 +112,9 @@ function ProjetosCard() {
         Crie seus projetos por áudio e acompanhe tudo: o que falta fazer, o que tá atrasado e o que já concluiu.
       </p>
 
-      <div className="relative mt-7 h-[290px]">
-        {/* FORMULÁRIO */}
-        <div className={`absolute inset-0 transition-all duration-500 ${fase === 'form' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+      <div className={`relative mt-7 h-[290px] transition-opacity duration-300 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
+        {fase === 'form' && (
+        <div className="absolute inset-0">
           <div className="mx-auto max-w-sm rounded-2xl bg-white border border-zinc-200/80 shadow-lg p-5">
             <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-100">
               <span className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: 'rgba(97,206,112,0.16)' }}>
@@ -148,9 +151,9 @@ function ProjetosCard() {
             </div>
           </div>
         </div>
-
-        {/* DASHBOARD */}
-        <div className={`absolute inset-0 transition-all duration-500 ${fase === 'dash' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
+        )}
+        {fase === 'dash' && (
+        <div className="absolute inset-0">
           <div className="flex items-center justify-between mb-3">
             <p className="font-bold text-sm text-zinc-900">Projetos</p>
             <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold" style={{ color: VERDE, background: 'rgba(97,206,112,0.14)' }}>+ Novo Projeto</span>
@@ -160,6 +163,7 @@ function ProjetosCard() {
             <ProjetoMini nome="TCC da Faculdade" cat="Educação" pct={33} counts={[2, 1, 2, 1]} on={prog} />
           </div>
         </div>
+        )}
       </div>
     </div>
   );
@@ -180,6 +184,7 @@ function TarefasCard() {
   const [transc, setTransc] = useState('');
   const [abriu, setAbriu] = useState(false);
   const [sel, setSel] = useState(false);
+  const [visivel, setVisivel] = useState(true);
 
   useEffect(() => {
     if (!inView) return;
@@ -189,13 +194,15 @@ function TarefasCard() {
     const T = 'Preciso escrever a conclusão do meu TCC até 30 de novembro';
     (async () => {
       while (vivo) {
-        setFase('input'); setTransc(''); setAbriu(false); setSel(false);
+        setFase('input'); setTransc(''); setAbriu(false); setSel(false); setVisivel(true);
         await espera(800); if (!vivo) return;
         for (let i = 1; i <= T.length; i++) { if (!vivo) return; setTransc(T.slice(0, i)); await espera(26); }
         await espera(700); if (!vivo) return;
         setAbriu(true); await espera(1000); if (!vivo) return;   // abre a lista de prioridade
         setSel(true);   await espera(1100); if (!vivo) return;   // seleciona "Urgente"
-        setFase('list'); await espera(4200); if (!vivo) return;
+        setVisivel(false); await espera(340); if (!vivo) return;
+        setFase('list'); setVisivel(true); await espera(4000); if (!vivo) return;
+        setVisivel(false); await espera(340); if (!vivo) return;
       }
     })();
     return () => { vivo = false; timers.forEach(clearTimeout); };
@@ -210,9 +217,9 @@ function TarefasCard() {
         Cada projeto vira uma lista de pequenos afazeres. Defina prioridades e inclua sua equipe.
       </p>
 
-      <div className="relative mt-7 h-[290px]">
-        {/* ÁUDIO + PRIORIDADE */}
-        <div className={`absolute inset-0 transition-all duration-500 ${fase === 'input' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+      <div className={`relative mt-7 h-[290px] transition-opacity duration-300 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
+        {fase === 'input' && (
+        <div className="absolute inset-0">
           <div className="rounded-2xl bg-zinc-50 border border-zinc-200/70 p-3.5">
             <div className="flex items-center gap-3">
               <Play size={16} style={{ color: VERDE }} fill="currentColor" />
@@ -237,9 +244,9 @@ function TarefasCard() {
             })}
           </div>
         </div>
-
-        {/* LISTA DE TAREFAS */}
-        <div className={`absolute inset-0 transition-all duration-500 ${fase === 'list' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
+        )}
+        {fase === 'list' && (
+        <div className="absolute inset-0">
           <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">Pendente</p>
           <div className="rounded-xl border border-zinc-200 bg-white p-3.5 animate-[slide-up_450ms_ease-out_both]">
             <div className="flex items-start gap-2.5">
@@ -273,6 +280,7 @@ function TarefasCard() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
