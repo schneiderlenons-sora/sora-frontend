@@ -90,7 +90,7 @@ export default function PlanejamentoAnualPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto pb-24 space-y-6">
+      <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         {/* Header */}
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
@@ -118,19 +118,19 @@ export default function PlanejamentoAnualPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><TrendingUp size={12} className="text-primary" /> Receitas</p>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1 text-foreground">{brl(calc.totalRec)}</p>
+            <p className="text-lg sm:text-xl font-bold tabular-nums mt-1 text-foreground">{brl(calc.totalRec)}</p>
           </div>
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><TrendingDown size={12} className="text-red-500" /> Despesas</p>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1 text-foreground">{brl(calc.totalDes)}</p>
+            <p className="text-lg sm:text-xl font-bold tabular-nums mt-1 text-foreground">{brl(calc.totalDes)}</p>
           </div>
           <div className={`rounded-2xl border p-4 ${calc.saldoAno >= 0 ? 'border-primary/40 bg-primary/[0.06]' : 'border-red-500/40 bg-red-500/[0.06]'}`}>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><PiggyBank size={12} className="text-primary" /> Sobra no ano</p>
-            <p className={`text-xl sm:text-2xl font-bold tabular-nums mt-1 ${calc.saldoAno >= 0 ? 'text-primary' : 'text-red-500'}`}>{brl(calc.saldoAno)}</p>
+            <p className={`text-lg sm:text-xl font-bold tabular-nums mt-1 ${calc.saldoAno >= 0 ? 'text-primary' : 'text-red-500'}`}>{brl(calc.saldoAno)}</p>
           </div>
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><AlertTriangle size={12} className="text-amber-500" /> Mês mais apertado</p>
-            <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1 text-foreground">{calc.pior?.mes} <span className="text-sm font-medium text-muted-foreground">({brl(calc.pior?.acumulado || 0)})</span></p>
+            <p className="text-lg sm:text-xl font-bold tabular-nums mt-1 text-foreground">{calc.pior?.mes} <span className="text-sm font-medium text-muted-foreground">({brl(calc.pior?.acumulado || 0)})</span></p>
           </div>
         </div>
 

@@ -36,7 +36,7 @@ function Resultado({ label, valor, destaque, sub, subCor }: {
   return (
     <div className={`rounded-2xl border p-4 ${destaque ? 'border-primary/40 bg-primary/[0.06]' : 'border-border/60 bg-muted/20'}`}>
       <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className={`text-2xl sm:text-3xl font-bold tabular-nums mt-1 leading-none ${destaque ? 'text-primary' : 'text-foreground'}`}>{valor}</p>
+      <p className={`text-lg sm:text-xl font-bold tabular-nums mt-1 leading-tight break-words ${destaque ? 'text-primary' : 'text-foreground'}`}>{valor}</p>
       {sub && <p className="text-xs mt-1.5 tabular-nums" style={{ color: subCor }}>{sub}</p>}
     </div>
   );
@@ -89,7 +89,7 @@ export default function CalculadoraJurosPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto pb-24 space-y-6">
+      <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         {/* Header */}
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60 animate-fade-in"
