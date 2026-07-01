@@ -74,7 +74,7 @@ export default function KitOferta() {
           <div className="mt-8 sm:mt-10 -mx-5 sm:mx-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/landing/kit/hero.png" alt="Sora — kit de organização financeira"
-                 className="w-full h-auto sm:max-w-2xl sm:mx-auto rounded-none sm:rounded-2xl sm:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
+                 className="w-full h-auto sm:max-w-3xl lg:max-w-4xl sm:mx-auto rounded-none sm:rounded-2xl sm:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
                  draggable={false} />
           </div>
 
@@ -131,6 +131,39 @@ export default function KitOferta() {
           </div>
         </div>
       </section>
+
+      {/* ══════════ DESTAQUES (Clareza total + Em conjunto) ══════════ */}
+      {[
+        {
+          eyebrow: 'Clareza total',
+          titulo: 'A Sora detalha exatamente para onde seu dinheiro está indo',
+          img: '/landing/para-onde-vai.png',
+          alt: 'Painel da Sora detalhando os gastos por categoria',
+          sub: 'E ainda te mostra onde dá pra economizar da melhor forma.',
+        },
+        {
+          eyebrow: 'Em conjunto',
+          titulo: 'Gestão Compartilhada',
+          img: '/landing/gestao-compartilhada.png',
+          alt: 'Gestão financeira compartilhada entre casal ou família',
+          sub: 'Organize sua vida e suas finanças em casal ou família, cada um com seu próprio acesso.',
+        },
+      ].map((s) => (
+        <section key={s.titulo} className="relative overflow-hidden py-16 px-5 border-t border-white/5">
+          <div aria-hidden className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[500px] opacity-15 pointer-events-none"
+               style={{ background: `radial-gradient(ellipse, ${BRAND}20 0%, transparent 60%)` }} />
+          <div className="relative max-w-4xl mx-auto text-center">
+            <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-white/40 mb-4">{s.eyebrow}</p>
+            <h2 className="text-2xl sm:text-4xl font-bold leading-[1.1] tracking-tight max-w-3xl mx-auto">{s.titulo}</h2>
+            <div className="mt-8 mb-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s.img} alt={s.alt} loading="lazy" draggable={false}
+                   className="mx-auto w-full h-auto sm:max-w-3xl object-contain" />
+            </div>
+            <p className="text-base lg:text-lg text-white/60 leading-relaxed max-w-2xl mx-auto">{s.sub}</p>
+          </div>
+        </section>
+      ))}
 
       {/* ══════════ AS 2 OFERTAS (decoy) ══════════ */}
       <section id="ofertas" className="py-16 px-5 border-t border-white/5 scroll-mt-6">
