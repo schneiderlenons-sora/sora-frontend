@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Zap, Folder, Check, Play, ChevronDown, Calendar, Bell,
-  Sparkles, Pencil, Trash2, Search, MessageCircle, ListTodo,
+  Sparkles, Pencil, Trash2, FileText, MessageCircle, ListTodo,
 } from 'lucide-react';
 import { Caret } from './chatbits';
 
@@ -351,8 +351,8 @@ export default function ProdutividadeShowcase() {
           </p>
         </div>
 
-        {/* 2 CARDS GRANDES */}
-        <div className="mt-14 grid lg:grid-cols-2 gap-6">
+        {/* 2 CARDS GRANDES — primeiro maior (layout assimétrico ~1.8:1) */}
+        <div className="mt-14 grid lg:grid-cols-[1.8fr_1fr] gap-6 items-stretch">
           <ProjetosCard />
           <TarefasCard />
         </div>
@@ -397,17 +397,21 @@ export default function ProdutividadeShowcase() {
           </MiniCard>
 
           <MiniCard
-            titulo="Consulte tudo pelo WhatsApp."
-            desc="Ideia solta, nota ou algo que você guardou? É só perguntar pra Sora depois — ela acha e te responde na hora."
+            titulo="Salve insights e consulte via WhatsApp."
+            desc="Não importa se é uma ideia solta ou um insight sobre um projeto. É só perguntar pra ela depois e ela encontra na hora."
           >
             {(on) => (
               <>
-                <div className="absolute left-0 top-0 w-[66%] rounded-xl bg-white border border-zinc-100 shadow-md p-3">
-                  <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-zinc-400"><Search size={12} /> VOCÊ PERGUNTA</p>
-                  <p className="mt-2 text-[11px] text-zinc-700 leading-snug">“onde guardei o contrato do aluguel?”</p>
+                <div className="absolute left-0 top-0 w-[70%] rounded-xl bg-white border border-zinc-100 shadow-md p-3">
+                  <div className="flex items-center gap-2">
+                    <Play size={13} style={{ color: VERDE }} fill="currentColor" />
+                    <Onda />
+                    <span className="ml-auto text-[10px] text-zinc-400">0:12</span>
+                  </div>
+                  <p className="mt-2 text-[10px] italic text-zinc-500 leading-snug">“Tive uma ideia sobre o projeto de expansão...”</p>
                 </div>
                 <Selo on={on} />
-                <Resultado on={on} icon={<Check size={11} strokeWidth={3} />} label="ENCONTRADO" />
+                <Resultado on={on} icon={<FileText size={11} />} label="NOTA SALVA" />
               </>
             )}
           </MiniCard>
