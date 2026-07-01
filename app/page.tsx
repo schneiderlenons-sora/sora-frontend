@@ -8,6 +8,7 @@ import Hero            from '@/components/landing/Hero';
 import Problema        from '@/components/landing/Problema';
 import Solucao         from '@/components/landing/Solucao';
 import ComoFunciona    from '@/components/landing/ComoFunciona';
+import FinancasChat    from '@/components/landing/FinancasChat';
 import Features        from '@/components/landing/Features';
 import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
@@ -34,6 +35,7 @@ export default function LandingPage() {
       <Problema />
       <Solucao />
       <ComoFunciona />
+      <FinancasChat />
       <CtaPlanos frase="Começar agora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
