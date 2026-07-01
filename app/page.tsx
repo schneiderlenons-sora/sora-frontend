@@ -9,6 +9,7 @@ import Problema        from '@/components/landing/Problema';
 import Solucao         from '@/components/landing/Solucao';
 import ComoFunciona    from '@/components/landing/ComoFunciona';
 import FinancasChat    from '@/components/landing/FinancasChat';
+import AgendaChat      from '@/components/landing/AgendaChat';
 import Features        from '@/components/landing/Features';
 import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
@@ -41,6 +42,7 @@ export default function LandingPage() {
       <Showcase />
       <SaudeShowcase />
       <WrappedShowcase />
+      <AgendaChat />
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <Features />
       <TestDrive />
