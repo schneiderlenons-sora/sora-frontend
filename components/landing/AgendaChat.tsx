@@ -2,7 +2,7 @@
 
 import { CalendarDays } from 'lucide-react';
 import ChatFeature from './ChatFeature';
-import AgendaCalendario from './AgendaCalendario';
+import AgendaShowcase from './AgendaShowcase';
 
 export default function AgendaChat() {
   return (
@@ -18,7 +18,7 @@ export default function AgendaChat() {
         'Marque tarefas do dia como feitas',
         'Briefing matinal com o seu dia',
       ]}
-      visual={<AgendaCalendario />}
+      visual={<AgendaShowcase />}
     />
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Mic, Check } from 'lucide-react';
+import { CalendarDays, Check, MessageCircle } from 'lucide-react';
+import { ChatMessages, type Msg } from './chatbits';
 
 const BRAND = '#61ce70';
 
@@ -18,35 +19,20 @@ function useInView<T extends HTMLElement>(threshold = 0.35) {
   return { ref, inView };
 }
 
+// Conversa da fase 1 (chat): registra o compromisso falando.
+const CHAT: Msg[] = [
+  { who: 'user', node: 'Marca dentista amanhã às 9h' },
+  { who: 'sora', node: <>Feito! 📅 Anotei <strong className="font-semibold text-zinc-900 dark:text-white">Dentista</strong> amanhã às 9:00. Te lembro 1h antes 🔔</> },
+];
+
 const DIAS = Array.from({ length: 21 }, (_, i) => i + 1);
 const HOJE = 9;
 const AMANHA = 10;
 
-// Card do lado direito da seção Agenda: mostra a Sora recebendo o compromisso
-// por voz e ele "caindo" no quadradinho do dia + aparecendo na lista. Loop.
-export default function AgendaCalendario() {
-  const { ref, inView } = useInView<HTMLDivElement>();
-  const [fase, setFase] = useState(0); // 0 vazio · 1 comando · 2 evento na célula · 3 lista
-
-  useEffect(() => {
-    if (!inView) return;
-    let vivo = true;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const espera = (ms: number) => new Promise<void>((res) => { timers.push(setTimeout(res, ms)); });
-    (async () => {
-      while (vivo) {
-        setFase(0); await espera(1000); if (!vivo) return;
-        setFase(1); await espera(1400); if (!vivo) return; // comando de voz
-        setFase(2); await espera(900);  if (!vivo) return; // o evento "cai" na célula do dia
-        setFase(3); await espera(4200); if (!vivo) return; // lista do dia + segura
-      }
-    })();
-    return () => { vivo = false; timers.forEach(clearTimeout); };
-  }, [inView]);
-
+// Fase 2 do card: o mesmo compromisso "caindo" no calendário da Sora.
+function CalendarView({ fase }: { fase: number }) {
   return (
-    <div ref={ref} className="relative rounded-[28px] p-5 sm:p-6 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
-      {/* header */}
+    <div className="h-full flex flex-col">
       <div className="flex items-center gap-2.5 mb-5">
         <span className="w-9 h-9 rounded-xl grid place-items-center text-white flex-shrink-0"
               style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
@@ -56,20 +42,15 @@ export default function AgendaCalendario() {
           <p className="font-bold text-sm text-zinc-900 dark:text-white">Minha Agenda</p>
           <p className="text-[11px] text-zinc-400 dark:text-white/40">Julho 2026</p>
         </div>
-        {/* comando de voz que dispara a criação */}
-        <div className={`ml-auto transition-all duration-500 ${fase >= 1 && fase < 3 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-3'}`}>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-[#d7f8cf] text-zinc-700 dark:bg-[#075c46] dark:text-white">
-            <Mic size={12} /> dentista amanhã 9h
-          </span>
-        </div>
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-white/40">
+          <MessageCircle size={12} /> via WhatsApp
+        </span>
       </div>
 
-      {/* cabeçalho dos dias da semana */}
       <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-[10px] font-medium text-zinc-400 dark:text-white/40 text-center">
         {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i}>{d}</span>)}
       </div>
 
-      {/* grade de dias */}
       <div className="grid grid-cols-7 gap-1.5">
         {DIAS.map((d) => {
           const hoje = d === HOJE;
@@ -87,7 +68,6 @@ export default function AgendaCalendario() {
         })}
       </div>
 
-      {/* lista de eventos do amanhã */}
       <div className="mt-5">
         <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-white/40 mb-2">Amanhã · 10 Jul</p>
         <div className={`transition-all duration-500 ${fase >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
@@ -104,6 +84,58 @@ export default function AgendaCalendario() {
             </span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Card da direita da seção Agenda. UM card que faz a SEQUÊNCIA (igual ao modelo):
+// chat (vazio "+" → mensagens + digitando → resposta) → fecha (cross-fade) →
+// abre o calendário com o compromisso caindo no dia → segura → recomeça.
+export default function AgendaShowcase() {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const [modo, setModo] = useState<'chat' | 'cal'>('chat');
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [typing, setTyping] = useState(false);
+  const [fase, setFase] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    let vivo = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const espera = (ms: number) => new Promise<void>((res) => { timers.push(setTimeout(res, ms)); });
+
+    (async () => {
+      while (vivo) {
+        // FASE 1 — CHAT (card fechado com "+" → conversa)
+        setModo('chat'); setMsgs([]); setTyping(false); setFase(0);
+        await espera(1300); if (!vivo) return;
+        for (const m of CHAT) {
+          if (m.who === 'sora') { setTyping(true); await espera(1300); if (!vivo) return; setTyping(false); }
+          setMsgs((prev) => [...prev, m]);
+          await espera(m.who === 'user' ? 900 : 1900); if (!vivo) return;
+        }
+        // TRANSIÇÃO — fecha o chat, abre o calendário
+        setModo('cal'); await espera(800); if (!vivo) return;
+        setFase(1); await espera(700);  if (!vivo) return;
+        setFase(2); await espera(900);  if (!vivo) return; // compromisso "cai" no dia
+        setFase(3); await espera(3800); if (!vivo) return; // lista do dia + segura
+      }
+    })();
+
+    return () => { vivo = false; timers.forEach(clearTimeout); };
+  }, [inView]);
+
+  return (
+    <div ref={ref}
+         className="relative rounded-[28px] h-[500px] overflow-hidden bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
+      {/* Camada CHAT */}
+      <div className={`absolute inset-0 p-4 sm:p-5 transition-all duration-500 ${modo === 'chat' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+        <ChatMessages msgs={msgs} typing={typing} />
+      </div>
+      {/* Camada CALENDÁRIO */}
+      <div className={`absolute inset-0 p-5 sm:p-6 transition-all duration-500 ${modo === 'cal' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+        <CalendarView fase={fase} />
       </div>
     </div>
   );
