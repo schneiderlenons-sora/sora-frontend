@@ -10,15 +10,17 @@ import { Crown, ShieldCheck } from 'lucide-react';
 // WhatsApp) ou completa (R$97, tudo). Sem tier → completa. O VALOR REAL é
 // definido no servidor (/api/mercadopago/process) pelo tier — nunca no cliente.
 const TIERS = {
-  kit:      { amount: 47, titulo: 'Kit Organização',  selo: 'Acesso Vitalício' },
-  completa: { amount: 97, titulo: 'Sora Completa',     selo: 'Acesso Vitalício' },
+  kit:      { amount: 47, titulo: 'Kit Organização',      selo: 'Acesso Vitalício' },
+  completa: { amount: 97, titulo: 'Sora Completa',        selo: 'Acesso Vitalício' },
+  upgrade:  { amount: 50, titulo: 'Upgrade pra Completa', selo: 'Upgrade Vitalício' },
 } as const;
 
 function CheckoutContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const tier = (params.get('tier') === 'kit' ? 'kit' : 'completa') as keyof typeof TIERS;
+  const raw = params.get('tier');
+  const tier = (raw === 'kit' || raw === 'upgrade' ? raw : 'completa') as keyof typeof TIERS;
   const t = TIERS[tier];
 
   useEffect(() => {

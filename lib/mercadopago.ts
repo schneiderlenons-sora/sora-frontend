@@ -10,9 +10,12 @@ export const VITALICIO_MP = { titulo: 'Sora Black Vitalício', preco: 97.0, maxP
 export const VITALICIO_TIERS: Record<string, { amount: number; plano: string; titulo: string }> = {
   kit:      { amount: 47, plano: 'kit',   titulo: 'Kit Organização Financeira (vitalício)' },
   completa: { amount: 97, plano: 'black', titulo: 'Sora Completa (vitalício)' },
+  // Upgrade kit → completa: só a diferença. Validado no servidor (só quem tem
+  // o Kit paga R$50; qualquer outro cai pra Completa cheia).
+  upgrade:  { amount: 50, plano: 'black', titulo: 'Upgrade pra Sora Completa (vitalício)' },
 };
 export function tierConfig(tier?: string) {
-  return VITALICIO_TIERS[tier === 'kit' ? 'kit' : 'completa'];
+  return VITALICIO_TIERS[tier || 'completa'] || VITALICIO_TIERS.completa;
 }
 
 function token(): string {

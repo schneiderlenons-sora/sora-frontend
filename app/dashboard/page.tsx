@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useApi } from '@/lib/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import GrowResumo from '@/components/dashboard/GrowResumo';
 import GrowHabitosCard from '@/components/dashboard/GrowHabitosCard';
@@ -282,6 +283,9 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto pb-28 space-y-5">
+
+        {/* Upsell do Kit → Completa (só aparece pra quem tem o Kit) */}
+        <KitUpsellBanner />
 
         {/* ══════════════════════════════════════════════════════
             HERO ROW — Insight + Hábitos de hoje (Grow)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mpCreatePayment, tierConfig } from '@/lib/mercadopago';
 import { createSupabaseServer } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ativarVitalicio } from '@/lib/vitalicio';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,12 @@ export async function POST(req: NextRequest) {
     };
 
     // Valor + plano SEMPRE pelo tier no servidor (nunca confiar no cliente).
-    const cfg = tierConfig(form.tier);
+    let cfg = tierConfig(form.tier);
+    // Upgrade (+R$50) só vale pra quem JÁ tem o Kit; senão cobra a Completa cheia.
+    if (form.tier === 'upgrade') {
+      const { data: u } = await supabaseAdmin.from('users').select('plano').eq('id', user.id).maybeSingle();
+      if (u?.plano !== 'kit') cfg = tierConfig('completa');
+    }
 
     const origin = (
       req.headers.get('origin') ||
