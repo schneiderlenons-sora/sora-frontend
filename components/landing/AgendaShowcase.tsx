@@ -126,9 +126,10 @@ function CalendarView({ audio, evento, lista }: { audio: boolean; evento: boolea
 export default function AgendaShowcase() {
   const { ref, inView } = useInView<HTMLDivElement>();
   const [modo, setModo] = useState<'chat' | 'cal'>('chat');
-  const [msgs, setMsgs] = useState<Fala[]>([]);       // mensagens já concluídas
-  const [current, setCurrent] = useState<Fala | null>(null); // mensagem digitando
-  const [typed, setTyped] = useState('');             // parte já digitada da current
+  const [msgs, setMsgs] = useState<Fala[]>([]);       // todas as mensagens (a última pode estar digitando)
+  const [typingIdx, setTypingIdx] = useState<number | null>(null); // índice da bolha que está digitando
+  const [typedLen, setTypedLen] = useState(0);        // quantos chars da bolha digitando já apareceram
+  const [inputText, setInputText] = useState('');     // texto que o usuário está digitando no input
   const [dots, setDots] = useState(false);            // "digitando…" da Sora
   const [audio, setAudio] = useState(false);
   const [evento, setEvento] = useState(false);
@@ -140,35 +141,35 @@ export default function AgendaShowcase() {
     const timers: ReturnType<typeof setTimeout>[] = [];
     const espera = (ms: number) => new Promise<void>((res) => { timers.push(setTimeout(res, ms)); });
 
-    // digita `text` caractere a caractere no state `typed`
-    const digitar = async (text: string, speed: number) => {
-      for (let i = 1; i <= text.length; i++) {
-        if (!vivo) return false;
-        setTyped(text.slice(0, i));
-        await espera(speed);
-      }
-      return true;
-    };
-
     (async () => {
       while (vivo) {
         // ---------- FASE 1: CHAT ----------
-        setModo('chat'); setMsgs([]); setCurrent(null); setTyped('');
+        setModo('chat'); setMsgs([]); setTypingIdx(null); setTypedLen(0); setInputText('');
         setDots(false); setAudio(false); setEvento(false); setLista(false);
         await espera(1000); if (!vivo) return; // card "fechado" com o + centralizado
 
+        let count = 0;
         for (const fala of CONVERSA) {
           if (fala.who === 'sora') {
             setDots(true); await espera(950); if (!vivo) return;
             setDots(false);
+            // a bolha aparece UMA vez (slide-up) e o texto é digitado DENTRO dela
+            setTypingIdx(count); setTypedLen(0);
+            setMsgs((prev) => [...prev, fala]);
+            count += 1;
+            await espera(60); if (!vivo) return;
+            for (let i = 1; i <= fala.text.length; i++) { if (!vivo) return; setTypedLen(i); await espera(SPEED_SORA); }
+            setTypingIdx(null);
+            await espera(1100); if (!vivo) return;
+          } else {
+            // usuário digitando no input; ao "enviar", a bolha sobe uma vez só
+            for (let i = 1; i <= fala.text.length; i++) { if (!vivo) return; setInputText(fala.text.slice(0, i)); await espera(SPEED_USER); }
+            await espera(250); if (!vivo) return;
+            setInputText('');
+            setMsgs((prev) => [...prev, fala]);
+            count += 1;
+            await espera(650); if (!vivo) return;
           }
-          setCurrent(fala); setTyped('');
-          const ok = await digitar(fala.text, fala.who === 'sora' ? SPEED_SORA : SPEED_USER);
-          if (!ok) return;
-          await espera(fala.who === 'sora' ? 550 : 250); if (!vivo) return;
-          setCurrent(null); setTyped('');
-          setMsgs((prev) => [...prev, fala]);
-          await espera(fala.who === 'sora' ? 1100 : 650); if (!vivo) return;
         }
 
         await espera(1100); if (!vivo) return; // segura o chat completo
@@ -184,7 +185,7 @@ export default function AgendaShowcase() {
     return () => { vivo = false; timers.forEach(clearTimeout); };
   }, [inView]);
 
-  const vazio = msgs.length === 0 && !current && !dots;
+  const vazio = msgs.length === 0 && !dots && !inputText;
 
   return (
     <div ref={ref}
@@ -195,17 +196,18 @@ export default function AgendaShowcase() {
         <div className="relative h-full">
           <div className="absolute inset-0 flex flex-col justify-end gap-2.5 overflow-hidden pb-[72px]">
             {!vazio && <p className="text-center text-[11px] text-zinc-400 dark:text-white/40 mb-1">17:36</p>}
-            {msgs.map((m, i) => (
-              m.who === 'user'
-                ? <BolhaUsuario key={i}><Texto>{m.text}</Texto></BolhaUsuario>
-                : <BolhaSora key={i}><Texto>{m.text}</Texto></BolhaSora>
-            ))}
+            {msgs.map((m, i) => {
+              const digitando = i === typingIdx;
+              const txt = digitando ? m.text.slice(0, typedLen) : m.text;
+              return m.who === 'user'
+                ? <BolhaUsuario key={i}><Texto>{txt}</Texto></BolhaUsuario>
+                : <BolhaSora key={i}><Texto caret={digitando}>{txt}</Texto></BolhaSora>;
+            })}
             {dots && <Digitando />}
-            {current?.who === 'sora' && <BolhaSora><Texto caret>{typed}</Texto></BolhaSora>}
           </div>
           <div className="absolute left-0 right-0 bottom-0 transition-transform duration-[600ms] ease-out"
                style={{ transform: vazio ? 'translateY(-204px)' : 'translateY(0)' }}>
-            <InputBar text={current?.who === 'user' ? typed : undefined} />
+            <InputBar text={inputText || undefined} />
           </div>
         </div>
       </div>
