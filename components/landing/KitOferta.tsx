@@ -69,7 +69,14 @@ export default function KitOferta() {
             </span>
           </h1>
 
-          <p className="mt-6 text-lg text-white/70 max-w-2xl mx-auto">
+          {/* Mockup do produto (coloque o arquivo em public/landing/kit/hero.png) */}
+          <div className="mt-8 sm:mt-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/landing/kit/hero.png" alt="Sora — kit de organização financeira"
+                 className="mx-auto w-full max-w-2xl h-auto rounded-2xl" draggable={false} />
+          </div>
+
+          <p className="mt-8 text-lg text-white/70 max-w-2xl mx-auto">
             <strong className="text-white">8 ferramentas essenciais</strong> pra você economizar, investir e realizar sonhos —
             organizadas num lugar só. Pra <strong className="text-white">autônomo</strong> que mistura tudo e pro <strong className="text-white">casal</strong> que quer as contas a dois.
           </p>

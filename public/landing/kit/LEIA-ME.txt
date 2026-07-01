@@ -1,0 +1,12 @@
+Imagem/mockup do topo da landing /kit (forsora.com/kit).
+
+Coloque o arquivo AQUI com EXATAMENTE este nome:
+
+  hero.png   -> aparece entre o título e a descrição, no topo da página.
+
+Recomendações:
+- PNG (ou JPG — se for JPG, me avise que eu troco a extensão no código).
+- Largura ideal ~1200px. A imagem é centralizada e ocupa no máx. ~768px
+  (max-w-2xl), então mande em boa resolução que ela reduz sem perder nitidez.
+- Se ficar pesada (>500 KB), me avise que eu otimizo com o sharp (igual fiz
+  com as baleias do avatar).
