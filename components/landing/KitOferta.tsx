@@ -69,11 +69,13 @@ export default function KitOferta() {
             </span>
           </h1>
 
-          {/* Mockup do produto (coloque o arquivo em public/landing/kit/hero.png) */}
-          <div className="mt-8 sm:mt-10">
+          {/* Mockup do produto (public/landing/kit/hero.png). Full-width no
+              mobile (tela inteira); contido + sombra leve no desktop. */}
+          <div className="mt-8 sm:mt-10 -mx-5 sm:mx-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/landing/kit/hero.png" alt="Sora — kit de organização financeira"
-                 className="mx-auto w-full max-w-2xl h-auto rounded-2xl" draggable={false} />
+                 className="w-full h-auto sm:max-w-2xl sm:mx-auto rounded-none sm:rounded-2xl sm:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
+                 draggable={false} />
           </div>
 
           <p className="mt-8 text-lg text-white/70 max-w-2xl mx-auto">
