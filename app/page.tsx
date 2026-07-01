@@ -14,7 +14,7 @@ import Features        from '@/components/landing/Features';
 import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import Showcase        from '@/components/landing/Showcase';
-import SaudeShowcase   from '@/components/landing/SaudeShowcase';
+import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import WrappedShowcase from '@/components/landing/WrappedShowcase';
 import Personalizacao  from '@/components/landing/Personalizacao';
 import MobileShowcase   from '@/components/landing/MobileShowcase';
@@ -41,7 +41,7 @@ export default function LandingPage() {
       <CtaPlanos frase="Começar agora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
-      <SaudeShowcase />
+      <ProdutividadeShowcase />
       <WrappedShowcase />
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <Features />
