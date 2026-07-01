@@ -37,12 +37,12 @@ export default function LandingPage() {
       <Solucao />
       <ComoFunciona />
       <FinancasChat />
+      <AgendaChat />
       <CtaPlanos frase="Começar agora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
       <SaudeShowcase />
       <WrappedShowcase />
-      <AgendaChat />
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <Features />
       <TestDrive />

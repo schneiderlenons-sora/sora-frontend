@@ -15,7 +15,8 @@ export type ChatFeatureProps = {
   heading: React.ReactNode;  // pode conter <br/>
   paragraph: string;
   items: string[];
-  roteiro: Msg[];            // conversa do loop (termina numa resposta da Sora)
+  roteiro?: Msg[];           // conversa do loop (termina numa resposta da Sora)
+  visual?: React.ReactNode;  // se fornecido, substitui o card de chat (ex.: calendário)
 };
 
 // Dispara `inView` uma vez quando o elemento entra na tela.
@@ -106,7 +107,7 @@ function InputBar() {
   );
 }
 
-export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, badgeText, heading, paragraph, items, roteiro }: ChatFeatureProps) {
+export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, badgeText, heading, paragraph, items, roteiro, visual }: ChatFeatureProps) {
   const { ref, inView } = useInView<HTMLDivElement>();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
@@ -114,7 +115,7 @@ export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, ba
   // Loop contínuo: vazio → mensagens (com "digitando") → resposta → segura →
   // limpa → recomeça. À prova de leak (flag + clearTimeout).
   useEffect(() => {
-    if (!inView) return;
+    if (!inView || !roteiro) return;
     let vivo = true;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const espera = (ms: number) => new Promise<void>((res) => { timers.push(setTimeout(res, ms)); });
@@ -182,9 +183,10 @@ export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, ba
           </ul>
         </div>
 
-        {/* DIREITA — card de chat animado (loop) */}
+        {/* DIREITA — visual customizado (ex.: calendário) OU card de chat animado */}
         <div ref={ref}
              className={`relative mx-auto w-full max-w-md transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {visual ?? (
           <div className="relative rounded-[28px] p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
             <div className="relative h-[460px]">
 
@@ -206,6 +208,7 @@ export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, ba
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </section>
