@@ -57,8 +57,9 @@ export async function POST(req: NextRequest) {
     });
 
     // Cartão aprovado na hora → ativa já (o webhook é rede de segurança).
+    let ativado = false;
     if (payment.status === 'approved') {
-      await ativarVitalicio(user.id, cfg.plano);
+      ativado = await ativarVitalicio(user.id, cfg.plano);
     }
 
     const td = payment.point_of_interaction?.transaction_data;
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
       status: payment.status,                 // approved | pending | rejected | in_process
       status_detail: payment.status_detail,
       id: payment.id,
+      ativado,                                 // false = pagou mas NÃO liberou (o webhook tenta de novo)
       pix: td?.qr_code ? { qr_code: td.qr_code, qr_code_base64: td.qr_code_base64, ticket_url: td.ticket_url } : null,
     });
   } catch (err: unknown) {
