@@ -9,6 +9,7 @@ import CriarGrupoModal from '@/components/grupos/CriarGrupoModal';
 import ConvidarModal from '@/components/grupos/ConvidarModal';
 import EntrarGrupoModal from '@/components/grupos/EntrarGrupoModal';
 import MudarPapelModal from '@/components/grupos/MudarPapelModal';
+import EditarGrupoModal from '@/components/grupos/EditarGrupoModal';
 import {
   Plus, Sparkles, Users, UserPlus, Crown, Pencil, MoreVertical,
   LogOut, Check, ArrowLeftRight, Wallet, Layers, Lock,
@@ -56,6 +57,7 @@ export default function ComunidadePage() {
 
   // Modais
   const [criarOpen,   setCriarOpen]   = useState(false);
+  const [editarOpen,  setEditarOpen]  = useState(false);
   const [convidarOpen,setConvidarOpen]= useState(false);
   const [entrarOpen,  setEntrarOpen]  = useState(false);
   const [mudarPapel,  setMudarPapel]  = useState<Membro | null>(null);
@@ -210,6 +212,11 @@ export default function ComunidadePage() {
               {souAdmin && !ehGrupoPessoal && (
                 <button onClick={() => setConvidarOpen(true)} className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm">
                   <UserPlus size={14} /> Gerar código de convite
+                </button>
+              )}
+              {grupoAtivoInfo.dono_id === perfil?.id && (
+                <button onClick={() => setEditarOpen(true)} className="btn-ghost px-3 py-2 text-sm gap-1.5">
+                  <Pencil size={13} /> Editar grupo
                 </button>
               )}
               {!ehGrupoPessoal && (
@@ -398,6 +405,16 @@ export default function ComunidadePage() {
           limiteMembros={limitePlanoTotal}
           onClose={() => setCriarOpen(false)}
           onSuccess={async () => { await recarregar(); carregar(); }}
+        />
+      )}
+
+      {editarOpen && grupoAtivo && grupoAtivoInfo && (
+        <EditarGrupoModal
+          grupoId={grupoAtivo.grupo_id}
+          nomeAtual={grupoAtivoInfo.nome}
+          emojiAtual={grupoAtivoInfo.emoji}
+          onClose={() => setEditarOpen(false)}
+          onSuccess={async () => { await recarregar(); await mGrupos(); }}
         />
       )}
 

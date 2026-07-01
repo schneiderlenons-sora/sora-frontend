@@ -223,6 +223,8 @@ export const api = {
       req('/api/grupos/trocar', { method: 'POST', body: JSON.stringify({ phone, grupo_id }) }),
     criar: (body: { phone: string; nome: string; emoji?: string; copiar_dados?: boolean }) =>
       req<{ ok: boolean; grupo: any }>('/api/grupos/criar', { method: 'POST', body: JSON.stringify(body) }),
+    editarGrupo: (grupo_id: string, body: { nome?: string; emoji?: string }) =>
+      req<{ id: string; nome: string; emoji?: string }>(`/api/grupos/${grupo_id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     sair: (grupo_id: string, phone: string) =>
       req(`/api/grupos/sair/${grupo_id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     atualizarMembro: (membro_id: string, body: { phone: string; papel: 'admin' | 'escrita' | 'leitura' }) =>
