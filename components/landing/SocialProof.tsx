@@ -67,7 +67,7 @@ export default function SocialProof() {
 
   // auto-rotaciona o depoimento em destaque
   useEffect(() => {
-    const iv = setInterval(() => setAtivo((a) => (a + 1) % DEPOIMENTOS.length), 4500);
+    const iv = setInterval(() => setAtivo((a) => (a + 1) % DEPOIMENTOS.length), 8000);
     return () => clearInterval(iv);
   }, []);
 
