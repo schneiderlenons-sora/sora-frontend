@@ -115,15 +115,15 @@ export default function SocialProof() {
                 <button key={d.nome} onClick={() => setAtivo(i)} aria-label={`Ver depoimento de ${d.nome}`}
                         className="rounded-full transition-all duration-300 focus:outline-none"
                         style={{ opacity: on ? 1 : 0.45, filter: on ? 'none' : 'grayscale(0.4)' }}>
-                  {on ? (
-                    <span className="block rounded-full p-[3px]" style={{ background: `linear-gradient(135deg, ${d.cor}, ${escurecer(d.cor)})` }}>
-                      <span className="block rounded-full p-[2px] bg-white dark:bg-[#0a0a0a]">
-                        <Foto nome={d.nome} img={d.img} cor={d.cor} tamanho={92} />
-                      </span>
+                  {/* Foto SEMPRE montada (mesma posição na árvore) — só muda tamanho/anel;
+                      assim a imagem carrega uma vez e não re-requisita no carrossel. */}
+                  <span className="block rounded-full transition-all duration-300"
+                        style={{ padding: on ? 3 : 0, background: on ? `linear-gradient(135deg, ${d.cor}, ${escurecer(d.cor)})` : 'transparent' }}>
+                    <span className="block rounded-full transition-all duration-300 bg-white dark:bg-[#0a0a0a]"
+                          style={{ padding: on ? 2 : 0 }}>
+                      <Foto nome={d.nome} img={d.img} cor={d.cor} tamanho={on ? 92 : 56} />
                     </span>
-                  ) : (
-                    <Foto nome={d.nome} img={d.img} cor={d.cor} tamanho={56} />
-                  )}
+                  </span>
                 </button>
               );
             })}
