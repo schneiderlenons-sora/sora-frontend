@@ -41,9 +41,9 @@ export default function LandingPage() {
       <CtaPlanos frase="Começar agora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
-      <ProdutividadeShowcase />
       <WrappedShowcase />
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
+      <ProdutividadeShowcase />
       <Features />
       <TestDrive />
       <OpenFinance />
