@@ -10,8 +10,8 @@ import Solucao         from '@/components/landing/Solucao';
 import ComoFunciona    from '@/components/landing/ComoFunciona';
 import FinancasChat    from '@/components/landing/FinancasChat';
 import AgendaChat      from '@/components/landing/AgendaChat';
+import HabitosSaude    from '@/components/landing/HabitosSaude';
 import Features        from '@/components/landing/Features';
-import TestDrive       from '@/components/landing/TestDrive';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import Showcase        from '@/components/landing/Showcase';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
@@ -39,6 +39,7 @@ export default function LandingPage() {
       <ComoFunciona />
       <FinancasChat />
       <AgendaChat />
+      <HabitosSaude />
       <CtaPlanos frase="Começar agora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
@@ -47,7 +48,6 @@ export default function LandingPage() {
       <ProdutividadeShowcase />
       <DriveShowcase />
       <Features />
-      <TestDrive />
       <OpenFinance />
       <Personalizacao />
       <MobileShowcase />
