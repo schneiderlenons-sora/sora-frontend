@@ -11,8 +11,6 @@ import ComoFunciona    from '@/components/landing/ComoFunciona';
 import FinancasChat    from '@/components/landing/FinancasChat';
 import AgendaChat      from '@/components/landing/AgendaChat';
 import HabitosSaude    from '@/components/landing/HabitosSaude';
-import Features        from '@/components/landing/Features';
-import OpenFinance     from '@/components/landing/OpenFinance';
 import Showcase        from '@/components/landing/Showcase';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase    from '@/components/landing/DriveShowcase';
@@ -47,8 +45,6 @@ export default function LandingPage() {
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <ProdutividadeShowcase />
       <DriveShowcase />
-      <Features />
-      <OpenFinance />
       <Personalizacao />
       <MobileShowcase />
       <SoraLabs />
