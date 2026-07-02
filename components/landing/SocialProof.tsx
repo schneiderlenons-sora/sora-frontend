@@ -84,8 +84,9 @@ export default function SocialProof() {
   const cur = DEPOIMENTOS[ativo];
   // exibição com o ATIVO sempre no centro (slot 2); vizinhos ao redor
   const ordem = [-2, -1, 0, 1, 2].map((d) => (ativo + d + N) % N);
-  // tamanho por distância do centro (0 centro · 1 vizinho · 2 ponta)
-  const tamPorDist = (dist: number) => (compact ? [92, 56, 38] : [116, 76, 50])[dist];
+  // tamanho por distância do centro (0 centro · 1 vizinho · 2 ponta) — centro
+  // bem maior, tipo o modelo do meuassessor
+  const tamPorDist = (dist: number) => (compact ? [104, 54, 36] : [160, 82, 54])[dist];
 
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04] overflow-hidden">
