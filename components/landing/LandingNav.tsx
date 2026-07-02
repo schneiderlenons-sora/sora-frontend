@@ -8,8 +8,6 @@ import { Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
 
 const LINKS = [
   { href: '#solucao',    label: 'Solução'  },
-  { href: '#features',   label: 'Recursos' },
-  { href: '#demo',       label: 'Demo'     },
   { href: '#pricing',    label: 'Planos'   },
   { href: '#faq',        label: 'Dúvidas'  },
 ];
