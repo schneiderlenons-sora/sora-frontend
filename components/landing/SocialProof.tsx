@@ -64,6 +64,7 @@ function Foto({ nome, img, cor, tamanho }: { nome: string; img: string; cor: str
 
 export default function SocialProof() {
   const [ativo, setAtivo] = useState(2);
+  const [compact, setCompact] = useState(false); // avatares menores no mobile
 
   // auto-rotaciona o depoimento em destaque
   useEffect(() => {
@@ -71,7 +72,20 @@ export default function SocialProof() {
     return () => clearInterval(iv);
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const upd = () => setCompact(mq.matches);
+    upd();
+    mq.addEventListener('change', upd);
+    return () => mq.removeEventListener('change', upd);
+  }, []);
+
+  const N = DEPOIMENTOS.length;
   const cur = DEPOIMENTOS[ativo];
+  // exibição com o ATIVO sempre no centro (slot 2); vizinhos ao redor
+  const ordem = [-2, -1, 0, 1, 2].map((d) => (ativo + d + N) % N);
+  // tamanho por distância do centro (0 centro · 1 vizinho · 2 ponta)
+  const tamPorDist = (dist: number) => (compact ? [92, 56, 38] : [116, 76, 50])[dist];
 
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04] overflow-hidden">
@@ -107,21 +121,25 @@ export default function SocialProof() {
 
         {/* Carrossel de depoimentos */}
         <div className="flex flex-col items-center">
-          {/* avatares */}
+          {/* avatares — ativo no centro, diminuindo pras pontas */}
           <div className="flex items-center justify-center gap-2.5 sm:gap-4">
-            {DEPOIMENTOS.map((d, i) => {
-              const on = i === ativo;
+            {ordem.map((idx, slot) => {
+              const d = DEPOIMENTOS[idx];
+              const dist = Math.abs(slot - 2);
+              const on = dist === 0;
+              const tamanho = tamPorDist(dist);
+              const opacidade = dist === 0 ? 1 : dist === 1 ? 0.7 : 0.4;
               return (
-                <button key={d.nome} onClick={() => setAtivo(i)} aria-label={`Ver depoimento de ${d.nome}`}
-                        className="rounded-full transition-all duration-300 focus:outline-none"
-                        style={{ opacity: on ? 1 : 0.45, filter: on ? 'none' : 'grayscale(0.4)' }}>
+                <button key={d.nome} onClick={() => setAtivo(idx)} aria-label={`Ver depoimento de ${d.nome}`}
+                        className="rounded-full transition-all duration-500 focus:outline-none flex-shrink-0"
+                        style={{ opacity: opacidade, filter: on ? 'none' : 'grayscale(0.35)' }}>
                   {/* Foto SEMPRE montada (mesma posição na árvore) — só muda tamanho/anel;
                       assim a imagem carrega uma vez e não re-requisita no carrossel. */}
-                  <span className="block rounded-full transition-all duration-300"
+                  <span className="block rounded-full transition-all duration-500"
                         style={{ padding: on ? 3 : 0, background: on ? `linear-gradient(135deg, ${d.cor}, ${escurecer(d.cor)})` : 'transparent' }}>
-                    <span className="block rounded-full transition-all duration-300 bg-white dark:bg-[#0a0a0a]"
+                    <span className="block rounded-full transition-all duration-500 bg-white dark:bg-[#0a0a0a]"
                           style={{ padding: on ? 2 : 0 }}>
-                      <Foto nome={d.nome} img={d.img} cor={d.cor} tamanho={on ? 92 : 56} />
+                      <Foto nome={d.nome} img={d.img} cor={d.cor} tamanho={tamanho} />
                     </span>
                   </span>
                 </button>
@@ -133,7 +151,7 @@ export default function SocialProof() {
           <div key={ativo} className="mt-8 text-center max-w-2xl animate-[fade-in_400ms_ease-out]">
             <p className="font-bold text-xl text-zinc-900 dark:text-white">{cur.nome}</p>
             <p className="text-sm text-zinc-500 dark:text-white/50 mt-0.5">{cur.role}</p>
-            <p className="mt-5 text-lg sm:text-2xl font-medium leading-relaxed text-zinc-700 dark:text-white/80">
+            <p className="mt-5 text-[15px] sm:text-base font-normal leading-relaxed text-zinc-600 dark:text-white/70">
               “{cur.quote}”
             </p>
             <div className="flex items-center justify-center gap-1 mt-5">
