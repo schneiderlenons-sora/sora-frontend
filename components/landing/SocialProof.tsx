@@ -45,14 +45,18 @@ function iniciais(nome: string) {
   return nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 }
 
+// Lembra quais fotos ainda não existem — evita re-tentar o request (e floodar o
+// console com 404) toda vez que o avatar remonta durante o carrossel.
+const IMG_FALHOU = new Set<string>();
+
 function Foto({ nome, img, cor, tamanho }: { nome: string; img: string; cor: string; tamanho: number }) {
-  const [erro, setErro] = useState(false);
+  const [erro, setErro] = useState(() => IMG_FALHOU.has(img));
   return (
     <div className="rounded-full overflow-hidden grid place-items-center text-white font-bold flex-shrink-0"
          style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.32, background: `linear-gradient(135deg, ${cor}, ${escurecer(cor)})` }}>
       {!erro
         ? /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={img} alt={nome} onError={() => setErro(true)} className="w-full h-full object-cover" draggable={false} />
+          <img src={img} alt={nome} onError={() => { IMG_FALHOU.add(img); setErro(true); }} className="w-full h-full object-cover" draggable={false} />
         : <span>{iniciais(nome)}</span>}
     </div>
   );
