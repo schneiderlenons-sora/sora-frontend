@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, CheckCheck } from 'lucide-react';
-import { Avatar, InputBar, Caret } from './chatbits';
+import { Avatar, BolhaSora, BolhaUsuario, Digitando, InputBar, Caret } from './chatbits';
 
 const VERDE = '#61ce70';
 const VERDE_DARK = '#4DAE61';
@@ -126,46 +125,13 @@ function CardMacros() {
 
 const CARDS = { academia: CardAcademia, habitos: CardHabitos, macros: CardMacros };
 
-function BolhaUser({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex justify-end animate-[slide-up_400ms_ease-out_both]">
-      <div className="max-w-[82%] rounded-2xl rounded-br-md px-3.5 py-2.5 shadow-sm bg-[#d7f8cf] text-zinc-800 dark:bg-[#075c46] dark:text-white">
-        <p className="text-[13px] leading-snug">{children}</p>
-        <span className="flex items-center justify-end gap-1 mt-1 text-[10px] text-zinc-500 dark:text-white/50">
-          23:10 <CheckCheck size={13} className="text-[#3b9eff]" />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function BolhaSoraTexto({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex justify-start animate-[slide-up_400ms_ease-out_both]">
-      <div className="max-w-[85%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] leading-snug bg-white dark:bg-[#1e2530] border border-zinc-100 dark:border-white/[0.06] text-zinc-700 dark:text-zinc-200 shadow-sm">
-        {children}
-      </div>
-    </div>
-  );
-}
-
+// Card da Sora com avatar ao lado (mesmo padrão da BolhaSora, mas conteúdo largo).
 function BolhaSoraCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex justify-start animate-[slide-up_450ms_ease-out_both]">
-      <div className="max-w-[88%] w-full rounded-2xl rounded-bl-md p-3.5 bg-white dark:bg-[#1e2530] border border-zinc-100 dark:border-white/[0.06] shadow-sm">
+    <div className="flex items-start gap-2 animate-[slide-up_450ms_ease-out_both]">
+      <Avatar />
+      <div className="max-w-[85%] w-full rounded-2xl rounded-bl-md p-3.5 bg-white dark:bg-[#1e2530] border border-zinc-100 dark:border-white/[0.06] shadow-sm">
         {children}
-      </div>
-    </div>
-  );
-}
-
-function Digitando() {
-  return (
-    <div className="flex justify-start animate-[slide-up_300ms_ease-out_both]">
-      <div className="rounded-2xl rounded-bl-md px-3.5 py-3 bg-white dark:bg-[#1e2530] border border-zinc-100 dark:border-white/[0.06] shadow-sm flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-white/50 animate-bounce" />
-        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-white/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-white/50 animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
     </div>
   );
@@ -181,12 +147,10 @@ export default function HabitosSaudeChat() {
   const [dots, setDots] = useState(false);
   const [visivel, setVisivel] = useState(true);
 
-  // auto-scroll pro fim, MAS só se o usuário estiver perto do fim (respeita
-  // rolar pra cima pra rever mensagens antigas).
+  // acompanha sempre a última mensagem (auto-scroll pro fim)
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) el.scrollTop = el.scrollHeight;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [msgs, typedLen, dots]);
 
   useEffect(() => {
@@ -199,7 +163,7 @@ export default function HabitosSaudeChat() {
       while (vivo) {
         setVisivel(true); setMsgs([]); setTypingIdx(null); setTypedLen(0); setInputText(''); setDots(false);
         if (scrollRef.current) scrollRef.current.scrollTop = 0;
-        await espera(900); if (!vivo) return;
+        await espera(1000); if (!vivo) return; // card "fechado" com o input centralizado
 
         let count = 0;
         for (const m of ROTEIRO) {
@@ -232,36 +196,28 @@ export default function HabitosSaudeChat() {
     return () => { vivo = false; timers.forEach(clearTimeout); };
   }, [inView]);
 
-  return (
-    <div ref={ref} className="relative rounded-[28px] h-[500px] flex flex-col p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
-      {/* cabeçalho */}
-      <div className="flex items-center gap-2.5 pb-3 mb-1 border-b border-zinc-200/60 dark:border-white/[0.06] flex-shrink-0">
-        <Avatar />
-        <div className="leading-tight">
-          <p className="font-bold text-[13px] text-zinc-900 dark:text-white flex items-center gap-1">
-            Sora <BadgeCheck size={13} className="text-[#3b9eff]" fill="#3b9eff" stroke="white" />
-          </p>
-          <p className="text-[11px] font-semibold" style={{ color: '#22c55e' }}>online</p>
-        </div>
-      </div>
+  const vazio = msgs.length === 0 && !dots && !inputText;
 
-      {/* mensagens (rolável) */}
+  return (
+    <div ref={ref} className="relative rounded-[28px] h-[500px] overflow-hidden p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
+      {/* mensagens (rolável, acompanha o fim) */}
       <div ref={scrollRef}
-           className={`flex-1 overflow-y-auto space-y-2.5 pr-1 -mr-1 transition-opacity duration-500 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
+           className={`absolute inset-4 sm:inset-5 bottom-[68px] overflow-y-auto space-y-2.5 pr-1 transition-opacity duration-500 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
         {msgs.map((m, i) => {
-          if (m.who === 'user') return <BolhaUser key={i}>{m.texto}</BolhaUser>;
+          if (m.who === 'user') return <BolhaUsuario key={i}>{m.texto}</BolhaUsuario>;
           if (m.card) {
             const C = CARDS[m.card];
             return <BolhaSoraCard key={i}><C /></BolhaSoraCard>;
           }
           const txt = i === typingIdx ? (m.texto ?? '').slice(0, typedLen) : m.texto;
-          return <BolhaSoraTexto key={i}>{txt}{i === typingIdx && <Caret />}</BolhaSoraTexto>;
+          return <BolhaSora key={i}><span className="whitespace-pre-line">{txt}{i === typingIdx && <Caret />}</span></BolhaSora>;
         })}
         {dots && <Digitando />}
       </div>
 
-      {/* input */}
-      <div className="mt-3 flex-shrink-0">
+      {/* input: centralizado quando vazio, desliza pro rodapé quando abre (igual Finanças) */}
+      <div className="absolute left-4 right-4 sm:left-5 sm:right-5 bottom-4 sm:bottom-5 transition-transform duration-[600ms] ease-out"
+           style={{ transform: vazio ? 'translateY(-210px)' : 'translateY(0)' }}>
         <InputBar text={inputText || undefined} />
       </div>
     </div>
