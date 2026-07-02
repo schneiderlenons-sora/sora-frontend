@@ -139,19 +139,12 @@ function BolhaSoraCard({ children }: { children: React.ReactNode }) {
 
 export default function HabitosSaudeChat() {
   const { ref, inView } = useInView<HTMLDivElement>();
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typingIdx, setTypingIdx] = useState<number | null>(null);
   const [typedLen, setTypedLen] = useState(0);
   const [inputText, setInputText] = useState('');
   const [dots, setDots] = useState(false);
   const [visivel, setVisivel] = useState(true);
-
-  // acompanha sempre a última mensagem (auto-scroll pro fim)
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [msgs, typedLen, dots]);
 
   useEffect(() => {
     if (!inView) return;
@@ -162,7 +155,6 @@ export default function HabitosSaudeChat() {
     (async () => {
       while (vivo) {
         setVisivel(true); setMsgs([]); setTypingIdx(null); setTypedLen(0); setInputText(''); setDots(false);
-        if (scrollRef.current) scrollRef.current.scrollTop = 0;
         await espera(1000); if (!vivo) return; // card "fechado" com o input centralizado
 
         let count = 0;
@@ -199,26 +191,27 @@ export default function HabitosSaudeChat() {
   const vazio = msgs.length === 0 && !dots && !inputText;
 
   return (
-    <div ref={ref} className="relative rounded-[28px] h-[500px] overflow-hidden p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
-      {/* mensagens (rolável, acompanha o fim) */}
-      <div ref={scrollRef}
-           className={`absolute inset-4 sm:inset-5 bottom-[68px] overflow-y-auto space-y-2.5 pr-1 transition-opacity duration-500 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
-        {msgs.map((m, i) => {
-          if (m.who === 'user') return <BolhaUsuario key={i}>{m.texto}</BolhaUsuario>;
-          if (m.card) {
-            const C = CARDS[m.card];
-            return <BolhaSoraCard key={i}><C /></BolhaSoraCard>;
-          }
-          const txt = i === typingIdx ? (m.texto ?? '').slice(0, typedLen) : m.texto;
-          return <BolhaSora key={i}><span className="whitespace-pre-line">{txt}{i === typingIdx && <Caret />}</span></BolhaSora>;
-        })}
-        {dots && <Digitando />}
-      </div>
+    <div ref={ref} className="relative rounded-[28px] h-[500px] p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
+      <div className="relative h-full">
+        {/* mensagens: fixadas no rodapé; as antigas cortam no topo (sem scroll, acompanha sozinho) */}
+        <div className={`absolute inset-0 flex flex-col justify-end gap-2.5 overflow-hidden pb-[72px] transition-opacity duration-500 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
+          {msgs.map((m, i) => {
+            if (m.who === 'user') return <BolhaUsuario key={i}>{m.texto}</BolhaUsuario>;
+            if (m.card) {
+              const C = CARDS[m.card];
+              return <BolhaSoraCard key={i}><C /></BolhaSoraCard>;
+            }
+            const txt = i === typingIdx ? (m.texto ?? '').slice(0, typedLen) : m.texto;
+            return <BolhaSora key={i}><span className="whitespace-pre-line">{txt}{i === typingIdx && <Caret />}</span></BolhaSora>;
+          })}
+          {dots && <Digitando />}
+        </div>
 
-      {/* input: centralizado quando vazio, desliza pro rodapé quando abre (igual Finanças) */}
-      <div className="absolute left-4 right-4 sm:left-5 sm:right-5 bottom-4 sm:bottom-5 transition-transform duration-[600ms] ease-out"
-           style={{ transform: vazio ? 'translateY(-210px)' : 'translateY(0)' }}>
-        <InputBar text={inputText || undefined} />
+        {/* input: centralizado quando vazio, desliza pro rodapé quando abre (igual Finanças) */}
+        <div className="absolute left-0 right-0 bottom-0 transition-transform duration-[600ms] ease-out"
+             style={{ transform: vazio ? 'translateY(-210px)' : 'translateY(0)' }}>
+          <InputBar text={inputText || undefined} />
+        </div>
       </div>
     </div>
   );
