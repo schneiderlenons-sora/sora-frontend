@@ -30,6 +30,7 @@ export type Feature =
   | 'import_csv'             // Premium+: importação CSV
   | 'export_dados'           // Premium+: exportar transações em CSV
   | 'ocr_imagem'             // Premium+: enviar foto de comprovante
+  | 'drive'                  // Premium+: Drive — guardar/buscar arquivos pelo WhatsApp
   // Features disponíveis em todos os planos pagos (e inativo p/ onboarding):
   | 'metas'
   | 'dividas'
@@ -58,6 +59,7 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   import_csv:         ['kit', 'premium', 'black'],
   export_dados:       ['kit', 'premium', 'black'],
   ocr_imagem:         ['premium', 'black'],    // foto de nota — só na Completa
+  drive:              ['premium', 'black'],    // Drive por WhatsApp — só na Completa
   metas:              ['inativo', 'basico', 'kit', 'premium', 'black'],
   dividas:            ['inativo', 'basico', 'kit', 'premium', 'black'],
   limites:            ['inativo', 'basico', 'kit', 'premium', 'black'],

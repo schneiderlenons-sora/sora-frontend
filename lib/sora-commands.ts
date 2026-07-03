@@ -19,6 +19,7 @@ export type CategoriaCmdId =
   | 'transferencias'
   | 'analises'
   | 'midia'
+  | 'drive'
   | 'investimentos'
   | 'sora-grow'
   | 'negocios';
@@ -117,6 +118,15 @@ export const CATEGORIAS: ReadonlyArray<{
     cor: '#ec4899',
     corDark: '#9d174d',
     feature: 'ocr_imagem',
+  },
+  {
+    id: 'drive',
+    nome: 'Drive Inteligente',
+    descricao: 'Mande arquivos que a Sora guarda, organiza em pastas e acha depois',
+    emoji: '📁',
+    cor: '#16a34a',
+    corDark: '#14532d',
+    feature: 'drive',
   },
   {
     id: 'investimentos',
@@ -467,6 +477,35 @@ export const COMANDOS: Comando[] = [
     descricao: 'Extrai valor, vencimento e descrição automaticamente.',
     categoria: 'midia',
     feature: 'ocr_imagem',
+  },
+
+  // ─── DRIVE INTELIGENTE ────────────────────────────────────────────
+  {
+    id: 'drive-salvar',
+    titulo: 'Guardar um arquivo',
+    exemplo: '📎 Mande o arquivo + "salva na pasta comprovantes"',
+    descricao: 'Envie qualquer documento, PDF ou foto que a Sora guarda no seu Drive e organiza na pasta certa. Sem legenda, ela escolhe a pasta pelo conteúdo.',
+    variantes: ['guarda esse contrato', 'arquiva esse boleto', 'salva isso na pasta trabalho'],
+    categoria: 'drive',
+    feature: 'drive',
+    destaque: true,
+  },
+  {
+    id: 'drive-buscar',
+    titulo: 'Achar um arquivo',
+    exemplo: 'ache meu comprovante do mecânico',
+    descricao: 'Descreva o arquivo com suas palavras que a Sora procura no seu Drive e te devolve na hora.',
+    variantes: ['me manda o contrato de aluguel', 'cadê meu currículo', 'procura a nota do notebook'],
+    categoria: 'drive',
+    feature: 'drive',
+  },
+  {
+    id: 'drive-painel',
+    titulo: 'Ver tudo no painel',
+    exemplo: 'onde vejo meus arquivos?',
+    descricao: 'Todos os arquivos ficam na aba Drive do painel — com busca, pastas e download. Tudo pelo WhatsApp, sem abrir app nenhum.',
+    categoria: 'drive',
+    feature: 'drive',
   },
 
   // ─── INVESTIMENTOS ────────────────────────────────────────────────
