@@ -9,16 +9,17 @@ import GrowHero from '@/components/grow/GrowHero';
 import {
   Lock, ShieldCheck, ShieldOff, Loader2, Plus, ChevronLeft, ChevronRight, X,
   Pencil, Trash2, Copy, Check, Eye, EyeOff, KeyRound, FileText, Paperclip, Download,
+  FolderLock,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 const PALETA = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#14b8a6', '#64748b'];
 const ICONES_QUADRO = ['📁', '🗂️', '🔐', '🏦', '🪪', '📄', '🏥', '🚗', '🎓', '🏠', '💼', '⭐'];
 const TIPOS = [
+  { v: 'arquivo', l: 'Arquivo', icon: Paperclip, desc: 'PDF, doc, imagem' },
   { v: 'campo',   l: 'Campo',   icon: FileText,  desc: 'Rótulo + valor curto' },
   { v: 'nota',    l: 'Nota',    icon: FileText,  desc: 'Texto longo' },
   { v: 'senha',   l: 'Senha',   icon: KeyRound,  desc: 'Valor oculto' },
-  { v: 'arquivo', l: 'Arquivo', icon: Paperclip, desc: 'PDF, doc, imagem' },
 ];
 
 export default function DadosPessoaisPage() {
@@ -85,7 +86,7 @@ function PinGate({ phone, travadoAte, onUnlock }: { phone: string; travadoAte: s
       <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-5" style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 14%, transparent)' }}>
         <Lock size={28} style={{ color: BRAND }} />
       </div>
-      <h1 className="text-2xl font-bold text-foreground">Dados Pessoais</h1>
+      <h1 className="text-2xl font-bold text-foreground">Meu Drive</h1>
       <p className="text-sm text-muted-foreground mt-2 mb-7">Digite seu PIN de 4 dígitos pra acessar.</p>
 
       <PinDots valor={pin} />
@@ -200,9 +201,9 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
-        badge="Dados Pessoais" badgeIcon={Lock}
-        titulo={secao ? secao.nome : 'Dados Pessoais'}
-        subtitulo={secao ? 'Suas informações desta seção' : 'Seu cofre pessoal — organizado do seu jeito, só pra você.'}
+        badge="Drive" badgeIcon={FolderLock}
+        titulo={secao ? secao.nome : 'Meu Drive'}
+        subtitulo={secao ? 'Arquivos e informações desta pasta' : 'Seus arquivos e informações, guardados e à mão — mande pela Sora no WhatsApp e ela organiza.'}
       >
         <button onClick={() => setModalPin(true)}
           className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-border/60 text-foreground hover:bg-foreground/[0.04] transition-all">
@@ -252,8 +253,8 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
   if (loading) return <Spinner />;
   if (quadros.length === 0) return (
     <>
-      <Vazio icone="📁" texto="Crie seu primeiro quadro — ex.: Informações Pessoais, Saúde, Profissional. Dentro dele você adiciona seções (dados bancários, documentos…)." />
-      <div className="flex justify-center"><button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Novo quadro</button></div>
+      <Vazio icone="📁" texto="Crie sua primeira pasta — ex.: Comprovantes, Documentos, Fotos. Dentro dela você guarda arquivos (e também notas e senhas). Ou mande um arquivo pela Sora no WhatsApp que ela cria a pasta sozinha." />
+      <div className="flex justify-center"><button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Nova pasta</button></div>
       {modais}
     </>
   );
@@ -261,7 +262,7 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
   return (
     <>
       <div className="flex items-center justify-end">
-        <button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Novo quadro</button>
+        <button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Nova pasta</button>
       </div>
 
       <div className="overflow-x-auto pb-3 -mx-1 px-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
@@ -278,7 +279,7 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
                   </span>
                   <span className="text-xs font-semibold text-muted-foreground tabular-nums">{filhas.length}</span>
                   <div className="ml-auto flex items-center">
-                    <button onClick={() => setModalSecao({ quadroId: q.id })} className="p-1.5 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors" aria-label="Nova seção"><Plus size={15} /></button>
+                    <button onClick={() => setModalSecao({ quadroId: q.id })} className="p-1.5 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors" aria-label="Nova subpasta"><Plus size={15} /></button>
                     <button onClick={() => setModalQuadro(q)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors" aria-label="Editar quadro"><Pencil size={13} /></button>
                   </div>
                 </div>
@@ -294,7 +295,7 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
                     </button>
                   ))}
                   <button onClick={() => setModalSecao({ quadroId: q.id })} className="w-full flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors">
-                    <Plus size={15} /> Adicionar seção
+                    <Plus size={15} /> Adicionar subpasta
                   </button>
                 </div>
               </div>
@@ -302,7 +303,7 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
           })}
           {/* coluna pra novo quadro */}
           <button onClick={() => setModalQuadro(null)} className="w-[200px] shrink-0 self-start mt-9 rounded-2xl border border-dashed border-border/60 py-4 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors flex items-center justify-center gap-1.5">
-            <Plus size={16} /> Novo quadro
+            <Plus size={16} /> Nova pasta
           </button>
         </div>
       </div>
@@ -322,7 +323,7 @@ function NivelItens({ phone, secao, onVoltar }: { phone: string; secao: any; onV
     <>
       <BarraVoltar onVoltar={onVoltar} label="Voltar" acao={() => setModal(null)} acaoLabel="Adicionar" />
       {loading ? <Spinner /> : lista.length === 0 ? (
-        <Vazio icone="📝" texto="Nada guardado aqui ainda. Adicione um campo, nota ou senha." />
+        <Vazio icone="📄" texto="Pasta vazia. Mande um arquivo pela Sora no WhatsApp que ela guarda aqui — ou adicione arquivo, campo, nota ou senha." />
       ) : (
         <div className="space-y-2.5">
           {lista.map((it, i) => <ItemCard key={it.id} item={it} phone={phone} onEditar={() => setModal(it)} onMudou={mutate} delay={i * 40} />)}
@@ -410,11 +411,11 @@ function ModalQuadro({ phone, quadro, onFechar, onSalvo }: any) {
     try { ed ? await api.dados.quadros.editar(ed.id, { phone, nome: nome.trim(), cor, icone }) : await api.dados.quadros.criar({ phone, nome: nome.trim(), cor, icone }); onSalvo(); }
     finally { setSalvando(false); }
   };
-  const excluir = async () => { if (!ed || !confirm('Excluir este quadro e tudo dentro dele?')) return; await api.dados.quadros.deletar(ed.id, phone); onSalvo(); };
+  const excluir = async () => { if (!ed || !confirm('Excluir esta pasta e tudo dentro dela?')) return; await api.dados.quadros.deletar(ed.id, phone); onSalvo(); };
   return (
-    <ModalShell titulo={ed ? 'Editar quadro' : 'Novo quadro'} onFechar={onFechar}>
+    <ModalShell titulo={ed ? 'Editar pasta' : 'Nova pasta'} onFechar={onFechar}>
       <label className="text-xs font-semibold text-muted-foreground">Nome</label>
-      <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Informações pessoais" className={`${inputCls} mt-1 mb-4`} autoFocus />
+      <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Comprovantes, Documentos, Fotos…" className={`${inputCls} mt-1 mb-4`} autoFocus />
       <label className="text-xs font-semibold text-muted-foreground">Cor</label>
       <div className="flex flex-wrap gap-2 mt-1.5 mb-4">{PALETA.map(c => <button key={c} onClick={() => setCor(c)} className="w-8 h-8 rounded-full transition-transform active:scale-90" style={{ background: c, outline: cor === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }} />)}</div>
       <label className="text-xs font-semibold text-muted-foreground">Ícone</label>
@@ -433,11 +434,11 @@ function ModalSecao({ phone, quadroId, secao, onFechar, onSalvo }: any) {
     try { ed ? await api.dados.secoes.editar(ed.id, { phone, nome: nome.trim(), icone }) : await api.dados.secoes.criar({ phone, quadro_id: quadroId, nome: nome.trim(), icone }); onSalvo(); }
     finally { setSalvando(false); }
   };
-  const excluir = async () => { if (!ed || !confirm('Excluir esta seção e seus itens?')) return; await api.dados.secoes.deletar(ed.id, phone); onSalvo(); };
+  const excluir = async () => { if (!ed || !confirm('Excluir esta subpasta e seu conteúdo?')) return; await api.dados.secoes.deletar(ed.id, phone); onSalvo(); };
   return (
-    <ModalShell titulo={ed ? 'Editar seção' : 'Nova seção'} onFechar={onFechar}>
+    <ModalShell titulo={ed ? 'Editar subpasta' : 'Nova subpasta'} onFechar={onFechar}>
       <label className="text-xs font-semibold text-muted-foreground">Nome</label>
-      <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Dados bancários" className={`${inputCls} mt-1 mb-4`} autoFocus />
+      <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Veículos, Casa, 2026…" className={`${inputCls} mt-1 mb-4`} autoFocus />
       <label className="text-xs font-semibold text-muted-foreground">Ícone</label>
       <div className="flex flex-wrap gap-1.5 mt-1.5 mb-5">{['🗂️','🏦','🪪','📄','🔑','💳','📇','🏥','📱','✉️'].map(ic => <button key={ic} onClick={() => setIcone(ic)} className={`w-9 h-9 rounded-lg text-lg ${icone === ic ? 'bg-primary/15 ring-1 ring-primary' : 'bg-foreground/[0.04]'}`}>{ic}</button>)}</div>
       <BotoesModal onSalvar={salvar} salvando={salvando} podeExcluir={!!ed} onExcluir={excluir} />
@@ -446,7 +447,7 @@ function ModalSecao({ phone, quadroId, secao, onFechar, onSalvo }: any) {
 }
 function ModalItem({ phone, secaoId, item, onFechar, onSalvo }: any) {
   const ed = item || null;
-  const [tipo, setTipo] = useState(ed?.tipo || 'campo');
+  const [tipo, setTipo] = useState(ed?.tipo || 'arquivo');
   const [titulo, setTitulo] = useState(ed?.titulo || '');
   const [valor, setValor] = useState(ed?.valor || '');
   const [arquivoUrl, setArquivoUrl] = useState(ed?.arquivo_url || '');

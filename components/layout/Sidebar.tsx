@@ -10,7 +10,7 @@ import {
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2, Bell,
-  Percent, CalendarRange,
+  Percent, CalendarRange, FolderLock,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
@@ -63,7 +63,7 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/viagens',    label: 'Viagens',    icon: Plane,         gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard, gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen,      gate: 'grow_colecoes', badge: 'Premium' },
-  { href: '/grow/dados',      label: 'Dados Pessoais', icon: Lock },
+  { href: '/grow/dados',      label: 'Drive',      icon: FolderLock },
   { href: '/grow/configuracoes', label: 'Compartilhamento', icon: Users },
 ];
 
