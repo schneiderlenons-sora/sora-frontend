@@ -56,15 +56,16 @@ git push           # Vercel deploya automaticamente do GitHub (branch master)
 
 **Arquivo central: `lib/plans.ts`** — fonte única da verdade para gates.
 
-| Plano | Preço mensal | Principais exclusivos |
+> **Black descontinuado** (2026): não existe mais como plano — TODAS as features do Black foram anexadas ao **Premium** (incl. aba Negócios: DRE, integrações Hotmart/Kiwify/Eduzz/Stripe, forecast, conciliação, tributária + limite de grupo 5). Sobram só **Básico** e **Premium** (+ ofertas vitalícias). Usuários com `plano='black'` no banco continuam existindo e são **equivalentes ao Premium** (Black e Premium são idênticos em features/gates). `PLANO_LABEL['black']` mantido só pra esses usuários. O vitalício "completa" agora ativa `plano='premium'` (antes 'black').
+
+| Plano | Preço mensal | Principais |
 |---|---|---|
-| Básico | R$19,90 | 3 contas, funcionalidades base, trial 7d Grow |
-| Premium | R$29,90 | Contas ilimitadas, OCR, OFX, investimentos, Sora Grow incluso |
-| Black | R$79,90 | Tudo + aba Negócios (DRE, integrações Hotmart/Stripe) |
+| Básico | R$19,90 | 3 contas, funcionalidades base, Sora Grow básico |
+| Premium | R$29,90 | Tudo: contas ilimitadas, OCR, OFX, investimentos, Sora Grow completo **+ aba Negócios** (DRE, integrações, forecast, conciliação) |
 
 **Helpers:** `podeUsar(plano, feature)` e `limiteDe(plano, recurso)` do `lib/plans.ts`.
 
-**AuthContext** expõe: `plano`, `isBlack`, `isPremium`, `podeUsar()`, `limiteDe()`, `temAcessoGrow`, `podeAtivarTrialGrow`.
+**AuthContext** expõe: `plano`, `isBlack` (legado — só usuários black existentes), `isPremium` (premium OU black), `podeUsar()`, `limiteDe()`, `temAcessoGrow`, `podeAtivarTrialGrow`. Gate de Negócios agora é `isPremium`/`podeUsar(plano,'negocios')`.
 
 ---
 
@@ -166,7 +167,7 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `/categorias` | Categorias com barras de consumo e limites |
 | `/transacoes` | Lista de transações com scroll horizontal no mobile |
 | `/investimentos` | Premium+ (era Black-only, mudou) |
-| `/negocios` | Black-only (DRE, vendas, forecast, integrações) |
+| `/negocios` | Premium+ (DRE, vendas, forecast, integrações) — antes Black-only |
 | `/grow/*` | Sora Grow — hábitos, tarefas, bem-estar, saúde, estudos, casa, agenda, **coleções (viagens/midia/leituras)**, **dados pessoais**, **configurações** |
 | `/wrapped` | Sora Wrapped — retrospectiva financeira do mês (aviso WhatsApp dedup via `wrapped_avisado`) |
 | `/admin` | Painel admin (métricas internas) — acesso restrito |
@@ -177,11 +178,11 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 
 ## Sidebar nav
 
-Arquivo: `components/layout/Sidebar.tsx`. Items com `gate: Feature` mostram badge "Premium" ou "Black" quando bloqueados.
+Arquivo: `components/layout/Sidebar.tsx`. Items com `gate: Feature` mostram badge "Premium" quando bloqueados.
 
 ```
 Investimentos → gate: 'investimentos' (Premium+)
-Negócios      → gate: 'negocios' (Black)
+Negócios      → gate: 'negocios' (Premium+)
 Grupos        → gate: 'compartilhamento' (Premium+)
 Central da Sora → sem gate (todos)
 Planos        → sem gate (todos)
