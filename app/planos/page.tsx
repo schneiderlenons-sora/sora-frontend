@@ -237,14 +237,14 @@ function PlanosContent() {
           </div>
         )}
 
-        {/* ── OFERTA VITALÍCIA (Black pra sempre, pagamento único) ───────── */}
+        {/* ── OFERTA VITALÍCIA (Premium pra sempre, pagamento único) ───────── */}
         {isVitalicio ? (
           <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-400/30 flex items-center gap-4 animate-fade-in"
                style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' }}>
             <Crown size={28} className="text-amber-400 flex-shrink-0" />
             <div>
               <p className="text-amber-400 text-[11px] font-bold uppercase tracking-widest">Fundador</p>
-              <p className="text-white font-bold text-lg leading-tight">Você é Black Vitalício 🐳</p>
+              <p className="text-white font-bold text-lg leading-tight">Você é Premium Vitalício 🐳</p>
               <p className="text-white/60 text-sm">Acesso completo à Sora, para sempre. Obrigado por acreditar desde o começo. 💚</p>
             </div>
           </div>
@@ -260,10 +260,10 @@ function PlanosContent() {
                   <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400">Oferta de fundador</span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight flex items-center gap-2">
-                  Black <InfinityIcon size={26} className="text-amber-400" /> pra sempre
+                  Premium <InfinityIcon size={26} className="text-amber-400" /> pra sempre
                 </h2>
                 <p className="text-white/60 text-sm mt-2 max-w-md">
-                  Pague <span className="text-white font-semibold">uma única vez</span> e tenha o plano Black completo — contas ilimitadas, OCR, investimentos, Negócios e Sora Grow — <span className="text-white font-semibold">para sempre</span>. Sem mensalidade, nunca mais.
+                  Pague <span className="text-white font-semibold">uma única vez</span> e tenha o plano Premium completo — contas ilimitadas, OCR, investimentos, Negócios e Sora Grow — <span className="text-white font-semibold">para sempre</span>. Sem mensalidade, nunca mais.
                 </p>
                 {vagas && vagas.restantes > 0 && (
                   <div className="mt-4">

@@ -1,12 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 // Ativa um plano VITALÍCIO (sem expiração) pra um usuário. `plano` define o que
-// libera: 'black' (Sora Completa) ou 'kit' (Kit Organização, sem WhatsApp/Grow).
+// libera: 'premium' (Sora Completa) ou 'kit' (Kit Organização, sem WhatsApp/Grow).
 // Usado pelos webhooks/process (Mercado Pago). Tolerante à migration 060.
 // Retorna `true` se o plano foi realmente gravado. IMPORTANTE: quem chama após
 // um pagamento aprovado DEVE checar o retorno — se for `false`, o cliente pagou
 // mas ficou sem acesso (ex.: constraint no banco) e precisa de alerta/suporte.
-export async function ativarVitalicio(userId: string, plano: string = 'black'): Promise<boolean> {
+export async function ativarVitalicio(userId: string, plano: string = 'premium'): Promise<boolean> {
   if (!userId) return false;
   const { error } = await supabaseAdmin.from('users').update({
     plano,

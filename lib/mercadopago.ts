@@ -3,16 +3,16 @@
 // Credencial: MP_ACCESS_TOKEN (Mercado Pago → Desenvolvedores → sua aplicação).
 const MP_API = 'https://api.mercadopago.com';
 
-export const VITALICIO_MP = { titulo: 'Sora Black Vitalício', preco: 97.0, maxParcelas: 12 };
+export const VITALICIO_MP = { titulo: 'Sora Premium Vitalício', preco: 97.0, maxParcelas: 12 };
 
 // Tiers do vitalício (valor + plano definidos SEMPRE no servidor pelo tier —
 // nunca confiar no valor vindo do cliente).
 export const VITALICIO_TIERS: Record<string, { amount: number; plano: string; titulo: string }> = {
   kit:      { amount: 47, plano: 'kit',   titulo: 'Kit Organização Financeira (vitalício)' },
-  completa: { amount: 97, plano: 'black', titulo: 'Sora Completa (vitalício)' },
+  completa: { amount: 97, plano: 'premium', titulo: 'Sora Completa (vitalício)' },
   // Upgrade kit → completa: só a diferença. Validado no servidor (só quem tem
   // o Kit paga R$50; qualquer outro cai pra Completa cheia).
-  upgrade:  { amount: 50, plano: 'black', titulo: 'Upgrade pra Sora Completa (vitalício)' },
+  upgrade:  { amount: 50, plano: 'premium', titulo: 'Upgrade pra Sora Completa (vitalício)' },
 };
 export function tierConfig(tier?: string) {
   return VITALICIO_TIERS[tier || 'completa'] || VITALICIO_TIERS.completa;

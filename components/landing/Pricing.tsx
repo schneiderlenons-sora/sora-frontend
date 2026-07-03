@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Check, Crown, Sparkles, ShieldCheck } from 'lucide-react';
+import { Check, Sparkles, ShieldCheck } from 'lucide-react';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANOS_INFO } from '@/lib/stripe';
 
 // Ícone exibido junto ao nome do plano destacado. Mantido aqui pra não
 // vazar dependência de lucide-react no lib/planos-display.
-const ICONES = { premium: Sparkles, black: Crown } as const;
+const ICONES = { premium: Sparkles } as const;
 
 export default function Pricing() {
   const [anual, setAnual] = useState(false);
@@ -62,7 +62,7 @@ export default function Pricing() {
         </div>
 
         {/* Cards de planos */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
           {PLANOS_DISPLAY.map((p) => {
             const info = PLANOS_INFO[p.id];
             const precoExibido = anual ? info.anual : info.mensal;

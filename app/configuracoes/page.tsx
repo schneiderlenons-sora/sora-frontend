@@ -444,7 +444,8 @@ function SecaoPlano() {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
-  const planoVisual = PLANOS_DETALHE.find(p => p.id === planoAtual);
+  // Usuário 'black' existente (plano descontinuado) cai no visual do Premium — equivalentes agora.
+  const planoVisual = PLANOS_DETALHE.find(p => p.id === planoAtual) ?? PLANOS_DETALHE.find(p => p.id === 'premium');
   const ordemAtual = ORDEM_PLANO[planoAtual];
   const temAssinatura = planoAtual !== 'inativo';
   const validoAte = perfil?.plano_valido_ate ? new Date(perfil.plano_valido_ate) : null;

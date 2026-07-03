@@ -29,7 +29,7 @@ const PILARES = [
     items: ['DRE detalhado com drill-down por plataforma', 'Webhook em tempo real — Hotmart, Kiwify, Stripe, Eduzz', 'Forecast de receita 3 meses + insights da IA', 'Wrapped mensal compartilhável'],
     icon: Briefcase,
     bg: 'from-amber-500/8 to-amber-500/0',
-    plan: 'Plano Black',
+    plan: 'Plano Premium',
   },
 ];
 

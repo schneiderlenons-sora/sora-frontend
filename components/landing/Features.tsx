@@ -53,7 +53,7 @@ const PILARES: Pilar[] = [
     id: 'negocios',
     icon: Briefcase,
     cor: '#fbbf24',
-    badge: 'Sora Negócios · Plano Black',
+    badge: 'Sora Negócios · Plano Premium',
     titulo: 'Seu DRE em tempo real. Sem planilha, sem contador caro.',
     features: [
       { titulo: 'DRE detalhado',             desc: 'Receita bruta → taxas → impostos → custos → lucro. Drill-down por plataforma e produto.' },

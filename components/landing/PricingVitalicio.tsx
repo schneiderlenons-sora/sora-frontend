@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Check, Crown, Sparkles, Infinity as InfinityIcon, ShieldCheck } from 'lucide-react';
 
-// Tudo que o vitalício (Black) inclui — features de todos os planos.
+// Tudo que o vitalício (Premium) inclui — features de todos os planos.
 const INCLUI = [
   'Lançamentos ilimitados',
   'WhatsApp ou painel (texto/áudio/imagem)',
@@ -54,7 +54,7 @@ export default function PricingVitalicio() {
             </span>
           </div>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em]">
-            Black. <span className="inline-flex items-center gap-2">Pra <InfinityIcon size={44} className="text-amber-500 dark:text-amber-400" /></span><br />
+            Premium. <span className="inline-flex items-center gap-2">Pra <InfinityIcon size={44} className="text-amber-500 dark:text-amber-400" /></span><br />
             sempre.
           </h2>
           <p className="mt-5 text-lg text-zinc-500 dark:text-white/50 max-w-xl mx-auto">
@@ -71,7 +71,7 @@ export default function PricingVitalicio() {
           <div className="relative">
             <div className="flex items-center gap-2 mb-1">
               <Crown size={20} className="text-amber-400" />
-              <span className="text-white font-bold text-lg">Sora Black Vitalício</span>
+              <span className="text-white font-bold text-lg">Sora Premium Vitalício</span>
             </div>
 
             {/* Preço — só o R$9,87 é grande; "12x de" e o resto ficam pequenos */}

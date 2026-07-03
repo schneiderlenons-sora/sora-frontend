@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
     const payment = await mpGetPayment(String(paymentId));
     if (payment.status === 'approved' && payment.external_reference) {
-      const plano = payment.metadata?.plano === 'kit' ? 'kit' : 'black';
+      const plano = payment.metadata?.plano === 'kit' ? 'kit' : 'premium';
       await ativarVitalicio(payment.external_reference, plano);
       console.log(`💎 [mp/webhook] vitalício ativado p/ ${payment.external_reference} (pagamento ${paymentId})`);
 
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         custom_data: {
           value: payment.transaction_amount || 97,
           currency: 'BRL',
-          content_name: 'Black Vitalício',
+          content_name: 'Premium Vitalício',
         },
       }).catch(() => {});
     }

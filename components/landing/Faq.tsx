@@ -30,7 +30,7 @@ const PERGUNTAS = [
   },
   {
     q: 'Funciona pra empreendedor digital?',
-    a: 'Sim, é exatamente pra isso que existe o Plano Black. Conecta Hotmart, Kiwify, Eduzz, Stripe via webhook e captura cada venda em tempo real. Sora monta seu DRE, calcula imposto, faz forecast e gera insights automáticos.',
+    a: 'Sim, é exatamente pra isso que existe o Plano Premium. Conecta Hotmart, Kiwify, Eduzz, Stripe via webhook e captura cada venda em tempo real. Sora monta seu DRE, calcula imposto, faz forecast e gera insights automáticos.',
   },
   {
     q: 'Posso compartilhar a conta com família ou sócio?',
