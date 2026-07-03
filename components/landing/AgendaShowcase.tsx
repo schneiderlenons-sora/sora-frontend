@@ -195,7 +195,7 @@ export default function AgendaShowcase() {
       <div className={`absolute inset-0 p-4 sm:p-5 transition-all duration-500 ${modo === 'chat' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
         <div className="relative h-full">
           <div className="absolute inset-0 flex flex-col justify-end gap-2.5 overflow-hidden pb-[72px]">
-            {!vazio && <p className="text-center text-[11px] text-zinc-400 dark:text-white/40 mb-1">17:36</p>}
+            {!vazio && <p className="text-center text-[11px] text-zinc-400 dark:text-white/40 mb-1">07:00</p>}
             {msgs.map((m, i) => {
               const digitando = i === typingIdx;
               const txt = digitando ? m.text.slice(0, typedLen) : m.text;

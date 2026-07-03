@@ -1,10 +1,15 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { Wallet, Play } from 'lucide-react';
-import ChatFeature, { type Msg } from './ChatFeature';
+import ChatFeature from './ChatFeature';
+import { BolhaSora, BolhaUsuario, Digitando, InputBar, Caret } from './chatbits';
 
-// Bolha de áudio (nota de voz) — só conteúdo inline (spans/svg) pra caber dentro
-// do <p> da BolhaUsuario sem quebrar HTML/animações.
+const SPEED_SORA = 22;   // ms por caractere (resposta da Sora — typewriter)
+const SPEED_USER = 42;   // ms por caractere (usuário digitando no input)
+
+// Bolha de áudio (nota de voz) — só conteúdo inline (spans/svg) pra caber no
+// <p> da BolhaUsuario sem quebrar HTML.
 const AudioBolha = (
   <span className="inline-flex items-center gap-2.5 align-middle py-0.5">
     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-black/10 dark:bg-white/15 flex-shrink-0">
@@ -39,21 +44,123 @@ const ComprovanteBolha = (
   </span>
 );
 
-const ROTEIRO: Msg[] = [
-  { who: 'user', node: 'Gastei 82 reais no iFood' },
-  { who: 'sora', node: <>Prontinho! 🚀 Acabei de registrar sua despesa de <strong className="font-semibold text-zinc-900 dark:text-white">R$ 82,00</strong> no iFood.</> },
+type Fala = { who: 'user' | 'sora'; texto?: string; media?: React.ReactNode };
+
+// Roteiro: texto (typewriter/input) ou media (áudio/imagem que aparece direto).
+const ROTEIRO: Fala[] = [
+  { who: 'user', texto: 'Gastei 82 reais no iFood' },
+  { who: 'sora', texto: 'Prontinho! 🚀 Acabei de registrar sua despesa de R$ 82,00 no iFood.' },
 
   // Áudio: nota de voz "gastei 27 reais com uber" → a Sora ouve e lança
-  { who: 'user', node: AudioBolha },
-  { who: 'sora', node: <>Prontinho! 🚀 Ouvi seu áudio e registrei <strong className="font-semibold text-zinc-900 dark:text-white">R$ 27,00</strong> no Uber 🚗</> },
+  { who: 'user', media: AudioBolha },
+  { who: 'sora', texto: 'Prontinho! 🚀 Ouvi seu áudio e registrei R$ 27,00 no Uber 🚗' },
 
   // Imagem: foto do comprovante do mercado → a Sora lê e lança (OCR)
-  { who: 'user', node: ComprovanteBolha },
-  { who: 'sora', node: <>🧾 Comprovante lido! Lancei <strong className="font-semibold text-zinc-900 dark:text-white">R$ 68,90</strong> em Mercado — compras da semana ✅</> },
+  { who: 'user', media: ComprovanteBolha },
+  { who: 'sora', texto: '🧾 Comprovante lido! Lancei R$ 68,90 em Mercado — compras da semana ✅' },
 
-  { who: 'user', node: 'Sora, quanto eu gastei com iFood essa semana?' },
-  { who: 'sora', node: <>Essa semana foram <strong className="font-semibold text-zinc-900 dark:text-white">R$ 227,00</strong> no iFood 🍔 Já virou sua categoria que mais pesa.</> },
+  { who: 'user', texto: 'Sora, quanto eu gastei com iFood essa semana?' },
+  { who: 'sora', texto: 'Essa semana foram R$ 227,00 no iFood 🍔 Já virou sua categoria que mais pesa.' },
 ];
+
+function useInView<T extends HTMLElement>(threshold = 0.35) {
+  const ref = useRef<T>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setInView(true); }, { threshold });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return { ref, inView };
+}
+
+// Card de chat da Finanças: mesmo comportamento do Hábitos/Agenda — entrada,
+// "digitando", typewriter letra a letra, input centralizado quando vazio,
+// clip no topo e fade de saída no loop. Áudio/imagem aparecem direto.
+function FinancasCard() {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const [msgs, setMsgs] = useState<Fala[]>([]);
+  const [typingIdx, setTypingIdx] = useState<number | null>(null);
+  const [typedLen, setTypedLen] = useState(0);
+  const [inputText, setInputText] = useState('');
+  const [dots, setDots] = useState(false);
+  const [visivel, setVisivel] = useState(true);
+
+  useEffect(() => {
+    if (!inView) return;
+    let vivo = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const espera = (ms: number) => new Promise<void>((r) => { timers.push(setTimeout(r, ms)); });
+
+    (async () => {
+      while (vivo) {
+        setVisivel(true); setMsgs([]); setTypingIdx(null); setTypedLen(0); setInputText(''); setDots(false);
+        await espera(1200); if (!vivo) return; // card "fechado" com o input centralizado
+
+        let count = 0;
+        for (const m of ROTEIRO) {
+          if (m.who === 'user') {
+            if (m.media) {
+              // áudio/imagem: aparece direto (bolha sobe uma vez)
+              setMsgs((p) => [...p, m]); count += 1;
+              await espera(800); if (!vivo) return;
+            } else {
+              // texto: digita no input, depois "envia"
+              for (let i = 1; i <= (m.texto?.length ?? 0); i++) { if (!vivo) return; setInputText(m.texto!.slice(0, i)); await espera(SPEED_USER); }
+              await espera(250); if (!vivo) return;
+              setInputText('');
+              setMsgs((p) => [...p, m]); count += 1;
+              await espera(650); if (!vivo) return;
+            }
+          } else {
+            // Sora: "digitando" e depois o texto letra a letra (typewriter)
+            setDots(true); await espera(850); if (!vivo) return; setDots(false);
+            setTypingIdx(count); setTypedLen(0);
+            setMsgs((p) => [...p, m]); count += 1;
+            await espera(50); if (!vivo) return;
+            for (let i = 1; i <= (m.texto?.length ?? 0); i++) { if (!vivo) return; setTypedLen(i); await espera(SPEED_SORA); }
+            setTypingIdx(null);
+            await espera(900); if (!vivo) return;
+          }
+        }
+
+        await espera(3000); if (!vivo) return;      // segura
+        setVisivel(false); await espera(500); if (!vivo) return; // animação de saída
+      }
+    })();
+
+    return () => { vivo = false; timers.forEach(clearTimeout); };
+  }, [inView]);
+
+  const vazio = msgs.length === 0 && !dots && !inputText;
+
+  return (
+    <div ref={ref} className="relative rounded-[28px] p-4 sm:p-5 bg-[#f4f2ee] dark:bg-[#111418] border border-zinc-200/60 dark:border-white/[0.06] shadow-[0_30px_70px_-30px_rgba(0,0,0,0.45)]">
+      <div className="relative h-[460px]">
+        {/* mensagens: fixadas no rodapé; as antigas cortam no topo */}
+        <div className={`absolute inset-0 flex flex-col justify-end gap-2.5 overflow-hidden pb-[72px] transition-opacity duration-500 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
+          {(msgs.length > 0 || dots) && (
+            <p className="text-center text-[11px] text-zinc-400 dark:text-white/40 mb-1">12:37</p>
+          )}
+          {msgs.map((m, i) => {
+            if (m.who === 'user') return <BolhaUsuario key={i}>{m.media ?? m.texto}</BolhaUsuario>;
+            const txt = i === typingIdx ? (m.texto ?? '').slice(0, typedLen) : m.texto;
+            return <BolhaSora key={i}><span className="whitespace-pre-line">{txt}{i === typingIdx && <Caret />}</span></BolhaSora>;
+          })}
+          {dots && <Digitando />}
+        </div>
+
+        {/* input: centralizado quando vazio, desliza pro rodapé quando abre */}
+        <div className="absolute left-0 right-0 bottom-0 transition-transform duration-[600ms] ease-out"
+             style={{ transform: vazio ? 'translateY(-204px)' : 'translateY(0)' }}>
+          <InputBar text={inputText || undefined} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function FinancasChat() {
   return (
@@ -69,7 +176,7 @@ export default function FinancasChat() {
         'Seus gastos já chegam categorizados',
         'Resumo do dia direto pra você',
       ]}
-      roteiro={ROTEIRO}
+      visual={<FinancasCard />}
     />
   );
 }
