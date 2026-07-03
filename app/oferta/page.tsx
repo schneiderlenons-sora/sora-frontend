@@ -1,6 +1,7 @@
-// Página de oferta dedicada (teste de conversão) — mesma landing, mas com a
-// seção de preço focada SÓ no plano vitalício (Black pra sempre, R$97 único).
-// CTA leva pro /signup?vitalicio=1 (cadastro → checkout do vitalício direto).
+// Página de oferta dedicada (teste de conversão) — ESPELHA a landing principal
+// (app/page.tsx). ÚNICA diferença: a seção de preço é o vitalício (R$97 único,
+// PricingVitalicio) no lugar do Pricing (assinatura). Ao mudar a principal,
+// replicar aqui — mantendo só essa troca de preço.
 export const revalidate = 0;
 
 import LandingNav       from '@/components/landing/LandingNav';
@@ -8,11 +9,12 @@ import Hero             from '@/components/landing/Hero';
 import Problema         from '@/components/landing/Problema';
 import Solucao          from '@/components/landing/Solucao';
 import ComoFunciona     from '@/components/landing/ComoFunciona';
-import Features         from '@/components/landing/Features';
-import TestDrive        from '@/components/landing/TestDrive';
-import OpenFinance      from '@/components/landing/OpenFinance';
+import FinancasChat     from '@/components/landing/FinancasChat';
+import AgendaChat       from '@/components/landing/AgendaChat';
+import HabitosSaude     from '@/components/landing/HabitosSaude';
 import Showcase         from '@/components/landing/Showcase';
-import SaudeShowcase    from '@/components/landing/SaudeShowcase';
+import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
+import DriveShowcase    from '@/components/landing/DriveShowcase';
 import WrappedShowcase  from '@/components/landing/WrappedShowcase';
 import Personalizacao   from '@/components/landing/Personalizacao';
 import MobileShowcase   from '@/components/landing/MobileShowcase';
@@ -26,24 +28,27 @@ import Footer           from '@/components/landing/Footer';
 
 export default function OfertaPage() {
   return (
+    // Igual à principal; muda só o Pricing → PricingVitalicio.
     <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-clip">
       <LandingNav />
       <Hero />
       <Problema />
       <Solucao />
       <ComoFunciona />
-      <CtaPlanos frase="Quero ser fundador 🐳" />
+      <FinancasChat />
+      <AgendaChat />
+      <HabitosSaude />
+      <CtaPlanos frase="Começar agora" />
       <Showcase />
-      <SaudeShowcase />
       <WrappedShowcase />
-      <CtaPlanos frase="Garantir meu vitalício" />
-      <Features />
-      <TestDrive />
-      <OpenFinance />
+      <CtaPlanos frase="Quero meu Wrapped também 🐳" />
+      <ProdutividadeShowcase />
+      <DriveShowcase />
+      <SocialProof />
+      <CtaPlanos frase="Quero fazer parte" />
       <Personalizacao />
       <MobileShowcase />
       <SoraLabs />
-      <SocialProof />
       <PricingVitalicio />
       <Faq />
       <CtaFinal />
