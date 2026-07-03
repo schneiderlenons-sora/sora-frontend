@@ -48,7 +48,7 @@ export const PLANOS_DISPLAY: PlanoDisplay[] = [
     corDark: '#3fa85a',
     subtitulo: 'A vida toda organizada.',
     destaque: true,
-    badge: 'Mais popular · Sora Grow incluso',
+    badge: 'Mais popular',
     badgeShort: 'Mais popular',
     features: [
       'Tudo do Básico',

@@ -11,7 +11,7 @@ import { PLANOS_INFO } from '@/lib/stripe';
 const ICONES = { premium: Sparkles } as const;
 
 export default function Pricing() {
-  const [anual, setAnual] = useState(false);
+  const [anual, setAnual] = useState(true); // anual por padrão (mostra o preço com desconto primeiro)
 
   return (
     <section id="pricing" className="relative scroll-mt-24 py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
@@ -54,7 +54,7 @@ export default function Pricing() {
               {!anual && (
                 <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white"
                       style={{ background: '#61ce70' }}>
-                  -40%
+                  -20%
                 </span>
               )}
             </button>
