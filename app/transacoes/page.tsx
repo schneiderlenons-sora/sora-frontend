@@ -283,7 +283,7 @@ export default function TransacoesPage() {
 
               <div className="relative">
                 <button
-                  onClick={() => podeImportar ? setImportMenuOpen(v => !v) : alert('Importação de OFX/CSV está disponível no plano Premium ou Black.')}
+                  onClick={() => podeImportar ? setImportMenuOpen(v => !v) : alert('Importação de OFX/CSV está disponível no plano Premium.')}
                   className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
                   title={podeImportar ? 'Importar extrato' : 'Disponível no plano Premium'}
                   aria-label="Importar"
@@ -327,7 +327,7 @@ export default function TransacoesPage() {
               </div>
 
               <button
-                onClick={() => podeExportar ? exportarCSV() : alert('Exportação de dados está disponível no plano Premium ou Black.')}
+                onClick={() => podeExportar ? exportarCSV() : alert('Exportação de dados está disponível no plano Premium.')}
                 className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
                 title={podeExportar ? 'Exportar CSV' : 'Disponível no plano Premium'}
                 aria-label="Exportar"

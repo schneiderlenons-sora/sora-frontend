@@ -80,7 +80,7 @@ const MOCK_INSIGHT = {
 };
 
 export default function NegociosPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
 
   const hojeIso = new Date().toISOString().slice(0, 7);
   const [periodo, setPeriodo] = useState(hojeIso); // YYYY-MM
@@ -90,7 +90,7 @@ export default function NegociosPage() {
 
   // Dados via SWR (com fallback de mock quando não há eventos). Revisita instantânea.
   const { data: dreWrap, mutate: mDre } = useApi(
-    (phone && isBlack) ? `neg:dre:${phone}:${periodo}` : null,
+    (phone && isPremium) ? `neg:dre:${phone}:${periodo}` : null,
     async () => {
       try {
         const d = await api.negocios.dre.get(phone, periodo);
@@ -112,7 +112,7 @@ export default function NegociosPage() {
     finally { setRecalc(false); }
   }
 
-  if (!isBlack) return <DashboardLayout><PaywallBlack /></DashboardLayout>;
+  if (!isPremium) return <DashboardLayout><PaywallBlack /></DashboardLayout>;
   if (loading || !dre) return <DashboardLayout><LoadingState /></DashboardLayout>;
 
   return (
@@ -582,7 +582,7 @@ function PaywallBlack() {
                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }}>
             <Crown size={28} className="text-black" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Negócios é exclusivo do plano Black</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Negócios é exclusivo do plano Premium</h1>
           <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
             Conecte Hotmart, Stripe e mais. Tenha seu DRE, fluxo de caixa e insights de IA em tempo real.
           </p>

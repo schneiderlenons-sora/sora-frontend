@@ -86,15 +86,15 @@ const PLATAFORMAS: Plataforma[] = [
 const CATEGORIAS: Plataforma['categoria'][] = ['Infoprodutos', 'Pagamentos', 'E-commerce'];
 
 export default function IntegracoesPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [modal, setModal] = useState<Plataforma | null>(null);
   // Dados via SWR — revisita instantânea (cache em memória).
-  const { data: conData, mutate: mCon } = useApi((phone && isBlack) ? `neg:integ:${phone}` : null, () => api.negocios.integracoes.listar(phone));
+  const { data: conData, mutate: mCon } = useApi((phone && isPremium) ? `neg:integ:${phone}` : null, () => api.negocios.integracoes.listar(phone));
   const conectadas: any[] = (conData as any) ?? [];
   const loading = conData === undefined;
   const carregar = () => mCon();
 
-  if (!isBlack) return <DashboardLayout><BloqueioBlack /></DashboardLayout>;
+  if (!isPremium) return <DashboardLayout><BloqueioBlack /></DashboardLayout>;
 
   // Marca cards como conectada quando há integração ativa daquela plataforma
   const plataformasComStatus = PLATAFORMAS.map(p => {
@@ -555,7 +555,7 @@ function BloqueioBlack() {
   return (
     <div className="max-w-md mx-auto pt-20 px-6 text-center">
       <Lock size={32} className="text-muted-foreground mx-auto mb-3" />
-      <h2 className="text-lg font-bold text-foreground">Disponível no plano Black</h2>
+      <h2 className="text-lg font-bold text-foreground">Disponível no plano Premium</h2>
       <p className="text-sm text-muted-foreground mt-2">Faça upgrade para conectar suas plataformas.</p>
     </div>
   );

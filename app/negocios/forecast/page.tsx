@@ -29,19 +29,19 @@ const fmtCompact = (centavos: number) => {
 };
 
 export default function ForecastPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [metrica, setMetrica] = useState<'receita_bruta' | 'lucro_liquido'>('receita_bruta');
 
   useEffect(() => {
-    if (!phone || !isBlack) return;
+    if (!phone || !isPremium) return;
     api.negocios.forecast.get(phone).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
-  }, [phone, isBlack]);
+  }, [phone, isPremium]);
 
-  if (!isBlack) {
+  if (!isPremium) {
     return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Black.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
     </div></DashboardLayout>;
   }
   if (loading) {

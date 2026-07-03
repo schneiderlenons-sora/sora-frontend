@@ -50,7 +50,7 @@ const dataBr = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 const dataHoraBr = (iso: string) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export default function VendasPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [tipo, setTipo]       = useState('');
   const [plataforma, setPlataforma] = useState('');
@@ -61,7 +61,7 @@ export default function VendasPage() {
 
   // Dados via SWR — revisita instantânea (cache em memória).
   const { data: vData, mutate: mV } = useApi(
-    (phone && isBlack) ? `neg:vendas:${phone}:${periodo}:${tipo}:${plataforma}:${page}` : null,
+    (phone && isPremium) ? `neg:vendas:${phone}:${periodo}:${tipo}:${plataforma}:${page}` : null,
     () => api.negocios.eventos.listar(phone, { limit: PAGE, offset: page * PAGE, tipo: tipo || undefined, plataforma: plataforma || undefined, periodo }),
   );
   const eventos: any[] = (vData as any)?.eventos ?? [];
@@ -94,9 +94,9 @@ export default function VendasPage() {
 
   const totalPages = Math.ceil(total / PAGE);
 
-  if (!isBlack) {
+  if (!isPremium) {
     return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Black.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
     </div></DashboardLayout>;
   }
 

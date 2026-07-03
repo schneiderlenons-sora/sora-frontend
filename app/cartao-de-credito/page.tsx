@@ -209,7 +209,7 @@ export default function CartaoDeCreditoPage() {
               <button
                 onClick={() => {
                   if (wallets.length >= limiteCartoes) {
-                    alert(`Plano atual permite ${limiteCartoes} cartões. Faça upgrade para Premium ou Black para ter cartões ilimitados.`);
+                    alert(`Plano atual permite ${limiteCartoes} cartões. Faça upgrade para Premium para ter cartões ilimitados.`);
                     return;
                   }
                   setEdicao(null); setAddOpen(true);

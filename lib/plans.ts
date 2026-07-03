@@ -15,7 +15,7 @@ export type Feature =
   | 'contas_ilimitadas'      // Premium+: contas/cartões sem limite
   | 'cartoes_ilimitados'
   | 'investimentos'          // Premium+: aba Investimentos (era Black-only)
-  | 'negocios'               // Black: aba Negócios (DRE, vendas, etc.)
+  | 'negocios'               // Premium+: aba Negócios (DRE, vendas, etc.) — antes Black-only
   | 'sora_grow'              // Todos os planos: acesso base ao Sora Grow
                              // (hábitos, tarefas, bem-estar, agenda)
   | 'grow_saude'             // Premium+: aba Saúde do Grow
@@ -44,7 +44,7 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   contas_ilimitadas:  ['kit', 'premium', 'black'],
   cartoes_ilimitados: ['kit', 'premium', 'black'],
   investimentos:      ['kit', 'premium', 'black'], // Kit inclui as calculadoras de investimento/reserva
-  negocios:           ['black'],
+  negocios:           ['premium', 'black'], // Negócios agora entra no Premium (Black descontinuado)
   sora_grow:          ['basico', 'premium', 'black'], // Grow NÃO entra no kit
   grow_saude:         ['premium', 'black'],
   grow_estudos:       ['premium', 'black'],
@@ -89,8 +89,7 @@ export function limiteDe(plano: Plano | null | undefined, recurso: Recurso): num
 export function planoMinimo(feature: Feature): Plano {
   const planos = FEATURES[feature];
   if (planos.includes('basico')) return 'basico';
-  if (planos.includes('premium')) return 'premium';
-  return 'black';
+  return 'premium';
 }
 
 export const PLANO_LABEL: Record<Plano, string> = {

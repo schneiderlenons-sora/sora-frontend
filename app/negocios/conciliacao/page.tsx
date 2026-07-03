@@ -29,7 +29,7 @@ const fmtReais = (reais: number) =>
 const dataBr = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 
 export default function ConciliacaoPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [sugestoes, setSugestoes]   = useState<any[]>([]);
   const [conciliadas, setConciliadas] = useState<any[]>([]);
   const [tab, setTab]               = useState<'sugeridas' | 'conciliadas'>('sugeridas');
@@ -37,8 +37,8 @@ export default function ConciliacaoPage() {
 
   // SWR cacheia (revisita instantânea); mantém states locais pro otimismo
   // (aprovar/desfazer somem da lista na hora).
-  const { data: sugData,  mutate: mSug }  = useApi((phone && isBlack) ? `concil:sug:${phone}` : null,  () => api.negocios.conciliacao.sugerir(phone));
-  const { data: concData, mutate: mConc } = useApi((phone && isBlack) ? `concil:conc:${phone}` : null, () => api.negocios.conciliacao.conciliadas(phone));
+  const { data: sugData,  mutate: mSug }  = useApi((phone && isPremium) ? `concil:sug:${phone}` : null,  () => api.negocios.conciliacao.sugerir(phone));
+  const { data: concData, mutate: mConc } = useApi((phone && isPremium) ? `concil:conc:${phone}` : null, () => api.negocios.conciliacao.conciliadas(phone));
   useEffect(() => { if (sugData  !== undefined) setSugestoes((sugData as any) || []); }, [sugData]);
   useEffect(() => { if (concData !== undefined) setConciliadas((concData as any) || []); }, [concData]);
   const loading = sugData === undefined;
@@ -74,9 +74,9 @@ export default function ConciliacaoPage() {
     finally { setAgindo(prev => { const n = new Set(prev); n.delete(id); return n; }); }
   }
 
-  if (!isBlack) {
+  if (!isPremium) {
     return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Black.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
     </div></DashboardLayout>;
   }
 

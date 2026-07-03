@@ -109,8 +109,8 @@ export default function Step2PerfilUso() {
                       </span>
                     )}
                     {opcao.requerBlack && !podeUsar(plano, 'negocios') && (
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                        Black
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                        Premium
                       </span>
                     )}
                   </div>

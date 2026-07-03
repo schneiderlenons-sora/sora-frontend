@@ -77,7 +77,7 @@ export default function GrowUpgradePage() {
                 <button
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-primary font-bold text-sm shadow-xl opacity-60 cursor-not-allowed"
                   disabled
-                  title="Trial já utilizado — faça upgrade para Premium ou Black"
+                  title="Trial já utilizado — faça upgrade para Premium"
                 >
                   <Crown size={16} /> Trial indisponível
                 </button>
@@ -143,7 +143,7 @@ export default function GrowUpgradePage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Já é <strong>Premium</strong> ou <strong>Black</strong>? O Sora Grow vem incluído no seu plano. Plano <strong>Básico</strong>? Ative 7 dias grátis acima.
+          Já é <strong>Premium</strong>? O Sora Grow vem incluído no seu plano. Plano <strong>Básico</strong>? Ative 7 dias grátis acima.
         </p>
     </div>
   );

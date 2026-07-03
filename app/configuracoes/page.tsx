@@ -430,7 +430,8 @@ const ICONE_PLANO = {
 } as const;
 
 // Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
-const PLANOS_DETALHE = PLANOS_DISPLAY;
+// Black descontinuado — no painel só Básico e Premium (features do Black já no Premium).
+const PLANOS_DETALHE = PLANOS_DISPLAY.filter((p) => p.id !== 'black');
 
 const ORDEM_PLANO: Record<Plano, number> = {
   inativo: 0, basico: 1, kit: 1, premium: 2, black: 3,
@@ -1119,7 +1120,7 @@ function SecaoDados() {
   }
 
   async function exportar() {
-    if (!podeExportar) { flash('erro', 'Exportação de dados está disponível no plano Premium ou Black.'); return; }
+    if (!podeExportar) { flash('erro', 'Exportação de dados está disponível no plano Premium.'); return; }
     if (!phone) { flash('erro', 'Vincule o WhatsApp primeiro.'); return; }
     setExportando(true);
     try {
@@ -1179,7 +1180,7 @@ function SecaoDados() {
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {podeExportar
                   ? 'Inclui data, tipo, categoria, valor, conta e observação de todas as transações. Abre direto no Excel ou Google Sheets.'
-                  : 'Exportação de histórico em CSV está disponível nos planos Premium e Black.'}
+                  : 'Exportação de histórico em CSV está disponível no plano Premium.'}
               </p>
             </div>
           </div>

@@ -24,7 +24,7 @@ const BRAND = 'hsl(var(--primary))';
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 type Step = 'dados' | 'plano' | 'pagamento' | 'ativando';
-const PLANOS_VALIDOS: PlanoId[] = ['basico', 'premium', 'black'];
+const PLANOS_VALIDOS: PlanoId[] = ['basico', 'premium'];
 
 const fmtPreco = (v: number) =>
   `R$ ${Math.floor(v)},${(v % 1).toFixed(2).slice(2)}`;
@@ -531,7 +531,7 @@ function PlanoStep({
       </div>
 
       <div className="space-y-2.5">
-        {PLANOS_DISPLAY.map((pl) => {
+        {PLANOS_DISPLAY.filter((pl) => pl.id !== 'black').map((pl) => {
           const sel = planoSel === pl.id;
           const preco = anual ? PLANOS_INFO[pl.id].anual : PLANOS_INFO[pl.id].mensal;
           return (

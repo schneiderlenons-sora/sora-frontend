@@ -16,7 +16,9 @@ import {
 const BRAND = 'hsl(var(--primary))';
 
 // Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
-const PLANOS = PLANOS_DISPLAY;
+// Black descontinuado — no painel mostramos só Básico e Premium (as features do
+// Black já foram anexadas ao Premium).
+const PLANOS = PLANOS_DISPLAY.filter((p) => p.id !== 'black');
 
 const ORDEM: Record<Plano, number> = {
   inativo: 0, basico: 1, kit: 1, premium: 2, black: 3,
@@ -42,7 +44,7 @@ function PlanosContent() {
   const intent   = searchParams.get('intent');             // 'upgrade' vindo do signup
   const planoIntencao = searchParams.get('plano') as PlanoId | null;
   const planoIntencaoValido =
-    planoIntencao && ['basico', 'premium', 'black'].includes(planoIntencao) ? planoIntencao : null;
+    planoIntencao && ['basico', 'premium'].includes(planoIntencao) ? planoIntencao : null;
   // Ciclo escolhido na landing (mensal/anual) — preserva a escolha no checkout.
   const cicloIntencao: Intervalo = searchParams.get('ciclo') === 'anual' ? 'anual' : 'mensal';
 

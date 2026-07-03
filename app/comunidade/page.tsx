@@ -11,7 +11,7 @@ import EntrarGrupoModal from '@/components/grupos/EntrarGrupoModal';
 import MudarPapelModal from '@/components/grupos/MudarPapelModal';
 import EditarGrupoModal from '@/components/grupos/EditarGrupoModal';
 import {
-  Plus, Sparkles, Users, UserPlus, Crown, Pencil, MoreVertical,
+  Plus, Sparkles, Users, UserPlus, Pencil, MoreVertical,
   LogOut, Check, ArrowLeftRight, Wallet, Layers, Lock,
   Trash2, Shield,
 } from 'lucide-react';
@@ -50,7 +50,7 @@ interface Membro {
 }
 
 export default function ComunidadePage() {
-  const { phone, perfil, isPremium, isBlack, recarregar } = useAuth();
+  const { phone, perfil, isPremium, recarregar } = useAuth();
 
   const { data: gruposData, mutate: mGrupos } = useApi(phone ? `grupos:${phone}` : null, () => api.grupos.listar(phone));
   const grupos: GrupoListItem[] = Array.isArray(gruposData) ? gruposData : [];
@@ -65,7 +65,7 @@ export default function ComunidadePage() {
   const [confirmSair, setConfirmSair] = useState<GrupoListItem | null>(null);
   const [menuMembro,  setMenuMembro]  = useState<string | null>(null);
 
-  const temAcesso = isPremium || isBlack;
+  const temAcesso = isPremium;
   const grupoAtivoId = perfil?.grupo_ativo?.id;
   const grupoAtivo = useMemo(
     () => grupos.find(g => g.grupo_id === grupoAtivoId) || grupos[0],
@@ -551,10 +551,10 @@ function PaywallGrupos() {
         Compartilhe suas finanças
       </h2>
       <p className="text-muted-foreground text-sm mt-2 max-w-lg mx-auto leading-relaxed">
-        Crie grupos com até 5 pessoas e gerencie as finanças em conjunto. Disponível nos planos Premium e Black.
+        Crie grupos com até 5 pessoas e gerencie as finanças em conjunto. Disponível no plano Premium.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 text-left max-w-2xl mx-auto">
+      <div className="grid grid-cols-1 gap-4 mt-8 text-left max-w-md mx-auto">
         {/* Premium */}
         <div className="card rounded-2xl p-5 border border-border">
           <div className="flex items-center justify-between mb-3">
@@ -574,32 +574,6 @@ function PaywallGrupos() {
           </ul>
           <a href="/planos" className="btn btn-primary w-full py-2 text-sm gap-2 inline-flex items-center justify-center">
             Assinar Premium
-          </a>
-        </div>
-
-        {/* Black */}
-        <div className="relative card rounded-2xl p-5 border-2"
-             style={{ borderColor: BRAND, background: `linear-gradient(135deg, hsl(var(--bg-card)), color-mix(in srgb, ${BRAND} 3%, transparent))` }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold text-foreground inline-flex items-center gap-1.5">
-              <Crown size={14} style={{ color: BRAND }} /> Black
-            </p>
-            <span className="text-[10px] font-semibold uppercase tracking-wider bg-zinc-900 text-white px-2 py-0.5 rounded-full">
-              Top
-            </span>
-          </div>
-          <p className="text-3xl font-bold text-foreground tabular tracking-tight">R$ 79,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
-          <ul className="space-y-2 mt-4 mb-5">
-            {features.black.map(f => (
-              <li key={f} className="flex items-start gap-2 text-xs text-foreground">
-                <Check size={14} className="text-primary flex-shrink-0 mt-0.5" />
-                {f}
-              </li>
-            ))}
-          </ul>
-          <a href="/planos" className="btn w-full py-2 text-sm gap-2 text-white shadow-glow-sm inline-flex items-center justify-center"
-             style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 80%, transparent))` }}>
-            Assinar Black
           </a>
         </div>
       </div>

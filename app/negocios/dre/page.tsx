@@ -48,12 +48,12 @@ const fmt = (centavos: number) =>
 type Tipo = 'positivo' | 'negativo' | 'neutro' | 'total';
 
 export default function DreDetalhadoPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
   // Dados via SWR — revisita instantânea (cache em memória).
-  const { data: dreData, mutate: mDre } = useApi((phone && isBlack) ? `negdre:${phone}:${periodo}` : null, () => api.negocios.dre.detalhado(phone, periodo));
+  const { data: dreData, mutate: mDre } = useApi((phone && isPremium) ? `negdre:${phone}:${periodo}` : null, () => api.negocios.dre.detalhado(phone, periodo));
   const dre: any = (dreData as any) ?? null;
   const loading = dreData === undefined;
   const carregar = () => mDre();
@@ -76,9 +76,9 @@ export default function DreDetalhadoPage() {
     return out;
   }, []);
 
-  if (!isBlack) {
+  if (!isPremium) {
     return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Black.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
     </div></DashboardLayout>;
   }
 

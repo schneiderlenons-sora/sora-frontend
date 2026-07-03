@@ -48,7 +48,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/juros',              label: 'Calculadora de Juros', icon: Percent },
   { href: '/planejamento',       label: 'Planejamento Anual', icon: CalendarRange },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
-  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Black'   },
+  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Premium' },
 ];
 
 // ── Grupo GROW ──────────────────────────────────────────────────────

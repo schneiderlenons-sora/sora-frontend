@@ -31,16 +31,16 @@ const CORES_PLAT: Record<string, string> = {
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────
 export default function WrappedPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [data, setData]   = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [idx, setIdx]     = useState(0);
   const [autoplay, setAutoplay] = useState(true);
 
   useEffect(() => {
-    if (!phone || !isBlack) return;
+    if (!phone || !isPremium) return;
     api.negocios.wrapped.get(phone).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
-  }, [phone, isBlack]);
+  }, [phone, isPremium]);
 
   const slides = useMemo(() => construirSlides(data), [data]);
 
@@ -62,8 +62,8 @@ export default function WrappedPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [slides.length]);
 
-  if (!isBlack) {
-    return <FullCenter><p className="text-white/70 text-sm">Disponível no plano Black.</p></FullCenter>;
+  if (!isPremium) {
+    return <FullCenter><p className="text-white/70 text-sm">Disponível no plano Premium.</p></FullCenter>;
   }
   if (loading) {
     return <FullCenter><Loader2 className="animate-spin text-white/50" size={24} /></FullCenter>;

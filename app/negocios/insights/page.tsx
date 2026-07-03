@@ -49,13 +49,13 @@ function tempoAtras(iso: string) {
 }
 
 export default function InsightsPage() {
-  const { isBlack, phone } = useAuth();
+  const { isPremium, phone } = useAuth();
   const [insights, setInsights] = useState<any[]>([]);
   const [gerando, setGerando]   = useState(false);
   const [feedback, setFeedback] = useState('');
 
   // SWR cacheia (revisita instantânea); mantém `insights` local pro dispensar otimista.
-  const { data: insData, mutate: mIns } = useApi((phone && isBlack) ? `neg:insights:${phone}` : null, () => api.negocios.insights.listar(phone));
+  const { data: insData, mutate: mIns } = useApi((phone && isPremium) ? `neg:insights:${phone}` : null, () => api.negocios.insights.listar(phone));
   useEffect(() => { if (insData !== undefined) setInsights((insData as any) || []); }, [insData]);
   const loading = insData === undefined;
   const carregar = () => mIns();
@@ -84,9 +84,9 @@ export default function InsightsPage() {
     catch {} // silent — UI já removeu
   }
 
-  if (!isBlack) {
+  if (!isPremium) {
     return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Black.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
     </div></DashboardLayout>;
   }
 
