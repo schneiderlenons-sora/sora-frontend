@@ -336,6 +336,7 @@ export const api = {
     arquivo: {
       uploadUrl:   (body: { phone: string; filename: string }) => req<{ path: string; token: string; nome: string }>('/api/dados/upload-url', { method: 'POST', body: JSON.stringify(body) }),
       downloadUrl: (body: { phone: string; path: string }) => req<{ url: string }>('/api/dados/download-url', { method: 'POST', body: JSON.stringify(body) }),
+      todos:       (phone: string) => req<any[]>(`/api/dados/arquivos/${phone}`),
     },
   },
 

@@ -9,7 +9,7 @@ import GrowHero from '@/components/grow/GrowHero';
 import {
   Lock, ShieldCheck, ShieldOff, Loader2, Plus, ChevronLeft, ChevronRight, X,
   Pencil, Trash2, Copy, Check, Eye, EyeOff, KeyRound, FileText, Paperclip, Download,
-  FolderLock,
+  FolderLock, Search, Clock,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -234,6 +234,8 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
 function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) => void }) {
   const { data: quadrosData, mutate: mutQuadros } = useApi(`dados:quadros:${phone}`, () => api.dados.quadros.listar(phone));
   const { data: secoesData, mutate: mutSecoes } = useApi(`dados:secoes:all:${phone}`, () => api.dados.secoes.listarTodas(phone));
+  const { data: arquivosData } = useApi(`dados:arquivos:${phone}`, () => api.dados.arquivo.todos(phone));
+  const arquivos: any[] = arquivosData ?? [];
   const [modalQuadro, setModalQuadro] = useState<any | null | undefined>(undefined); // undefined=fechado, null=novo, obj=editar
   const [modalSecao, setModalSecao] = useState<{ quadroId: string; secao?: any } | null>(null);
 
@@ -261,6 +263,8 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
 
   return (
     <>
+      {arquivos.length > 0 && <DriveArquivos arquivos={arquivos} secoes={secoes} quadros={quadros} phone={phone} />}
+
       <div className="flex items-center justify-end">
         <button onClick={() => setModalQuadro(null)} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 active:scale-95"><Plus size={16} /> Nova pasta</button>
       </div>
@@ -310,6 +314,75 @@ function Board({ phone, onAbrirSecao }: { phone: string; onAbrirSecao: (s: any) 
       {modais}
     </>
   );
+}
+
+// ── Drive: busca global + arquivos recentes (topo do painel) ──
+function DriveArquivos({ arquivos, secoes, quadros, phone }: { arquivos: any[]; secoes: any[]; quadros: any[]; phone: string }) {
+  const [busca, setBusca] = useState('');
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
+
+  const secaoById: Record<string, any> = {}; for (const s of secoes) secaoById[s.id] = s;
+  const quadroById: Record<string, any> = {}; for (const q of quadros) quadroById[q.id] = q;
+
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const termo = norm(busca.trim());
+  const caminho = (a: any) => {
+    const s = secaoById[a.secao_id]; const qd = s ? quadroById[s.quadro_id] : null;
+    return [qd?.nome, s?.nome].filter(Boolean).join(' › ');
+  };
+  const filtrados = termo
+    ? arquivos.filter(a => norm(`${a.arquivo_nome || ''} ${a.titulo || ''} ${caminho(a)}`).includes(termo))
+    : arquivos.slice(0, 8);
+
+  const baixar = async (a: any) => {
+    if (!a.arquivo_url) return; setBaixandoId(a.id);
+    try { const { url } = await api.dados.arquivo.downloadUrl({ phone, path: a.arquivo_url }); window.open(url, '_blank', 'noopener'); } catch {}
+    finally { setBaixandoId(null); }
+  };
+
+  return (
+    <div className="rounded-2xl border border-border/40 p-4 animate-[slide-up_400ms_ease-out_both]" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-background px-3.5 py-2.5 mb-3">
+        <Search size={16} className="text-muted-foreground flex-shrink-0" />
+        <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar arquivo no Drive…"
+          className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+        {busca && <button onClick={() => setBusca('')} className="text-muted-foreground hover:text-foreground" aria-label="Limpar"><X size={15} /></button>}
+      </div>
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-muted-foreground uppercase mb-2">
+        {termo ? `Resultados (${filtrados.length})` : <><Clock size={12} /> Recentes</>}
+      </p>
+      {filtrados.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-3 text-center">Nenhum arquivo encontrado.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {filtrados.map(a => (
+            <div key={a.id} className="group flex items-center gap-3 p-2.5 rounded-xl hover:bg-foreground/[0.04] transition-colors">
+              <span className="w-8 h-8 rounded-lg grid place-items-center flex-shrink-0" style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 12%, transparent)' }}>
+                <FileText size={15} style={{ color: BRAND }} />
+              </span>
+              <button onClick={() => baixar(a)} className="flex-1 min-w-0 text-left">
+                <p className="font-semibold text-[13px] text-foreground truncate">{a.arquivo_nome || a.titulo || 'arquivo'}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{caminho(a) || 'Drive'} · {tempoRel(a.created_at)}</p>
+              </button>
+              <button onClick={() => baixar(a)} className="p-2 rounded-lg text-muted-foreground hover:bg-foreground/10 flex-shrink-0" aria-label="Baixar">
+                {baixandoId === a.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function tempoRel(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso); const min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `${min} min atrás`;
+  const h = Math.floor(min / 60); if (h < 24) return `${h}h atrás`;
+  const dias = Math.floor(h / 24); if (dias < 7) return `${dias} dia${dias > 1 ? 's' : ''} atrás`;
+  return d.toLocaleDateString('pt-BR');
 }
 
 // ── Nível 3: Itens ──
