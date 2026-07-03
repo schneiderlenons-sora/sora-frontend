@@ -45,10 +45,11 @@ export default function LandingPage() {
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <ProdutividadeShowcase />
       <DriveShowcase />
+      <SocialProof />
+      <CtaPlanos frase="Quero fazer parte" />
       <Personalizacao />
       <MobileShowcase />
       <SoraLabs />
-      <SocialProof />
       <Pricing />
       <Faq />
       <CtaFinal />
