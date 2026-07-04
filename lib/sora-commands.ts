@@ -537,6 +537,35 @@ export const COMANDOS: Comando[] = [
 
   // ─── SORA GROW ────────────────────────────────────────────────────
   {
+    id: 'grow-tarefa-natural',
+    titulo: 'Criar tarefa falando 🎤',
+    exemplo: 'lembra de comprar as passagens',
+    descricao: 'Manda em áudio ou texto o que precisa fazer, em linguagem natural. A Sora transcreve, cria a tarefa e já categoriza (Viagem, Compras, Trabalho, Saúde…).',
+    variantes: ['tenho que enviar o relatório pro cliente', 'não esquecer de pagar o boleto', 'preciso ligar pro dentista'],
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+    destaque: true,
+  },
+  {
+    id: 'grow-nota-salvar',
+    titulo: 'Salvar uma ideia / insight 💡',
+    exemplo: 'tive uma ideia sobre o projeto de expansão',
+    descricao: 'Grave um áudio ou mande um texto com uma ideia solta ou insight. A Sora guarda pra você consultar quando quiser.',
+    variantes: ['anota que o cliente prefere azul', 'guarda esse insight: o público jovem converte mais', 'nota: renegociar o aluguel em janeiro'],
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+    destaque: true,
+  },
+  {
+    id: 'grow-nota-consultar',
+    titulo: 'Consultar suas notas 🔎',
+    exemplo: 'o que anotei sobre o projeto de expansão?',
+    descricao: 'Pergunte com suas palavras que a Sora acha a nota na hora. Ou peça *minhas notas* pra ver as últimas.',
+    variantes: ['minhas notas', 'procura minha ideia sobre marketing', 'o que eu pensei sobre o preço'],
+    categoria: 'sora-grow',
+    feature: 'sora_grow',
+  },
+  {
     id: 'grow-habito',
     titulo: 'Marcar hábito do dia',
     exemplo: 'fiz exercício hoje',
