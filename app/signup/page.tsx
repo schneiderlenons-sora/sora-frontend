@@ -227,7 +227,7 @@ function SignupWizard() {
 
   return (
     <div className="min-h-dvh flex flex-col lg:flex-row bg-white dark:bg-zinc-950">
-      <AuthHero />
+      <AuthHero pagamento={vitalicioMode ? 'Mercado Pago' : 'Stripe'} />
 
       <div className="relative flex-1 flex items-center justify-center
                       px-6 sm:px-10 lg:px-12 py-10 lg:py-12

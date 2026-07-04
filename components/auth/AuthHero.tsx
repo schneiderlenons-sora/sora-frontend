@@ -26,7 +26,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function AuthHero() {
+export default function AuthHero({ pagamento = 'Stripe' }: { pagamento?: string }) {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function AuthHero() {
         {/* Badges mobile */}
         <div className="flex flex-wrap gap-2 lg:hidden">
           <PillBadge label="Setup em 30s" />
-          <PillBadge label="Pagamento seguro com Stripe" />
+          <PillBadge label={`Pagamento seguro com ${pagamento}`} />
         </div>
 
         {/* Card mockup desktop */}
