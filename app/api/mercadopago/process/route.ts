@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mpCreatePayment, tierConfig } from '@/lib/mercadopago';
+import { aplicarCupomVitalicio } from '@/lib/cupons';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ativarVitalicio } from '@/lib/vitalicio';
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
       installments?: number;
       payer?: { email?: string; identification?: { type?: string; number?: string } };
       tier?: string;
+      cupom?: string;
     };
 
     // Valor + plano SEMPRE pelo tier no servidor (nunca confiar no cliente).
@@ -36,6 +38,20 @@ export async function POST(req: NextRequest) {
       if (u?.plano !== 'kit') cfg = tierConfig('completa');
     }
 
+    // Cupom (opcional) — desconto SEMPRE recalculado aqui (nunca confiar no
+    // cliente). Código inválido → 0% (cobra cheio, fluxo normal).
+    const { valor, pct, codigo } = aplicarCupomVitalicio(cfg.amount, form.cupom);
+
+    // 100% OFF (SORA100) → acesso grátis, sem passar pelo Mercado Pago. Sem
+    // webhook de rede de segurança aqui: só responde 'approved' se ATIVOU mesmo.
+    if (pct >= 100) {
+      const ativado = await ativarVitalicio(user.id, cfg.plano);
+      if (!ativado) {
+        return NextResponse.json({ erro: 'Não consegui ativar seu acesso agora. Tente de novo em instantes.' }, { status: 500 });
+      }
+      return NextResponse.json({ status: 'approved', ativado: true, gratis: true, cupom: codigo });
+    }
+
     const origin = (
       req.headers.get('origin') ||
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -43,7 +59,7 @@ export async function POST(req: NextRequest) {
     ).replace('://forsora.com', '://www.forsora.com');
 
     const payment = await mpCreatePayment({
-      transaction_amount: cfg.amount,
+      transaction_amount: valor,
       description: cfg.titulo,
       token: form.token,
       installments: form.installments || 1,
@@ -51,7 +67,7 @@ export async function POST(req: NextRequest) {
       issuer_id: form.issuer_id,
       payer: { email: form.payer?.email || user.email, identification: form.payer?.identification },
       external_reference: user.id,
-      metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano },
+      metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct },
       notification_url: `${origin}/api/mercadopago/webhook`,
       statement_descriptor: 'SORA',
     });

@@ -23,7 +23,7 @@ function carregarSdk(): Promise<void> {
 
 // Checkout Transparente do Mercado Pago (Payment Brick): cartão com parcelamento
 // (até 12x, o MP já mostra "12x de R$X") + Pix, tudo dentro da página.
-export default function MercadoPagoBrick({ amount = 97, tier = 'completa', onApproved }: { amount?: number; tier?: string; onApproved: () => void }) {
+export default function MercadoPagoBrick({ amount = 97, tier = 'completa', cupom, onApproved }: { amount?: number; tier?: string; cupom?: string | null; onApproved: () => void }) {
   const [erro, setErro] = useState('');
   const [pix, setPix] = useState<{ qr_code: string; qr_code_base64?: string } | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -31,6 +31,9 @@ export default function MercadoPagoBrick({ amount = 97, tier = 'completa', onApp
   const controllerRef = useRef<any>(null);
   const onApprovedRef = useRef(onApproved);
   useEffect(() => { onApprovedRef.current = onApproved; }, [onApproved]);
+  // cupom lido por ref no onSubmit — sempre o atual, sem recriar o brick.
+  const cupomRef = useRef(cupom);
+  useEffect(() => { cupomRef.current = cupom; }, [cupom]);
 
   useEffect(() => {
     let cancel = false;
@@ -52,7 +55,7 @@ export default function MercadoPagoBrick({ amount = 97, tier = 'completa', onApp
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onSubmit: ({ formData }: any) =>
               fetch('/api/mercadopago/process', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, tier }),
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, tier, cupom: cupomRef.current }),
               })
                 .then((r) => r.json())
                 .then((res) => {
