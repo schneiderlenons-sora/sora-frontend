@@ -126,7 +126,7 @@ export default function PricingVitalicio() {
             </Link>
 
             <div className="mt-4 flex items-center justify-center gap-2 text-white/40 text-xs">
-              <ShieldCheck size={14} /> Pagamento único e seguro via Stripe · acesso imediato
+              <ShieldCheck size={14} /> Pagamento único e seguro via Mercado Pago · acesso imediato
             </div>
           </div>
         </div>
