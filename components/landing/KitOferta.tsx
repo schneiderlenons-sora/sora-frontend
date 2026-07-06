@@ -22,13 +22,6 @@ const FERRAMENTAS = [
   { icon: FileText,      nome: 'PDF: Método Sobra no Mês',       desc: 'Estratégias práticas pra sobrar dinheiro todo mês.' },
 ];
 
-const DORES = [
-  'Chega no fim do mês e o dinheiro simplesmente… sumiu.',
-  'Mistura conta pessoal com a do trabalho e não sabe o que é seu.',
-  'Vocês (casal) brigam por dinheiro porque ninguém vê o todo.',
-  'Já tentou planilha — e abandonou na segunda semana.',
-];
-
 const FAQ = [
   { q: 'Preciso entender de finanças?', a: 'Não. A Sora foi feita pra quem é leigo e bagunçado. Você só organiza o que já tem — sem termos complicados.' },
   { q: 'É pra sempre mesmo? Sem mensalidade?', a: 'Sim. Você paga UMA vez e o acesso é seu pra sempre. Sem mensalidade, sem pegadinha, sem cobrança recorrente.' },
@@ -272,22 +265,6 @@ export default function KitOferta() {
                           style={{ width: d === i ? 18 : 6, background: d === i ? BRAND : 'rgba(255,255,255,0.15)' }} />
                   ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════ DOR ══════════ */}
-      <section className="py-16 px-5 border-t border-white/5">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold">Se você se identifica com isso, a conta não fecha por um motivo:</h2>
-          <p className="text-white/50 mt-2">não é falta de dinheiro — é falta de <strong className="text-white">controle</strong>.</p>
-          <div className="mt-8 grid sm:grid-cols-2 gap-3 text-left">
-            {DORES.map((d) => (
-              <div key={d} className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-4">
-                <X size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-white/80">{d}</span>
               </div>
             ))}
           </div>
