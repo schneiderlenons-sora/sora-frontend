@@ -151,11 +151,11 @@ export default function KitOferta() {
           </div>
 
           {/* Vídeo em loop — decorativo, sem nenhum controle (play/pause/carregamento).
-              Coloque o arquivo em: public/kit/dashboard.mp4 */}
+              Arquivo em: public/kit/relatorios.mp4 */}
           <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.85)] bg-[#0d0d0d]">
             <video
               className="w-full h-auto block pointer-events-none select-none"
-              src="/kit/dashboard.mp4"
+              src="/kit/relatorios.mp4"
               autoPlay
               loop
               muted
