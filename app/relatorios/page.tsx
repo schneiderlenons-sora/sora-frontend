@@ -481,7 +481,9 @@ export default function RelatoriosPage() {
                       <div key={i} className="animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{cat.emoji}</span>
+                            {temMarcaConhecida(cat.name)
+                              ? <CategoriaIcon nome={cat.name} icone={cat.emoji} color={cat.color} size={22} />
+                              : <span className="text-base">{cat.emoji}</span>}
                             <span className="text-sm font-medium text-foreground">{cat.name}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular"
                                   style={{ background: `color-mix(in srgb, ${cat.color} 13%, transparent)`, color: cat.color }}>
@@ -877,7 +879,9 @@ function CategoryDonut({ data }: { data: any[] }) {
           const pct = total ? (d.value / total) * 100 : 0;
           return (
             <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="text-base flex-shrink-0">{d.emoji}</span>
+              {temMarcaConhecida(d.name)
+                ? <CategoriaIcon nome={d.name} icone={d.emoji} color={d.color} size={18} />
+                : <span className="text-base flex-shrink-0">{d.emoji}</span>}
               <span className="flex-1 truncate text-muted-foreground">{d.name}</span>
               <span className="text-[10px] font-bold tabular px-1.5 py-0.5 rounded-full"
                     style={{ background: `color-mix(in srgb, ${d.color} 13%, transparent)`, color: d.color }}>
