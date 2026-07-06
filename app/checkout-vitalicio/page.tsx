@@ -46,8 +46,22 @@ function CheckoutContent() {
   const gratis = pct >= 100;
 
   useEffect(() => {
-    if (!loading && !user) router.replace(`/signup?vitalicio=1&tier=${tier}`);
-  }, [loading, user, router, tier]);
+    if (loading) return;
+    if (!user) {
+      // rec=1 (link de recuperação): a conta já existe → login com retorno pra cá.
+      // Senão (visitante novo) → cadastro.
+      if (params.get('rec') === '1') {
+        router.replace(`/login?next=${encodeURIComponent(`/checkout-vitalicio?${params.toString()}`)}`);
+      } else {
+        router.replace(`/signup?vitalicio=1&tier=${tier}`);
+      }
+      return;
+    }
+    // Logado: registra a intenção do vitalício (pra recuperação futura). Fire-and-forget.
+    fetch('/api/vitalicio/intent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier }),
+    }).catch(() => {});
+  }, [loading, user, router, tier, params]);
 
   const onApproved = useCallback(() => {
     // Upgrade do Kit → Completa: agora ele TEM WhatsApp, então pede o número.

@@ -72,10 +72,27 @@ export async function POST(req: NextRequest) {
       statement_descriptor: 'SORA',
     });
 
+    // Registra a intenção do vitalício (pra recuperação levar de volta pra oferta
+    // certa). Tolerante: se a coluna não existir (migration 064), só não grava.
+    const intentTier = ['kit', 'completa', 'upgrade'].includes(form.tier || '') ? form.tier : 'completa';
+    try {
+      await supabaseAdmin.from('users').update({ vitalicio_intent: intentTier }).eq('id', user.id);
+    } catch { /* migration 064 pendente */ }
+
     // Cartão aprovado na hora → ativa já (o webhook é rede de segurança).
     let ativado = false;
     if (payment.status === 'approved') {
       ativado = await ativarVitalicio(user.id, cfg.plano);
+      // Limpa flag de recuperação (caso tenha falhado antes e agora deu certo).
+      try { await supabaseAdmin.from('users').update({ recuperacao_pendente_em: null }).eq('id', user.id); } catch {}
+    } else if (payment.status === 'rejected') {
+      // #1 — pagamento recusado: marca pra recuperação (o cron manda o WhatsApp de
+      // "cartão recusado" pra quem tem telefone). Só p/ lead inativo. Tolerante.
+      try {
+        await supabaseAdmin.from('users')
+          .update({ recuperacao_pendente_em: new Date().toISOString() })
+          .eq('id', user.id).eq('plano', 'inativo');
+      } catch { /* migration 047 pendente */ }
     }
 
     const td = payment.point_of_interaction?.transaction_data;

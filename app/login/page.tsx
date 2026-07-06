@@ -20,7 +20,16 @@ export default function LoginPage() {
     e.preventDefault();
     setErro('');
     setLoading(true);
-    try { await signIn(email, password); }
+    try {
+      await signIn(email, password);
+      // ?next= (ex.: link de recuperação → volta pro checkout do vitalício). Só
+      // caminhos internos; navegação dura evita corrida com o guard de auth.
+      const next = new URLSearchParams(window.location.search).get('next');
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        window.location.href = next;
+        return;
+      }
+    }
     catch (err: any) { setErro(err.message || 'Email ou senha incorretos.'); }
     finally { setLoading(false); }
   }
