@@ -116,6 +116,59 @@ export default function KitOferta() {
         </div>
       </section>
 
+      {/* ══════════ DASHBOARD (vídeo em loop) ══════════ */}
+      <section className="py-16 lg:py-20 px-5 border-t border-white/5">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          {/* Texto */}
+          <div>
+            <h2 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight">
+              Dashboard inteligente com<br />
+              <span style={{ color: BRAND }}>relatórios automáticos</span>
+            </h2>
+            <p className="mt-5 text-white/60 leading-relaxed max-w-md">
+              Acompanhe seus gastos e receitas num painel incrível, com gráficos claros de saldo,
+              categorias, planejamento financeiro e fluxo de caixa. Você acessa tudo pelo celular ou
+              computador e a Sora organiza tudo pra você automaticamente.
+            </p>
+
+            <ul className="mt-7 space-y-3 border-t border-white/10 pt-6">
+              {['Dashboard financeiro avançado', 'Gestão de contas e carteiras', 'Exportação de dados em PDF'].map((t) => (
+                <li key={t} className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: `color-mix(in srgb, ${BRAND} 18%, transparent)` }}>
+                    <Check size={14} style={{ color: BRAND }} strokeWidth={3} />
+                  </span>
+                  <span className="text-[15px] text-white/85 font-medium">{t}</span>
+                </li>
+              ))}
+            </ul>
+
+            <a href="#ofertas"
+               className="mt-8 inline-flex items-center gap-2 px-7 py-4 rounded-2xl font-black text-black text-lg active:scale-[0.98] transition"
+               style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)`, boxShadow: `0 12px 40px -10px ${BRAND}99` }}>
+              Começar agora <ArrowRight size={18} />
+            </a>
+          </div>
+
+          {/* Vídeo em loop — decorativo, sem nenhum controle (play/pause/carregamento).
+              Coloque o arquivo em: public/kit/dashboard.mp4 */}
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.85)] bg-[#0d0d0d]">
+            <video
+              className="w-full h-auto block pointer-events-none select-none"
+              src="/kit/dashboard.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              disablePictureInPicture
+              controlsList="nodownload nofullscreen noremoteplayback"
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* ══════════ DOR ══════════ */}
       <section className="py-16 px-5 border-t border-white/5">
         <div className="max-w-3xl mx-auto text-center">
