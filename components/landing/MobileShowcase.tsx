@@ -30,7 +30,7 @@ export default function MobileShowcase() {
         </h2>
 
         <p className="mt-5 text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-          Toda a Sora na palma da mão — instale como app (PWA) e acesse seu painel
+          Toda a Sora na palma da mão — instale como app e acesse seu painel
           de qualquer lugar, com a mesma experiência do desktop.
         </p>
 
