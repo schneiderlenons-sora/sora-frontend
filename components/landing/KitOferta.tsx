@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import {
   Wallet, Percent, PiggyBank, TrendingUp, Target, CalendarRange, CreditCard, FileText,
-  Check, X, Crown, ShieldCheck, Lock, Sparkles, MessageCircle, Camera, Building2,
-  Users, Bell, ChevronDown, ArrowRight, Infinity as InfinityIcon, Zap,
+  Check, X, Crown, ShieldCheck, Lock, Sparkles, MessageCircle,
+  ChevronDown, ArrowRight, Infinity as InfinityIcon,
 } from 'lucide-react';
 import Personalizacao from './Personalizacao';
 import MobileShowcase from './MobileShowcase';
@@ -355,14 +355,15 @@ export default function KitOferta() {
                  className="mt-6 w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold border border-white/15 hover:bg-white/5 transition">
                 Começar com o Kit
               </a>
-              <ul className="mt-6 space-y-2.5 text-sm">
+              <ul className="mt-6 space-y-2.5 text-sm text-left">
                 {FERRAMENTAS.map((f) => (
-                  <li key={f.nome} className="flex items-center gap-2.5 text-white/80">
-                    <Check size={15} style={{ color: BRAND }} className="flex-shrink-0" /> {f.nome}
+                  <li key={f.nome} className="flex items-start gap-2.5 text-white/80">
+                    <Check size={15} style={{ color: BRAND }} className="flex-shrink-0 mt-0.5" />
+                    <span>{f.nome}</span>
                   </li>
                 ))}
-                <li className="flex items-center gap-2.5 text-white/35"><X size={15} className="flex-shrink-0" /> Sora no WhatsApp</li>
-                <li className="flex items-center gap-2.5 text-white/35"><X size={15} className="flex-shrink-0" /> Open Finance, foto de nota, painel do casal</li>
+                <li className="flex items-start gap-2.5 text-white/35"><X size={15} className="flex-shrink-0 mt-0.5" /> <span>Sora no WhatsApp</span></li>
+                <li className="flex items-start gap-2.5 text-white/35"><X size={15} className="flex-shrink-0 mt-0.5" /> <span>Open Finance, foto de nota, painel do casal</span></li>
               </ul>
             </div>
 
@@ -385,15 +386,14 @@ export default function KitOferta() {
                  style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)` }}>
                 <Crown size={17} /> Quero a Sora Completa
               </a>
-              <ul className="mt-6 space-y-2.5 text-sm">
-                <li className="flex items-center gap-2.5 font-semibold"><Check size={15} style={{ color: BRAND }} className="flex-shrink-0" /> As 8 ferramentas do Kit</li>
-                <li className="flex items-center gap-2.5 text-white"><MessageCircle size={15} style={{ color: BRAND }} className="flex-shrink-0" /> <strong>Sora no WhatsApp</strong> (texto, áudio e foto)</li>
-                <li className="flex items-center gap-2.5"><Camera size={15} style={{ color: BRAND }} className="flex-shrink-0" /> Nota fiscal por foto (lança sozinha)</li>
-                <li className="flex items-center gap-2.5"><Building2 size={15} style={{ color: BRAND }} className="flex-shrink-0" /> Open Finance — conecta seus bancos</li>
-                <li className="flex items-center gap-2.5"><Users size={15} style={{ color: BRAND }} className="flex-shrink-0" /> Painel do casal (gestão a dois)</li>
-                <li className="flex items-center gap-2.5"><Bell size={15} style={{ color: BRAND }} className="flex-shrink-0" /> Avisos e resumos automáticos</li>
-                <li className="flex items-center gap-2.5"><Zap size={15} style={{ color: BRAND }} className="flex-shrink-0" /> + Sora Grow (hábitos, agenda, saúde…)</li>
+              <ul className="mt-6 space-y-2.5 text-sm text-left">
                 {[
+                  'As 8 ferramentas do Kit',
+                  'Sora no WhatsApp (texto, áudio e foto)',
+                  'Nota fiscal por foto (lança sozinha)',
+                  'Conecte seus bancos ilimitadamente',
+                  'Painel do casal (gestão a dois)',
+                  'Avisos e resumos automáticos',
                   'Importação OFX',
                   'Avisos de Compromissos',
                   'Integrações Hotmart, Kiwify, Eduzz, Stripe',
@@ -405,8 +405,9 @@ export default function KitOferta() {
                   'Controle de Medicação com alertas',
                   'Cálculo de Macros e Calorias por foto ou mensagem',
                 ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 leading-snug">
-                    <Check size={15} style={{ color: BRAND }} className="flex-shrink-0 mt-0.5" /> {f}
+                  <li key={f} className="flex items-start gap-2.5 leading-snug text-white/85">
+                    <Check size={15} style={{ color: BRAND }} className="flex-shrink-0 mt-0.5" />
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
