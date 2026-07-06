@@ -10,6 +10,12 @@ import {
 import Personalizacao from './Personalizacao';
 import MobileShowcase from './MobileShowcase';
 import SoraLabs      from './SoraLabs';
+import FinancasChat  from './FinancasChat';
+import AgendaChat    from './AgendaChat';
+import HabitosSaude  from './HabitosSaude';
+import ProdutividadeShowcase from './ProdutividadeShowcase';
+import DriveShowcase from './DriveShowcase';
+import SocialProof   from './SocialProof';
 
 const BRAND = '#61ce70';
 
@@ -434,6 +440,18 @@ export default function KitOferta() {
         </div>
       </section>
 
+      {/* ══════════ FEATURES (do forsora.com) — Financas · Agenda · Habitos ·
+          Produtividade · Drive · Quem usa. Componentes theme-aware; o wrapper
+          .dark força a variante escura pra casar com o tema do /kit. ══════════ */}
+      <div className="dark">
+        <FinancasChat />
+        <AgendaChat />
+        <HabitosSaude />
+        <ProdutividadeShowcase />
+        <DriveShowcase />
+        <SocialProof />
+      </div>
+
       {/* ══════════ VALUE STACK ══════════ */}
       <section className="py-16 px-5 border-t border-white/5">
         <div className="max-w-xl mx-auto">
@@ -472,13 +490,25 @@ export default function KitOferta() {
       </section>
 
       {/* ══════════ GARANTIA ══════════ */}
-      <section className="py-14 px-5 border-t border-white/5">
-        <div className="max-w-2xl mx-auto rounded-3xl border border-amber-400/30 bg-amber-400/[0.04] p-7 flex items-center gap-5">
-          <ShieldCheck size={56} className="text-amber-400 flex-shrink-0" />
-          <div>
-            <p className="text-amber-300 text-[11px] font-bold uppercase tracking-widest">Garantia incondicional</p>
-            <h3 className="text-xl font-bold mt-0.5">7 dias de risco zero</h3>
-            <p className="text-white/60 text-sm mt-1">Testa sem medo. Se em 7 dias você não amar, devolvemos <strong className="text-white">100% do seu dinheiro</strong>. O risco é todo nosso.</p>
+      <section className="relative overflow-hidden py-16 lg:py-20 px-5 border-t border-white/5">
+        <div aria-hidden className="absolute inset-0 pointer-events-none"
+             style={{ background: 'radial-gradient(ellipse 55% 55% at 50% 40%, rgba(251,191,36,0.13) 0%, transparent 70%)' }} />
+        <div className="relative max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-6 shadow-[0_20px_60px_-15px_rgba(251,191,36,0.55)]"
+               style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
+            <ShieldCheck size={40} className="text-black" />
+          </div>
+          <p className="text-amber-300 text-[11px] font-bold uppercase tracking-[0.25em] mb-3">Garantia incondicional</p>
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-[1.05]">
+            7 dias de <span className="text-amber-400">risco zero</span>
+          </h2>
+          <p className="mt-5 text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
+            Testa sem medo. Se em 7 dias você não amar a Sora, devolvemos <strong className="text-white">100% do seu dinheiro</strong> — sem perguntas, sem burocracia. O risco é todo nosso.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/55">
+            <span className="inline-flex items-center gap-1.5"><Check size={15} className="text-amber-400" /> 100% do dinheiro de volta</span>
+            <span className="inline-flex items-center gap-1.5"><Check size={15} className="text-amber-400" /> Sem perguntas</span>
+            <span className="inline-flex items-center gap-1.5"><Check size={15} className="text-amber-400" /> Acesso imediato</span>
           </div>
         </div>
       </section>
