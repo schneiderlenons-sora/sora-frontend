@@ -160,7 +160,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
         </div>
 
         {/* Seletor de cores — swatches */}
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
           {CORES.map((c, i) => {
             const ativa = idx === i;
             return (
@@ -170,7 +170,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
                 aria-label={`Tema ${c.nome}`}
                 aria-pressed={ativa}
                 title={c.nome}
-                className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all duration-200 ${
+                className={`relative w-8 h-8 sm:w-11 sm:h-11 rounded-full transition-all duration-200 ${
                   ativa ? 'scale-110' : 'hover:scale-105 opacity-80 hover:opacity-100'
                 }`}
                 style={{
