@@ -460,10 +460,15 @@ export default function KitOferta() {
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 space-y-3">
             {[
               ['App de Organização Financeira completo', 'R$197'],
-              ['Sora no WhatsApp (texto/áudio/foto)', 'R$297'],
-              ['Calculadoras (juros, investimentos, reserva, metas)', 'R$197'],
+              ['Sora no WhatsApp (texto, áudio e foto da nota)', 'R$297'],
+              ['Aba Negócios — DRE, forecast e integrações (Hotmart, Kiwify, Eduzz)', 'R$297'],
+              ['Central de Investimentos + metas com aporte automático', 'R$197'],
+              ['Sora Grow completo — hábitos, agenda, saúde e estudos', 'R$197'],
+              ['Calculadoras (juros, investimentos, reserva, metas)', 'R$147'],
               ['Controle de Dívidas + Planejamento Anual', 'R$147'],
               ['Open Finance — conecta seus bancos', 'R$147'],
+              ['Drive Inteligente — guarde arquivos pelo WhatsApp', 'R$97'],
+              ['Importação OFX + exportação de dados', 'R$97'],
               ['🎁 Painel do Casal (gestão a dois)', 'R$97'],
               ['🎁 PDF: Método Sobra no Fim do Mês', 'R$47'],
             ].map(([item, val]) => (
@@ -474,11 +479,11 @@ export default function KitOferta() {
             ))}
             <div className="pt-4 mt-2 border-t border-white/10 flex items-center justify-between">
               <span className="text-white/60">Valor total</span>
-              <span className="text-white/40 line-through text-lg tabular-nums">R$1.129</span>
+              <span className="text-white/40 line-through text-lg tabular-nums">R$1.964</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-bold text-lg">Hoje, pra sempre</span>
-              <span className="text-3xl font-black tabular-nums" style={{ color: BRAND }}>R$47</span>
+              <span className="text-3xl font-black tabular-nums" style={{ color: BRAND }}>R$97</span>
             </div>
           </div>
           <div className="mt-6 text-center">
