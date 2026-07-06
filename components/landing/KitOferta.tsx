@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   Wallet, Percent, PiggyBank, TrendingUp, Target, CalendarRange, CreditCard, FileText,
@@ -158,18 +157,28 @@ export default function KitOferta() {
                  draggable={false} />
           </div>
 
-          <p className="mt-8 text-lg text-white/70 max-w-2xl mx-auto">
+          {/* CTA principal — estático, logo abaixo da imagem do hero (substitui a barra fixa) */}
+          <div className="mt-8">
+            <a href="#ofertas"
+               className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-black text-lg active:scale-[0.98] transition"
+               style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)`, boxShadow: `0 12px 40px -10px ${BRAND}99` }}>
+              <Crown size={18} /> Quero meu acesso vitalício
+            </a>
+            <p className="mt-3 text-sm text-white/50">a partir de <strong className="text-white">R$47</strong> · pague uma vez, use pra sempre</p>
+          </div>
+
+          <p className="mt-9 text-base sm:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed">
             <strong className="text-white">8 ferramentas essenciais</strong> pra você economizar, investir e realizar sonhos —
             organizadas num lugar só. Pra <strong className="text-white">autônomo</strong> que mistura tudo e pro <strong className="text-white">casal</strong> que quer as contas a dois.
           </p>
 
           {/* Grade das 8 ferramentas */}
-          <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {FERRAMENTAS.map((f, i) => (
               <div key={f.nome}
-                   className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left animate-[slide-up_500ms_ease-out_both] hover:border-[color:var(--b)]/40 transition-colors"
+                   className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center animate-[slide-up_500ms_ease-out_both] hover:border-[color:var(--b)]/40 transition-colors"
                    style={{ animationDelay: `${i * 40}ms`, ['--b' as string]: BRAND }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2"
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2 mx-auto"
                      style={{ background: `${BRAND}1f` }}>
                   <f.icon size={20} style={{ color: BRAND }} />
                 </div>
@@ -179,16 +188,7 @@ export default function KitOferta() {
             ))}
           </div>
 
-          <div className="mt-10">
-            <a href="#ofertas"
-               className="inline-flex items-center gap-2 px-7 py-4 rounded-2xl font-black text-black text-lg active:scale-[0.98] transition"
-               style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)`, boxShadow: `0 12px 40px -10px ${BRAND}99` }}>
-              <Crown size={18} /> Quero meu acesso vitalício
-            </a>
-            <p className="mt-3 text-sm text-white/50">a partir de <strong className="text-white">R$47</strong> · pague uma vez, use pra sempre</p>
-          </div>
-
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12px] text-white/45">
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/45">
             <span className="inline-flex items-center gap-1.5"><ShieldCheck size={13} /> BACEN · Open Finance</span>
             <span className="inline-flex items-center gap-1.5"><Lock size={13} /> Criptografia de ponta</span>
             <span className="inline-flex items-center gap-1.5"><Check size={13} /> 100% LGPD</span>
@@ -197,21 +197,21 @@ export default function KitOferta() {
       </section>
 
       {/* ══════════ DASHBOARD (vídeo em loop) ══════════ */}
-      <section className="py-16 lg:py-20 px-4 sm:px-8 border-t border-white/5">
+      <section className="py-16 lg:py-20 px-5 border-t border-white/5">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-5 gap-8 lg:gap-12 items-center">
-          {/* Texto */}
-          <div className="lg:col-span-2">
+          {/* Texto — centralizado no mobile, à esquerda no desktop */}
+          <div className="lg:col-span-2 text-center lg:text-left">
             <h2 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight">
               Dashboard inteligente com<br />
               <span style={{ color: BRAND }}>relatórios automáticos</span>
             </h2>
-            <p className="mt-5 text-white/60 leading-relaxed max-w-md">
+            <p className="mt-5 text-base sm:text-lg text-white/60 leading-relaxed max-w-md mx-auto lg:mx-0">
               Acompanhe seus gastos e receitas num painel incrível, com gráficos claros de saldo,
               categorias, planejamento financeiro e fluxo de caixa. Você acessa tudo pelo celular ou
               computador e a Sora organiza tudo pra você automaticamente.
             </p>
 
-            <ul className="mt-7 space-y-3 border-t border-white/10 pt-6">
+            <ul className="mt-7 space-y-3 border-t border-white/10 pt-6 w-fit mx-auto lg:mx-0 text-left">
               {['Dashboard financeiro avançado', 'Gestão de contas e carteiras', 'Exportação de dados em PDF'].map((t) => (
                 <li key={t} className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
@@ -253,8 +253,8 @@ export default function KitOferta() {
       <section className="py-16 lg:py-20 px-5 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">Controle absoluto sobre seus cartões.</h2>
-            <p className="mt-4 text-white/55 max-w-xl mx-auto leading-relaxed">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Controle absoluto sobre seus cartões.</h2>
+            <p className="mt-4 text-base sm:text-lg text-white/60 max-w-xl mx-auto leading-relaxed">
               Tenha clareza imediata sobre cada transação e antecipe o impacto financeiro dos próximos meses.
             </p>
           </div>
@@ -302,13 +302,13 @@ export default function KitOferta() {
                style={{ background: `radial-gradient(ellipse, ${BRAND}20 0%, transparent 60%)` }} />
           <div className="relative max-w-6xl mx-auto text-center">
             <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-white/40 mb-4">{s.eyebrow}</p>
-            <h2 className="text-2xl sm:text-4xl font-bold leading-[1.1] tracking-tight max-w-3xl mx-auto">{s.titulo}</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold leading-[1.1] tracking-tight max-w-3xl mx-auto">{s.titulo}</h2>
             <div className="mt-8 mb-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={s.img} alt={s.alt} loading="lazy" draggable={false}
                    className="mx-auto w-full h-auto sm:max-w-5xl object-contain" />
             </div>
-            <p className="text-base lg:text-lg text-white/60 leading-relaxed max-w-2xl mx-auto">{s.sub}</p>
+            <p className="text-base sm:text-lg text-white/60 leading-relaxed max-w-2xl mx-auto">{s.sub}</p>
           </div>
         </section>
       ))}
@@ -343,9 +343,9 @@ export default function KitOferta() {
 
           <div className="grid lg:grid-cols-2 gap-5 items-start">
             {/* KIT — R$47 */}
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 text-center">
               <p className="text-sm font-bold text-white/70 uppercase tracking-wider">Kit Organização</p>
-              <div className="flex items-end gap-1 mt-3">
+              <div className="flex items-end justify-center gap-1 mt-3">
                 <span className="text-white/50 text-lg mb-1">R$</span>
                 <span className="text-5xl font-black tabular-nums leading-none">47</span>
               </div>
@@ -367,11 +367,11 @@ export default function KitOferta() {
             </div>
 
             {/* COMPLETA — R$97 (recomendado) */}
-            <div className="relative rounded-3xl p-6 sm:p-8 border-2"
+            <div className="relative rounded-3xl p-6 sm:p-8 border-2 text-center mt-4 lg:mt-0"
                  style={{ borderColor: BRAND, background: 'linear-gradient(160deg, #0f1a10 0%, #070707 60%)' }}>
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[11px] font-black text-black"
                    style={{ background: BRAND }}>★ MAIS ESCOLHIDO</div>
-              <p className="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: BRAND }}>
+              <p className="text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-1.5" style={{ color: BRAND }}>
                 <Crown size={15} /> Sora Completa
               </p>
               <div className="mt-3">
@@ -410,7 +410,7 @@ export default function KitOferta() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 flex items-center gap-2 text-amber-300 font-bold text-sm">
+              <p className="mt-4 flex items-center justify-center gap-2 text-amber-300 font-bold text-sm">
                 <Sparkles size={15} className="flex-shrink-0" /> Tudo isso e muito mais!
               </p>
             </div>
@@ -428,10 +428,10 @@ export default function KitOferta() {
             <MessageCircle size={13} style={{ color: BRAND }} />
             <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">O que ninguém mais tem</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-bold leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-bold leading-tight">
             Na Sora Completa, você <span style={{ color: BRAND }}>nem abre o app.</span>
           </h2>
-          <p className="text-white/60 mt-4 text-lg">
+          <p className="text-base sm:text-lg text-white/60 mt-4">
             Manda <span className="text-white font-semibold">&ldquo;gastei 50 no mercado&rdquo;</span> no WhatsApp — por texto, áudio ou até foto da nota —
             e a Sora lança, categoriza e organiza <span className="text-white font-semibold">sozinha</span>. É o jeito mais fácil de controlar dinheiro que já inventaram. Sem planilha. Sem esforço.
           </p>
@@ -456,7 +456,7 @@ export default function KitOferta() {
       {/* ══════════ VALUE STACK ══════════ */}
       <section className="py-16 px-5 border-t border-white/5">
         <div className="max-w-xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center">Veja o que você leva por menos que uma pizza:</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center">Veja o que você leva por menos que uma pizza:</h2>
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 space-y-3">
             {[
               ['App de Organização Financeira completo', 'R$197'],
@@ -505,10 +505,10 @@ export default function KitOferta() {
             <ShieldCheck size={40} className="text-black" />
           </div>
           <p className="text-amber-300 text-[11px] font-bold uppercase tracking-[0.25em] mb-3">Garantia incondicional</p>
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-[1.05]">
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-[1.05]">
             7 dias de <span className="text-amber-400">risco zero</span>
           </h2>
-          <p className="mt-5 text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
+          <p className="mt-5 text-base sm:text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
             Testa sem medo. Se em 7 dias você não amar a Sora, devolvemos <strong className="text-white">100% do seu dinheiro</strong> — sem perguntas, sem burocracia. O risco é todo nosso.
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/55">
@@ -522,7 +522,7 @@ export default function KitOferta() {
       {/* ══════════ FAQ ══════════ */}
       <section className="py-16 px-5 border-t border-white/5">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8">Perguntas frequentes</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-8">Perguntas frequentes</h2>
           <div className="space-y-3">
             {FAQ.map((item, i) => (
               <div key={item.q} className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
@@ -541,10 +541,10 @@ export default function KitOferta() {
       {/* ══════════ CTA FINAL ══════════ */}
       <section className="py-20 px-5 border-t border-white/5 text-center">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl sm:text-5xl font-black leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-black leading-tight">
             Invista em você.<br /><span style={{ color: BRAND }}>O retorno é pra vida toda.</span>
           </h2>
-          <p className="text-white/60 mt-4">Sem mensalidade. Sem pegadinha. 100% seu, pra sempre.</p>
+          <p className="text-base sm:text-lg text-white/60 mt-4">Sem mensalidade. Sem pegadinha. 100% seu, pra sempre.</p>
           <a href="#ofertas" className="mt-8 inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-black text-lg active:scale-[0.98] transition"
              style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)`, boxShadow: `0 12px 40px -10px ${BRAND}99` }}>
             <Crown size={18} /> Quero meu acesso vitalício
@@ -554,13 +554,6 @@ export default function KitOferta() {
           </p>
         </div>
       </section>
-
-      {/* Barra fixa de CTA no mobile */}
-      <Link href="#ofertas"
-            className="lg:hidden fixed bottom-0 inset-x-0 z-50 m-3 inline-flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-black shadow-2xl"
-            style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)` }}>
-        <Crown size={17} /> Garantir acesso · a partir de R$47
-      </Link>
     </div>
   );
 }
