@@ -348,8 +348,8 @@ export default function KitOferta() {
               <div className="flex items-end gap-1 mt-3">
                 <span className="text-white/50 text-lg mb-1">R$</span>
                 <span className="text-5xl font-black tabular-nums leading-none">47</span>
-                <span className="text-white/50 text-sm mb-1">uma vez</span>
               </div>
+              <p className="text-white/60 text-sm mt-1.5 font-medium">pague uma vez — acesse para sempre</p>
               <p className="text-white/45 text-sm mt-1">As 8 ferramentas pra organizar tudo pelo painel.</p>
               <a href="/checkout-vitalicio?tier=kit"
                  className="mt-6 w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold border border-white/15 hover:bg-white/5 transition">
@@ -376,7 +376,8 @@ export default function KitOferta() {
               </p>
               <div className="mt-3">
                 <p className="text-2xl font-black text-white tabular-nums leading-none">12x de R$9,87</p>
-                <p className="text-white/50 text-sm mt-1">ou R$97 à vista · pra sempre</p>
+                <p className="text-white/50 text-sm mt-1">ou R$97 à vista</p>
+                <p className="text-white/60 text-sm mt-1 font-medium">pague uma vez — acesse para sempre</p>
               </div>
               <p className="text-white/55 text-sm mt-2">Tudo do Kit <strong className="text-white">+ a Sora no seu WhatsApp</strong> e a Sora inteira.</p>
               <a href="/checkout-vitalicio?tier=completa"
