@@ -8,8 +8,10 @@ import Footer     from '@/components/landing/Footer';
 
 export default function KitPage() {
   return (
-    <main className="bg-[#070707] text-white antialiased overflow-x-clip">
-      <LandingNav />
+    {/* `dark` força o tema escuro em toda a /kit (nav + footer + seções embutidas),
+        independente do tema global — a página é sempre preta e sem toggle. */}
+    <main className="dark bg-[#070707] text-white antialiased overflow-x-clip">
+      <LandingNav hideThemeToggle />
       <KitOferta />
       <Footer />
     </main>

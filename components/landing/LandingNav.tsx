@@ -12,7 +12,7 @@ const LINKS = [
   { href: '#faq',        label: 'Dúvidas'  },
 ];
 
-export default function LandingNav() {
+export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggle?: boolean } = {}) {
   const { user } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   const [open, setOpen]       = useState(false);
@@ -68,14 +68,16 @@ export default function LandingNav() {
 
           {/* Ações */}
           <div className="flex items-center gap-2">
-            {/* Toggle de tema */}
-            <button
-              onClick={toggleTema}
-              aria-label="Alternar tema claro/escuro"
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
-            >
-              {mounted && (isDark ? <Sun size={16} /> : <Moon size={16} />)}
-            </button>
+            {/* Toggle de tema (escondido em páginas de tema fixo, ex.: /kit) */}
+            {!hideThemeToggle && (
+              <button
+                onClick={toggleTema}
+                aria-label="Alternar tema claro/escuro"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
+              >
+                {mounted && (isDark ? <Sun size={16} /> : <Moon size={16} />)}
+              </button>
+            )}
 
             {/* Login link */}
             {user ? (
