@@ -117,10 +117,10 @@ export default function KitOferta() {
       </section>
 
       {/* ══════════ DASHBOARD (vídeo em loop) ══════════ */}
-      <section className="py-16 lg:py-20 px-5 border-t border-white/5">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+      <section className="py-16 lg:py-20 px-4 sm:px-8 border-t border-white/5">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-5 gap-8 lg:gap-12 items-center">
           {/* Texto */}
-          <div>
+          <div className="lg:col-span-2">
             <h2 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight">
               Dashboard inteligente com<br />
               <span style={{ color: BRAND }}>relatórios automáticos</span>
@@ -152,7 +152,7 @@ export default function KitOferta() {
 
           {/* Vídeo em loop — decorativo, sem nenhum controle (play/pause/carregamento).
               Arquivo em: public/kit/relatorios.mp4 */}
-          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.85)] bg-[#0d0d0d]">
+          <div className="lg:col-span-3 relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.85)] bg-[#0d0d0d]">
             <video
               className="w-full h-auto block pointer-events-none select-none"
               src="/kit/relatorios.mp4"
