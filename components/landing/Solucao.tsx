@@ -8,7 +8,7 @@ const PILARES = [
     badge: 'Sora Finance',
     titulo: 'Dinheiro sob controle.',
     desc: 'Tenha um controle total da sua vida financeira com transações automáticas, contas, cartões, dívidas, metas e investimentos. Tudo via WhatsApp ou painel.',
-    items: ['Lançamentos por áudio, imagem ou texto', 'Open Finance — conexão direta com seu banco', 'Limites por categoria + alertas inteligentes', 'Investimentos com cálculo automático de aportes', 'Wrapped mensal compartilhável'],
+    items: ['Lançamentos por áudio, imagem ou texto', 'Gestão Compartilhada', 'Limites por categoria + alertas inteligentes', 'Investimentos com cálculo automático de aportes', 'Importação OFX', 'Wrapped mensal compartilhável'],
     icon: Wallet,
     bg: 'from-emerald-500/8 to-emerald-500/0',
   },
