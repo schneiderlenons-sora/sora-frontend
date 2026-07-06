@@ -58,6 +58,17 @@ export async function POST(req: NextRequest) {
       'https://www.forsora.com'
     ).replace('://forsora.com', '://www.forsora.com');
 
+    // Dados de match do Facebook — capturados AQUI (roda no navegador do comprador),
+    // guardados no metadata pra o webhook do MP mandar no Purchase (CAPI). Sem isso
+    // o Facebook não atribui a venda ao clique do anúncio → não conta no Ads.
+    const fbMeta = {
+      fbp:   req.cookies.get('_fbp')?.value || undefined,
+      fbc:   req.cookies.get('_fbc')?.value || undefined,
+      fb_ip: (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || undefined,
+      fb_ua: (req.headers.get('user-agent') || '').slice(0, 256) || undefined,
+      fb_em: user.email || undefined,
+    };
+
     const payment = await mpCreatePayment({
       transaction_amount: valor,
       description: cfg.titulo,
@@ -67,7 +78,7 @@ export async function POST(req: NextRequest) {
       issuer_id: form.issuer_id,
       payer: { email: form.payer?.email || user.email, identification: form.payer?.identification },
       external_reference: user.id,
-      metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct },
+      metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta },
       notification_url: `${origin}/api/mercadopago/webhook`,
       statement_descriptor: 'SORA',
     });

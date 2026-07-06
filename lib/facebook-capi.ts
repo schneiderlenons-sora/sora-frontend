@@ -37,13 +37,14 @@ export type CAPIEvent = {
   event_source_url?: string;
   action_source?: 'website' | 'app' | 'other';
   user_data?: {
-    em?: string;       // email (plain — será hasheado)
-    ph?: string;       // phone (plain — será hasheado)
-    fn?: string;       // first name (plain)
+    em?: string;          // email (plain — será hasheado)
+    ph?: string;          // phone (plain — será hasheado)
+    fn?: string;          // first name (plain)
+    external_id?: string; // id do usuário (plain — será hasheado)
     client_ip_address?: string;
     client_user_agent?: string;
-    fbc?: string;      // Facebook click ID (do cookie _fbc)
-    fbp?: string;      // Facebook browser ID (do cookie _fbp)
+    fbc?: string;         // Facebook click ID (do cookie _fbc)
+    fbp?: string;         // Facebook browser ID (do cookie _fbp)
   };
   custom_data?: {
     value?: number;
@@ -74,6 +75,7 @@ export async function sendCAPIEvents(events: CAPIEvent[]): Promise<{ success: bo
         em: evt.user_data.em ? [sha256(evt.user_data.em)] : undefined,
         ph: evt.user_data.ph ? [sha256(evt.user_data.ph)] : undefined,
         fn: evt.user_data.fn ? [sha256(evt.user_data.fn)] : undefined,
+        external_id: evt.user_data.external_id ? [sha256(evt.user_data.external_id)] : undefined,
         client_ip_address: evt.user_data.client_ip_address,
         client_user_agent: evt.user_data.client_user_agent,
         fbc: evt.user_data.fbc,
