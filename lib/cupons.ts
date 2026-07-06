@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CUPONS_VITALICIO: Record<string, number> = {
+  SORA10: 10,
   SORA15: 15,
   SORA25: 25,
   SORA100: 100,

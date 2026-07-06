@@ -4,6 +4,7 @@ export const revalidate = 0;
 
 import LandingNav from '@/components/landing/LandingNav';
 import KitOferta  from '@/components/landing/KitOferta';
+import CupomFlutuante from '@/components/landing/CupomFlutuante';
 import Footer     from '@/components/landing/Footer';
 
 export default function KitPage() {
@@ -14,6 +15,7 @@ export default function KitPage() {
       <LandingNav hideThemeToggle />
       <KitOferta />
       <Footer />
+      <CupomFlutuante />
     </main>
   );
 }
