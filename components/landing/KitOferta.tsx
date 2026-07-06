@@ -363,7 +363,6 @@ export default function KitOferta() {
                   </li>
                 ))}
                 <li className="flex items-start gap-2.5 text-white/35"><X size={15} className="flex-shrink-0 mt-0.5" /> <span>Sora no WhatsApp</span></li>
-                <li className="flex items-start gap-2.5 text-white/35"><X size={15} className="flex-shrink-0 mt-0.5" /> <span>Open Finance, foto de nota, painel do casal</span></li>
               </ul>
             </div>
 
