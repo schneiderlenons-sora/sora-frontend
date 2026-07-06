@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Check, ShieldCheck, Sparkles, Lock } from 'lucide-react';
+import { ArrowRight, Check, Sparkles, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import IPhoneFrame from './IPhoneFrame';
 import HeroPhoneWhatsApp from './HeroPhoneWhatsApp';
@@ -79,7 +79,6 @@ export default function Hero() {
 
           {/* Trust bar */}
           <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-[12px] text-zinc-500 dark:text-white/50 animate-[slide-up_1000ms_ease-out_both]" style={{ animationDelay: '320ms' }}>
-            <span className="inline-flex items-center gap-1.5"><ShieldCheck size={12} /> Open Finance · BACEN</span>
             <span className="inline-flex items-center gap-1.5"><Lock size={12} /> Criptografia de ponta</span>
             <span className="inline-flex items-center gap-1.5"><Check size={12} /> 100% LGPD</span>
           </div>
