@@ -17,7 +17,7 @@ const CORES = [
   { id: 'black',    nome: 'Black',      hex: '#18181b' },
 ].map((c) => ({ ...c, img: `/landing/cores/${c.id}.png` }));
 
-export default function Personalizacao() {
+export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: string } = {}) {
   const [idx, setIdx]   = useState(0);
   const [zoom, setZoom] = useState(false);
   const [imgError, setImgError] = useState<Set<string>>(new Set());
@@ -206,7 +206,7 @@ export default function Personalizacao() {
           <p className="mt-4 text-base lg:text-lg text-zinc-600 dark:text-white/60 max-w-xl mx-auto leading-relaxed">
             Troque a cor quando quiser, direto no painel. Sem complicação.
           </p>
-          <Link href="#pricing"
+          <Link href={ctaHref}
                 className="inline-flex items-center gap-2 mt-7 px-5 py-3 text-sm font-bold text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all"
                 style={{ background: `linear-gradient(135deg, ${ativo.hex} 0%, ${ativo.hex}cc 100%)` }}>
             Começar agora →

@@ -7,6 +7,9 @@ import {
   Check, X, Crown, ShieldCheck, Lock, Sparkles, MessageCircle, Camera, Building2,
   Users, Bell, ChevronDown, ArrowRight, Infinity as InfinityIcon, Zap,
 } from 'lucide-react';
+import Personalizacao from './Personalizacao';
+import MobileShowcase from './MobileShowcase';
+import SoraLabs      from './SoraLabs';
 
 const BRAND = '#61ce70';
 
@@ -291,18 +294,27 @@ export default function KitOferta() {
         <section key={s.titulo} className="relative overflow-hidden py-16 px-5 border-t border-white/5">
           <div aria-hidden className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[500px] opacity-15 pointer-events-none"
                style={{ background: `radial-gradient(ellipse, ${BRAND}20 0%, transparent 60%)` }} />
-          <div className="relative max-w-4xl mx-auto text-center">
+          <div className="relative max-w-6xl mx-auto text-center">
             <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-white/40 mb-4">{s.eyebrow}</p>
             <h2 className="text-2xl sm:text-4xl font-bold leading-[1.1] tracking-tight max-w-3xl mx-auto">{s.titulo}</h2>
             <div className="mt-8 mb-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={s.img} alt={s.alt} loading="lazy" draggable={false}
-                   className="mx-auto w-full h-auto sm:max-w-3xl object-contain" />
+                   className="mx-auto w-full h-auto sm:max-w-5xl object-contain" />
             </div>
             <p className="text-base lg:text-lg text-white/60 leading-relaxed max-w-2xl mx-auto">{s.sub}</p>
           </div>
         </section>
       ))}
+
+      {/* ══════════ APARÊNCIA · NO SEU BOLSO · SORA LABS (do forsora.com) ══════════
+          Componentes theme-aware; o wrapper .dark força a variante escura pra
+          casar com o tema do /kit. CTA do Personalizacao aponta pras ofertas. */}
+      <div className="dark">
+        <Personalizacao ctaHref="#ofertas" />
+        <MobileShowcase />
+        <SoraLabs />
+      </div>
 
       {/* ══════════ AS 2 OFERTAS (decoy) ══════════ */}
       <section id="ofertas" className="py-16 px-5 border-t border-white/5 scroll-mt-6">
