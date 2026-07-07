@@ -82,6 +82,23 @@ export default function Footer() {
           ))}
         </div>
 
+        {/* Dados da empresa (razão social, CNPJ, endereço, contato) — transparência
+            legal + necessário pra verificação de negócio na Meta. */}
+        <div className="py-6 border-t border-zinc-200 dark:border-white/[0.06] text-xs text-zinc-500 dark:text-white/45 leading-relaxed space-y-1">
+          <p>
+            <span className="font-semibold text-zinc-700 dark:text-white/65">Sora</span> é um produto de{' '}
+            <span className="font-semibold text-zinc-700 dark:text-white/65">ENOTAS DESENVOLVIMENTO DE SOFTWARES LTDA</span>
+            {' · '}CNPJ 14.422.279/0001-06
+          </p>
+          <p>Av. Assis Chateaubriand, 499 · 4º andar, Sala 4F · Floresta · Belo Horizonte/MG · CEP 30.150-101</p>
+          <p>
+            <a href="mailto:contato@forsora.com" className="hover:text-zinc-800 dark:hover:text-white/70 transition-colors">contato@forsora.com</a>
+            {' · '}
+            {/* TROCAR: telefone novo quando definir */}
+            <span>(31) 3236-1459</span>
+          </p>
+        </div>
+
         {/* Selo BACEN + Status */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-6 border-t border-zinc-200 dark:border-white/[0.06]">
           <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-white/40">
