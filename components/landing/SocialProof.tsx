@@ -81,7 +81,6 @@ export default function SocialProof() {
   }, []);
 
   const N = DEPOIMENTOS.length;
-  const cur = DEPOIMENTOS[ativo];
   // exibição com o ATIVO sempre no centro (slot 2); vizinhos ao redor
   const ordem = [-2, -1, 0, 1, 2].map((d) => (ativo + d + N) % N);
   // tamanho por distância do centro (0 centro · 1 vizinho · 2 ponta) — centro
@@ -122,8 +121,11 @@ export default function SocialProof() {
 
         {/* Carrossel de depoimentos */}
         <div className="flex flex-col items-center">
-          {/* avatares — ativo no centro, diminuindo pras pontas */}
-          <div className="flex items-center justify-center gap-2.5 sm:gap-4">
+          {/* avatares — ativo no centro, diminuindo pras pontas.
+              Altura FIXA (= central em repouso: tamanho + anel de 10px) pra que o
+              encolher/crescer da transição não faça a fileira "afundar" e repicar. */}
+          <div className="flex items-center justify-center gap-2.5 sm:gap-4"
+               style={{ height: compact ? 114 : 170 }}>
             {ordem.map((idx, slot) => {
               const d = DEPOIMENTOS[idx];
               const dist = Math.abs(slot - 2);
@@ -148,18 +150,30 @@ export default function SocialProof() {
             })}
           </div>
 
-          {/* destaque */}
-          <div key={ativo} className="mt-8 text-center max-w-2xl animate-[fade-in_400ms_ease-out]">
-            <p className="font-bold text-xl text-zinc-900 dark:text-white">{cur.nome}</p>
-            <p className="text-sm text-zinc-500 dark:text-white/50 mt-0.5">{cur.role}</p>
-            <p className="mt-5 text-[15px] sm:text-base font-normal leading-relaxed text-zinc-600 dark:text-white/70">
-              “{cur.quote}”
-            </p>
-            <div className="flex items-center justify-center gap-1 mt-5">
-              {Array.from({ length: 5 }).map((_, n) => (
-                <Star key={n} size={18} fill="#fbbf24" stroke="#fbbf24" />
-              ))}
-            </div>
+          {/* destaque — TODOS empilhados na mesma célula de grid ([grid-area:1/1])
+              pra reservar a altura do MAIOR depoimento; só o ativo fica visível
+              (crossfade por opacidade). Assim trocar de depoimento não muda a
+              altura da seção → sem pulo/CLS em mobile nem desktop. */}
+          <div className="mt-8 grid w-full max-w-2xl">
+            {DEPOIMENTOS.map((d, i) => {
+              const on = i === ativo;
+              return (
+                <div key={d.nome} aria-hidden={!on}
+                     className="[grid-area:1/1] text-center transition-opacity duration-500"
+                     style={{ opacity: on ? 1 : 0, pointerEvents: on ? 'auto' : 'none' }}>
+                  <p className="font-bold text-xl text-zinc-900 dark:text-white">{d.nome}</p>
+                  <p className="text-sm text-zinc-500 dark:text-white/50 mt-0.5">{d.role}</p>
+                  <p className="mt-5 text-[15px] sm:text-base font-normal leading-relaxed text-zinc-600 dark:text-white/70">
+                    “{d.quote}”
+                  </p>
+                  <div className="flex items-center justify-center gap-1 mt-5">
+                    {Array.from({ length: 5 }).map((_, n) => (
+                      <Star key={n} size={18} fill="#fbbf24" stroke="#fbbf24" />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
