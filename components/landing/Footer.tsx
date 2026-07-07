@@ -93,8 +93,7 @@ export default function Footer() {
           <p>
             <a href="mailto:contato@forsora.com" className="hover:text-zinc-800 dark:hover:text-white/70 transition-colors">contato@forsora.com</a>
             {' · '}
-            {/* TROCAR: telefone novo quando definir */}
-            <span>(31) 3236-1459</span>
+            <a href="tel:+5571927481735" className="hover:text-zinc-800 dark:hover:text-white/70 transition-colors">(71) 92748-1735</a>
           </p>
         </div>
 
