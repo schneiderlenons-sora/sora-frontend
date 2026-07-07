@@ -36,7 +36,7 @@ const FAQ = [
   { q: 'Qual a diferença pro plano com WhatsApp?', a: 'No Kit você organiza tudo pelo painel. Na Sora Completa, você nem abre o app: manda "gastei 50 no mercado" no WhatsApp (texto, áudio ou foto) e ela lança sozinha. É o jeito mais fácil que existe.' },
   { q: 'Funciona no meu celular?', a: 'Sim, funciona em qualquer celular ou computador pelo navegador. Nada pra instalar.' },
   { q: 'E se eu não gostar?', a: 'Você tem 7 dias de garantia. Se não curtir, devolvemos 100% do seu dinheiro. O risco é todo nosso.' },
-  { q: 'Meus dados estão seguros?', a: 'Sim. Conexão com bancos via Open Finance (regulado pelo BACEN), criptografia de ponta e 100% LGPD.' },
+  { q: 'Meus dados estão seguros?', a: 'Sim. Criptografia de ponta, 100% em conformidade com a LGPD e seus dados são só seus — você pode exportar ou apagar quando quiser.' },
 ];
 
 // ── Mini-mockups da seção "Controle absoluto sobre seus cartões" ──
@@ -465,7 +465,7 @@ export default function KitOferta() {
               ['Sora Grow completo — hábitos, agenda, saúde e estudos', 'R$197'],
               ['Calculadoras (juros, investimentos, reserva, metas)', 'R$147'],
               ['Controle de Dívidas + Planejamento Anual', 'R$147'],
-              ['Open Finance — conecta seus bancos', 'R$147'],
+              ['Relatórios automáticos + Wrapped mensal', 'R$147'],
               ['Drive Inteligente — guarde arquivos pelo WhatsApp', 'R$97'],
               ['Importação OFX + exportação de dados', 'R$97'],
               ['🎁 Painel do Casal (gestão a dois)', 'R$97'],
