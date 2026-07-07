@@ -189,7 +189,6 @@ export default function KitOferta() {
           </div>
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/45">
-            <span className="inline-flex items-center gap-1.5"><ShieldCheck size={13} /> BACEN · Open Finance</span>
             <span className="inline-flex items-center gap-1.5"><Lock size={13} /> Criptografia de ponta</span>
             <span className="inline-flex items-center gap-1.5"><Check size={13} /> 100% LGPD</span>
           </div>

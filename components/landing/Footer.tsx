@@ -9,7 +9,6 @@ const COLUNAS = [
       { label: 'Recursos',       href: '#features' },
       { label: 'Demo no zap',    href: '#demo' },
       { label: 'Planos',         href: '#pricing' },
-      { label: 'Open Finance',   href: '#features' },
     ],
   },
   {
@@ -99,7 +98,7 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* Selo BACEN + Status */}
+        {/* Selo compliance + Status */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-6 border-t border-zinc-200 dark:border-white/[0.06]">
           <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-white/40">
             <span className="flex items-center gap-2">
@@ -110,7 +109,7 @@ export default function Footer() {
               Todos os sistemas operacionais
             </span>
             <span className="hidden sm:inline w-px h-3 bg-zinc-300 dark:bg-white/15" />
-            <span className="hidden sm:inline">Autorizado BACEN · LGPD · ISO 27001</span>
+            <span className="hidden sm:inline">LGPD · ISO 27001</span>
           </div>
 
           <p className="text-xs text-zinc-500 dark:text-white/40">
