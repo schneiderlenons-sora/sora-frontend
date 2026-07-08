@@ -8,12 +8,13 @@ import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
+import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
-  ChevronRight, ChevronLeft, AlertCircle, BarChart3, Calendar, Loader2,
+  ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2,
 } from 'lucide-react';
 const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -154,19 +155,6 @@ export default function CartaoDeCreditoPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txsHistorico, wallets, mesIndex]);
-
-  async function handleDeletar(w: Wallet) {
-    try {
-      await api.wallets.deletar(w.id);
-      setConfirmDel(null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(`sora-cartao-${w.id}`);
-      }
-      carregar();
-    } catch (e: any) {
-      alert(e.message || 'Erro ao excluir cartão.');
-    }
-  }
 
   return (
     <DashboardLayout>
@@ -405,37 +393,15 @@ export default function CartaoDeCreditoPage() {
       )}
 
       {confirmDel && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={() => setConfirmDel(null)}
-        >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div
-            className="relative w-full max-w-sm bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mb-4">
-                <AlertCircle size={22} className="text-red-600 dark:text-red-400" />
-              </div>
-              <h3 className="text-base font-bold text-foreground">Excluir cartão?</h3>
-              <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                Esta ação é permanente. As transações vinculadas a <strong className="text-foreground">{confirmDel.nome}</strong> não serão excluídas, mas perderão a referência ao cartão.
-              </p>
-              <div className="flex items-center justify-end gap-2 mt-5">
-                <button onClick={() => setConfirmDel(null)} className="btn-ghost px-4 py-2 text-sm">
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleDeletar(confirmDel)}
-                  className="btn-danger px-4 py-2 text-sm gap-2 inline-flex items-center"
-                >
-                  <Trash2 size={14} /> Excluir
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ExcluirContaModal
+          conta={confirmDel}
+          contas={(wRaw as Wallet[]) ?? []}
+          onClose={() => setConfirmDel(null)}
+          onExcluida={() => {
+            if (typeof window !== 'undefined') localStorage.removeItem(`sora-cartao-${confirmDel.id}`);
+            carregar();
+          }}
+        />
       )}
     </DashboardLayout>
   );

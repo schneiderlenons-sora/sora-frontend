@@ -40,7 +40,12 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
       parsed?.message ||
       (typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 300) : null) ||
       `Erro ${res.status}`;
-    throw new Error(msg);
+    // Anexa status + corpo parseado pro chamador poder tratar casos específicos
+    // (ex.: 409 'conta_com_transacoes' abre o modal de mover/excluir).
+    const err: any = new Error(msg);
+    err.status = res.status;
+    err.body = parsed;
+    throw err;
   }
   return res.json();
 }
@@ -159,8 +164,16 @@ export const api = {
       req<any[]>(`/api/wallets/${phone}`),
     salvar: (body: any) =>
       req('/api/wallets', { method: 'POST', body: JSON.stringify(body) }),
-    deletar: (id: string) =>
-      req(`/api/wallets/${id}`, { method: 'DELETE' }),
+    // Exclui a conta. Se tiver transações e nenhuma ação, o backend responde
+    // 409 { motivo:'conta_com_transacoes', count } pro painel perguntar.
+    deletar: (id: string, opts?: { transacoes?: 'mover' | 'excluir'; destino?: string }) => {
+      const qs = new URLSearchParams();
+      if (opts?.transacoes) qs.set('transacoes', opts.transacoes);
+      if (opts?.destino) qs.set('destino', opts.destino);
+      const q = qs.toString();
+      return req<{ ok: boolean; movidas?: number; excluidas?: number }>(
+        `/api/wallets/${id}${q ? `?${q}` : ''}`, { method: 'DELETE' });
+    },
     // Paga a fatura do cartão debitando de uma conta (cria a transação de saída)
     pagarFatura: (body: { phone: string; cartao_id: string; wallet_id: string; valor: number }) =>
       req<{ ok: boolean; debito: any }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),

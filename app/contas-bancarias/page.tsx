@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
+import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
@@ -134,7 +135,7 @@ export default function ContasBancariasPage() {
   const [editando,   setEditando]   = useState<Wallet | null>(null);
   const [form,       setForm]       = useState<Form>(FORM_VAZIO);
   const [salvando,   setSalvando]   = useState(false);
-  const [deletando,  setDeletando]  = useState<string | null>(null);
+  const [contaExcluir, setContaExcluir] = useState<Wallet | null>(null);
   const [sucesso,    setSucesso]    = useState(false);
   const [erro,       setErro]       = useState('');
   const [ocultar,    setOcultar]    = useState(false);
@@ -227,19 +228,6 @@ export default function ContasBancariasPage() {
       setErro(e?.message ? `Erro ao salvar: ${e.message}` : 'Erro ao salvar conta (sem detalhes do servidor).');
     } finally {
       setSalvando(false);
-    }
-  }
-
-  async function deletar(id: string) {
-    if (!confirm('Excluir esta conta? Esta ação não pode ser desfeita.')) return;
-    setDeletando(id);
-    try {
-      await api.wallets.deletar(id);
-      setWallets(prev => prev.filter(w => w.id !== id));
-    } catch (e: any) {
-      alert('Erro ao excluir: ' + (e.message || ''));
-    } finally {
-      setDeletando(null);
     }
   }
 
@@ -408,9 +396,8 @@ export default function ContasBancariasPage() {
                 index={i}
                 ocultar={ocultar}
                 compartilhado={compartilhado}
-                deletando={deletando === w.id}
                 onEditar={() => abrirModal(w)}
-                onDeletar={() => deletar(w.id)}
+                onDeletar={() => setContaExcluir(w)}
                 onTornarPadrao={() => tornarPadrao(w)}
                 onArquivar={() => toggleArquivar(w)}
                 onAjustar={() => setAjusteOpen(w)}
@@ -561,6 +548,15 @@ export default function ContasBancariasPage() {
           onSuccess={carregar}
         />
       )}
+
+      {contaExcluir && (
+        <ExcluirContaModal
+          conta={contaExcluir}
+          contas={walletsAtivas}
+          onClose={() => setContaExcluir(null)}
+          onExcluida={() => carregar()}
+        />
+      )}
     </DashboardLayout>
   );
 }
@@ -569,13 +565,12 @@ export default function ContasBancariasPage() {
 // CARD DE CONTA — HORIZONTAL, INSPIRADO NA REFERÊNCIA MAS MAIS POLIDO
 // ─────────────────────────────────────────────────────────────
 function WalletCard({
-  wallet, index, ocultar, deletando, compartilhado,
+  wallet, index, ocultar, compartilhado,
   onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir,
 }: {
   wallet:        Wallet;
   index:         number;
   ocultar:       boolean;
-  deletando:     boolean;
   compartilhado: boolean;
   onEditar:      () => void;
   onDeletar:     () => void;
@@ -643,11 +638,10 @@ function WalletCard({
         {/* Botão excluir — só aparece no hover */}
         <button
           onClick={onDeletar}
-          disabled={deletando}
           className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
           title="Excluir"
         >
-          {deletando ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+          <Trash2 size={14} />
         </button>
       </div>
 
