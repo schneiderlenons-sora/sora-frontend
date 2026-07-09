@@ -8,8 +8,8 @@ import { Star } from 'lucide-react';
 // automaticamente; enquanto não existir, mostra as iniciais (sem imagem quebrada).
 const DEPOIMENTOS = [
   {
-    nome: 'Jade Picon', role: 'Influenciadora & Empresária', cor: '#ec4899',
-    img: '/landing/depoimentos/jade-picon.jpg',
+    nome: 'Mari Gonzalez', role: 'Influenciadora & Empresária', cor: '#ec4899',
+    img: '/landing/depoimentos/Mari-gonzales.jpg',
     quote: 'Amo praticidade! Mando um áudio e a Sora organiza meus gastos e minha agenda. Do jeitinho que eu preciso pra dar conta de tudo.',
   },
   {
@@ -18,9 +18,9 @@ const DEPOIMENTOS = [
     quote: 'Rapaziada, testa aí! Eu só falo e ela anota tudo. Nunca mais esqueci uma conta nem um compromisso da família.',
   },
   {
-    nome: 'Gusttavo Lima', role: 'Cantor & Empresário', cor: '#61ce70',
-    img: '/landing/depoimentos/gusttavo-lima.jpg',
-    quote: 'Como empresário, controle é tudo. A Sora deixa minhas finanças e minha agenda na palma da mão. Recomendo demais!',
+    nome: 'Otaviano Costa', role: 'Apresentador', cor: '#61ce70',
+    img: '/landing/depoimentos/otaviano-costa.jpg',
+    quote: 'Minha rotina é uma correria de gravação e viagem. A Sora virou meu braço direito: mando um áudio e ela organiza as contas, a agenda e os lembretes. Recomendo demais!',
   },
   {
     nome: 'Duda Rubert', role: 'Influenciadora', cor: '#a855f7',
