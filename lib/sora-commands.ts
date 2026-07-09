@@ -395,6 +395,14 @@ export const COMANDOS: Comando[] = [
     descricao: 'Lança a receita automaticamente todo mês no dia escolhido.',
     categoria: 'recorrencias',
   },
+  {
+    id: 'confirmar-previsto',
+    titulo: 'Confirmar conta de valor variável',
+    exemplo: 'confirmar luz 243',
+    descricao: 'Contas cujo valor muda (luz, água, cartão): no dia do vencimento a Sora te lembra e você confirma o valor real por aqui. Cadastre a conta como "valor varia" no painel de Transações.',
+    variantes: ['confirmar água 89,90', 'confirmar cartão 1250'],
+    categoria: 'recorrencias',
+  },
 
   // ─── LIMITES ──────────────────────────────────────────────────────
   {

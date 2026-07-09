@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp, Plus, Trash2, Loader2, Landmark, AlertCircle } from 'lucide-react';
+import { TrendingUp, Plus, Trash2, Loader2, Landmark, AlertCircle, CircleDashed } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import StepNav from '../components/StepNav';
@@ -14,6 +14,7 @@ type Receita = {
   dia:       string;
   carteira:  string;
   jaRecebeu: boolean;
+  variavel:  boolean;
 };
 
 export default function Step7ReceitasFixas() {
@@ -22,7 +23,7 @@ export default function Step7ReceitasFixas() {
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
   const [receitas, setReceitas] = useState<Receita[]>([
-    { descricao: 'Salário', valor: '', dia: '5', carteira: '', jaRecebeu: false },
+    { descricao: 'Salário', valor: '', dia: '5', carteira: '', jaRecebeu: false, variavel: false },
   ]);
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function Step7ReceitasFixas() {
     setReceitas(receitas.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
   function adicionar() {
-    setReceitas([...receitas, { descricao: '', valor: '', dia: '5', carteira: opcoesConta[0] || 'Dinheiro', jaRecebeu: false }]);
+    setReceitas([...receitas, { descricao: '', valor: '', dia: '5', carteira: opcoesConta[0] || 'Dinheiro', jaRecebeu: false, variavel: false }]);
   }
   function remover(i: number) {
     if (receitas.length === 1) return;
@@ -56,19 +57,24 @@ export default function Step7ReceitasFixas() {
   async function salvar() {
     if (!phone || !liberado) return;
     try {
-      const validos = receitas.filter((r) => r.descricao.trim() && parseFloat(r.valor) > 0);
+      const num = (v: string) => parseFloat(String(v).replace(',', '.'));
+      // Fixa exige valor; variável não (o valor é só estimativa opcional).
+      const validos = receitas.filter((r) => r.descricao.trim() && (r.variavel || num(r.valor) > 0));
       if (validos.length === 0) return;
       const hoje = new Date().toISOString().slice(0, 10);
       await Promise.all(validos.map(async (r) => {
-        const valor = parseFloat(String(r.valor).replace(',', '.'));
+        const v = num(r.valor);
+        const valor = isNaN(v) || v <= 0 ? 0 : v;
         const carteira = r.carteira || opcoesConta[0] || 'Dinheiro';
         await api.recorrencias.criar({
           phone, tipo: 'Recebimento',
           descricao: r.descricao.trim(), valor,
           dia_vencimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),
           carteira,
+          valor_variavel: r.variavel,
         });
-        if (r.jaRecebeu) {
+        // "Já recebi" só faz sentido com valor conhecido (> 0).
+        if (r.jaRecebeu && valor > 0) {
           await api.transacoes.criar({
             phone, tipo: 'Recebimento', valor, data: hoje,
             observacao: r.descricao.trim(), categoria: '💼 Salário',
@@ -81,7 +87,7 @@ export default function Step7ReceitasFixas() {
     }
   }
 
-  const temAlgum = receitas.some((r) => r.descricao.trim() && parseFloat(r.valor) > 0);
+  const temAlgum = receitas.some((r) => r.descricao.trim() && (r.variavel || parseFloat(String(r.valor).replace(',', '.')) > 0));
 
   return (
     <>
@@ -93,7 +99,7 @@ export default function Step7ReceitasFixas() {
           Receitas fixas mensais
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Salário, freelas regulares, aluguéis recebidos. Coisas que entram todo mês.
+          Salário e aluguéis (valor fixo) ou freela, comissão, vendas (valor que muda). Coisas que entram todo mês.
         </p>
       </div>
 
@@ -125,7 +131,9 @@ export default function Step7ReceitasFixas() {
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_92px] gap-3 mb-3">
                 <input type="text" value={r.descricao} onChange={(e) => atualizar(i, { descricao: e.target.value })} placeholder="Ex.: Salário, Freela"
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
-                <input type="text" inputMode="decimal" value={r.valor} onChange={(e) => atualizar(i, { valor: e.target.value })} placeholder="R$ 0,00"
+                <input type="text" inputMode="decimal" value={r.valor} onChange={(e) => atualizar(i, { valor: e.target.value })}
+                  placeholder={r.variavel ? 'Estimativa' : 'R$ 0,00'}
+                  aria-label={r.variavel ? 'Valor estimado (opcional)' : 'Valor'}
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm tabular-nums placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                 <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-background border border-border text-sm">
                   <span className="text-muted-foreground text-xs">Dia</span>
@@ -146,6 +154,27 @@ export default function Step7ReceitasFixas() {
                   <span className="text-xs text-foreground">Já recebi este mês</span>
                 </label>
               </div>
+
+              {/* Toggle fixo/varia */}
+              <div className="mt-3 flex justify-end">
+                <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Tipo de valor">
+                  <button type="button" role="switch" aria-checked={!r.variavel} onClick={() => atualizar(i, { variavel: false })}
+                    className={`px-3 h-9 rounded-lg text-xs font-bold transition-all ${!r.variavel ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                    Valor fixo
+                  </button>
+                  <button type="button" role="switch" aria-checked={r.variavel} onClick={() => atualizar(i, { variavel: true })}
+                    className={`px-3 h-9 rounded-lg text-xs font-bold transition-all ${r.variavel ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                    Valor varia
+                  </button>
+                </div>
+              </div>
+
+              {r.variavel && (
+                <p className="text-[11px] text-muted-foreground mt-2.5 flex items-start gap-1.5 leading-relaxed">
+                  <CircleDashed size={13} className="mt-0.5 flex-shrink-0 text-amber-600" />
+                  Todo dia {r.dia || 'X'} a Sora te lembra e você confirma o valor real — a estimativa acima é só pra referência.
+                </p>
+              )}
             </div>
           ))}
 

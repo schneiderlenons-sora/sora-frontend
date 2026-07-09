@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Receipt, Plus, Trash2, Loader2, Landmark, AlertCircle } from 'lucide-react';
+import { Receipt, Plus, Trash2, Loader2, Landmark, AlertCircle, CircleDashed } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { PLANOS_INFO, type PlanoId } from '@/lib/stripe';
@@ -15,6 +15,7 @@ type Gasto = {
   valor:     string;
   dia:       string;
   carteira:  string;
+  variavel:  boolean;
 };
 
 export default function Step6GastosFixos() {
@@ -23,7 +24,7 @@ export default function Step6GastosFixos() {
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
   const [gastos, setGastos]     = useState<Gasto[]>([
-    { descricao: '', valor: '', dia: '5', carteira: '' },
+    { descricao: '', valor: '', dia: '5', carteira: '', variavel: false },
   ]);
 
   // Carrega as contas/cartões pra liberar o passo e popular o seletor.
@@ -56,7 +57,7 @@ export default function Step6GastosFixos() {
     const dia = String(Math.min(28, Math.max(1, new Date().getDate())));
     setGastos((g) =>
       g.length === 1 && !g[0].descricao && !g[0].valor
-        ? [{ descricao: `Assinatura Sora ${PLANO_LABEL[plano]}`, valor: preco.toFixed(2).replace('.', ','), dia, carteira: opcoesConta[0] || 'Dinheiro' }]
+        ? [{ descricao: `Assinatura Sora ${PLANO_LABEL[plano]}`, valor: preco.toFixed(2).replace('.', ','), dia, carteira: opcoesConta[0] || 'Dinheiro', variavel: false }]
         : g,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +67,7 @@ export default function Step6GastosFixos() {
     setGastos(gastos.map((g, idx) => (idx === i ? { ...g, ...patch } : g)));
   }
   function adicionar() {
-    setGastos([...gastos, { descricao: '', valor: '', dia: '5', carteira: opcoesConta[0] || 'Dinheiro' }]);
+    setGastos([...gastos, { descricao: '', valor: '', dia: '5', carteira: opcoesConta[0] || 'Dinheiro', variavel: false }]);
   }
   function remover(i: number) {
     if (gastos.length === 1) return;
@@ -76,23 +77,27 @@ export default function Step6GastosFixos() {
   async function salvar() {
     if (!phone || !liberado) return;
     try {
-      const validos = gastos.filter((g) => g.descricao.trim() && parseFloat(g.valor) > 0);
+      const num = (v: string) => parseFloat(String(v).replace(',', '.'));
+      // Fixo exige valor; variável não (o valor é só estimativa opcional).
+      const validos = gastos.filter((g) => g.descricao.trim() && (g.variavel || num(g.valor) > 0));
       if (validos.length === 0) return;
-      await Promise.all(validos.map((g) =>
-        api.recorrencias.criar({
+      await Promise.all(validos.map((g) => {
+        const v = num(g.valor);
+        return api.recorrencias.criar({
           phone, tipo: 'Gasto',
           descricao: g.descricao.trim(),
-          valor: parseFloat(String(g.valor).replace(',', '.')),
+          valor: isNaN(v) || v <= 0 ? 0 : v,
           dia_vencimento: Math.max(1, Math.min(28, parseInt(g.dia) || 5)),
           carteira: g.carteira || opcoesConta[0] || 'Dinheiro',
-        }),
-      ));
+          valor_variavel: g.variavel,
+        });
+      }));
     } catch (e) {
       console.warn('[onboarding] erro ao salvar gastos fixos', e);
     }
   }
 
-  const temAlgum = gastos.some((g) => g.descricao.trim() && parseFloat(g.valor) > 0);
+  const temAlgum = gastos.some((g) => g.descricao.trim() && (g.variavel || parseFloat(String(g.valor).replace(',', '.')) > 0));
 
   return (
     <>
@@ -104,7 +109,7 @@ export default function Step6GastosFixos() {
           Gastos fixos mensais
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Aluguel, internet, academia, assinaturas. Coisas que se repetem todo mês.
+          Aluguel, internet, assinaturas (valor fixo) ou luz, água, cartão (valor que muda). Coisas que se repetem todo mês.
         </p>
       </div>
 
@@ -136,7 +141,9 @@ export default function Step6GastosFixos() {
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_92px] gap-3 mb-3">
                 <input type="text" value={g.descricao} onChange={(e) => atualizar(i, { descricao: e.target.value })} placeholder="Ex.: Aluguel, Netflix"
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
-                <input type="text" inputMode="decimal" value={g.valor} onChange={(e) => atualizar(i, { valor: e.target.value })} placeholder="R$ 0,00"
+                <input type="text" inputMode="decimal" value={g.valor} onChange={(e) => atualizar(i, { valor: e.target.value })}
+                  placeholder={g.variavel ? 'Estimativa' : 'R$ 0,00'}
+                  aria-label={g.variavel ? 'Valor estimado (opcional)' : 'Valor'}
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm tabular-nums placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                 <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-background border border-border text-sm">
                   <span className="text-muted-foreground text-xs">Dia</span>
@@ -144,14 +151,33 @@ export default function Step6GastosFixos() {
                 </div>
               </div>
 
-              {/* Seletor de conta/cartão */}
-              <div className="flex items-center gap-2">
-                <Landmark size={14} className="text-muted-foreground flex-shrink-0" />
-                <select value={g.carteira || opcoesConta[0]} onChange={(e) => atualizar(i, { carteira: e.target.value })}
-                  className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary">
-                  {opcoesConta.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
-                </select>
+              {/* Seletor de conta/cartão + toggle fixo/varia */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Landmark size={14} className="text-muted-foreground flex-shrink-0" />
+                  <select value={g.carteira || opcoesConta[0]} onChange={(e) => atualizar(i, { carteira: e.target.value })}
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary">
+                    {opcoesConta.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+                  </select>
+                </div>
+                <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Tipo de valor">
+                  <button type="button" role="switch" aria-checked={!g.variavel} onClick={() => atualizar(i, { variavel: false })}
+                    className={`px-3 h-9 rounded-lg text-xs font-bold transition-all ${!g.variavel ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                    Valor fixo
+                  </button>
+                  <button type="button" role="switch" aria-checked={g.variavel} onClick={() => atualizar(i, { variavel: true })}
+                    className={`px-3 h-9 rounded-lg text-xs font-bold transition-all ${g.variavel ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                    Valor varia
+                  </button>
+                </div>
               </div>
+
+              {g.variavel && (
+                <p className="text-[11px] text-muted-foreground mt-2.5 flex items-start gap-1.5 leading-relaxed">
+                  <CircleDashed size={13} className="mt-0.5 flex-shrink-0 text-amber-600" />
+                  Todo dia {g.dia || 'X'} a Sora te lembra e você confirma o valor real — a estimativa acima é só pra referência.
+                </p>
+              )}
             </div>
           ))}
 
