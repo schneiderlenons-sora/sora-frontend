@@ -206,7 +206,7 @@ export const api = {
     /** Dispensa uma sugestão de gasto fixo (não volta a aparecer). */
     dispensarSugestao: (descricao: string) =>
       req<{ ok: boolean }>('/api/recorrencias/dispensar', { method: 'POST', body: JSON.stringify({ descricao }) }),
-    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string }) =>
+    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string; valor_variavel?: boolean }) =>
       req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
     cancelar: (id: string, phone: string) =>
       req(`/api/recorrencias/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),

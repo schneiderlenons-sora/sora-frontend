@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
-  ArrowDownRight, ArrowUpRight, Sparkles,
+  ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -24,6 +24,7 @@ type Recorrencia = {
   descricao:      string;
   carteira:       string | null;
   categoria:      string | null;
+  valor_variavel?: boolean;
 };
 
 type Wallet = { id: string; nome: string; tipo?: string };
@@ -66,7 +67,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 
   useEffect(() => { carregar(); carregarSugestoes(); }, [carregar, carregarSugestoes]);
 
-  // Aprova uma sugestão (1 clique) → vira recorrência.
+  // Aprova uma sugestão (1 clique) → vira recorrência fixa.
   async function aceitarSugestao(s: Sugestao) {
     if (!phone) return;
     setAceitando(s.descricao);
@@ -89,12 +90,20 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     api.recorrencias.dispensarSugestao(descricao).catch(() => { /* tolerante */ });
   }
 
-  const gastos   = useMemo(() => itens.filter((i) => i.tipo === 'Gasto'), [itens]);
-  const receitas = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento'), [itens]);
-  const totalGastos = useMemo(
-    () => gastos.reduce((s, i) => s + (i.valor || 0), 0),
-    [gastos],
-  );
+  // ── 4 grupos: gasto/receita × fixo/variável. Só rendo os não-vazios. ──
+  const gastosFixos   = useMemo(() => itens.filter((i) => i.tipo === 'Gasto'       && !i.valor_variavel), [itens]);
+  const gastosVar     = useMemo(() => itens.filter((i) => i.tipo === 'Gasto'       &&  i.valor_variavel), [itens]);
+  const receitasFixas = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento' && !i.valor_variavel), [itens]);
+  const receitasVar   = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento' &&  i.valor_variavel), [itens]);
+  const totalGastos   = useMemo(() => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0), [itens]);
+  const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
+
+  const grupos = useMemo(() => ([
+    { key: 'gf', label: 'Gastos fixos',       hint: '',                      itens: gastosFixos   },
+    { key: 'gv', label: 'Gastos variáveis',   hint: 'você confirma no dia',  itens: gastosVar     },
+    { key: 'rf', label: 'Receitas fixas',     hint: '',                      itens: receitasFixas },
+    { key: 'rv', label: 'Receitas variáveis', hint: 'você confirma no dia',  itens: receitasVar   },
+  ].filter((g) => g.itens.length > 0)), [gastosFixos, gastosVar, receitasFixas, receitasVar]);
 
   async function cancelar(id: string) {
     if (!phone) return;
@@ -113,7 +122,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   return (
     <section
       className="rounded-3xl border border-border/60 bg-card overflow-hidden animate-fade-in"
-      aria-label="Gastos fixos mensais"
+      aria-label="Contas previstas do mês"
     >
       {/* ── Header ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 p-5 sm:p-6 border-b border-border/60">
@@ -126,7 +135,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           </div>
           <div className="min-w-0">
             <h3 className="font-semibold text-foreground leading-tight flex items-center gap-2">
-              Fixos do mês
+              Previstos do mês
               {!carregando && itens.length > 0 && (
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
                       style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}>
@@ -136,8 +145,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">
               {totalGastos > 0
-                ? <>Lançados automaticamente todo mês · <span className="tabular-nums font-medium text-foreground/80">{fmt(totalGastos)}</span>/mês</>
-                : 'Lançados automaticamente todo mês'}
+                ? <>Contas que se repetem todo mês · <span className="tabular-nums font-medium text-foreground/80">{temVariavel ? '≈ ' : ''}{fmt(totalGastos)}</span>/mês</>
+                : 'Contas que se repetem todo mês — fixas ou de valor variável'}
             </p>
           </div>
         </div>
@@ -225,9 +234,10 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'hsl(var(--bg-muted))' }}>
             <Calendar size={20} className="text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium text-foreground">Nenhum gasto fixo ainda</p>
+          <p className="text-sm font-medium text-foreground">Nenhuma conta prevista ainda</p>
           <p className="text-xs text-muted-foreground max-w-xs">
-            Aluguel, internet, assinaturas… Cadastre uma vez e a Sora lança todo mês no dia certo.
+            <strong className="text-foreground/80">Fixas</strong> (aluguel, Netflix, salário) a Sora lança sozinha no dia certo.
+            {' '}<strong className="text-foreground/80">Variáveis</strong> (luz, água, cartão) ela te lembra pra você confirmar o valor.
           </p>
           {!addOpen && (
             <button
@@ -235,40 +245,31 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               className="mt-1 flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold"
               style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}
             >
-              <Plus size={16} /> Adicionar gasto fixo
+              <Plus size={16} /> Adicionar conta
             </button>
           )}
         </div>
       ) : (
         <div>
-          {gastos.length > 0 && (
-            <>
-              <p className="px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                Gastos fixos
+          {grupos.map((g, gi) => (
+            <div key={g.key}>
+              <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${gi > 0 ? 'border-t border-border/50' : ''}`}>
+                {g.label}
+                {g.hint && (
+                  <span className="inline-flex items-center gap-1 normal-case tracking-normal font-medium text-muted-foreground/70">
+                    <CircleDashed size={11} /> {g.hint}
+                  </span>
+                )}
               </p>
               <ul className="divide-y divide-border/50">
-                {gastos.map((item, idx) => (
+                {g.itens.map((item, idx) => (
                   <Linha key={item.id} item={item} idx={idx}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar} />
                 ))}
               </ul>
-            </>
-          )}
-          {receitas.length > 0 && (
-            <>
-              <p className="px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground border-t border-border/50">
-                Receitas fixas
-              </p>
-              <ul className="divide-y divide-border/50">
-                {receitas.map((item, idx) => (
-                  <Linha key={item.id} item={item} idx={idx}
-                    confirmando={confirmando} removendo={removendo}
-                    onPedir={setConfirm} onCancelar={cancelar} />
-                ))}
-              </ul>
-            </>
-          )}
+            </div>
+          ))}
         </div>
       )}
     </section>
@@ -276,7 +277,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Linha de uma recorrência (gasto ou receita)
+// Linha de uma recorrência (gasto ou receita, fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function Linha({
   item, idx, confirmando, removendo, onPedir, onCancelar,
@@ -291,6 +292,8 @@ function Linha({
   const tema = getCategoriaTheme(item.descricao);
   const emoji = item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0] ?? undefined;
   const ehGasto = item.tipo === 'Gasto';
+  const ehVariavel = !!item.valor_variavel;
+  const semEstimativa = ehVariavel && !(item.valor > 0);
   const emConfirm = confirmando === item.id;
   const saindo = removendo === item.id;
   return (
@@ -302,19 +305,31 @@ function Linha({
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
-        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground flex-wrap">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
             <Calendar size={10} /> dia {item.dia_vencimento}
           </span>
+          {ehVariavel && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                  style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
+              <CircleDashed size={10} /> estimado
+            </span>
+          )}
           {item.carteira && <span className="truncate">· {item.carteira}</span>}
         </div>
       </div>
 
       <div className="text-right flex-shrink-0">
-        <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
-          {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
-          {fmt(item.valor)}
-        </p>
+        {semEstimativa ? (
+          <p className="text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
+            <CircleDashed size={13} /> a definir
+          </p>
+        ) : (
+          <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
+            {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
+            {ehVariavel ? '~' : ''}{fmt(item.valor)}
+          </p>
+        )}
       </div>
 
       {emConfirm ? (
@@ -352,7 +367,7 @@ function Linha({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Form inline de adicionar recorrência
+// Form inline de adicionar recorrência (fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function AddForm({
   phone, contas, onCancel, onSaved,
@@ -362,12 +377,13 @@ function AddForm({
   onCancel:  () => void;
   onSaved:   () => void;
 }) {
-  const [tipo, setTipo]           = useState<Tipo>('Gasto');
-  const [descricao, setDescricao] = useState('');
-  const [valor, setValor]         = useState('');
-  const [dia, setDia]             = useState('5');
-  const [salvando, setSalvando]   = useState(false);
-  const [erro, setErro]           = useState('');
+  const [tipo, setTipo]                   = useState<Tipo>('Gasto');
+  const [valorVariavel, setValorVariavel] = useState(false);
+  const [descricao, setDescricao]         = useState('');
+  const [valor, setValor]                 = useState('');
+  const [dia, setDia]                     = useState('5');
+  const [salvando, setSalvando]           = useState(false);
+  const [erro, setErro]                   = useState('');
   const descRef = useRef<HTMLInputElement>(null);
 
   // Contas válidas pro tipo: receita fixa não cai em cartão de crédito.
@@ -403,7 +419,12 @@ function AddForm({
     }
   }, [opcoesContas, carteira]);
 
-  const valido = descricao.trim() && parseFloat(valor.replace(',', '.')) > 0;
+  const valorNum = parseFloat(valor.replace(',', '.'));
+  const temValor = !isNaN(valorNum) && valorNum > 0;
+  // Fixo exige valor; variável não (valor é só estimativa opcional).
+  const valido = !!descricao.trim() && (valorVariavel || temValor);
+
+  const diaLimpo = Math.max(1, Math.min(28, parseInt(dia, 10) || 5));
 
   async function salvar() {
     if (!valido || !phone) return;
@@ -414,9 +435,10 @@ function AddForm({
         phone,
         tipo,
         descricao:      descricao.trim(),
-        valor:          parseFloat(valor.replace(',', '.')),
-        dia_vencimento: Math.max(1, Math.min(28, parseInt(dia) || 5)),
+        valor:          temValor ? valorNum : 0,   // variável sem estimativa → 0
+        dia_vencimento: diaLimpo,
         carteira:       carteira || 'Dinheiro',
+        valor_variavel: valorVariavel,
       });
       onSaved();
     } catch {
@@ -426,30 +448,49 @@ function AddForm({
     }
   }
 
+  const eixo = (
+    ativo: boolean, label: string, onClick: () => void, ariaLabel?: string,
+  ) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={ativo}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      className={`px-3.5 h-9 rounded-lg text-xs font-bold transition-all ${
+        ativo ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="p-4 sm:p-6 bg-muted/20 border-b border-border/60 animate-fade-in">
-      {/* Toggle tipo */}
-      <div className="inline-flex p-1 rounded-xl bg-muted/60 mb-4">
-        {(['Gasto', 'Recebimento'] as Tipo[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTipo(t)}
-            className={`px-3.5 h-9 rounded-lg text-xs font-bold transition-all ${
-              tipo === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t === 'Gasto' ? 'Gasto fixo' : 'Receita fixa'}
-          </button>
-        ))}
+      {/* Dois eixos: tipo (gasto/receita) × valor (fixo/variável) */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Tipo">
+          {eixo(tipo === 'Gasto', 'Gasto', () => setTipo('Gasto'))}
+          {eixo(tipo === 'Recebimento', 'Receita', () => setTipo('Recebimento'))}
+        </div>
+        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Valor">
+          {eixo(!valorVariavel, 'Valor fixo', () => setValorVariavel(false))}
+          {eixo(valorVariavel, 'Valor varia', () => setValorVariavel(true))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_92px] gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_92px] gap-2.5">
         <input
           ref={descRef}
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && valido && salvar()}
-          placeholder={tipo === 'Gasto' ? 'Ex.: Aluguel, Netflix' : 'Ex.: Salário, Aluguel recebido'}
+          placeholder={
+            valorVariavel
+              ? (tipo === 'Gasto' ? 'Ex.: Luz, Água, Cartão' : 'Ex.: Freela, Comissão')
+              : (tipo === 'Gasto' ? 'Ex.: Aluguel, Netflix' : 'Ex.: Salário')
+          }
+          aria-label="Descrição"
           className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm
                      placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
         />
@@ -458,7 +499,8 @@ function AddForm({
           value={valor}
           onChange={(e) => setValor(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && valido && salvar()}
-          placeholder="R$ 0,00"
+          placeholder={valorVariavel ? 'Estimativa (opc.)' : 'R$ 0,00'}
+          aria-label={valorVariavel ? 'Valor estimado (opcional)' : 'Valor'}
           className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm tabular-nums
                      placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
         />
@@ -468,6 +510,7 @@ function AddForm({
             inputMode="numeric"
             value={dia}
             onChange={(e) => setDia(e.target.value)}
+            aria-label="Dia do vencimento"
             className="w-full bg-transparent focus:outline-none tabular-nums"
           />
         </div>
@@ -488,7 +531,16 @@ function AddForm({
         </select>
       </div>
 
-      {erro && <p className="text-xs text-red-500 mt-2">{erro}</p>}
+      {/* Helper: explica o comportamento conforme fixo/variável (progressive disclosure) */}
+      <p className="text-xs text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
+        {valorVariavel
+          ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+              Todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> eu te lembro e você confirma o valor real{temValor ? <> (estimei <span className="tabular-nums">{fmt(valorNum)}</span>)</> : ''} — nada é debitado antes disso.</>
+          : <><Repeat size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
+              Lanço automático todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> com esse valor.</>}
+      </p>
+
+      {erro && <p className="text-xs text-red-500 mt-2" role="alert">{erro}</p>}
 
       <div className="flex items-center gap-2 mt-4">
         <button
