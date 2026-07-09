@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const payment = await mpGetPayment(String(paymentId));
     if (payment.status === 'approved' && payment.external_reference) {
       const plano = payment.metadata?.plano === 'kit' ? 'kit' : 'premium';
-      await ativarVitalicio(payment.external_reference, plano);
+      await ativarVitalicio(payment.external_reference, plano, payment.transaction_amount);
       console.log(`💎 [mp/webhook] vitalício ativado p/ ${payment.external_reference} (pagamento ${paymentId})`);
 
       // Dados de match capturados no /process (o webhook do MP não vê os cookies/IP

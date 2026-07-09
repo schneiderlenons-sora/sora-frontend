@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     // 100% OFF (SORA100) → acesso grátis, sem passar pelo Mercado Pago. Sem
     // webhook de rede de segurança aqui: só responde 'approved' se ATIVOU mesmo.
     if (pct >= 100) {
-      const ativado = await ativarVitalicio(user.id, cfg.plano);
+      const ativado = await ativarVitalicio(user.id, cfg.plano, valor); // valor = 0 (100% off)
       if (!ativado) {
         return NextResponse.json({ erro: 'Não consegui ativar seu acesso agora. Tente de novo em instantes.' }, { status: 500 });
       }
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     // Cartão aprovado na hora → ativa já (o webhook é rede de segurança).
     let ativado = false;
     if (payment.status === 'approved') {
-      ativado = await ativarVitalicio(user.id, cfg.plano);
+      ativado = await ativarVitalicio(user.id, cfg.plano, valor);
       // Limpa flag de recuperação (caso tenha falhado antes e agora deu certo).
       try { await supabaseAdmin.from('users').update({ recuperacao_pendente_em: null }).eq('id', user.id); } catch {}
     } else if (payment.status === 'rejected') {

@@ -515,6 +515,8 @@ function SecaoPlano() {
         loadingPortal={loadingPortal}
         onGerenciar={abrirPortal}
         criadoEm={perfil?.created_at ? new Date(perfil.created_at) : null}
+        isVitalicio={!!perfil?.vitalicio}
+        vitalicioEm={perfil?.vitalicio_em ? new Date(perfil.vitalicio_em) : null}
       />
 
       {/* ═══════════════════════════════════════════════════════════
@@ -596,7 +598,7 @@ function SecaoPlano() {
 
 function HeroPlanoAtual({
   planoVisual, planoAtual, intervalo, validoAte, diasRestantes,
-  temAssinatura, loadingPortal, onGerenciar, criadoEm,
+  temAssinatura, loadingPortal, onGerenciar, criadoEm, isVitalicio, vitalicioEm,
 }: {
   planoVisual?: PlanoDisplay;
   planoAtual: Plano;
@@ -607,6 +609,8 @@ function HeroPlanoAtual({
   loadingPortal: boolean;
   onGerenciar: () => void;
   criadoEm: Date | null;
+  isVitalicio?: boolean;
+  vitalicioEm?: Date | null;
 }) {
   // Estado: inativo → estado vazio sofisticado
   if (!temAssinatura || !planoVisual) {
@@ -683,7 +687,14 @@ function HeroPlanoAtual({
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   Plano atual
                 </p>
-                <StatusPill cor={statusInfo.cor} label={statusInfo.label} />
+                {isVitalicio ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ background: 'color-mix(in srgb, #8b5cf6 16%, transparent)', color: '#8b5cf6' }}>
+                    ∞ Vitalício
+                  </span>
+                ) : (
+                  <StatusPill cor={statusInfo.cor} label={statusInfo.label} />
+                )}
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
                 Sora <span style={{ color: planoVisual.cor }}>{planoVisual.nome}</span>
@@ -692,59 +703,74 @@ function HeroPlanoAtual({
             </div>
           </div>
 
-          {/* CTA Gerenciar */}
-          <button
-            onClick={onGerenciar}
-            disabled={loadingPortal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ borderColor: planoVisual.cor, color: planoVisual.cor }}
-          >
-            {loadingPortal ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <SettingsIcon size={14} />
-            )}
-            Gerenciar assinatura
-          </button>
+          {/* CTA Gerenciar — só assinatura recorrente (vitalício não tem portal Stripe) */}
+          {!isVitalicio && (
+            <button
+              onClick={onGerenciar}
+              disabled={loadingPortal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ borderColor: planoVisual.cor, color: planoVisual.cor }}
+            >
+              {loadingPortal ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <SettingsIcon size={14} />
+              )}
+              Gerenciar assinatura
+            </button>
+          )}
         </div>
 
-        {/* Preço grande */}
-        <div className="mt-6 flex items-baseline gap-2">
-          <span className="text-sm font-bold text-muted-foreground">R$</span>
-          <span className="text-5xl sm:text-6xl font-bold text-foreground tabular-nums tracking-tight leading-none">
-            {Math.floor(precoMensalRef)}
-          </span>
-          <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
-            ,{(precoMensalRef % 1).toFixed(2).slice(2)}
-          </span>
-          <span className="text-sm text-muted-foreground ml-1">
-            /mês {intervalo === 'anual' && '· pago anualmente'}
-          </span>
-        </div>
+        {/* Preço grande — ou selo de vitalício (pago uma vez) */}
+        {isVitalicio ? (
+          <div className="mt-6 flex items-center gap-3 rounded-2xl p-4 border"
+               style={{ borderColor: 'color-mix(in srgb, #8b5cf6 30%, transparent)', background: 'color-mix(in srgb, #8b5cf6 6%, transparent)' }}>
+            <span className="text-3xl" aria-hidden>🎉</span>
+            <div>
+              <p className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-none">Acesso vitalício</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Você pagou <strong className="text-foreground">uma vez</strong> — sem mensalidade, seu acesso é pra sempre. 💜
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 flex items-baseline gap-2">
+            <span className="text-sm font-bold text-muted-foreground">R$</span>
+            <span className="text-5xl sm:text-6xl font-bold text-foreground tabular-nums tracking-tight leading-none">
+              {Math.floor(precoMensalRef)}
+            </span>
+            <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
+              ,{(precoMensalRef % 1).toFixed(2).slice(2)}
+            </span>
+            <span className="text-sm text-muted-foreground ml-1">
+              /mês {intervalo === 'anual' && '· pago anualmente'}
+            </span>
+          </div>
+        )}
 
         {/* Grid de info */}
         <div className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <InfoCell
             icon={<Calendar size={13} />}
             label="Próxima cobrança"
-            value={
+            value={isVitalicio ? 'Nunca' : (
               validoAte
                 ? validoAte.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
                 : '—'
-            }
-            sub={diasRestantes !== null ? `em ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'}` : undefined}
+            )}
+            sub={isVitalicio ? 'acesso vitalício' : (diasRestantes !== null ? `em ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'}` : undefined)}
           />
           <InfoCell
             icon={<Receipt size={13} />}
             label="Ciclo"
-            value={intervalo === 'anual' ? 'Anual' : 'Mensal'}
-            sub={intervalo === 'anual' ? 'com desconto' : 'renova automaticamente'}
+            value={isVitalicio ? 'Vitalício' : (intervalo === 'anual' ? 'Anual' : 'Mensal')}
+            sub={isVitalicio ? 'pagamento único' : (intervalo === 'anual' ? 'com desconto' : 'renova automaticamente')}
           />
           <InfoCell
             icon={<CreditCard size={13} />}
             label="Pagamento"
-            value="Cartão"
-            sub="Gerencie no portal"
+            value={isVitalicio ? 'Único' : 'Cartão'}
+            sub={isVitalicio ? 'Mercado Pago' : 'Gerencie no portal'}
           />
           <InfoCell
             icon={<Sparkles size={13} />}

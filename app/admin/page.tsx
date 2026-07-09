@@ -8,21 +8,24 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb,
+  Infinity as InfinityIcon, Gem,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 const money = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const dataCurta = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }) : '—');
 
-type Plano = 'basico' | 'premium' | 'black' | 'inativo';
+type Plano = 'basico' | 'premium' | 'black' | 'inativo' | 'kit';
 type User = {
   id: string; name: string | null; email: string | null; phone: string | null;
   plano: Plano; plano_intervalo?: string | null; plano_valido_ate?: string | null;
+  vitalicio?: boolean | null; vitalicio_em?: string | null;
   stripe_customer_id?: string | null; onboarding_completed?: boolean; welcomed_at?: string | null;
   created_at: string;
 };
 type Overview = {
-  total: number; ativos: number; inativo: number; basico: number; premium: number; black: number;
+  total: number; ativos: number; inativo: number; basico: number; premium: number; black: number; kit?: number;
+  vitalicios?: number; kitVitalicio?: number; premiumVitalicio?: number; premiumRecorrente?: number; receitaVitalicio?: number;
   novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number;
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
 };
@@ -36,16 +39,26 @@ const PLANO_META: Record<Plano, { label: string; cor: string; icon?: any }> = {
   basico:  { label: 'Básico',  cor: '#71717a' },
   premium: { label: 'Premium', cor: '#10b981', icon: Sparkles },
   black:   { label: 'Black',   cor: '#f59e0b', icon: Crown },
+  kit:     { label: 'Kit',     cor: '#8b5cf6', icon: Gem },
   inativo: { label: 'Inativo', cor: '#ef4444' },
 };
 
-function PlanoBadge({ plano }: { plano: Plano }) {
+function PlanoBadge({ plano, vitalicio }: { plano: Plano; vitalicio?: boolean | null }) {
   const m = PLANO_META[plano] || PLANO_META.inativo;
   const Icon = m.icon;
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold"
-          style={{ background: `color-mix(in srgb, ${m.cor} 14%, transparent)`, color: m.cor }}>
-      {Icon ? <Icon size={10} /> : <CircleDot size={9} />} {m.label}
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold"
+            style={{ background: `color-mix(in srgb, ${m.cor} 14%, transparent)`, color: m.cor }}>
+        {Icon ? <Icon size={10} /> : <CircleDot size={9} />} {m.label}
+      </span>
+      {vitalicio && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #8b5cf6 16%, transparent)', color: '#8b5cf6' }}
+              title="Plano vitalício (pagamento único)">
+          <InfinityIcon size={10} /> Vitalício
+        </span>
+      )}
     </span>
   );
 }
@@ -147,9 +160,11 @@ export default function AdminPage() {
 
         {/* Métricas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          <Stat label="MRR estimado" value={ov ? money(ov.mrr) : '—'} hint={ov ? `${ov.ativos} pagantes` : ''} destaque />
+          <Stat label="MRR estimado" value={ov ? money(ov.mrr) : '—'} hint={ov ? 'só assinaturas recorrentes' : ''} destaque />
+          <Stat label="Receita vitalícia" value={ov ? money(ov.receitaVitalicio ?? 0) : '—'}
+                hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''} destaque />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
-          <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.black} BK` : ''} />
+          <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.kit ?? 0} Kit · ${ov.black} BK` : ''} />
           <Stat label="Inativos" value={ov?.inativo ?? '—'} />
           <Stat label="Novos (30d)" value={ov?.novos30 ?? '—'} />
           <Stat label="Pagou mas inativo" value={ov?.pagouInativo ?? '—'} alerta={!!ov && ov.pagouInativo > 0}
@@ -222,7 +237,7 @@ export default function AdminPage() {
                         <p className="text-xs text-muted-foreground tabular-nums">{u.phone || 'sem número'}</p>
                         <p className="text-[10px] text-muted-foreground/70">{dataCurta(u.created_at)}</p>
                       </div>
-                      <PlanoBadge plano={u.plano} />
+                      <PlanoBadge plano={u.plano} vitalicio={u.vitalicio} />
                     </button>
                   ))}
                 </div>
@@ -287,8 +302,8 @@ export default function AdminPage() {
 
               {/* Infos */}
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <Info label="Plano"><PlanoBadge plano={sel.plano} /></Info>
-                <Info label="Válido até">{dataCurta(sel.plano_valido_ate)}</Info>
+                <Info label="Plano"><PlanoBadge plano={sel.plano} vitalicio={sel.vitalicio} /></Info>
+                <Info label="Válido até">{sel.vitalicio ? 'Vitalício ∞' : dataCurta(sel.plano_valido_ate)}</Info>
                 <Info label="WhatsApp">{sel.phone || '— sem número'}</Info>
                 <Info label="Onboarding">{sel.onboarding_completed ? 'Concluído' : 'Pendente'}</Info>
                 <Info label="Welcome">{sel.welcomed_at ? 'Enviado' : 'Não enviado'}</Info>

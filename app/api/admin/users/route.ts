@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('users')
-    .select('id,name,email,phone,plano,plano_intervalo,plano_valido_ate,stripe_customer_id,onboarding_completed,welcomed_at,created_at')
+    .select('id,name,email,phone,plano,plano_intervalo,plano_valido_ate,vitalicio,vitalicio_em,stripe_customer_id,onboarding_completed,welcomed_at,created_at')
     .order('created_at', { ascending: false })
     .limit(300);
 

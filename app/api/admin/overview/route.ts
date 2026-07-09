@@ -21,16 +21,40 @@ export async function GET() {
   const d7  = new Date(Date.now() - 7  * 864e5).toISOString();
   const d30 = new Date(Date.now() - 30 * 864e5).toISOString();
 
-  const [total, inativo, basico, premium, black, novos7, novos30, pagouInativo] = await Promise.all([
+  const [total, inativo, basico, premium, black, kit, novos7, novos30, pagouInativo] = await Promise.all([
     contar((q) => q),
     contar((q) => q.eq('plano', 'inativo')),
     contar((q) => q.eq('plano', 'basico')),
     contar((q) => q.eq('plano', 'premium')),
     contar((q) => q.eq('plano', 'black')),
+    contar((q) => q.eq('plano', 'kit')),
     contar((q) => q.gte('created_at', d7)),
     contar((q) => q.gte('created_at', d30)),
     contar((q) => q.eq('plano', 'inativo').not('stripe_customer_id', 'is', null)),
   ]);
+
+  // ── Vitalícios (pagamento único) — NÃO entram no MRR (não recorrem).
+  // Tolerante à migration 060 (coluna vitalicio) e 065 (vitalicio_valor):
+  // sem vitalicio_valor, cai no preço do tier (kit R$47 / premium R$97).
+  const VITAL_PRECO: Record<string, number> = { kit: 47, premium: 97 };
+  let vitalicios = 0, premiumVitalicio = 0, kitVitalicio = 0, receitaVitalicio = 0;
+  {
+    let rows: any[] = [];
+    const rv = await supabaseAdmin.from('users').select('plano, vitalicio_valor').eq('vitalicio', true);
+    if (rv.error) {
+      const rp = await supabaseAdmin.from('users').select('plano').eq('vitalicio', true); // 065 pendente
+      rows = rp.data || [];
+    } else {
+      rows = rv.data || [];
+    }
+    for (const r of rows) {
+      vitalicios++;
+      if (r.plano === 'premium') premiumVitalicio++;
+      if (r.plano === 'kit') kitVitalicio++;
+      const v = r.vitalicio_valor;
+      receitaVitalicio += typeof v === 'number' ? v : (VITAL_PRECO[r.plano] ?? 97);
+    }
+  }
 
   // Bugs abertos = só os do tipo 'problema' (tolerante a pré-migration 053).
   let bugsAbertos = 0;
@@ -63,11 +87,16 @@ export async function GET() {
     recEnviadas2 = await contar((q) => q.not('recuperacao_signup2_em', 'is', null));
   } catch { /* migration 057 pode não ter rodado */ }
 
-  const mrr = basico * PRECO.basico + premium * PRECO.premium + black * PRECO.black;
+  // MRR = SÓ recorrentes. Premium vitalício não recorre → sai da conta; kit é
+  // sempre vitalício → nunca entrou; básico e black são recorrentes.
+  const premiumRecorrente = Math.max(0, premium - premiumVitalicio);
+  const mrr = basico * PRECO.basico + premiumRecorrente * PRECO.premium + black * PRECO.black;
 
   return NextResponse.json({
-    total, inativo, basico, premium, black,
-    ativos: basico + premium + black,
+    total, inativo, basico, premium, black, kit,
+    ativos: total - inativo,
+    premiumRecorrente, vitalicios, kitVitalicio, premiumVitalicio,
+    receitaVitalicio: Math.round(receitaVitalicio * 100) / 100,
     novos7, novos30, pagouInativo, bugsAbertos, melhoriasAbertas,
     semPagamento, recEnviadas, recEnviadas2, recRecuperados,
     mrr: Math.round(mrr * 100) / 100,
