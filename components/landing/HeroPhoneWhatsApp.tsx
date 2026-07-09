@@ -6,7 +6,7 @@
  */
 export default function HeroPhoneWhatsApp() {
   return (
-    <div className="relative w-full h-full bg-[#0B141A] flex flex-col text-white text-[10px]"
+    <div className="relative w-full h-full bg-[#0B141A] flex flex-col text-white text-[10px] text-left"
          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
       {/* Status bar iOS */}
@@ -23,10 +23,9 @@ export default function HeroPhoneWhatsApp() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/80">
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-             style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
-          S
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/sora-icon.png" alt="Sora" draggable={false}
+             className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
         <div className="flex-1 min-w-0 leading-tight">
           <p className="font-semibold truncate">Sora</p>
           <p className="text-[8px] text-white/55">online</p>
