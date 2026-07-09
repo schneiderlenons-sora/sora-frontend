@@ -25,7 +25,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/brands/sora.png',
-    apple: '/brands/sora.png',
+    // apple-touch-icon (ícone da PWA no iOS) precisa ser FULL-BLEED — o verde
+    // cobre o quadrado todo. O /brands/sora.png é um círculo com fundo
+    // transparente → o iOS mostrava os cantos como borda branca.
+    apple: '/sora-icon.png',
     shortcut: '/brands/sora.png',
   },
   openGraph: {
