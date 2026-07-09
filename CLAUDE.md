@@ -102,6 +102,39 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 
 ---
 
+## Vitalício (pagamento único) + Mercado Pago + landings /oferta e /kit
+
+**Vitalício = paga UMA vez, acesso pra sempre** (sem mensalidade). Paralelo à assinatura Stripe. Dois tiers + upgrade:
+
+| Tier | Preço | Plano ativado | Inclui |
+|---|---|---|---|
+| **Kit** | R$47 | `plano='kit'` | Vitalício **SEM WhatsApp** — só painel (as "8 ferramentas" do Kit) |
+| **Completa** | R$97 | `plano='premium'` | Vitalício **COM WhatsApp** — tudo (Sora no zap + Negócios + Grow completo) |
+| **Upgrade** | +R$50 | `plano='premium'` | Só pra quem já tem o Kit; senão cobra a Completa cheia |
+
+- **Kit no WhatsApp:** `plano='kit'` NÃO atende pelo zap — o `processarMensagem` responde com CTA de upgrade (`webhook.js`). Kit organiza só pelo painel.
+
+**Pagamento = Mercado Pago** (checkout transparente / Payment Brick), NÃO o Stripe (Stripe é só assinatura mensal/anual):
+| Arquivo | Função |
+|---|---|
+| `app/checkout-vitalicio/page.tsx` | Checkout (design à esquerda + Payment Brick à direita). `?tier=kit\|completa\|upgrade&cupom=&rec=1` |
+| `app/api/mercadopago/process/route.ts` | Cria o pagamento no MP (valor+plano SEMPRE pelo tier no server). Cartão aprovado → `ativarVitalicio` na hora; Pix → 'pending' + QR |
+| `app/api/mercadopago/webhook/route.ts` | Confirma pagamento (fonte da verdade) → `ativarVitalicio` + evento **Purchase** (CAPI, com fbp/fbc/ip/ua guardados no metadata do /process) |
+| `lib/mercadopago.ts` | `tierConfig()` (valor+plano+título por tier), `mpCreatePayment`, `mpGetPayment` |
+| `lib/vitalicio.ts` | `ativarVitalicio(userId, plano)` |
+| `lib/cupons.ts` | Cupons: **SORA10/15/25** (%) + **SORA100** (100% off → libera grátis sem passar no MP). `aplicarCupomVitalicio()` recalcula SEMPRE no server |
+
+- **Env (Vercel):** `MP_ACCESS_TOKEN`, `NEXT_PUBLIC_MP_PUBLIC_KEY` (chaves de PRODUÇÃO). Migration `sql/064_vitalicio_intent.sql` (coluna `vitalicio_intent` p/ recuperação levar de volta pro tier certo).
+
+**Landings de venda:**
+- **`/oferta`** (`app/oferta/page.tsx`) — landing do vitalício (Hero + pricing dos tiers). Pixel/CAPI: InitiateCheckout.
+- **`/kit`** (`app/kit/page.tsx` + `components/landing/KitOferta.tsx`) — landing dedicada do **Kit**, **tema escuro forçado** (`dark` no `<main>` + `@variant dark` no globals), nav sem toggle de tema, cabeçalho preto. Tem **card flutuante de cupom** `components/landing/CupomFlutuante.tsx` (SORA10, dismissível, copiar). Onboarding do Kit esconde "vincular WhatsApp" e "ver o que sei fazer" (Kit não tem zap).
+- Ambas usam o `Footer` (com a info legal/CNPJ) e `lib/planos-display.ts` pros dados dos planos.
+
+> Recuperação de pagamento falho: memória `project-recuperacao-pagamento-falho` (crons OFF por padrão — `RECUPERACAO_ATIVA`). CHECK constraint de `users.plano`: todo plano novo (ex. 'kit') precisa entrar no `users_plano_check` via migration senão a ativação falha calada — memória `project-plano-check-constraint`.
+
+---
+
 ## Onboarding wizard
 
 `app/onboarding/` — 9 steps que rodam antes do dashboard (forçado via `OnboardingRedirect` em `components/providers.tsx`).
@@ -160,6 +193,9 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | Rota | Descrição |
 |---|---|
 | `/` | Landing page (Pricing usa `lib/planos-display.ts`) |
+| `/oferta` | Landing do **vitalício** (pagamento único) — tiers Kit/Completa |
+| `/kit` | Landing dedicada do **Kit** (R$47), tema escuro forçado + card de cupom flutuante (`KitOferta.tsx`) |
+| `/checkout-vitalicio` | Checkout do vitalício via Mercado Pago (`?tier=kit\|completa\|upgrade&cupom=`) |
 | `/planos` | Página de upgrade/downgrade dentro do dashboard |
 | `/onboarding` | Wizard 9 steps (novo usuário) |
 | `/central-sora` | "Central da Sora" — catálogo de comandos WhatsApp |
