@@ -10,12 +10,13 @@ import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
+import DetalhesContaModal from '@/components/contas/DetalhesContaModal';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
   Archive, ArchiveRestore, ArrowLeftRight, DollarSign,
   Shield, Star, Sparkles, AlertCircle, Eye, EyeOff, Link2, Clock, Zap,
-  ChevronDown,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 
 // Bancos suportados pelo Open Finance via Pluggy (em breve disponíveis)
@@ -136,6 +137,7 @@ export default function ContasBancariasPage() {
   const [form,       setForm]       = useState<Form>(FORM_VAZIO);
   const [salvando,   setSalvando]   = useState(false);
   const [contaExcluir, setContaExcluir] = useState<Wallet | null>(null);
+  const [contaDetalhe, setContaDetalhe] = useState<Wallet | null>(null);
   const [sucesso,    setSucesso]    = useState(false);
   const [erro,       setErro]       = useState('');
   const [ocultar,    setOcultar]    = useState(false);
@@ -402,6 +404,7 @@ export default function ContasBancariasPage() {
                 onArquivar={() => toggleArquivar(w)}
                 onAjustar={() => setAjusteOpen(w)}
                 onTransferir={() => setTransferOpen(true)}
+                onVerExtrato={() => setContaDetalhe(w)}
               />
             ))}
 
@@ -557,6 +560,14 @@ export default function ContasBancariasPage() {
           onExcluida={() => carregar()}
         />
       )}
+
+      {contaDetalhe && phone && (
+        <DetalhesContaModal
+          phone={phone}
+          conta={contaDetalhe}
+          onClose={() => setContaDetalhe(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }
@@ -566,7 +577,7 @@ export default function ContasBancariasPage() {
 // ─────────────────────────────────────────────────────────────
 function WalletCard({
   wallet, index, ocultar, compartilhado,
-  onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir,
+  onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir, onVerExtrato,
 }: {
   wallet:        Wallet;
   index:         number;
@@ -578,6 +589,7 @@ function WalletCard({
   onArquivar:    () => void;
   onAjustar:     () => void;
   onTransferir:  () => void;
+  onVerExtrato:  () => void;
 }) {
   const [gradStart, gradEnd] = bancoGrad(wallet.nome);
   const Icon  = TIPO_ICON[wallet.tipo] || WalletIcon;
@@ -659,24 +671,28 @@ function WalletCard({
         </div>
       )}
 
-      {/* ─── Saldo ─── */}
-      <div className="relative rounded-2xl p-4 mb-3"
-           style={{ background: `hsl(${hue} 70% 50% / 0.06)` }}>
+      {/* ─── Saldo (clicável → extrato/movimentações) ─── */}
+      <button
+        onClick={onVerExtrato}
+        className="relative w-full text-left rounded-2xl p-4 mb-3 transition-all hover:brightness-95 dark:hover:brightness-125 group/saldo"
+        style={{ background: `hsl(${hue} 70% 50% / 0.06)` }}
+        title="Ver movimentações"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color: `hsl(${hue} 55% 45%)` }}>
             <TrendingUp size={13} />
             <span>Saldo atual</span>
           </div>
-          <p className={`text-xl font-bold tabular tracking-tight ${
-            isNeg
-              ? 'text-red-500'
-              : ''
-          }`}
-          style={{ color: !isNeg ? `hsl(${hue} 55% 40%)` : undefined }}>
+          <p className={`text-xl font-bold tabular tracking-tight ${isNeg ? 'text-red-500' : ''}`}
+             style={{ color: !isNeg ? `hsl(${hue} 55% 40%)` : undefined }}>
             {ocultar ? '••••••' : fmt(wallet.saldo)}
           </p>
         </div>
-      </div>
+        <div className="flex items-center gap-0.5 mt-2 text-[11px] font-medium text-muted-foreground group-hover/saldo:text-foreground transition-colors">
+          <span>Ver extrato — entradas e saídas</span>
+          <ChevronRight size={12} className="group-hover/saldo:translate-x-0.5 transition-transform" />
+        </div>
+      </button>
 
       {/* ─── Conta nomeada / padrão ─── */}
       <button
