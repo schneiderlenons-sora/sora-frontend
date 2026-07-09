@@ -244,8 +244,14 @@ function PlanosContent() {
             <Crown size={28} className="text-amber-400 flex-shrink-0" />
             <div>
               <p className="text-amber-400 text-[11px] font-bold uppercase tracking-widest">Fundador</p>
-              <p className="text-white font-bold text-lg leading-tight">Você é Premium Vitalício 🐳</p>
-              <p className="text-white/60 text-sm">Acesso completo à Sora, para sempre. Obrigado por acreditar desde o começo. 💚</p>
+              <p className="text-white font-bold text-lg leading-tight">
+                {planoAtual === 'kit' ? 'Você tem o Kit Vitalício 🐳' : 'Você é Premium Vitalício 🐳'}
+              </p>
+              <p className="text-white/60 text-sm">
+                {planoAtual === 'kit'
+                  ? 'Acesso vitalício ao Kit — organize tudo pelo painel, pra sempre. 💚'
+                  : 'Acesso completo à Sora, para sempre. Obrigado por acreditar desde o começo. 💚'}
+              </p>
             </div>
           </div>
         ) : (
@@ -309,20 +315,28 @@ function PlanosContent() {
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-tight">
-            {planoAtual === 'inativo' ? 'Escolha o seu plano' : `Você está no ${PLANO_LABEL[planoAtual]}`}
+            {isVitalicio
+              ? 'Você tem acesso vitalício'
+              : planoAtual === 'inativo' ? 'Escolha o seu plano' : `Você está no ${PLANO_LABEL[planoAtual]}`}
           </h1>
-          {planoAtual !== 'inativo' && (
+          {isVitalicio ? (
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+              Plano completo, sem mensalidade — seu acesso é pra sempre. 💜
+            </p>
+          ) : planoAtual !== 'inativo' ? (
             <p className="text-muted-foreground text-sm">
               Faça upgrade a qualquer momento ou gerencie sua assinatura abaixo.
             </p>
-          )}
-          {planoAtual === 'inativo' && (
+          ) : (
             <p className="text-muted-foreground text-sm max-w-md mx-auto">
               Cancele quando quiser. Sem letras miúdas.
             </p>
           )}
         </div>
 
+        {/* Assinaturas recorrentes — não fazem sentido pra quem é vitalício. */}
+        {!isVitalicio && (
+        <>
         {/* Toggle mensal/anual */}
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-muted/50 border border-border/60">
@@ -495,6 +509,8 @@ function PlanosContent() {
           <span className="font-semibold text-foreground">Stripe</span>.
           Cancele a qualquer momento pelo portal de assinatura.
         </p>
+        </>
+        )}
       </div>
     </DashboardLayout>
   );
