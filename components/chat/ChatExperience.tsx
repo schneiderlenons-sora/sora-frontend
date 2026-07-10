@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { trackInitiateCheckout } from '@/lib/analytics';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import AgendaShowcase from '@/components/landing/AgendaShowcase';
+import OpenFinance from '@/components/landing/OpenFinance';
 import {
   ArrowRight, ArrowLeft, Check, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
@@ -422,6 +423,11 @@ function Etapa3({ onNext }: { onNext: () => void }) {
       <div className="text-center">
         <h2 className="text-2xl font-black tracking-tight" style={{ color: HEAD }}>E tem muito mais.</h2>
         <p className="text-[14px] text-zinc-500 mt-1">Tudo por mensagem, do jeito que você já conversa.</p>
+      </div>
+
+      {/* Open Finance — mesma seção do forsora.com (versão compacta pro funil) */}
+      <div className="pt-1 border-t border-zinc-100">
+        <OpenFinance compact />
       </div>
 
       {/* 3 — Agenda inteligente (a seção "Agenda Inteligente" do forsora.com) */}
