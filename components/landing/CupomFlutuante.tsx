@@ -5,10 +5,11 @@ import { Gift, Check, Copy, X } from 'lucide-react';
 
 const BRAND = '#61ce70';
 const CUPOM = 'SORA10';
-const KEY = 'kit-cupom-sora10-dismiss';
+const KEY = 'cupom-sora10-dismiss';
 
-// Card flutuante da /kit oferecendo 10% OFF (cupom SORA10). Fixo no rodapé,
-// acompanha o rolamento; fecha no X (some pela sessão) e copia o cupom.
+// Card flutuante oferecendo 10% OFF (cupom SORA10). Fixo no rodapé, acompanha o
+// rolamento; fecha no X (some pela sessão) e copia o cupom. Theme-aware: tema
+// claro na landing principal/oferta e escuro na /kit (dark forçado) ou no dark.
 export default function CupomFlutuante() {
   const [visivel, setVisivel] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -42,11 +43,16 @@ export default function CupomFlutuante() {
   return (
     <div className="fixed z-[60] bottom-4 inset-x-4 sm:inset-x-auto sm:right-5 sm:w-[22rem] animate-[slide-up_400ms_ease-out_both]"
          style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="relative rounded-2xl border p-4 pr-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-xl"
-           style={{ borderColor: `${BRAND}55`, background: 'linear-gradient(160deg, #0f1a10 0%, #0a0a0a 70%)' }}>
+      <div className="relative rounded-2xl border p-4 pr-10 backdrop-blur-xl
+                      bg-gradient-to-b from-white to-emerald-50 border-[#61ce70]/40
+                      shadow-[0_20px_60px_-15px_rgba(0,0,0,0.22)]
+                      dark:from-[#0f1a10] dark:to-[#0a0a0a] dark:border-[#61ce70]/55
+                      dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]">
         {/* Fechar */}
         <button onClick={fechar} aria-label="Fechar cupom"
-                className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-colors
+                           text-zinc-400 hover:text-zinc-700 hover:bg-black/5
+                           dark:text-white/50 dark:hover:text-white dark:hover:bg-white/10">
           <X size={16} />
         </button>
 
@@ -55,16 +61,16 @@ export default function CupomFlutuante() {
             <Gift size={20} style={{ color: BRAND }} />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-white leading-snug">
+            <p className="text-sm font-bold leading-snug text-zinc-900 dark:text-white">
               Você acabou de ganhar <span style={{ color: BRAND }}>10% OFF</span> 🎉
             </p>
-            <p className="text-xs text-white/60 mt-0.5 leading-snug">Aproveite! Use o cupom no checkout:</p>
+            <p className="text-xs mt-0.5 leading-snug text-zinc-500 dark:text-white/60">Aproveite! Use o cupom no checkout:</p>
           </div>
         </div>
 
         {/* Cupom + copiar */}
         <div className="mt-3 flex items-center gap-2">
-          <div className="flex-1 flex items-center justify-center rounded-xl border border-dashed py-2.5 font-black tracking-[0.2em] text-white"
+          <div className="flex-1 flex items-center justify-center rounded-xl border border-dashed py-2.5 font-black tracking-[0.2em] text-zinc-900 dark:text-white"
                style={{ borderColor: `${BRAND}66`, background: `${BRAND}12` }}>
             {CUPOM}
           </div>
