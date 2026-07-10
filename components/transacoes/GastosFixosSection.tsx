@@ -290,7 +290,9 @@ function Linha({
   onCancelar:  (id: string) => void;
 }) {
   const tema = getCategoriaTheme(item.descricao);
-  const emoji = item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0] ?? undefined;
+  // Emoji da categoria (se tiver) OU o do tema da descrição — ex.: "academia" → 💪
+  // (antes caía no 📦 genérico do CategoriaIcon quando a recorrência era "Outros").
+  const emoji = (item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0]) ?? tema.emoji;
   const ehGasto = item.tipo === 'Gasto';
   const ehVariavel = !!item.valor_variavel;
   const semEstimativa = ehVariavel && !(item.valor > 0);
