@@ -337,23 +337,26 @@ function Resultado({ on, icon, label, atraso = 0 }: { on: boolean; icon: React.R
   );
 }
 
-export default function ProdutividadeShowcase() {
+export default function ProdutividadeShowcase({ onLight = false }: { onLight?: boolean }) {
   return (
-    <section className="relative overflow-hidden py-20 lg:py-28"
-             style={{ background: 'linear-gradient(165deg, #0b3d22 0%, #14713f 45%, #2aa15c 100%)' }}>
-      <div aria-hidden className="absolute inset-0 pointer-events-none opacity-40"
-           style={{ background: 'radial-gradient(ellipse at top, rgba(255,255,255,0.18) 0%, transparent 55%)' }} />
+    <section className={`relative overflow-hidden py-20 lg:py-28 ${onLight ? 'border-t border-zinc-200/50 dark:border-white/[0.04]' : ''}`}
+             style={onLight ? undefined : { background: 'linear-gradient(165deg, #0b3d22 0%, #14713f 45%, #2aa15c 100%)' }}>
+      {!onLight && (
+        <div aria-hidden className="absolute inset-0 pointer-events-none opacity-40"
+             style={{ background: 'radial-gradient(ellipse at top, rgba(255,255,255,0.18) 0%, transparent 55%)' }} />
+      )}
 
       <div className="relative max-w-6xl mx-auto px-5 sm:px-8">
         {/* HEADER */}
         <div className="text-center max-w-3xl mx-auto">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-[13px] font-bold shadow-sm" style={{ color: VERDE }}>
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold shadow-sm"
+                style={onLight ? { background: `linear-gradient(135deg, ${VERDE_CLARO}, ${VERDE})`, color: '#fff' } : { background: '#fff', color: VERDE }}>
             <Zap size={15} fill="currentColor" /> Produtividade &amp; Gestão
           </span>
-          <h2 className="mt-6 text-3xl sm:text-5xl font-bold leading-[1.08] tracking-tight text-white">
+          <h2 className={`mt-6 text-3xl sm:text-5xl font-bold leading-[1.08] tracking-tight ${onLight ? 'text-zinc-900 dark:text-white' : 'text-white'}`}>
             Fale tudo que está na sua cabeça.<br className="hidden sm:block" /> A Sora anota, organiza e não esquece nada.
           </h2>
-          <p className="mt-5 text-base sm:text-lg text-white/75 leading-relaxed">
+          <p className={`mt-5 text-base sm:text-lg leading-relaxed ${onLight ? 'text-zinc-500 dark:text-white/60' : 'text-white/75'}`}>
             Não importa se é uma tarefa rápida, um projeto grande ou uma ideia que veio agora — a Sora anota,
             organiza e acompanha tudo por você.
           </p>

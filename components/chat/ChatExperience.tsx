@@ -12,6 +12,8 @@ import { trackInitiateCheckout } from '@/lib/analytics';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import AgendaChat from '@/components/landing/AgendaChat';
 import OpenFinance from '@/components/landing/OpenFinance';
+import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
+import DriveShowcase from '@/components/landing/DriveShowcase';
 import {
   ArrowRight, ArrowLeft, Check, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
@@ -24,7 +26,7 @@ const USER_BG = 'linear-gradient(135deg, #0d7a45 0%, #075e37 100%)'; // bolha do
 const HEAD = '#0f4c2e';      // verde-floresta p/ títulos em fundo branco
 const ACCENT = '#159a52';    // verde de acento em texto
 
-const TOTAL = 6;
+const TOTAL = 7;
 
 function useReduce() {
   const [r, setR] = useState(false);
@@ -461,6 +463,21 @@ function Etapa3({ onNext }: { onNext: () => void }) {
   );
 }
 
+// Produtividade & Gestão (sem o fundo verde) + Drive Inteligente — seções EXATAS
+// do forsora.com, em full-bleed (escapam da coluna de 480px) pra ficarem idênticas
+// e responsivas, principalmente no mobile.
+function EtapaProdutividade({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="space-y-5">
+      <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+        <ProdutividadeShowcase onLight />
+        <DriveShowcase />
+      </div>
+      <ContinueBtn onClick={onNext} />
+    </div>
+  );
+}
+
 function Etapa4({ onNext }: { onNext: () => void }) {
   return (
     <div className="space-y-5">
@@ -649,8 +666,9 @@ export default function ChatExperience() {
     <Etapa1 key={1} onNext={next} />,
     <Etapa2 key={2} onNext={next} />,
     <Etapa3 key={3} onNext={next} />,
-    <Etapa4 key={4} onNext={next} />,
-    <Etapa5 key={5} />,
+    <EtapaProdutividade key={4} onNext={next} />,
+    <Etapa4 key={5} onNext={next} />,
+    <Etapa5 key={6} />,
   ];
 
   return (
