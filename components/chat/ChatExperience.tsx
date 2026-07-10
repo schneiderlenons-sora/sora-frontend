@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { trackInitiateCheckout } from '@/lib/analytics';
+import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import {
   ArrowRight, ArrowLeft, Check, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
@@ -87,7 +88,7 @@ function SendPill({ label, onClick, delay = 0 }: { label: string; onClick: () =>
     <div className="flex justify-center pt-1 animate-[slide-up_360ms_ease-out_both]" style={{ animationDelay: `${delay}ms` }}>
       <button
         onClick={onClick}
-        className="group w-full max-w-[92%] flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl
+        className="send-pulse group w-full max-w-[92%] flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-2xl
                    text-white font-semibold text-[15px] shadow-lg transition-all
                    active:scale-[0.98] hover:brightness-110"
         style={{ background: USER_BG, minHeight: 52, touchAction: 'manipulation' }}
@@ -145,12 +146,12 @@ function BarWeek() {
       <p className="text-center text-[11px] text-white/55 font-semibold uppercase tracking-wider">Últimos 7 dias</p>
       <p className="text-center text-xl font-black tabular-nums" style={{ color: BRAND }}>R$ 632,00</p>
       <p className="text-center text-[10px] text-white/40 mb-3 tabular-nums">04/07 – 10/07</p>
-      <div className="flex items-end justify-between gap-1.5 h-28">
+      <div className="flex items-end justify-between gap-2" style={{ height: 124 }}>
         {dados.map((x, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1">
-            <span className="text-[9px] text-white/60 tabular-nums">{x.v}</span>
-            <div className="w-full rounded-md animate-[grow-up_600ms_ease-out_both]"
-                 style={{ height: `${(x.v / max) * 100}%`, background: 'linear-gradient(180deg, #61CE70, #2E9E54)', animationDelay: `${i * 50}ms`, minHeight: 6, transformOrigin: 'bottom' }} />
+          <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
+            <span className="text-[9px] text-white/70 tabular-nums font-semibold">{x.v}</span>
+            <div className="w-[64%] rounded-md animate-[grow-up_650ms_cubic-bezier(0.22,1,0.36,1)_both]"
+                 style={{ height: `${Math.round((x.v / max) * 88) + 8}px`, background: 'linear-gradient(180deg, #7de88f 0%, #2E9E54 100%)', animationDelay: `${i * 55}ms`, transformOrigin: 'bottom' }} />
             <span className="text-[9px] text-white/50">{x.d}</span>
           </div>
         ))}
@@ -162,46 +163,16 @@ function BarWeek() {
   );
 }
 
-function DonutSplit() {
-  // Ramp verde on-brand (do mais escuro pro mais claro)
-  const cats = [
-    { nome: 'Contas Fixas', pct: 36, cor: '#0f6b3d' },
-    { nome: 'Jantar fora',  pct: 23, cor: '#2E9E54' },
-    { nome: 'Transporte',   pct: 16, cor: '#61CE70' },
-    { nome: 'Alimentação',  pct: 14, cor: '#8fe0a0' },
-    { nome: 'Lazer',        pct: 11, cor: '#c4f0d1' },
-  ];
-  const R = 42, C = 2 * Math.PI * R;
-  let off = 0;
-  return (
-    <div>
-      <p className="text-center text-[11px] text-white/55 font-semibold uppercase tracking-wider mb-2">Divisão de gastos</p>
-      <div className="flex items-center gap-4">
-        <svg viewBox="0 0 110 110" className="w-28 h-28 flex-shrink-0 -rotate-90">
-          {cats.map((c, i) => {
-            const len = (c.pct / 100) * C;
-            const el = (
-              <circle key={i} cx="55" cy="55" r={R} fill="none" stroke={c.cor} strokeWidth="14"
-                      strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-off}
-                      className="animate-[dash-in_700ms_ease-out_both]" style={{ animationDelay: `${i * 90}ms` }} />
-            );
-            off += len;
-            return el;
-          })}
-        </svg>
-        <ul className="flex-1 space-y-1.5">
-          {cats.map((c) => (
-            <li key={c.nome} className="flex items-center gap-2 text-[12px]">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.cor }} />
-              <span className="text-white/80 flex-1">{c.nome}</span>
-              <span className="text-white font-bold tabular-nums">{c.pct}%</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
+// Divisão de gastos — soma R$632 (bate com a semana). Cada categoria com uma
+// COR distinta (multicolor) e emoji; renderizado pelo CategoryDonut do painel
+// (fatia expande/brilha no hover/tap + centro dinâmico).
+const DIVISAO = [
+  { name: 'Contas Fixas', value: 228, color: '#22c55e', emoji: '📄' },
+  { name: 'Jantar fora',  value: 145, color: '#f97316', emoji: '🍽️' },
+  { name: 'Transporte',   value: 101, color: '#3b82f6', emoji: '🚗' },
+  { name: 'Alimentação',  value: 88,  color: '#d946ef', emoji: '🧃' },
+  { name: 'Lazer',        value: 70,  color: '#a855f7', emoji: '🎬' },
+];
 
 function LimitsCard() {
   const items = [
@@ -397,7 +368,22 @@ function Etapa2({ onNext }: { onNext: () => void }) {
           <>
             <Bubble side="user" time="11:19">quanto gastei nos últimos 7 dias?</Bubble>
             <SoraCard delay={80}><BarWeek /></SoraCard>
-            <SoraCard delay={200}><DonutSplit /></SoraCard>
+            <SoraCard delay={200}>
+              <p className="text-center text-[11px] text-white/55 font-semibold uppercase tracking-wider mb-1">Divisão de gastos</p>
+              <div className="dark">
+                <CategoryDonut data={DIVISAO} showList={false} height={188} innerRadius={52} outerRadius={76} />
+              </div>
+              {/* Legenda compacta (o donut já tem o centro dinâmico + hover) */}
+              <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                {DIVISAO.map((c) => (
+                  <li key={c.name} className="flex items-center gap-1.5 text-[11.5px]">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                    <span className="text-white/75 flex-1 truncate">{c.name}</span>
+                    <span className="text-white font-bold tabular-nums">{Math.round((c.value / 632) * 100)}%</span>
+                  </li>
+                ))}
+              </ul>
+            </SoraCard>
           </>
         )}
         {typing && p === 0 && <Typing />}
@@ -682,6 +668,12 @@ export default function ChatExperience() {
         @keyframes grow-x    { from { transform: scaleX(0); } to { transform: scaleX(1); } }
         @keyframes dash-in   { from { opacity: 0; }          to { opacity: 1; } }
         @keyframes dash-line { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+        @keyframes soft-pulse {
+          0%, 100% { box-shadow: 0 8px 20px -8px rgba(7,94,55,0.5); }
+          50%      { box-shadow: 0 10px 28px -6px rgba(7,94,55,0.7), 0 0 0 5px rgba(97,206,112,0.14); }
+        }
+        .send-pulse { animation: soft-pulse 2.1s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .send-pulse { animation: none; } }
       `}</style>
       <div ref={topRef} />
       {/* Header + progresso */}
