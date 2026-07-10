@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { trackInitiateCheckout } from '@/lib/analytics';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
+import AgendaShowcase from '@/components/landing/AgendaShowcase';
 import {
   ArrowRight, ArrowLeft, Check, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
@@ -423,41 +424,35 @@ function Etapa3({ onNext }: { onNext: () => void }) {
         <p className="text-[14px] text-zinc-500 mt-1">Tudo por mensagem, do jeito que você já conversa.</p>
       </div>
 
-      {/* 3 — Lembretes */}
-      <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={3} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Crie lembretes pra não esquecer de <b>nenhuma conta</b>.</p></div>
-        <Bubble side="user" time="09:40">Boleto do carro todo dia 12, R$ 1300</Bubble>
-        <Bubble side="sora" delay={80}>
-          <span className="flex items-start gap-1.5"><Bell size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
-          <span><b>Lembrete criado:</b> Boleto do carro<br /><span className="text-white/60 text-[12px]">Dia 12 · todo mês</span></span></span>
-        </Bubble>
+      {/* 3 — Agenda inteligente (a seção "Agenda Inteligente" do forsora.com) */}
+      <div className="space-y-3">
+        <div className="flex items-start gap-3">
+          <StepNum n={3} />
+          <div>
+            <p className="text-[14px] font-semibold" style={{ color: HEAD }}>Nunca mais esqueça um <b>compromisso</b>.</p>
+            <p className="text-[12px] text-zinc-400 mt-0.5">Lembretes, briefing do dia e agenda — tudo no WhatsApp, do seu jeito. Ela te avisa na hora certa.</p>
+          </div>
+        </div>
+        <AgendaShowcase />
       </div>
 
-      {/* 4 — Lembrado com antecedência */}
+      {/* 4 — Limites */}
       <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={4} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>E seja avisado <b>com antecedência</b>.</p></div>
-        <Bubble side="sora">💡 <b>Lembrete:</b> Boleto do carro vence amanhã.</Bubble>
-        <Bubble side="user" time="09:41" delay={60}>paguei já</Bubble>
-        <Bubble side="sora" delay={120}><span className="flex items-center gap-1.5"><Check size={14} style={{ color: BRAND }} /> Fechado! Te lembro de novo mês que vem.</span></Bubble>
-      </div>
-
-      {/* 5 — Limites */}
-      <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={5} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Defina <b>limites por categoria</b> e controle quanto quer gastar.</p></div>
+        <div className="flex items-start gap-3"><StepNum n={4} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Defina <b>limites por categoria</b> e controle quanto quer gastar.</p></div>
         <Bubble side="user" time="09:42">como estão meus limites?</Bubble>
         <SoraCard delay={80}><LimitsCard /></SoraCard>
       </div>
 
-      {/* 6 — Metas */}
+      {/* 5 — Metas */}
       <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={6} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Crie <b>metas</b> e a Sora te leva até lá.</p></div>
+        <div className="flex items-start gap-3"><StepNum n={5} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Crie <b>metas</b> e a Sora te leva até lá.</p></div>
         <Bubble side="user" time="09:43">Cria uma meta pro iPhone 16, preciso de 5.399. Já guardei 500 hoje</Bubble>
         <SoraCard delay={80}><GoalRing /></SoraCard>
       </div>
 
-      {/* 7 — Promoções */}
+      {/* 6 — Promoções */}
       <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={7} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Receba <b>alertas de promoção</b> do que você quer comprar.</p></div>
+        <div className="flex items-start gap-3"><StepNum n={6} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Receba <b>alertas de promoção</b> do que você quer comprar.</p></div>
         <Bubble side="sora" wide>
           <span className="flex items-start gap-1.5"><Tag size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#fcd34d' }} />
           <span>Você curtiu <b>Viagens</b> — achei uma promoção 👀<br /><b>Pacote Disney 7 dias</b> (ida, volta + hospedagem) por <b style={{ color: BRAND }}>R$ 1.799</b> no Pix ou 10x. 🔥</span></span>
