@@ -88,6 +88,33 @@ export function isHexGrayscale(hex: string): boolean {
   return Math.max(r, g, b) - Math.min(r, g, b) < 15;
 }
 
+// Versão CÍTRICA (vibrante) de uma cor: preserva o TOM (hue) da categoria e crava
+// saturação alta + brilho médio. Cada categoria continua com sua cor própria, só
+// que "no talo" (verde cítrico, roxo cítrico, laranja cítrico…). Aceita hsl(...)
+// do catálogo E #hex custom; formato desconhecido volta como está.
+export function citrico(color: string, sat = 90, light = 58): string {
+  if (!color) return color;
+  const hsl = color.match(/hsl\(\s*([\d.-]+)/i);
+  if (hsl) return `hsl(${hsl[1]} ${sat}% ${light}%)`;
+  const hex = color.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    const r = parseInt(h.slice(0, 2), 16) / 255;
+    const g = parseInt(h.slice(2, 4), 16) / 255;
+    const b = parseInt(h.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max === min) return color; // cinza puro → não inventa um tom
+    const d = max - min;
+    let hue = max === r ? (g - b) / d + (g < b ? 6 : 0)
+            : max === g ? (b - r) / d + 2
+            :             (r - g) / d + 4;
+    hue = Math.round(hue * 60);
+    return `hsl(${hue} ${sat}% ${light}%)`;
+  }
+  return color;
+}
+
 // Item mínimo aceito pelo helper — qualquer objeto com nome + cor opcional
 export interface CategoriaUserMin {
   nome?: string;

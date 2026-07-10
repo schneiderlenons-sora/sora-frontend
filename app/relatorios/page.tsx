@@ -7,7 +7,7 @@ import BaleiaHumor, { humorPorFinancas } from '@/components/relatorios/BaleiaHum
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
-import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
+import { getCategoriaTheme, nomeCategoria, citrico } from '@/lib/categorias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
@@ -157,7 +157,7 @@ export default function RelatoriosPage() {
       return {
         name:  nomeCategoria(c.categoria || ''),
         value: c.total || 0,
-        color: theme.color,
+        color: citrico(theme.color),
         emoji: theme.emoji,
       };
     });
@@ -176,7 +176,7 @@ export default function RelatoriosPage() {
       .slice(0, 7)
       .map(([cat, val]) => {
         const theme = getCategoriaTheme(cat, categorias);
-        return { name: nomeCategoria(cat), value: val, color: theme.color, emoji: theme.emoji };
+        return { name: nomeCategoria(cat), value: val, color: citrico(theme.color), emoji: theme.emoji };
       });
   }, [txs, categorias]);
 

@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
-import { nomeCategoria, getCategoriaTheme, isHexGrayscale } from '@/lib/categorias';
+import { nomeCategoria, getCategoriaTheme, isHexGrayscale, citrico } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
@@ -216,7 +216,7 @@ export default function CategoriasPage() {
       .map(x => ({
         name: x.pai.nome,
         value: x.gastoTotal,
-        color: normalizaCor(x.pai.cor, x.pai.nome).fg,
+        color: citrico(normalizaCor(x.pai.cor, x.pai.nome).fg),
       }));
   }, [arvore]);
 
