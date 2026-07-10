@@ -37,12 +37,14 @@ export default function CategoriaIcon({
   const dim = { width: size, height: size };
 
   // 1. PNG circular local — ÚNICA forma de ter um ícone bonito full-bleed.
-  //    Renderiza a imagem direto, SEM wrapper colorido. A própria PNG
-  //    transparente carrega o formato circular.
+  //    Renderiza a imagem direto, SEM wrapper colorido. A PNG transparente
+  //    carrega o formato circular; as de `fundoBranco` (logo circular com
+  //    cantos brancos) são recortadas em círculo pra sumir com os cantos.
   if (marca?.local) {
+    const forma = marca.fundoBranco ? 'rounded-full' : rounded;
     return (
       <div
-        className={`${rounded} overflow-hidden flex-shrink-0 ${className}`}
+        className={`${forma} overflow-hidden flex-shrink-0 ${className}`}
         style={dim}
       >
         <IconeMarca

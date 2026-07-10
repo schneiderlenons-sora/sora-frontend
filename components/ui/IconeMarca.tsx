@@ -17,8 +17,11 @@ import { useEffect, useState } from 'react';
 //           full-bleed (a transparência do PNG dá o efeito circular).
 //   si:     slug Simple Icons
 //   domain: brandfetch.io domain (fallback)
+//   fundoBranco: PNG do logo circular oficial, mas com os CANTOS do quadrado
+//           BRANCOS (não transparente). O CategoriaIcon força `rounded-full`
+//           pra recortar os cantos e mostrar só o círculo colorido.
 // ─────────────────────────────────────────────────────────────
-export type Marca = { local?: string; si?: string; domain?: string };
+export type Marca = { local?: string; si?: string; domain?: string; fundoBranco?: boolean };
 
 const MARCAS: Record<string, Marca> = {
   // ── Streaming / Assinaturas ──
@@ -49,12 +52,23 @@ const MARCAS: Record<string, Marca> = {
   youtubemusic:      { si: 'youtubemusic' },
   youtube:           { local: '/brands/youtube-premium.png', si: 'youtube' },
   'youtube premium': { local: '/brands/youtube-premium.png', si: 'youtube' },
-  twitch:            { si: 'twitch' },
-  paramount:         { si: 'paramountplus' },
-  'paramount+':      { si: 'paramountplus' },
-  crunchyroll:       { si: 'crunchyroll' },
+  twitch:            { local: '/brands/twitch.png',        si: 'twitch', fundoBranco: true },
+  paramount:         { local: '/brands/paramount.png',     si: 'paramountplus', fundoBranco: true },
+  'paramount+':      { local: '/brands/paramount.png',     si: 'paramountplus', fundoBranco: true },
+  crunchyroll:       { local: '/brands/crunchyroll.png',   si: 'crunchyroll', fundoBranco: true },
+  'tnt sports':      { local: '/brands/tntsports.png',     fundoBranco: true },
+  tntsports:         { local: '/brands/tntsports.png',     fundoBranco: true },
   tidal:             { si: 'tidal' },
   pandora:           { si: 'pandora' },
+
+  // ── Redes sociais ──
+  instagram:         { local: '/brands/instagram.png',     si: 'instagram', fundoBranco: true },
+  insta:             { local: '/brands/instagram.png',     si: 'instagram', fundoBranco: true },
+  facebook:          { local: '/brands/facebook.png',      si: 'facebook', fundoBranco: true },
+  face:              { local: '/brands/facebook.png',      si: 'facebook', fundoBranco: true },
+  tiktok:            { local: '/brands/tiktok.png',        si: 'tiktok', fundoBranco: true },
+  'tik tok':         { local: '/brands/tiktok.png',        si: 'tiktok', fundoBranco: true },
+  pinterest:         { local: '/brands/pinterest.png',     si: 'pinterest', fundoBranco: true },
 
   // ── Produtividade / SaaS ──
   notion:            { si: 'notion' },
@@ -68,10 +82,15 @@ const MARCAS: Record<string, Marca> = {
   bitwarden:         { si: 'bitwarden' },
   github:            { si: 'github' },
   vercel:            { si: 'vercel' },
-  openai:            { si: 'openai' },
-  chatgpt:           { si: 'openai' },
-  claude:            { si: 'anthropic' },
-  anthropic:         { si: 'anthropic' },
+  openai:            { local: '/brands/chatgpt.png',       si: 'openai', fundoBranco: true },
+  chatgpt:           { local: '/brands/chatgpt.png',       si: 'openai', fundoBranco: true },
+  gpt:               { local: '/brands/chatgpt.png',       si: 'openai', fundoBranco: true },
+  claude:            { local: '/brands/claude.png',        si: 'anthropic', fundoBranco: true },
+  anthropic:         { local: '/brands/claude.png',        si: 'anthropic', fundoBranco: true },
+  gemini:            { local: '/brands/gemini.png',        si: 'googlegemini', fundoBranco: true },
+  'google gemini':   { local: '/brands/gemini.png',        si: 'googlegemini', fundoBranco: true },
+  capcut:            { local: '/brands/capcut.png',        si: 'capcut', fundoBranco: true },
+  lovable:           { local: '/brands/lovable.png',       fundoBranco: true },
 
   // ── Bancos brasileiros ──
   nubank:            { local: '/brands/nubank.png',           si: 'nubank', domain: 'nubank.com.br' },
