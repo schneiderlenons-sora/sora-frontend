@@ -39,6 +39,7 @@ export default function LandingPage() {
       <Solucao />
       <ComoFunciona />
       <FinancasChat />
+      <OpenFinance />
       <AgendaChat />
       <HabitosSaude />
       <CtaPlanos frase="Começar agora" />
@@ -48,7 +49,6 @@ export default function LandingPage() {
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <ProdutividadeShowcase />
       <DriveShowcase />
-      <OpenFinance />
       <SocialProof />
       <CtaPlanos frase="Quero fazer parte" />
       <Personalizacao />

@@ -39,6 +39,7 @@ export default function OfertaPage() {
       <Solucao />
       <ComoFunciona />
       <FinancasChat />
+      <OpenFinance />
       <AgendaChat />
       <HabitosSaude />
       <CtaPlanos frase="Começar agora" />
@@ -47,7 +48,6 @@ export default function OfertaPage() {
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <ProdutividadeShowcase />
       <DriveShowcase />
-      <OpenFinance />
       <SocialProof />
       <CtaPlanos frase="Quero fazer parte" />
       <Personalizacao />
