@@ -4,6 +4,7 @@
 export const revalidate = 0;
 
 import LandingNav      from '@/components/landing/LandingNav';
+import CupomFlutuante  from '@/components/landing/CupomFlutuante';
 import Hero            from '@/components/landing/Hero';
 import Problema        from '@/components/landing/Problema';
 import Solucao         from '@/components/landing/Solucao';
@@ -32,6 +33,7 @@ export default function LandingPage() {
     // as seções já têm variantes light + dark:.
     <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-clip">
       <LandingNav />
+      <CupomFlutuante />
       <Hero />
       <Problema />
       <Solucao />
