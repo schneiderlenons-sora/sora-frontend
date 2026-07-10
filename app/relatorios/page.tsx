@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import BaleiaHumor, { humorPorFinancas } from '@/components/relatorios/BaleiaHumor';
@@ -24,6 +24,12 @@ import {
 const BRAND       = 'hsl(var(--primary))';
 const RED         = '#ef4444';
 const BLUE        = '#3b82f6';
+
+// Paletas CÍTRICAS (vibrantes) pras fatias dos donuts. Despesas puxam pro quente
+// (tangerina/âmbar/amarelo); receitas puxam pro verde-cítrico (lima/verde).
+// Cores alternadas pra dar contraste entre fatias vizinhas.
+const CITRUS_DESPESA = ['#fb923c', '#facc15', '#f97316', '#fde047', '#f59e0b', '#fdba74', '#eab308'];
+const CITRUS_RECEITA = ['#22c55e', '#a3e635', '#4ade80', '#bef264', '#16a34a', '#84cc16', '#34d399'];
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -151,12 +157,12 @@ export default function RelatoriosPage() {
   // Pizza por categoria (top 7) — cor customizada do usuário > catálogo > hash
   const dadosPie = useMemo(() => {
     const cats = (resumo?.por_categoria || []).slice(0, 7);
-    return cats.map((c: any) => {
+    return cats.map((c: any, i: number) => {
       const theme = getCategoriaTheme(c.categoria || '', categorias);
       return {
         name:  nomeCategoria(c.categoria || ''),
         value: c.total || 0,
-        color: theme.color,
+        color: CITRUS_DESPESA[i % CITRUS_DESPESA.length],
         emoji: theme.emoji,
       };
     });
@@ -173,9 +179,9 @@ export default function RelatoriosPage() {
     return Object.entries(grupos)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 7)
-      .map(([cat, val]) => {
+      .map(([cat, val], i) => {
         const theme = getCategoriaTheme(cat, categorias);
-        return { name: nomeCategoria(cat), value: val, color: theme.color, emoji: theme.emoji };
+        return { name: nomeCategoria(cat), value: val, color: CITRUS_RECEITA[i % CITRUS_RECEITA.length], emoji: theme.emoji };
       });
   }, [txs, categorias]);
 
@@ -437,6 +443,14 @@ export default function RelatoriosPage() {
               >
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dadosFrequencia} barGap={2}>
+                    <defs>
+                      <linearGradient id="freqRec" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#16a34a" />
+                      </linearGradient>
+                      <linearGradient id="freqDes" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fb923c" /><stop offset="100%" stopColor="#f43f5e" />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis
                       dataKey="name"
@@ -452,14 +466,14 @@ export default function RelatoriosPage() {
                       tickFormatter={fmtCompact}
                       width={45}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--bg-muted) / 0.3)' }} />
-                    <Bar dataKey="Receitas" fill={BRAND} radius={[3, 3, 0, 0]} maxBarSize={10} />
-                    <Bar dataKey="Despesas" fill={RED}   radius={[3, 3, 0, 0]} maxBarSize={10} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--bg-muted) / 0.35)', radius: 4 }} />
+                    <Bar dataKey="Receitas" fill="url(#freqRec)" radius={[4, 4, 0, 0]} maxBarSize={12} />
+                    <Bar dataKey="Despesas" fill="url(#freqDes)" radius={[4, 4, 0, 0]} maxBarSize={12} />
                   </BarChart>
                 </ResponsiveContainer>
                 <ChartLegend items={[
-                  { label: 'Receitas', color: BRAND },
-                  { label: 'Despesas', color: RED },
+                  { label: 'Receitas', color: '#22c55e' },
+                  { label: 'Despesas', color: '#fb7185' },
                 ]} />
               </ChartCard>
             </div>
@@ -828,67 +842,124 @@ function ChartCard({
   );
 }
 
+// Respeita prefers-reduced-motion (desliga a animação de entrada do gráfico).
+function useReduce() {
+  const [r, setR] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const on = () => setR(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return r;
+}
+
+// Extrai o índice da fatia do evento do Recharts (a posição do argumento mudou
+// entre versões: às vezes o índice vem como 2º arg, às vezes em data.index).
+function idxDaFatia(d: any, i: any): number | null {
+  if (typeof i === 'number') return i;
+  if (typeof d?.index === 'number') return d.index;
+  return null;
+}
+
 function CategoryDonut({ data }: { data: any[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
+  const [active, setActive] = useState<number | null>(null);
+  const reduce = useReduce();
+  const sel = active !== null ? data[active] : null;
 
   return (
     <>
       <div className="relative">
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={196}>
           <PieChart>
+            {/* Base — todas as fatias; as não-selecionadas escurecem */}
             <Pie
               data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={80}
+              cx="50%" cy="50%"
+              innerRadius={56} outerRadius={82}
               dataKey="value"
               paddingAngle={3}
+              cornerRadius={4}
               strokeWidth={0}
+              isAnimationActive={!reduce}
+              onMouseEnter={(d: any, i: any) => { const k = idxDaFatia(d, i); if (k != null) setActive(k); }}
+              onMouseLeave={() => setActive(null)}
+              onClick={(d: any, i: any) => { const k = idxDaFatia(d, i); if (k != null) setActive((p) => (p === k ? null : k)); }}
             >
-              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+              {data.map((d, i) => (
+                <Cell key={i} fill={d.color}
+                      opacity={active === null || active === i ? 1 : 0.35}
+                      style={{ cursor: 'pointer', transition: 'opacity 200ms' }} />
+              ))}
             </Pie>
-            <Tooltip
-              content={({ active, payload }: any) => {
-                if (!active || !payload?.length) return null;
-                const p = payload[0].payload;
-                return (
-                  <div className="glass rounded-xl px-3 py-2 shadow-lg text-sm border border-border/60">
-                    <p className="flex items-center gap-1.5">
-                      <span>{p.emoji}</span>
-                      <span className="font-semibold text-foreground text-xs">{p.name}</span>
-                    </p>
-                    <p className="font-bold text-foreground text-xs tabular mt-0.5">{fmt(p.value)}</p>
-                  </div>
-                );
-              }}
-            />
+            {/* Overlay — só a fatia SELECIONADA, maior + glow (puramente visual) */}
+            {active !== null && (
+              <Pie
+                data={data}
+                cx="50%" cy="50%"
+                innerRadius={56} outerRadius={91}
+                dataKey="value"
+                paddingAngle={3}
+                cornerRadius={4}
+                strokeWidth={0}
+                isAnimationActive={false}
+              >
+                {data.map((d, i) => (
+                  <Cell key={i} fill={d.color}
+                        fillOpacity={i === active ? 1 : 0}
+                        style={{ pointerEvents: 'none', filter: i === active ? `drop-shadow(0 4px 10px ${d.color}77)` : undefined }} />
+                ))}
+              </Pie>
+            )}
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Centro do donut */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total</p>
-          <p className="text-lg font-bold text-foreground tabular">{fmt(total)}</p>
+        {/* Centro dinâmico: fatia selecionada OU total */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-8 text-center">
+          {sel ? (
+            <div key={active} className="flex flex-col items-center animate-fade-in">
+              <span className="text-lg leading-none mb-0.5">{sel.emoji}</span>
+              <p className="text-[11px] font-semibold text-foreground truncate max-w-[104px]">{sel.name}</p>
+              <p className="text-[15px] font-bold tabular leading-tight" style={{ color: sel.color }}>{fmt(sel.value)}</p>
+              <p className="text-[10px] text-muted-foreground tabular">{total ? ((sel.value / total) * 100).toFixed(0) : 0}% do total</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total</p>
+              <p className="text-lg font-bold text-foreground tabular">{fmt(total)}</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Lista de categorias */}
-      <div className="space-y-1.5 mt-4 max-h-[140px] overflow-y-auto pr-1">
+      {/* Lista interativa — passa o mouse/toca e a fatia correspondente destaca */}
+      <div className="space-y-1 mt-3 max-h-[150px] overflow-y-auto pr-1">
         {data.map((d, i) => {
+          const on = active === i;
           const pct = total ? (d.value / total) * 100 : 0;
           return (
-            <div key={i} className="flex items-center gap-2 text-xs">
+            <button
+              key={i}
+              type="button"
+              onMouseEnter={() => setActive(i)}
+              onMouseLeave={() => setActive(null)}
+              onClick={() => setActive((p) => (p === i ? null : i))}
+              aria-label={`${d.name}: ${fmt(d.value)}, ${pct.toFixed(0)}% do total`}
+              className={`w-full flex items-center gap-2 text-xs rounded-lg px-2 py-2 text-left transition-colors ${on ? 'bg-muted/70' : 'hover:bg-muted/40'}`}
+              style={on ? { boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${d.color} 45%, transparent)` } : undefined}
+            >
               {temMarcaConhecida(d.name)
                 ? <CategoriaIcon nome={d.name} icone={d.emoji} color={d.color} size={18} />
                 : <span className="text-base flex-shrink-0">{d.emoji}</span>}
-              <span className="flex-1 truncate text-muted-foreground">{d.name}</span>
+              <span className="flex-1 truncate text-foreground/80">{d.name}</span>
               <span className="text-[10px] font-bold tabular px-1.5 py-0.5 rounded-full"
-                    style={{ background: `color-mix(in srgb, ${d.color} 13%, transparent)`, color: d.color }}>
+                    style={{ background: `color-mix(in srgb, ${d.color} 15%, transparent)`, color: d.color }}>
                 {pct.toFixed(0)}%
               </span>
-              <span className="font-semibold text-foreground tabular w-20 text-right text-[11px]">{fmt(d.value)}</span>
-            </div>
+              <span className="font-semibold text-foreground tabular w-[68px] text-right text-[11px]">{fmt(d.value)}</span>
+            </button>
           );
         })}
       </div>
