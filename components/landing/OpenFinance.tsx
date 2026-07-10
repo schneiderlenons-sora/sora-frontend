@@ -28,38 +28,36 @@ const GARANTIAS = [
   { icon: RefreshCw,   titulo: 'Atualização em tempo real',  desc: 'Saldo e transações sincronizados automaticamente.' },
 ];
 
-export default function OpenFinance({ compact = false }: { compact?: boolean }) {
+export default function OpenFinance() {
   return (
-    <section className={`relative ${compact ? 'py-2' : 'py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]'}`}>
+    <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
 
-      {!compact && (
-        <div aria-hidden className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[700px] opacity-20 dark:opacity-15"
-               style={{ background: 'radial-gradient(ellipse, rgba(97,206,112,0.18) 0%, transparent 60%)' }} />
-        </div>
-      )}
+      <div aria-hidden className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[700px] opacity-20 dark:opacity-15"
+             style={{ background: 'radial-gradient(ellipse, rgba(97,206,112,0.18) 0%, transparent 60%)' }} />
+      </div>
 
-      <div className={`relative max-w-6xl mx-auto ${compact ? '' : 'px-5 sm:px-8'}`}>
+      <div className="relative max-w-6xl mx-auto px-5 sm:px-8">
 
         {/* Header */}
-        <div className={`text-center ${compact ? 'mb-8' : 'mb-14'}`}>
-          <p className={`font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 ${compact ? 'text-[10px] mb-3' : 'text-[11px] mb-4'}`}>
+        <div className="text-center mb-14">
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
             Open Finance
           </p>
-          <h2 className={`font-bold max-w-3xl mx-auto ${compact ? 'text-[26px] leading-[1.12] tracking-[-0.02em]' : 'text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-[-0.03em]'}`}>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
             Não quer nem digitar?<br />
             <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
               Conecte seu banco.
             </span>
           </h2>
-          <p className={`text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto ${compact ? 'mt-4 text-[14px]' : 'mt-6 text-lg lg:text-xl'}`}>
+          <p className="mt-6 text-lg lg:text-xl text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
             Cada transação que cai no seu banco aparece organizada e categorizada na Sora.
             Sem CSV, sem importação manual.
           </p>
         </div>
 
         {/* Carrossel de bancos infinito */}
-        <div className={`relative -mx-5 sm:-mx-8 ${compact ? 'mb-8' : 'mb-16'}`}>
+        <div className="relative mb-16 -mx-5 sm:-mx-8">
           {/* Fade laterais */}
           <div className="absolute inset-y-0 left-0 w-24 z-10 pointer-events-none bg-gradient-to-r from-white to-transparent dark:from-[#0a0a0a]" />
           <div className="absolute inset-y-0 right-0 w-24 z-10 pointer-events-none bg-gradient-to-l from-white to-transparent dark:from-[#0a0a0a]" />
@@ -82,7 +80,7 @@ export default function OpenFinance({ compact = false }: { compact?: boolean }) 
         </div>
 
         {/* Garantias 2x2 */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${compact ? 'mb-8' : 'mb-12'}`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-12">
           {GARANTIAS.map(g => {
             const Icon = g.icon;
             return (
