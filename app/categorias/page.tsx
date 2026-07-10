@@ -14,9 +14,7 @@ import {
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
   Calendar, Filter, RefreshCw, ServerOff,
 } from 'lucide-react';
-import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-} from 'recharts';
+import CategoryDonut from '@/components/relatorios/CategoryDonut';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -372,37 +370,12 @@ export default function CategoriasPage() {
               </p>
             </div>
 
-            {/* Donut */}
-            <div className="w-44 h-44 flex-shrink-0 relative">
+            {/* Donut interativo (mesmo dos Relatórios): passar/tocar destaca a fatia */}
+            <div className="w-[200px] flex-shrink-0">
               {dadosPie.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dadosPie}
-                      dataKey="value"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      stroke="hsl(var(--bg-card))"
-                      strokeWidth={2}
-                    >
-                      {dadosPie.map((d, i) => (
-                        <Cell key={i} fill={d.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v: any, _n: any, p: any) => [fmt(Number(v)), p.payload.name]}
-                      contentStyle={{
-                        background: 'hsl(var(--bg-card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: 12,
-                        fontSize: 12,
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <CategoryDonut data={dadosPie} showList={false} height={190} innerRadius={54} outerRadius={78} />
               ) : (
-                <div className="w-full h-full rounded-full border-[14px] border-muted/40 flex items-center justify-center">
+                <div className="w-44 h-44 mx-auto rounded-full border-[14px] border-muted/40 flex items-center justify-center">
                   <span className="text-xs text-muted-foreground text-center px-4">Sem gastos</span>
                 </div>
               )}
