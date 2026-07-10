@@ -15,16 +15,18 @@ import OpenFinance from '@/components/landing/OpenFinance';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase from '@/components/landing/DriveShowcase';
 import {
-  ArrowRight, ArrowLeft, Check, Send, Bell, Target, Sparkles, TrendingUp,
+  ArrowRight, ArrowLeft, Check, CheckCheck, BadgeCheck, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
 } from 'lucide-react';
 
-const BRAND = '#61CE70';
-const CTA_BG = 'linear-gradient(135deg, #61CE70 0%, #2E9E54 100%)'; // texto branco legível
-const SORA_BG = '#16231b';   // bolha/card da Sora (verde bem escuro)
-const USER_BG = 'linear-gradient(135deg, #0d7a45 0%, #075e37 100%)'; // bolha do usuário
-const HEAD = '#0f4c2e';      // verde-floresta p/ títulos em fundo branco
-const ACCENT = '#159a52';    // verde de acento em texto
+// Mesma paleta/tipografia do chat da landing (seção Agenda Inteligente / chatbits):
+// bolhas CLARAS (branco p/ Sora, verde-claro p/ usuário), texto zinc, títulos zinc-900.
+const BRAND = '#61ce70';
+const BRAND_DARK = '#4DAE61';
+const CTA_BG = 'linear-gradient(135deg, #61CE70 0%, #2E9E54 100%)'; // botões / StepNum
+const USER_BG = 'linear-gradient(135deg, #0d7a45 0%, #075e37 100%)'; // botão "enviar" (CTA)
+const HEAD = '#18181b';      // zinc-900 — títulos (igual à seção Agenda)
+const ACCENT = '#16a34a';    // verde de acento em texto sobre branco
 
 const TOTAL = 7;
 
@@ -39,23 +41,50 @@ function useReduce() {
   return r;
 }
 
-// ─── Primitivos de chat ──────────────────────────────────────────────────────
+// ─── Primitivos de chat (mesmo visual do chatbits da landing) ────────────────
+function Avatar() {
+  return (
+    <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm"
+         style={{ background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)` }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brands/sora.png" alt="Sora" className="w-5 h-5 object-contain" draggable={false} />
+    </div>
+  );
+}
+
+function NomeSora() {
+  return (
+    <span className="flex items-center gap-1 mb-0.5">
+      <span className="font-bold text-[13px] text-zinc-900">Sora</span>
+      <BadgeCheck size={13} className="text-[#3b9eff] flex-shrink-0" fill="#3b9eff" stroke="white" />
+    </span>
+  );
+}
+
 function Bubble({ side, children, time, delay = 0, wide }: {
   side: 'user' | 'sora'; children: React.ReactNode; time?: string; delay?: number; wide?: boolean;
 }) {
-  const user = side === 'user';
+  if (side === 'user') {
+    return (
+      <div className="flex justify-end animate-[slide-up_450ms_ease-out_both]" style={{ animationDelay: `${delay}ms` }}>
+        <div className={`${wide ? 'max-w-[88%]' : 'max-w-[80%]'} rounded-2xl rounded-br-md px-3.5 py-2.5 shadow-sm bg-[#d7f8cf] text-zinc-800`}>
+          <div className="text-[13px] leading-snug [&_b]:font-bold [&_strong]:font-bold">{children}</div>
+          {time && (
+            <span className="flex items-center justify-end gap-1 mt-1 text-[10px] text-zinc-500">
+              {time} <CheckCheck size={13} className="text-[#3b9eff]" />
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className={`flex ${user ? 'justify-end' : 'justify-start'} animate-[slide-up_420ms_ease-out_both]`}
-         style={{ animationDelay: `${delay}ms` }}>
-      <div className={`relative ${wide ? 'max-w-[92%]' : 'max-w-[85%]'} px-3.5 py-2.5 text-[14px] leading-snug text-white shadow-md
-                       ${user ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-bl-md'}`}
-           style={{ background: user ? USER_BG : SORA_BG }}>
-        <div className="[&_b]:font-bold [&_strong]:font-bold">{children}</div>
-        {time && (
-          <div className={`mt-1 flex items-center gap-1 text-[10px] text-white/55 ${user ? 'justify-end' : ''}`}>
-            {time}{user && <Check size={11} className="text-sky-300" />}
-          </div>
-        )}
+    <div className="flex items-end gap-2 animate-[slide-up_450ms_ease-out_both]" style={{ animationDelay: `${delay}ms` }}>
+      <Avatar />
+      <div className={`${wide ? 'max-w-[85%]' : 'max-w-[78%]'} rounded-2xl rounded-bl-md px-3.5 py-2.5 bg-white border border-zinc-100 shadow-sm`}>
+        <NomeSora />
+        <div className="text-[13px] leading-snug text-zinc-700 [&_b]:font-bold [&_b]:text-zinc-900 [&_strong]:font-bold [&_strong]:text-zinc-900">{children}</div>
+        {time && <div className="mt-1 text-[10px] text-zinc-400">{time}</div>}
       </div>
     </div>
   );
@@ -63,23 +92,26 @@ function Bubble({ side, children, time, delay = 0, wide }: {
 
 function Typing() {
   return (
-    <div className="flex justify-start animate-[slide-up_300ms_ease-out_both]">
-      <div className="px-4 py-3 rounded-2xl rounded-bl-md flex items-center gap-1.5" style={{ background: SORA_BG }}>
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce"
-                style={{ animationDelay: `${i * 140}ms` }} />
-        ))}
+    <div className="flex items-end gap-2 animate-[slide-up_300ms_ease-out_both]">
+      <Avatar />
+      <div className="rounded-2xl rounded-bl-md px-3.5 py-3 bg-white border border-zinc-100 shadow-sm">
+        <NomeSora />
+        <div className="flex items-center gap-1 pt-0.5">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-// Card escuro (usado dentro do chat para gráficos/comprovantes)
+// Card claro (mensagem da Sora com gráfico/comprovante dentro)
 function SoraCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   return (
-    <div className="flex justify-start animate-[slide-up_460ms_ease-out_both]" style={{ animationDelay: `${delay}ms` }}>
-      <div className="w-[92%] rounded-2xl rounded-bl-md p-4 text-white shadow-lg ring-1 ring-white/10"
-           style={{ background: SORA_BG }}>
+    <div className="flex items-end gap-2 animate-[slide-up_460ms_ease-out_both]" style={{ animationDelay: `${delay}ms` }}>
+      <Avatar />
+      <div className="flex-1 min-w-0 rounded-2xl rounded-bl-md p-4 bg-white border border-zinc-100 shadow-sm">
         {children}
       </div>
     </div>
@@ -147,21 +179,21 @@ function BarWeek() {
   const max = Math.max(...dados.map((x) => x.v));
   return (
     <div>
-      <p className="text-center text-[11px] text-white/55 font-semibold uppercase tracking-wider">Últimos 7 dias</p>
-      <p className="text-center text-xl font-black tabular-nums" style={{ color: BRAND }}>R$ 632,00</p>
-      <p className="text-center text-[10px] text-white/40 mb-3 tabular-nums">04/07 – 10/07</p>
+      <p className="text-center text-[11px] text-zinc-400 font-semibold uppercase tracking-wider">Últimos 7 dias</p>
+      <p className="text-center text-xl font-bold tabular-nums" style={{ color: ACCENT }}>R$ 632,00</p>
+      <p className="text-center text-[10px] text-zinc-400 mb-3 tabular-nums">04/07 – 10/07</p>
       <div className="flex items-end justify-between gap-2" style={{ height: 124 }}>
         {dados.map((x, i) => (
           <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
-            <span className="text-[9px] text-white/70 tabular-nums font-semibold">{x.v}</span>
+            <span className="text-[9px] text-zinc-500 tabular-nums font-semibold">{x.v}</span>
             <div className="w-[64%] rounded-md animate-[grow-up_650ms_cubic-bezier(0.22,1,0.36,1)_both]"
                  style={{ height: `${Math.round((x.v / max) * 88) + 8}px`, background: 'linear-gradient(180deg, #7de88f 0%, #2E9E54 100%)', animationDelay: `${i * 55}ms`, transformOrigin: 'bottom' }} />
-            <span className="text-[9px] text-white/50">{x.d}</span>
+            <span className="text-[9px] text-zinc-400">{x.d}</span>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[11px] text-white/70 flex items-center gap-1.5">
-        <TrendingUp size={12} style={{ color: BRAND }} /> Seus gastos subiram <b className="text-white">20%</b> essa semana
+      <p className="mt-3 text-[11px] text-zinc-500 flex items-center gap-1.5">
+        <TrendingUp size={12} style={{ color: ACCENT }} /> Seus gastos subiram <b className="text-zinc-900">20%</b> essa semana
       </p>
     </div>
   );
@@ -187,19 +219,19 @@ function LimitsCard() {
   ];
   return (
     <div>
-      <p className="text-center text-[11px] text-white/55 font-semibold uppercase tracking-wider mb-3">Seus limites do mês</p>
+      <p className="text-center text-[11px] text-zinc-400 font-semibold uppercase tracking-wider mb-3">Seus limites do mês</p>
       <div className="space-y-3">
         {items.map((it, i) => (
           <div key={it.nome} className="animate-[slide-up_400ms_ease-out_both]" style={{ animationDelay: `${i * 60}ms` }}>
             <div className="flex items-center justify-between text-[12px] mb-1">
-              <span className="text-white/85 font-medium">{it.nome}</span>
-              <span className="font-bold tabular-nums" style={{ color: it.pct >= 80 ? '#fcd34d' : BRAND }}>{it.pct}%</span>
+              <span className="text-zinc-700 font-medium">{it.nome}</span>
+              <span className="font-bold tabular-nums" style={{ color: it.pct >= 80 ? '#d97706' : ACCENT }}>{it.pct}%</span>
             </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
               <div className="h-full rounded-full animate-[grow-x_700ms_ease-out_both]"
                    style={{ width: `${it.pct}%`, background: it.pct >= 80 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#2E9E54,#61CE70)', animationDelay: `${i * 60}ms`, transformOrigin: 'left' }} />
             </div>
-            <p className="text-[10px] text-white/40 mt-0.5 tabular-nums text-right">{it.txt}</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5 tabular-nums text-right">{it.txt}</p>
           </div>
         ))}
       </div>
@@ -213,21 +245,21 @@ function GoalRing() {
     <div className="flex items-center gap-4">
       <div className="relative w-24 h-24 flex-shrink-0">
         <svg viewBox="0 0 110 110" className="w-24 h-24 -rotate-90">
-          <circle cx="55" cy="55" r={R} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="10" />
-          <circle cx="55" cy="55" r={R} fill="none" stroke={BRAND} strokeWidth="10" strokeLinecap="round"
+          <circle cx="55" cy="55" r={R} fill="none" stroke="#e4e4e7" strokeWidth="10" />
+          <circle cx="55" cy="55" r={R} fill="none" stroke={ACCENT} strokeWidth="10" strokeLinecap="round"
                   strokeDasharray={`${(pct / 100) * C} ${C}`} className="animate-[dash-in_800ms_ease-out_both]" />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-black text-white tabular-nums">{pct}%</span>
-          <span className="text-[9px] text-white/50">da meta</span>
+          <span className="text-lg font-bold text-zinc-900 tabular-nums">{pct}%</span>
+          <span className="text-[9px] text-zinc-400">da meta</span>
         </div>
       </div>
       <div>
-        <p className="text-[11px] text-white/55 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-          <Target size={12} style={{ color: BRAND }} /> Nova meta
+        <p className="text-[11px] text-zinc-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+          <Target size={12} style={{ color: ACCENT }} /> Nova meta
         </p>
-        <p className="text-white font-bold mt-0.5">iPhone 16</p>
-        <p className="text-[13px] tabular-nums" style={{ color: BRAND }}>R$ 500 <span className="text-white/40">de</span> R$ 5.399</p>
+        <p className="text-zinc-900 font-bold mt-0.5">iPhone 16</p>
+        <p className="text-[13px] tabular-nums" style={{ color: ACCENT }}>R$ 500 <span className="text-zinc-400">de</span> R$ 5.399</p>
       </div>
     </div>
   );
@@ -243,8 +275,8 @@ function Projection() {
   return (
     <div>
       <div className="flex items-end justify-between mb-1 px-1">
-        <div><p className="text-[11px] text-zinc-400">Você hoje</p><p className="font-black tabular-nums" style={{ color: ACCENT }}>R$ 50</p></div>
-        <div className="text-right"><p className="text-[11px] text-zinc-400">Daqui 6 meses</p><p className="font-black tabular-nums text-lg" style={{ color: ACCENT }}>R$ 7.492</p></div>
+        <div><p className="text-[11px] text-zinc-400">Você hoje</p><p className="font-bold tabular-nums" style={{ color: ACCENT }}>R$ 50</p></div>
+        <div className="text-right"><p className="text-[11px] text-zinc-400">Daqui 6 meses</p><p className="font-bold tabular-nums text-lg" style={{ color: ACCENT }}>R$ 7.492</p></div>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
         <defs>
@@ -288,7 +320,7 @@ function Etapa0({ onNext }: { onNext: () => void }) {
     <div className="space-y-5">
       <div className="text-center space-y-2">
         <p className="text-[13px] italic font-semibold text-zinc-400">A mesma tecnologia dos gerentes de investimento — no seu bolso.</p>
-        <h1 className="text-[26px] leading-[1.15] font-black tracking-tight" style={{ color: HEAD }}>
+        <h1 className="text-[26px] leading-[1.15] font-bold tracking-tight" style={{ color: HEAD }}>
           Sua vida financeira,<br />organizada por um <span style={{ color: ACCENT }}>áudio</span>.
         </h1>
         <p className="text-[15px] text-zinc-500 leading-relaxed max-w-sm mx-auto">
@@ -313,7 +345,7 @@ function Etapa1({ onNext }: { onNext: () => void }) {
   return (
     <div className="space-y-4">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-black tracking-tight" style={{ color: HEAD }}>Como funciona?</h2>
+        <h2 className="text-2xl font-bold tracking-tight" style={{ color: HEAD }}>Como funciona?</h2>
         <p className="text-[14px] text-zinc-500 leading-relaxed max-w-sm mx-auto">
           Um assistente financeiro no seu WhatsApp, <b className="text-zinc-700">24h por dia</b>. Testa aí 👇
         </p>
@@ -322,7 +354,7 @@ function Etapa1({ onNext }: { onNext: () => void }) {
       <div className="flex items-start gap-3">
         <StepNum n={1} />
         <div>
-          <p className="text-[14px] font-semibold" style={{ color: HEAD }}>Diz o que comprou e quanto gastou.</p>
+          <p className="text-[15px] font-semibold" style={{ color: HEAD }}>Diz o que comprou e quanto gastou.</p>
           <p className="text-[12px] text-zinc-400 italic mt-0.5">Pode escrever do seu jeito — sem vírgula, sem R$.</p>
         </div>
       </div>
@@ -333,13 +365,13 @@ function Etapa1({ onNext }: { onNext: () => void }) {
         {stage === 2 && (
           <>
             <SoraCard>
-              <p className="text-[11px] text-white/55 font-semibold uppercase tracking-wider mb-1">✅ Gasto registrado</p>
-              <p className="font-bold text-[15px]">👕 Camisa <span className="text-white/50 font-normal">(Roupas)</span></p>
-              <p className="text-xl font-black tabular-nums" style={{ color: BRAND }}>R$ 110,00</p>
-              <p className="text-[10px] text-white/40 mt-1 tabular-nums">10/07/2026 · 17:31</p>
+              <p className="text-[11px] text-zinc-400 font-semibold uppercase tracking-wider mb-1">✅ Gasto registrado</p>
+              <p className="font-bold text-[15px] text-zinc-900">👕 Camisa <span className="text-zinc-400 font-normal">(Roupas)</span></p>
+              <p className="text-xl font-bold tabular-nums" style={{ color: ACCENT }}>R$ 110,00</p>
+              <p className="text-[10px] text-zinc-400 mt-1 tabular-nums">10/07/2026 · 17:31</p>
             </SoraCard>
             <Bubble side="sora" delay={140}>
-              <span className="flex items-start gap-1.5"><Bell size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#fcd34d' }} />
+              <span className="flex items-start gap-1.5"><Bell size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
               Você está quase no seu <b>limite de R$ 200</b>/mês em <b>Roupas</b>.</span>
             </Bubble>
             <ContinueBtn onClick={onNext} />
@@ -362,7 +394,7 @@ function Etapa2({ onNext }: { onNext: () => void }) {
       <div className="flex items-start gap-3">
         <StepNum n={2} />
         <div>
-          <p className="text-[14px] font-semibold" style={{ color: HEAD }}>Pergunte <b>tudo</b> sobre suas finanças.</p>
+          <p className="text-[15px] font-semibold" style={{ color: HEAD }}>Pergunte <b>tudo</b> sobre suas finanças.</p>
           <p className="text-[12px] text-zinc-400 mt-0.5">Ela entende linguagem natural e te responde na hora.</p>
         </div>
       </div>
@@ -373,17 +405,15 @@ function Etapa2({ onNext }: { onNext: () => void }) {
             <Bubble side="user" time="11:19">quanto gastei nos últimos 7 dias?</Bubble>
             <SoraCard delay={80}><BarWeek /></SoraCard>
             <SoraCard delay={200}>
-              <p className="text-center text-[11px] text-white/55 font-semibold uppercase tracking-wider mb-1">Divisão de gastos</p>
-              <div className="dark">
-                <CategoryDonut data={DIVISAO} showList={false} height={188} innerRadius={52} outerRadius={76} />
-              </div>
+              <p className="text-center text-[11px] text-zinc-400 font-semibold uppercase tracking-wider mb-1">Divisão de gastos</p>
+              <CategoryDonut data={DIVISAO} showList={false} height={188} innerRadius={52} outerRadius={76} />
               {/* Legenda compacta (o donut já tem o centro dinâmico + hover) */}
               <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
                 {DIVISAO.map((c) => (
                   <li key={c.name} className="flex items-center gap-1.5 text-[11.5px]">
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
-                    <span className="text-white/75 flex-1 truncate">{c.name}</span>
-                    <span className="text-white font-bold tabular-nums">{Math.round((c.value / 632) * 100)}%</span>
+                    <span className="text-zinc-600 flex-1 truncate">{c.name}</span>
+                    <span className="text-zinc-900 font-bold tabular-nums">{Math.round((c.value / 632) * 100)}%</span>
                   </li>
                 ))}
               </ul>
@@ -408,7 +438,7 @@ function Etapa2({ onNext }: { onNext: () => void }) {
         {typing && p === 1 && <Typing />}
         {p === 2 && (
           <>
-            <p className="text-center text-[14px] font-semibold px-2" style={{ color: HEAD }}>
+            <p className="text-center text-[15px] font-semibold px-2" style={{ color: HEAD }}>
               Você nunca mais vai se perguntar <span style={{ color: ACCENT }}>“onde foi parar meu dinheiro?”</span> sem ter a resposta.
             </p>
             <ContinueBtn onClick={onNext} />
@@ -423,7 +453,7 @@ function Etapa3({ onNext }: { onNext: () => void }) {
   return (
     <div className="space-y-5">
       <div className="text-center">
-        <h2 className="text-2xl font-black tracking-tight" style={{ color: HEAD }}>E tem muito mais.</h2>
+        <h2 className="text-2xl font-bold tracking-tight" style={{ color: HEAD }}>E tem muito mais.</h2>
         <p className="text-[14px] text-zinc-500 mt-1">Tudo por mensagem, do jeito que você já conversa.</p>
       </div>
 
@@ -437,24 +467,24 @@ function Etapa3({ onNext }: { onNext: () => void }) {
 
       {/* 3 — Limites */}
       <div className="space-y-2.5 pt-2">
-        <div className="flex items-start gap-3"><StepNum n={3} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Defina <b>limites por categoria</b> e controle quanto quer gastar.</p></div>
+        <div className="flex items-start gap-3"><StepNum n={3} /><p className="text-[15px] font-semibold pt-1" style={{ color: HEAD }}>Defina <b>limites por categoria</b> e controle quanto quer gastar.</p></div>
         <Bubble side="user" time="09:42">como estão meus limites?</Bubble>
         <SoraCard delay={80}><LimitsCard /></SoraCard>
       </div>
 
       {/* 4 — Metas */}
       <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={4} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Crie <b>metas</b> e a Sora te leva até lá.</p></div>
+        <div className="flex items-start gap-3"><StepNum n={4} /><p className="text-[15px] font-semibold pt-1" style={{ color: HEAD }}>Crie <b>metas</b> e a Sora te leva até lá.</p></div>
         <Bubble side="user" time="09:43">Cria uma meta pro iPhone 16, preciso de 5.399. Já guardei 500 hoje</Bubble>
         <SoraCard delay={80}><GoalRing /></SoraCard>
       </div>
 
       {/* 5 — Promoções */}
       <div className="space-y-2.5">
-        <div className="flex items-start gap-3"><StepNum n={5} /><p className="text-[14px] font-semibold pt-1" style={{ color: HEAD }}>Receba <b>alertas de promoção</b> do que você quer comprar.</p></div>
+        <div className="flex items-start gap-3"><StepNum n={5} /><p className="text-[15px] font-semibold pt-1" style={{ color: HEAD }}>Receba <b>alertas de promoção</b> do que você quer comprar.</p></div>
         <Bubble side="sora" wide>
-          <span className="flex items-start gap-1.5"><Tag size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#fcd34d' }} />
-          <span>Você curtiu <b>Viagens</b> — achei uma promoção 👀<br /><b>Pacote Disney 7 dias</b> (ida, volta + hospedagem) por <b style={{ color: BRAND }}>R$ 1.799</b> no Pix ou 10x. 🔥</span></span>
+          <span className="flex items-start gap-1.5"><Tag size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
+          <span>Você curtiu <b>Viagens</b> — achei uma promoção 👀<br /><b>Pacote Disney 7 dias</b> (ida, volta + hospedagem) por <b style={{ color: ACCENT }}>R$ 1.799</b> no Pix ou 10x. 🔥</span></span>
         </Bubble>
       </div>
 
@@ -482,7 +512,7 @@ function Etapa4({ onNext }: { onNext: () => void }) {
   return (
     <div className="space-y-5">
       <div className="text-center">
-        <h2 className="text-2xl font-black tracking-tight" style={{ color: HEAD }}>Ainda tem mais recursos.</h2>
+        <h2 className="text-2xl font-bold tracking-tight" style={{ color: HEAD }}>Ainda tem mais recursos.</h2>
         <p className="text-[14px] text-zinc-500 mt-1">Tudo pensado pra você <b className="text-zinc-700">não usar uma vez e esquecer</b>.</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -571,7 +601,7 @@ function Etapa5() {
     <div className="space-y-6">
       {/* Projeção */}
       <div className="text-center space-y-1">
-        <h2 className="text-[26px] leading-tight font-black tracking-tight" style={{ color: HEAD }}>
+        <h2 className="text-[26px] leading-tight font-bold tracking-tight" style={{ color: HEAD }}>
           Imagine você daqui<br /><span style={{ color: ACCENT }}>6 meses.</span>
         </h2>
         <p className="text-[14px] text-zinc-500 max-w-sm mx-auto">Essa é a sua chance de cumprir o que você promete pra si mesma faz tempo.</p>
@@ -696,7 +726,7 @@ export default function ChatExperience() {
           ) : <span className="w-9" />}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/sora-icon.png" alt="Sora" className="w-7 h-7 rounded-lg object-cover" />
-          <span className="font-black tracking-tight" style={{ color: HEAD }}>Sora</span>
+          <span className="font-bold tracking-tight" style={{ color: HEAD }}>Sora</span>
           <span className="ml-auto text-[11px] font-semibold text-zinc-400 tabular-nums">{step + 1} / {TOTAL}</span>
         </div>
         <div className="h-1 bg-zinc-100">
