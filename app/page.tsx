@@ -14,6 +14,7 @@ import HabitosSaude    from '@/components/landing/HabitosSaude';
 import Showcase        from '@/components/landing/Showcase';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase    from '@/components/landing/DriveShowcase';
+import OpenFinance     from '@/components/landing/OpenFinance';
 import WrappedShowcase from '@/components/landing/WrappedShowcase';
 import Personalizacao  from '@/components/landing/Personalizacao';
 import MobileShowcase   from '@/components/landing/MobileShowcase';
@@ -45,6 +46,7 @@ export default function LandingPage() {
       <CtaPlanos frase="Quero meu Wrapped também 🐳" />
       <ProdutividadeShowcase />
       <DriveShowcase />
+      <OpenFinance />
       <SocialProof />
       <CtaPlanos frase="Quero fazer parte" />
       <Personalizacao />

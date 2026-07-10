@@ -10,6 +10,7 @@ import Personalizacao from './Personalizacao';
 import MobileShowcase from './MobileShowcase';
 import SoraLabs      from './SoraLabs';
 import FinancasChat  from './FinancasChat';
+import OpenFinance   from './OpenFinance';
 import AgendaChat    from './AgendaChat';
 import HabitosSaude  from './HabitosSaude';
 import ProdutividadeShowcase from './ProdutividadeShowcase';
@@ -445,6 +446,7 @@ export default function KitOferta() {
           .dark força a variante escura pra casar com o tema do /kit. ══════════ */}
       <div className="dark">
         <FinancasChat />
+        <OpenFinance />
         <AgendaChat />
         <HabitosSaude />
         <ProdutividadeShowcase />
