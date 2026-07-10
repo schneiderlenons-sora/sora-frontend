@@ -348,6 +348,7 @@ A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Me
 - **Moeda:** `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`
 - **Plano guard:** sempre usar `podeUsar(plano, feature)` de `lib/plans.ts`
 - **IA local-first:** preferir parsers/banco locais (regex, lookup) antes de chamar a OpenAI (gpt-4o-mini); sempre manter fallback local
+- **Skill `ai-prompting` (auto):** ao mexer na IA/interpretador (`ia.js`, `interpretador.js`, `categorizar.js`, system prompt, mapear frase→ação, "não entendi", structured outputs/JSON mode, evals/bateria de perguntas), usar a skill `ai-prompting` **sem o usuário precisar pedir**. (Espelha a regra de usar `ui-ux-pro-max` em todo design novo.)
 
 ---
 
