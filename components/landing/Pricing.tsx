@@ -224,7 +224,7 @@ function CardVitalicio() {
           <span className="text-5xl font-bold tabular-nums tracking-tight">9<span className="text-2xl">,87</span></span>
         </div>
         <p className="text-xs text-white/60 mb-6">
-          ou <b className="text-white font-bold">R$ 97</b> à vista · <span className="line-through text-white/40">R$ 497/ano</span>
+          ou <b className="text-white font-bold">R$ 97</b> à vista · <span className="line-through text-white/40">R$ 358,80/ano</span>
         </p>
 
         {/* CTA */}
