@@ -18,9 +18,9 @@ const DEPOIMENTOS = [
     quote: 'Rapaziada, testa aí! Eu só falo e ela anota tudo. Nunca mais esqueci uma conta nem um compromisso da família.',
   },
   {
-    nome: 'Otaviano Costa', role: 'Apresentador', cor: '#61ce70',
-    img: '/landing/depoimentos/otaviano-costa.jpg',
-    quote: 'Minha rotina é uma correria de gravação e viagem. A Sora virou meu braço direito: mando um áudio e ela organiza as contas, a agenda e os lembretes. Recomendo demais!',
+    nome: 'Gusttavo Lima', role: 'Cantor sertanejo', cor: '#61ce70',
+    img: '/landing/depoimentos/gusttavo-lima.jpg',
+    quote: 'Com a correria dos shows eu nunca parava pra ver pra onde ia o dinheiro. Agora é só mandar um áudio e a Sora organiza tudo — contas, agenda e lembrete. Simples desse jeito!',
   },
   {
     nome: 'Duda Rubert', role: 'Influenciadora', cor: '#a855f7',

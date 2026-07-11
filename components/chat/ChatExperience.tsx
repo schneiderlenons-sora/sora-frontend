@@ -544,7 +544,7 @@ function Etapa4({ onNext }: { onNext: () => void }) {
 // ─── Depoimentos (famosos do forsora.com) ────────────────────────────────────
 const DEPOIMENTOS = [
   { nome: 'Mari Gonzalez', role: 'Influenciadora', img: '/landing/depoimentos/Mari-gonzales.jpg', cor: '#ec4899', quote: 'Amo praticidade! Mando um áudio e a Sora organiza meus gastos e minha agenda.' },
-  { nome: 'Otaviano Costa', role: 'Apresentador', img: '/landing/depoimentos/otaviano-costa.jpg', cor: '#2E9E54', quote: 'Minha rotina é uma correria. A Sora virou meu braço direito: mando um áudio e ela cuida do resto.' },
+  { nome: 'Gusttavo Lima', role: 'Cantor sertanejo', img: '/landing/depoimentos/gusttavo-lima.jpg', cor: '#2E9E54', quote: 'Vixe, que facilidade! Entre um show e outro eu mando um áudio e a Sora organiza as contas e a agenda. Recomendo demais!' },
   { nome: 'Ferrugem', role: 'Cantor', img: '/landing/depoimentos/ferrugem.jpg', cor: '#f59e0b', quote: 'Rapaziada, testa aí! Eu só falo e ela anota tudo. Nunca mais esqueci uma conta.' },
   { nome: 'Duda Rubert', role: 'Influenciadora', img: '/landing/depoimentos/duda-rubert.jpg', cor: '#a855f7', quote: 'Gente, muito fácil! Só mando mensagem e tá tudo organizado. Virei fã na primeira semana!' },
   { nome: 'Coringa', role: 'Criador de conteúdo', img: '/landing/depoimentos/coringa.jpg', cor: '#3b82f6', quote: 'Mano, que coisa útil! Eu falo e ela faz. É tipo ter um assistente de verdade.' },
