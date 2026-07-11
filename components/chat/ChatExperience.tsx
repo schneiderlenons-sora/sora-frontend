@@ -655,7 +655,29 @@ function Etapa5() {
           <p className="text-white/70 text-[14px] mt-1.5">ou <b className="text-white font-bold">R$ 97</b> à vista — pague uma vez e use pra&nbsp;sempre.</p>
 
           <ul className="mt-4 space-y-2">
-            {['Sora no WhatsApp: texto, áudio e foto', 'Gastos, contas, cartões e categorias no automático', 'Metas, limites e lembretes inteligentes', 'Relatórios e análises com IA', 'Alertas de promoção e Sora Grow completo'].map((f) => (
+            {[
+              'Lançamentos ilimitados',
+              'WhatsApp ou painel (texto/áudio/imagem)',
+              'Open Finance',
+              'Contas e cartões ilimitados',
+              'Gráficos interativos no painel',
+              'Categorias e subcategorias personalizadas',
+              'Lembretes de contas',
+              'Relatórios financeiros',
+              'Alertas e limites de gastos',
+              'Importação OFX',
+              'Exportação de dados',
+              'Gestão compartilhada (casal/família)',
+              'Central de Investimentos',
+              'Metas com aporte automático',
+              'Painel DRE completo',
+              'Integrações Hotmart, Kiwify, Eduzz, Stripe',
+              'Organização de Hábitos, Agenda, Tarefas, Estudos, Bem Estar',
+              'Cálculo de Macros e Calorias por foto ou mensagem',
+              'Controle de Medicação com alertas',
+              'Avisos de Compromissos',
+              'Tudo isso e muito mais!',
+            ].map((f) => (
               <li key={f} className="flex items-start gap-2 text-[13.5px] text-white/85">
                 <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} /> {f}
               </li>
