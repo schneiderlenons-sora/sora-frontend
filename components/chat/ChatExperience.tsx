@@ -193,7 +193,8 @@ function BarWeek() {
         ))}
       </div>
       <p className="mt-3 text-[11px] text-zinc-500 flex items-center gap-1.5">
-        <TrendingUp size={12} style={{ color: ACCENT }} /> Seus gastos subiram <b className="text-zinc-900">20%</b> essa semana
+        <TrendingUp size={12} className="flex-shrink-0" style={{ color: ACCENT }} />
+        <span>Seus gastos subiram <b className="text-zinc-900">20%</b> essa semana</span>
       </p>
     </div>
   );
@@ -371,8 +372,10 @@ function Etapa1({ onNext }: { onNext: () => void }) {
               <p className="text-[10px] text-zinc-400 mt-1 tabular-nums">10/07/2026 · 17:31</p>
             </SoraCard>
             <Bubble side="sora" delay={140}>
-              <span className="flex items-start gap-1.5"><Bell size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
-              Você está quase no seu <b>limite de R$ 200</b>/mês em <b>Roupas</b>.</span>
+              <span className="flex items-start gap-1.5">
+                <Bell size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
+                <span>Você está quase no seu <b>limite de R$ 200</b>/mês em <b>Roupas</b>.</span>
+              </span>
             </Bubble>
             <ContinueBtn onClick={onNext} />
           </>
