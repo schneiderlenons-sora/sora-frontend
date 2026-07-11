@@ -14,6 +14,7 @@ import AgendaChat from '@/components/landing/AgendaChat';
 import OpenFinance from '@/components/landing/OpenFinance';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase from '@/components/landing/DriveShowcase';
+import Personalizacao from '@/components/landing/Personalizacao';
 import {
   ArrowRight, ArrowLeft, Check, CheckCheck, BadgeCheck, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
@@ -646,12 +647,12 @@ function Etapa5() {
             </span>
             <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/10">de R$ 497</span>
           </div>
-          <div className="mt-4 flex items-end gap-2">
-            <span className="text-white/60 text-lg mb-1">R$</span>
-            <span className="text-6xl font-black leading-none tabular-nums">97</span>
-            <span className="text-white/60 text-sm mb-1.5">uma vez, pra&nbsp;sempre</span>
+          <div className="mt-4 flex items-end gap-1.5">
+            <span className="text-white/70 text-xl font-bold mb-2">12x</span>
+            <span className="text-white/60 text-lg mb-1.5">de R$</span>
+            <span className="text-6xl font-black leading-none tabular-nums">9,87</span>
           </div>
-          <p className="text-white/60 text-[13px] mt-1">Sem mensalidade. Você paga uma vez e usa pra sempre.</p>
+          <p className="text-white/70 text-[14px] mt-1.5">ou <b className="text-white font-bold">R$ 97</b> à vista — pague uma vez e use pra&nbsp;sempre.</p>
 
           <ul className="mt-4 space-y-2">
             {['Sora no WhatsApp: texto, áudio e foto', 'Gastos, contas, cartões e categorias no automático', 'Metas, limites e lembretes inteligentes', 'Relatórios e análises com IA', 'Alertas de promoção e Sora Grow completo'].map((f) => (
@@ -672,6 +673,12 @@ function Etapa5() {
             <span className="flex items-center gap-1"><Wallet size={13} /> Pix ou 12x</span>
           </div>
         </div>
+      </div>
+
+      {/* Aparência (Personalização) — seção EXATA do forsora.com, full-bleed,
+          logo abaixo do preço. CTA aponta pro checkout do vitalício. */}
+      <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+        <Personalizacao ctaHref="/checkout-vitalicio?tier=completa" />
       </div>
 
       <p className="text-center text-[12px] text-zinc-400 pb-2 flex items-center justify-center gap-1.5">
