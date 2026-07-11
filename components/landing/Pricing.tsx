@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Check, Sparkles, ShieldCheck } from 'lucide-react';
+import { Check, Sparkles, ShieldCheck, Zap, Crown } from 'lucide-react';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANOS_INFO } from '@/lib/stripe';
 
@@ -62,7 +62,7 @@ export default function Pricing() {
         </div>
 
         {/* Cards de planos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
           {PLANOS_DISPLAY.map((p) => {
             const info = PLANOS_INFO[p.id];
             const precoExibido = anual ? info.anual : info.mensal;
@@ -150,6 +150,9 @@ export default function Pricing() {
               </div>
             );
           })}
+
+          {/* Terceiro card: Premium Vitalício (pagamento único, fora do Stripe) */}
+          <CardVitalicio />
         </div>
 
         {/* Garantia de 7 dias — reversão de risco bem destacada */}
@@ -176,6 +179,88 @@ export default function Pricing() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Card do Premium Vitalício — pagamento ÚNICO (fora do Stripe → checkout Mercado
+// Pago via /checkout-vitalicio?tier=completa). Mesmas features do Premium, sem
+// mensalidade. Visual escuro premium pra destacar como a "melhor escolha".
+function CardVitalicio() {
+  const LIME = '#61ce70';
+  const premium = PLANOS_DISPLAY.find((p) => p.id === 'premium');
+  // Mesmas features do Premium (tiro só o "Tudo do Básico" — já coberto pelo
+  // título "todas as features do Premium").
+  const features = (premium?.features ?? []).filter((f) => f !== 'Tudo do Básico');
+
+  return (
+    <div className="relative rounded-3xl p-7 text-white shadow-[0_24px_70px_-24px_rgba(15,76,46,0.75)]"
+         style={{ background: 'linear-gradient(160deg, #0f4c2e 0%, #0a3d24 55%, #16231b 100%)' }}>
+      {/* glow (clipado ao card; overflow-hidden só aqui pra não cortar o badge) */}
+      <div aria-hidden className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+        <div className="absolute -top-16 -right-12 w-56 h-56 rounded-full opacity-30"
+             style={{ background: 'radial-gradient(circle, #61ce70 0%, transparent 60%)' }} />
+      </div>
+
+      {/* Badge */}
+      <div className="absolute -top-9 -right-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-black shadow-md whitespace-nowrap"
+           style={{ background: 'linear-gradient(135deg, #61ce70, #b6f54f)' }}>
+        <Zap size={9} /> Melhor escolha
+      </div>
+
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(97,206,112,0.2)' }}>
+            <Crown size={13} style={{ color: LIME }} />
+          </div>
+          <h3 className="text-xl font-bold tracking-tight">Premium Vitalício</h3>
+        </div>
+        <p className="text-sm text-white/60 mb-6">Pague uma vez. Use pra sempre.</p>
+
+        {/* Preço — 12x em destaque, à vista menor */}
+        <div className="mb-1 flex items-baseline gap-1.5">
+          <span className="text-sm font-bold text-white/70">12x de</span>
+          <span className="text-sm font-bold">R$</span>
+          <span className="text-5xl font-bold tabular-nums tracking-tight">9<span className="text-2xl">,87</span></span>
+        </div>
+        <p className="text-xs text-white/60 mb-6">
+          ou <b className="text-white font-bold">R$ 97</b> à vista · <span className="line-through text-white/40">R$ 497/ano</span>
+        </p>
+
+        {/* CTA */}
+        <Link
+          href="/checkout-vitalicio?tier=completa"
+          className="block w-full text-center px-4 py-3 text-sm font-bold rounded-xl mb-7 text-black shadow-md hover:-translate-y-0.5 transition-all"
+          style={{ background: 'linear-gradient(135deg, #61ce70, #b6f54f)' }}
+        >
+          Garantir acesso vitalício →
+        </Link>
+
+        {/* Features (mesmas do Premium) */}
+        <ul className="space-y-2.5">
+          <li className="flex items-start gap-2 text-[13px] text-white font-semibold leading-snug">
+            <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(97,206,112,0.28)' }}>
+              <Check size={9} style={{ color: LIME }} strokeWidth={3} />
+            </span>
+            Todas as features do Premium — pra sempre
+          </li>
+          {features.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-[13px] text-white/75 leading-snug">
+              <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(97,206,112,0.18)' }}>
+                <Check size={9} style={{ color: LIME }} strokeWidth={3} />
+              </span>
+              {f}
+            </li>
+          ))}
+          <li className="flex items-start gap-2 text-[13px] text-white font-semibold leading-snug">
+            <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(97,206,112,0.28)' }}>
+              <Check size={9} style={{ color: LIME }} strokeWidth={3} />
+            </span>
+            Sem mensalidade — nunca mais paga de novo
+          </li>
+        </ul>
+      </div>
+    </div>
   );
 }
 
