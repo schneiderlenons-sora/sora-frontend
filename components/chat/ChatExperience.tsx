@@ -557,24 +557,36 @@ function Depoimentos() {
     const iv = setInterval(() => setI((v) => (v + 1) % DEPOIMENTOS.length), 5000);
     return () => clearInterval(iv);
   }, []);
-  const d = DEPOIMENTOS[i];
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full overflow-hidden grid place-items-center text-white font-bold flex-shrink-0"
-             style={{ background: d.cor, fontSize: 15 }}>
-          {!erro[d.img]
-            /* eslint-disable-next-line @next/next/no-img-element */
-            ? <img src={d.img} alt={d.nome} className="w-full h-full object-cover" onError={() => setErro((e) => ({ ...e, [d.img]: true }))} draggable={false} />
-            : d.nome.split(' ').slice(0, 2).map((p) => p[0]).join('')}
-        </div>
-        <div>
-          <p className="font-bold text-zinc-900 text-[15px]">{d.nome}</p>
-          <p className="text-[12px] text-zinc-500">{d.role}</p>
-        </div>
-        <div className="ml-auto flex gap-0.5">{Array.from({ length: 5 }).map((_, n) => <Star key={n} size={13} fill="#fbbf24" stroke="#fbbf24" />)}</div>
+      {/* Empilha TODOS os depoimentos na mesma célula de grid → o card reserva
+          sempre a altura do maior, sem pulo ao trocar (fix CLS). O ativo aparece
+          por opacidade. */}
+      <div className="grid">
+        {DEPOIMENTOS.map((d, n) => (
+          <div
+            key={d.nome}
+            aria-hidden={n !== i}
+            className={`[grid-area:1/1] transition-opacity duration-500 ${n === i ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden grid place-items-center text-white font-bold flex-shrink-0"
+                   style={{ background: d.cor, fontSize: 15 }}>
+                {!erro[d.img]
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  ? <img src={d.img} alt={d.nome} className="w-full h-full object-cover" onError={() => setErro((e) => ({ ...e, [d.img]: true }))} draggable={false} />
+                  : d.nome.split(' ').slice(0, 2).map((p) => p[0]).join('')}
+              </div>
+              <div>
+                <p className="font-bold text-zinc-900 text-[15px]">{d.nome}</p>
+                <p className="text-[12px] text-zinc-500">{d.role}</p>
+              </div>
+              <div className="ml-auto flex gap-0.5">{Array.from({ length: 5 }).map((_, k) => <Star key={k} size={13} fill="#fbbf24" stroke="#fbbf24" />)}</div>
+            </div>
+            <p className="mt-3 text-[14px] text-zinc-600 leading-relaxed">“{d.quote}”</p>
+          </div>
+        ))}
       </div>
-      <p className="mt-3 text-[14px] text-zinc-600 leading-relaxed">“{d.quote}”</p>
       <div className="mt-3 flex justify-center gap-1.5">
         {DEPOIMENTOS.map((_, n) => (
           <button key={n} onClick={() => setI(n)} aria-label={`Depoimento ${n + 1}`}
