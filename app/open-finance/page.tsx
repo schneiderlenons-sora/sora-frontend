@@ -49,8 +49,8 @@ export default function OpenFinancePage() {
               <p>
                 Estamos migrando o Open Finance para uma conexão <b>nova, mais moderna e completa</b>.
                 Ao usar a integração anterior, percebemos que ela <b>não trazia todos os seus dados
-                com precisão</b> — <b>cartões virtuais</b>, <b>investimentos feitos direto no banco</b> e
-                alguns lançamentos ficavam de fora ou vinham incompletos.
+                com precisão</b> — como <b>cartões virtuais extras na mesma conta bancária</b> e
+                <b> investimentos feitos direto no banco</b>.
               </p>
               <p>
                 Como a sua organização financeira depende de dados 100% corretos, preferimos
