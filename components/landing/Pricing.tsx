@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Check, Sparkles, ShieldCheck, Zap, Crown } from 'lucide-react';
+import { Check, Sparkles, ShieldCheck, Zap, Crown, Flame } from 'lucide-react';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANOS_INFO } from '@/lib/stripe';
 
@@ -223,9 +223,27 @@ function CardVitalicio() {
           <span className="text-sm font-bold">R$</span>
           <span className="text-5xl font-bold tabular-nums tracking-tight">9<span className="text-2xl">,87</span></span>
         </div>
-        <p className="text-xs text-white/60 mb-6">
+        <p className="text-xs text-white/60 mb-5">
           ou <b className="text-white font-bold">R$ 97</b> à vista · <span className="line-through text-white/40">R$ 358,80/ano</span>
         </p>
+
+        {/* Escassez — vagas de fundador */}
+        <div className="mb-6 rounded-2xl border border-white/10 bg-black/20 p-3.5">
+          <div className="flex items-center justify-between mb-2 text-[12px]">
+            <span className="inline-flex items-center gap-1.5 font-bold text-white">
+              <Flame size={13} style={{ color: '#fbbf24' }} /> Vagas de fundador
+            </span>
+            <span className="font-bold tabular-nums" style={{ color: LIME }}>
+              Restam 29<span className="text-white/50 font-medium"> de 300</span>
+            </span>
+          </div>
+          <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: '90.3%', background: 'linear-gradient(90deg, #61ce70, #b6f54f)' }} />
+          </div>
+          <p className="mt-2 text-[11px] text-white/60">
+            As vagas nesse preço estão <b className="text-white">quase esgotando</b>.
+          </p>
+        </div>
 
         {/* CTA */}
         <Link
