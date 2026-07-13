@@ -493,6 +493,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
                           {tx.observacao || nomeCategoria(tx.categoria || '')}
+                          {tx.parcela_total ? (
+                            <span className="ml-1.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400 tabular-nums">
+                              {tx.parcela_num}/{tx.parcela_total}
+                            </span>
+                          ) : null}
                         </p>
                         <p className="text-[11px] text-muted-foreground">{data}</p>
                       </div>

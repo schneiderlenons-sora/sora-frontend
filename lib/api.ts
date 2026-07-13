@@ -148,12 +148,24 @@ export const api = {
     },
     criar: (body: any) =>
       req('/api/transacoes', { method: 'POST', body: JSON.stringify(body) }),
+    // Compra parcelada no cartão: valor_parcela × num_parcelas (uma tx por mês).
+    criarParcelado: (body: {
+      phone: string; categoria: string; observacao?: string; carteira_nome: string;
+      valor_parcela: number; num_parcelas: number; data: string; pagas: number[];
+    }) => req<{ ok: boolean; parcela_grupo: string; criadas: number }>(
+      '/api/transacoes/parcelado', { method: 'POST', body: JSON.stringify(body) }),
     criarBulk: (body: { phone: string; transacoes: any[] }) =>
       req<{ inserted: number }>('/api/transacoes/bulk', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>
       req(`/api/transacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    deletar: (id: string, phone?: string) =>
-      req(`/api/transacoes/${id}${phone ? `?phone=${phone}` : ''}`, { method: 'DELETE' }),
+    // opts.parcelas='todas' → exclui a compra parcelada inteira (todas as parcelas).
+    deletar: (id: string, phone?: string, opts?: { parcelas?: 'todas' }) => {
+      const qs = new URLSearchParams();
+      if (phone) qs.set('phone', phone);
+      if (opts?.parcelas) qs.set('parcelas', opts.parcelas);
+      const q = qs.toString();
+      return req(`/api/transacoes/${id}${q ? `?${q}` : ''}`, { method: 'DELETE' });
+    },
     anteciparCartao: (body: { phone: string; ids: string[]; conta_nome: string }) =>
       req<{ ok: boolean; debitado: number; conta?: string }>('/api/transacoes/antecipar-cartao', { method: 'POST', body: JSON.stringify(body) }),
   },

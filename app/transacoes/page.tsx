@@ -147,15 +147,31 @@ export default function TransacoesPage() {
   }, [txs]);
 
   // ── Ações ──────────────────────────────────────────────────
-  async function handleDeletar(id: string) {
-    if (!confirm('Excluir esta transação?')) return;
+  async function handleDeletar(tx: any) {
+    const id = typeof tx === 'string' ? tx : tx?.id;
+    const ehParcela = tx && typeof tx !== 'string' && !!tx.parcela_grupo && (tx.parcela_total || 0) > 1;
+    let excluirTodas = false;
+    if (ehParcela) {
+      if (!confirm(`Excluir a parcela ${tx.parcela_num}/${tx.parcela_total}?`)) return;
+      excluirTodas = confirm(
+        `Excluir TODAS as ${tx.parcela_total} parcelas dessa compra?\n\n` +
+        `OK = todas  ·  Cancelar = só esta (${tx.parcela_num}/${tx.parcela_total})`
+      );
+    } else {
+      if (!confirm('Excluir esta transação?')) return;
+    }
     setRowMenuOpen(null);
     // Remoção otimista via SWR — some da lista na hora, reverte se a API falhar.
     try {
       await mTx(
-        async () => { await api.transacoes.deletar(id, phone); return undefined; },
+        async () => { await api.transacoes.deletar(id, phone, excluirTodas ? { parcelas: 'todas' } : undefined); return undefined; },
         {
-          optimisticData: (cur: any) => ({ ...(cur || { transacoes: [], total: 0 }), transacoes: (cur?.transacoes || []).filter((t: any) => t.id !== id) }),
+          optimisticData: (cur: any) => {
+            const remover = excluirTodas
+              ? (t: any) => t.parcela_grupo !== tx.parcela_grupo
+              : (t: any) => t.id !== id;
+            return { ...(cur || { transacoes: [], total: 0 }), transacoes: (cur?.transacoes || []).filter(remover) };
+          },
           rollbackOnError: true,
           populateCache: false,
           revalidate: true,
@@ -577,9 +593,10 @@ export default function TransacoesPage() {
               {/* Cabeçalho — mesmo grid pra ambos */}
               <div className="overflow-x-auto scrollbar-none border-b border-border/60 bg-muted/30">
                 <div className="grid gap-3 items-center px-4 py-2.5"
-                     style={{ gridTemplateColumns: '44px minmax(160px,1fr) 130px 110px 100px 110px 40px', minWidth: 700 }}>
+                     style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px', minWidth: 764 }}>
                   <div/>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Descrição</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Parcela</span>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Categoria</span>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Conta</span>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Data</span>
@@ -607,7 +624,7 @@ export default function TransacoesPage() {
                     menuOpen={rowMenuOpen === tx.id}
                     onToggleMenu={() => setRowMenuOpen(rowMenuOpen === tx.id ? null : tx.id)}
                     onCloseMenu={() => setRowMenuOpen(null)}
-                    onDeletar={() => handleDeletar(tx.id)}
+                    onDeletar={() => handleDeletar(tx)}
                     onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
                   />
                 ))}
@@ -732,7 +749,7 @@ function TransactionRow({
       {/* Scroll horizontal no mobile — grid idêntico ao desktop dentro */}
       <div className="overflow-x-auto scrollbar-none">
       <div className="grid px-4 py-3.5 gap-3"
-           style={{ gridTemplateColumns: '44px minmax(160px,1fr) 130px 110px 100px 110px 40px', minWidth: 700 }}>
+           style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px', minWidth: 764 }}>
 
       {/* Checkbox */}
       <button
@@ -756,6 +773,17 @@ function TransactionRow({
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{desc}</p>
         </div>
+      </div>
+
+      {/* Parcela (compra parcelada) — ex.: 3/4 */}
+      <div className="flex items-center">
+        {tx.parcela_total ? (
+          <span className="text-xs font-semibold tabular-nums whitespace-nowrap px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            {tx.parcela_num}/{tx.parcela_total}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground/40">—</span>
+        )}
       </div>
 
       {/* Categoria */}
