@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, ChevronRight, ChevronLeft, ExternalLink, Loader2, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, ExternalLink, Loader2, ArrowDownRight, ArrowUpRight, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
@@ -16,11 +16,12 @@ interface Props {
   phone: string;
   conta: any;               // wallet: { id, nome, tipo, saldo }
   onClose: () => void;
+  onExcluir?: () => void;
 }
 
 // Extrato de uma CONTA bancária: entradas + saídas do mês, resumo e movimentações.
 // Espelha o DetalhesCartaoModal, mas mostra os dois fluxos (débito sai da conta).
-export default function DetalhesContaModal({ phone, conta, onClose }: Props) {
+export default function DetalhesContaModal({ phone, conta, onClose, onExcluir }: Props) {
   const hoje = new Date();
   const [mesRef, setMesRef] = useState(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`);
   const [txs, setTxs]         = useState<any[]>([]);
@@ -79,14 +80,18 @@ export default function DetalhesContaModal({ phone, conta, onClose }: Props) {
   const saldoNeg = (conta.saldo || 0) < 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-end p-0 md:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:justify-end p-0 md:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
-      <div className="relative w-full md:max-w-md h-full md:h-auto md:max-h-[90vh] bg-card md:rounded-3xl shadow-2xl overflow-hidden animate-fade-in flex flex-col border-l md:border border-border"
+      <div className="relative w-full md:max-w-md h-[90dvh] md:h-auto md:max-h-[90vh] bg-card rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden animate-fade-in flex flex-col border-t md:border border-border"
            onClick={e => e.stopPropagation()}>
 
+        {/* Alça (mobile) */}
+        <div className="md:hidden flex justify-center pt-2.5 pb-1 flex-shrink-0">
+          <span className="w-10 h-1.5 rounded-full bg-muted-foreground/25" />
+        </div>
         {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-start justify-between px-5 pt-2 pb-4 md:pt-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0" style={{ background: logo.bg }}>
               {logo.text}
@@ -218,6 +223,19 @@ export default function DetalhesContaModal({ phone, conta, onClose }: Props) {
               </div>
             )}
           </div>
+
+          {/* Excluir conta — acessível também no mobile */}
+          {onExcluir && (
+            <div className="pt-2 border-t border-border/60">
+              <button
+                onClick={onExcluir}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 font-semibold text-sm hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                style={{ minHeight: 44 }}
+              >
+                <Trash2 size={16} /> Excluir conta
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

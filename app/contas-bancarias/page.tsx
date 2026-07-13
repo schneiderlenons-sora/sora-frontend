@@ -566,6 +566,7 @@ export default function ContasBancariasPage() {
           phone={phone}
           conta={contaDetalhe}
           onClose={() => setContaDetalhe(null)}
+          onExcluir={() => { setContaExcluir(contaDetalhe); setContaDetalhe(null); }}
         />
       )}
     </DashboardLayout>
@@ -647,10 +648,10 @@ function WalletCard({
           </div>
         </div>
 
-        {/* Botão excluir — só aparece no hover */}
+        {/* Botão excluir — sempre visível no mobile; hover-reveal só no desktop */}
         <button
           onClick={onDeletar}
-          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-muted-foreground hover:text-red-500 lg:opacity-0 lg:group-hover:opacity-100 transition-all"
           title="Excluir"
         >
           <Trash2 size={14} />

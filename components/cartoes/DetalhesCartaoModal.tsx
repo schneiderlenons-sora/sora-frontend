@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard } from 'lucide-react';
+import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta } from './AdicionarCartaoModal';
@@ -42,9 +42,10 @@ interface Props {
   cartao: any;
   onClose: () => void;
   onRefresh?: () => void;
+  onExcluir?: () => void;
 }
 
-export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh }: Props) {
+export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh, onExcluir }: Props) {
   const hoje = new Date();
   const [mesRef, setMesRef] = useState(
     `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
@@ -218,17 +219,21 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-end p-0 md:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:justify-end p-0 md:p-4"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       <div
-        className="relative w-full md:max-w-md h-full md:h-auto md:max-h-[90vh] bg-card md:rounded-3xl shadow-2xl overflow-hidden animate-fade-in flex flex-col border-l md:border border-border"
+        className="relative w-full md:max-w-md h-[90dvh] md:h-auto md:max-h-[90vh] bg-card rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden animate-fade-in flex flex-col border-t md:border border-border"
         onClick={e => e.stopPropagation()}
       >
+        {/* Alça (mobile) */}
+        <div className="md:hidden flex justify-center pt-2.5 pb-1 flex-shrink-0">
+          <span className="w-10 h-1.5 rounded-full bg-muted-foreground/25" />
+        </div>
         {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-start justify-between px-5 pt-2 pb-4 md:pt-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0"
@@ -508,6 +513,19 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh 
               </div>
             )}
           </div>
+
+          {/* Excluir cartão — acessível também no mobile (não só o ícone no card) */}
+          {onExcluir && (
+            <div className="pt-2 border-t border-border/60">
+              <button
+                onClick={onExcluir}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 font-semibold text-sm hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                style={{ minHeight: 44 }}
+              >
+                <Trash2 size={16} /> Excluir cartão
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

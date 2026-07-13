@@ -389,6 +389,7 @@ export default function CartaoDeCreditoPage() {
           cartao={detalhes}
           onClose={() => setDetalhes(null)}
           onRefresh={carregar}
+          onExcluir={() => { setConfirmDel(detalhes); setDetalhes(null); }}
         />
       )}
 
