@@ -310,6 +310,15 @@ export const COMANDOS: Comando[] = [
     destaque: true,
   },
   {
+    id: 'listar-parcelas',
+    titulo: 'Ver minhas parcelas',
+    exemplo: 'parcelas',
+    descricao: 'Lista as compras parceladas em aberto: quantas parcelas faltam, o valor de cada uma, a próxima e o total que ainda falta pagar.',
+    variantes: ['minhas parcelas', 'como estão minhas parcelas', 'quantas parcelas tenho pra pagar', 'compras parceladas'],
+    categoria: 'cartoes',
+    destaque: true,
+  },
+  {
     id: 'antecipar-parcela',
     titulo: 'Antecipar uma parcela',
     exemplo: 'antecipar parcela do fone',
@@ -444,7 +453,16 @@ export const COMANDOS: Comando[] = [
     id: 'resumo',
     titulo: 'Resumo do mês',
     exemplo: 'resumo',
-    descricao: 'Recebe um relatório completo: receitas, gastos, saldo, top categorias.',
+    descricao: 'Recebe um relatório completo: receitas, gastos, saldo, top categorias e quanto saiu de cada conta/cartão.',
+    categoria: 'analises',
+    destaque: true,
+  },
+  {
+    id: 'gastos-carteiras',
+    titulo: 'Gastos por cartão e conta',
+    exemplo: 'gastos dos meus cartões',
+    descricao: 'Mostra quanto saiu em cada cartão (fatura aberta) e em cada conta bancária no mês, com o total geral.',
+    variantes: ['quanto gastei nas contas', 'gastos por cartão e conta', 'gastos dos meus cartões e contas'],
     categoria: 'analises',
   },
   {
