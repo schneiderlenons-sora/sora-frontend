@@ -192,9 +192,7 @@ export default function ReportarBugPage() {
           <LifeBuoy size={18} className="text-muted-foreground flex-shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
             Precisa de ajuda mais rápida? Fale direto com o suporte:{' '}
-            <a href="mailto:contatosora.ai@gmail.com" className="font-semibold text-foreground hover:underline">contatosora.ai@gmail.com</a>{' '}
-            ou no WhatsApp{' '}
-            <a href="https://wa.me/5532999167475" className="font-semibold text-foreground hover:underline">(32) 99916-7475</a>.
+            <a href="mailto:contato@forsora.com" className="font-semibold text-foreground hover:underline">contato@forsora.com</a>.
           </p>
         </div>
       </div>
