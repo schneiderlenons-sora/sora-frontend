@@ -135,14 +135,15 @@ export const api = {
 
   // ── TRANSAÇÕES ────────────────────────────────────────────────
   transacoes: {
-    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por_me?: boolean; criado_por_phone?: string; ate?: string }) => {
+    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por?: string; criado_por_me?: boolean; criado_por_phone?: string; ate?: string }) => {
       const q = new URLSearchParams(params as any).toString();
       return req<{ transacoes: any[]; total: number }>(`/api/transacoes/${phone}${q ? `?${q}` : ''}`);
     },
-    resumo: (phone: string, mes?: string, opts?: { criado_por_me?: boolean }) => {
+    resumo: (phone: string, mes?: string, opts?: { criado_por_me?: boolean; criado_por?: string }) => {
       const params = new URLSearchParams();
       if (mes) params.set('mes', mes);
-      if (opts?.criado_por_me) params.set('criado_por_me', 'true');
+      if (opts?.criado_por) params.set('criado_por', opts.criado_por);
+      else if (opts?.criado_por_me) params.set('criado_por_me', 'true');
       const q = params.toString();
       return req<any>(`/api/transacoes/${phone}/resumo${q ? `?${q}` : ''}`);
     },

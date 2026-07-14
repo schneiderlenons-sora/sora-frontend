@@ -67,7 +67,7 @@ function CustomTooltip({ active, payload, label }: any) {
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function RelatoriosPage() {
-  const { phone } = useAuth();
+  const { phone, perfil } = useAuth();
   const hoje = new Date();
 
   const [tab,      setTab]      = useState<Tab>('graficos');
@@ -75,7 +75,11 @@ export default function RelatoriosPage() {
   const [ano,      setAno]      = useState(hoje.getFullYear());
   const [mes,      setMes]      = useState(hoje.getMonth());
 
-  const [apenasMeus, setApenasMeus] = useState(false);
+  // Gestão compartilhada: filtro por membro do grupo ('todos' | user_id).
+  const [membroFiltro, setMembroFiltro] = useState('todos');
+  const compartilhado = !/pessoal/i.test(((perfil?.grupo_ativo as any)?.nome) || '');
+  const grupoId = (perfil?.grupo_ativo as any)?.id as string | undefined;
+  const criadoPorParam = membroFiltro !== 'todos' ? membroFiltro : undefined;
 
   const mesRef = `${ano}-${String(mes + 1).padStart(2, '0')}`;
   const mesAntRef = (() => {
@@ -85,15 +89,19 @@ export default function RelatoriosPage() {
 
   // Dados via SWR — revisita/troca de mês instantânea (cache em memória).
   const { data: rData, isValidating: refreshing, mutate: mR } =
-    useApi(phone ? `rel:resumo:${phone}:${mesRef}:${apenasMeus}` : null, () => api.transacoes.resumo(phone, mesRef, { criado_por_me: apenasMeus }));
+    useApi(phone ? `rel:resumo:${phone}:${mesRef}:${membroFiltro}` : null, () => api.transacoes.resumo(phone, mesRef, { criado_por: criadoPorParam }));
   const { data: rAntData, mutate: mRAnt } =
     useApi(phone ? `rel:resumoAnt:${phone}:${mesAntRef}` : null, () => api.transacoes.resumo(phone, mesAntRef));
   const { data: tData, mutate: mT } =
-    useApi(phone ? `rel:txs:${phone}:${mesRef}:${apenasMeus}` : null, () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por_me: apenasMeus || undefined }));
+    useApi(phone ? `rel:txs:${phone}:${mesRef}:${membroFiltro}` : null, () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por: criadoPorParam }));
   const { data: wData, mutate: mW } =
     useApi(phone ? `rel:wallets:${phone}` : null, () => api.wallets.listar(phone));
   const { data: cData, mutate: mC } =
     useApi(phone ? `rel:cats:${phone}` : null, () => api.categorias.listar(phone));
+  // Membros do grupo (só em gestão compartilhada) — pro seletor de membro.
+  const { data: membrosData } =
+    useApi(compartilhado && grupoId ? `rel:membros:${grupoId}` : null, () => api.grupos.membros(grupoId!));
+  const membros: any[] = Array.isArray(membrosData) ? membrosData : [];
 
   const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
   const resumoAnt: any    = (rAntData as any) ?? { receitas: 0, gastos: 0, por_categoria: [] };
@@ -323,18 +331,21 @@ export default function RelatoriosPage() {
             </button>
           ))}
 
-          {/* Toggle "Apenas meus lançamentos" */}
-          <button
-            onClick={() => setApenasMeus(v => !v)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all inline-flex items-center gap-1.5 ${
-              apenasMeus
-                ? 'bg-primary text-primary-foreground shadow-glow-sm'
-                : 'bg-muted/40 text-muted-foreground hover:text-foreground'
-            }`}
-            title="Mostrar somente lançamentos que você criou"
-          >
-            👤 Apenas meus
-          </button>
+          {/* Filtro por membro — só em gestão compartilhada com 2+ membros */}
+          {compartilhado && membros.length > 1 && (
+            <select
+              value={membroFiltro}
+              onChange={e => setMembroFiltro(e.target.value)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted/40 text-foreground border border-border focus:outline-none focus:border-primary cursor-pointer"
+              title="Filtrar o relatório por um membro do grupo"
+            >
+              <option value="todos">👥 Todos os membros</option>
+              {membros.map(m => {
+                const id = m.user_id || m.users?.id;
+                return <option key={id} value={id}>{m.users?.name || 'Membro'}</option>;
+              })}
+            </select>
+          )}
 
           <div className="hidden sm:flex items-center gap-2 ml-auto text-xs text-muted-foreground">
             <Calendar size={13} />
@@ -344,15 +355,17 @@ export default function RelatoriosPage() {
           </div>
         </div>
 
-        {/* Chip do filtro ativo + contador */}
-        {apenasMeus && (
+        {/* Chip do filtro de membro ativo */}
+        {membroFiltro !== 'todos' && (
           <div className="flex items-center gap-2 animate-fade-in">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/30">
-              <span className="text-[11px] font-semibold text-primary">👤 Apenas meus lançamentos</span>
-              <button onClick={() => setApenasMeus(false)} className="text-primary hover:text-primary/70 -mr-0.5">×</button>
+              <span className="text-[11px] font-semibold text-primary">
+                👤 {membros.find(m => (m.user_id || m.users?.id) === membroFiltro)?.users?.name || 'Membro'}
+              </span>
+              <button onClick={() => setMembroFiltro('todos')} className="text-primary hover:text-primary/70 -mr-0.5">×</button>
             </div>
             <span className="text-[11px] text-muted-foreground">
-              Mostrando <strong className="text-foreground tabular">{txs.length}</strong> transaç{txs.length === 1 ? 'ão' : 'ões'} criada{txs.length === 1 ? '' : 's'} por você
+              Só os lançamentos desse membro · <strong className="text-foreground tabular">{txs.length}</strong> no mês
             </span>
           </div>
         )}
@@ -518,36 +531,40 @@ export default function RelatoriosPage() {
               </ChartCard>
             )}
 
-            {/* Gastos por membro (só aparece se for grupo com 2+ membros) */}
-            {(resumo?.por_membro || []).length >= 2 && (
+            {/* Por membro — gastos, receitas e saldo de cada um (só grupo 2+
+                membros e sem filtro por membro ativo) */}
+            {membroFiltro === 'todos' && (resumo?.por_membro || []).length >= 2 && (
               <ChartCard
-                title="Gastos por membro"
-                subtitle="Quem gastou mais neste mês"
+                title="Por membro"
+                subtitle="Gastos, receitas e saldo de cada um neste mês"
                 icon={<Users size={16} className="text-foreground" />}
               >
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {(resumo.por_membro as any[]).map((m, i) => {
                     const totalGastos = resumo.gastos || 1;
-                    const pct = totalGastos > 0 ? (m.total / totalGastos) * 100 : 0;
+                    const gasto = m.gastos ?? m.total ?? 0;
+                    const receita = m.receitas ?? 0;
+                    const saldo = m.saldo ?? (receita - gasto);
+                    const pct = totalGastos > 0 ? (gasto / totalGastos) * 100 : 0;
                     const cor = `hsl(${(m.user_id || m.name).split('').reduce((h: number, c: string) => c.charCodeAt(0) + ((h << 5) - h), 0) % 360} 65% 50%)`;
                     return (
                       <div key={m.user_id || i} className="animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
-                        <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center justify-between mb-1.5 gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <AvatarMembro name={m.name} size="sm" />
                             <span className="text-sm font-semibold text-foreground truncate">{m.name}</span>
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-sm font-bold text-foreground tabular">{fmt(m.total)}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular"
-                                  style={{ background: `color-mix(in srgb, ${cor} 13%, transparent)`, color: cor }}>
-                              {pct.toFixed(0)}%
-                            </span>
-                          </div>
+                          <span className="text-sm font-bold text-red-500 dark:text-red-400 tabular flex-shrink-0">−{fmt(gasto)}</span>
                         </div>
                         <div className="h-2 rounded-full bg-muted overflow-hidden">
                           <div className="h-full rounded-full transition-all duration-700"
                                style={{ width: `${Math.min(pct, 100)}%`, background: cor }} />
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-[11px] tabular">
+                          <span className="text-green-600 dark:text-green-400">Receitas +{fmt(receita)}</span>
+                          <span className={saldo >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>
+                            Saldo {saldo >= 0 ? '+' : '−'}{fmt(Math.abs(saldo))}
+                          </span>
                         </div>
                       </div>
                     );
@@ -635,6 +652,7 @@ export default function RelatoriosPage() {
                 badgeColor="green"
                 items={recebPendentes}
                 empty="Nenhuma receita pendente"
+                compartilhado={compartilhado}
                 positive
               />
               <PendentesList
@@ -644,6 +662,7 @@ export default function RelatoriosPage() {
                 badgeColor="red"
                 items={gastoPendentes}
                 empty="Nenhuma despesa pendente"
+                compartilhado={compartilhado}
               />
             </div>
           </div>
@@ -880,7 +899,7 @@ function ChartLegend({ items }: { items: { label: string; color: string; dashed?
 }
 
 function PendentesList({
-  title, subtitle, badgeText, badgeColor, items, empty, positive,
+  title, subtitle, badgeText, badgeColor, items, empty, positive, compartilhado,
 }: {
   title:      string;
   subtitle:   string;
@@ -889,6 +908,7 @@ function PendentesList({
   items:      any[];
   empty:      string;
   positive?:  boolean;
+  compartilhado?: boolean;
 }) {
   const badgeBg = badgeColor === 'green'
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
@@ -943,6 +963,15 @@ function PendentesList({
                     <span className="text-[10px] font-medium" style={{ color: theme.color }}>
                       {nomeCategoria(tx.categoria)}
                     </span>
+                    {compartilhado && tx.criador && (
+                      <>
+                        <span className="text-muted-foreground/40">·</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
+                          <AvatarMembro name={tx.criador.name} src={tx.criador.avatar_url} preset={tx.criador.avatar_preset} cor={tx.criador.avatar_cor} size="sm" />
+                          <span className="truncate">{(tx.criador.name || '').split(' ')[0]}</span>
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <p className={`text-sm font-bold tabular ${
