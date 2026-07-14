@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Wallet, CreditCard, AlertCircle, Check } from 'lucide-react';
+import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat } from 'lucide-react';
 import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
@@ -65,6 +65,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   const [parcelado,   setParcelado]   = useState(false);
   const [numParcelas, setNumParcelas] = useState(2);
   const [pagas,       setPagas]       = useState<Set<number>>(new Set());
+  const [avisoParcela, setAvisoParcela] = useState(''); // "só cartão" ao tentar parcelar sem cartão
 
   // Categorias do usuário (carregadas da API)
   const [catsDespesa, setCatsDespesa] = useState<CatItem[]>([]);
@@ -137,8 +138,9 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
   const walletSel = useMemo(() => wallets.find(w => w.id === walletId), [wallets, walletId]);
   const ehCartaoSel = walletSel?.tipo === 'Crédito' && tipo === 'Gasto';
 
-  // Sai de cartão / vira receita → desliga o parcelado.
-  useEffect(() => { if (!ehCartaoSel) setParcelado(false); }, [ehCartaoSel]);
+  // Sai de cartão / vira receita → desliga o parcelado. Ao voltar pra um cartão,
+  // limpa o aviso de "só cartão".
+  useEffect(() => { if (ehCartaoSel) setAvisoParcela(''); else setParcelado(false); }, [ehCartaoSel]);
 
   // Datas das parcelas (parcela i = data da 1ª + (i-1) meses) + quais já venceram.
   const parcelasInfo = useMemo(() => {
@@ -237,7 +239,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
 
         <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
 
-          {/* Toggle Despesa / Receita */}
+          {/* 1) Toggle Despesa / Receita */}
           <div className="relative flex bg-muted rounded-2xl p-1">
             <div
               className="absolute top-1 bottom-1 rounded-xl transition-all duration-200"
@@ -258,7 +260,159 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             ))}
           </div>
 
-          {/* Valor */}
+          {/* 2) Recorrente + Compra parcelada (lado a lado, responsivo) */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Recorrente */}
+            <button
+              type="button"
+              onClick={() => setRecorrente(v => !v)}
+              className={`flex items-center justify-between gap-1.5 px-3 py-2.5 rounded-xl border text-left transition-all ${recorrente ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}
+            >
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Repeat size={15} className="flex-shrink-0 text-muted-foreground" />
+                <span className="text-[13px] font-medium text-foreground truncate">Recorrente</span>
+              </span>
+              <span className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors" style={{ background: recorrente ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}>
+                <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform" style={{ transform: recorrente ? 'translateX(18px)' : 'translateX(2px)' }} />
+              </span>
+            </button>
+
+            {/* Compra parcelada — visível sempre; bloqueia se não for cartão */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!ehCartaoSel) { setAvisoParcela('Compra parcelada só em cartão de crédito — escolha um cartão na conta abaixo.'); return; }
+                setAvisoParcela(''); setParcelado(v => !v);
+              }}
+              className={`flex items-center justify-between gap-1.5 px-3 py-2.5 rounded-xl border text-left transition-all ${parcelado ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'} ${!ehCartaoSel ? 'opacity-70' : ''}`}
+            >
+              <span className="flex items-center gap-1.5 min-w-0">
+                <CreditCard size={15} className="flex-shrink-0 text-purple-500" />
+                <span className="text-[13px] font-medium text-foreground truncate">Parcelada</span>
+              </span>
+              <span className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors" style={{ background: parcelado ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}>
+                <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform" style={{ transform: parcelado ? 'translateX(18px)' : 'translateX(2px)' }} />
+              </span>
+            </button>
+          </div>
+          {avisoParcela && !parcelado && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 -mt-2">
+              <AlertCircle size={12} className="flex-shrink-0" /> {avisoParcela}
+            </p>
+          )}
+
+          {/* Config da compra parcelada */}
+          {parcelado && (
+            <div className="rounded-xl border border-border p-3 space-y-3 animate-fade-in">
+              {/* nº de parcelas */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">Número de parcelas</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setNumParcelas(n => Math.max(1, n - 1))}
+                    className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-lg leading-none text-foreground hover:bg-muted">−</button>
+                  <span className="text-sm font-bold text-foreground tabular w-10 text-center">{numParcelas}x</span>
+                  <button type="button" onClick={() => setNumParcelas(n => Math.min(60, n + 1))}
+                    className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-lg leading-none text-foreground hover:bg-muted">+</button>
+                </div>
+              </div>
+
+              {/* total */}
+              <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
+                <span className="text-xs text-muted-foreground">Total</span>
+                <span className="text-sm font-bold text-foreground tabular text-right">
+                  {fmt((parseInt(valor || '0', 10) / 100) * numParcelas)}
+                  <span className="block text-[11px] font-normal text-muted-foreground">{numParcelas}x de {fmt(parseInt(valor || '0', 10) / 100)}</span>
+                </span>
+              </div>
+
+              {/* parcelas já pagas */}
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">Parcelas já pagas</p>
+                <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                  {parcelasInfo.map(p => {
+                    const paga = pagas.has(p.num);
+                    return (
+                      <button key={p.num} type="button"
+                        onClick={() => setPagas(s => { const nx = new Set(s); if (nx.has(p.num)) nx.delete(p.num); else nx.add(p.num); return nx; })}
+                        className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all ${paga ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}>
+                        <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${paga ? 'bg-primary text-white' : 'border border-border'}`}>
+                          {paga && <Check size={11} strokeWidth={3} />}
+                        </span>
+                        <span className="text-[12px] text-foreground tabular truncate">
+                          <b>{p.num}/{numParcelas}</b> <span className="text-muted-foreground">· {p.label}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">Já marcamos as que venceram até hoje. Ajuste se precisar.</p>
+              </div>
+            </div>
+          )}
+
+          {/* 3) Conta / Cartão — picker visual */}
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              {tipo === 'Recebimento' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
+              {tipo === 'Recebimento' ? 'Conta de destino' : 'Conta / Cartão usado'}
+            </p>
+
+            {walletsVisiveis.length === 0 ? (
+              <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
+                <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                  Você não tem {tipo === 'Recebimento' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
+                  <a href="/contas-bancarias" className="font-semibold underline">Cadastrar agora</a>
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto">
+                {walletsVisiveis.map(w => {
+                  const ativa = w.id === walletId;
+                  const ehCartao = w.tipo === 'Crédito';
+                  const logo = bancoLogo(w.nome);
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => setWalletId(w.id)}
+                      className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                        ativa
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                          : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
+                      }`}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                        style={{ background: logo.bg }}
+                      >
+                        {logo.text}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate">{w.nome}</p>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-0.5 ${
+                          ehCartao
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                        }`}>
+                          {ehCartao ? <><CreditCard size={9} /> Cartão</> : <><Wallet size={9} /> {w.tipo}</>}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 4) Data */}
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
+              {parcelado ? 'Data da 1ª parcela' : 'Data'}
+            </p>
+            <input type="date" value={data} onChange={e => setData(e.target.value)} className="input" />
+          </div>
+
+          {/* 5) Valor */}
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">{parcelado ? 'Valor de cada parcela' : 'Valor'}</p>
             <div className="flex items-baseline justify-center gap-1">
@@ -273,7 +427,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             </div>
           </div>
 
-          {/* Descrição */}
+          {/* 6) Descrição */}
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
               Descrição
@@ -289,7 +443,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             />
           </div>
 
-          {/* Categorias (filtradas por tipo) */}
+          {/* 7) Categorias (filtradas por tipo) */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
@@ -387,153 +541,6 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
               );
             })()}
           </div>
-
-          {/* Conta / Cartão — picker visual */}
-          <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              {tipo === 'Recebimento' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
-              {tipo === 'Recebimento' ? 'Conta de destino' : 'Conta / Cartão usado'}
-            </p>
-
-            {walletsVisiveis.length === 0 ? (
-              <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
-                <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                  Você não tem {tipo === 'Recebimento' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
-                  <a href="/contas-bancarias" className="font-semibold underline">Cadastrar agora</a>
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto">
-                {walletsVisiveis.map(w => {
-                  const ativa = w.id === walletId;
-                  const ehCartao = w.tipo === 'Crédito';
-                  const logo = bancoLogo(w.nome);
-                  return (
-                    <button
-                      key={w.id}
-                      onClick={() => setWalletId(w.id)}
-                      className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
-                        ativa
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                          : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
-                      }`}
-                    >
-                      <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                        style={{ background: logo.bg }}
-                      >
-                        {logo.text}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate">{w.nome}</p>
-                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-0.5 ${
-                          ehCartao
-                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-                        }`}>
-                          {ehCartao ? <><CreditCard size={9} /> Cartão</> : <><Wallet size={9} /> {w.tipo}</>}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Data */}
-          <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
-              {parcelado ? 'Data da 1ª parcela' : 'Data'}
-            </p>
-            <input type="date" value={data} onChange={e => setData(e.target.value)} className="input" />
-          </div>
-
-          {/* Compra parcelada — só cartão de crédito + despesa */}
-          {ehCartaoSel && (
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="flex items-center justify-between p-3 bg-muted/40">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <CreditCard size={16} className="text-purple-500 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">Compra parcelada</p>
-                    <p className="text-[11px] text-muted-foreground leading-snug">Divide no cartão em várias parcelas</p>
-                  </div>
-                </div>
-                <button type="button" onClick={() => setParcelado(v => !v)}
-                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
-                  style={{ background: parcelado ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}>
-                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${parcelado ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-
-              {parcelado && (
-                <div className="p-3 space-y-3 border-t border-border animate-fade-in">
-                  {/* nº de parcelas */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground">Número de parcelas</span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => setNumParcelas(n => Math.max(1, n - 1))}
-                        className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-lg leading-none text-foreground hover:bg-muted">−</button>
-                      <span className="text-sm font-bold text-foreground tabular w-10 text-center">{numParcelas}x</span>
-                      <button type="button" onClick={() => setNumParcelas(n => Math.min(60, n + 1))}
-                        className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-lg leading-none text-foreground hover:bg-muted">+</button>
-                    </div>
-                  </div>
-
-                  {/* total */}
-                  <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
-                    <span className="text-xs text-muted-foreground">Total</span>
-                    <span className="text-sm font-bold text-foreground tabular text-right">
-                      {fmt((parseInt(valor || '0', 10) / 100) * numParcelas)}
-                      <span className="block text-[11px] font-normal text-muted-foreground">{numParcelas}x de {fmt(parseInt(valor || '0', 10) / 100)}</span>
-                    </span>
-                  </div>
-
-                  {/* parcelas já pagas */}
-                  <div>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">Parcelas já pagas</p>
-                    <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
-                      {parcelasInfo.map(p => {
-                        const paga = pagas.has(p.num);
-                        return (
-                          <button key={p.num} type="button"
-                            onClick={() => setPagas(s => { const nx = new Set(s); if (nx.has(p.num)) nx.delete(p.num); else nx.add(p.num); return nx; })}
-                            className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all ${paga ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'}`}>
-                            <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${paga ? 'bg-primary text-white' : 'border border-border'}`}>
-                              {paga && <Check size={11} strokeWidth={3} />}
-                            </span>
-                            <span className="text-[12px] text-foreground tabular truncate">
-                              <b>{p.num}/{numParcelas}</b> <span className="text-muted-foreground">· {p.label}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1.5">Já marcamos as que venceram até hoje. Ajuste se precisar.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Recorrente (não faz sentido em compra parcelada, que tem fim) */}
-          {!parcelado && (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-              <div>
-                <p className="text-sm font-medium text-foreground">Recorrente</p>
-                <p className="text-xs text-muted-foreground">Se repete todo mês</p>
-              </div>
-              <button
-                onClick={() => setRecorrente(v => !v)}
-                className="relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0"
-                style={{ background: recorrente ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}
-              >
-                <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${recorrente ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-          )}
 
           {erro && (
             <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
