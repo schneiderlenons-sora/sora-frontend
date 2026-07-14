@@ -10,7 +10,9 @@ import { PLANOS_INFO } from '@/lib/stripe';
 // vazar dependência de lucide-react no lib/planos-display.
 const ICONES = { premium: Sparkles } as const;
 
-export default function Pricing() {
+// `vitalicio` controla o 3º card (Premium Vitalício). A landing principal
+// (forsora.com) passa `false`; /financas e afins seguem mostrando.
+export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
   const [anual, setAnual] = useState(false); // mensal por padrão
 
   return (
@@ -62,7 +64,7 @@ export default function Pricing() {
         </div>
 
         {/* Cards de planos */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className={`grid grid-cols-1 gap-5 mx-auto ${vitalicio ? 'lg:grid-cols-3 max-w-5xl' : 'lg:grid-cols-2 max-w-3xl'}`}>
           {PLANOS_DISPLAY.map((p) => {
             const info = PLANOS_INFO[p.id];
             const precoExibido = anual ? info.anual : info.mensal;
@@ -151,8 +153,9 @@ export default function Pricing() {
             );
           })}
 
-          {/* Terceiro card: Premium Vitalício (pagamento único, fora do Stripe) */}
-          <CardVitalicio />
+          {/* Terceiro card: Premium Vitalício (pagamento único, fora do Stripe).
+              Oculto na landing principal (forsora.com) — só onde vitalicio=true. */}
+          {vitalicio && <CardVitalicio />}
         </div>
 
         {/* Garantia de 7 dias — reversão de risco bem destacada */}
