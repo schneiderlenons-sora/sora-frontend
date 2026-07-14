@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import IconeMarca from '@/components/ui/IconeMarca';
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
@@ -260,7 +261,62 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
             ))}
           </div>
 
-          {/* 2) Recorrente + Compra parcelada (lado a lado, responsivo) */}
+          {/* 2) Conta / Cartão — picker visual (logos oficiais + cards menores) */}
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              {tipo === 'Recebimento' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
+              {tipo === 'Recebimento' ? 'Conta de destino' : 'Conta / Cartão usado'}
+            </p>
+
+            {walletsVisiveis.length === 0 ? (
+              <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
+                <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                  Você não tem {tipo === 'Recebimento' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
+                  <a href="/contas-bancarias" className="font-semibold underline">Cadastrar agora</a>
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                {walletsVisiveis.map(w => {
+                  const ativa = w.id === walletId;
+                  const ehCartao = w.tipo === 'Crédito';
+                  const logo = bancoLogo(w.nome);
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => setWalletId(w.id)}
+                      className={`relative flex items-center gap-2 p-2 rounded-xl border text-left transition-all ${
+                        ativa
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                          : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
+                      }`}
+                    >
+                      {/* Logo oficial do banco (IconeMarca) — cai nas iniciais coloridas se não reconhecer */}
+                      <div
+                        className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                        style={{ background: logo.bg }}
+                      >
+                        <IconeMarca nome={w.nome} size={32} className="w-full h-full" fallback={<>{logo.text}</>} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate">{w.nome}</p>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-0.5 ${
+                          ehCartao
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
+                        }`}>
+                          {ehCartao ? <><CreditCard size={9} /> Cartão</> : <><Wallet size={9} /> {w.tipo}</>}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 3) Recorrente + Compra parcelada (lado a lado, responsivo) */}
           <div className="grid grid-cols-2 gap-2">
             {/* Recorrente */}
             <button
@@ -349,60 +405,6 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
               </div>
             </div>
           )}
-
-          {/* 3) Conta / Cartão — picker visual */}
-          <div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              {tipo === 'Recebimento' ? <Wallet size={11} /> : <><Wallet size={11} /> ou <CreditCard size={11} /></>}
-              {tipo === 'Recebimento' ? 'Conta de destino' : 'Conta / Cartão usado'}
-            </p>
-
-            {walletsVisiveis.length === 0 ? (
-              <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
-                <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                  Você não tem {tipo === 'Recebimento' ? 'contas bancárias' : 'contas ou cartões'} cadastrados.{' '}
-                  <a href="/contas-bancarias" className="font-semibold underline">Cadastrar agora</a>
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto">
-                {walletsVisiveis.map(w => {
-                  const ativa = w.id === walletId;
-                  const ehCartao = w.tipo === 'Crédito';
-                  const logo = bancoLogo(w.nome);
-                  return (
-                    <button
-                      key={w.id}
-                      onClick={() => setWalletId(w.id)}
-                      className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
-                        ativa
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                          : 'border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
-                      }`}
-                    >
-                      <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                        style={{ background: logo.bg }}
-                      >
-                        {logo.text}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate">{w.nome}</p>
-                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-0.5 ${
-                          ehCartao
-                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
-                        }`}>
-                          {ehCartao ? <><CreditCard size={9} /> Cartão</> : <><Wallet size={9} /> {w.tipo}</>}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* 4) Data */}
           <div>
