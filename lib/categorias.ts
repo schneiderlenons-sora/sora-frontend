@@ -37,6 +37,7 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   beleza:         { emoji: '💇', hue: 330, label: 'Beleza' },
   academia:       { emoji: '💪', hue: 12,  label: 'Academia' },
   impostos:       { emoji: '🧾', hue: 4,   label: 'Impostos' },
+  ajuste:         { emoji: '🔧', hue: 200, label: 'Ajuste' },
   seguros:        { emoji: '🛡️', hue: 210, label: 'Seguros' },
   outros:         { emoji: '📦', hue: 220, label: 'Outros' },
 };
