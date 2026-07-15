@@ -426,7 +426,9 @@ function AddForm({
   // Fixo exige valor; variável não (valor é só estimativa opcional).
   const valido = !!descricao.trim() && (valorVariavel || temValor);
 
-  const diaLimpo = Math.max(1, Math.min(28, parseInt(dia, 10) || 5));
+  // 1–31. Dia que não existe no mês (31 em abr, 29-31 em fev) → o cron lança no
+  // último dia do mês, então não trava em 28 (isso mudava a intenção calada).
+  const diaLimpo = Math.max(1, Math.min(31, parseInt(dia, 10) || 5));
 
   async function salvar() {
     if (!valido || !phone) return;

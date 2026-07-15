@@ -54,7 +54,7 @@ export default function Step6GastosFixos() {
     const preco = PLANOS_INFO[plano as PlanoId]?.mensal;
     if (!preco) return;
     jaPreencheu.current = true;
-    const dia = String(Math.min(28, Math.max(1, new Date().getDate())));
+    const dia = String(Math.min(31, Math.max(1, new Date().getDate())));
     setGastos((g) =>
       g.length === 1 && !g[0].descricao && !g[0].valor
         ? [{ descricao: `Assinatura Sora ${PLANO_LABEL[plano]}`, valor: preco.toFixed(2).replace('.', ','), dia, carteira: opcoesConta[0] || 'Dinheiro', variavel: false }]
@@ -87,7 +87,7 @@ export default function Step6GastosFixos() {
           phone, tipo: 'Gasto',
           descricao: g.descricao.trim(),
           valor: isNaN(v) || v <= 0 ? 0 : v,
-          dia_vencimento: Math.max(1, Math.min(28, parseInt(g.dia) || 5)),
+          dia_vencimento: Math.max(1, Math.min(31, parseInt(g.dia) || 5)),
           carteira: g.carteira || opcoesConta[0] || 'Dinheiro',
           valor_variavel: g.variavel,
         });

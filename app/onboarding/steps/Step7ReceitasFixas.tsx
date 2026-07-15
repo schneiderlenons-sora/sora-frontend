@@ -69,7 +69,7 @@ export default function Step7ReceitasFixas() {
         await api.recorrencias.criar({
           phone, tipo: 'Recebimento',
           descricao: r.descricao.trim(), valor,
-          dia_vencimento: Math.max(1, Math.min(28, parseInt(r.dia) || 5)),
+          dia_vencimento: Math.max(1, Math.min(31, parseInt(r.dia) || 5)),
           carteira,
           valor_variavel: r.variavel,
         });
