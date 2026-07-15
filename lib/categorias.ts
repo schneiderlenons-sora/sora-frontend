@@ -41,6 +41,23 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   outros:         { emoji: '📦', hue: 220, label: 'Outros' },
 };
 
+// Sinônimos → chave do catálogo. Cobrem nomes que NÃO batem por substring com as
+// chaves acima (ex.: "dentista" não contém "saude"). Usados só como fallback,
+// depois do match direto/substring. Termos específicos (≥5 letras) pra evitar
+// falso positivo. Espelha o categorizar.js do backend nos casos comuns.
+export const CATEGORIA_ALIASES: Record<string, string> = {
+  // Saúde
+  dentista: 'saude', dentaria: 'saude', odonto: 'saude', ortodont: 'saude',
+  medico: 'saude', consulta: 'saude', exame: 'saude', farmacia: 'saude',
+  drogaria: 'saude', remedio: 'saude', hospital: 'saude', clinica: 'saude',
+  psicolog: 'saude', fisioterap: 'saude', laboratorio: 'saude',
+  oftalmo: 'saude', dermato: 'saude', vacina: 'saude',
+  // Transporte
+  gasolina: 'transporte', combustivel: 'transporte', uber: 'transporte',
+  // Alimentação / Assinaturas comuns
+  ifood: 'alimentacao', netflix: 'assinaturas', spotify: 'assinaturas',
+};
+
 // Lista para o modal — categorias mais usadas
 export const CATEGORIAS_MODAL = [
   { emoji: '🛒', nome: 'Mercado' },
@@ -160,6 +177,13 @@ export function getCategoriaTheme(
   if (!tema) {
     for (const [key, val] of Object.entries(CATEGORIA_TEMAS)) {
       if (limpo.includes(key) || key.includes(limpo)) { tema = val; break; }
+    }
+  }
+
+  // 2b. Sinônimos (ex.: "dentista" → Saúde) — só se o catálogo não bateu.
+  if (!tema) {
+    for (const [palavra, chave] of Object.entries(CATEGORIA_ALIASES)) {
+      if (limpo.includes(palavra)) { tema = CATEGORIA_TEMAS[chave]; break; }
     }
   }
 
