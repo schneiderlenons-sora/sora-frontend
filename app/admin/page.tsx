@@ -8,7 +8,7 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb,
-  Infinity as InfinityIcon, Gem,
+  Infinity as InfinityIcon, Gem, Undo2,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -22,6 +22,7 @@ type User = {
   vitalicio?: boolean | null; vitalicio_em?: string | null;
   stripe_customer_id?: string | null; onboarding_completed?: boolean; welcomed_at?: string | null;
   mrr_excluir?: boolean | null; assinatura_cancelada?: boolean | null;
+  recuperacao_signup_em?: string | null; recuperacao_enviada_em?: string | null;
   created_at: string;
 };
 type Overview = {
@@ -29,6 +30,7 @@ type Overview = {
   vitalicios?: number; kitVitalicio?: number; premiumVitalicio?: number; premiumRecorrente?: number; receitaVitalicio?: number;
   novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number; mrrExcluidos?: number;
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
+  cancelados?: number; naoConcluido?: number; recuperados?: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
@@ -44,20 +46,41 @@ const PLANO_META: Record<Plano, { label: string; cor: string; icon?: any }> = {
   inativo: { label: 'Inativo', cor: '#ef4444' },
 };
 
-function PlanoBadge({ plano, vitalicio }: { plano: Plano; vitalicio?: boolean | null }) {
-  const m = PLANO_META[plano] || PLANO_META.inativo;
+// Status derivado: inativo NÃO é um bloco só. Quem cancelou (teve assinatura →
+// plano_intervalo setado) fica "Inativo"; quem nunca concluiu o pagamento fica
+// "Não concluído". Não mexe no campo `plano` (que controla acesso) — é só rótulo.
+function metaStatus(u: { plano: Plano; plano_intervalo?: string | null }) {
+  if (u.plano === 'inativo') {
+    return u.plano_intervalo
+      ? { label: 'Inativo', cor: '#ef4444', icon: undefined as any, title: 'Cancelou (tinha assinatura)' }
+      : { label: 'Não concluído', cor: '#f59e0b', icon: AlertTriangle, title: 'Pagamento não concluído (nunca assinou)' };
+  }
+  const m = PLANO_META[u.plano] || PLANO_META.inativo;
+  return { label: m.label, cor: m.cor, icon: m.icon, title: undefined as string | undefined };
+}
+
+function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'recuperacao_signup_em' | 'recuperacao_enviada_em'> }) {
+  const m = metaStatus(u);
   const Icon = m.icon;
+  const recuperado = u.plano !== 'inativo' && !!(u.recuperacao_signup_em || u.recuperacao_enviada_em);
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold"
-            style={{ background: `color-mix(in srgb, ${m.cor} 14%, transparent)`, color: m.cor }}>
+    <span className="inline-flex items-center gap-1 flex-wrap justify-end">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
+            style={{ background: `color-mix(in srgb, ${m.cor} 14%, transparent)`, color: m.cor }} title={m.title}>
         {Icon ? <Icon size={10} /> : <CircleDot size={9} />} {m.label}
       </span>
-      {vitalicio && (
+      {u.vitalicio && (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
               style={{ background: 'color-mix(in srgb, #8b5cf6 16%, transparent)', color: '#8b5cf6' }}
               title="Plano vitalício (pagamento único)">
           <InfinityIcon size={10} /> Vitalício
+        </span>
+      )}
+      {recuperado && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #10b981 16%, transparent)', color: '#10b981' }}
+              title="Voltou a pagar depois de um lembrete de recuperação">
+          <Undo2 size={10} /> Recuperado
         </span>
       )}
     </span>
@@ -82,7 +105,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [toast, setToast] = useState('');
@@ -167,17 +190,21 @@ export default function AdminPage() {
                 hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''} destaque />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
           <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.kit ?? 0} Kit · ${ov.black} BK` : ''} />
-          <Stat label="Inativos" value={ov?.inativo ?? '—'} />
+          <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
+                hint={ov ? 'tinham assinatura' : ''}
+                onClick={() => { setTab('users'); setFilter('cancelados'); }} />
+          <Stat label="Pagamento não concluído" value={ov?.naoConcluido ?? '—'} alerta={!!ov && (ov.naoConcluido ?? 0) > 0}
+                hint={ov ? 'nunca assinaram' : ''}
+                onClick={() => { setTab('users'); setFilter('nao_concluido'); }} />
           <Stat label="Novos (30d)" value={ov?.novos30 ?? '—'} />
-          <Stat label="Pagou mas inativo" value={ov?.pagouInativo ?? '—'} alerta={!!ov && ov.pagouInativo > 0}
-                onClick={() => { setTab('users'); setFilter('pagou_inativo'); }} />
           <Stat label="Bugs abertos" value={ov?.bugsAbertos ?? '—'} alerta={!!ov && ov.bugsAbertos > 0} onClick={() => setTab('bugs')} />
           <Stat label="Melhorias propostas" value={ov?.melhoriasAbertas ?? '—'} onClick={() => setTab('melhorias')} />
           <Stat label="Premium / Black" value={ov ? `${ov.premium} / ${ov.black}` : '—'} />
           <Stat label="Cadastros sem pagamento" value={ov?.semPagamento ?? '—'}
                 hint={ov ? `${ov.recEnviadas ?? 0} no 1º · ${ov.recEnviadas2 ?? 0} no 2º lembrete` : ''} alerta={!!ov && (ov.semPagamento ?? 0) > 0} />
-          <Stat label="Recuperados" value={ov?.recRecuperados ?? '—'}
-                hint={ov && (ov.recEnviadas ?? 0) > 0 ? `${Math.round(((ov.recRecuperados ?? 0) / (ov.recEnviadas as number)) * 100)}% de conversão` : 'pagaram após o nudge'}
+          <Stat label="Recuperados" value={ov?.recuperados ?? ov?.recRecuperados ?? '—'}
+                hint={ov ? 'voltaram a pagar após recuperação' : ''}
+                onClick={() => { setTab('users'); setFilter('recuperados'); }}
                 destaque />
         </div>
 
@@ -207,7 +234,7 @@ export default function AdminPage() {
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['ativos', 'Ativos'], ['inativos', 'Inativos'], ['pagou_inativo', 'Pagou+inativo']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['ativos', 'Ativos'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
@@ -239,7 +266,7 @@ export default function AdminPage() {
                         <p className="text-xs text-muted-foreground tabular-nums">{u.phone || 'sem número'}</p>
                         <p className="text-[10px] text-muted-foreground/70">{dataCurta(u.created_at)}</p>
                       </div>
-                      <PlanoBadge plano={u.plano} vitalicio={u.vitalicio} />
+                      <StatusBadge u={u} />
                     </button>
                   ))}
                 </div>
@@ -304,7 +331,7 @@ export default function AdminPage() {
 
               {/* Infos */}
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <Info label="Plano"><PlanoBadge plano={sel.plano} vitalicio={sel.vitalicio} /></Info>
+                <Info label="Status"><StatusBadge u={sel} /></Info>
                 <Info label="Válido até">{sel.vitalicio ? 'Vitalício ∞' : dataCurta(sel.plano_valido_ate)}</Info>
                 <Info label="WhatsApp">{sel.phone || '— sem número'}</Info>
                 <Info label="Onboarding">{sel.onboarding_completed ? 'Concluído' : 'Pendente'}</Info>

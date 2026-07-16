@@ -75,6 +75,21 @@ export async function GET() {
     melhoriasAbertas = count || 0;
   } catch { /* coluna tipo pode não existir ainda */ }
 
+  // Inativos separados: quem CANCELOU (teve assinatura → plano_intervalo setado
+  // num checkout concluído) vs quem NÃO CONCLUIU o pagamento (nunca assinou).
+  const [cancelados, naoConcluido] = await Promise.all([
+    contar((q) => q.eq('plano', 'inativo').not('plano_intervalo', 'is', null)),
+    contar((q) => q.eq('plano', 'inativo').is('plano_intervalo', null)),
+  ]);
+
+  // Recuperados = paga HOJE e em algum momento passou por recuperação (abandono
+  // de cadastro OU pagamento que falhou).
+  let recuperados = 0;
+  try {
+    recuperados = await contar((q) => q.neq('plano', 'inativo')
+      .or('recuperacao_signup_em.not.is.null,recuperacao_enviada_em.not.is.null'));
+  } catch { recuperados = 0; }
+
   // Recuperação de cadastros sem pagamento (abandono no paywall).
   // semPagamento = pool elegível; recEnviadas = já cutucados; recRecuperados =
   // cutucados que viraram pagantes (proxy de conversão da recuperação).
@@ -121,7 +136,7 @@ export async function GET() {
   } catch { /* migration 074 pode não ter rodado → mantém a estimativa antiga */ }
 
   return NextResponse.json({
-    mrrExcluidos,
+    mrrExcluidos, cancelados, naoConcluido, recuperados,
     total, inativo, basico, premium, black, kit,
     ativos: total - inativo,
     premiumRecorrente, vitalicios, kitVitalicio, premiumVitalicio,
