@@ -216,9 +216,29 @@ function normalizar(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/\p{Emoji}/gu, '')
+    // Tudo que não é letra/número vira SEPARADOR (cobre emoji e pontuação).
+    // Precisa ser espaço, não remoção: no extrato o lojista vem colado num
+    // código ("EC*SORA", "NETFLIX.COM") e, apagando o '*', sobra "ecsora" —
+    // aí 'sora' não é palavra inteira e o ícone da marca não aparece.
+    // ⚠️ Não usar \p{Emoji} aqui: ele casa '*', '#' e os dígitos 0-9 (bases de
+    // keycap), o que apagava o '*' e mataria chave com número (ex.: '99').
+    .replace(/[^a-z0-9\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
+
+// Índice com as CHAVES passadas pela mesma normalização do nome buscado.
+// Sem isso, chave com acento/símbolo é chave morta: 'itaú' nunca casaria com
+// "ITAÚ" (que chega normalizado como "itau"). Duplicatas ('disney' e 'disney+')
+// colapsam na mesma entrada — a primeira vence.
+const MARCAS_NORM: Record<string, Marca> = (() => {
+  const m: Record<string, Marca> = {};
+  for (const [k, v] of Object.entries(MARCAS)) {
+    const nk = normalizar(k);
+    if (nk && !m[nk]) m[nk] = v;
+  }
+  return m;
+})();
 
 // Verifica se `trecho` aparece como palavra completa dentro de `texto`
 // (delimitado por início, fim ou espaço). Evita "inter" → "internet".
@@ -230,8 +250,8 @@ function palavraInteira(texto: string, trecho: string): boolean {
 export function marcaDe(nome: string): Marca | null {
   const key = normalizar(nome);
   if (!key) return null;
-  if (MARCAS[key]) return MARCAS[key];
-  for (const [k, v] of Object.entries(MARCAS)) {
+  if (MARCAS_NORM[key]) return MARCAS_NORM[key];
+  for (const [k, v] of Object.entries(MARCAS_NORM)) {
     // Só aceita match parcial se a chave da marca é uma palavra inteira
     // dentro do nome buscado. "inter" ≠ "internet", "mercado" ≠ "mercado livre".
     if (palavraInteira(key, k)) return v;

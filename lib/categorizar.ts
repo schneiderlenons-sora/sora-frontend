@@ -26,9 +26,13 @@ function normalizar(s: string): string {
 
 // Casa keyword: substring para palavras "longas" (>=4), palavra inteira para
 // curtas (evita "99" casar dentro de "1999", "bk" dentro de "bkasdf").
+// Prefixo '=' força palavra inteira mesmo em kw longa — pra kw que é sufixo de
+// outra palavra comum (ex.: '=racao', senão "libeRACAO"/"decoRACAO" viram Pet).
 function casa(texto: string, kw: string): boolean {
-  if (kw.length >= 4) return texto.includes(kw);
-  const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const exato = kw[0] === '=';
+  const k = exato ? kw.slice(1) : kw;
+  if (!exato && k.length >= 4) return texto.includes(k);
+  const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|\\s)${esc}(\\s|$)`).test(texto);
 }
 
@@ -46,8 +50,16 @@ const REGRAS: Regra[] = [
   { cat: 'Shein',          kws: ['shein'] },
   { cat: 'Encomendas',     kws: ['magazine luiza', 'magalu', 'americanas', 'casas bahia', 'submarino', 'kabum', 'pichau', 'terabyte', 'temu', 'wish', 'enjoei', 'pontofrio', 'ponto frio', 'extra com', 'fastshop', 'fast shop'] },
 
-  // ── Transferências / Pix (não-consumo) ──
-  { cat: 'Transferências', kws: ['mercado pago', 'mercadopago', 'pix enviado', 'pix recebido', 'pix ', 'ted ', 'doc ', 'transferencia', 'transferencias', 'transf '] },
+  // ── Assinatura da Sora (EC*SORA no extrato) — antes do genérico ──
+  { cat: 'Assinaturas',    kws: ['ec sora', 'forsora', 'sora ai'] },
+
+  // ── Trabalho / Negócio (anúncios e ferramentas de trabalho) ──
+  { cat: 'Trabalho/Negócio', kws: ['facebk', 'facebook', 'meta plataform', 'meta ads', 'fb ads', 'google ads', 'googleads',
+      'instagram ad', 'tiktok ads', 'kwai for business', 'linkedin ads', 'mailchimp'] },
+
+  // ── Transferências / Pix / estornos (não-consumo) ──
+  { cat: 'Transferências', kws: ['mercado pago', 'mercadopago', 'pix enviado', 'pix recebido', 'pix ', 'ted ', 'doc ', 'transferencia', 'transferencias', 'transf ',
+      'venda cancelada', 'liberacao de dinheiro', 'estorno', 'devolucao', 'reembolso', 'chargeback', 'dinheiro recebido'] },
 
   // ── Delivery / Alimentação ──
   { cat: 'iFood',          kws: ['ifood', 'i food'] },
@@ -117,7 +129,7 @@ const REGRAS: Regra[] = [
       'psicolog', 'terapia', 'vacina', 'otica', 'oculos'] },
 
   // ── Pet ──
-  { cat: 'Pet',            kws: ['petz', 'cobasi', 'petlove', 'veterinari', 'pet shop', 'petshop', 'pet center', 'clinipet', 'agropet', 'racao'] },
+  { cat: 'Pet',            kws: ['petz', 'cobasi', 'petlove', 'veterinari', 'pet shop', 'petshop', 'pet center', 'clinipet', 'agropet', '=racao'] },
 
   // ── Educação ──
   { cat: 'Educação',       kws: ['udemy', 'coursera', 'alura', 'duolingo', 'rocketseat', 'hotmart', 'escola', 'colegio',
@@ -166,8 +178,11 @@ export function categorizarDescricao(descricao: string): string | null {
   if (!t) return null;
   for (const regra of REGRAS) {
     for (const kw of regra.kws) {
+      // normalizar() comeria o '=' (vira espaço) — reaplica depois pra manter
+      // o pedido de "palavra inteira".
+      const exato = kw[0] === '=';
       const k = normalizar(kw);
-      if (k && casa(t, k)) return regra.cat;
+      if (k && casa(t, exato ? `=${k}` : k)) return regra.cat;
     }
   }
   return null;
