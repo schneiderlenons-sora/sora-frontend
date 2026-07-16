@@ -38,6 +38,18 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   academia:       { emoji: '💪', hue: 12,  label: 'Academia' },
   impostos:       { emoji: '🧾', hue: 4,   label: 'Impostos' },
   ajuste:         { emoji: '🔧', hue: 200, label: 'Ajuste' },
+  escola:         { emoji: '🏫', hue: 225, label: 'Escola' },
+  // Categorias/subcategorias da migration 072
+  autocuidado:      { emoji: '🧼', hue: 190, label: 'Autocuidado' },
+  medico:           { emoji: '🩺', hue: 350, label: 'Médico' },
+  'plano de saude': { emoji: '❤️‍🩹', hue: 355, label: 'Plano de Saúde' },
+  vendas:           { emoji: '💵', hue: 140, label: 'Vendas' },
+  presente:         { emoji: '🎁', hue: 340, label: 'Presente' },
+  combustivel:      { emoji: '⛽', hue: 20,  label: 'Combustível' },
+  seguro:           { emoji: '🔒', hue: 210, label: 'Seguro' },
+  filhos:           { emoji: '👶', hue: 30,  label: 'Filhos' },
+  financiamento:    { emoji: '🔖', hue: 265, label: 'Financiamento' },
+  extras:           { emoji: '📥', hue: 175, label: 'Extras' },
   seguros:        { emoji: '🛡️', hue: 210, label: 'Seguros' },
   outros:         { emoji: '📦', hue: 220, label: 'Outros' },
 };
@@ -46,15 +58,25 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
 // chaves acima (ex.: "dentista" não contém "saude"). Usados só como fallback,
 // depois do match direto/substring. Termos específicos (≥5 letras) pra evitar
 // falso positivo. Espelha o categorizar.js do backend nos casos comuns.
+// Espelha o roteamento do backend (categorizar.js / interpretador.js):
+// dentista e estética → Autocuidado · planos → Plano de Saúde · demais médicos →
+// Médico · nutricionista/farmácia → Saúde · gasolina → Combustível.
 export const CATEGORIA_ALIASES: Record<string, string> = {
-  // Saúde
-  dentista: 'saude', dentaria: 'saude', odonto: 'saude', ortodont: 'saude',
-  medico: 'saude', consulta: 'saude', exame: 'saude', farmacia: 'saude',
-  drogaria: 'saude', remedio: 'saude', hospital: 'saude', clinica: 'saude',
-  psicolog: 'saude', fisioterap: 'saude', laboratorio: 'saude',
-  oftalmo: 'saude', dermato: 'saude', vacina: 'saude',
-  // Transporte
-  gasolina: 'transporte', combustivel: 'transporte', uber: 'transporte',
+  // Autocuidado (exceções de Saúde)
+  dentista: 'autocuidado', dentaria: 'autocuidado', odonto: 'autocuidado', ortodont: 'autocuidado',
+  dermato: 'autocuidado', esteticista: 'autocuidado', estetica: 'autocuidado',
+  cabeleireiro: 'autocuidado', barbeiro: 'autocuidado', barbearia: 'autocuidado', manicure: 'autocuidado',
+  // Plano de Saúde
+  unimed: 'plano de saude', hapvida: 'plano de saude', notredame: 'plano de saude',
+  // Médico
+  medico: 'medico', consulta: 'medico', exame: 'medico', hospital: 'medico',
+  laboratorio: 'medico', fisioterap: 'medico', otorrino: 'medico', pediatra: 'medico',
+  cardiolog: 'medico', ortoped: 'medico', ginecolog: 'medico', oftalmo: 'medico',
+  // Saúde geral
+  nutricionista: 'saude', farmacia: 'saude', drogaria: 'saude', remedio: 'saude',
+  clinica: 'saude', psicolog: 'saude', vacina: 'saude',
+  // Combustível / Transporte
+  gasolina: 'combustivel', combustivel: 'combustivel', uber: 'transporte',
   // Alimentação / Assinaturas comuns
   ifood: 'alimentacao', netflix: 'assinaturas', spotify: 'assinaturas',
 };
