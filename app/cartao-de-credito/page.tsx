@@ -103,17 +103,24 @@ export default function CartaoDeCreditoPage() {
     t.wallet_id === w.id ||
     (t.carteira_nome || '').trim().toLowerCase() === (w.nome || '').trim().toLowerCase();
 
-  // Fatura por cartão (mês atual ou mesIndex == 0)
+  // Fatura por cartão (mês atual ou mesIndex == 0).
+  // Cartão conectado por Open Finance traz a fatura REAL no saldo (negativo = o
+  // valor devido, vindo do banco). É mais fiel que somar transações — o banco
+  // pode não mandar a data de fechamento, então a soma pegaria o mês inteiro em
+  // vez do ciclo. Só no mês atual (mesIndex 0); meses passados seguem pela soma.
   const faturaPorCartao = useMemo(() => {
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
-      acc[w.id] = txsMes
+      const somaMes = txsMes
         .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto')
         .reduce((s, t) => s + (t.valor || 0), 0);
+      acc[w.id] = (mesIndex === 0 && typeof w.saldo === 'number' && w.saldo < 0)
+        ? Math.abs(w.saldo)   // fatura real da conexão Open Finance
+        : somaMes;
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsMes]);
+  }, [wallets, txsMes, mesIndex]);
 
   const faturaTotal = useMemo(
     () => Object.values(faturaPorCartao).reduce((s, v) => s + v, 0),

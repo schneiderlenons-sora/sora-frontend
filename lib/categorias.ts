@@ -50,6 +50,8 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   filhos:           { emoji: '👶', hue: 30,  label: 'Filhos' },
   financiamento:    { emoji: '🔖', hue: 265, label: 'Financiamento' },
   extras:           { emoji: '📥', hue: 175, label: 'Extras' },
+  'trabalho/negocio': { emoji: '💼', hue: 210, label: 'Trabalho/Negócio' },
+  'trabalho/negócio': { emoji: '💼', hue: 210, label: 'Trabalho/Negócio' },
   seguros:        { emoji: '🛡️', hue: 210, label: 'Seguros' },
   outros:         { emoji: '📦', hue: 220, label: 'Outros' },
 };

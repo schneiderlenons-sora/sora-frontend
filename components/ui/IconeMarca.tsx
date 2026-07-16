@@ -66,6 +66,7 @@ const MARCAS: Record<string, Marca> = {
   insta:             { local: '/brands/instagram.png',     si: 'instagram', fundoBranco: true },
   facebook:          { local: '/brands/facebook.png',      si: 'facebook', fundoBranco: true },
   face:              { local: '/brands/facebook.png',      si: 'facebook', fundoBranco: true },
+  facebk:            { local: '/brands/facebook.png',      si: 'facebook', fundoBranco: true }, // "FACEBK*" no extrato do cartão
   tiktok:            { local: '/brands/tiktok.png',        si: 'tiktok', fundoBranco: true },
   'tik tok':         { local: '/brands/tiktok.png',        si: 'tiktok', fundoBranco: true },
   pinterest:         { local: '/brands/pinterest.png',     si: 'pinterest', fundoBranco: true },
