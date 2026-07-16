@@ -3,14 +3,14 @@
 // (rollout fechado). Para liberar pra mais alguém, é só adicionar aqui.
 // Critério: e-mail de login (principal) ou número de WhatsApp (reforço).
 // =====================================================================
+// TESTE FECHADO (Polp): só o dono, enquanto valida a integração de banco real.
+// Os dois e-mails são a mesma pessoa (login pode ser por qualquer um).
+// Pra reabrir depois, é só voltar a adicionar os e-mails/telefones aqui.
 const EMAILS = [
   'schneider.lenon.s@gmail.com',
   'schineiderlenon@gmail.com',
-  'cassiopellegrim@gmail.com',
 ];
-const PHONES = [
-  '5511991774537',
-];
+const PHONES: string[] = [];
 
 const normEmail = (e?: string | null) => (e || '').trim().toLowerCase();
 const normPhone = (p?: string | null) => (p || '').replace(/\D/g, '');
