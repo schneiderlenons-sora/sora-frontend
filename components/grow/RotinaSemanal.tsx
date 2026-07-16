@@ -13,10 +13,10 @@
 // dia + timeline vertical (sem scroll horizontal).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import {
-  CalendarClock, Plus, X, Loader2, Trash2, CalendarDays, Sparkles, Clock,
+  CalendarClock, Plus, Minus, X, Loader2, Trash2, CalendarDays, Sparkles, Clock,
 } from 'lucide-react';
 
 // Cor da APARÊNCIA do painel (verde da Sora por padrão; muda com o tema escolhido).
@@ -24,6 +24,9 @@ import {
 const BRAND = 'hsl(var(--primary))';
 // Alpha via color-mix — brandA(12) (hex+alpha) não funciona com hsl(var(...)).
 const brandA = (pct: number) => `color-mix(in srgb, ${BRAND} ${pct}%, transparent)`;
+// Mesmo tom, mas OPACO (mistura com o card em vez de transparente) — usado no chip
+// expandido, que fica por cima da grade e não pode deixar nada transparecer.
+const brandOn = (pct: number) => `color-mix(in srgb, ${BRAND} ${pct}%, hsl(var(--bg-card)))`;
 
 const DIAS = [
   { n: 1, curto: 'Seg', longo: 'Segunda' },
@@ -160,11 +163,13 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
 
   return (
     <section
-      className="relative rounded-3xl border overflow-hidden animate-[slide-up_500ms_ease-out_both]"
+      // SEM overflow-hidden: o chip expandido (hover/segurar) precisa vazar da
+      // célula. O clip do glow foi pro próprio glow (rounded-3xl).
+      className="relative rounded-3xl border animate-[slide-up_500ms_ease-out_both]"
       style={{ border: `1px solid hsl(var(--border) / 0.4)`, background: 'hsl(var(--bg-card) / 0.5)' }}
       aria-label="Planejamento semanal"
     >
-      <div aria-hidden className="absolute inset-0 pointer-events-none"
+      <div aria-hidden className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
            style={{ background: `radial-gradient(circle at top right, ${brandA(14)} 0%, transparent 70%)` }} />
 
       {/* ── Header ──────────────────────────────────────────── */}
@@ -313,19 +318,57 @@ function FragmentLinha({ hora, idx, porCelula, readOnly, removendo, onRemover }:
       <div className="flex items-start justify-end pr-2 pt-2">
         <span className="text-[11px] font-bold text-muted-foreground tabular-nums">{hora}</span>
       </div>
-      {DIAS.map(d => {
-        const itens: Bloco[] = porCelula.get(`${d.n}|${hora}`) || [];
-        return (
-          <div key={d.n}
-               className="min-h-[46px] rounded-lg p-1 space-y-1 animate-[slide-up_400ms_ease-out_both]"
-               style={{ background: 'hsl(var(--bg-muted) / 0.35)', animationDelay: `${Math.min(idx * 40, 240)}ms` }}>
-            {itens.map(b => (
-              <BlocoChip key={b.id} b={b} readOnly={readOnly} removendo={removendo} onRemover={onRemover} />
-            ))}
-          </div>
-        );
-      })}
+      {DIAS.map(d => (
+        <CelulaDia
+          key={d.n} dia={d.n} hora={hora} idx={idx}
+          itens={porCelula.get(`${d.n}|${hora}`) || []}
+          readOnly={readOnly} removendo={removendo} onRemover={onRemover}
+        />
+      ))}
     </>
+  );
+}
+
+// ─── Célula (1 dia × 1 hora) da grade ──────────────────────────────
+// Quando a Sora anexa um compromisso num horário que já tem bloco, a célula não
+// empilha os dois (não cabe): mostra o bloco da rotina + um "+N" em destaque que
+// revela o(s) da agenda ao clicar.
+function CelulaDia({ dia, hora, idx, itens, readOnly, removendo, onRemover }: any) {
+  const [aberta, setAberta] = useState(false);
+
+  // Rotina primeiro, compromissos da agenda depois — o "+" é sempre o que a Sora
+  // anexou por cima do que você planejou.
+  const ordenados = useMemo(
+    () => [...itens].sort((a: Bloco, b: Bloco) => Number(!!a.data_especifica) - Number(!!b.data_especifica)),
+    [itens]
+  );
+  const extras = ordenados.length - 1;
+  const visiveis = aberta ? ordenados : ordenados.slice(0, 1);
+  // Nas últimas colunas o chip expandido abre pra ESQUERDA pra não sair do card.
+  const alinharDireita = dia >= 6;
+
+  return (
+    <div
+      className="relative min-h-[46px] rounded-lg p-1 space-y-1 animate-[slide-up_400ms_ease-out_both]"
+      style={{ background: 'hsl(var(--bg-muted) / 0.35)', animationDelay: `${Math.min(idx * 40, 240)}ms` }}
+    >
+      {visiveis.map((b: Bloco) => (
+        <BlocoChip key={b.id} b={b} readOnly={readOnly} removendo={removendo}
+                   onRemover={onRemover} alinharDireita={alinharDireita} />
+      ))}
+
+      {extras > 0 && (
+        <button
+          onClick={() => setAberta(v => !v)}
+          aria-expanded={aberta}
+          aria-label={aberta ? 'Mostrar menos' : `Mostrar mais ${extras} compromisso${extras > 1 ? 's' : ''} da agenda`}
+          className="w-full flex items-center justify-center gap-0.5 rounded-lg text-[10px] font-bold transition-all hover:brightness-105"
+          style={{ minHeight: 18, background: brandA(18), color: BRAND, border: `1px solid ${brandA(45)}` }}
+        >
+          {aberta ? <Minus size={10} /> : <><Plus size={10} />{extras}</>}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -361,12 +404,28 @@ function TimelineDia({ dia, blocos, readOnly, removendo, onRemover }: any) {
 }
 
 // ─── Chip de um bloco ──────────────────────────────────────────────
-function BlocoChip({ b, readOnly, removendo, onRemover, grande = false }: any) {
+function BlocoChip({ b, readOnly, removendo, onRemover, grande = false, alinharDireita = false }: any) {
   const pontual = !!b.data_especifica;
   const saindo = removendo === b.id;
+
+  // Título comprido é cortado pra caber na coluna. Passar o mouse (desktop) ou
+  // SEGURAR o dedo (mobile) expande o chip por cima da grade e mostra inteiro.
+  const [aberto, setAberto] = useState(false);
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStart = () => { hold.current = setTimeout(() => setAberto(true), 350); };
+  const pressEnd   = () => { if (hold.current) clearTimeout(hold.current); setAberto(false); };
+  useEffect(() => () => { if (hold.current) clearTimeout(hold.current); }, []);
+
+  const expandivel = !grande;   // no mobile o chip já é largo, não precisa
+
   return (
     <div
       className={`group relative flex items-center gap-1 rounded-lg ${grande ? 'px-3 py-2.5' : 'px-1.5 py-1'} transition-opacity`}
+      onMouseEnter={() => expandivel && setAberto(true)}
+      onMouseLeave={() => expandivel && setAberto(false)}
+      onTouchStart={expandivel ? pressStart : undefined}
+      onTouchEnd={expandivel ? pressEnd : undefined}
+      onTouchCancel={expandivel ? pressEnd : undefined}
       style={{
         // Blocos seguem a APARÊNCIA do painel. Fixo x da agenda se distinguem por
         // INTENSIDADE (+ o selo ✨ no pontual) — se os dois tivessem o mesmo tom,
@@ -376,9 +435,32 @@ function BlocoChip({ b, readOnly, removendo, onRemover, grande = false }: any) {
         opacity: saindo ? 0.4 : 1,
       }}
     >
+      {/* Título cortado? Mouse ou segurar o dedo abre ESTA cópia por cima — o chip
+          original continua no fluxo, então a linha não se mexe (sem layout shift). */}
+      {aberto && expandivel && (
+        <div
+          className="absolute top-0 z-30 flex items-center gap-1 rounded-lg px-1.5 py-1 pointer-events-none animate-fade-in"
+          style={{
+            left:  alinharDireita ? 'auto' : 0,
+            right: alinharDireita ? 0 : 'auto',
+            width: 'max-content',
+            maxWidth: 200,
+            minWidth: '100%',
+            background: pontual ? brandOn(22) : brandOn(10),  // opaco: cobre a grade
+            border: `1px solid ${pontual ? brandA(55) : brandA(28)}`,
+            boxShadow: '0 12px 32px -10px rgba(0,0,0,0.35)',
+          }}
+        >
+          {pontual && <Sparkles size={10} className="flex-shrink-0" style={{ color: BRAND }} />}
+          <span className="text-[11px] font-medium text-foreground leading-tight whitespace-normal break-words">
+            {b.titulo}
+          </span>
+        </div>
+      )}
+
       {/* Selo do bloco vindo da agenda — ícone + borda, não só cor (a11y) */}
       {pontual && <Sparkles size={grande ? 13 : 10} className="flex-shrink-0" style={{ color: BRAND }} aria-label="Da agenda, só nesta semana" />}
-      <span className={`${grande ? 'text-sm' : 'text-[11px]'} font-medium text-foreground leading-tight truncate flex-1`}>
+      <span className={`${grande ? 'text-sm' : 'text-[11px]'} font-medium text-foreground leading-tight flex-1 truncate`}>
         {b.titulo}
       </span>
       {!readOnly && (
