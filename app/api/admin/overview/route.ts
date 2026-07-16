@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { checkAdmin } from '@/lib/admin-server';
+import { adminEmails } from '@/lib/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,12 +88,40 @@ export async function GET() {
     recEnviadas2 = await contar((q) => q.not('recuperacao_signup2_em', 'is', null));
   } catch { /* migration 057 pode não ter rodado */ }
 
-  // MRR = SÓ recorrentes. Premium vitalício não recorre → sai da conta; kit é
-  // sempre vitalício → nunca entrou; básico e black são recorrentes.
+  // MRR = SÓ receita que RECORRE. Soma linha a linha os pagantes (básico/premium/
+  // black) e DESCARTA quem não gera recorrência:
+  //   • vitalício        → pagou uma vez, não renova
+  //   • assinatura_cancelada → cancelou (ainda tem acesso, mas não renova)
+  //   • mrr_excluir      → cortesia/acesso grátis marcado pelo admin
+  //   • e-mail de admin  → a conta do próprio dono
+  // Tolerante: se as colunas da migration 074 não existem, cai na conta antiga.
   const premiumRecorrente = Math.max(0, premium - premiumVitalicio);
-  const mrr = basico * PRECO.basico + premiumRecorrente * PRECO.premium + black * PRECO.black;
+  let mrr = basico * PRECO.basico + premiumRecorrente * PRECO.premium + black * PRECO.black;
+  let mrrExcluidos = 0;
+  try {
+    const { data: pagantes, error } = await supabaseAdmin
+      .from('users')
+      .select('email, plano, vitalicio, mrr_excluir, assinatura_cancelada')
+      .in('plano', ['basico', 'premium', 'black']);
+    if (error) throw error;
+    const admins = adminEmails();
+    let soma = 0;
+    for (const u of pagantes || []) {
+      const preco = PRECO[u.plano as keyof typeof PRECO];
+      if (!preco) continue;
+      const fora =
+        u.vitalicio === true ||
+        u.assinatura_cancelada === true ||
+        u.mrr_excluir === true ||
+        (u.email && admins.includes(String(u.email).toLowerCase()));
+      if (fora) { mrrExcluidos++; continue; }
+      soma += preco;
+    }
+    mrr = soma;
+  } catch { /* migration 074 pode não ter rodado → mantém a estimativa antiga */ }
 
   return NextResponse.json({
+    mrrExcluidos,
     total, inativo, basico, premium, black, kit,
     ativos: total - inativo,
     premiumRecorrente, vitalicios, kitVitalicio, premiumVitalicio,

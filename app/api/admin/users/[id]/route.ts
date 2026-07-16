@@ -35,6 +35,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ ok: true });
   }
 
+  // ── Excluir/incluir no MRR (cortesia, acesso grátis, conta do dono) ──
+  if (action === 'set_mrr_excluir') {
+    const excluir = !!body.excluir;
+    const { error } = await supabaseAdmin.from('users').update({ mrr_excluir: excluir }).eq('id', id);
+    if (error) return NextResponse.json({ erro: 'Rode a migration 074 (mrr_excluir).' }, { status: 500 });
+    return NextResponse.json({ ok: true, mrr_excluir: excluir });
+  }
+
   // ── Liberar o número (desvincula o WhatsApp) ─────────────────────
   if (action === 'liberar_numero') {
     const { error } = await supabaseAdmin.from('users').update({ phone: null, welcomed_at: null }).eq('id', id);

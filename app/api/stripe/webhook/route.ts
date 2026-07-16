@@ -209,4 +209,14 @@ async function updateUserFromSub(userId: string, sub: Stripe.Subscription) {
     plano_valido_ate:        valido_ate,
     stripe_subscription_id:  sub.id,
   }).eq('id', userId);
+
+  // Sinal de cancelamento (cancel_at_period_end): a pessoa segue com acesso até o
+  // fim do período pago, mas NÃO renova → sai do MRR. Update SEPARADO e tolerante:
+  // se a migration 074 não rodou, a coluna não existe — não pode derrubar a
+  // ativação do plano acima. Reativou? cancel_at_period_end volta a false aqui.
+  try {
+    await supabaseAdmin.from('users')
+      .update({ assinatura_cancelada: !!sub.cancel_at_period_end })
+      .eq('id', userId);
+  } catch { /* coluna pode não existir ainda (migration 074) */ }
 }

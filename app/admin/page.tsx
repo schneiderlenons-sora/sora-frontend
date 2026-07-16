@@ -21,12 +21,13 @@ type User = {
   plano: Plano; plano_intervalo?: string | null; plano_valido_ate?: string | null;
   vitalicio?: boolean | null; vitalicio_em?: string | null;
   stripe_customer_id?: string | null; onboarding_completed?: boolean; welcomed_at?: string | null;
+  mrr_excluir?: boolean | null; assinatura_cancelada?: boolean | null;
   created_at: string;
 };
 type Overview = {
   total: number; ativos: number; inativo: number; basico: number; premium: number; black: number; kit?: number;
   vitalicios?: number; kitVitalicio?: number; premiumVitalicio?: number; premiumRecorrente?: number; receitaVitalicio?: number;
-  novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number;
+  novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number; mrrExcluidos?: number;
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
 };
 type BugReport = {
@@ -117,6 +118,7 @@ export default function AdminPage() {
       if (action === 'liberar_numero') setSel({ ...sel, phone: null });
       if (action === 'stripe_sync' && d.plano) setSel({ ...sel, plano: d.plano });
       if (action === 'set_phone') setSel({ ...sel, phone: String(extra.phone) });
+      if (action === 'set_mrr_excluir') setSel({ ...sel, mrr_excluir: extra.excluir as boolean });
     } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
   }
 
@@ -160,7 +162,7 @@ export default function AdminPage() {
 
         {/* Métricas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          <Stat label="MRR estimado" value={ov ? money(ov.mrr) : '—'} hint={ov ? 'só assinaturas recorrentes' : ''} destaque />
+          <Stat label="MRR estimado" value={ov ? money(ov.mrr) : '—'} hint={ov ? (ov.mrrExcluidos ? `recorrentes · ${ov.mrrExcluidos} fora da conta` : 'só assinaturas recorrentes') : ''} destaque />
           <Stat label="Receita vitalícia" value={ov ? money(ov.receitaVitalicio ?? 0) : '—'}
                 hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''} destaque />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
@@ -326,6 +328,31 @@ export default function AdminPage() {
                 <button onClick={() => acao('stripe_sync')} className="w-full h-10 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2">
                   <Zap size={14} /> Sincronizar com o Stripe
                 </button>
+
+                {/* Excluir do MRR — cortesia / acesso grátis. Só faz sentido em
+                    plano pago; num inativo não conta mesmo. */}
+                {sel.plano !== 'inativo' && (
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5 cursor-pointer">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-foreground">Não contar no MRR</span>
+                      <span className="block text-[11px] text-muted-foreground leading-snug">Acesso grátis / cortesia — sai da soma de receita recorrente.</span>
+                    </span>
+                    <button
+                      role="switch" aria-checked={!!sel.mrr_excluir}
+                      onClick={() => acao('set_mrr_excluir', { excluir: !sel.mrr_excluir })}
+                      className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                      style={{ background: sel.mrr_excluir ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}
+                    >
+                      <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+                            style={{ transform: sel.mrr_excluir ? 'translateX(22px)' : 'translateX(2px)' }} />
+                    </button>
+                  </label>
+                )}
+                {sel.assinatura_cancelada && (
+                  <p className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+                    <AlertTriangle size={12} /> Assinatura cancelada na Stripe — já fora do MRR.
+                  </p>
+                )}
               </Section>
 
               {/* WhatsApp */}
