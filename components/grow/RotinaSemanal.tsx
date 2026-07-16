@@ -368,8 +368,11 @@ function BlocoChip({ b, readOnly, removendo, onRemover, grande = false }: any) {
     <div
       className={`group relative flex items-center gap-1 rounded-lg ${grande ? 'px-3 py-2.5' : 'px-1.5 py-1'} transition-opacity`}
       style={{
-        background: pontual ? brandA(12) : 'hsl(var(--bg-card) / 0.9)',
-        border: `1px solid ${pontual ? brandA(45) : 'hsl(var(--border) / 0.5)'}`,
+        // Blocos seguem a APARÊNCIA do painel. Fixo x da agenda se distinguem por
+        // INTENSIDADE (+ o selo ✨ no pontual) — se os dois tivessem o mesmo tom,
+        // a diferença se perderia.
+        background: pontual ? brandA(22) : brandA(10),
+        border: `1px solid ${pontual ? brandA(55) : brandA(28)}`,
         opacity: saindo ? 0.4 : 1,
       }}
     >
