@@ -19,7 +19,11 @@ import {
   CalendarClock, Plus, X, Loader2, Trash2, CalendarDays, Sparkles, Clock,
 } from 'lucide-react';
 
-const BRAND = '#7c3aed';
+// Cor da APARÊNCIA do painel (verde da Sora por padrão; muda com o tema escolhido).
+// Não pode ser hex fixo: `--primary` é o que segue o tema.
+const BRAND = 'hsl(var(--primary))';
+// Alpha via color-mix — brandA(12) (hex+alpha) não funciona com hsl(var(...)).
+const brandA = (pct: number) => `color-mix(in srgb, ${BRAND} ${pct}%, transparent)`;
 
 const DIAS = [
   { n: 1, curto: 'Seg', longo: 'Segunda' },
@@ -118,7 +122,9 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
     if (!phone) return;
     setSalv(true); setErro('');
     try {
-      await api.grow.rotina.criar({ phone, dia_semana: dia, hora, titulo, cor: BRAND });
+      // Sem cor: o bloco segue a APARÊNCIA do painel. Gravar cor aqui congelaria
+      // o tema do momento da criação.
+      await api.grow.rotina.criar({ phone, dia_semana: dia, hora, titulo, cor: null });
       setAddOpen(false);
       await carregar();
     } catch (e: any) {
@@ -145,13 +151,13 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
       aria-label="Planejamento semanal"
     >
       <div aria-hidden className="absolute inset-0 pointer-events-none"
-           style={{ background: `radial-gradient(circle at top right, ${BRAND}24 0%, transparent 70%)` }} />
+           style={{ background: `radial-gradient(circle at top right, ${brandA(14)} 0%, transparent 70%)` }} />
 
       {/* ── Header ──────────────────────────────────────────── */}
       <div className="relative flex items-center justify-between gap-3 p-5 border-b" style={{ borderColor: 'hsl(var(--border) / 0.4)' }}>
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ background: `${BRAND}1f` }}>
+               style={{ background: brandA(12) }}>
             <CalendarClock size={18} style={{ color: BRAND }} />
           </div>
           <div className="min-w-0">
@@ -172,7 +178,7 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
             onClick={() => { setAddOpen(v => !v); setErro(''); }}
             aria-expanded={addOpen}
             className="flex items-center gap-1.5 px-3 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
-            style={{ minHeight: 44, background: addOpen ? 'hsl(var(--bg-muted))' : `${BRAND}1f`, color: addOpen ? undefined : BRAND }}
+            style={{ minHeight: 44, background: addOpen ? 'hsl(var(--bg-muted))' : brandA(12), color: addOpen ? undefined : BRAND }}
           >
             {addOpen ? <X size={16} /> : <Plus size={16} />}
             <span className="hidden sm:inline">{addOpen ? 'Fechar' : 'Adicionar'}</span>
@@ -204,7 +210,7 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
           {!readOnly && !addOpen && (
             <button onClick={() => setAddOpen(true)}
               className="mt-1 flex items-center gap-1.5 px-3 rounded-xl text-sm font-semibold"
-              style={{ minHeight: 44, background: `${BRAND}1f`, color: BRAND }}>
+              style={{ minHeight: 44, background: brandA(12), color: BRAND }}>
               <Plus size={16} /> Montar rotina
             </button>
           )}
@@ -220,7 +226,7 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
                 const ehHoje = d.n === diaSemanaBR(new Date());
                 return (
                   <div key={d.n} className="px-2 py-2 text-center rounded-lg"
-                       style={{ background: ehHoje ? `${BRAND}14` : undefined }}>
+                       style={{ background: ehHoje ? brandA(10) : undefined }}>
                     <p className={`text-[11px] font-bold uppercase tracking-wider ${ehHoje ? '' : 'text-muted-foreground'}`}
                        style={{ color: ehHoje ? BRAND : undefined }}>{d.curto}</p>
                     <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
@@ -348,8 +354,8 @@ function BlocoChip({ b, readOnly, removendo, onRemover, grande = false }: any) {
     <div
       className={`group relative flex items-center gap-1 rounded-lg ${grande ? 'px-3 py-2.5' : 'px-1.5 py-1'} transition-opacity`}
       style={{
-        background: pontual ? `${BRAND}1a` : 'hsl(var(--bg-card) / 0.9)',
-        border: `1px solid ${pontual ? BRAND + '66' : 'hsl(var(--border) / 0.5)'}`,
+        background: pontual ? brandA(12) : 'hsl(var(--bg-card) / 0.9)',
+        border: `1px solid ${pontual ? brandA(45) : 'hsl(var(--border) / 0.5)'}`,
         opacity: saindo ? 0.4 : 1,
       }}
     >
