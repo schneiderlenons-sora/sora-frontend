@@ -62,6 +62,13 @@ export default function OpenFinancePage() {
   const [instSel, setInstSel] = useState<Inst | null>(null);
   const [cpf, setCpf] = useState('');
   const [conectando, setConectando] = useState(false);
+  const [debugOut, setDebugOut] = useState('');
+
+  async function diagnostico(id: string) {
+    setDebugOut('Carregando…');
+    try { setDebugOut(JSON.stringify(await api.openFinance.debug(id), null, 2)); }
+    catch (e: any) { setDebugOut('Erro: ' + (e?.message || 'falhou')); }
+  }
 
   const carregar = useCallback(async () => {
     try { const d = await api.openFinance.conexoes(); setConexoes(d.conexoes || []); }
@@ -221,6 +228,10 @@ export default function OpenFinancePage() {
                         className="h-9 px-3 rounded-lg border border-border text-xs font-bold text-foreground hover:bg-muted/40 inline-flex items-center gap-1.5 flex-shrink-0">
                         {sinc ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sincronizar
                       </button>
+                      <button onClick={() => diagnostico(c.external_id)} title="Diagnóstico"
+                        className="h-9 px-2 rounded-lg border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground flex-shrink-0">
+                        diag
+                      </button>
                       <button onClick={() => desconectar(c.external_id, c.instituicao)} title="Desconectar"
                         className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 flex-shrink-0">
                         <Trash2 size={15} />
@@ -229,6 +240,20 @@ export default function OpenFinancePage() {
                   );
                 })}
               </ul>
+            )}
+
+            {/* Diagnóstico (temporário) — resposta crua da Polp pra ajustar o mapeamento */}
+            {debugOut && (
+              <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Diagnóstico (dev)</p>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => navigator.clipboard?.writeText(debugOut)} className="h-8 px-2.5 rounded-lg border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground">Copiar</button>
+                    <button onClick={() => setDebugOut('')} className="h-8 px-2.5 rounded-lg border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground">Fechar</button>
+                  </div>
+                </div>
+                <pre className="text-[10px] leading-relaxed text-foreground/80 overflow-auto max-h-80 whitespace-pre-wrap break-words">{debugOut}</pre>
+              </div>
             )}
 
             {/* Segurança */}

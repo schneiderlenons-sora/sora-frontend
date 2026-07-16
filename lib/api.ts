@@ -140,6 +140,9 @@ export const api = {
         `/api/open-finance/conexoes/${externalId}/sincronizar`, { method: 'POST' }),
     desconectar: (externalId: string) =>
       req<{ ok: boolean }>(`/api/open-finance/conexoes/${externalId}`, { method: 'DELETE' }),
+    /** Diagnóstico (temporário): resposta crua da Polp pra ajustar o mapeamento. */
+    debug: (externalId: string) =>
+      req<any>(`/api/open-finance/debug/${externalId}`),
   },
 
   // ── DASHBOARD (consolidado) ───────────────────────────────────
