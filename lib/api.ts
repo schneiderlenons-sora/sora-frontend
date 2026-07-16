@@ -409,6 +409,25 @@ export const api = {
       deletar: (id: string, phone: string) => req(`/api/grow/leituras/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
 
+    // Planejamento semanal (rotina) — blocos dia × horário, sem check-in.
+    // `de`/`ate` delimitam os blocos PONTUAIS (vindos da Agenda); o template
+    // (que repete toda semana) vem sempre.
+    rotina: {
+      listar: (phone: string, params?: { de?: string; ate?: string }) => {
+        const q = new URLSearchParams();
+        if (params?.de)  q.set('de', params.de);
+        if (params?.ate) q.set('ate', params.ate);
+        const qs = q.toString();
+        return req<any[]>(`/api/grow/rotina/${phone}${qs ? `?${qs}` : ''}`);
+      },
+      criar: (body: { phone: string; dia_semana: number; hora: string; titulo: string; cor?: string | null; data_especifica?: string | null }) =>
+        req<any>('/api/grow/rotina', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: { phone: string; titulo?: string; hora?: string; cor?: string | null; dia_semana?: number }) =>
+        req<any>(`/api/grow/rotina/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string, phone: string) =>
+        req(`/api/grow/rotina/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    },
+
     habitos: {
       listar: (phone: string, params?: { dias?: number; incluir_arquivados?: boolean }) => {
         const q = new URLSearchParams();

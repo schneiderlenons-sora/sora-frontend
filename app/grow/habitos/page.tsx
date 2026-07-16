@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalHabito, { periodoDoHorario } from '@/components/habitos/ModalHabito';
 import GrowHero from '@/components/grow/GrowHero';
+import RotinaSemanal from '@/components/grow/RotinaSemanal';
 import {
   Plus, Target, Loader2, Check, Flame, Trash2, X, Sparkles, Pencil,
   Sun, Sunrise, Moon, Trophy, Calendar, BarChart3, Settings,
@@ -192,8 +193,20 @@ export default function HabitosPage() {
         </div>
       ) : (
         <div className="animate-fade-in">
-          {tab === 'visao'      && <TabVisao habitos={habitosDeHoje} registros={registros} concluidos={concluidosHoje} onToggle={toggleHabito} onNew={() => { setEditando(null); setModalOpen(true); }} onEdit={(h: any) => { setEditando(h); setModalOpen(true); }} />}
-          {tab === 'semana'     && <TabSemana habitosAtivos={habitosAtivos} registros={registros} onToggle={toggleHabito} />}
+          {/* Planejamento semanal fica ABAIXO do card de hábitos nas duas seções.
+              Na Visão é só leitura; editar só na Semana. */}
+          {tab === 'visao'      && (
+            <div className="space-y-4">
+              <TabVisao habitos={habitosDeHoje} registros={registros} concluidos={concluidosHoje} onToggle={toggleHabito} onNew={() => { setEditando(null); setModalOpen(true); }} onEdit={(h: any) => { setEditando(h); setModalOpen(true); }} />
+              <RotinaSemanal phone={phone} readOnly />
+            </div>
+          )}
+          {tab === 'semana'     && (
+            <div className="space-y-4">
+              <TabSemana habitosAtivos={habitosAtivos} registros={registros} onToggle={toggleHabito} />
+              <RotinaSemanal phone={phone} />
+            </div>
+          )}
           {tab === 'heatmap'    && <TabHeatmap habitosAtivos={habitosAtivos} registros={registros} />}
           {tab === 'conquistas' && <TabConquistas habitos={habitos} registros={registros} />}
           {tab === 'gerenciar'  && <TabGerenciar phone={phone!} habitos={habitos} registros={registros} incluirArquivados={incluirArquivados} setInclArq={setInclArq} onEdit={(h: any) => { setEditando(h); setModalOpen(true); }} onReload={carregar} onNew={() => { setEditando(null); setModalOpen(true); }} lembreteInicial={lembrete} />}
