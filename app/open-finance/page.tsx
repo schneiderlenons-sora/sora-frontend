@@ -121,13 +121,28 @@ export default function OpenFinancePage() {
     try {
       const r = await api.openFinance.sincronizar(id);
       await carregar();
-      const n = r.novas ?? 0;
-      setFlash(r.erro ? 'Não consegui sincronizar agora. Tente em instantes.'
-        : n > 0 ? `Sincronizado! ${n} nova${n === 1 ? '' : 's'} transaç${n === 1 ? 'ão' : 'ões'} importada${n === 1 ? '' : 's'}.`
-        : 'Tudo sincronizado — nada novo. ✅');
-      setTimeout(() => setFlash(''), 5000);
+      // Ainda falta você autorizar no banco? Abre a autorização em vez de "0 novas".
+      if (r.pendente) {
+        if (r.urlToAuthenticate) { window.open(r.urlToAuthenticate, '_blank', 'noopener'); setFlash('Falta autorizar no banco — abri a aba pra você. Depois volte e sincronize.'); }
+        else setFlash('Essa conexão ainda está aguardando sua autorização no banco.');
+      } else {
+        const n = r.novas ?? 0;
+        setFlash(r.erro ? 'Não consegui sincronizar agora. Tente em instantes.'
+          : n > 0 ? `Sincronizado! ${n} nova${n === 1 ? '' : 's'} transaç${n === 1 ? 'ão' : 'ões'} importada${n === 1 ? '' : 's'}.`
+          : 'Tudo sincronizado — nada novo. ✅');
+      }
+      setTimeout(() => setFlash(''), 7000);
     } catch (e: any) { setErro(e.message || 'Não consegui sincronizar.'); }
     finally { setSincronizando(''); }
+  }
+
+  async function autorizar(id: string) {
+    setErro('');
+    try {
+      const r = await api.openFinance.autorizar(id);
+      if (r.urlToAuthenticate) { window.open(r.urlToAuthenticate, '_blank', 'noopener'); setFlash('Abri o banco pra você autorizar. Depois volte e toque em Sincronizar.'); setTimeout(() => setFlash(''), 8000); }
+      else setErro('A autorização expirou ou não está disponível. Desconecte e conecte de novo.');
+    } catch (e: any) { setErro(e.message || 'Não consegui abrir a autorização.'); }
   }
 
   async function desconectar(id: string, nome: string | null) {
@@ -224,6 +239,13 @@ export default function OpenFinancePage() {
                         </p>
                         {c.ultimo_erro && <p className="text-[11px] text-red-500 truncate mt-0.5">{c.ultimo_erro}</p>}
                       </div>
+                      {(c.status || '').toLowerCase() !== 'updated' && (
+                        <button onClick={() => autorizar(c.external_id)}
+                          className="h-9 px-3 rounded-lg text-xs font-bold text-white inline-flex items-center gap-1.5 flex-shrink-0"
+                          style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
+                          <ExternalLink size={13} /> Autorizar
+                        </button>
+                      )}
                       <button onClick={() => sincronizar(c.external_id)} disabled={sinc}
                         className="h-9 px-3 rounded-lg border border-border text-xs font-bold text-foreground hover:bg-muted/40 inline-flex items-center gap-1.5 flex-shrink-0">
                         {sinc ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sincronizar

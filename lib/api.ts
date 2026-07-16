@@ -136,8 +136,12 @@ export const api = {
     conexoes: () =>
       req<{ conexoes: any[] }>('/api/open-finance/conexoes'),
     sincronizar: (externalId: string) =>
-      req<{ ok: boolean; novas?: number; erro?: string; contas?: any[] }>(
+      req<{ ok: boolean; novas?: number; erro?: string; pendente?: string; urlToAuthenticate?: string | null; contas?: any[] }>(
         `/api/open-finance/conexoes/${externalId}/sincronizar`, { method: 'POST' }),
+    /** URL de autorização atual (conexão pendente de aprovação no banco). */
+    autorizar: (externalId: string) =>
+      req<{ urlToAuthenticate?: string | null; status?: string | null }>(
+        `/api/open-finance/conexoes/${externalId}/autorizar`),
     desconectar: (externalId: string) =>
       req<{ ok: boolean }>(`/api/open-finance/conexoes/${externalId}`, { method: 'DELETE' }),
     /** Diagnóstico (temporário): resposta crua da Polp pra ajustar o mapeamento. */
