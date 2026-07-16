@@ -63,6 +63,10 @@ export default function OpenFinancePage() {
   const [cpf, setCpf] = useState('');
   const [conectando, setConectando] = useState(false);
   const [debugOut, setDebugOut] = useState('');
+  // URL de autorização do banco — mostrada como LINK (window.open é bloqueado no
+  // PWA / fora do clique direto).
+  const [authUrl, setAuthUrl] = useState('');
+  const [authNome, setAuthNome] = useState('');
 
   async function diagnostico(id: string) {
     setDebugOut('Carregando…');
@@ -105,12 +109,11 @@ export default function OpenFinancePage() {
       setPickerOpen(false);
       await carregar();
       if (r.urlToAuthenticate) {
-        window.open(r.urlToAuthenticate, '_blank', 'noopener');
-        setFlash('Abri o banco numa nova aba pra você autorizar. Depois, volte aqui e toque em Sincronizar.');
+        setAuthUrl(r.urlToAuthenticate); setAuthNome(nomeInst(instSel));
       } else {
         setFlash('Conexão iniciada! Em instantes os dados chegam — use Sincronizar se demorar.');
+        setTimeout(() => setFlash(''), 8000);
       }
-      setTimeout(() => setFlash(''), 8000);
     } catch (e: any) {
       setErro(e.message || 'Não consegui conectar.');
     } finally { setConectando(false); }
@@ -123,7 +126,7 @@ export default function OpenFinancePage() {
       await carregar();
       // Ainda falta você autorizar no banco? Abre a autorização em vez de "0 novas".
       if (r.pendente) {
-        if (r.urlToAuthenticate) { window.open(r.urlToAuthenticate, '_blank', 'noopener'); setFlash('Falta autorizar no banco — abri a aba pra você. Depois volte e sincronize.'); }
+        if (r.urlToAuthenticate) { setAuthUrl(r.urlToAuthenticate); setAuthNome('seu banco'); }
         else setFlash('Essa conexão ainda está aguardando sua autorização no banco.');
       } else {
         const n = r.novas ?? 0;
@@ -136,12 +139,12 @@ export default function OpenFinancePage() {
     finally { setSincronizando(''); }
   }
 
-  async function autorizar(id: string) {
+  async function autorizar(id: string, nome: string | null) {
     setErro('');
     try {
       const r = await api.openFinance.autorizar(id);
-      if (r.urlToAuthenticate) { window.open(r.urlToAuthenticate, '_blank', 'noopener'); setFlash('Abri o banco pra você autorizar. Depois volte e toque em Sincronizar.'); setTimeout(() => setFlash(''), 8000); }
-      else setErro('A autorização expirou ou não está disponível. Desconecte e conecte de novo.');
+      if (r.urlToAuthenticate) { setAuthUrl(r.urlToAuthenticate); setAuthNome(nome || 'seu banco'); }
+      else setErro('A autorização expirou. Desconecte e conecte de novo pra gerar um link novo.');
     } catch (e: any) { setErro(e.message || 'Não consegui abrir a autorização.'); }
   }
 
@@ -240,7 +243,7 @@ export default function OpenFinancePage() {
                         {c.ultimo_erro && <p className="text-[11px] text-red-500 truncate mt-0.5">{c.ultimo_erro}</p>}
                       </div>
                       {(c.status || '').toLowerCase() !== 'updated' && (
-                        <button onClick={() => autorizar(c.external_id)}
+                        <button onClick={() => autorizar(c.external_id, c.instituicao)}
                           className="h-9 px-3 rounded-lg text-xs font-bold text-white inline-flex items-center gap-1.5 flex-shrink-0"
                           style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
                           <ExternalLink size={13} /> Autorizar
@@ -286,6 +289,31 @@ export default function OpenFinancePage() {
           </>
         )}
       </div>
+
+      {/* ── Autorizar no banco (link direto — window.open é bloqueado no PWA) ── */}
+      {authUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setAuthUrl('')}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm bg-card rounded-3xl border border-border shadow-2xl p-6 text-center space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mx-auto" style={{ background: `color-mix(in srgb, ${BRAND} 14%, transparent)` }}>
+              <ShieldCheck size={26} style={{ color: BRAND }} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Autorize no {authNome}</h2>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                Toque abaixo pra abrir o ambiente seguro do banco e autorizar o compartilhamento.
+                Precisa estar <b className="text-foreground">logado no banco</b>. Depois, volte aqui e toque em <b className="text-foreground">Sincronizar</b>.
+              </p>
+            </div>
+            <a href={authUrl} target="_blank" rel="noopener noreferrer"
+               className="flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg"
+               style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+              <ExternalLink size={17} /> Abrir {authNome}
+            </a>
+            <button onClick={() => setAuthUrl('')} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Fechar</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Seletor de banco ── */}
       {pickerOpen && (
