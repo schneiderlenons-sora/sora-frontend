@@ -124,6 +124,24 @@ export const api = {
       req<{ ok: boolean }>(`/api/pluggy/connections/${itemId}`, { method: 'DELETE' }),
   },
 
+  // ── OPEN FINANCE (Polp) ───────────────────────────────────────
+  // Fluxo de REDIRECT: lista bancos → cria integração → abre url_to_authenticate
+  // → usuário autoriza → webhook/sincronizar importa.
+  openFinance: {
+    instituicoes: () =>
+      req<{ instituicoes: any[] }>('/api/open-finance/instituicoes'),
+    conectar: (body: { institution_id: number | string; cpf?: string; cnpj?: string; instituicao_nome?: string }) =>
+      req<{ ok: boolean; externalId: string; status?: string; urlToAuthenticate?: string | null }>(
+        '/api/open-finance/conectar', { method: 'POST', body: JSON.stringify(body) }),
+    conexoes: () =>
+      req<{ conexoes: any[] }>('/api/open-finance/conexoes'),
+    sincronizar: (externalId: string) =>
+      req<{ ok: boolean; novas?: number; erro?: string; contas?: any[] }>(
+        `/api/open-finance/conexoes/${externalId}/sincronizar`, { method: 'POST' }),
+    desconectar: (externalId: string) =>
+      req<{ ok: boolean }>(`/api/open-finance/conexoes/${externalId}`, { method: 'DELETE' }),
+  },
+
   // ── DASHBOARD (consolidado) ───────────────────────────────────
   // Junta resumo (mês + mês anterior), carteiras, transações recentes,
   // gastos do mês e categorias numa única chamada. O painel tem fallback
