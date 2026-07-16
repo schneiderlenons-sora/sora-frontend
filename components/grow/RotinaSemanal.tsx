@@ -118,13 +118,27 @@ export default function RotinaSemanal({ phone, readOnly = false }: Props) {
   const totalTemplate = blocos.filter(b => !b.data_especifica).length;
   const totalPontual  = blocos.filter(b => b.data_especifica).length;
 
-  async function criar(dia: number, hora: string, titulo: string) {
-    if (!phone) return;
+  async function criar(dias: number[], hora: string, titulo: string) {
+    if (!phone || !dias.length) return;
     setSalv(true); setErro('');
     try {
+      // Ao "colar em todos os dias", pula os dias que JÁ têm esse mesmo bloco —
+      // senão repetir o gesto duplicaria a linha.
+      const alvo = new Set(
+        blocos
+          .filter(b => !b.data_especifica
+            && hhmm(b.hora) === hora
+            && b.titulo.trim().toLowerCase() === titulo.trim().toLowerCase())
+          .map(b => b.dia_semana)
+      );
+      const dias_semana = dias.filter(d => !alvo.has(d));
+      if (!dias_semana.length) {
+        setErro('Esse bloco já está nos dias escolhidos.');
+        return;
+      }
       // Sem cor: o bloco segue a APARÊNCIA do painel. Gravar cor aqui congelaria
       // o tema do momento da criação.
-      await api.grow.rotina.criar({ phone, dia_semana: dia, hora, titulo, cor: null });
+      await api.grow.rotina.criar({ phone, dias_semana, hora, titulo, cor: null });
       setAddOpen(false);
       await carregar();
     } catch (e: any) {
@@ -381,21 +395,51 @@ function BlocoChip({ b, readOnly, removendo, onRemover, grande = false }: any) {
 
 // ─── Form de adicionar bloco ───────────────────────────────────────
 function AddForm({ diaInicial, salvando, erro, onCancel, onSalvar }: any) {
-  const [dia, setDia]       = useState<number>(diaInicial || 1);
+  // Multi-seleção: o mesmo bloco pode ir pra vários dias de uma vez.
+  const [dias, setDias]     = useState<number[]>([diaInicial || 1]);
   const [hora, setHora]     = useState('07:00');
   const [titulo, setTitulo] = useState('');
-  const valido = !!titulo.trim() && /^\d{2}:\d{2}$/.test(hora);
+  const valido = !!titulo.trim() && /^\d{2}:\d{2}$/.test(hora) && dias.length > 0;
+
+  const toggleDia = (n: number) =>
+    setDias(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n].sort());
+
+  const PRESETS = [
+    { l: 'Todos',        dias: [1, 2, 3, 4, 5, 6, 7] },
+    { l: 'Seg–Sex',      dias: [1, 2, 3, 4, 5] },
+    { l: 'Fim de semana', dias: [6, 7] },
+  ];
+  const mesmaLista = (a: number[], b: number[]) => a.length === b.length && a.every(x => b.includes(x));
 
   return (
     <div className="relative p-4 sm:p-5 border-b animate-fade-in"
          style={{ borderColor: 'hsl(var(--border) / 0.4)', background: 'hsl(var(--bg-muted) / 0.2)' }}>
-      {/* Dia */}
-      <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Dia da semana">
-        {DIAS.map(d => {
-          const ativo = d.n === dia;
+      {/* Atalhos — "colar" o bloco em vários dias de uma vez */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Repetir em</span>
+        {PRESETS.map(p => {
+          const ativo = mesmaLista(dias, p.dias);
           return (
-            <button key={d.n} type="button" onClick={() => setDia(d.n)}
-              aria-pressed={ativo}
+            <button key={p.l} type="button" onClick={() => setDias(p.dias)} aria-pressed={ativo}
+              className="px-2.5 h-8 rounded-full text-[11px] font-bold transition-all"
+              style={{
+                background: ativo ? brandA(16) : 'hsl(var(--bg-muted))',
+                color: ativo ? BRAND : undefined,
+                border: `1px solid ${ativo ? brandA(45) : 'transparent'}`,
+              }}>
+              {p.l}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Dias (multi-seleção) */}
+      <div className="flex flex-wrap gap-1.5 mb-1" role="group" aria-label="Dias da semana">
+        {DIAS.map(d => {
+          const ativo = dias.includes(d.n);
+          return (
+            <button key={d.n} type="button" onClick={() => toggleDia(d.n)}
+              aria-pressed={ativo} aria-label={d.longo}
               className="px-3 rounded-lg text-xs font-bold transition-all"
               style={{ minHeight: 44, background: ativo ? BRAND : 'hsl(var(--bg-muted))', color: ativo ? '#fff' : undefined }}>
               {d.curto}
@@ -403,6 +447,11 @@ function AddForm({ diaInicial, salvando, erro, onCancel, onSalvar }: any) {
           );
         })}
       </div>
+      <p className="text-[11px] text-muted-foreground mb-3">
+        {dias.length === 0 ? 'Escolha ao menos um dia.'
+          : dias.length === 1 ? 'Vai criar em 1 dia.'
+          : <>Vai criar o mesmo bloco em <strong className="text-foreground/80 tabular-nums">{dias.length}</strong> dias.</>}
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-[110px_1fr] gap-2.5">
         <div>
@@ -418,7 +467,7 @@ function AddForm({ diaInicial, salvando, erro, onCancel, onSalvar }: any) {
             O que você faz
           </label>
           <input id="rot-tit" value={titulo} onChange={e => setTitulo(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && valido && !salvando && onSalvar(dia, hora, titulo.trim())}
+            onKeyDown={e => e.key === 'Enter' && valido && !salvando && onSalvar(dias, hora, titulo.trim())}
             placeholder="Ex.: Acordar, Academia, Trabalho…" maxLength={60} autoFocus
             className="w-full px-3 rounded-xl bg-background border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             style={{ height: 44 }} />
@@ -428,7 +477,7 @@ function AddForm({ diaInicial, salvando, erro, onCancel, onSalvar }: any) {
       {erro && <p className="text-xs text-red-500 mt-2" role="alert">{erro}</p>}
 
       <div className="flex items-center gap-2 mt-3">
-        <button onClick={() => onSalvar(dia, hora, titulo.trim())} disabled={!valido || salvando}
+        <button onClick={() => onSalvar(dias, hora, titulo.trim())} disabled={!valido || salvando}
           className="flex items-center gap-1.5 px-4 rounded-xl text-sm font-bold text-white transition-all
                      hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:translate-y-0"
           style={{ minHeight: 44, background: BRAND }}>

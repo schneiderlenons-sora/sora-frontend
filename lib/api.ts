@@ -420,8 +420,9 @@ export const api = {
         const qs = q.toString();
         return req<any[]>(`/api/grow/rotina/${phone}${qs ? `?${qs}` : ''}`);
       },
-      criar: (body: { phone: string; dia_semana: number; hora: string; titulo: string; cor?: string | null; data_especifica?: string | null }) =>
-        req<any>('/api/grow/rotina', { method: 'POST', body: JSON.stringify(body) }),
+      /** `dias_semana` cria o mesmo bloco em vários dias de uma vez ("colar em todos"). */
+      criar: (body: { phone: string; dia_semana?: number; dias_semana?: number[]; hora: string; titulo: string; cor?: string | null; data_especifica?: string | null }) =>
+        req<any[]>('/api/grow/rotina', { method: 'POST', body: JSON.stringify(body) }),
       editar: (id: string, body: { phone: string; titulo?: string; hora?: string; cor?: string | null; dia_semana?: number }) =>
         req<any>(`/api/grow/rotina/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string, phone: string) =>
