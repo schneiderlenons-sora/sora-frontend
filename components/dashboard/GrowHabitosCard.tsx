@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useVisivel } from '@/lib/useVisivel';
 import { Target, Check, Plus } from 'lucide-react';
 
 const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
@@ -14,6 +15,10 @@ function GrowHabitosCard() {
   const [habitos, setHabitos]     = useState<any[]>([]);
   const [registros, setRegistros] = useState<any[]>([]);
 
+  // Só busca quando o card chega perto da tela: /grow/habitos leva ~1,5s e saía
+  // junto com a /api/dashboard, competindo justamente na janela do LCP.
+  const { ref, visivel } = useVisivel<HTMLDivElement>();
+
   const carregar = useCallback(async () => {
     if (!phone) return;
     try {
@@ -23,7 +28,7 @@ function GrowHabitosCard() {
     } catch { /* tolerante */ }
   }, [phone]);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { if (visivel) carregar(); }, [visivel, carregar]);
 
   const hojeStr = iso(new Date());
   const diaSem = diaSemBR();
@@ -46,7 +51,7 @@ function GrowHabitosCard() {
   if (!temAcessoGrow) return null;
 
   return (
-    <div className="card rounded-3xl p-5 sm:p-6 flex flex-col h-full animate-fade-in" style={{ animationDelay: '60ms' }}>
+    <div ref={ref} className="card rounded-3xl p-5 sm:p-6 flex flex-col h-full animate-fade-in" style={{ animationDelay: '60ms' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useApi } from '@/lib/useApi';
+import { useVisivel } from '@/lib/useVisivel';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
@@ -126,6 +127,8 @@ export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
+  // O recharts (~288 KB) só é baixado quando o gráfico se aproxima da tela.
+  const { ref: graficoRef, visivel: graficoVisivel } = useVisivel<HTMLDivElement>();
 
   const hoje        = new Date();
   const today       = hoje.getDate();
@@ -224,16 +227,24 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center" style={{ minHeight: 220 }}>
-        <GraficoGastos
-          modo={chartMode}
-          barras={catsComPct.map((c: any) => ({
-            name:   parseCategoria(c.categoria).nome.slice(0, 10),
-            gastos: c.total,
-            color:  c.color,
-          }))}
-          area={dadosDiarios}
-        />
+      {/* Só baixa o recharts (~288 KB) quando o gráfico chega perto da tela —
+          no mobile ele nasce abaixo da dobra. O skeleton tem a MESMA altura,
+          então não há pulo de layout. */}
+      <div ref={graficoRef} className="flex-1 flex items-center" style={{ minHeight: 220 }}>
+        {graficoVisivel ? (
+          <GraficoGastos
+            modo={chartMode}
+            barras={catsComPct.map((c: any) => ({
+              name:   parseCategoria(c.categoria).nome.slice(0, 10),
+              gastos: c.total,
+              color:  c.color,
+            }))}
+            area={dadosDiarios}
+          />
+        ) : (
+          <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: 220 }}
+               role="status" aria-label="Carregando gráfico" />
+        )}
       </div>
 
       <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-border/60">
@@ -242,7 +253,7 @@ export default function DashboardPage() {
           : <>Total gasto por categoria em {monthName}. Toque em <strong className="text-foreground">Área</strong> pra ver o dia a dia.</>}
       </p>
     </div>
-  ), [chartMode, dadosDiarios, catsComPct, monthName]);
+  ), [chartMode, dadosDiarios, catsComPct, monthName, graficoVisivel, graficoRef]);
 
   return (
     <DashboardLayout>

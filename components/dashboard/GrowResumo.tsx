@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { useVisivel } from '@/lib/useVisivel';
 import {
   ListChecks, Heart, CalendarDays, ChevronRight, Crown, ArrowRight,
 } from 'lucide-react';
@@ -15,8 +16,11 @@ const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset(
 function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
   const { phone, temAcessoGrow, podeUsar } = useAuth();
 
-  // SWR: só busca quando há phone E acesso ao Grow (não desperdiça request).
-  const ativo = phone && temAcessoGrow;
+  // SWR: só busca quando há phone, acesso ao Grow E o bloco chegou perto da
+  // tela. Estas 3 chamadas saíam junto com a /api/dashboard e roubavam a janela
+  // do LCP (o feed sozinho leva ~1,5s) pra alimentar cards abaixo da dobra.
+  const { ref, visivel } = useVisivel<HTMLElement>();
+  const ativo = phone && temAcessoGrow && visivel;
   const { data: tarefasData } = useApi(ativo ? `grow:tarefas:${phone}` : null, () => api.grow.tarefas.listar(phone, { concluida: false }));
   const { data: humorData }   = useApi(ativo ? `grow:humor:${phone}`   : null, () => api.grow.humor.listar(phone, 1));
   const { data: eventosData } = useApi(ativo ? `grow:feed:${phone}`    : null, () => api.grow.compromissos.feed(phone));
@@ -46,7 +50,7 @@ function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
   if (!temAcessoGrow) return null;
 
   return (
-    <section className="space-y-3 sm:space-y-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
+    <section ref={ref} className="space-y-3 sm:space-y-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
 
       {/* ── FLUXO DE CAIXA + PRÓXIMOS EVENTOS ───────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch">
