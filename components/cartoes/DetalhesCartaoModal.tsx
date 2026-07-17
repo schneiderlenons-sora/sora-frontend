@@ -143,7 +143,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}-data`) || '';
   }, [cartao?.id, mesRef]);
 
-  const pagamentoMinimo = valorFatura * 0.15;
+  // Pagamento mínimo: só o que o BANCO informa (migration 077). Antes era
+  // `valorFatura * 0.15` — um chute com cara de dado oficial (mostrava R$211,57
+  // enquanto o banco dizia R$31,32). Sem o dado, o campo some.
+  const pagamentoMinimo: number | null =
+    typeof cartao?.pagamento_minimo === 'number' ? cartao.pagamento_minimo : null;
 
   // Gastos por categoria
   const porCategoria = useMemo(() => {
@@ -372,10 +376,10 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
                   {fmtDataPagto()}
                 </p>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between" hidden={pagamentoMinimo == null}>
                 <span className="text-xs text-muted-foreground">Pagamento mínimo</span>
                 <span className="text-xs font-semibold text-foreground tabular">
-                  {fmt(pagamentoMinimo)}
+                  {fmt(pagamentoMinimo ?? 0)}
                 </span>
               </div>
             </div>
