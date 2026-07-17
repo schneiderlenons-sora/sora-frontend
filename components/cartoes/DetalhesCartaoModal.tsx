@@ -119,10 +119,20 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   }, [phone, cartao?.id, mesRef]);
 
   // Métricas
-  const valorFatura = useMemo(
+  // Cartão do Open Finance no mês ATUAL: o valor devido vem do banco (saldo
+  // negativo = dívida), igual à lista de cartões — antes cada tela calculava o
+  // seu e mostravam números diferentes. Somar as transações do mês aqui não dá
+  // a fatura: ignora o pagamento da fatura (que não é `tipo: 'Gasto'`) e pega o
+  // mês do calendário, não o ciclo. Mês passado segue pela soma.
+  const somaMes = useMemo(
     () => txs.reduce((s, t) => s + (t.valor || 0), 0),
     [txs]
   );
+  const valorFatura = useMemo(() => {
+    const devidoOF = offsetMes === 0 && cartao?.of_conta_id
+      && typeof cartao?.saldo === 'number' && cartao.saldo < 0;
+    return devidoOF ? Math.abs(cartao.saldo) : somaMes;
+  }, [offsetMes, cartao?.of_conta_id, cartao?.saldo, somaMes]);
   const pagoFlag = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';
