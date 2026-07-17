@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* A Inter vem do next/font (app/layout.tsx), que hospeda o arquivo no nosso
+   domínio e injeta o preload. NÃO reintroduzir @import do Google Fonts aqui:
+   ele é render-blocking (830ms medidos) e criava a cadeia crítica
+   /dashboard → CSS → css2 → woff2. A família certa é var(--font-inter). */
 @import "tailwindcss";
 
 /* Dark mode via classe .dark */
@@ -112,7 +115,9 @@ body { background-color: hsl(var(--bg)); }
    MAPEAMENTO PARA CLASSES TAILWIND (v4 @theme inline)
 ───────────────────────────────────────────────────────────── */
 @theme inline {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* var(--font-inter) = next/font (self-hospedado). O fallback cobre o caso de
+     a variável não existir (ex.: página fora do layout raiz). */
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* Cores principais */
   --color-background:          hsl(var(--bg));
@@ -283,7 +288,7 @@ body { background-color: hsl(var(--bg)); }
 
   body {
     color: hsl(var(--fg));
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: 'cv11', 'ss01';
     overscroll-behavior-y: none;

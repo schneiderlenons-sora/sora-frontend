@@ -5,7 +5,11 @@ import Providers from '@/components/providers';
 import InstallPwa from '@/components/pwa/InstallPwa';
 import MetaPixel from '@/components/analytics/MetaPixel';
 
-const inter    = Inter({ subsets: ['latin'] });
+// `variable` (e não só className) porque o globals.css referencia a família por
+// var(--font-inter). Antes o CSS pedia 'Inter' pelo NOME, que só existia via
+// @import do Google Fonts — ou seja, o next/font estava ali sem efeito e a
+// fonte vinha de uma requisição que bloqueava o render.
+const inter    = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 // Pacifico — script cursivo encorpado, estilo wordmark de marca (Pierre, Disney+, etc)
 const pacifico = Pacifico({ subsets: ['latin'], weight: ['400'], variable: '--font-brand', display: 'swap' });
 
@@ -60,7 +64,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning className={pacifico.variable}>
+    <html lang="pt-BR" suppressHydrationWarning className={`${pacifico.variable} ${inter.variable}`}>
       <body className={inter.className} suppressHydrationWarning>
         {/* Cor temática escolhida — aplica --primary antes do paint (anti-flash) */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m={verde:'134 55% 60%',azul:'217 91% 60%',roxo:'262 83% 58%',laranja:'25 95% 53%',rosa:'330 81% 60%',vermelho:'0 72% 55%'};var id=localStorage.getItem('sora-brand')||'verde';document.documentElement.style.setProperty('--primary',m[id]||m.verde);}catch(e){}})();` }} />
