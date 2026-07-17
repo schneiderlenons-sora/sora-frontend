@@ -128,18 +128,10 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     () => txs.reduce((s, t) => s + (t.valor || 0), 0),
     [txs]
   );
-  // `devidoOF` também muda o RÓTULO: o que o banco manda é a dívida TOTAL do
-  // cartão (compras já lançadas + as que ainda não entraram numa fatura), não a
-  // fatura fechada. Chamar isso de "Valor da fatura" é mentir com número certo —
-  // no MP dá 904,71 de dívida enquanto o app mostra 708,06 de fatura, e o banco
-  // não publica a fatura do mês no Open Finance (as compras do ciclo chegam com
-  // bill_id null e status PENDING).
-  const devidoOF = offsetMes === 0 && !!cartao?.of_conta_id
-    && typeof cartao?.saldo === 'number' && cartao.saldo < 0;
-  const valorFatura = useMemo(
-    () => (devidoOF ? Math.abs(cartao.saldo as number) : somaMes),
-    [devidoOF, cartao?.saldo, somaMes]
-  );
+  // Fatura = soma das transações do mês (mesma conta da lista de cartões).
+  // Não usar o saldo do cartão do Open Finance: o `balance` do banco é o limite
+  // USADO, não a fatura — erra sempre pra cima.
+  const valorFatura = somaMes;
   const pagoFlag = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';
@@ -354,9 +346,7 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
           {/* Card: Valor da fatura (ou dívida total, quando vem do banco) */}
           <div className="rounded-2xl p-4 border border-border bg-muted/20">
             <div className="flex items-start justify-between mb-2">
-              <p className="text-sm font-semibold text-foreground">
-                {devidoOF ? 'Total em aberto' : 'Valor da fatura'}
-              </p>
+              <p className="text-sm font-semibold text-foreground">Valor da fatura</p>
               <button
                 onClick={togglePaga}
                 className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 transition-all ${
@@ -372,13 +362,6 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
             <p className="text-3xl font-bold text-foreground tabular tracking-tight">
               {fmt(valorFatura)}
             </p>
-            {devidoOF && (
-              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                Valor informado pelo banco: tudo que você deve neste cartão, incluindo
-                compras que ainda não entraram numa fatura fechada. Pode ficar acima da
-                &ldquo;fatura atual&rdquo; que o app do banco mostra.
-              </p>
-            )}
 
             <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
               <div className="flex items-center justify-between">
