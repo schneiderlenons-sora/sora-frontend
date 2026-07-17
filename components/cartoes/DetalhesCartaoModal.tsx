@@ -128,10 +128,14 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     () => txs.reduce((s, t) => s + (t.valor || 0), 0),
     [txs]
   );
-  // Fatura = soma das transações do mês (mesma conta da lista de cartões).
-  // Não usar o saldo do cartão do Open Finance: o `balance` do banco é o limite
-  // USADO, não a fatura — erra sempre pra cima.
-  const valorFatura = somaMes;
+  // Fatura: mesma fonte da lista de cartões — cartão do Open Finance no mês
+  // atual usa o valor do sync (saldo = −fatura, já sem parcelas a vencer);
+  // o resto soma as transações do mês. Ter duas contas diferentes aqui e na
+  // lista já fez as duas telas mostrarem números diferentes.
+  const valorFatura = useMemo(() => {
+    const doBanco = offsetMes === 0 && cartao?.of_conta_id && typeof cartao?.saldo === 'number';
+    return doBanco ? Math.max(-(cartao.saldo as number), 0) : somaMes;
+  }, [offsetMes, cartao?.of_conta_id, cartao?.saldo, somaMes]);
   const pagoFlag = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';

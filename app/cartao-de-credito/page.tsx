@@ -106,21 +106,23 @@ export default function CartaoDeCreditoPage() {
     t.wallet_id === w.id ||
     (t.carteira_nome || '').trim().toLowerCase() === (w.nome || '').trim().toLowerCase();
 
-  // Fatura por cartão = soma das transações do mês.
-  // NÃO usar o saldo do cartão vindo do Open Finance: o `balance` do banco é o
-  // limite USADO (inclui parcela a vencer), não a fatura — erra sempre pra cima
-  // (MP 904,71 × 708,06 no app; Nubank 5.349,63 × 2.845,20). Por isso o sync
-  // grava saldo 0 em cartão, como o pluggySync sempre fez.
+  // Fatura por cartão. Cartão do Open Finance no mês atual usa o valor que o
+  // sync calculou (saldo = −fatura, já sem as parcelas a vencer) — somar as
+  // transações do mês daria o mês do calendário e ignoraria o pagamento da
+  // fatura. Cartão manual e meses passados seguem pela soma.
   const faturaPorCartao = useMemo(() => {
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
-      acc[w.id] = txsMes
-        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto')
-        .reduce((s, t) => s + (t.valor || 0), 0);
+      const doBanco = mesIndex === 0 && w.of_conta_id && typeof w.saldo === 'number';
+      acc[w.id] = doBanco
+        ? Math.max(-(w.saldo as number), 0)
+        : txsMes
+            .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto')
+            .reduce((s, t) => s + (t.valor || 0), 0);
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsMes]);
+  }, [wallets, txsMes, mesIndex]);
 
   const faturaTotal = useMemo(
     () => Object.values(faturaPorCartao).reduce((s, v) => s + v, 0),
