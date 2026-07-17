@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
-} from 'recharts';
 import { CalendarRange, Plus, Trash2, Wand2, TrendingUp, TrendingDown, PiggyBank, AlertTriangle } from 'lucide-react';
+
+// recharts sob demanda: fora do bundle inicial da página.
+const GraficoSaldo = dynamic(() => import('./GraficoSaldo'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full rounded-xl bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />,
+});
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
@@ -138,23 +142,7 @@ export default function PlanejamentoAnualPage() {
         <div className="rounded-3xl border border-border bg-card p-4 sm:p-5">
           <p className="text-sm font-semibold text-foreground mb-3">Saldo acumulado ao longo do ano</p>
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={calc.linhas} margin={{ top: 5, right: 5, bottom: 0, left: -8 }}>
-                <defs>
-                  <linearGradient id="gPlan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
-                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={brlCompact} width={40} />
-                <ReferenceLine y={0} stroke="hsl(var(--border))" />
-                <Tooltip formatter={(v) => brl(Number(v))} labelFormatter={(m) => `${m}/${ano}`}
-                         contentStyle={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12 }} />
-                <Area type="monotone" dataKey="acumulado" name="Acumulado" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#gPlan)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <GraficoSaldo data={calc.linhas} ano={ano} />
           </div>
         </div>
 

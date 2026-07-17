@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -12,9 +13,11 @@ import {
   Plus, Sparkles, Pencil, Trash2, ArrowUpRight, ArrowDownLeft,
   AlertCircle, Loader2, Check, X as XIcon, Flag, Calendar, Target as TargetIcon,
 } from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from 'recharts';
+// recharts sob demanda: fora do bundle inicial da página.
+const GraficoMeta = dynamic(() => import('./GraficoMeta'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full rounded-lg bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />,
+});
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -353,25 +356,7 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
               )}
             </div>
             <div className="h-20 -mx-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={serie} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id={`g-${meta.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor={corBarra} stopOpacity={0.4} />
-                      <stop offset="100%" stopColor={corBarra} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="mesLabel" tick={{ fontSize: 9, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                  <YAxis hide />
-                  <Tooltip
-                    formatter={(v: any) => fmt(Number(v))}
-                    contentStyle={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11, padding: '4px 8px' }}
-                    labelFormatter={(l) => l}
-                  />
-                  <Area type="monotone" dataKey="valor"    stroke={corBarra}    fill={`url(#g-${meta.id})`} strokeWidth={2.5} dot={false} connectNulls />
-                  <Area type="monotone" dataKey="projecao" stroke={corBarra}    fill="transparent" strokeWidth={2} strokeDasharray="4 4" dot={false} connectNulls />
-                </AreaChart>
-              </ResponsiveContainer>
+              <GraficoMeta data={serie} gradId={`g-${meta.id}`} cor={corBarra} />
             </div>
           </div>
         )}
