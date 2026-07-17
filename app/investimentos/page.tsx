@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -11,10 +12,12 @@ import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
 } from 'lucide-react';
-import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, LineChart, Line,
-} from 'recharts';
+// recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
+// inicial. Skeleton com a mesma altura do container (evita CLS).
+const skel = () => <div className="w-full h-full rounded-xl bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />;
+const GraficoDistribuicao = dynamic(() => import('./Graficos').then(m => m.GraficoDistribuicao), { ssr: false, loading: skel });
+const GraficoPatrimonio   = dynamic(() => import('./Graficos').then(m => m.GraficoPatrimonio),   { ssr: false, loading: skel });
+const GraficoSimulacao    = dynamic(() => import('./Graficos').then(m => m.GraficoSimulacao),    { ssr: false, loading: skel });
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -341,14 +344,7 @@ function TabResumo({ totais, distribuicao, patrimonio }: any) {
           <div className="lg:col-span-2">
             <div className="w-full aspect-square max-w-[240px] mx-auto">
               {distribuicao.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={distribuicao} dataKey="valor" innerRadius="55%" outerRadius="85%" paddingAngle={2} stroke={strokePie} strokeWidth={2}>
-                      {distribuicao.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: isDark ? '#18181b' : '#fff', border: `1px solid ${isDark ? '#3f3f46' : 'hsl(var(--border))'}`, borderRadius: 12, fontSize: 12, color: isDark ? '#fff' : '#111' }} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <GraficoDistribuicao data={distribuicao} strokePie={strokePie} isDark={isDark} />
               ) : (
                 <div className="w-full h-full rounded-full border-[14px] border-border flex items-center justify-center">
                   <span className="text-xs text-muted-foreground">Sem dados</span>
@@ -398,23 +394,7 @@ function TabResumo({ totais, distribuicao, patrimonio }: any) {
         </div>
         <div className="h-64">
           {patFiltrado.length > 1 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={patFiltrado} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gPat" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={BRAND} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={BRAND} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="data" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }} />
-                <Area type="monotone" dataKey="patrimonio_total" stroke={BRAND} fill="url(#gPat)" strokeWidth={2.5} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <GraficoPatrimonio data={patFiltrado} />
           ) : (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
               Histórico será gerado conforme você adicionar investimentos.
@@ -769,17 +749,7 @@ function TabSimulador() {
 
           <div className="h-44 mt-5">
             {sim.linhas.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={sim.linhas} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }} />
-                  <Line type="monotone" dataKey="aportado" stroke="hsl(var(--fg-muted))" strokeWidth={1.5} dot={false} name="Aportado" />
-                  <Line type="monotone" dataKey="saldo" stroke={BRAND} strokeWidth={2.5} dot={false} name="Saldo" />
-                </LineChart>
-              </ResponsiveContainer>
+              <GraficoSimulacao data={sim.linhas} />
             ) : (
               <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
                 Configure os parâmetros para ver o gráfico.

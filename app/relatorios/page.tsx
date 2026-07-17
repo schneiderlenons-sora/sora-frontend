@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import BaleiaHumor, { humorPorFinancas } from '@/components/relatorios/BaleiaHumor';
-import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria, citrico } from '@/lib/categorias';
@@ -17,10 +17,14 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, RefreshCw,
   CheckCircle2, ClipboardList, Activity, Layers, Users,
 } from 'lucide-react';
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
+// recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
+// saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
+const skel = (h: number) => () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: h }} role="status" aria-label="Carregando gráfico" />;
+const CategoryDonut       = dynamic(() => import('@/components/relatorios/CategoryDonut'), { ssr: false, loading: skel(200) });
+const GraficoFrequencia   = dynamic(() => import('./Graficos').then(m => m.GraficoFrequencia),  { ssr: false, loading: skel(260) });
+const GraficoFluxo        = dynamic(() => import('./Graficos').then(m => m.GraficoFluxo),        { ssr: false, loading: skel(340) });
+const GraficoComparativo  = dynamic(() => import('./Graficos').then(m => m.GraficoComparativo),  { ssr: false, loading: skel(260) });
+const DonutVazio          = dynamic(() => import('./Graficos').then(m => m.DonutVazio),          { ssr: false, loading: skel(180) });
 
 const BRAND       = 'hsl(var(--primary))';
 const RED         = '#ef4444';
@@ -45,23 +49,8 @@ type Periodo = 'hoje' | '7d' | 'mes' | 'ano';
 // ─────────────────────────────────────────────────────────────
 // TOOLTIP PERSONALIZADO
 // ─────────────────────────────────────────────────────────────
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="glass rounded-xl px-3.5 py-2.5 shadow-lg text-sm min-w-[160px] border border-border/60">
-      <p className="font-semibold text-foreground mb-1.5 text-[11px] uppercase tracking-wider">{label}</p>
-      {payload.map((p: any, i: number) => (
-        <div key={i} className="flex items-center justify-between gap-4 mt-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-            <span className="text-muted-foreground text-xs">{p.name}</span>
-          </div>
-          <span className="font-semibold text-foreground text-xs tabular">{fmt(p.value)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+// CustomTooltip foi pra app/relatorios/Graficos.tsx (junto dos gráficos) — se
+// ficasse aqui, o type de <Tooltip content> puxaria recharts de volta pra página.
 
 // ─────────────────────────────────────────────────────────────
 // PÁGINA
@@ -449,36 +438,7 @@ export default function RelatoriosPage() {
                 icon={<LineIcon size={14} className="text-blue-500" />}
                 badgeColor="blue"
               >
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={dadosFrequencia} barGap={2}>
-                    <defs>
-                      <linearGradient id="freqRec" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#16a34a" />
-                      </linearGradient>
-                      <linearGradient id="freqDes" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#fb923c" /><stop offset="100%" stopColor="#f43f5e" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v) => Number(v) % 5 === 0 ? v : ''}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={fmtCompact}
-                      width={45}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--bg-muted) / 0.35)', radius: 4 }} />
-                    <Bar dataKey="Receitas" fill="url(#freqRec)" radius={[4, 4, 0, 0]} maxBarSize={12} />
-                    <Bar dataKey="Despesas" fill="url(#freqDes)" radius={[4, 4, 0, 0]} maxBarSize={12} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <GraficoFrequencia data={dadosFrequencia} />
                 <ChartLegend items={[
                   { label: 'Receitas', color: '#22c55e' },
                   { label: 'Despesas', color: '#fb7185' },
@@ -710,37 +670,7 @@ export default function RelatoriosPage() {
               badgeColor="blue"
               fullWidth
             >
-              <ResponsiveContainer width="100%" height={340}>
-                <AreaChart data={dadosFluxo}>
-                  <defs>
-                    <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={BRAND} stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor={BRAND} stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="gDes" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={RED} stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor={RED} stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="gSal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={BLUE} stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor={BLUE} stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }}
-                         axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }}
-                         axisLine={false} tickLine={false} tickFormatter={fmtCompact} width={55} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="Receitas" stroke={BRAND} strokeWidth={2.5}
-                        fill="url(#gRec)" activeDot={{ r: 5, fill: BRAND, strokeWidth: 2, stroke: 'white' }} />
-                  <Area type="monotone" dataKey="Despesas" stroke={RED} strokeWidth={2.5}
-                        fill="url(#gDes)" activeDot={{ r: 5, fill: RED, strokeWidth: 2, stroke: 'white' }} />
-                  <Area type="monotone" dataKey="Saldo" stroke={BLUE} strokeWidth={2.5}
-                        fill="url(#gSal)" activeDot={{ r: 5, fill: BLUE, strokeWidth: 2, stroke: 'white' }}
-                        strokeDasharray="6 4" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <GraficoFluxo data={dadosFluxo} />
               <ChartLegend items={[
                 { label: 'Receitas', color: BRAND },
                 { label: 'Despesas', color: RED },
@@ -756,18 +686,7 @@ export default function RelatoriosPage() {
               badgeColor="green"
               fullWidth
             >
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={dadosFluxo} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }}
-                         axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }}
-                         axisLine={false} tickLine={false} tickFormatter={fmtCompact} width={55} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--bg-muted) / 0.3)' }} />
-                  <Bar dataKey="Receitas" fill={BRAND} radius={[6, 6, 0, 0]} maxBarSize={28} />
-                  <Bar dataKey="Despesas" fill={RED}   radius={[6, 6, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
+              <GraficoComparativo data={dadosFluxo} />
             </ChartCard>
           </div>
         )}
@@ -859,19 +778,7 @@ function ChartCard({
 function EmptyDonut({ label }: { label: string }) {
   return (
     <div className="relative flex flex-col items-center py-4">
-      <ResponsiveContainer width="100%" height={180}>
-        <PieChart>
-          <Pie
-            data={[{ value: 1 }]}
-            cx="50%" cy="50%"
-            innerRadius={55} outerRadius={80}
-            dataKey="value" startAngle={90} endAngle={-270}
-            strokeWidth={0}
-          >
-            <Cell fill="hsl(var(--border))" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
+      <DonutVazio />
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none top-2">
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total</p>
         <p className="text-lg font-bold text-muted-foreground tabular">R$ 0,00</p>
