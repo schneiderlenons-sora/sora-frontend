@@ -304,6 +304,87 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Fix CLS na landing** (`components/landing/SocialProof.tsx`): depoimentos empilhados em grid ([grid-area:1/1]) + altura fixa dos avatares → sem pulo ao trocar de depoimento.
 - **Ícone da PWA no iOS** (`app/layout.tsx`): `apple-touch-icon` agora é `/sora-icon.png` (verde full-bleed) em vez de `/brands/sora.png` (círculo transparente → borda branca). iOS precisa REINSTALAR o PWA pra atualizar o ícone.
 
+## Open Finance (Polp) — teste fechado, fatura do cartão
+
+Integração **funcionando** com banco real (Nubank + Mercado Pago). Allowlist nos
+DOIS lados (`config/openFinanceAccess.js` no back — é quem autoriza de verdade —
+e `lib/open-finance-access.ts` no front, que mostra a aba). Fora da lista: aba
+"em atualização".
+
+**REGRA DE OURO DA FATURA — não regredir:**
+```
+fatura do cartão = balance − parcelas a vencer
+```
+- O `balance` do cartão **NÃO é a fatura**: é o **limite usado**, e inclui parcela
+  a vencer. Erra sempre PRA CIMA (medido: MP 904,71 × 708,06 real; Nubank
+  5.349,63 × 2.845,20 real).
+- **Parcelas a vencer = transações que a Polp manda com data no FUTURO**
+  (ex.: `2027-03-13`, `"HOTEIS.COM 12/12"`, `status: PENDING`). Medidas, nunca
+  projetadas — projetar a partir de `start_date × total_installments` deu
+  6.379,06 onde o real era 2.504,43.
+- O sync **não importa transação com data > hoje** (viraria despesa em 2027).
+- Não depende de data de fechamento — que nem Nubank nem MP mandam
+  (`balanceCloseDate: null`). Sem parcelamento, futuras = 0 → fatura = balance.
+- `polpSync.normalizeConta` grava `saldo: 0` em cartão? **NÃO** — grava
+  `-(balance − futuras)`. (O `pluggySync` legado zerava e deixava a fatura vir
+  das transações; isso dá o mês do CALENDÁRIO, não o ciclo, e ignora o pagamento
+  da fatura — deu 1410 onde o real era 708.)
+
+**Bugs da POLP (reportados, não são nossos):**
+- `GET /accounts/{id}/balance` → **HTTP 500** em conta CREDIT (funciona em BANK).
+- `GET /accounts/{id}/installments` **não devolve `paid_installments`** (a doc
+  cita o campo no texto). E `start_date`/`end_date` são a janela **observada**,
+  não o cronograma → **esse endpoint não serve pra calcular parcela a vencer**.
+- O mesmo parcelamento vem **duplicado** com cronogramas deslocados +1 mês
+  (suspeita: o usuário mudou a data de vencimento no MP).
+- MP não publica a fatura do mês (`List Bills` para no mês passado, já pago) nem
+  parcela futura como transação — por isso **MP com parcelamento fica impreciso**.
+
+**Doc da Polp:** https://polp.com.br/docs/pluggy — 37 páginas, renderizadas por
+JS (curl não lê; use browser). `List Bills` = vencimento DESC, 15/página.
+
+> Detalhes e o histórico do diagnóstico: memória `project-open-finance-polp`.
+
+---
+
+## Performance do painel — regras que não podem regredir
+
+Otimização de jul/2026 (dashboard: mobile 45 → 64, desktop 45 → 82;
+JS 3 MB → 1,16 MB; FCP 2,2s → 1,1s). O que quebrou e não pode voltar:
+
+- **Fonte:** a Inter vem do `next/font` (self-hospedada) e o CSS a referencia por
+  `var(--font-inter)`. **NUNCA** voltar com `@import url('fonts.googleapis...')`
+  no `globals.css` — bloqueia o render por 830ms. Pedir `'Inter'` pelo NOME faz
+  o CSS depender do @import e anula o next/font.
+- **recharts (~288 KB + d3):** nunca importar direto numa página. O gráfico mora
+  em componente próprio, carregado com `next/dynamic` + `ssr:false` + skeleton de
+  altura igual (senão CLS). Ver `components/dashboard/GraficoGastos.tsx`.
+- **Sidebar com `prefetch={false}`** (`components/layout/Sidebar.tsx`): ela fica
+  sempre visível e o `<Link>` prefetcha a rota INTEIRA ao aparecer na tela — como
+  /investimentos, /metas, /relatorios, /juros e /planejamento empacotam recharts,
+  o dashboard baixava 3 cópias (864 KB) sem desenhar um gráfico.
+- **`lib/useVisivel(ativo, margem)`:** adia trabalho abaixo da dobra. ⚠️ Só
+  observe DEPOIS que o conteúdo principal chegou (`ativo = !!data`) — enquanto a
+  página é skeleton ela é curta, tudo "parece" visível e o gate abre sozinho
+  (medido: gráfico a 1227px com limite de 940px, carregado assim mesmo). Usa
+  callback ref de propósito (com `useRef+useEffect`, nó não montado = `null` sem
+  reexecução).
+- **Meta Pixel em `lazyOnload`**: em `afterInteractive` o `fbevents.js` (103 KB)
+  começava em 755ms, ANTES da `/api/dashboard` (1395ms). Analytics não compete
+  com conteúdo.
+- **`preconnect` pro backend** no `app/layout.tsx` (a chamada do LCP só sai após
+  a hidratação e pagava DNS+TLS ali).
+- **Medir sempre sem extensão** (janela anônima): Adobe Acrobat/adblock injetam
+  script e sujam o resultado. E o Lighthouse roda em **emulação mobile** —
+  desktop e mobile dão números bem diferentes.
+
+> **PENDENTE — o teto atual:** o LCP espera `carregar JS → hidratar → ida e volta
+> no Render (~1,1s)`. Nenhum ajuste de bundle muda essa ORDEM; o teto é ~70-80.
+> Passar de 90 exige **SSR do dashboard** (Server Component busca os dados, HTML
+> já chega pintado, SWR assume depois). Memória: `project-ssr-dashboard`.
+
+---
+
 ## WhatsApp Cloud API oficial (Meta) — migração CONCLUÍDA (jul/2026)
 
 A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Meta**. Z-API descontinuado (ao registrar o número na Cloud API ele sai do app/Z-API — não dá pra voltar). Empresa verificada na Meta (ENOTAS DESENV DE SOFTWARES LTDA, CNPJ 14.422.279/0001-06).
@@ -425,6 +506,11 @@ sql/043_bug_reports.sql         — tabela bug_reports (aba Relatar um problema)
 sql/044_resumos.sql             — colunas resumo_* em users (resumos proativos semanal/mensal no WhatsApp)
 sql/062_tarefa_categoria.sql    — coluna categoria em tarefas (tarefa por linguagem natural já categorizada)
 sql/063_notas.sql               — tabela notas (insights/ideias salvos e consultados pelo WhatsApp)
+sql/069_open_finance.sql        — tabelas of_conexoes/of_caixinhas + of_tx_id/of_conta_id (Open Finance)
+sql/075_categoria_trabalho.sql  — categoria "💼 Trabalho/Negócio" (anúncios: FACEBK/Meta/Google Ads)
+sql/076_recategorizar_of.sql    — re-categoriza transações OF JÁ importadas (o sync dedupa por of_tx_id e NUNCA reescreve linha existente — de propósito: senão apagaria a categoria corrigida à mão)
+sql/077_cartao_minimo.sql       — coluna pagamento_minimo em wallets (o painel estimava 15% da fatura; o banco manda o valor real)
+sql/078_limpa_parcela_futura.sql — remove parcelas FUTURAS importadas como gasto (a Polp manda parcela a vencer como transação datada em 2027; o sync já corta, isto limpa o passado)
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
