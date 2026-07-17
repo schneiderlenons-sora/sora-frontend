@@ -127,8 +127,6 @@ export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
-  // O recharts (~288 KB) só é baixado quando o gráfico se aproxima da tela.
-  const { ref: graficoRef, visivel: graficoVisivel } = useVisivel<HTMLDivElement>();
 
   const hoje        = new Date();
   const today       = hoje.getDate();
@@ -144,6 +142,12 @@ export default function DashboardPage() {
     phone ? `dash:all:${phone}:${mesAtual}` : null,
     () => fetchDashboard(phone, mesAtual, mesAnterior),
   );
+
+  // A chamada principal já respondeu? É ela que o LCP espera — todo o resto
+  // (cards do Grow, recharts) só pode ir pra fila DEPOIS, senão disputa banda
+  // e CPU justamente na janela que decide a métrica.
+  const pronto = !!data;
+  const { ref: graficoRef, visivel: graficoVisivel } = useVisivel<HTMLDivElement>(pronto);
 
   const resumo:    any   = data?.resumo    ?? { receitas: 0, gastos: 0, por_categoria: [] };
   const resumoAnt: any   = data?.resumoAnt ?? { receitas: 0, gastos: 0, por_categoria: [] };
@@ -346,7 +350,7 @@ export default function DashboardPage() {
 
           {/* ── Hábitos de hoje (Grow) no topo — ou Ritmo se sem Grow ── */}
           <div className="lg:col-span-2">
-            {temAcessoGrow ? <GrowHabitosCard /> : fluxoCard}
+            {temAcessoGrow ? <GrowHabitosCard pronto={pronto} /> : fluxoCard}
           </div>
         </div>
 
@@ -417,7 +421,7 @@ export default function DashboardPage() {
         {/* ══════════════════════════════════════════════════════
             SORA GROW — seu dia (hábitos, tarefas, bem-estar, agenda)
         ══════════════════════════════════════════════════════ */}
-        <GrowResumo ritmoSlot={fluxoCard} />
+        <GrowResumo ritmoSlot={fluxoCard} pronto={pronto} />
 
         {/* ══════════════════════════════════════════════════════
             CATEGORIAS

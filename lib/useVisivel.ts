@@ -1,39 +1,44 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "Já chegou perto da tela?" — pra adiar trabalho de conteúdo abaixo da dobra.
 //
-// Por que existe: no dashboard, os cards do Grow disparavam 4 chamadas de API
-// no MESMO instante da /api/dashboard. Medido: /grow/agenda/feed e
-// /grow/habitos levam ~1,5s cada e alimentam cards que nem estão visíveis —
-// mas competiam por banda e CPU justamente na janela do LCP, que depende da
-// /api/dashboard. Adiar até o card se aproximar da viewport libera a chamada
-// que importa.
+// ⚠️ LIÇÃO APRENDIDA: NÃO observe antes do conteúdo principal renderizar.
+// Enquanto a página é só skeleton ela é CURTA e tudo cabe na tela — o observer
+// dispara na hora, com razão (naquele instante o card estava mesmo visível).
+// Aí os dados chegam, os cards crescem e empurram o bloco pra 1200px, mas o
+// gate já abriu. Medido: gráfico a 1227px com limite de 940px, carregado assim
+// mesmo. Por isso `ativo`: só começa a observar quando quem chama diz que a
+// tela já assentou (tipicamente `!!data` da chamada principal).
 //
-// `margem` dispara ANTES de entrar na tela, pra o dado já estar chegando quando
-// o usuário rolar. Uma vez visível, nunca volta a false (não faz sentido
-// "descarregar" o card).
+// Usa callback ref (e não useRef + useEffect) pra observar no instante em que o
+// nó entra no DOM — com useEffect, se o elemento ainda não montou, ref.current
+// vem null e não há re-execução pra corrigir.
 // ─────────────────────────────────────────────────────────────────────────────
-export function useVisivel<T extends HTMLElement = HTMLDivElement>(margem = '300px') {
-  const ref = useRef<T>(null);
+export function useVisivel<T extends HTMLElement = HTMLDivElement>(
+  ativo = true,
+  margem = '200px',
+) {
   const [visivel, setVisivel] = useState(false);
+  const obs = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    if (visivel) return;
-    const el = ref.current;
-    // Sem suporte a IntersectionObserver (ou sem nó): não esconde conteúdo de
-    // ninguém — assume visível e segue o fluxo antigo.
-    if (!el || typeof IntersectionObserver === 'undefined') { setVisivel(true); return; }
+  const ref = useCallback((node: T | null) => {
+    obs.current?.disconnect();
+    if (!node || visivel) return;
+    // Sem suporte a IntersectionObserver: não esconde conteúdo de ninguém.
+    if (typeof IntersectionObserver === 'undefined') { setVisivel(true); return; }
+    // Ainda não assentou: não observa agora — este callback roda de novo quando
+    // `ativo` virar true (o `ref` muda de identidade e o React reanexa).
+    if (!ativo) return;
 
-    const obs = new IntersectionObserver(
-      entries => { if (entries.some(e => e.isIntersecting)) { setVisivel(true); obs.disconnect(); } },
+    obs.current = new IntersectionObserver(
+      entries => { if (entries.some(e => e.isIntersecting)) { setVisivel(true); obs.current?.disconnect(); } },
       { rootMargin: margem },
     );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [visivel, margem]);
+    obs.current.observe(node);
+  }, [ativo, visivel, margem]);
 
   return { ref, visivel };
 }

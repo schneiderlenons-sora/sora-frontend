@@ -10,14 +10,16 @@ import { Target, Check, Plus } from 'lucide-react';
 const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
 const diaSemBR = () => { const j = new Date().getDay(); return j === 0 ? 7 : j; };
 
-function GrowHabitosCard() {
+function GrowHabitosCard({ pronto = true }: { pronto?: boolean }) {
   const { phone, temAcessoGrow } = useAuth();
   const [habitos, setHabitos]     = useState<any[]>([]);
   const [registros, setRegistros] = useState<any[]>([]);
 
-  // Só busca quando o card chega perto da tela: /grow/habitos leva ~1,5s e saía
-  // junto com a /api/dashboard, competindo justamente na janela do LCP.
-  const { ref, visivel } = useVisivel<HTMLDivElement>();
+  // /grow/habitos leva ~1,5s e saía junto com a /api/dashboard, competindo na
+  // janela do LCP. Espera a principal responder (`pronto`) e só então observa a
+  // visibilidade — este card costuma ficar acima da dobra, então na prática o
+  // que adia é a competição, não o card.
+  const { ref, visivel } = useVisivel<HTMLDivElement>(pronto);
 
   const carregar = useCallback(async () => {
     if (!phone) return;
@@ -28,7 +30,7 @@ function GrowHabitosCard() {
     } catch { /* tolerante */ }
   }, [phone]);
 
-  useEffect(() => { if (visivel) carregar(); }, [visivel, carregar]);
+  useEffect(() => { if (pronto && visivel) carregar(); }, [pronto, visivel, carregar]);
 
   const hojeStr = iso(new Date());
   const diaSem = diaSemBR();

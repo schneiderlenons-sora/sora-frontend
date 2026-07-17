@@ -13,14 +13,16 @@ import {
 const HUMOR = ['', { e: '😔', l: 'Péssimo' }, { e: '😕', l: 'Mal' }, { e: '😐', l: 'Normal' }, { e: '🙂', l: 'Bem' }, { e: '😄', l: 'Ótimo' }] as const;
 const iso = (d: Date) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
 
-function GrowResumo({ ritmoSlot }: { ritmoSlot?: ReactNode }) {
+function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pronto?: boolean }) {
   const { phone, temAcessoGrow, podeUsar } = useAuth();
 
-  // SWR: só busca quando há phone, acesso ao Grow E o bloco chegou perto da
-  // tela. Estas 3 chamadas saíam junto com a /api/dashboard e roubavam a janela
-  // do LCP (o feed sozinho leva ~1,5s) pra alimentar cards abaixo da dobra.
-  const { ref, visivel } = useVisivel<HTMLElement>();
-  const ativo = phone && temAcessoGrow && visivel;
+  // Estas 3 chamadas saíam JUNTO com a /api/dashboard e roubavam a janela do
+  // LCP (o feed sozinho leva ~1,5s) pra alimentar um bloco abaixo da dobra.
+  // `pronto` = a chamada principal já respondeu; só aí observamos a
+  // visibilidade (antes disso a página é skeleton, é curta, e tudo "parece"
+  // visível). Sem o segundo passo, o LCP continua disputando banda.
+  const { ref, visivel } = useVisivel<HTMLElement>(pronto);
+  const ativo = phone && temAcessoGrow && pronto && visivel;
   const { data: tarefasData } = useApi(ativo ? `grow:tarefas:${phone}` : null, () => api.grow.tarefas.listar(phone, { concluida: false }));
   const { data: humorData }   = useApi(ativo ? `grow:humor:${phone}`   : null, () => api.grow.humor.listar(phone, 1));
   const { data: eventosData } = useApi(ativo ? `grow:feed:${phone}`    : null, () => api.grow.compromissos.feed(phone));
