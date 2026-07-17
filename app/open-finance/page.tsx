@@ -17,7 +17,8 @@ import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
-  Clock, ShieldCheck, Lock, Search, ExternalLink, X,
+  Clock, ShieldCheck, Search, ExternalLink, X,
+  Wrench, FileUp, Sparkles, ArrowRight,
 } from 'lucide-react';
 
 const BRAND = '#61D17B';
@@ -249,19 +250,64 @@ export default function OpenFinancePage() {
         )}
 
         {!liberado ? (
-          <div className="rounded-3xl border border-border bg-card p-8 text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-muted">
-              <Lock size={24} className="text-muted-foreground" />
+          /* Fora da allowlist: Open Finance em teste fechado. Em vez de expor o
+             fluxo real, mostra o aviso "Em atualização" (o mesmo de sempre) +
+             recomendação de OFX. Restaurado do commit a936e09. */
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8">
+            <div aria-hidden className="absolute -top-16 -right-12 w-52 h-52 rounded-full opacity-20 pointer-events-none"
+                 style={{ background: `radial-gradient(circle, ${BRAND} 0%, transparent 60%)` }} />
+
+            <div className="relative space-y-5">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl flex-shrink-0"
+                      style={{ background: `color-mix(in srgb, ${BRAND} 16%, transparent)` }}>
+                  <Wrench size={22} style={{ color: BRAND }} />
+                </span>
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest"
+                        style={{ background: `color-mix(in srgb, ${BRAND} 14%, transparent)`, color: BRAND }}>
+                    <Sparkles size={11} /> Em breve
+                  </span>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight mt-1.5">Em atualização</h2>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm text-muted-foreground leading-relaxed [&_b]:text-foreground [&_b]:font-semibold">
+                <p>
+                  Estamos migrando o Open Finance para uma conexão <b>nova, mais moderna e completa</b>.
+                  Ao usar a integração anterior, percebemos que ela <b>não trazia todos os seus dados
+                  com precisão</b> — como <b>cartões virtuais extras na mesma conta bancária</b> e
+                  <b> investimentos feitos direto no banco</b>.
+                </p>
+                <p>
+                  Como a sua organização financeira depende de dados 100% corretos, preferimos
+                  <b> pausar essa conexão</b> a te entregar algo pela metade. Já estamos construindo uma
+                  integração Open Finance <b>bem melhor</b>, que puxa tudo certinho — contas, cartões e
+                  investimentos — e mantém seus saldos e transações sempre atualizados. Em breve ela
+                  aparece aqui mesmo. 🚀
+                </p>
+              </div>
+
+              {/* Recomendação OFX */}
+              <div className="rounded-2xl border border-border bg-muted/40 p-4 flex items-start gap-3">
+                <FileUp size={18} style={{ color: BRAND }} className="flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="font-semibold text-foreground">Quer importar tudo agora?</p>
+                  <p>
+                    Enquanto a nova conexão não chega, você consegue trazer{' '}
+                    <b className="text-foreground font-semibold">todas as suas transações de uma vez</b> pela
+                    importação <b className="text-foreground font-semibold">OFX</b> nas Contas — é rápido e traz
+                    seu extrato completo. 😉
+                  </p>
+                </div>
+              </div>
+
+              <a href="/contas-bancarias"
+                 className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99]"
+                 style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+                <FileUp size={17} /> Importar via OFX <ArrowRight size={16} />
+              </a>
             </div>
-            <h2 className="text-lg font-bold text-foreground">Recurso indisponível</h2>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              O Open Finance ainda não está disponível na sua conta. Enquanto isso, você pode
-              importar seu extrato em OFX nas Contas.
-            </p>
-            <a href="/contas-bancarias" className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold text-white"
-               style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
-              Ir pra Contas
-            </a>
           </div>
         ) : (
           <>

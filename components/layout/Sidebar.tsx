@@ -13,7 +13,6 @@ import {
   Percent, CalendarRange, FolderLock,
 } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
-import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -126,8 +125,8 @@ export default function Sidebar() {
   const router = useRouter();
   const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
-  // Open Finance em teste fechado (Polp/Pluggy) — só allowlist enxerga o item.
-  const podeOpenFinance = ehAdmin || podeVerOpenFinance(perfil?.email, phone);
+  // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
+  // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
   const [open, setOpen] = useState(false); // drawer mobile
   const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown Sora ↔ Labs
   const ehLabs = !!pathname?.startsWith('/labs');
@@ -353,7 +352,6 @@ export default function Sidebar() {
               <div className="space-y-0.5 mt-0.5 animate-fade-in">
                 {NAV_FINANCE
                   .filter(item => !item.adminOnly || ehAdmin)
-                  .filter(item => item.href !== '/open-finance' || podeOpenFinance)
                   .map(item => <NavLink key={item.href} item={item} />)}
               </div>
             )}
