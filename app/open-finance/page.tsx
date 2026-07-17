@@ -9,7 +9,7 @@
 // Teste fechado: só a allowlist enxerga (gate no back e no front).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
@@ -44,6 +44,18 @@ function statusMeta(s?: string | null) {
   return { label: 'Sincronizando…', cor: '#f59e0b', Icon: Clock };
 }
 
+// Data curta pro card. O toLocaleString cheio ("16/07/2026, 16:50:41") é longo
+// demais pro mobile e empurrava a linha de status pra cima dos botões.
+function quando(iso: string) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 1) return 'agora mesmo';
+  if (min < 60) return `há ${min} min`;
+  if (min < 1440) return `há ${Math.round(min / 60)}h`;
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 export default function OpenFinancePage() {
   const { perfil, phone } = useAuth();
   const liberado = isAdminEmail(perfil?.email) || podeVerOpenFinance(perfil?.email, phone);
@@ -64,9 +76,13 @@ export default function OpenFinancePage() {
   const [conectando, setConectando] = useState(false);
   const [debugOut, setDebugOut] = useState('');
   // URL de autorização do banco — mostrada como LINK (window.open é bloqueado no
-  // PWA / fora do clique direto).
+  // PWA / fora do clique direto). `authId` = modal aberto esperando a URL nascer.
   const [authUrl, setAuthUrl] = useState('');
   const [authNome, setAuthNome] = useState('');
+  const [authId, setAuthId] = useState('');
+  const [authLento, setAuthLento] = useState(false);
+  const [authTry, setAuthTry] = useState(0);
+  const fecharAuth = () => { setAuthUrl(''); setAuthId(''); setAuthLento(false); };
 
   async function diagnostico(id: string) {
     setDebugOut('Carregando…');
@@ -80,15 +96,62 @@ export default function OpenFinancePage() {
     finally { setCarregando(false); }
   }, []);
 
-  useEffect(() => { if (liberado) carregar(); else setCarregando(false); }, [liberado, carregar]);
-
-  async function abrirPicker() {
-    setPickerOpen(true); setErro(''); setInstSel(null); setBusca('');
-    if (insts.length) return;
+  // Bancos: uma requisição só, compartilhada entre o prefetch e o clique.
+  const instsReq = useRef<Promise<unknown> | null>(null);
+  const carregarInsts = useCallback((mostrarErro: boolean) => {
+    if (instsReq.current) return;
     setInstLoading(true);
-    try { const d = await api.openFinance.instituicoes(); setInsts(d.instituicoes || []); }
-    catch (e: any) { setErro(e.message || 'Não consegui listar os bancos.'); }
-    finally { setInstLoading(false); }
+    instsReq.current = api.openFinance.instituicoes()
+      .then((d: any) => {
+        const lista = d.instituicoes || [];
+        setInsts(lista);
+        // Lista vazia (a Polp engole erro e devolve []) não vira cache — senão
+        // o seletor ficaria preso em "Nenhum banco encontrado" pra sempre.
+        if (!lista.length) instsReq.current = null;
+      })
+      .catch((e: any) => {
+        instsReq.current = null; // deixa tentar de novo no próximo clique
+        if (mostrarErro) setErro(e?.message || 'Não consegui listar os bancos.');
+      })
+      .finally(() => setInstLoading(false));
+  }, []);
+
+  // Carrega conexões E já pré-carrega os bancos ao abrir a página: quando o
+  // usuário toca em "Conectar banco" a lista costuma estar pronta (era o
+  // "demora pra aparecer os bancos"). O prefetch é silencioso.
+  useEffect(() => {
+    if (!liberado) { setCarregando(false); return; }
+    carregar();
+    carregarInsts(false);
+  }, [liberado, carregar, carregarInsts]);
+
+  // A URL de autorização nasce um instante DEPOIS do create. Em vez de segurar a
+  // resposta do /conectar (eram ~7s), o modal abre na hora e a URL entra aqui.
+  useEffect(() => {
+    if (!authId || authUrl) return;
+    let vivo = true;
+    let tentativas = 0;
+    const tick = async () => {
+      if (!vivo) return;
+      try {
+        const r = await api.openFinance.autorizar(authId);
+        if (!vivo) return;
+        if (r.urlToAuthenticate) { setAuthUrl(r.urlToAuthenticate); return; }
+        const s = (r.status || '').toString().toUpperCase();
+        if (s === 'UPDATED')     { setAuthId(''); setFlash('Esse banco já está autorizado — toque em Sincronizar.'); return; }
+        if (s === 'LOGIN_ERROR') { setAuthId(''); setErro('O banco recusou o login. Conecte de novo.'); return; }
+      } catch { /* rede instável: segue tentando */ }
+      if (!vivo) return;
+      if (++tentativas >= 20) { setAuthLento(true); return; }
+      setTimeout(tick, 700);
+    };
+    const t = setTimeout(tick, 250);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [authId, authUrl, authTry]);
+
+  function abrirPicker() {
+    setPickerOpen(true); setErro(''); setInstSel(null); setBusca('');
+    if (!insts.length) carregarInsts(true);
   }
 
   const instsFiltradas = useMemo(() => {
@@ -99,21 +162,25 @@ export default function OpenFinancePage() {
 
   async function conectar() {
     if (!instSel) return;
+    const nome = nomeInst(instSel);
     setConectando(true); setErro('');
     try {
       const r = await api.openFinance.conectar({
         institution_id: instSel.id,
         cpf: cpf.replace(/\D/g, '') || undefined,
-        instituicao_nome: nomeInst(instSel),
+        instituicao_nome: nome,
       });
+      // Abre o modal JÁ: se a URL veio no create, mostra o botão; senão o
+      // polling preenche em ~1s. Recarregar a lista não bloqueia o modal.
       setPickerOpen(false);
-      await carregar();
-      if (r.urlToAuthenticate) {
-        setAuthUrl(r.urlToAuthenticate); setAuthNome(nomeInst(instSel));
-      } else {
+      setAuthNome(nome); setAuthLento(false);
+      if (r.urlToAuthenticate) setAuthUrl(r.urlToAuthenticate);
+      else if (r.externalId) setAuthId(String(r.externalId));
+      else {
         setFlash('Conexão iniciada! Em instantes os dados chegam — use Sincronizar se demorar.');
         setTimeout(() => setFlash(''), 8000);
       }
+      carregar();
     } catch (e: any) {
       setErro(e.message || 'Não consegui conectar.');
     } finally { setConectando(false); }
@@ -139,13 +206,11 @@ export default function OpenFinancePage() {
     finally { setSincronizando(''); }
   }
 
-  async function autorizar(id: string, nome: string | null) {
-    setErro('');
-    try {
-      const r = await api.openFinance.autorizar(id);
-      if (r.urlToAuthenticate) { setAuthUrl(r.urlToAuthenticate); setAuthNome(nome || 'seu banco'); }
-      else setErro('A autorização expirou. Desconecte e conecte de novo pra gerar um link novo.');
-    } catch (e: any) { setErro(e.message || 'Não consegui abrir a autorização.'); }
+  // Abre o modal na hora; quem busca a URL é o polling (feedback imediato em vez
+  // de o botão ficar "morto" esperando a resposta).
+  function autorizar(id: string, nome: string | null) {
+    setErro(''); setAuthUrl(''); setAuthLento(false);
+    setAuthNome(nome || 'seu banco'); setAuthId(id);
   }
 
   async function desconectar(id: string, nome: string | null) {
@@ -215,7 +280,19 @@ export default function OpenFinancePage() {
 
             {/* Lista de conexões */}
             {carregando ? (
-              <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
+              // Skeleton no formato do card: reserva o espaço (sem pulo de layout)
+              // e o carregamento parece mais curto que um spinner solto.
+              <ul className="space-y-2.5" aria-busy="true">
+                {[0, 1].map(i => (
+                  <li key={i} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3 animate-pulse">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 w-32 rounded bg-muted" />
+                      <div className="h-3 w-24 rounded bg-muted" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             ) : conexoes.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-border p-10 text-center space-y-2">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-muted">
@@ -230,37 +307,51 @@ export default function OpenFinancePage() {
                   const m = statusMeta(c.status);
                   const sinc = sincronizando === c.external_id;
                   return (
-                    <li key={c.external_id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'hsl(var(--bg-muted))' }}>
-                        <Landmark size={18} className="text-muted-foreground" />
+                    // Mobile: identificação em cima, ações numa linha própria — antes era
+                    // tudo num flex só e os 4 botões (flex-shrink-0) esmagavam o texto,
+                    // que vazava por baixo deles. Desktop (sm+) segue inline.
+                    <li key={c.external_id} className="rounded-2xl border border-border bg-card p-4 sm:flex sm:items-center sm:gap-3">
+                      <div className="flex items-start gap-3 sm:flex-1 sm:min-w-0">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'hsl(var(--bg-muted))' }}>
+                          <Landmark size={18} className="text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{c.instituicao || 'Banco'}</p>
+                          {/* flex-wrap: status e data quebram a linha em vez de vazar */}
+                          <div className="flex flex-wrap items-center gap-x-1.5 text-xs">
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap" style={{ color: m.cor }}>
+                              <m.Icon size={12} /> {m.label}
+                            </span>
+                            {c.ultima_sync && <span className="text-muted-foreground whitespace-nowrap">· {quando(c.ultima_sync)}</span>}
+                          </div>
+                          {c.ultimo_erro && <p className="text-[11px] text-red-500 line-clamp-2 mt-0.5">{c.ultimo_erro}</p>}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{c.instituicao || 'Banco'}</p>
-                        <p className="inline-flex items-center gap-1 text-xs" style={{ color: m.cor }}>
-                          <m.Icon size={12} /> {m.label}
-                          {c.ultima_sync && <span className="text-muted-foreground"> · {new Date(c.ultima_sync).toLocaleString('pt-BR')}</span>}
-                        </p>
-                        {c.ultimo_erro && <p className="text-[11px] text-red-500 truncate mt-0.5">{c.ultimo_erro}</p>}
-                      </div>
-                      {(c.status || '').toLowerCase() !== 'updated' && (
-                        <button onClick={() => autorizar(c.external_id, c.instituicao)}
-                          className="h-9 px-3 rounded-lg text-xs font-bold text-white inline-flex items-center gap-1.5 flex-shrink-0"
-                          style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
-                          <ExternalLink size={13} /> Autorizar
+
+                      <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-0 sm:flex-nowrap sm:flex-shrink-0">
+                        {(c.status || '').toLowerCase() !== 'updated' && (
+                          <button onClick={() => autorizar(c.external_id, c.instituicao)}
+                            className="flex-1 min-w-[6.5rem] sm:flex-none h-11 px-3 rounded-xl text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+                            style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+                            <ExternalLink size={13} /> Autorizar
+                          </button>
+                        )}
+                        <button onClick={() => sincronizar(c.external_id)} disabled={sinc}
+                          className="flex-1 min-w-[6.5rem] sm:flex-none h-11 px-3 rounded-xl border border-border text-xs font-bold text-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-1.5 disabled:opacity-60 active:scale-[0.98] transition-transform"
+                          style={{ minHeight: 44 }}>
+                          {sinc ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sincronizar
                         </button>
-                      )}
-                      <button onClick={() => sincronizar(c.external_id)} disabled={sinc}
-                        className="h-9 px-3 rounded-lg border border-border text-xs font-bold text-foreground hover:bg-muted/40 inline-flex items-center gap-1.5 flex-shrink-0">
-                        {sinc ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sincronizar
-                      </button>
-                      <button onClick={() => diagnostico(c.external_id)} title="Diagnóstico"
-                        className="h-9 px-2 rounded-lg border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground flex-shrink-0">
-                        diag
-                      </button>
-                      <button onClick={() => desconectar(c.external_id, c.instituicao)} title="Desconectar"
-                        className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 flex-shrink-0">
-                        <Trash2 size={15} />
-                      </button>
+                        <button onClick={() => diagnostico(c.external_id)} title="Diagnóstico" aria-label="Diagnóstico"
+                          className="h-11 w-11 rounded-xl border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground flex-shrink-0"
+                          style={{ minHeight: 44 }}>
+                          diag
+                        </button>
+                        <button onClick={() => desconectar(c.external_id, c.instituicao)} title="Desconectar" aria-label="Desconectar banco"
+                          className="h-11 w-11 rounded-xl flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 flex-shrink-0"
+                          style={{ minHeight: 44 }}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </li>
                   );
                 })}
@@ -291,8 +382,8 @@ export default function OpenFinancePage() {
       </div>
 
       {/* ── Autorizar no banco (link direto — window.open é bloqueado no PWA) ── */}
-      {authUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setAuthUrl('')}>
+      {(authUrl || authId) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={fecharAuth}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative w-full max-w-sm bg-card rounded-3xl border border-border shadow-2xl p-6 text-center space-y-4" onClick={e => e.stopPropagation()}>
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mx-auto" style={{ background: `color-mix(in srgb, ${BRAND} 14%, transparent)` }}>
@@ -305,12 +396,33 @@ export default function OpenFinancePage() {
                 Precisa estar <b className="text-foreground">logado no banco</b>. Depois, volte aqui e toque em <b className="text-foreground">Sincronizar</b>.
               </p>
             </div>
-            <a href={authUrl} target="_blank" rel="noopener noreferrer"
-               className="flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg"
-               style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
-              <ExternalLink size={17} /> Abrir {authNome}
-            </a>
-            <button onClick={() => setAuthUrl('')} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Fechar</button>
+
+            {authUrl ? (
+              <a href={authUrl} target="_blank" rel="noopener noreferrer"
+                 className="flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg animate-[slide-up_300ms_ease-out_both]"
+                 style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+                <ExternalLink size={17} /> Abrir {authNome}
+              </a>
+            ) : authLento ? (
+              // O link não veio: em vez de spinner infinito, dá saída.
+              <div className="space-y-3" role="alert">
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  O banco está demorando pra devolver o link seguro.
+                </p>
+                <button onClick={() => { setAuthLento(false); setAuthTry(t => t + 1); }}
+                  className="w-full h-12 rounded-2xl border border-border text-sm font-bold text-foreground hover:bg-muted/40"
+                  style={{ minHeight: 44 }}>
+                  Tentar de novo
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2 h-12 rounded-2xl border border-dashed border-border text-sm font-semibold text-muted-foreground"
+                   style={{ minHeight: 44 }} aria-live="polite">
+                <Loader2 size={16} className="animate-spin" /> Preparando o link seguro…
+              </div>
+            )}
+
+            <button onClick={fecharAuth} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Fechar</button>
           </div>
         </div>
       )}
@@ -334,18 +446,24 @@ export default function OpenFinancePage() {
                       className="w-full h-11 pl-9 pr-3 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary" />
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2">
-                  {instLoading ? (
-                    <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
+                <div className="flex-1 overflow-y-auto p-2 overscroll-contain">
+                  {instLoading && !insts.length ? (
+                    [0, 1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+                        <div className="w-9 h-9 rounded-lg bg-muted flex-shrink-0" />
+                        <div className="h-3.5 rounded bg-muted" style={{ width: `${45 + ((i * 13) % 35)}%` }} />
+                      </div>
+                    ))
                   ) : instsFiltradas.length === 0 ? (
                     <p className="py-10 text-center text-sm text-muted-foreground">Nenhum banco encontrado.</p>
                   ) : instsFiltradas.map(i => (
                     <button key={i.id} onClick={() => setInstSel(i)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 text-left transition-colors">
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 active:bg-muted/70 text-left transition-colors"
+                      style={{ minHeight: 44 }}>
                       <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                         {logoInst(i)
                           /* eslint-disable-next-line @next/next/no-img-element */
-                          ? <img src={logoInst(i)!} alt="" className="w-full h-full object-contain" />
+                          ? <img src={logoInst(i)!} alt="" width={36} height={36} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                           : <Landmark size={16} className="text-muted-foreground" />}
                       </div>
                       <span className="text-sm font-medium text-foreground truncate">{nomeInst(i)}</span>
