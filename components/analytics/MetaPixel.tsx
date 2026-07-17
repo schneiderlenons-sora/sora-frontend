@@ -9,7 +9,12 @@ export default function MetaPixel() {
 
   return (
     <>
-      <Script id="fb-pixel" strategy="afterInteractive">
+      {/* lazyOnload (e não afterInteractive): medido no dashboard, o
+          fbevents.js (103 KB de terceiro) começava a baixar em 755ms — ANTES da
+          /api/dashboard (1395ms), que é quem o LCP espera. Analytics não pode
+          competir com o conteúdo. Com lazyOnload o PageView continua disparando,
+          só que quando o navegador fica ocioso. */}
+      <Script id="fb-pixel" strategy="lazyOnload">
         {`
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
