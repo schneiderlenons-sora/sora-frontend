@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useApi } from '@/lib/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -19,10 +20,17 @@ import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, ChevronRight, Clock, BarChart3,
 } from 'lucide-react';
-import {
-  AreaChart, Area, BarChart, Bar, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
+// ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
+// (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
+// também usam gráfico), o dashboard chegava a baixar 3 cópias — 864 KB antes
+// de desenhar um pixel. Carregado sob demanda, vira um chunk compartilhado.
+const GraficoGastos = dynamic(() => import('@/components/dashboard/GraficoGastos'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: 220 }}
+         role="status" aria-label="Carregando gráfico" />
+  ),
+});
 
 // ── Constantes ────────────────────────────────────────────────
 const BRAND  = 'hsl(var(--primary))';
@@ -62,23 +70,8 @@ function computeDailyAmount(txs: any[], today: number) {
   }));
 }
 
-// ── Tooltip customizado ────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl p-3 shadow-xl text-sm min-w-[150px] border border-border/60"
-         style={{ background: 'hsl(var(--bg-card))' }}>
-      <p className="font-semibold text-foreground mb-1.5 text-xs">{label}</p>
-      {payload.map((p: any, i: number) => (
-        <p key={i} style={{ color: p.color }} className="text-xs flex items-center justify-between gap-3">
-          <span>{p.name}</span>
-          <span className="font-bold tabular">{fmt(p.value)}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
-
+// (o Tooltip do gráfico mora em components/dashboard/GraficoGastos.tsx —
+//  ficar aqui obrigaria a página a importar recharts de novo)
 
 // ── Badge de variação ─────────────────────────────────────────
 function VarBadge({ val, invert = false, size = 'sm' }: { val: number; invert?: boolean; size?: 'sm' | 'lg' }) {
@@ -232,44 +225,15 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex-1 flex items-center" style={{ minHeight: 220 }}>
-        <ResponsiveContainer width="100%" height={220}>
-          {chartMode === 'bar' ? (
-            <BarChart data={catsComPct.map((c: any) => ({ name: parseCategoria(c.categoria).nome.slice(0,10), gastos: c.total, color: c.color }))} barSize={28}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'hsl(var(--bg-muted))' }} />
-              <Bar dataKey="gastos" name="Gastos" radius={[6,6,0,0]}>
-                {catsComPct.map((c: any, i: number) => <Cell key={i} fill={c.color} />)}
-              </Bar>
-            </BarChart>
-          ) : (
-            <AreaChart data={dadosDiarios} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gFluxoArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={BRAND}  stopOpacity={0.55} />
-                  <stop offset="60%"  stopColor={BRAND2} stopOpacity={0.18} />
-                  <stop offset="100%" stopColor={BRAND}  stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="dia" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-                     tickFormatter={v => Number(v) % 5 === 0 ? v : ''} />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} tickFormatter={fmtShort} />
-              <Tooltip content={<ChartTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="valor"
-                name="Gasto no dia"
-                stroke={BRAND}
-                fill="url(#gFluxoArea)"
-                strokeWidth={2.5}
-                dot={{ r: 2, fill: BRAND, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: BRAND, stroke: 'white', strokeWidth: 2 }}
-              />
-            </AreaChart>
-          )}
-        </ResponsiveContainer>
+        <GraficoGastos
+          modo={chartMode}
+          barras={catsComPct.map((c: any) => ({
+            name:   parseCategoria(c.categoria).nome.slice(0, 10),
+            gastos: c.total,
+            color:  c.color,
+          }))}
+          area={dadosDiarios}
+        />
       </div>
 
       <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-border/60">

@@ -215,6 +215,13 @@ export default function Sidebar() {
     return (
       <Link
         href={destino}
+        // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
+        // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
+        // e /investimentos, /metas, /relatorios, /juros e /planejamento carregam
+        // recharts (~288 KB cada). Medido: o dashboard baixava 3 MB de JS, com
+        // 864 KB de recharts, sem desenhar um gráfico. A rota continua sendo
+        // buscada no clique; só não vem antes da hora.
+        prefetch={false}
         onClick={() => setOpen(false)}
         aria-disabled={locked || undefined}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
