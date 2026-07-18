@@ -8,6 +8,7 @@ import { useApi } from '@/lib/useApi';
 import EstudosNav from '../EstudosNav';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import ModalProva from '@/components/estudos/ModalProva';
+import AtividadeEstudos from '@/components/estudos/AtividadeEstudos';
 import {
   GraduationCap, BookOpen, Sparkles, Loader2, Plus, Play, Flame,
   Clock, Trophy, Target, ArrowRight, Calendar, FileText, ChevronRight,
@@ -133,40 +134,8 @@ export default function EstudosDashboard() {
         <StatTile icon={Trophy}   label="Cursos ativos" value={cursosAtivos.length} cor="#f59e0b" />
       </div>
 
-      {/* HEATMAP 90 DIAS */}
-      <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"
-           style={{ background: 'hsl(var(--bg-card) / 0.5)', animationDelay: '120ms' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Atividade</p>
-            <p className="text-base font-bold text-foreground">Últimos 90 dias</p>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <span>menos</span>
-            <div className="flex items-center gap-0.5">
-              {[0, 1, 2, 3, 4].map(n => (
-                <div key={n} className="w-3 h-3 rounded-sm" style={{ background: n === 0 ? 'hsl(var(--muted))' : `rgba(124, 58, 237, ${0.2 + n * 0.2})` }} />
-              ))}
-            </div>
-            <span>mais</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {heatmap.map(({ data: d, min }) => {
-            let nivel = 0;
-            if (min > 0 && min < 30) nivel = 1;
-            else if (min < 60) nivel = 2;
-            else if (min < 120) nivel = 3;
-            else if (min >= 120) nivel = 4;
-            const bg = nivel === 0 ? 'hsl(var(--muted))' : `rgba(124, 58, 237, ${0.2 + nivel * 0.2})`;
-            return (
-              <div key={d} title={`${fmtData(d)} · ${fmtMin(min)}`}
-                   className="w-3.5 h-3.5 rounded-sm transition-transform hover:scale-150 hover:ring-1 hover:ring-primary"
-                   style={{ background: bg }} />
-            );
-          })}
-        </div>
-      </div>
+      {/* ATIVIDADE 90 DIAS — gráfico (padrão) ou heatmap, com toggle */}
+      <AtividadeEstudos dados={heatmap} />
 
       {/* GRÁFICO 7d + PRÓXIMAS PROVAS */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 animate-fade-in" style={{ animationDelay: '180ms' }}>
