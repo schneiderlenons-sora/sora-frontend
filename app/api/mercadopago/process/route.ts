@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       payer?: { email?: string; identification?: { type?: string; number?: string } };
       tier?: string;
       cupom?: string;
+      deviceId?: string;   // window.MP_DEVICE_SESSION_ID (fingerprint p/ o antifraude)
     };
 
     // Valor + plano SEMPRE pelo tier no servidor (nunca confiar no cliente).
@@ -69,6 +70,12 @@ export async function POST(req: NextRequest) {
       fb_em: user.email || undefined,
     };
 
+    // Nome do pagador ajuda o antifraude do MP a pontuar melhor (junto do device
+    // id e do CPF). Best-effort: vem do metadata do auth; se não tiver, omite.
+    const nomeCompleto = String((user.user_metadata as Record<string, unknown>)?.name || (user.user_metadata as Record<string, unknown>)?.full_name || '').trim();
+    const [firstName, ...resto] = nomeCompleto.split(/\s+/);
+    const payerNome = firstName ? { first_name: firstName, last_name: resto.join(' ') || firstName } : {};
+
     const payment = await mpCreatePayment({
       transaction_amount: valor,
       description: cfg.titulo,
@@ -76,12 +83,18 @@ export async function POST(req: NextRequest) {
       installments: form.installments || 1,
       payment_method_id: form.payment_method_id,
       issuer_id: form.issuer_id,
-      payer: { email: form.payer?.email || user.email, identification: form.payer?.identification },
+      payer: { email: form.payer?.email || user.email, identification: form.payer?.identification, ...payerNome },
       external_reference: user.id,
       metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta },
       notification_url: `${origin}/api/mercadopago/webhook`,
       statement_descriptor: 'SORA',
-    });
+    }, form.deviceId);
+
+    // Log do resultado (o status_detail diz POR QUE o MP recusou —
+    // cc_rejected_high_risk, insufficient_amount, etc. — e antes era descartado).
+    if (payment.status !== 'approved') {
+      console.log(`[mp/process] ${payment.status}/${payment.status_detail} | user=${user.id} | tier=${cfg.plano} | valor=${valor} | pm=${form.payment_method_id} | device=${form.deviceId ? 'sim' : 'NÃO'}`);
+    }
 
     // Registra a intenção do vitalício (pra recuperação levar de volta pra oferta
     // certa). Tolerante: se a coluna não existir (migration 064), só não grava.

@@ -55,7 +55,12 @@ export default function MercadoPagoBrick({ amount = 97, tier = 'completa', cupom
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onSubmit: ({ formData }: any) =>
               fetch('/api/mercadopago/process', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, tier, cupom: cupomRef.current }),
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                // deviceId = fingerprint que o SDK do MP gera (window.MP_DEVICE_SESSION_ID).
+                // É o sinal nº 1 do antifraude do MP no Checkout Transparente — sem
+                // ele, recusa como "não passou nos controles de segurança".
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                body: JSON.stringify({ ...formData, tier, cupom: cupomRef.current, deviceId: (window as any).MP_DEVICE_SESSION_ID }),
               })
                 .then((r) => r.json())
                 .then((res) => {

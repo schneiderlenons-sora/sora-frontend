@@ -40,14 +40,19 @@ export async function mpCreatePreference(body: Record<string, unknown>) {
 
 // Cria um pagamento (Checkout Transparente / Bricks). `body` vem do Payment
 // Brick (token, installments, payment_method_id, payer…) + nossos campos.
-export async function mpCreatePayment(body: Record<string, unknown>) {
+// `deviceId` = fingerprint do dispositivo (window.MP_DEVICE_SESSION_ID). O
+// antifraude do MP pesa MUITO esse sinal: sem ele, recusa como "não passou nos
+// controles de segurança" (cc_rejected_high_risk). Vai no header X-meli-session-id.
+export async function mpCreatePayment(body: Record<string, unknown>, deviceId?: string) {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token()}`,
+    'Content-Type': 'application/json',
+    'X-Idempotency-Key': (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`),
+  };
+  if (deviceId) headers['X-meli-session-id'] = deviceId;
   const res = await fetch(`${MP_API}/v1/payments`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token()}`,
-      'Content-Type': 'application/json',
-      'X-Idempotency-Key': (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`),
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const data = await res.json();
