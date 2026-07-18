@@ -13,6 +13,7 @@ export const CUPONS_VITALICIO: Record<string, number> = {
   SORA10: 10,
   SORA15: 15,
   SORA25: 25,
+  SORA35: 35, // cortesia (transtorno com recusa de pagamento — jul/2026)
   SORA100: 100,
 };
 
