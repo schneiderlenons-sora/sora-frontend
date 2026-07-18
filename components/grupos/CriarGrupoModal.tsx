@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const EMOJIS = ['👨‍👩‍👧','👪','🏠','💑','👫','👬','👭','🎯','⭐','💚','🌟','🚀','🎉','🎁','💼','🏖️','⚽','🎮','🎵','🍕','🎨','🌈'];
+const EMOJIS = ['👨‍👩‍👧','👪','🏠','💑','👫','👬','👭','🎯','⭐','💚','🌟','🚀','🎉','🎁','💼','🏖️','⚽','🎮','🎵','🍕','🎨','🌈','👨‍👩‍👧‍👦','🧑‍🤝‍🧑','👯','🫶','💞','🤗','🎈','🥂','🎊','🏡'];
 
 interface Props {
   phone: string;

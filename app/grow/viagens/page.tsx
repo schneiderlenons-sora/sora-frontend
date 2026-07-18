@@ -179,7 +179,8 @@ export default function ViagensPage() {
   );
 }
 
-const EMOJIS_VIAGEM = ['✈️', '🏖️', '🏔️', '🗽', '🏝️', '🎡', '🗼', '🛳️', '🏕️', '🌃', '🚗', '🎢'];
+const EMOJIS_VIAGEM = ['✈️', '🏖️', '🏔️', '🗽', '🏝️', '🎡', '🗼', '🛳️', '🏕️', '🌃', '🚗', '🎢',
+  '🧳', '🗺️', '🏨', '🏰', '⛩️', '🕌', '⛪', '🗿', '🌉', '🏙️', '⛱️', '🚢', '⛵', '🎠', '🎪', '🎫', '📸', '🌋', '🏞️', '⛲'];
 
 function ViagemModal({ item, onClose, onSalvar, onRemover }: { item: any | null; onClose: () => void; onSalvar: (f: any) => void; onRemover?: () => void }) {
   const [destino, setDestino] = useState(item?.destino || '');
