@@ -237,11 +237,11 @@ function CardVitalicio() {
               <Flame size={13} style={{ color: '#fbbf24' }} /> Vagas de fundador
             </span>
             <span className="font-bold tabular-nums" style={{ color: LIME }}>
-              Restam 29<span className="text-white/50 font-medium"> de 300</span>
+              Restam 2<span className="text-white/50 font-medium"> de 300</span>
             </span>
           </div>
           <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: '90.3%', background: 'linear-gradient(90deg, #61ce70, #b6f54f)' }} />
+            <div className="h-full rounded-full" style={{ width: '99.3%', background: 'linear-gradient(90deg, #61ce70, #b6f54f)' }} />
           </div>
           <p className="mt-2 text-[11px] text-white/60">
             As vagas nesse preço estão <b className="text-white">quase esgotando</b>.
