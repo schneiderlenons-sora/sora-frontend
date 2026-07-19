@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
-import { bancoLogo, loadCartaoMeta } from './AdicionarCartaoModal';
+import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
+import { marcaDe } from '@/components/ui/IconeMarca';
+import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -13,29 +15,8 @@ const MES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-// Reconhecimento de marcas em estabelecimentos populares
-const MERCH_BRANDS: Record<string, { bg: string; text: string }> = {
-  shopee:  { bg: '#EE4D2D', text: 'S' },
-  shein:   { bg: '#000000', text: 'S' },
-  spotify: { bg: '#1DB954', text: '♪' },
-  netflix: { bg: '#E50914', text: 'N' },
-  amazon:  { bg: '#FF9900', text: 'a' },
-  ifood:   { bg: '#EA1D2C', text: 'iF' },
-  uber:    { bg: '#000000', text: 'U' },
-  rappi:   { bg: '#FF441F', text: 'R' },
-  google:  { bg: '#4285F4', text: 'G' },
-  apple:   { bg: '#000000', text: '' },
-  steam:   { bg: '#171A21', text: 'St' },
-  microsoft: { bg: '#00A4EF', text: 'M' },
-};
-
-function reconhecerMarca(obs: string): { bg: string; text: string } | null {
-  const lower = (obs || '').toLowerCase();
-  for (const [key, theme] of Object.entries(MERCH_BRANDS)) {
-    if (lower.includes(key)) return theme;
-  }
-  return null;
-}
+// (reconhecimento de marca agora vem do sistema oficial em IconeMarca/marcaDe —
+//  removido o mapa local de iniciais que mostrava "S"/"N"/"iF" em vez do logo.)
 
 interface Props {
   phone: string;
@@ -210,18 +191,12 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     })}`;
   }
 
-  // Logo de transação
+  // Logo de transação — marca conhecida usa o ícone OFICIAL (mesmo sistema do
+  // resto do app); sem marca, cai no emoji da categoria.
   function logoTransacao(tx: any) {
-    const marca = reconhecerMarca(tx.observacao || '');
-    if (marca) {
-      return (
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-          style={{ background: marca.bg }}
-        >
-          {marca.text}
-        </div>
-      );
+    const obs = tx.observacao || '';
+    if (marcaDe(obs)) {
+      return <CategoriaIcon nome={obs} size={36} rounded="rounded-lg" />;
     }
     const theme = getCategoriaTheme(tx.categoria || '');
     return (
@@ -252,18 +227,25 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-2 pb-4 md:pt-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0"
-              style={{ background: logo.bg }}
-            >
-              {logo.text}
-            </div>
+            {/* Logo oficial da marca (igual ao card da lista); sem marca → inicial. */}
+            {marcaDe(cartao.nome) ? (
+              <CategoriaIcon nome={cartao.nome} size={48} rounded="rounded-xl" />
+            ) : (
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0"
+                style={{ background: logo.bg }}
+              >
+                {logo.text}
+              </div>
+            )}
             <div className="min-w-0">
               <h2 className="text-base font-bold text-foreground truncate">{cartao.nome}</h2>
-              {meta.diaVencimento ? (
+              {/* Vencimento pelo helper compartilhado (mesmo mês da lista) e com o
+                  dia do BANCO como fonte primária, caindo pro localStorage. */}
+              {(cartao.dia_vencimento ?? meta.diaVencimento) ? (
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                   <Calendar size={11} />
-                  Vence em {meta.diaVencimento} de {MES_ABREV[m - 1]}
+                  Vence em {labelVencimento(cartao.dia_vencimento ?? meta.diaVencimento)}
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground mt-0.5">Sem data de vencimento</p>

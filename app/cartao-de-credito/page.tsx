@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
+import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, labelVencimento, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
 import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
@@ -465,15 +465,9 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, compartilhad
     setPaga(localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga');
   }, [cartao.id, mesRef]);
 
-  const vencimentoLabel = (() => {
-    if (!diaVencimento) return null;
-    const dia = diaVencimento;
-    let m = hoje.getMonth();
-    // Se o dia de vencimento já passou neste mês, mostra o próximo (mês seguinte)
-    if (hoje.getDate() > dia) m += 1;
-    if (m > 11) m = 0;
-    return `${dia} de ${MES_ABREV[m].toLowerCase()}.`;
-  })();
+  // Próximo vencimento — helper compartilhado com o modal de detalhes (fonte
+  // única; antes cada tela calculava o seu e davam meses diferentes).
+  const vencimentoLabel = labelVencimento(diaVencimento);
 
   return (
     <>

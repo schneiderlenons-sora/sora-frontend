@@ -35,6 +35,20 @@ export function bancoLogo(nome: string): { bg: string; text: string } {
   return { bg: `hsl(${h} 65% 45%)`, text: initial };
 }
 
+// Rótulo do PRÓXIMO vencimento a partir do dia (1-31). Rola pro mês seguinte se
+// o dia já passou neste mês. FONTE ÚNICA: usada no card da lista E no modal de
+// detalhes — antes cada um calculava o seu e davam meses diferentes (a lista
+// rolava, o modal mostrava o mês do calendário → "6 de ago." × "6 de jul").
+const MES_ABREV_VENC = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+export function labelVencimento(dia?: number | null): string | null {
+  if (!dia) return null;
+  const hoje = new Date();
+  let m = hoje.getMonth();
+  if (hoje.getDate() > dia) m += 1;
+  if (m > 11) m = 0;
+  return `${dia} de ${MES_ABREV_VENC[m]}`;
+}
+
 const BANDEIRAS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard'] as const;
 
 // Logo SVG simplificado para bandeiras (texto colorido em fundo de marca)
