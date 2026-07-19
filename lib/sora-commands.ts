@@ -730,6 +730,24 @@ export const COMANDOS: Comando[] = [
     categoria: 'sora-grow',
     feature: 'sora_grow',
   },
+  {
+    id: 'biblia-versiculo',
+    titulo: 'Versículo do dia',
+    exemplo: 'qual o versículo de hoje?',
+    descricao: 'Peça o versículo do dia a qualquer hora. Pra receber todo dia de manhã automaticamente, diga "ativar versículo diário" (e "desativar versículo diário" pra parar).',
+    variantes: ['me manda a palavra do dia', 'ativar versículo diário', 'desativar versículo diário'],
+    categoria: 'sora-grow',
+    feature: 'grow_estudos',
+  },
+  {
+    id: 'biblia-leitura',
+    titulo: 'Leitura bíblica',
+    exemplo: 'qual a leitura de hoje?',
+    descricao: 'Veja a leitura do seu plano bíblico e marque como lida pelo WhatsApp. Registre também leituras avulsas ("li João 3"). Tudo aparece no painel em Grow › Estudos › Bíblia.',
+    variantes: ['como tá meu plano de leitura?', 'terminei a leitura de hoje', 'li João 3', 'acabei de ler Salmos 23'],
+    categoria: 'sora-grow',
+    feature: 'grow_estudos',
+  },
 
   // ─── NEGÓCIOS ─────────────────────────────────────────────────────
   {
