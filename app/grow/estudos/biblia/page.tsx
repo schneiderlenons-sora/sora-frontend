@@ -5,11 +5,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import EstudosNav from '../EstudosNav';
+import OracaoView from '@/components/estudos/biblia/OracaoView';
+import MemorizarView from '@/components/estudos/biblia/MemorizarView';
 import { PLANOS, planoPorId, diasDoPlano, versiculoDoDia, type Plano } from '@/lib/biblia';
 import {
-  BookMarked, Sparkles, Flame, Check, ChevronRight, Quote, X, Loader2,
-  CalendarDays, PenLine, RotateCcw,
+  BookMarked, Flame, Check, ChevronRight, Quote, X, Loader2,
+  CalendarDays, PenLine, RotateCcw, HandHeart, Brain, NotebookPen,
 } from 'lucide-react';
+
+type Aba = 'hoje' | 'oracao' | 'memorizar' | 'diario';
+const ABAS: { id: Aba; label: string; icon: typeof BookMarked }[] = [
+  { id: 'hoje',      label: 'Hoje',      icon: BookMarked },
+  { id: 'oracao',    label: 'Oração',    icon: HandHeart },
+  { id: 'memorizar', label: 'Memorizar', icon: Brain },
+  { id: 'diario',    label: 'Diário',    icon: NotebookPen },
+];
 
 const BRAND = 'hsl(var(--primary))';
 const CATEGORIAS: { id: Plano['categoria']; titulo: string }[] = [
@@ -27,6 +37,7 @@ export default function BibliaPage() {
 
   const [salvando, setSalvando] = useState(false);
   const [reflexaoAberta, setReflexaoAberta] = useState<{ referencia: string; dia: number | null } | null>(null);
+  const [aba, setAba] = useState<Aba>('hoje');
 
   const versiculo = useMemo(() => versiculoDoDia(), []);
   const nome = perfil?.name?.split(' ')[0] || '';
@@ -89,6 +100,27 @@ export default function BibliaPage() {
 
       <EstudosNav />
 
+      {/* Seletor de visões da Bíblia (Hoje · Oração · Memorizar · Diário) */}
+      <div role="tablist" aria-label="Seções da Bíblia"
+           className="flex items-center gap-1 overflow-x-auto scrollbar-none -mx-1 px-1 animate-fade-in" style={{ animationDelay: '20ms' }}>
+        {ABAS.map(({ id, label, icon: Icon }) => {
+          const ativo = aba === id;
+          return (
+            <button key={id} role="tab" aria-selected={ativo} onClick={() => setAba(id)}
+              className={`inline-flex items-center gap-1.5 px-3.5 h-9 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                ativo ? 'text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              }`}
+              style={ativo ? { background: BRAND, minHeight: 36 } : { minHeight: 36 }}>
+              <Icon size={13} /> {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {aba === 'oracao' && phone && <OracaoView phone={phone} />}
+      {aba === 'memorizar' && phone && <MemorizarView phone={phone} />}
+
+      {aba === 'hoje' && <>
       {/* VERSÍCULO DO DIA */}
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/40"
            style={{ background: 'hsl(var(--bg-card) / 0.6)', animationDelay: '40ms' }}>
@@ -142,28 +174,34 @@ export default function BibliaPage() {
           );
         })}
       </div>
+      </>}
 
-      {/* HISTÓRICO RECENTE */}
-      {!!(data?.leituras?.length) && (
-        <div className="rounded-3xl border border-border/40 p-5 sm:p-6 animate-fade-in" style={{ background: 'hsl(var(--bg-card) / 0.5)', animationDelay: '160ms' }}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">Suas leituras recentes</p>
-          <ul className="space-y-2.5">
-            {data.leituras.slice(0, 8).map((l: any) => (
-              <li key={l.id} className="flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 12%, transparent)' }}>
-                  <Check size={14} style={{ color: BRAND }} strokeWidth={3} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground truncate">{l.referencia}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {fmtData(l.data)}{l.duracao_min ? ` · ${l.duracao_min}min` : ''}
-                  </p>
-                  {l.reflexao && <p className="text-xs text-muted-foreground mt-1 leading-snug line-clamp-2 italic">"{l.reflexao}"</p>}
+      {/* DIÁRIO — leituras registradas, com as reflexões em destaque */}
+      {aba === 'diario' && (
+        (data?.leituras?.length) ? (
+          <div className="space-y-2.5 animate-fade-in">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">Seu diário devocional</p>
+            {data.leituras.map((l: any) => (
+              <div key={l.id} className="rounded-2xl border border-border/40 p-4" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-foreground truncate">{l.referencia}</p>
+                  <span className="text-[11px] text-muted-foreground flex-shrink-0">{fmtData(l.data)}{l.duracao_min ? ` · ${l.duracao_min}min` : ''}</span>
                 </div>
-              </li>
+                {l.reflexao
+                  ? <p className="text-sm text-foreground/80 mt-2 leading-relaxed italic">"{l.reflexao}"</p>
+                  : <p className="text-xs text-muted-foreground mt-1">Lida — sem reflexão anotada.</p>}
+              </div>
             ))}
-          </ul>
-        </div>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-border p-8 text-center animate-fade-in">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-3" style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 14%, transparent)' }}>
+              <NotebookPen size={22} style={{ color: BRAND }} />
+            </div>
+            <p className="text-sm font-bold text-foreground">Seu diário está vazio</p>
+            <p className="text-xs text-muted-foreground mt-1">Registre uma leitura com reflexão em <b className="text-foreground">Hoje</b> e ela aparece aqui.</p>
+          </div>
+        )
       )}
 
       {/* SHEET DE REFLEXÃO */}

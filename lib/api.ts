@@ -776,6 +776,20 @@ export const api = {
     registrar:    (body: { plano_id?: string | null; dia?: number | null; referencia: string; duracao_min?: number; reflexao?: string | null }) =>
       req<any>('/api/biblia/leitura', { method: 'POST', body: JSON.stringify(body) }),
     remover:      (id: string) => req(`/api/biblia/leitura/${id}`, { method: 'DELETE' }),
+    // Fase 2 — oração
+    oracoes: {
+      listar:  (phone: string) => req<any[]>(`/api/biblia/oracoes/${phone}`),
+      criar:   (pedido: string) => req<any>('/api/biblia/oracoes', { method: 'POST', body: JSON.stringify({ pedido }) }),
+      alternar: (id: string, respondida: boolean) => req<any>(`/api/biblia/oracoes/${id}`, { method: 'PUT', body: JSON.stringify({ respondida }) }),
+      remover: (id: string) => req(`/api/biblia/oracoes/${id}`, { method: 'DELETE' }),
+    },
+    // Fase 2 — memorização (repetição espaçada)
+    memo: {
+      listar:  (phone: string) => req<{ versos: any[]; paraRevisar: number }>(`/api/biblia/memorizacao/${phone}`),
+      criar:   (body: { referencia: string; texto?: string }) => req<any>('/api/biblia/memorizacao', { method: 'POST', body: JSON.stringify(body) }),
+      revisar: (id: string, acertou: boolean) => req<any>(`/api/biblia/memorizacao/${id}/revisar`, { method: 'POST', body: JSON.stringify({ acertou }) }),
+      remover: (id: string) => req(`/api/biblia/memorizacao/${id}`, { method: 'DELETE' }),
+    },
   },
 
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
