@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { LineChart as LineChartIcon, Grid3x3 } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13,7 +13,8 @@ import {
 // Dados: [{ data: 'YYYY-MM-DD', min }] já de 90 dias (o dashboard monta).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const VIOLET = '#7c3aed';               // brand do Grow
+const VIOLET = '#7c3aed';               // brand do Grow (estudo no geral)
+const AMBER  = '#f59e0b';               // linha própria do estudo bíblico
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
@@ -36,7 +37,9 @@ function nivelDe(min: number) {
 }
 const corNivel = (n: number) => (n === 0 ? 'hsl(var(--muted))' : `rgba(124, 58, 237, ${0.18 + n * 0.2})`);
 
-type Dia = { data: string; min: number };
+// `min` = total do dia (estudo geral, JÁ inclui a Bíblia); `minBiblia` = parte
+// que foi estudo bíblico (linha própria).
+type Dia = { data: string; min: number; minBiblia?: number };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload }: any) {
@@ -47,8 +50,13 @@ function ChartTooltip({ active, payload }: any) {
          style={{ background: 'hsl(var(--bg-card))' }}>
       <p className="font-semibold text-foreground capitalize">{fmtDataLonga(p.data)}</p>
       <p className="text-muted-foreground mt-0.5">
-        <span className="font-bold tabular-nums" style={{ color: VIOLET }}>{fmtMin(p.min)}</span> estudados
+        <span className="font-bold tabular-nums" style={{ color: VIOLET }}>{fmtMin(p.min)}</span> no total
       </p>
+      {!!p.minBiblia && (
+        <p className="text-muted-foreground">
+          <span className="font-bold tabular-nums" style={{ color: AMBER }}>{fmtMin(p.minBiblia)}</span> de Bíblia
+        </p>
+      )}
     </div>
   );
 }
@@ -58,6 +66,7 @@ export default function AtividadeEstudos({ dados }: { dados: Dia[] }) {
 
   // Total do período — dá contexto ao card ("15h no total").
   const totalMin = useMemo(() => dados.reduce((s, d) => s + d.min, 0), [dados]);
+  const temBiblia = useMemo(() => dados.some(d => (d.minBiblia || 0) > 0), [dados]);
 
   return (
     <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-5 sm:p-6 animate-fade-in"
@@ -71,6 +80,12 @@ export default function AtividadeEstudos({ dados }: { dados: Dia[] }) {
           <p className="text-xs text-muted-foreground mt-0.5">
             <span className="font-semibold text-foreground tabular-nums">{fmtMin(totalMin)}</span> no total
           </p>
+          {temBiblia && (
+            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: VIOLET }} /> Estudo</span>
+              <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: AMBER }} /> Bíblia</span>
+            </div>
+          )}
         </div>
 
         {/* Toggle segmentado — Gráfico | Heatmap (role=tablist p/ leitor de tela) */}
@@ -111,9 +126,10 @@ function Grafico({ dados }: { dados: Dia[] }) {
     return t;
   }, [dados]);
 
+  const temBiblia = dados.some(d => (d.minBiblia || 0) > 0);
   return (
     <ResponsiveContainer width="100%" height={180}>
-      <AreaChart data={dados} margin={{ top: 8, right: 6, left: -20, bottom: 0 }}>
+      <ComposedChart data={dados} margin={{ top: 8, right: 6, left: -20, bottom: 0 }}>
         <defs>
           <linearGradient id="gAtividade" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={VIOLET} stopOpacity={0.5} />
@@ -135,7 +151,12 @@ function Grafico({ dados }: { dados: Dia[] }) {
         <Area type="monotone" dataKey="min" stroke={VIOLET} strokeWidth={2.5}
               fill="url(#gAtividade)" dot={false}
               activeDot={{ r: 4, fill: VIOLET, stroke: 'white', strokeWidth: 2 }} />
-      </AreaChart>
+        {/* Linha própria do estudo bíblico (só quando há dados) */}
+        {temBiblia && (
+          <Line type="monotone" dataKey="minBiblia" stroke={AMBER} strokeWidth={2}
+                dot={false} activeDot={{ r: 3.5, fill: AMBER, stroke: 'white', strokeWidth: 2 }} />
+        )}
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

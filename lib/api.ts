@@ -769,6 +769,15 @@ export const api = {
     },
   },
 
+  // ── BÍBLIA (seção de estudos bíblicos do Grow) ───────────────
+  biblia: {
+    get:          (phone: string) => req<any>(`/api/biblia/${phone}`),
+    definirPlano: (plano_id: string) => req<any>('/api/biblia/plano', { method: 'POST', body: JSON.stringify({ plano_id }) }),
+    registrar:    (body: { plano_id?: string | null; dia?: number | null; referencia: string; duracao_min?: number; reflexao?: string | null }) =>
+      req<any>('/api/biblia/leitura', { method: 'POST', body: JSON.stringify(body) }),
+    remover:      (id: string) => req(`/api/biblia/leitura/${id}`, { method: 'DELETE' }),
+  },
+
   // ── METAS E OBJETIVOS (planejamento financeiro) ──────────────
   metas: {
     listar: (phone: string) =>

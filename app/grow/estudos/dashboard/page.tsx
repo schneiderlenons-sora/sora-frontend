@@ -41,23 +41,32 @@ export default function EstudosDashboard() {
   // Dados via SWR — revisita instantânea (cache em memória).
   const { data: dData, mutate: mD } = useApi(phone ? `est:dash:${phone}` : null,    () => api.estudos.dashboard(phone));
   const { data: sData, mutate: mS } = useApi(phone ? `est:sessoes:${phone}` : null, () => api.estudos.sessoes.listar(phone, { dias: 90 }));
+  const { data: bData } = useApi(phone ? `est:biblia:${phone}` : null, () => api.biblia.get(phone));
   const data = dData ?? null;
   const sessoes: any[] = (sData as any) ?? [];
+  const leiturasBiblia: any[] = bData?.leituras ?? [];
   const loading = dData === undefined;
   const carregar = useCallback(() => Promise.all([mD(), mS()]), [mD, mS]);
 
-  // Heatmap 90 dias
+  // Heatmap/atividade 90 dias — estudo geral + Bíblia MESCLADOS no total (`min`),
+  // com a parte bíblica destacada (`minBiblia`) pra virar linha própria no card.
   const heatmap = useMemo(() => {
     const map: Record<string, number> = {};
+    const mapB: Record<string, number> = {};
     sessoes.forEach(s => { map[s.data] = (map[s.data] || 0) + (s.duracao_min || 0); });
-    const arr: { data: string; min: number }[] = [];
+    leiturasBiblia.forEach(l => {
+      const min = l.duracao_min || 0;
+      map[l.data]  = (map[l.data]  || 0) + min;   // entra no total
+      mapB[l.data] = (mapB[l.data] || 0) + min;   // linha separada
+    });
+    const arr: { data: string; min: number; minBiblia: number }[] = [];
     for (let i = 89; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i);
       const iso = d.toISOString().slice(0, 10);
-      arr.push({ data: iso, min: map[iso] || 0 });
+      arr.push({ data: iso, min: map[iso] || 0, minBiblia: mapB[iso] || 0 });
     }
     return arr;
-  }, [sessoes]);
+  }, [sessoes, leiturasBiblia]);
 
   // Gráfico 7 dias
   const grafico7d = useMemo(() => {

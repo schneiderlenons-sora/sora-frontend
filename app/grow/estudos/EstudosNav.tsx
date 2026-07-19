@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, GraduationCap, BookOpen, Trophy } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, BookOpen, Trophy, BookMarked } from 'lucide-react';
 
 const TABS = [
   { href: '/grow/estudos/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
   { href: '/grow/estudos/faculdade', label: 'Faculdade',  icon: GraduationCap },
   { href: '/grow/estudos/cursos',    label: 'Cursos',     icon: BookOpen },
   { href: '/grow/estudos/concursos', label: 'Concursos',  icon: Trophy },
+  { href: '/grow/estudos/biblia',    label: 'Bíblia',     icon: BookMarked },
 ];
 
 // Sub-nav das seções de Estudos — abaixo do hero, NÃO sticky (estilo das abas
