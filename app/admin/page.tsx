@@ -108,8 +108,7 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
-  const [msg, setMsg] = useState('');
-  const [enviandoMsg, setEnviandoMsg] = useState(false);
+  const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
   const [toast, setToast] = useState('');
 
   // Guard de UI (a segurança real é nos endpoints).
@@ -146,21 +145,6 @@ export default function AdminPage() {
       if (action === 'set_phone') setSel({ ...sel, phone: String(extra.phone) });
       if (action === 'set_mrr_excluir') setSel({ ...sel, mrr_excluir: extra.excluir as boolean });
     } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
-  }
-
-  async function enviarMensagem() {
-    if (!sel || !msg.trim()) return;
-    setEnviandoMsg(true);
-    try {
-      const r = await fetch('/api/admin/mensagem', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: sel.id, texto: msg.trim() }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (d?.erro) { flash('⚠️ ' + d.erro); return; }
-      flash('Mensagem enviada ✓'); setMsg('');
-    } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
-    finally { setEnviandoMsg(false); }
   }
 
   async function apagar() {
@@ -367,24 +351,24 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Enviar mensagem no WhatsApp (sem precisar salvar o número) */}
+              {/* Abrir conversa no SEU WhatsApp (o de suporte) — sem salvar o contato */}
               {sel.phone && (
-                <Section title="Enviar mensagem">
+                <Section title="Falar no WhatsApp">
                   <textarea
                     value={msg} onChange={(e) => setMsg(e.target.value)} rows={3}
-                    placeholder={`Escreva pra ${sel.name?.split(' ')[0] || 'o cliente'}…`}
+                    placeholder="Mensagem já preenchida (opcional)…"
                     className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary"
                   />
-                  <button
-                    onClick={enviarMensagem} disabled={enviandoMsg || !msg.trim()}
-                    className="w-full h-11 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99] transition-all"
+                  <a
+                    href={`https://wa.me/${sel.phone.replace(/\D/g, '')}${msg.trim() ? `?text=${encodeURIComponent(msg.trim())}` : ''}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="w-full h-11 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 active:scale-[0.99] transition-all"
                     style={{ minHeight: 44 }}
                   >
-                    {enviandoMsg ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                    Enviar no WhatsApp
-                  </button>
+                    <Send size={15} /> Abrir no meu WhatsApp
+                  </a>
                   <p className="text-[11px] text-muted-foreground leading-snug">
-                    Vai pelo número da Sora. Só entrega se o cliente falou com a Sora nas últimas 24h (regra do WhatsApp) — senão o painel avisa.
+                    Abre a conversa com o cliente no <b className="text-foreground">seu</b> WhatsApp (o que estiver logado no navegador/celular) — sem precisar salvar o número. Se escrever acima, a mensagem já vai preenchida.
                   </p>
                 </Section>
               )}
