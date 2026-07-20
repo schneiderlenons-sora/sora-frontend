@@ -8,7 +8,7 @@ import SaudeNav from '../SaudeNav';
 import ModalMedicamento from '@/components/saude/ModalMedicamento';
 import {
   Pill, Sparkles, Loader2, Plus, Clock, Check, Pencil, AlertTriangle,
-  Package, BellOff, Bell, History, ChevronRight,
+  Package, BellOff, Bell, History, ChevronRight, Undo2,
 } from 'lucide-react';
 
 const COR_REM = '#ef4444';
@@ -30,6 +30,18 @@ function minutosEntreAgoraEHorario(horario: string) {
   const alvo  = new Date(agora);
   alvo.setHours(h, m, 0, 0);
   return Math.round((alvo.getTime() - agora.getTime()) / 60000);
+}
+
+// Horários (HH:MM) já tomados HOJE — só doses que têm `horario` preenchido.
+// É o que conserta a baixa individual: cada slot é marcado por conta própria.
+function horariosTomadosHoje(ds: any[]): Set<string> {
+  const hoje = new Date().toDateString();
+  const s = new Set<string>();
+  (ds || []).forEach(d => {
+    const quando = d.datetime_tomado ? new Date(d.datetime_tomado) : null;
+    if (quando && quando.toDateString() === hoje && d.horario) s.add(String(d.horario).slice(0, 5));
+  });
+  return s;
 }
 
 // Busca meds ativos + doses de cada um (N+1) consolidado pro cache do SWR.
@@ -57,31 +69,40 @@ export default function RemediosPage() {
   const loading = data === undefined;
   const carregar = useCallback(() => mLoad(), [mLoad]);
 
-  async function tomarDose(med: any) {
+  // Passa o `horario` do slot → só aquele é marcado (fix da baixa individual).
+  async function tomarDose(med: any, horario?: string) {
     if (!phone) return;
-    setTomando(med.id);
+    setTomando(`${med.id}:${horario || 'now'}`);
     try {
-      await api.saude.medicamentos.tomar(med.id, { phone });
+      await api.saude.medicamentos.tomar(med.id, { phone, horario });
       carregar();
     } catch (e: any) { alert(e.message); }
     finally { setTimeout(() => setTomando(null), 350); }
   }
 
-  // Próximas doses de HOJE (todas as meds + horários dentro do dia atual)
+  // Desfaz a baixa daquele horário (mis-tap) e devolve 1 ao estoque.
+  async function desfazerDose(med: any, horario?: string) {
+    if (!phone) return;
+    setTomando(`${med.id}:${horario || 'now'}`);
+    try {
+      await api.saude.medicamentos.desfazer(med.id, { phone, horario });
+      carregar();
+    } catch (e: any) { alert(e.message); }
+    finally { setTimeout(() => setTomando(null), 350); }
+  }
+
+  // Próximas doses de HOJE — cada horário é um slot independente.
   const proximasHoje = useMemo(() => {
     const diaHoje = diaSemanaHoje();
     const arr: { med: any; horario: string; min: number; tomado: boolean }[] = [];
     meds.forEach(m => {
       if (m.lembrete_ativo === false) return;
       if (!m.dias_semana?.includes(diaHoje)) return;
-      const dosesHoje = (doses[m.id] || []).filter(d => {
-        const dDose = d.datetime_tomado ? new Date(d.datetime_tomado) : null;
-        return dDose && dDose.toDateString() === new Date().toDateString();
-      });
+      const tomadas = horariosTomadosHoje(doses[m.id] || []);
       (m.horarios || []).forEach((h: string) => {
-        const min = minutosEntreAgoraEHorario(h.slice(0, 5));
-        const tomado = dosesHoje.length > 0; // simples: se já tomou hoje, marca
-        arr.push({ med: m, horario: h.slice(0, 5), min, tomado });
+        const hm = h.slice(0, 5);
+        const min = minutosEntreAgoraEHorario(hm);
+        arr.push({ med: m, horario: hm, min, tomado: tomadas.has(hm) });
       });
     });
     return arr.sort((a, b) => Math.abs(a.min) - Math.abs(b.min));
@@ -179,11 +200,13 @@ export default function RemediosPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {proximasHoje.map(({ med, horario, min, tomado }, i) => {
+                {proximasHoje.map(({ med, horario, min, tomado }) => {
                   const proximo = !tomado && min >= -30 && min <= 60;
                   const passou = !tomado && min < -30;
+                  const key = `${med.id}:${horario}`;
+                  const busy = tomando === key;
                   return (
-                    <div key={i} className={`rounded-xl p-3 border ${
+                    <div key={key} className={`rounded-xl p-3 border ${
                       tomado ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60' :
                       proximo ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 ring-1 ring-rose-300/40' :
                       passou ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60' :
@@ -194,17 +217,27 @@ export default function RemediosPage() {
                         <span className="text-xs font-bold tabular text-foreground">{horario}</span>
                         {proximo && <span className="text-[9px] font-bold uppercase tracking-wider ml-auto text-rose-600 dark:text-rose-400">{min < 0 ? 'agora' : `em ${min}min`}</span>}
                       </div>
-                      <p className="text-xs font-bold text-foreground truncate">{med.nome}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {med.foto_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={med.foto_url} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
+                        )}
+                        <p className="text-xs font-bold text-foreground truncate">{med.nome}</p>
+                      </div>
                       {med.dosagem && <p className="text-[10px] text-muted-foreground truncate">{med.dosagem}</p>}
-                      {!tomado && (
-                        <button onClick={() => tomarDose(med)} disabled={tomando === med.id}
+                      {!tomado ? (
+                        <button onClick={() => tomarDose(med, horario)} disabled={busy}
                                 className="w-full mt-2 px-2 py-1 rounded-lg bg-primary hover:opacity-90 text-white text-[10px] font-bold inline-flex items-center justify-center gap-1 disabled:opacity-50">
-                          {tomando === med.id ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                          {busy ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
                           Tomar
                         </button>
-                      )}
-                      {tomado && (
-                        <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 text-center mt-1.5">✓ Tomado</p>
+                      ) : (
+                        <button onClick={() => desfazerDose(med, horario)} disabled={busy} title="Desfazer baixa"
+                                className="w-full mt-2 px-2 py-1 rounded-lg border border-emerald-300 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold inline-flex items-center justify-center gap-1 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/40 disabled:opacity-50">
+                          {busy ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                          Tomado
+                          <Undo2 size={9} className="opacity-60" />
+                        </button>
                       )}
                     </div>
                   );
@@ -216,7 +249,11 @@ export default function RemediosPage() {
           {/* LISTA DE MEDICAMENTOS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in" style={{ animationDelay: '180ms' }}>
             {meds.map(m => (
-              <CardMedicamento key={m.id} med={m} doses={doses[m.id] || []} onEdit={() => { setEdMed(m); setModalOpen(true); }} onTomar={() => tomarDose(m)} tomando={tomando === m.id} />
+              <CardMedicamento key={m.id} med={m} doses={doses[m.id] || []}
+                onEdit={() => { setEdMed(m); setModalOpen(true); }}
+                onTomar={(h?: string) => tomarDose(m, h)}
+                onDesfazer={(h?: string) => desfazerDose(m, h)}
+                tomando={tomando} />
             ))}
           </div>
 
@@ -254,29 +291,47 @@ export default function RemediosPage() {
 }
 
 // ─── CARD DE MEDICAMENTO ─────────────────────────────────────────
-function CardMedicamento({ med, doses, onEdit, onTomar, tomando }: any) {
+function CardMedicamento({ med, doses, onEdit, onTomar, onDesfazer, tomando }: any) {
   const estoqueBaixo = med.estoque_atual != null && med.estoque_atual <= (med.estoque_alerta || 5);
-  const dosesHoje = (doses || []).filter((d: any) => {
-    const dDose = d.datetime_tomado ? new Date(d.datetime_tomado) : null;
-    return dDose && dDose.toDateString() === new Date().toDateString();
-  });
+  const horarios: string[] = (med.horarios || []).map((h: string) => h.slice(0, 5));
+  const tomadas = horariosTomadosHoje(doses || []);
+  const pendentes = horarios.filter(h => !tomadas.has(h));
+  const proximoPendente = pendentes[0];
+  const tudoTomado = horarios.length > 0 && pendentes.length === 0;
+  const ocupado = !!tomando && String(tomando).split(':')[0] === med.id;
 
   return (
     <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-5 hover:border-primary/40 dark:hover:border-primary transition-all"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-rose-100 dark:bg-rose-950/40">
-            <Pill size={18} className="text-rose-600 dark:text-rose-400" />
-          </div>
+          {med.foto_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={med.foto_url} alt={med.nome} className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-border/50" />
+          ) : (
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-rose-100 dark:bg-rose-950/40">
+              <Pill size={18} className="text-rose-600 dark:text-rose-400" />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground truncate">{med.nome} {med.dosagem && <span className="text-xs text-muted-foreground font-medium">· {med.dosagem}</span>}</p>
+            {/* Chips por horário: verde = tomado hoje (clica pra desfazer), rosa = pendente (clica pra tomar) */}
             <div className="flex flex-wrap gap-1 mt-1.5">
-              {(med.horarios || []).map((h: string) => (
-                <span key={h} className="text-[10px] font-bold tabular px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300">
-                  {h.slice(0, 5)}
-                </span>
-              ))}
+              {horarios.map((h) => {
+                const feito = tomadas.has(h);
+                const busy = tomando === `${med.id}:${h}`;
+                return (
+                  <button key={h} onClick={() => feito ? onDesfazer(h) : onTomar(h)} disabled={busy}
+                          title={feito ? 'Tomado hoje — clique pra desfazer' : 'Marcar como tomado'}
+                          className={`text-[10px] font-bold tabular px-1.5 py-0.5 rounded inline-flex items-center gap-1 transition-all disabled:opacity-60 ${
+                            feito ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                                  : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:ring-1 hover:ring-rose-400'
+                          }`}>
+                    {busy ? <Loader2 size={9} className="animate-spin" /> : feito ? <Check size={9} /> : <Clock size={9} />}
+                    {h}
+                  </button>
+                );
+              })}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5">
               {med.dias_semana?.length === 7 ? 'Todos os dias' : (med.dias_semana || []).map((d: number) => DIAS_LABEL[d]).join(', ')}
@@ -303,11 +358,17 @@ function CardMedicamento({ med, doses, onEdit, onTomar, tomando }: any) {
         </div>
       )}
 
-      <button onClick={onTomar} disabled={tomando}
-              className="w-full px-3 py-2 rounded-xl bg-primary hover:opacity-90 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
-        {tomando ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-        Tomei agora {dosesHoje.length > 0 && <span className="text-primary/10 text-[10px]">· {dosesHoje.length}× hoje</span>}
-      </button>
+      {tudoTomado ? (
+        <div className="w-full px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-emerald-600 dark:text-emerald-400 text-xs font-bold inline-flex items-center justify-center gap-1.5">
+          <Check size={12} /> Tudo tomado hoje
+        </div>
+      ) : (
+        <button onClick={() => onTomar(proximoPendente)} disabled={ocupado}
+                className="w-full px-3 py-2 rounded-xl bg-primary hover:opacity-90 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
+          {ocupado ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+          {proximoPendente ? `Tomei o das ${proximoPendente}` : 'Tomei agora'}
+        </button>
+      )}
     </div>
   );
 }

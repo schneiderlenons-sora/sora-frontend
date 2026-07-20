@@ -671,8 +671,10 @@ export const api = {
       editar:  (id: string, body: any) => req<any>(`/api/saude/medicamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string, phone: string) =>
         req(`/api/saude/medicamentos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
-      tomar:   (id: string, body: { phone: string; datetime_planejado?: string }) =>
+      tomar:   (id: string, body: { phone: string; datetime_planejado?: string; horario?: string }) =>
         req<any>(`/api/saude/medicamentos/${id}/tomar`, { method: 'POST', body: JSON.stringify(body) }),
+      desfazer: (id: string, body: { phone: string; horario?: string }) =>
+        req<any>(`/api/saude/medicamentos/${id}/desfazer`, { method: 'POST', body: JSON.stringify(body) }),
       doses:   (id: string, phone: string) =>
         req<any[]>(`/api/saude/medicamentos/${id}/doses?phone=${phone}`),
     },

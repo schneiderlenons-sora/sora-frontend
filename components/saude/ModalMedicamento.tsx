@@ -1,13 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { X, Loader2, Check, AlertCircle, Pill, Plus, Clock, Trash2 } from 'lucide-react';
+import { X, Loader2, Check, AlertCircle, Pill, Plus, Clock, Trash2, Camera } from 'lucide-react';
 
 const DIAS = [
   { v: 1, l: 'Seg' }, { v: 2, l: 'Ter' }, { v: 3, l: 'Qua' },
   { v: 4, l: 'Qui' }, { v: 5, l: 'Sex' }, { v: 6, l: 'Sáb' }, { v: 7, l: 'Dom' },
 ];
+
+// Redimensiona a foto pra dataURL (~700px) — igual às metas, sem bucket.
+async function redimensionar(file: File, max = 700, q = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        const escala = Math.min(max / img.width, max / img.height, 1);
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        const ctx = c.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas indisponível'));
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', q));
+      };
+      img.onerror = () => reject(new Error('Imagem inválida'));
+      img.src = r.result as string;
+    };
+    r.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    r.readAsDataURL(file);
+  });
+}
 
 interface Props {
   phone:        string;
@@ -28,8 +52,20 @@ export default function ModalMedicamento({ phone, medicamento, onClose, onSucces
   const [validade, setValidade] = useState(medicamento?.data_validade || '');
   const [obs, setObs]         = useState(medicamento?.observacao || '');
   const [lembrete, setLembrete] = useState(medicamento?.lembrete_ativo !== false);
+  const [foto, setFoto]       = useState<string | null>(medicamento?.foto_url || null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro, setErro]       = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFoto(file: File) {
+    if (file.size > 8 * 1024 * 1024) { setErro('Imagem muito grande (máx. 8 MB).'); return; }
+    setErro('');
+    setUploading(true);
+    try { setFoto(await redimensionar(file)); }
+    catch (e: any) { setErro(e.message || 'Erro ao processar imagem.'); }
+    finally { setUploading(false); }
+  }
 
   function addHorario() {
     if (!novoHorario || horarios.includes(novoHorario)) return;
@@ -61,6 +97,7 @@ export default function ModalMedicamento({ phone, medicamento, onClose, onSucces
         data_validade: validade || null,
         observacao: obs.trim() || null,
         lembrete_ativo: lembrete,
+        foto_url: foto || null,
         ativo: true,
       };
       if (ed) await api.saude.medicamentos.editar(medicamento.id, body);
@@ -95,6 +132,39 @@ export default function ModalMedicamento({ phone, medicamento, onClose, onSucces
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+
+          {/* Foto do remédio (opcional) — ajuda a identificar visualmente */}
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Foto do remédio <span className="text-muted-foreground/60 normal-case font-normal">(opcional)</span></label>
+            <div className="flex items-center gap-3">
+              <div className="relative w-20 h-20 rounded-2xl overflow-hidden border border-border flex-shrink-0 bg-muted/30">
+                {foto ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto} alt="Remédio" className="absolute inset-0 w-full h-full object-cover" />
+                    <button type="button" onClick={() => setFoto(null)} title="Remover"
+                            className="absolute top-1 right-1 p-1 rounded-lg bg-black/50 hover:bg-red-600 text-white">
+                      <Trash2 size={11} />
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                          className="absolute inset-0 flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-colors">
+                    {uploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                  </button>
+                )}
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-snug">
+                {foto ? (
+                  <button type="button" onClick={() => fileRef.current?.click()} className="font-bold text-rose-600 dark:text-rose-400 hover:underline">Trocar foto</button>
+                ) : (
+                  <>Bate o olho e reconhece o remédio na hora.<br />JPG ou PNG, até 8 MB.</>
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" hidden
+                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFoto(f); e.target.value = ''; }} />
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
