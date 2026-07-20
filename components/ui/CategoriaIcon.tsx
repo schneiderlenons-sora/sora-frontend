@@ -38,17 +38,14 @@ export default function CategoriaIcon({
   const dim = { width: size, height: size };
 
   // 0. Marca personalizada do usuário (logo de loja custom) — prioridade MÁXIMA,
-  //    acima até das marcas famosas. Logo em fundo branco + contain (o upload é
-  //    arbitrário; contain evita corte feio).
+  //    acima até das marcas famosas. A imagem já vem recortada (zoom/posição no
+  //    modal) pra preencher o círculo, então renderiza full-bleed com `cover`.
   const logoCustom = matchLogo(nome);
   if (logoCustom) {
     return (
-      <div
-        className={`${rounded} overflow-hidden flex-shrink-0 flex items-center justify-center ring-1 ring-border/40 ${className}`}
-        style={{ ...dim, background: '#fff' }}
-      >
+      <div className={`${rounded} overflow-hidden flex-shrink-0 ${className}`} style={dim}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoCustom} alt={nome} style={{ width: '86%', height: '86%', objectFit: 'contain' }} loading="lazy" />
+        <img src={logoCustom} alt={nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
       </div>
     );
   }
