@@ -1,6 +1,7 @@
 'use client';
 
 import IconeMarca, { marcaDe } from './IconeMarca';
+import { useMarcasCustom } from '@/contexts/MarcasCustomContext';
 
 // ─────────────────────────────────────────────────────────────
 // CategoriaIcon — decide como renderizar o ícone de uma categoria/conta:
@@ -33,8 +34,26 @@ export default function CategoriaIcon({
   rounded = 'rounded-xl',
   className = '',
 }: Props) {
-  const marca = marcaDe(nome);
+  const { matchLogo } = useMarcasCustom();
   const dim = { width: size, height: size };
+
+  // 0. Marca personalizada do usuário (logo de loja custom) — prioridade MÁXIMA,
+  //    acima até das marcas famosas. Logo em fundo branco + contain (o upload é
+  //    arbitrário; contain evita corte feio).
+  const logoCustom = matchLogo(nome);
+  if (logoCustom) {
+    return (
+      <div
+        className={`${rounded} overflow-hidden flex-shrink-0 flex items-center justify-center ring-1 ring-border/40 ${className}`}
+        style={{ ...dim, background: '#fff' }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoCustom} alt={nome} style={{ width: '86%', height: '86%', objectFit: 'contain' }} loading="lazy" />
+      </div>
+    );
+  }
+
+  const marca = marcaDe(nome);
 
   // 1. PNG circular local — ÚNICA forma de ter um ícone bonito full-bleed.
   //    Renderiza a imagem direto, SEM wrapper colorido. A PNG transparente

@@ -234,6 +234,16 @@ export const api = {
       req<{ ok: boolean; total: number }>(`/api/categorias/restaurar-padrao/${phone}`, { method: 'POST' }),
   },
 
+  // ── MARCAS PERSONALIZADAS (logo de loja custom, casa por nome) ──
+  marcas: {
+    listar: (phone: string) =>
+      req<{ id: string; termo: string; logo_url: string }[]>(`/api/marcas/${phone}`),
+    criar: (body: { phone: string; termo: string; logo_url: string }) =>
+      req<{ id: string; termo: string; logo_url: string }>('/api/marcas', { method: 'POST', body: JSON.stringify(body) }),
+    remover: (id: string, phone: string) =>
+      req(`/api/marcas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+  },
+
   // ── RECORRÊNCIAS (gastos/receitas fixas) ─────────────────────
   recorrencias: {
     listar: (phone: string) =>

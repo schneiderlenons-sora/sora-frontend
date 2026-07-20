@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { MarcasCustomProvider } from '@/contexts/MarcasCustomContext';
 import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
 import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
@@ -38,9 +39,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <PaywallRedirect />
         <OnboardingRedirect />
         <WelcomeTrigger />
-        <LoadingGateProvider>
-          {children}
-        </LoadingGateProvider>
+        <MarcasCustomProvider>
+          <LoadingGateProvider>
+            {children}
+          </LoadingGateProvider>
+        </MarcasCustomProvider>
       </AuthProvider>
     </ThemeProvider>
   );

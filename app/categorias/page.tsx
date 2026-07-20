@@ -7,12 +7,13 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
+import GerenciarMarcasModal from '@/components/categorias/GerenciarMarcasModal';
 import { nomeCategoria, getCategoriaTheme, isHexGrayscale, citrico } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
-  Calendar, Filter, RefreshCw, ServerOff,
+  Calendar, Filter, RefreshCw, ServerOff, Store,
 } from 'lucide-react';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 
@@ -113,6 +114,7 @@ export default function CategoriasPage() {
   // Modais
   const [modalCat,  setModalCat]   = useState<{ edicao?: Categoria; parentId?: string; parentNome?: string } | null>(null);
   const [modalLim,  setModalLim]   = useState<Categoria | null>(null);
+  const [modalMarcas, setModalMarcas] = useState(false);
   const [confirmDel,setConfirmDel] = useState<Categoria | null>(null);
 
   // ── Dados via SWR: cache em memória → revisitar/trocar de mês é instantâneo.
@@ -304,6 +306,16 @@ export default function CategoriasPage() {
                 aria-label={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
               >
                 {ocultar ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+
+              <button
+                onClick={() => setModalMarcas(true)}
+                className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
+                title="Minhas marcas — logo de loja custom"
+                aria-label="Minhas marcas"
+              >
+                <Store size={14} />
+                <span className="hidden sm:inline">Minhas marcas</span>
               </button>
 
               <button
@@ -578,6 +590,10 @@ export default function CategoriasPage() {
           onClose={() => setModalLim(null)}
           onSuccess={carregar}
         />
+      )}
+
+      {modalMarcas && phone && (
+        <GerenciarMarcasModal phone={phone} onClose={() => setModalMarcas(false)} />
       )}
 
       {confirmDel && (
