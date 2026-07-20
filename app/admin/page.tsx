@@ -8,7 +8,7 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -99,7 +99,7 @@ export default function AdminPage() {
   const router = useRouter();
   const admin = isAdminEmail(perfil?.email);
 
-  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias'>('users');
+  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados'>('users');
   const [ov, setOv] = useState<Overview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
@@ -230,7 +230,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60 w-fit">
-          {([['users', 'Usuários', UsersIcon], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb]] as const).map(([id, label, Icon]) => (
+          {([['users', 'Usuários', UsersIcon], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
                     className={`inline-flex items-center gap-1.5 px-4 h-9 rounded-xl text-sm font-bold transition-all ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               <Icon size={14} /> {label}
@@ -244,7 +244,9 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === 'users' ? (
+        {tab === 'comunicados' ? (
+          <Comunicados flash={flash} />
+        ) : tab === 'users' ? (
           <div className="space-y-3">
             {/* Busca + filtros */}
             <div className="flex flex-col sm:flex-row gap-2">
@@ -544,6 +546,152 @@ function PhoneEditor({ onSet }: { onSet: (phone: string) => void }) {
              className="flex-1 h-10 rounded-xl bg-card border border-border text-sm px-3 tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary" />
       <button onClick={() => { if (v.replace(/\D/g, '').length >= 12) onSet(v.replace(/\D/g, '')); }}
               className="h-10 px-3 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted/40">Definir</button>
+    </div>
+  );
+}
+
+// ── Comunicado em massa (aba do painel) ──────────────────────────────────────
+const PLANOS_ENVIO: { id: Plano; label: string }[] = [
+  { id: 'premium', label: 'Premium' },
+  { id: 'basico',  label: 'Básico' },
+  { id: 'kit',     label: 'Kit' },
+  { id: 'black',   label: 'Black' },
+  { id: 'inativo', label: 'Não pagantes' },
+];
+
+function Comunicados({ flash }: { flash: (m: string) => void }) {
+  const [texto, setTexto] = useState('');
+  const [planos, setPlanos] = useState<Plano[]>(['premium', 'basico', 'kit', 'black']);
+  const [testePhone, setTestePhone] = useState('');
+  const [busy, setBusy] = useState<'' | 'contar' | 'teste' | 'disparar'>('');
+  const [total, setTotal] = useState<number | null>(null);
+
+  const toggle = (p: Plano) => { setTotal(null); setPlanos((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]); };
+
+  async function post(body: Record<string, unknown>) {
+    const r = await fetch('/api/admin/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (d?.erro) throw new Error(d.erro);
+    return d;
+  }
+
+  async function contar() {
+    if (planos.length === 0) { flash('⚠️ Marque ao menos um plano.'); return; }
+    setBusy('contar');
+    try { const d = await post({ modo: 'contar', planos }); setTotal(d.total ?? 0); }
+    catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
+    finally { setBusy(''); }
+  }
+
+  async function enviarTeste() {
+    if (!texto.trim()) { flash('⚠️ Escreva a mensagem primeiro.'); return; }
+    setBusy('teste');
+    try { await post({ modo: 'teste', texto: texto.trim(), testePhone: testePhone.replace(/\D/g, '') }); flash('Teste enviado ✓ — confere no seu WhatsApp'); }
+    catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
+    finally { setBusy(''); }
+  }
+
+  async function disparar() {
+    if (!texto.trim()) { flash('⚠️ Escreva a mensagem primeiro.'); return; }
+    if (planos.length === 0) { flash('⚠️ Marque ao menos um plano.'); return; }
+    // Conta primeiro pra confirmar com o número real.
+    setBusy('disparar');
+    let n = 0;
+    try { const d = await post({ modo: 'contar', planos }); n = d.total ?? 0; setTotal(n); }
+    catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); setBusy(''); return; }
+    setBusy('');
+    if (!n) { flash('Ninguém nesse filtro.'); return; }
+    if (!confirm(`Enviar esse comunicado pra ${n} pessoa(s)?\n\nManda WhatsApp de verdade agora e NÃO dá pra desfazer.`)) return;
+    if (!confirm(`Confirma mesmo? ${n} mensagens vão sair.`)) return;
+    setBusy('disparar');
+    try { const d = await post({ modo: 'disparar', texto: texto.trim(), planos }); flash(`Disparo iniciado pra ${d.total ?? n} pessoas ✓`); }
+    catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
+    finally { setBusy(''); }
+  }
+
+  const chars = texto.trim().length;
+
+  return (
+    <div className="space-y-4">
+      {/* Aviso */}
+      <div className="rounded-2xl border p-3.5 flex items-start gap-2.5"
+           style={{ background: 'color-mix(in srgb, #f59e0b 8%, transparent)', borderColor: 'color-mix(in srgb, #f59e0b 30%, transparent)' }}>
+        <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-foreground/80 leading-relaxed">
+          Envio <strong>real</strong> pelo WhatsApp oficial da Sora, pra vários números de uma vez. Sempre mande um <strong>teste pro seu número</strong> antes — depois de disparar não dá pra cancelar.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${BRAND} 12%, transparent)` }}>
+            <Megaphone size={16} style={{ color: BRAND }} />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-foreground leading-none">Comunicado em massa</h2>
+            <p className="text-[11px] text-muted-foreground mt-1">Vai com a capa da Sora. Quebras de linha viram espaço.</p>
+          </div>
+        </div>
+
+        {/* Mensagem */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Mensagem</label>
+          <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4}
+                    placeholder="Ex.: Novidade! Agora a Sora estuda a Bíblia com você no Grow 📖"
+                    className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary" />
+          <p className="text-[11px] text-muted-foreground text-right tabular-nums">{chars} caracteres</p>
+        </div>
+
+        {/* Quem recebe */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Quem recebe</label>
+          <div className="flex flex-wrap gap-1.5">
+            {PLANOS_ENVIO.map(({ id, label }) => {
+              const on = planos.includes(id);
+              const cor = PLANO_META[id]?.cor || '#71717a';
+              return (
+                <button key={id} onClick={() => toggle(id)}
+                        className={`h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border transition-all ${on ? 'text-white' : 'text-muted-foreground hover:text-foreground border-border'}`}
+                        style={on ? { background: cor, borderColor: cor } : undefined}>
+                  {on && <Check size={12} />} {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground">Só usuários com WhatsApp vinculado recebem. Números repetidos entram uma vez só.</p>
+        </div>
+
+        {/* Teste */}
+        <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Teste antes de disparar</label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input value={testePhone} onChange={(e) => setTestePhone(e.target.value)} inputMode="numeric"
+                     placeholder="Número de teste (vazio = o seu)"
+                     className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary" />
+            </div>
+            <button onClick={enviarTeste} disabled={!!busy || !texto.trim()}
+                    className="h-11 px-4 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+              {busy === 'teste' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar teste
+            </button>
+          </div>
+        </div>
+
+        {/* Ações */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+          <button onClick={contar} disabled={!!busy || planos.length === 0}
+                  className="h-11 px-4 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+            {busy === 'contar' ? <Loader2 size={14} className="animate-spin" /> : <UsersIcon size={14} />}
+            {total !== null ? `${total} destinatário${total === 1 ? '' : 's'}` : 'Contar destinatários'}
+          </button>
+          <button onClick={disparar} disabled={!!busy || !texto.trim() || planos.length === 0}
+                  className="flex-1 h-11 px-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+            {busy === 'disparar' ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />} Disparar comunicado
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
