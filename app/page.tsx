@@ -54,7 +54,7 @@ export default function LandingPage() {
       <Personalizacao />
       <MobileShowcase />
       <SoraLabs />
-      <Pricing vitalicio />
+      <Pricing vitalicio={false} />
       <Faq />
       <CtaFinal />
       <Footer />
