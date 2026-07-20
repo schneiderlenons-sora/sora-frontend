@@ -109,6 +109,9 @@ export default function AdminPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
+  const [respId, setRespId] = useState<string | null>(null); // relato com compositor aberto
+  const [respMsg, setRespMsg] = useState('');
+  const [enviandoResp, setEnviandoResp] = useState(false);
   const [toast, setToast] = useState('');
 
   // Guard de UI (a segurança real é nos endpoints).
@@ -153,6 +156,21 @@ export default function AdminPage() {
     if (!confirm('Tem certeza mesmo? Não dá pra desfazer.')) return;
     try { await adminFetch(`/users/${sel.id}`, { method: 'DELETE' }); flash('Usuário apagado'); setSel(null); carregarUsers(); carregarOverview(); }
     catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
+  }
+
+  async function responderRelato(bugId: string) {
+    if (!respMsg.trim()) return;
+    setEnviandoResp(true);
+    try {
+      const r = await fetch('/api/admin/responder-relato', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bugId, texto: respMsg.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d?.erro) { flash('⚠️ ' + d.erro); return; }
+      flash('Resposta enviada ✓'); setRespId(null); setRespMsg('');
+    } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
+    finally { setEnviandoResp(false); }
   }
 
   async function mudarStatusBug(id: string, status: BugReport['status']) {
@@ -295,14 +313,41 @@ export default function AdminPage() {
                   </span>
                 </div>
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{b.mensagem}</p>
-                <div className="flex items-center gap-1.5 pt-1">
+                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
                   {(['aberto', 'em_andamento', 'resolvido'] as const).map((s) => (
                     <button key={s} onClick={() => mudarStatusBug(b.id, s)}
                             className={`h-8 px-2.5 rounded-lg text-[11px] font-bold transition-all border ${b.status === s ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                       {s === 'aberto' ? 'Aberto' : s === 'em_andamento' ? 'Em andamento' : 'Resolvido'}
                     </button>
                   ))}
+                  {b.phone && (
+                    <button onClick={() => { setRespId(respId === b.id ? null : b.id); setRespMsg(''); }}
+                            className={`h-8 px-2.5 rounded-lg text-[11px] font-bold transition-all border inline-flex items-center gap-1 ${respId === b.id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                      <Send size={11} /> Responder
+                    </button>
+                  )}
                 </div>
+
+                {/* Compositor de resposta (pelo WhatsApp da Sora, via template) */}
+                {respId === b.id && (
+                  <div className="pt-2 space-y-2 border-t border-border/60 mt-1">
+                    <textarea
+                      value={respMsg} onChange={(e) => setRespMsg(e.target.value)} rows={3} autoFocus
+                      placeholder={`Resposta pra ${b.nome?.split(' ')[0] || 'o cliente'}…`}
+                      className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => responderRelato(b.id)} disabled={enviandoResp || !respMsg.trim()}
+                              className="h-10 px-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                        {enviandoResp ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar pela Sora
+                      </button>
+                      <button onClick={() => { setRespId(null); setRespMsg(''); }} className="h-10 px-3 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Vai pelo WhatsApp oficial da Sora (template) — alcança mesmo se o cliente não falou com a Sora nas últimas 24h. Quebras de linha viram espaço.
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
