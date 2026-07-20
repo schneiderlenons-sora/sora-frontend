@@ -160,22 +160,31 @@ export default function RelatoriosPage() {
     });
   }, [resumo, categorias]);
 
-  // Pizza receitas
+  // Pizza receitas — usa o agregado do SERVIDOR (mesma fonte/regra do total de
+  // receitas), igual ao gráfico de despesas. Antes filtrava os `txs` no cliente,
+  // que vêm capados em 500 → com Open Finance as receitas caíam fora do corte e
+  // o gráfico zerava mesmo com receita lançada. Fallback pro cálculo antigo
+  // enquanto o backend novo (por_categoria_receitas) não redeploya.
   const dadosPieReceitas = useMemo(() => {
-    const recs = txs.filter(t => t.tipo === 'Recebimento');
-    const grupos: Record<string, number> = {};
-    recs.forEach(t => {
-      const cat = t.categoria || 'Outros';
-      grupos[cat] = (grupos[cat] || 0) + (t.valor || 0);
-    });
-    return Object.entries(grupos)
-      .sort(([, a], [, b]) => b - a)
+    const serverCats = resumo?.por_categoria_receitas as { categoria: string; total: number }[] | undefined;
+    const base = serverCats
+      ? serverCats.map(c => ({ cat: c.categoria || 'Outros', val: c.total || 0 }))
+      : (() => {
+          const grupos: Record<string, number> = {};
+          txs.filter(t => t.tipo === 'Recebimento').forEach(t => {
+            const cat = t.categoria || 'Outros';
+            grupos[cat] = (grupos[cat] || 0) + (t.valor || 0);
+          });
+          return Object.entries(grupos).map(([cat, val]) => ({ cat, val }));
+        })();
+    return base
+      .sort((a, b) => b.val - a.val)
       .slice(0, 7)
-      .map(([cat, val]) => {
+      .map(({ cat, val }) => {
         const theme = getCategoriaTheme(cat, categorias);
         return { name: nomeCategoria(cat), value: val, color: citrico(theme.color), emoji: theme.emoji };
       });
-  }, [txs, categorias]);
+  }, [resumo, txs, categorias]);
 
   // Receitas x Despesas — frequência por dia/mês
   const dadosFrequencia = useMemo(() => {
