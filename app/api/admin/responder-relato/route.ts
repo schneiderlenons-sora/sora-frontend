@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const r = await fetch(`${base}/api/admin/responder-relato`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
-      body: JSON.stringify({ phone: b.phone, texto: texto.trim() }),
+      body: JSON.stringify({ phone: b.phone, nome: b.nome || '', texto: texto.trim() }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return NextResponse.json({ erro: data?.erro || `Falha (${r.status})` }, { status: 502 });
