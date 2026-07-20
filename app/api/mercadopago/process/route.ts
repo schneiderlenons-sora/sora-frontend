@@ -76,6 +76,24 @@ export async function POST(req: NextRequest) {
     const [firstName, ...resto] = nomeCompleto.split(/\s+/);
     const payerNome = firstName ? { first_name: firstName, last_name: resto.join(' ') || firstName } : {};
 
+    // `additional_info` (itens + dados do pagador) é usado PESADO pelo antifraude
+    // do MP pra pontuar o risco. Quanto mais completo, maior a chance de aprovar.
+    const telefone = String((user.user_metadata as Record<string, unknown>)?.phone || user.phone || '').replace(/\D/g, '');
+    const additional_info: Record<string, unknown> = {
+      items: [{
+        id: cfg.plano,
+        title: cfg.titulo,
+        description: cfg.titulo,
+        category_id: 'services',
+        quantity: 1,
+        unit_price: valor,
+      }],
+      payer: {
+        ...payerNome,
+        ...(telefone ? { phone: { number: telefone } } : {}),
+      },
+    };
+
     const payment = await mpCreatePayment({
       transaction_amount: valor,
       description: cfg.titulo,
@@ -84,6 +102,7 @@ export async function POST(req: NextRequest) {
       payment_method_id: form.payment_method_id,
       issuer_id: form.issuer_id,
       payer: { email: form.payer?.email || user.email, identification: form.payer?.identification, ...payerNome },
+      additional_info,
       external_reference: user.id,
       metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta },
       notification_url: `${origin}/api/mercadopago/webhook`,
