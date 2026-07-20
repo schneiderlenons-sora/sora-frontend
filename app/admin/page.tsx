@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
-  Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb,
+  Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
   Infinity as InfinityIcon, Gem, Undo2,
 } from 'lucide-react';
 
@@ -108,6 +108,8 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
+  const [msg, setMsg] = useState('');
+  const [enviandoMsg, setEnviandoMsg] = useState(false);
   const [toast, setToast] = useState('');
 
   // Guard de UI (a segurança real é nos endpoints).
@@ -126,6 +128,7 @@ export default function AdminPage() {
 
   useEffect(() => { if (admin) { carregarOverview(); carregarBugs(); carregarMelhorias(); } }, [admin, carregarOverview, carregarBugs, carregarMelhorias]);
   useEffect(() => { if (admin) { const t = setTimeout(carregarUsers, q ? 300 : 0); return () => clearTimeout(t); } }, [admin, carregarUsers, q]);
+  useEffect(() => { setMsg(''); }, [sel?.id]); // limpa o compositor ao trocar de usuário
 
   if (loading || !perfil) return <DashboardLayout><div className="p-10 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div></DashboardLayout>;
   if (!admin) return <DashboardLayout><div className="p-10 text-center text-muted-foreground">Acesso restrito.</div></DashboardLayout>;
@@ -143,6 +146,21 @@ export default function AdminPage() {
       if (action === 'set_phone') setSel({ ...sel, phone: String(extra.phone) });
       if (action === 'set_mrr_excluir') setSel({ ...sel, mrr_excluir: extra.excluir as boolean });
     } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
+  }
+
+  async function enviarMensagem() {
+    if (!sel || !msg.trim()) return;
+    setEnviandoMsg(true);
+    try {
+      const r = await fetch('/api/admin/mensagem', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: sel.id, texto: msg.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d?.erro) { flash('⚠️ ' + d.erro); return; }
+      flash('Mensagem enviada ✓'); setMsg('');
+    } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
+    finally { setEnviandoMsg(false); }
   }
 
   async function apagar() {
@@ -348,6 +366,28 @@ export default function AdminPage() {
                   </a>
                 )}
               </div>
+
+              {/* Enviar mensagem no WhatsApp (sem precisar salvar o número) */}
+              {sel.phone && (
+                <Section title="Enviar mensagem">
+                  <textarea
+                    value={msg} onChange={(e) => setMsg(e.target.value)} rows={3}
+                    placeholder={`Escreva pra ${sel.name?.split(' ')[0] || 'o cliente'}…`}
+                    className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    onClick={enviarMensagem} disabled={enviandoMsg || !msg.trim()}
+                    className="w-full h-11 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99] transition-all"
+                    style={{ minHeight: 44 }}
+                  >
+                    {enviandoMsg ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                    Enviar no WhatsApp
+                  </button>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Vai pelo número da Sora. Só entrega se o cliente falou com a Sora nas últimas 24h (regra do WhatsApp) — senão o painel avisa.
+                  </p>
+                </Section>
+              )}
 
               {/* Plano */}
               <Section title="Plano">
