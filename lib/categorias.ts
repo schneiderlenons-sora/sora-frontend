@@ -53,6 +53,39 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   'trabalho/negocio': { emoji: '💼', hue: 210, label: 'Trabalho/Negócio' },
   'trabalho/negócio': { emoji: '💼', hue: 210, label: 'Trabalho/Negócio' },
   seguros:        { emoji: '🛡️', hue: 210, label: 'Seguros' },
+  // ── Taxonomia v3 (sql/084) — categorias-pai novas ──
+  delivery:       { emoji: '🛵', hue: 15,  label: 'Delivery' },
+  dieta:          { emoji: '🍎', hue: 5,   label: 'Dieta' },
+  esporte:        { emoji: '🏃', hue: 205, label: 'Esporte' },
+  tecnologia:     { emoji: '📱', hue: 220, label: 'Tecnologia' },
+  'família':      { emoji: '👨‍👩‍👧', hue: 32, label: 'Família' },
+  familia:        { emoji: '👨‍👩‍👧', hue: 32, label: 'Família' },
+  financeiro:     { emoji: '💰', hue: 145, label: 'Financeiro' },
+  'doações':      { emoji: '❤️', hue: 350, label: 'Doações' },
+  doacoes:        { emoji: '❤️', hue: 350, label: 'Doações' },
+  trabalho:       { emoji: '💼', hue: 210, label: 'Trabalho' },
+  'negócio':      { emoji: '🚀', hue: 262, label: 'Negócio' },
+  negocio:        { emoji: '🚀', hue: 262, label: 'Negócio' },
+  // ── Subcategorias de destaque (cor própria; o resto cai no hash estável) ──
+  'conta de luz': { emoji: '⚡', hue: 48,  label: 'Conta de Luz' },
+  'água':         { emoji: '🚰', hue: 195, label: 'Água' },
+  agua:           { emoji: '🚰', hue: 195, label: 'Água' },
+  'gás':          { emoji: '🔥', hue: 20,  label: 'Gás' },
+  condominio:     { emoji: '🏢', hue: 270, label: 'Condomínio' },
+  lanches:        { emoji: '🌮', hue: 30,  label: 'Lanches' },
+  'café':         { emoji: '☕', hue: 28,  label: 'Café' },
+  cafe:           { emoji: '☕', hue: 28,  label: 'Café' },
+  farmacia:       { emoji: '💊', hue: 340, label: 'Farmácia' },
+  'farmácia':     { emoji: '💊', hue: 340, label: 'Farmácia' },
+  consultas:      { emoji: '🩺', hue: 350, label: 'Consultas' },
+  dentista:       { emoji: '🦷', hue: 340, label: 'Dentista' },
+  'psicólogo':    { emoji: '🧠', hue: 275, label: 'Psicólogo' },
+  psicologo:      { emoji: '🧠', hue: 275, label: 'Psicólogo' },
+  roupas:         { emoji: '👕', hue: 320, label: 'Roupas' },
+  'calçados':     { emoji: '👟', hue: 315, label: 'Calçados' },
+  calcados:       { emoji: '👟', hue: 315, label: 'Calçados' },
+  eletronicos:    { emoji: '💻', hue: 220, label: 'Eletrônicos' },
+  'eletrônicos':  { emoji: '💻', hue: 220, label: 'Eletrônicos' },
   outros:         { emoji: '📦', hue: 220, label: 'Outros' },
 };
 
@@ -80,7 +113,11 @@ export const CATEGORIA_ALIASES: Record<string, string> = {
   // Combustível / Transporte
   gasolina: 'combustivel', combustivel: 'combustivel', uber: 'transporte',
   // Alimentação / Assinaturas comuns
-  ifood: 'alimentacao', netflix: 'assinaturas', spotify: 'assinaturas',
+  ifood: 'delivery', netflix: 'assinaturas', spotify: 'assinaturas',
+  // v3: contas de casa (o usuário diz "luz" ou "energia"), dieta, delivery
+  luz: 'conta de luz', energia: 'conta de luz', mercado: 'supermercado',
+  whey: 'dieta', creatina: 'dieta', suplemento: 'dieta', suplementos: 'dieta',
+  delivery: 'delivery', freela: 'negocio', freelance: 'negocio',
 };
 
 // Lista para o modal — categorias mais usadas
