@@ -393,6 +393,15 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
               </p>
             </div>
 
+            {formato === 'ofx' && (
+              <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1.5">⚠️ Nem todo banco tem OFX</p>
+                <p className="text-[11px] text-amber-700/90 dark:text-amber-300/90 leading-relaxed">
+                  Algumas <strong>carteiras digitais não exportam OFX de verdade</strong> — só PDF ou planilha. O <strong>Mercado Pago</strong> é o caso mais comum (outras carteiras, como o PicPay, também costumam só ter PDF/planilha). Nesses casos o arquivo não é lido — use a importação por <strong>CSV/Excel</strong>. Já bancos como <strong>Nubank, Inter, Itaú, Bradesco, Banco do Brasil, Caixa, Santander e C6</strong> exportam OFX normalmente.
+                </p>
+              </div>
+            )}
+
             {erroParse && (
               <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
                 <AlertCircle size={16} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />

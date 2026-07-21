@@ -234,7 +234,7 @@ export default function TransacoesPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto pb-20 space-y-6">
+      <div className="max-w-7xl mx-auto pb-20 space-y-6 overflow-x-clip">
 
         {/* ═══════════════════════════════════════════════════════
             HERO HEADER
@@ -310,12 +310,16 @@ export default function TransacoesPage() {
                 </button>
                 {importMenuOpen && podeImportar && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setImportMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-52 card p-1.5 z-20 animate-fade-in">
+                    {/* Backdrop pra fechar (escurece no mobile, invisível no desktop) */}
+                    <div className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent" onClick={() => setImportMenuOpen(false)} />
+                    {/* Bottom sheet no mobile (fixed → escapa do overflow-hidden do hero);
+                        dropdown normal no desktop. */}
+                    <div className="fixed inset-x-3 bottom-3 z-50 card p-1.5 animate-fade-in
+                                    sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-52">
                       <button
                         onClick={() => { setImportarFormato('ofx'); setImportMenuOpen(false); }}
                         disabled={!podeImportarOFX}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center gap-2.5 px-3 py-3 sm:py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={14} className="text-muted-foreground" />
                         <span>Importar OFX</span>
@@ -323,7 +327,7 @@ export default function TransacoesPage() {
                       <button
                         onClick={() => { setImportarFormato('csv'); setImportMenuOpen(false); }}
                         disabled={!podeImportarCSV}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center gap-2.5 px-3 py-3 sm:py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={14} className="text-muted-foreground" />
                         <span>Importar extrato (CSV)</span>
@@ -331,7 +335,7 @@ export default function TransacoesPage() {
                       <button
                         disabled
                         title="Em breve"
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground/60 cursor-not-allowed"
+                        className="w-full flex items-center gap-2.5 px-3 py-3 sm:py-2 rounded-lg text-sm text-muted-foreground/60 cursor-not-allowed"
                       >
                         <FileText size={14} />
                         <span>Importar PDF</span>
@@ -540,16 +544,16 @@ export default function TransacoesPage() {
           {selecionados.size > 0 && (() => {
             const todasSelec = txsFiltradas.length > 0 && txsFiltradas.every(t => selecionados.has(t.id));
             return (
-            <div className="mt-3 -mb-1 flex items-center justify-between gap-3 bg-primary/10 rounded-xl px-4 py-2.5 animate-fade-in">
-              <p className="text-xs font-medium text-foreground whitespace-nowrap">
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-primary/10 rounded-xl px-3 py-2.5 animate-fade-in">
+              <p className="text-xs font-medium text-foreground">
                 {selecionados.size} selecionada{selecionados.size > 1 ? 's' : ''}
               </p>
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <button
                   onClick={() => todasSelec
                     ? setSelecionados(new Set())
                     : setSelecionados(new Set(txsFiltradas.map(t => t.id)))}
-                  className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+                  className="text-xs font-medium text-primary hover:underline">
                   {todasSelec ? 'Desmarcar todas' : `Selecionar todas (${txsFiltradas.length})`}
                 </button>
                 <span className="text-muted-foreground">·</span>
@@ -590,44 +594,49 @@ export default function TransacoesPage() {
             <EmptyState temFiltro={!!temFiltro} onLimpar={limparFiltros} onCriar={() => setModalOpen(true)} />
           ) : (
             <>
-              {/* Cabeçalho — mesmo grid pra ambos */}
-              <div className="overflow-x-auto scrollbar-none border-b border-border/60 bg-muted/30">
-                <div className="grid gap-3 items-center px-4 py-2.5"
-                     style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px', minWidth: 764 }}>
-                  <div/>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Descrição</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Parcela</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Categoria</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Conta</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Data</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold text-right">Valor</span>
-                  <div/>
-                </div>
-              </div>
+              {/* UM único scroll horizontal: cabeçalho + linhas rolam JUNTOS e
+                  alinhados, contidos no card (overflow-hidden) — nada vaza pra
+                  página no mobile. (Antes cada linha tinha seu próprio scroll.) */}
+              <div className="overflow-x-auto scrollbar-none">
+                <div style={{ minWidth: 764 }}>
+                  {/* Cabeçalho de colunas */}
+                  <div className="grid gap-3 items-center px-4 py-2.5 border-b border-border/60 bg-muted/30"
+                       style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px' }}>
+                    <div/>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Descrição</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Parcela</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Categoria</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Conta</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Data</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold text-right">Valor</span>
+                    <div/>
+                  </div>
 
-              {/* Linhas */}
-              <div className="divide-y divide-border/40">
-                {txsFiltradas.map((tx, i) => (
-                  <TransactionRow
-                    key={tx.id}
-                    tx={tx}
-                    index={i}
-                    ocultar={ocultar}
-                    compartilhado={compartilhado}
-                    selecionado={selecionados.has(tx.id)}
-                    onToggleSelect={() => {
-                      const novo = new Set(selecionados);
-                      if (novo.has(tx.id)) novo.delete(tx.id);
-                      else novo.add(tx.id);
-                      setSelecionados(novo);
-                    }}
-                    menuOpen={rowMenuOpen === tx.id}
-                    onToggleMenu={() => setRowMenuOpen(rowMenuOpen === tx.id ? null : tx.id)}
-                    onCloseMenu={() => setRowMenuOpen(null)}
-                    onDeletar={() => handleDeletar(tx)}
-                    onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
-                  />
-                ))}
+                  {/* Linhas */}
+                  <div className="divide-y divide-border/40">
+                    {txsFiltradas.map((tx, i) => (
+                      <TransactionRow
+                        key={tx.id}
+                        tx={tx}
+                        index={i}
+                        ocultar={ocultar}
+                        compartilhado={compartilhado}
+                        selecionado={selecionados.has(tx.id)}
+                        onToggleSelect={() => {
+                          const novo = new Set(selecionados);
+                          if (novo.has(tx.id)) novo.delete(tx.id);
+                          else novo.add(tx.id);
+                          setSelecionados(novo);
+                        }}
+                        menuOpen={rowMenuOpen === tx.id}
+                        onToggleMenu={() => setRowMenuOpen(rowMenuOpen === tx.id ? null : tx.id)}
+                        onCloseMenu={() => setRowMenuOpen(null)}
+                        onDeletar={() => handleDeletar(tx)}
+                        onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -744,12 +753,11 @@ function TransactionRow({
       }`}
       style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
     >
-      {/* Desktop: grid normal */}
-      {/* Mobile: scroll horizontal com min-width pra mostrar tudo sem empacotar */}
-      {/* Scroll horizontal no mobile — grid idêntico ao desktop dentro */}
-      <div className="overflow-x-auto scrollbar-none">
+      {/* Grid idêntico ao cabeçalho. O scroll horizontal + min-width ficam no
+          container ÚNICO da tabela (pai) — não em cada linha (senão cada uma
+          rola sozinha e desalinha, causando a bagunça no mobile). */}
       <div className="grid px-4 py-3.5 gap-3"
-           style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px', minWidth: 764 }}>
+           style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px' }}>
 
       {/* Checkbox */}
       <button
@@ -863,8 +871,7 @@ function TransactionRow({
         />
       </div>
 
-      </div> {/* fecha inner row (min-w-[500px]) */}
-      </div> {/* fecha scroll container */}
+      </div> {/* fecha grid da linha */}
     </div>
   );
 }
