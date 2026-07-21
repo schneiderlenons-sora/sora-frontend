@@ -26,19 +26,30 @@ function parseOFXDate(s: string): string | null {
   return `${m[1]}-${m[2]}-${m[3]}`;
 }
 
+// Valor do OFX → número. Cobre "50.00" (padrão), "50,00" e "1.234,56" — alguns
+// bancos BR exportam o TRNAMT com vírgula decimal.
+function parseOFXAmount(s: string): number {
+  let v = (s || '').trim();
+  if (!v) return NaN;
+  if (/,\d{1,2}$/.test(v)) v = v.replace(/\./g, '').replace(',', '.');
+  return parseFloat(v);
+}
+
 export function parseOFX(text: string): TxParsed[] {
-  // Regex robusta: pega cada bloco <STMTTRN>...</STMTTRN>
   const txns: TxParsed[] = [];
-  const blocoRe = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
-  let match;
-  while ((match = blocoRe.exec(text)) !== null) {
-    const block = match[1];
+  // ⚠️ NÃO dá pra depender de <STMTTRN>...</STMTTRN>: muitos bancos BR exportam
+  // OFX em SGML SEM as tags de fechamento (</STMTTRN>). Então dividimos por
+  // <STMTTRN> e cada bloco vai até o próximo <STMTTRN>, o </STMTTRN> OU o fim da
+  // lista — o que vier primeiro. Cobre os dois formatos (com e sem fechamento).
+  const partes = text.split(/<STMTTRN>/i).slice(1);
+  for (const parte of partes) {
+    const block = parte.split(/<\/STMTTRN>|<\/BANKTRANLIST>|<STMTTRN>/i)[0];
     const get = (tag: string) => {
       const r = block.match(new RegExp(`<${tag}>\\s*([^<\\r\\n]*)`, 'i'));
       return r ? r[1].trim() : '';
     };
     const data = parseOFXDate(get('DTPOSTED'));
-    const amt = parseFloat(get('TRNAMT') || '0');
+    const amt = parseOFXAmount(get('TRNAMT'));
     const memo = get('MEMO') || get('NAME') || 'Transação importada';
     const fitid = get('FITID');
     if (!data || isNaN(amt) || amt === 0) continue;
