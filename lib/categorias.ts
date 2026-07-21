@@ -61,6 +61,8 @@ export const CATEGORIA_TEMAS: Record<string, CategoriaTheme> = {
   'família':      { emoji: '👨‍👩‍👧', hue: 32, label: 'Família' },
   familia:        { emoji: '👨‍👩‍👧', hue: 32, label: 'Família' },
   financeiro:     { emoji: '💰', hue: 145, label: 'Financeiro' },
+  empreendimento: { emoji: '💼', hue: 210, label: 'Empreendimento' },
+  pets:           { emoji: '🐶', hue: 35,  label: 'Pets' },
   'doações':      { emoji: '❤️', hue: 350, label: 'Doações' },
   doacoes:        { emoji: '❤️', hue: 350, label: 'Doações' },
   trabalho:       { emoji: '💼', hue: 210, label: 'Trabalho' },

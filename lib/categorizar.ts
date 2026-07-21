@@ -62,7 +62,7 @@ const REGRAS: Regra[] = [
   // ── Trabalho / Negócio (anúncios e ferramentas) ──
   { cat: 'Facebook Ads',   kws: ['facebk', 'facebook ad', 'fb ads', 'meta ads', 'meta plataform', 'instagram ad'] },
   { cat: 'Google Ads',     kws: ['google ads', 'googleads', 'google adwords'] },
-  { cat: 'Trabalho/Negócio', kws: ['tiktok ads', 'kwai for business', 'linkedin ads', 'mailchimp', 'fornecedor', 'frete', 'transportadora', 'embalagem', 'correios sedex'] },
+  { cat: 'Empreendimento', kws: ['tiktok ads', 'kwai for business', 'linkedin ads', 'mailchimp', 'fornecedor', 'frete', 'transportadora', 'embalagem', 'correios sedex'] },
 
   // ── Transferências / Pix / estornos (não-consumo) ──
   { cat: 'Transferências', kws: ['mercado pago', 'mercadopago', 'pix enviado', 'pix recebido', 'pix ', 'ted ', 'doc ', 'transferencia', 'transferencias', 'transf ',
@@ -159,7 +159,7 @@ const REGRAS: Regra[] = [
   { cat: 'Saúde',          kws: ['nutricionista', 'nutrolog', 'vacina', 'otica', 'oculos'] },
 
   // ── Família / Pet ──
-  { cat: 'Pet',            kws: ['petz', 'cobasi', 'petlove', 'veterinari', 'pet shop', 'petshop', 'pet center', 'clinipet', 'agropet', '=racao'] },
+  { cat: 'Pets',           kws: ['petz', 'cobasi', 'petlove', 'veterinari', 'pet shop', 'petshop', 'pet center', 'clinipet', 'agropet', '=racao'] },
   { cat: 'Família',        kws: ['fralda', 'creche', 'bercario', 'mesada', 'escolinha', 'brinquedo', 'ri happy', 'pbkids'] },
 
   // ── Educação ──
