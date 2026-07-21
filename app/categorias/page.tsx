@@ -88,7 +88,7 @@ interface Limite {
 }
 
 type Filtro = 'todas' | 'com_limite' | 'sem_limite' | 'com_subs' | 'sem_subs';
-type TipoTab = 'despesa' | 'receita';
+type TipoTab = 'todas' | 'despesa' | 'receita';
 
 export default function CategoriasPage() {
   const { phone } = useAuth();
@@ -107,7 +107,7 @@ export default function CategoriasPage() {
   const [ocultar,    setOcultar]    = useState(false);
   const [busca,      setBusca]      = useState('');
   const [filtro,     setFiltro]     = useState<Filtro>('todas');
-  const [tipoTab,    setTipoTab]    = useState<TipoTab>('despesa');
+  const [tipoTab,    setTipoTab]    = useState<TipoTab>('todas');
   const [mostrarZeradas, setMostrarZeradas] = useState(true);
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
 
@@ -161,21 +161,34 @@ export default function CategoriasPage() {
     const match = cats.find((c: any) => nomeCategoria(c.categoria).toLowerCase() === alvo);
     return match?.total || 0;
   };
+  // Receita por categoria (mesma fonte do relatório) — pra categorias de receita
+  // mostrarem o valor certo agora que despesas e receitas aparecem juntas.
+  const receitaDeNome = (nomeBruto: string): number => {
+    const alvo = nomeCategoria(nomeBruto).toLowerCase();
+    const cats = resumo?.por_categoria_receitas || [];
+    const match = cats.find((c: any) => nomeCategoria(c.categoria).toLowerCase() === alvo);
+    return match?.total || 0;
+  };
+  const valorDeNome = (nomeBruto: string, tipo?: string | null): number =>
+    (tipo === 'receita' ? receitaDeNome(nomeBruto) : gastoDeNome(nomeBruto));
 
   const limiteDeNome = (nomeBruto: string): Limite | undefined => {
     const alvo = nomeCategoria(nomeBruto).toLowerCase();
     return limites.find(l => nomeCategoria(l.categoria || '').toLowerCase() === alvo);
   };
 
-  // Agrupa categorias em árvore: pais e filhas — só do tipo selecionado (default = despesa)
+  // Agrupa categorias em árvore: pais e filhas. Default 'todas' = despesas +
+  // receitas juntas; o filtro de tipo restringe quando escolhido.
   const arvore = useMemo(() => {
     // "Fatura cartão" não é uma categoria de consumo (é quitação de dívida) —
     // nunca listada aqui, mesmo que exista no catálogo.
-    const pais = categorias.filter(c => !c.parent_id && (c.tipo || 'despesa') === tipoTab && nomeCategoria(c.nome) !== 'Fatura cartão');
+    const pais = categorias.filter(c => !c.parent_id
+      && (tipoTab === 'todas' || (c.tipo || 'despesa') === tipoTab)
+      && nomeCategoria(c.nome) !== 'Fatura cartão');
     return pais.map(p => {
       const filhos = categorias.filter(c => c.parent_id === p.id);
-      const gastoProprio = gastoDeNome(p.nome);
-      const gastoFilhos  = filhos.reduce((s, f) => s + gastoDeNome(f.nome), 0);
+      const gastoProprio = valorDeNome(p.nome, p.tipo);
+      const gastoFilhos  = filhos.reduce((s, f) => s + valorDeNome(f.nome, p.tipo), 0);
       const gastoTotal   = gastoProprio + gastoFilhos;
       const limite       = limiteDeNome(p.nome);
       return { pai: p, filhos, gastoTotal, gastoProprio, gastoFilhos, limite };
@@ -334,40 +347,6 @@ export default function CategoriasPage() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════
-            TABS Despesa / Receita
-        ═══════════════════════════════════════════════════════ */}
-        <div className="card rounded-2xl p-1.5 animate-fade-in inline-flex" style={{ animationDelay: '30ms' }}>
-          <div className="relative flex bg-muted/40 rounded-xl p-1">
-            <div
-              className="absolute top-1 bottom-1 rounded-lg transition-all duration-200"
-              style={{
-                width: 'calc(50% - 4px)',
-                left: tipoTab === 'despesa' ? '4px' : 'calc(50%)',
-                background: tipoTab === 'despesa' ? 'hsl(0 72% 58%)' : 'hsl(var(--primary))',
-              }}
-            />
-            <button
-              onClick={() => setTipoTab('despesa')}
-              className={`relative px-5 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 inline-flex items-center gap-1.5 ${tipoTab === 'despesa' ? 'text-white' : 'text-muted-foreground'}`}
-            >
-              💸 Despesa
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tipoTab === 'despesa' ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
-                {totalDespesa}
-              </span>
-            </button>
-            <button
-              onClick={() => setTipoTab('receita')}
-              className={`relative px-5 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 inline-flex items-center gap-1.5 ${tipoTab === 'receita' ? 'text-white' : 'text-muted-foreground'}`}
-            >
-              💰 Receita
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tipoTab === 'receita' ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
-                {totalReceita}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════
             CARD DE RESUMO — valor + donut + navegação de mês
         ═══════════════════════════════════════════════════════ */}
         <div className="card rounded-3xl p-6 sm:p-8 animate-fade-in" style={{ animationDelay: '60ms' }}>
@@ -431,6 +410,20 @@ export default function CategoriasPage() {
               onChange={e => setBusca(e.target.value)}
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 focus:bg-card text-sm outline-none transition-all"
             />
+          </div>
+
+          {/* Filtro por TIPO (despesa/receita) — tudo junto por padrão */}
+          <div className="relative">
+            <select
+              value={tipoTab}
+              onChange={e => setTipoTab(e.target.value as TipoTab)}
+              className="appearance-none pl-3 pr-9 py-2 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 focus:bg-card text-sm font-medium outline-none transition-all cursor-pointer"
+            >
+              <option value="todas">Todas ({totalDespesa + totalReceita})</option>
+              <option value="despesa">Despesas ({totalDespesa})</option>
+              <option value="receita">Receitas ({totalReceita})</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
 
           {/* Filtro dropdown */}
@@ -559,7 +552,7 @@ export default function CategoriasPage() {
                   onEditarSub={(c) => setModalCat({ edicao: c })}
                   onExcluirSub={(c) => setConfirmDel(c)}
                   onMudarCor={handleMudarCor}
-                  gastoSubFn={gastoDeNome}
+                  gastoSubFn={(nome: string) => valorDeNome(nome, item.pai.tipo)}
                   delay={i * 30}
                 />
               ))}
