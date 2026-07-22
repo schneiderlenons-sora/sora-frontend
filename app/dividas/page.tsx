@@ -365,8 +365,17 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* Linha decorativa superior com a cor do tipo */}
-      <div className="absolute top-0 left-0 right-0 h-1 opacity-90"
+      <div className="absolute top-0 left-0 right-0 h-1 opacity-90 z-10"
            style={{ background: `linear-gradient(90deg, ${tipo.cor}, color-mix(in srgb, ${tipo.cor} 40%, transparent))` }} />
+
+      {/* Foto do que está sendo pago (banner full-bleed) */}
+      {divida.imagem_url && (
+        <div className="-mx-5 -mt-5 mb-4 relative h-24 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={divida.imagem_url} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/10 to-transparent" />
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">

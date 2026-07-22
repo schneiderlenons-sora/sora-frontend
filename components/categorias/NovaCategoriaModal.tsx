@@ -32,12 +32,31 @@ const EMOJI_COMUNS = [
   '📈', '💼', '🏦', '💳', '💸', '🪙', '📊', '🧾',
   '🧼', '🩺', '❤️‍🩹', '💵', '🔒', '👶', '🔖', '📥',
   '🏫', '💪', '🎒', '🔧', '🚿', '🛏️', '🧹', '🪥',
+  // Negócios / empreendedor + casa / dona de casa (personas mais comuns)
+  '🏪', '🏬', '🏭', '🚚', '👔', '🤝', '🧑‍💼', '🖥️',
+  '🍳', '🥘', '🍽️', '🧽', '🧺', '🍼', '🧸', '🧻',
 ];
 
 // Emojis estendidos — catálogo amplo por tema (comida, casa, saúde, trabalho,
 // transporte, lazer, pets, natureza, dinheiro, símbolos).
-const EMOJI_EXTENDIDOS = [
+// `new Set` remove duplicados (evita key repetida no React quando um emoji
+// aparece em COMUNS e num bloco temático).
+const EMOJI_EXTENDIDOS = Array.from(new Set([
   ...EMOJI_COMUNS,
+  // ── Negócios / empreendedor (persona pedida) ──
+  '🧑‍💼', '👩‍💼', '👨‍💼', '🏢', '🏪', '🏬', '🏭', '🏗️',
+  '📈', '📉', '📊', '💹', '💼', '🧾', '🧮', '🖇️',
+  '📇', '🗂️', '🗄️', '🗃️', '📋', '📝', '🖊️', '✍️',
+  '📦', '🚚', '🚛', '🏷️', '🪧', '📢', '📣', '🤝',
+  '💳', '🏦', '🏧', '💰', '💵', '🪙', '🧑‍🔧', '🛠️',
+  '⚖️', '🖥️', '💻', '🖨️', '📠', '☎️', '🔑', '🗝️',
+  // ── Casa / dona de casa (persona pedida) ──
+  '🏠', '🏡', '🧹', '🧽', '🧼', '🧺', '🪣', '🧴',
+  '🧻', '🪥', '🚿', '🛁', '🚽', '🛏️', '🛋️', '🪑',
+  '🚪', '🪟', '🍳', '🥘', '🍲', '🍽️', '🥄', '🍴',
+  '🔪', '🧊', '🧂', '🥫', '🧅', '🧄', '🥔', '🍅',
+  '🥬', '🧺', '🧷', '🧵', '🪡', '🧶', '🍼', '🧸',
+  '👶', '🚼', '👗', '👚', '👖', '🧦', '🪆', '🕯️',
   // Pessoas / família
   '🧒', '👨', '👩', '👪', '🧑‍🍼', '👵', '👴', '🤝',
   // Saúde / bem-estar
@@ -99,7 +118,7 @@ const EMOJI_EXTENDIDOS = [
   '💴', '💶', '💷', '🧧', '💱', '💹',
   // Símbolos / geral
   '⚠️', 'ℹ️', '❓', '🔆', '💠', '🏆', '🎗️', '📣',
-];
+]));
 
 interface Props {
   phone: string;
@@ -291,7 +310,7 @@ export default function NovaCategoriaModal({
             </div>
             <div
               className="grid gap-1.5 p-2 rounded-xl bg-muted/30 border border-border"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))' }}
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))' }}
             >
               {emojis.map(e => {
                 const ativo = e === emoji;
@@ -299,7 +318,7 @@ export default function NovaCategoriaModal({
                   <button
                     key={e}
                     onClick={() => setEmoji(e)}
-                    className={`aspect-square rounded-lg flex items-center justify-center text-lg transition-all ${
+                    className={`aspect-square rounded-lg flex items-center justify-center text-2xl transition-all ${
                       ativo
                         ? 'bg-primary/15 ring-2 ring-primary/40 scale-110'
                         : 'hover:bg-card hover:scale-105'

@@ -1,8 +1,32 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+
+// Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
+async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        const escala = Math.min(max / img.width, max / img.height, 1);
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        const ctx = c.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas indisponível'));
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', q));
+      };
+      img.onerror = () => reject(new Error('Imagem inválida'));
+      img.src = r.result as string;
+    };
+    r.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    r.readAsDataURL(file);
+  });
+}
 
 const TIPOS = [
   { v: 'emprestimo',       l: 'Empréstimo',         icon: Briefcase,    cor: '#3b82f6', desc: 'Pessoal, consignado livre, etc.' },
@@ -43,9 +67,21 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   const [diaVencimento,   setDiaVencimento]   = useState<string>(edicao?.dia_vencimento?.toString() || '');
   const [dataInicio,      setDataInicio]      = useState(edicao?.data_inicio || new Date().toISOString().slice(0, 10));
   const [observacao,      setObservacao]      = useState(edicao?.observacao || '');
+  const [imagem,          setImagem]          = useState<string | null>(edicao?.imagem_url || null);
 
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFoto(file: File) {
+    if (file.size > 8 * 1024 * 1024) { setErro('Imagem muito grande (máx. 8 MB).'); return; }
+    setErro('');
+    setUploading(true);
+    try { setImagem(await redimensionar(file)); }
+    catch (e: any) { setErro(e.message || 'Erro ao processar imagem.'); }
+    finally { setUploading(false); }
+  }
 
   // Auto-calcula valor da parcela quando muda total ou parcelas
   useEffect(() => {
@@ -85,6 +121,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         dia_vencimento: diaVencimento ? parseInt(diaVencimento, 10) : undefined,
         data_inicio:    dataInicio || undefined,
         observacao:     observacao.trim() || undefined,
+        imagem_url:     imagem || null,
       };
       if (ediMode) {
         await api.dividas.editar(edicao.id, { ...payload, phone });
@@ -137,6 +174,41 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+
+          {/* Foto do que está sendo pago (opcional) — ajuda a visualizar */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+              Foto <span className="text-muted-foreground/60 normal-case font-normal">(opcional — ex.: o aparelho, o carro…)</span>
+            </label>
+            <div className="relative rounded-2xl overflow-hidden border border-border group" style={{ aspectRatio: '16/7' }}>
+              {imagem ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imagem} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button type="button" onClick={() => fileRef.current?.click()} title="Trocar"
+                            className="p-1.5 rounded-lg bg-card/80 backdrop-blur-sm hover:bg-card transition-colors">
+                      <Camera size={13} className="text-foreground" />
+                    </button>
+                    <button type="button" onClick={() => setImagem(null)} title="Remover"
+                            className="p-1.5 rounded-lg bg-card/80 backdrop-blur-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
+                      <Trash2 size={13} className="text-red-500" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                        className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/30 hover:bg-muted/50 transition-colors text-muted-foreground">
+                  {uploading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+                  <span className="text-xs font-semibold">{uploading ? 'Enviando…' : 'Adicionar foto (opcional)'}</span>
+                  <span className="text-[10px]">JPG / PNG até 8 MB</span>
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" hidden
+                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFoto(f); e.target.value = ''; }} />
+            </div>
+          </div>
 
           {/* Tipo de dívida */}
           <div>
