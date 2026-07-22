@@ -87,6 +87,16 @@ export default function HabitosPage() {
   const loading = habData === undefined;
   const carregar = useCallback((_silent = false) => mHab(), [mHab]);
 
+  // Revalidação DEBOUNCED após os toggles: reconcilia com o servidor (fonte da
+  // verdade) sem uma requisição por clique. Conserta o caso de 2 checks rápidos
+  // em que um "some" do cache otimista — o backend salvou os dois; ao revalidar,
+  // ambos reaparecem certinho. Roda ~600ms depois do ÚLTIMO clique.
+  const revalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agendarRevalidacao = useCallback(() => {
+    if (revalRef.current) clearTimeout(revalRef.current);
+    revalRef.current = setTimeout(() => { mHab(); }, 600);
+  }, [mHab]);
+
   function flash(msg: string, ok = true) {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2500);
@@ -123,6 +133,9 @@ export default function HabitosPage() {
       if (data && data !== iso(new Date())) flash(`✓ Registrado em ${fmtData(targetDate)}`);
     } catch (e: any) {
       flash(e.message || 'Falhou ao registrar', false);
+    } finally {
+      // Reconcilia com o servidor depois que os cliques pararem (não some check).
+      agendarRevalidacao();
     }
   }
 
