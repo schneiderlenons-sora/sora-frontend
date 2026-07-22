@@ -5,6 +5,7 @@ import { User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { limparCacheSWR } from '@/lib/swr-cache';
 import { type Plano, type Feature, type Recurso, podeUsar as _podeUsar, limiteDe as _limiteDe } from '@/lib/plans';
 
 export type Papel = 'admin' | 'escrita' | 'leitura';
@@ -181,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut();
     setPerfil(null);
+    limparCacheSWR(); // não deixa dado financeiro do usuário no localStorage
     router.push('/login');
   }
 
