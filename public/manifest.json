@@ -12,13 +12,13 @@
   "categories": ["finance", "productivity", "lifestyle"],
   "icons": [
     {
-      "src": "/sora-icon.png",
+      "src": "/sora-icon-rounded.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/sora-icon.png",
+      "src": "/sora-icon-rounded.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
