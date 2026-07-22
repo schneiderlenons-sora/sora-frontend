@@ -17,6 +17,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
+import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import type { Feature } from '@/lib/plans';
 
@@ -125,6 +126,18 @@ export default function Sidebar() {
   const router = useRouter();
   const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
+
+  // Aquece as abas mais usadas no tempo ocioso → a 1ª visita a elas já é
+  // instantânea (sem competir com a carga inicial do dashboard).
+  useEffect(() => {
+    if (!phone) return;
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
+    const id = ric ? ric(() => prefetchTopTabs(phone)) : window.setTimeout(() => prefetchTopTabs(phone), 2000);
+    return () => {
+      const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
+      if (ric && cic) cic(id as number); else clearTimeout(id as number);
+    };
+  }, [phone]);
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
   // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
   const [open, setOpen] = useState(false); // drawer mobile
@@ -214,6 +227,11 @@ export default function Sidebar() {
     return (
       <Link
         href={destino}
+        // Prefetch dos DADOS da aba ao passar o mouse / tocar → quando clicar,
+        // o dado já está em voo/pronto = navegação instantânea. Barato (só a
+        // aba apontada), diferente de baixar tudo de uma vez.
+        onMouseEnter={() => prefetchRota(destino, phone)}
+        onTouchStart={() => prefetchRota(destino, phone)}
         // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
         // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
         // e /investimentos, /metas, /relatorios, /juros e /planejamento carregam
