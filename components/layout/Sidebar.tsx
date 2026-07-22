@@ -128,16 +128,21 @@ export default function Sidebar() {
   const ehAdmin = isAdminEmail(perfil?.email);
 
   // Aquece as abas mais usadas no tempo ocioso → a 1ª visita a elas já é
-  // instantânea (sem competir com a carga inicial do dashboard).
+  // instantânea (sem competir com a carga inicial do dashboard). Prefetcha a
+  // ROTA (chunk da página; recharts é dynamic, não vem junto) + os DADOS.
   useEffect(() => {
     if (!phone) return;
+    const warm = () => {
+      ['/transacoes', '/categorias', '/relatorios'].forEach((r) => router.prefetch(r));
+      prefetchTopTabs(phone);
+    };
     const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
-    const id = ric ? ric(() => prefetchTopTabs(phone)) : window.setTimeout(() => prefetchTopTabs(phone), 2000);
+    const id = ric ? ric(warm) : window.setTimeout(warm, 2000);
     return () => {
       const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
       if (ric && cic) cic(id as number); else clearTimeout(id as number);
     };
-  }, [phone]);
+  }, [phone, router]);
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
   // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
   const [open, setOpen] = useState(false); // drawer mobile
@@ -227,11 +232,12 @@ export default function Sidebar() {
     return (
       <Link
         href={destino}
-        // Prefetch dos DADOS da aba ao passar o mouse / tocar → quando clicar,
-        // o dado já está em voo/pronto = navegação instantânea. Barato (só a
-        // aba apontada), diferente de baixar tudo de uma vez.
-        onMouseEnter={() => prefetchRota(destino, phone)}
-        onTouchStart={() => prefetchRota(destino, phone)}
+        // Ao passar o mouse / tocar num item, prefetcha a ROTA (JS) + os DADOS
+        // daquela aba → quando clicar, tanto o código quanto os dados já estão
+        // prontos = navegação instantânea (fim da travada do clique). Barato:
+        // só a aba apontada, não todas de uma vez (por isso o prefetch={false}).
+        onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
+        onTouchStart={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
         // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
         // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
         // e /investimentos, /metas, /relatorios, /juros e /planejamento carregam
