@@ -65,8 +65,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [membroFiltro, setMembroFiltro] = useState('todos'); // só em grupo compartilhado
   const [cartaoFiltro, setCartaoFiltro] = useState('todos'); // por cartão virtual (Open Finance)
 
-  // Mês visualizado (0 = atual, -1 = anterior…) — pra ver meses passados,
-  // ex.: transações importadas de um extrato OFX de meses anteriores.
+  // Mês visualizado (0 = atual, -1 = anterior, +1 = próximo…). Passado: ver
+  // transações importadas de OFX de meses anteriores. FUTURO: parcelas a vencer
+  // e gastos fixos já provisionados — sem isso não dava pra EXCLUIR um
+  // lançamento futuro (era o único jeito de chegar nele). Teto de 12 meses pra
+  // não virar navegação infinita em meses vazios.
+  const MAX_MES_FUTURO = 12;
   const [mesIndex, setMesIndex] = useState(0);
   const refDate = useMemo(() => {
     const d = new Date();
@@ -248,25 +252,37 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-5">
             <div>
-              <div className="inline-flex items-center gap-1 mb-3">
+              {/* Navegação de meses. Toque 44pt no mobile (regra do projeto);
+                  compacto no desktop. Avança até 12 meses pra alcançar parcelas
+                  a vencer / fixos provisionados (e poder excluí-los). */}
+              <div className="inline-flex items-center gap-1 mb-3 flex-wrap">
                 <button
                   onClick={() => setMesIndex(i => i - 1)}
                   aria-label="Mês anterior"
-                  className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors"
+                  className="w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors"
                   style={{ color: BRAND }}>
-                  <ChevronLeft size={15} />
+                  <ChevronLeft className="w-[18px] h-[18px] sm:w-[15px] sm:h-[15px]" />
                 </button>
                 <span className="text-[11px] font-semibold uppercase tracking-wider px-2 min-w-[120px] text-center" style={{ color: BRAND }}>
                   {mesLabel}
                 </span>
                 <button
-                  onClick={() => setMesIndex(i => Math.min(i + 1, 0))}
-                  disabled={mesIndex >= 0}
+                  onClick={() => setMesIndex(i => Math.min(i + 1, MAX_MES_FUTURO))}
+                  disabled={mesIndex >= MAX_MES_FUTURO}
                   aria-label="Próximo mês"
-                  className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   style={{ color: BRAND }}>
-                  <ChevronRight size={15} />
+                  <ChevronRight className="w-[18px] h-[18px] sm:w-[15px] sm:h-[15px]" />
                 </button>
+                {mesIndex !== 0 && (
+                  <button
+                    onClick={() => setMesIndex(0)}
+                    aria-label="Voltar para o mês atual"
+                    className="h-11 sm:h-7 px-3 ml-1 inline-flex items-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors text-[11px] font-semibold uppercase tracking-wider"
+                    style={{ color: BRAND }}>
+                    Hoje
+                  </button>
+                )}
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
                 Transações
