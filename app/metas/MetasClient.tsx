@@ -107,11 +107,17 @@ export default function MetasClient({ phoneInicial, initialMetas }: { phoneInici
 
   async function handleDelete(m: any) {
     if (!phone) return;
-    try {
-      await api.metas.deletar(m.id, phone);
-      setConfirmDel(null);
-      carregar();
-    } catch (e: any) { alert(e.message); }
+    setConfirmDel(null);
+    // Otimista: some da lista na hora, reverte no erro.
+    mMetas(
+      async () => { await api.metas.deletar(m.id, phone); return undefined; },
+      {
+        optimisticData: (cur: any) => (Array.isArray(cur) ? cur.filter((x: any) => x.id !== m.id) : cur),
+        rollbackOnError: true,
+        populateCache: false,
+        revalidate: true,
+      },
+    ).catch((e: any) => alert(e.message));
   }
 
   return (

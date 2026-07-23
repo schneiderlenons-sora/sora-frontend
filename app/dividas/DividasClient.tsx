@@ -74,12 +74,19 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
 
   async function handleDelete(d: any) {
     if (!phone) return;
+    setConfirmDel(null);
+    // Otimista (mesmo padrão do toggle de lembrete): some da lista na hora,
+    // reverte no erro. carregar() revalida os totais do resumo.
+    const antes = dividas;
+    setDividas(prev => prev.filter(x => x.id !== d.id));
+    flash('✓ Dívida removida.');
     try {
       await api.dividas.deletar(d.id, phone);
-      setConfirmDel(null);
       carregar();
-      flash('✓ Dívida removida.');
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) {
+      setDividas(antes);
+      alert(e.message);
+    }
   }
 
   async function toggleLembreteDivida(d: any) {

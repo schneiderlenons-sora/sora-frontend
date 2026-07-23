@@ -244,13 +244,17 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
   }
 
   async function handleDeletar(c: Categoria) {
-    try {
-      await api.categorias.deletar(c.id);
-      setConfirmDel(null);
-      carregar();
-    } catch (e: any) {
-      alert(e.message || 'Erro ao excluir.');
-    }
+    setConfirmDel(null);
+    // Otimista: some da lista na hora, reverte no erro.
+    mCats(
+      async () => { await api.categorias.deletar(c.id); return undefined; },
+      {
+        optimisticData: (cur: any) => (Array.isArray(cur) ? cur.filter((x: any) => x.id !== c.id) : cur),
+        rollbackOnError: true,
+        populateCache: false,
+        revalidate: true,
+      },
+    ).then(() => { mResumo(); mLimites(); }).catch((e: any) => alert(e.message || 'Erro ao excluir.'));
   }
 
   // Edição rápida de cor pelo popover do ícone — otimista (via SWR).
