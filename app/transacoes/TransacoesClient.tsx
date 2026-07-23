@@ -649,6 +649,23 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           wallets={wallets}
           onClose={() => setModalOpen(false)}
           onSuccess={carregar}
+          onOptimisticCreate={(optimisticRow, doCreate) => {
+            // Insere a linha no cache na hora; a API roda em segundo plano e
+            // reverte (rollbackOnError) se falhar. mR/mW revalidam totais/saldo.
+            mTx(
+              async () => { await doCreate(); return undefined; },
+              {
+                optimisticData: (cur: any) => ({
+                  ...(cur || { transacoes: [], total: 0 }),
+                  transacoes: [optimisticRow, ...(cur?.transacoes || [])],
+                  total: (cur?.total || 0) + 1,
+                }),
+                rollbackOnError: true,
+                populateCache: false,
+                revalidate: true,
+              },
+            ).then(() => { mR(); mW(); }).catch((e: any) => alert('Erro ao salvar: ' + (e.message || '')));
+          }}
         />
       )}
 

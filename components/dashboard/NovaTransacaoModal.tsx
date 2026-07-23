@@ -17,6 +17,11 @@ interface Props {
   wallets: any[];
   onClose: () => void;
   onSuccess: () => void;
+  /** Opt-in (#6 otimista): se fornecido, o modal fecha na HORA e delega a
+   *  criação — o pai insere a linha no cache na hora e chama `doCreate()` em
+   *  segundo plano (rollback no erro). Se ausente, usa o fluxo await padrão
+   *  (dashboard continua igual). Só o caminho NÃO-parcelado é otimista. */
+  onOptimisticCreate?: (optimisticRow: any, doCreate: () => Promise<any>) => void;
 }
 
 // Fallback usado se o user ainda não tiver categorias (DB antiga sem coluna tipo)
@@ -50,7 +55,7 @@ const FALLBACK_RECEITA: CatItem[] = [
   { emoji: '🪙', nome: 'Outras receitas'  },
 ];
 
-export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess }: Props) {
+export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess, onOptimisticCreate }: Props) {
   const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>('Gasto');
   const [valor,      setValor]      = useState('');
   const [descricao,  setDescricao]  = useState('');
@@ -185,6 +190,28 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess 
     if (walletsVisiveis.length > 0 && !walletId) { setErro('Selecione a conta de origem.'); return; }
 
     const walletNome = wallets.find(w => w.id === walletId)?.nome;
+
+    // #6 otimista (opt-in, só o caminho NÃO-parcelado): fecha na hora e delega
+    // a criação pro pai, que insere a linha no cache e chama a API em segundo
+    // plano. Salvar "parece" instantâneo mesmo com o Render em ~500ms.
+    if (onOptimisticCreate && !parcelado) {
+      const valorNum = parseInt(valor, 10) / 100;
+      const catFull = `${catEmoji} ${categoria}`;
+      const optimisticRow = {
+        id: `tmp-${Date.now()}`,
+        tipo, valor: valorNum, observacao: descricao, categoria: catFull,
+        carteira_nome: walletNome, wallet_nome: walletNome, data,
+        pago: true, recorrente, _otimista: true,
+      };
+      const doCreate = () => api.transacoes.criar({
+        phone, tipo, valor: valorNum, observacao: descricao, categoria: catFull,
+        wallet_id: walletId || undefined, carteira_nome: walletNome, data, recorrente,
+      });
+      onOptimisticCreate(optimisticRow, doCreate);
+      onClose();
+      return;
+    }
+
     setLoading(true);
     try {
       if (parcelado) {
