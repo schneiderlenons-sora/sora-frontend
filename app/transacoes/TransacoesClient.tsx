@@ -37,6 +37,15 @@ const mesAtual = new Date().toISOString().slice(0, 7);
 // ─────────────────────────────────────────────────────────────
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
+// ── Grid da tabela de movimentações (cabeçalho E linhas usam os DOIS) ──────
+// ⚠️ A min-width do container PRECISA acomodar a soma das colunas, senão as
+// últimas (VALOR e o menu ⋮) ficam cortadas e INALCANÇÁVEIS no scroll do mobile
+// — foi exatamente o bug de jul/2026 (minWidth era 764, faltavam 110px).
+// Conta: fixas 44+64+130+110+100+110+40 = 598 · flexível mín. 160 ·
+// gaps 7×12 (gap-3) = 84 · px-4 = 32  →  874. Usamos 880 (folga).
+const GRID_COLS  = '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px';
+const GRID_MIN_W = 880;
+
 export default function TransacoesClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const { phone: authPhone, podeUsar, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
@@ -614,10 +623,10 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   alinhados, contidos no card (overflow-hidden) — nada vaza pra
                   página no mobile. (Antes cada linha tinha seu próprio scroll.) */}
               <div className="overflow-x-auto scrollbar-none">
-                <div style={{ minWidth: 764 }}>
+                <div style={{ minWidth: GRID_MIN_W }}>
                   {/* Cabeçalho de colunas */}
                   <div className="grid gap-3 items-center px-4 py-2.5 border-b border-border/60 bg-muted/30"
-                       style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px' }}>
+                       style={{ gridTemplateColumns: GRID_COLS }}>
                     <div/>
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Descrição</span>
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Parcela</span>
@@ -812,7 +821,7 @@ function TransactionRow({
           container ÚNICO da tabela (pai) — não em cada linha (senão cada uma
           rola sozinha e desalinha, causando a bagunça no mobile). */}
       <div className="grid px-4 py-3.5 gap-3"
-           style={{ gridTemplateColumns: '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px' }}>
+           style={{ gridTemplateColumns: GRID_COLS }}>
 
       {/* Checkbox */}
       <button
