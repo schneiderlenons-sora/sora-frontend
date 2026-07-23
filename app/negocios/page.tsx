@@ -36,6 +36,16 @@ function periodoLabel(periodoIso: string) {
   return `${MES_NOMES[parseInt(m) - 1]} ${a}`;
 }
 
+// DRE zerado — o backend devolve null quando a empresa ainda não tem nada.
+// Mostramos a estrutura com ZEROS (o que o usuário pediu: nada de fictício)
+// em vez de tela em branco.
+const DRE_ZERO = {
+  receita_bruta: 0, taxas_plataforma: 0, taxas_gateway: 0, impostos: 0,
+  reembolsos: 0, receita_liquida: 0, custos_total: 0, lucro_liquido: 0,
+  margem_pct: 0, delta_vs_anterior: 0, total_vendas: 0, ticket_medio: 0,
+  mrr: 0, por_plataforma: [], por_produto: [], spark: [],
+};
+
 const CORES_PLAT: Record<string, string> = {
   hotmart: '#f04e23', kiwify: '#0066ff', eduzz: '#ff6b00',
   stripe: '#635bff',  mercadopago: '#00b1ea',
@@ -85,16 +95,18 @@ export default function NegociosPage() {
   // ── DRE da empresa ativa. SEM mock: sem dado = empty state de verdade. ──
   const { data: dre, mutate: mDre } = useApi(
     (phone && isPremium && empresa) ? `neg:dre:${phone}:${empresa.id}:${periodo}` : null,
-    () => api.negocios.dre.get(phone, periodo),
+    () => api.negocios.dre.get(phone, periodo, empresa!.id),
   );
   const loading = carregandoEmpresas || (!!empresa && dre === undefined);
   const carregar = () => mDre();
-  const semDados = !!dre && !(dre as any).total_vendas && !(dre as any).receita_bruta;
+  // `dre` vem null quando a empresa ainda não tem movimento → usa o zerado.
+  const d: any = dre || DRE_ZERO;
+  const semDados = !d.total_vendas && !d.receita_bruta;
 
   async function handleRecalcular() {
     if (!phone || recalculando) return;
     setRecalc(true);
-    try { await api.negocios.dre.recalcular({ phone, periodo }); await carregar(); }
+    try { await api.negocios.dre.recalcular({ phone, periodo, empresa_id: empresa?.id }); await carregar(); }
     catch (e: any) { alert(e.message); }
     finally { setRecalc(false); }
   }
@@ -193,13 +205,13 @@ export default function NegociosPage() {
           </div>
         </header>
 
-        <HeroLucro dre={dre} />
-        <Waterfall dre={dre} />
+        <HeroLucro dre={d} />
+        <Waterfall dre={d} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <CardPlataformas dre={dre} />
-          <CardProdutos dre={dre} />
-          <CardMrr dre={dre} />
+          <CardPlataformas dre={d} />
+          <CardProdutos dre={d} />
+          <CardMrr dre={d} />
           <CardInsight />
         </div>
 

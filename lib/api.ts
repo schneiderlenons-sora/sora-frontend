@@ -883,12 +883,19 @@ export const api = {
       importarHistorico: (id: string) =>
         req<{ ok: boolean; job: string }>(`/api/negocios/integracoes/${id}/importar-historico`, { method: 'POST' }),
     },
+    // DRE é POR EMPRESA (fase 5). Sem empresa_id o backend cai na primeira
+    // ativa — compat com chamadas antigas.
     dre: {
-      get: (phone: string, periodo?: string) =>
-        req<any>(`/api/negocios/dre/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+      get: (phone: string, periodo?: string, empresaId?: string) => {
+        const q = new URLSearchParams();
+        if (periodo) q.set('periodo', periodo);
+        if (empresaId) q.set('empresa_id', empresaId);
+        const s = q.toString();
+        return req<any>(`/api/negocios/dre/${phone}${s ? `?${s}` : ''}`);
+      },
       detalhado: (phone: string, periodo?: string) =>
         req<any>(`/api/negocios/dre-detalhado/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
-      recalcular: (body: { phone: string; periodo?: string }) =>
+      recalcular: (body: { phone: string; periodo?: string; empresa_id?: string }) =>
         req<any>('/api/negocios/dre/recalcular', { method: 'POST', body: JSON.stringify(body) }),
     },
     eventos: {
