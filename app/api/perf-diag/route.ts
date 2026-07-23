@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { dashboardDireto } from '@/lib/ssr-data';
 
 // Diagnóstico de performance do caminho de SSR. Abra LOGADO em
 // /api/perf-diag e cole o JSON de volta pro Claude. Mede, em ms:
@@ -72,6 +73,14 @@ export async function GET() {
     const { data: w } = await supabaseAdmin.from('wallets').select('*').eq('grupo_id', grupoId).order('nome');
     etapas.direto_supabase_wallets = Date.now() - tW;
     out.wallets_count = (w || []).length;
+
+    // 4b. Dashboard consolidado DIRETO no Supabase (as 6 queries) — é o que o
+    //     SSR passa a usar. Compare com render_dashboard_2a_chamada.
+    const mesAtual = new Date().toISOString().slice(0, 7);
+    const mesAnt = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().slice(0, 7);
+    const dd = await timed(() => dashboardDireto(grupoId, mesAtual, mesAnt));
+    etapas.direto_supabase_dashboard_completo = dd.ms;
+    out.direto_dashboard_ok = dd.ok;
   }
 
   // 5. Hop do Render (dashboard consolidado). O backend ignora o :phone (usa
@@ -94,11 +103,13 @@ export async function GET() {
   etapas.total = Date.now() - tTotal;
 
   // Leitura rápida pro humano
+  const dashDireto = etapas.direto_supabase_dashboard_completo as number | undefined;
   out.diagnostico = {
-    render_hop_quente_ms: r2.ms,
-    supabase_direto_ms: (etapas.direto_supabase_wallets as number) ?? null,
+    render_dashboard_ms: r2.ms,
+    supabase_direto_dashboard_ms: dashDireto ?? null,
+    ganho_estimado_ssr: dashDireto && r2.ms ? `${Math.round((1 - dashDireto / r2.ms) * 100)}% mais rápido` : null,
     cold_start_suspeito: r1.ms - r2.ms > 3000,
-    nota: 'Se render_dashboard_1a >> 2a (segundos), é cold start → Render always-on (#3). Se o hop quente for ~igual ao supabase_direto+overhead, o #2 não compensa.',
+    nota: 'direto_supabase_dashboard_completo é o que o SSR passa a usar (#2 aplicado no dashboard). Compare com render_dashboard_2a_chamada (o hop antigo).',
   };
 
   return NextResponse.json(out);

@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
-export type CtxSSR = { phone: string; token: string };
+export type CtxSSR = { phone: string; token: string; grupoId: string | null; userId: string };
 
 export async function contextoSSR(): Promise<CtxSSR | null> {
   try {
@@ -19,9 +19,16 @@ export async function contextoSSR(): Promise<CtxSSR | null> {
     ]);
     const token = session?.access_token;
     if (!user || !token) return null;
+    // Traz o grupo_ativo junto (mesma query) → permite ler direto do Supabase
+    // no SSR (lib/ssr-data.ts), sem o hop lento do Render pro primeiro paint.
     const { data: perfil } = await supabaseAdmin
-      .from('users').select('phone').eq('id', user.id).maybeSingle();
-    return { phone: perfil?.phone || user.id, token };
+      .from('users').select('phone, grupo_ativo').eq('id', user.id).maybeSingle();
+    return {
+      phone: perfil?.phone || user.id,
+      token,
+      grupoId: (perfil?.grupo_ativo as string) || null,
+      userId: user.id,
+    };
   } catch {
     return null;
   }
