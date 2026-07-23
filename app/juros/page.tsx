@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Percent, TrendingUp, CreditCard, Sparkles, ArrowUpRight, Info } from 'lucide-react';
 
 const GraficoPatrimonio = dynamic(() => import('./GraficoPatrimonio'), {
@@ -91,7 +90,7 @@ export default function CalculadoraJurosPage() {
   }, [valorD, taxaD, parcelas]);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         {/* Header */}
@@ -214,6 +213,6 @@ export default function CalculadoraJurosPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

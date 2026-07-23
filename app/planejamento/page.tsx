@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { CalendarRange, Plus, Trash2, Wand2, TrendingUp, TrendingDown, PiggyBank, AlertTriangle } from 'lucide-react';
 
@@ -93,7 +92,7 @@ export default function PlanejamentoAnualPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         {/* Header */}
@@ -248,6 +247,6 @@ export default function PlanejamentoAnualPage() {
 
         <p className="text-center text-xs text-muted-foreground">💾 Seu planejamento fica salvo neste aparelho. Sincronização na nuvem em breve.</p>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
