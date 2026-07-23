@@ -128,6 +128,66 @@ export async function categoriasDireto(grupoId: string) {
   return data || [];
 }
 
+// Porte fiel de GET /api/limites/:phone (routes/limites.js).
+export async function limitesDireto(grupoId: string, mes: string, userId: string) {
+  const [{ data: user }, { data: limites }] = await Promise.all([
+    supabaseAdmin.from('users')
+      .select('meta_mensal, meta_mensal_ativo, meta_mensal_alerta_ativo, meta_mensal_alerta_pct')
+      .eq('id', userId).maybeSingle(),
+    supabaseAdmin.from('category_limits').select('*').eq('grupo_id', grupoId).eq('mes_referencia', mes),
+  ]);
+  return {
+    meta_mensal:              (user as any)?.meta_mensal || 0,
+    meta_mensal_ativo:        (user as any)?.meta_mensal_ativo ?? true,
+    meta_mensal_alerta_ativo: (user as any)?.meta_mensal_alerta_ativo ?? true,
+    meta_mensal_alerta_pct:   (user as any)?.meta_mensal_alerta_pct ?? 80,
+    categorias:               limites || [],
+  };
+}
+
+// Porte fiel de GET /api/dividas/:phone (routes/dividas.js) — lista + resumo.
+export async function dividasDireto(grupoId: string, userId: string) {
+  const [{ data: user }, { data: dividas }] = await Promise.all([
+    supabaseAdmin.from('users').select('lembretes_dividas').eq('id', userId).maybeSingle(),
+    supabaseAdmin.from('dividas').select('*').eq('grupo_id', grupoId).order('created_at', { ascending: false }),
+  ]);
+  const lista: any[] = dividas || [];
+  const ativas = lista.filter((d) => d.status === 'ativa' || d.status === 'em_atraso');
+  const total_devido = ativas.reduce((s, d) => {
+    const restantes = Math.max(0, (d.parcelas_total || 0) - (d.parcelas_pagas || 0));
+    const saldo = restantes * (d.valor_parcela || 0);
+    return s + (saldo || d.valor_total || 0);
+  }, 0);
+  const total_quitado = lista.filter((d) => d.status === 'quitada').length;
+
+  const hoje = new Date();
+  const diaHoje = hoje.getDate();
+  let proxima: any = null;
+  ativas.forEach((d) => {
+    if (!d.dia_vencimento) return;
+    const venc = new Date(hoje.getFullYear(), hoje.getMonth(), d.dia_vencimento);
+    if (d.dia_vencimento < diaHoje) venc.setMonth(venc.getMonth() + 1);
+    const dias = Math.ceil((venc.getTime() - hoje.getTime()) / 86400000);
+    if (!proxima || dias < proxima.dias) {
+      proxima = { divida_id: d.id, titulo: d.titulo, valor: d.valor_parcela, data: venc.toISOString().slice(0, 10), dias };
+    }
+  });
+  const parcelas_mes_valor = ativas.reduce((s, d) => s + (d.valor_parcela || 0), 0);
+
+  return {
+    dividas: lista,
+    resumo: {
+      total_devido,
+      total_ativas: ativas.length,
+      total_quitadas: total_quitado,
+      parcelas_mes_valor,
+      parcelas_mes_count: ativas.filter((d) => d.dia_vencimento).length,
+      proxima_parcela: proxima,
+      lembretes_dividas: (user as any)?.lembretes_dividas !== false,
+    },
+  };
+}
+
 // Consolidado do dashboard — mesma forma do GET /api/dashboard/:phone.
 export async function dashboardDireto(grupoId: string, mes: string, mesAnt: string) {
   const agora = new Date().toISOString();

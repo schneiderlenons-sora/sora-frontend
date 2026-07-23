@@ -1,19 +1,28 @@
-import { contextoSSR, backendGet, mesRefSSR } from '@/lib/ssr';
+import { contextoSSR, mesRefSSR } from '@/lib/ssr';
+import { resumoDireto, transacoesDireto, walletsDireto, categoriasDireto } from '@/lib/ssr-data';
 import RelatoriosClient from './RelatoriosClient';
 
+// SSR lê DIRETO do Supabase (sem o hop lento do Render). Estado padrão do
+// relatório: filtro de membro 'todos' (sem criado_por).
 export const dynamic = 'force-dynamic';
 
 export default async function RelatoriosPage() {
   const ctx = await contextoSSR();
-  if (!ctx) return <RelatoriosClient />;
+  if (!ctx?.grupoId) return <RelatoriosClient phoneInicial={ctx?.phone} />;
   const mes = mesRefSSR(0);
   const mesAnt = mesRefSSR(-1);
-  const [resumo, resumoAnt, txs, wallets, cats] = await Promise.all([
-    backendGet<any>(ctx, `/api/transacoes/${ctx.phone}/resumo?mes=${mes}`),
-    backendGet<any>(ctx, `/api/transacoes/${ctx.phone}/resumo?mes=${mesAnt}`),
-    backendGet<any>(ctx, `/api/transacoes/${ctx.phone}?mes=${mes}&limit=500`),
-    backendGet<any>(ctx, `/api/wallets/${ctx.phone}`),
-    backendGet<any>(ctx, `/api/categorias/${ctx.phone}`),
-  ]);
-  return <RelatoriosClient phoneInicial={ctx.phone} initialData={{ resumo, resumoAnt, txs, wallets, cats }} />;
+  let initialData: any;
+  try {
+    const [resumo, resumoAnt, txs, wallets, cats] = await Promise.all([
+      resumoDireto(ctx.grupoId, mes),
+      resumoDireto(ctx.grupoId, mesAnt),
+      transacoesDireto(ctx.grupoId, { mes, limit: 500 }),
+      walletsDireto(ctx.grupoId),
+      categoriasDireto(ctx.grupoId),
+    ]);
+    initialData = { resumo, resumoAnt, txs, wallets, cats };
+  } catch {
+    initialData = undefined;
+  }
+  return <RelatoriosClient phoneInicial={ctx.phone} initialData={initialData} />;
 }

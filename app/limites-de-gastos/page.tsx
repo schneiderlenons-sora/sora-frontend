@@ -1,16 +1,24 @@
-import { contextoSSR, backendGet, mesRefSSR } from '@/lib/ssr';
+import { contextoSSR, mesRefSSR } from '@/lib/ssr';
+import { categoriasDireto, resumoDireto, limitesDireto } from '@/lib/ssr-data';
 import LimitesClient from './LimitesClient';
 
+// SSR lê DIRETO do Supabase (sem o hop lento do Render).
 export const dynamic = 'force-dynamic';
 
 export default async function LimitesPage() {
   const ctx = await contextoSSR();
-  if (!ctx) return <LimitesClient />;
+  if (!ctx?.grupoId) return <LimitesClient phoneInicial={ctx?.phone} />;
   const mes = mesRefSSR(0);
-  const [cats, resumo, limites] = await Promise.all([
-    backendGet<any>(ctx, `/api/categorias/${ctx.phone}`),
-    backendGet<any>(ctx, `/api/transacoes/${ctx.phone}/resumo?mes=${mes}`),
-    backendGet<any>(ctx, `/api/limites/${ctx.phone}?mes=${mes}`),
-  ]);
-  return <LimitesClient phoneInicial={ctx.phone} initialData={{ cats, resumo, limites }} />;
+  let initialData: any;
+  try {
+    const [cats, resumo, limites] = await Promise.all([
+      categoriasDireto(ctx.grupoId),
+      resumoDireto(ctx.grupoId, mes),
+      limitesDireto(ctx.grupoId, mes, ctx.userId),
+    ]);
+    initialData = { cats, resumo, limites };
+  } catch {
+    initialData = undefined;
+  }
+  return <LimitesClient phoneInicial={ctx.phone} initialData={initialData} />;
 }
