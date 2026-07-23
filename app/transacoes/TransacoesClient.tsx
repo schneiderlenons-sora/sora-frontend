@@ -690,6 +690,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           wallets={wallets}
           onClose={() => setEditTx(null)}
           onSaved={carregar}
+          onOptimisticSave={(optimisticRow, doSave) => {
+            mTx(
+              async () => { await doSave(); return undefined; },
+              {
+                optimisticData: (cur: any) => ({
+                  ...(cur || { transacoes: [], total: 0 }),
+                  transacoes: (cur?.transacoes || []).map((t: any) => (t.id === optimisticRow.id ? optimisticRow : t)),
+                }),
+                rollbackOnError: true,
+                populateCache: false,
+                revalidate: true,
+              },
+            ).then(() => { mR(); mW(); }).catch((e: any) => alert('Erro ao salvar: ' + (e.message || '')));
+          }}
         />
       )}
 
