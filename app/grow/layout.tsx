@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Loader2, RefreshCw } from 'lucide-react';
+import PageSkeleton from '@/components/ui/PageSkeleton';
+import { RefreshCw } from 'lucide-react';
 
 export default function GrowLayout({ children }: { children: React.ReactNode }) {
   const { loading, user, perfil, temAcessoGrow, recarregar } = useAuth();
@@ -31,13 +32,17 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
     if (!temAcessoGrow && !ehUpgrade) router.replace('/grow/upgrade');
   }, [loading, user, perfil, temAcessoGrow, ehUpgrade, router]);
 
-  // Bloqueia render até a sessão E o perfil terem sido carregados.
+  // Enquanto a sessão/perfil carregam, mostra o SHELL (sidebar) + skeleton em
+  // vez de um spinner full-screen — o Grow "aparece" na hora, igual Finanças
+  // (percepção de app nativo). O gate de acesso continua: assim que o perfil
+  // resolve, o useEffect acima redireciona pra /grow/upgrade se não tiver Grow.
+  // Nada de conteúdo real é exposto aqui (só skeleton), então não vaza.
   if (loading || !user || perfil === null) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <Loader2 size={28} className="animate-spin text-primary" />
+      <DashboardLayout>
+        <PageSkeleton />
         {timeout6s && (
-          <>
+          <div className="mt-6 flex flex-col items-center gap-3 text-center">
             <p className="text-sm text-muted-foreground max-w-xs">
               Demorou mais que o normal pra carregar sua conta.
             </p>
@@ -47,9 +52,9 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
             >
               <RefreshCw size={15} /> Recarregar
             </button>
-          </>
+          </div>
         )}
-      </div>
+      </DashboardLayout>
     );
   }
 
