@@ -12,7 +12,7 @@ import ModalEmpresa from '@/components/negocios/ModalEmpresa';
 import SeletorEmpresa from '@/components/negocios/SeletorEmpresa';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import {
-  corEmpresa, lerEmpresaAtiva, salvarEmpresaAtiva, mostraIntegracoes,
+  corEmpresa, lerEmpresaAtiva, salvarEmpresaAtiva, mostraIntegracoes, mostraCaixa,
   type Empresa,
 } from '@/lib/empresas';
 import {
@@ -145,6 +145,14 @@ export default function NegociosPage() {
           </div>
           {/* Botões de ação — scroll horizontal no mobile pra não quebrar */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
+            {/* Caixa: só pra loja física/híbrida — a aba se adapta ao tipo. */}
+            {mostraCaixa(empresa.tipo) && (
+              <Link href="/negocios/caixa"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white transition-opacity hover:opacity-90 whitespace-nowrap flex-shrink-0"
+                    style={{ background: cor }}>
+                <Wallet size={13} /> Caixa
+              </Link>
+            )}
             <SeletorPeriodo value={periodo} onChange={setPeriodo} />
             <button
               onClick={handleRecalcular}

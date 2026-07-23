@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Empresa } from '@/lib/empresas';
+import type { Lancamento } from '@/lib/lancamentos';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -842,6 +843,20 @@ export const api = {
         req<{ ok: boolean; empresa: Empresa }>(`/api/negocios/empresas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       arquivar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/empresas/${id}`, { method: 'DELETE' }),
+    },
+    // Livro caixa: entradas, saídas e contas a pagar (saída pendente).
+    // `valor` SEMPRE em centavos.
+    lancamentos: {
+      listar: (phone: string, params: { empresa_id: string; mes?: string; status?: string }) => {
+        const q = new URLSearchParams(params as any).toString();
+        return req<Lancamento[]>(`/api/negocios/lancamentos/${phone}?${q}`);
+      },
+      criar: (body: Partial<Lancamento> & { empresa_id: string; tipo: string; descricao: string; valor: number; data: string }) =>
+        req<{ ok: boolean; lancamento: Lancamento }>('/api/negocios/lancamentos', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: Partial<Lancamento>) =>
+        req<{ ok: boolean; lancamento: Lancamento }>(`/api/negocios/lancamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/lancamentos/${id}`, { method: 'DELETE' }),
     },
     integracoes: {
       listar: (phone: string) =>
