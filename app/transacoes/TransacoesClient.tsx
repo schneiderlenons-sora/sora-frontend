@@ -751,7 +751,15 @@ function TransactionRow({
       className={`group relative transition-colors animate-fade-in ${
         selecionado ? 'bg-primary/5' : 'hover:bg-muted/40'
       }`}
-      style={{ animationDelay: `${Math.min(index * 25, 300)}ms` }}
+      // content-visibility: o browser pula layout/paint das linhas fora da tela
+      // (virtualização nativa, sem lib) → lista de 500+ rola a 60fps. O
+      // contain-intrinsic-size reserva a altura aproximada (evita pulo no
+      // scroll); `auto` faz o browser lembrar a altura real após medir.
+      style={{
+        animationDelay: `${Math.min(index * 25, 300)}ms`,
+        contentVisibility: 'auto',
+        containIntrinsicSize: 'auto 60px',
+      }}
     >
       {/* Grid idêntico ao cabeçalho. O scroll horizontal + min-width ficam no
           container ÚNICO da tabela (pai) — não em cada linha (senão cada uma

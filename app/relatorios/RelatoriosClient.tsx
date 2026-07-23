@@ -859,7 +859,8 @@ function PendentesList({
             return (
               <div key={tx.id || i}
                    className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors animate-fade-in"
-                   style={{ animationDelay: `${i * 30}ms` }}>
+                   // content-visibility: pula render das linhas fora da tela (lista longa).
+                   style={{ animationDelay: `${i * 30}ms`, contentVisibility: 'auto', containIntrinsicSize: 'auto 60px' }}>
                 <CategoriaIcon
                   nome={iconeNome}
                   icone={theme.emoji}
