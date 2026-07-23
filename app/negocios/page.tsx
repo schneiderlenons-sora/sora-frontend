@@ -19,7 +19,7 @@ import {
   Briefcase, ArrowUpRight, ArrowDownRight, Plug, Sparkles, RefreshCw,
   Crown, Trophy, ChevronRight, BarChart3, Zap, Calendar, TrendingUp,
   ShoppingBag, Receipt, Settings as SettingsIcon, Loader2,
-  Wallet, Landmark, Store, Laptop, Plus, CalendarClock,
+  Wallet, Landmark, Store, Laptop, Plus, CalendarClock, Users,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -156,6 +156,10 @@ export default function NegociosPage() {
                 <Link href="/negocios/contas"
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
                   <CalendarClock size={13} /> Contas
+                </Link>
+                <Link href="/negocios/equipe"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
+                  <Users size={13} /> Equipe
                 </Link>
               </>
             )}

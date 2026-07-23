@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Empresa } from '@/lib/empresas';
 import type { Lancamento } from '@/lib/lancamentos';
+import type { Funcionario } from '@/lib/funcionarios';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -857,6 +858,20 @@ export const api = {
         req<{ ok: boolean; lancamento: Lancamento }>(`/api/negocios/lancamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/lancamentos/${id}`, { method: 'DELETE' }),
+    },
+    // Quadro de pessoal + folha. `pagar` gera um lançamento de saída
+    // (categoria 'folha') vinculado ao funcionário — sem estrutura paralela.
+    funcionarios: {
+      listar: (phone: string, empresa_id: string) =>
+        req<Funcionario[]>(`/api/negocios/funcionarios/${phone}?empresa_id=${empresa_id}`),
+      criar: (body: Partial<Funcionario> & { empresa_id: string; nome: string }) =>
+        req<{ ok: boolean; funcionario: Funcionario }>('/api/negocios/funcionarios', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: Partial<Funcionario> & { nome: string }) =>
+        req<{ ok: boolean; funcionario: Funcionario }>(`/api/negocios/funcionarios/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/funcionarios/${id}`, { method: 'DELETE' }),
+      pagar: (id: string, body?: { valor?: number; data?: string; forma_pagamento?: string; status?: string }) =>
+        req<{ ok: boolean; lancamento: any }>(`/api/negocios/funcionarios/${id}/pagar`, { method: 'POST', body: JSON.stringify(body || {}) }),
     },
     integracoes: {
       listar: (phone: string) =>
