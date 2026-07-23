@@ -97,7 +97,7 @@ export default function CaixaPage() {
         <VoltarNegocios />
 
         {/* HEADER */}
-        <header className="flex items-start justify-between flex-wrap gap-4 animate-fade-in">
+        <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">
           <SeletorEmpresa
             empresas={empresas} ativa={empresa} onTrocar={trocar}
             onNova={() => setModalEmpresa('nova')}

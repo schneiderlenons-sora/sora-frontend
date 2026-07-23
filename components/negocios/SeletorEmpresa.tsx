@@ -35,7 +35,11 @@ export default function SeletorEmpresa({
   const cor = corEmpresa(ativa);
 
   return (
-    <div className="relative" ref={boxRef}>
+    // z-50 garante que o painel fique acima do que estiver ao lado. ⚠️ Não
+    // basta sozinho: o header que envolve este componente precisa de
+    // `relative z-30`, porque `animate-fade-in` (transform + fill both) cria
+    // um stacking context permanente que prenderia este z-index dentro dele.
+    <div className="relative z-50" ref={boxRef}>
       <button
         onClick={() => setAberto(v => !v)}
         aria-haspopup="listbox"

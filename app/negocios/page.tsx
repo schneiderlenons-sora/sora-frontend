@@ -145,7 +145,7 @@ export default function NegociosPage() {
         {semDados && <ComeceAqui cor={cor} tipo={empresa.tipo} />}
 
         {/* HEADER */}
-        <header className="flex items-start justify-between flex-wrap gap-4 animate-fade-in">
+        <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">
           <div className="flex items-center gap-3 min-w-0">
             <SeletorEmpresa
               empresas={empresas}

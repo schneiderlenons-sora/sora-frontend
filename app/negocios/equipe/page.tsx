@@ -102,7 +102,7 @@ export default function EquipePage() {
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
         <Voltar />
 
-        <header className="flex items-start justify-between flex-wrap gap-4 animate-fade-in">
+        <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">
           <SeletorEmpresa
             empresas={empresas} ativa={empresa} onTrocar={trocar}
             onNova={() => setModalEmpresa('nova')} onGerenciar={() => setModalEmpresa(empresa)}
