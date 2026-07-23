@@ -2,8 +2,10 @@
 
 import { useEffect } from 'react';
 import { ThemeProvider } from 'next-themes';
+import { SWRConfig } from 'swr';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MarcasCustomProvider } from '@/contexts/MarcasCustomContext';
+import { localStorageProvider } from '@/lib/swr-cache';
 import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
 import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
@@ -35,16 +37,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       storageKey="sora-theme"
       disableTransitionOnChange={false}
     >
-      <AuthProvider>
-        <PaywallRedirect />
-        <OnboardingRedirect />
-        <WelcomeTrigger />
-        <MarcasCustomProvider>
-          <LoadingGateProvider>
-            {children}
-          </LoadingGateProvider>
-        </MarcasCustomProvider>
-      </AuthProvider>
+      <SWRConfig value={{ provider: localStorageProvider }}>
+        <AuthProvider>
+          <PaywallRedirect />
+          <OnboardingRedirect />
+          <WelcomeTrigger />
+          <MarcasCustomProvider>
+            <LoadingGateProvider>
+              {children}
+            </LoadingGateProvider>
+          </MarcasCustomProvider>
+        </AuthProvider>
+      </SWRConfig>
     </ThemeProvider>
   );
 }

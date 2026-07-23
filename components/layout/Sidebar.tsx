@@ -17,6 +17,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
+import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import type { Feature } from '@/lib/plans';
 
@@ -125,6 +126,30 @@ export default function Sidebar() {
   const router = useRouter();
   const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
+
+  // Aquece TODAS as abas principais no tempo ocioso → clicar em qualquer uma
+  // (inclusive no mobile, onde não há hover) já é instantâneo, porque a rota
+  // (RSC + chunk) já foi baixada. Não compete com o LCP do dashboard (roda no
+  // ocioso, low-priority) e o recharts é dynamic → não vem no chunk da rota.
+  useEffect(() => {
+    if (!phone) return;
+    const rotas = [
+      NAV_DASHBOARD.href,
+      ...NAV_FINANCE.map((i) => i.href),
+      ...NAV_GROW.map((i) => i.href),
+      '/wrapped', '/central-sora', '/planos', '/configuracoes',
+    ];
+    const warm = () => {
+      rotas.forEach((r) => router.prefetch(r));
+      prefetchTopTabs(phone); // + dados das 3 mais usadas
+    };
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
+    const id = ric ? ric(warm) : window.setTimeout(warm, 1500);
+    return () => {
+      const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
+      if (ric && cic) cic(id as number); else clearTimeout(id as number);
+    };
+  }, [phone, router]);
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
   // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
   const [open, setOpen] = useState(false); // drawer mobile
@@ -214,6 +239,14 @@ export default function Sidebar() {
     return (
       <Link
         href={destino}
+        // Ao passar o mouse / tocar num item, prefetcha a ROTA (JS) + os DADOS
+        // daquela aba → quando clicar, tanto o código quanto os dados já estão
+        // prontos = navegação instantânea (fim da travada do clique). Barato:
+        // só a aba apontada, não todas de uma vez (por isso o prefetch={false}).
+        // Só no HOVER (desktop). No mobile NÃO prefetchamos no toque: (1) o
+        // aquecimento ocioso já baixou a rota, e (2) fazer prefetch no touchstart
+        // adiciona jank ao próprio toque. Também prefetcha os dados da aba.
+        onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
         // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
         // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
         // e /investimentos, /metas, /relatorios, /juros e /planejamento carregam

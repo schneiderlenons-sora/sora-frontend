@@ -13,12 +13,16 @@ interface Props {
   wallets: Wallet[];
   onClose: () => void;
   onSaved: () => void;
+  /** Opt-in (#6 otimista): se fornecido, o modal fecha na HORA e delega o save
+   *  — o pai troca a linha no cache na hora e chama `doSave()` em segundo plano
+   *  (rollback no erro). Ausente → fluxo await padrão. */
+  onOptimisticSave?: (optimisticRow: any, doSave: () => Promise<any>) => void;
 }
 
 // Modal de edição de uma transação — principal uso: corrigir a categoria
 // (Open Finance traz muita coisa como "Outros"). Também ajusta tipo, valor,
 // descrição, conta, data e status. Usa PUT /api/transacoes/:id.
-export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSaved }: Props) {
+export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSaved, onOptimisticSave }: Props) {
   const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>(tx.tipo === 'Recebimento' ? 'Recebimento' : 'Gasto');
   const [categoria,  setCategoria]  = useState<string>(tx.categoria || '');
   const [valor,      setValor]      = useState<string>(String(tx.valor ?? ''));
@@ -46,12 +50,24 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
     setErro('');
     const v = parseFloat(String(valor).replace(',', '.'));
     if (isNaN(v) || v <= 0) { setErro('Informe um valor válido.'); return; }
+
+    const payload = {
+      phone, tipo, categoria: categoria || 'Outros', valor: v,
+      observacao, carteira_nome: carteira || undefined, data, pago,
+    };
+
+    // #6 otimista (opt-in): fecha na hora e delega o save pro pai, que troca a
+    // linha no cache imediatamente e chama a API em segundo plano.
+    if (onOptimisticSave) {
+      const optimisticRow = { ...tx, ...payload, wallet_nome: carteira || undefined };
+      onOptimisticSave(optimisticRow, () => api.transacoes.editar(tx.id, payload));
+      onClose();
+      return;
+    }
+
     setSalvando(true);
     try {
-      await api.transacoes.editar(tx.id, {
-        phone, tipo, categoria: categoria || 'Outros', valor: v,
-        observacao, carteira_nome: carteira || undefined, data, pago,
-      });
+      await api.transacoes.editar(tx.id, payload);
       onSaved();
       onClose();
     } catch (e: any) {

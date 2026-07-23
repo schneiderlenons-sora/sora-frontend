@@ -1,10 +1,18 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { limparCacheSWR } from '@/lib/swr-cache';
+import { lerPerfilCache, salvarPerfilCache, limparPerfilCache } from '@/lib/perfil-cache';
+
+// useLayoutEffect no cliente (hidrata o perfil do cache ANTES do paint, sem
+// flash) e useEffect no servidor (evita o warning de SSR). A primeira render
+// do cliente casa com o SSR (perfil=null) → sem hydration mismatch; o layout
+// effect roda depois do commit e aplica o cache antes de pintar.
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import { type Plano, type Feature, type Recurso, podeUsar as _podeUsar, limiteDe as _limiteDe } from '@/lib/plans';
 
 export type Papel = 'admin' | 'escrita' | 'leitura';
@@ -107,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setPerfil(p);
       setPapel((pap as Papel) || 'admin');
+      salvarPerfilCache(_u.id, p); // revalidou → atualiza o cache pra próxima abertura
     } catch (e) {
       if (tentativa < MAX) {
         await new Promise((r) => setTimeout(r, 500));
@@ -117,6 +126,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Hidrata o perfil do cache local ANTES do paint → revisita / F5 abrem com o
+  // perfil na hora (sem esperar o /api/me). A validação de segurança (é o mesmo
+  // usuário da sessão?) acontece no getSession logo abaixo — se for outro (ou
+  // não houver sessão), o perfil do cache é descartado antes de virar conteúdo.
+  useIsoLayoutEffect(() => {
+    const cache = lerPerfilCache();
+    if (cache?.perfil) setPerfil(cache.perfil);
+  }, []);
+
   useEffect(() => {
     // Blindagem: garante que `loading` SEMPRE resolve (senão o painel fica em
     // loader infinito quando getSession trava/rejeita no F5).
@@ -124,9 +142,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const finalizar = () => { if (!resolvido) { resolvido = true; setLoading(false); } };
     const hardTimeout = setTimeout(finalizar, 8000);
 
+    // Descarta o perfil do cache se ele não for do usuário da sessão atual
+    // (PC compartilhado: o próximo usuário não pode herdar o perfil do anterior).
+    const validarCache = (u: User | null) => {
+      const cache = lerPerfilCache();
+      if (!u || (cache && cache.userId !== u.id)) { setPerfil(null); limparPerfilCache(); }
+    };
+
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
         setUser(session?.user ?? null);
+        validarCache(session?.user ?? null);
         if (session?.user) await carregarPerfil(session.user);
       })
       .catch(() => {})
@@ -135,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null);
+        validarCache(session?.user ?? null);
         if (session?.user) await carregarPerfil(session.user);
         else setPerfil(null);
         finalizar();
@@ -181,6 +208,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut();
     setPerfil(null);
+    limparCacheSWR();    // não deixa dado financeiro do usuário no localStorage
+    limparPerfilCache(); // idem pro perfil (nome/plano/email) — PC compartilhado
     router.push('/login');
   }
 
