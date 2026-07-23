@@ -16,7 +16,10 @@ export async function GET(req: NextRequest) {
   // Colunas da migration 074 (exclusão do MRR) — só somam se já existirem.
   const COM_MRR = `${BASE},mrr_excluir,assinatura_cancelada`;
 
-  const build = (cols: string) => {
+  // `temMrr` = as colunas da 074 (mrr_excluir/assinatura_cancelada) existem.
+  // O filtro "recorrentes" depende delas; sem a migration, cai numa versão
+  // aproximada (só plano + não-vitalício).
+  const build = (cols: string, temMrr: boolean) => {
     let query = supabaseAdmin.from('users').select(cols)
       .order('created_at', { ascending: false }).limit(300);
     if (filter === 'ativos')        query = query.neq('plano', 'inativo');
@@ -27,13 +30,21 @@ export async function GET(req: NextRequest) {
     else if (filter === 'nao_concluido') query = query.eq('plano', 'inativo').is('plano_intervalo', null);
     else if (filter === 'recuperados')   query = query.neq('plano', 'inativo')
       .or('recuperacao_signup_em.not.is.null,recuperacao_enviada_em.not.is.null');
+    // Vitalícios: pagamento único (não recorrem).
+    else if (filter === 'vitalicios')    query = query.eq('vitalicio', true);
+    // Recorrentes: pagante ATIVO que não é vitalício e não cancelou — quem
+    // sustenta o MRR. `not(..., is, true)` casa false E null.
+    else if (filter === 'recorrentes') {
+      query = query.in('plano', ['basico', 'premium', 'black']).not('vitalicio', 'is', true);
+      if (temMrr) query = query.not('assinatura_cancelada', 'is', true).not('mrr_excluir', 'is', true);
+    }
     if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
     return query;
   };
 
   // Tenta com as colunas novas; se a 074 não rodou, cai na versão base.
-  let { data, error } = await build(COM_MRR);
-  if (error) ({ data, error } = await build(BASE));
+  let { data, error } = await build(COM_MRR, true);
+  if (error) ({ data, error } = await build(BASE, false));
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
   return NextResponse.json({ users: data || [] });
 }

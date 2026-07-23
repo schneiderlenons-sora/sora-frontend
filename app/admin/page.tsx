@@ -8,7 +8,7 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -31,6 +31,7 @@ type Overview = {
   novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number; mrrExcluidos?: number;
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
   cancelados?: number; naoConcluido?: number; recuperados?: number;
+  anuais?: number; recorrentesMensais?: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
@@ -59,16 +60,35 @@ function metaStatus(u: { plano: Plano; plano_intervalo?: string | null }) {
   return { label: m.label, cor: m.cor, icon: m.icon, title: undefined as string | undefined };
 }
 
-function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'recuperacao_signup_em' | 'recuperacao_enviada_em'> }) {
+function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em'> }) {
   const m = metaStatus(u);
   const Icon = m.icon;
   const recuperado = u.plano !== 'inativo' && !!(u.recuperacao_signup_em || u.recuperacao_enviada_em);
+  const pago = ['basico', 'premium', 'black'].includes(u.plano);
+  // Recorrente = pagante ATIVO que não é vitalício e não cancelou → sustenta o
+  // MRR. É o que o admin quer identificar de relance.
+  const recorrente = pago && !u.vitalicio && !u.assinatura_cancelada && !u.mrr_excluir;
+  const anual = u.plano_intervalo === 'anual';
   return (
     <span className="inline-flex items-center gap-1 flex-wrap justify-end">
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
             style={{ background: `color-mix(in srgb, ${m.cor} 14%, transparent)`, color: m.cor }} title={m.title}>
         {Icon ? <Icon size={10} /> : <CircleDot size={9} />} {m.label}
       </span>
+      {recorrente && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #10b981 16%, transparent)', color: '#10b981' }}
+              title={`Assinatura ativa que renova (${anual ? 'anual' : 'mensal'}) — não cancelou`}>
+          <Repeat size={10} /> Recorrente{anual ? ' · anual' : ''}
+        </span>
+      )}
+      {pago && u.assinatura_cancelada && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #f59e0b 16%, transparent)', color: '#d97706' }}
+              title="Cancelou na Stripe — ainda tem acesso até o fim do período, mas não renova">
+          <XCircle size={10} /> Cancelou
+        </span>
+      )}
       {u.vitalicio && (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
               style={{ background: 'color-mix(in srgb, #8b5cf6 16%, transparent)', color: '#8b5cf6' }}
@@ -105,7 +125,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
@@ -205,7 +225,10 @@ export default function AdminPage() {
 
         {/* Métricas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          <Stat label="MRR estimado" value={ov ? money(ov.mrr) : '—'} hint={ov ? (ov.mrrExcluidos ? `recorrentes · ${ov.mrrExcluidos} fora da conta` : 'só assinaturas recorrentes') : ''} destaque />
+          <Stat label="MRR mensal" value={ov ? money(ov.mrr) : '—'}
+                hint={ov
+                  ? `${ov.recorrentesMensais ?? 0} mensais${ov.anuais ? ` · ${ov.anuais} anuais fora` : ''}${ov.mrrExcluidos ? ` · ${ov.mrrExcluidos} excluídos` : ''}`
+                  : ''} destaque />
           <Stat label="Receita vitalícia" value={ov ? money(ov.receitaVitalicio ?? 0) : '—'}
                 hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''} destaque />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
@@ -256,7 +279,7 @@ export default function AdminPage() {
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['ativos', 'Ativos'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['vitalicios', 'Vitalícios'], ['ativos', 'Ativos'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
@@ -428,23 +451,33 @@ export default function AdminPage() {
                 </button>
 
                 {/* Excluir do MRR — cortesia / acesso grátis. Só faz sentido em
-                    plano pago; num inativo não conta mesmo. */}
+                    plano pago; num inativo não conta mesmo.
+                    ⚠️ A LINHA INTEIRA é UM botão. Não pode ser <label> com um
+                    <button> dentro: o label reencaminha o clique pro botão
+                    (button é "labelable") e o toggle disparava DUAS vezes,
+                    voltando ao estado original — parecia "não funcionar". */}
                 {sel.plano !== 'inativo' && (
-                  <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5 cursor-pointer">
+                  <button
+                    type="button" role="switch" aria-checked={!!sel.mrr_excluir}
+                    onClick={() => acao('set_mrr_excluir', { excluir: !sel.mrr_excluir })}
+                    className="w-full flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors"
+                    style={{
+                      borderColor: sel.mrr_excluir ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                      background: sel.mrr_excluir ? 'hsl(var(--primary) / .08)' : 'hsl(var(--muted) / .2)',
+                    }}
+                  >
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold text-foreground">Não contar no MRR</span>
-                      <span className="block text-[11px] text-muted-foreground leading-snug">Acesso grátis / cortesia — sai da soma de receita recorrente.</span>
+                      <span className="block text-[11px] text-muted-foreground leading-snug">
+                        {sel.mrr_excluir ? 'Fora do MRR (cortesia / acesso grátis).' : 'Acesso grátis / cortesia — tira da soma do MRR.'}
+                      </span>
                     </span>
-                    <button
-                      role="switch" aria-checked={!!sel.mrr_excluir}
-                      onClick={() => acao('set_mrr_excluir', { excluir: !sel.mrr_excluir })}
-                      className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                      style={{ background: sel.mrr_excluir ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}
-                    >
+                    <span className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                          style={{ background: sel.mrr_excluir ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}>
                       <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
                             style={{ transform: sel.mrr_excluir ? 'translateX(22px)' : 'translateX(2px)' }} />
-                    </button>
-                  </label>
+                    </span>
+                  </button>
                 )}
                 {sel.assinatura_cancelada && (
                   <p className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">

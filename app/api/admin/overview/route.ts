@@ -112,11 +112,11 @@ export async function GET() {
   // Tolerante: se as colunas da migration 074 não existem, cai na conta antiga.
   const premiumRecorrente = Math.max(0, premium - premiumVitalicio);
   let mrr = basico * PRECO.basico + premiumRecorrente * PRECO.premium + black * PRECO.black;
-  let mrrExcluidos = 0;
+  let mrrExcluidos = 0, anuais = 0, recorrentesMensais = 0;
   try {
     const { data: pagantes, error } = await supabaseAdmin
       .from('users')
-      .select('email, plano, vitalicio, mrr_excluir, assinatura_cancelada')
+      .select('email, plano, plano_intervalo, vitalicio, mrr_excluir, assinatura_cancelada')
       .in('plano', ['basico', 'premium', 'black']);
     if (error) throw error;
     const admins = adminEmails();
@@ -130,6 +130,13 @@ export async function GET() {
         u.mrr_excluir === true ||
         (u.email && admins.includes(String(u.email).toLowerCase()));
       if (fora) { mrrExcluidos++; continue; }
+      // MRR = receita que recorre TODO MÊS. Anual é PRÉ-PAGO (paga 1×/ano),
+      // então NÃO entra no MRR mensal — contamos à parte. Contar anual pelo
+      // preço mensal inflava o número (era a divergência com a conta manual de
+      // "pagantes mensais"). intervalo null = trata como mensal (não derruba
+      // pagante legado sem o campo).
+      if (u.plano_intervalo === 'anual') { anuais++; continue; }
+      recorrentesMensais++;
       soma += preco;
     }
     mrr = soma;
@@ -143,6 +150,7 @@ export async function GET() {
     receitaVitalicio: Math.round(receitaVitalicio * 100) / 100,
     novos7, novos30, pagouInativo, bugsAbertos, melhoriasAbertas,
     semPagamento, recEnviadas, recEnviadas2, recRecuperados,
+    anuais, recorrentesMensais,
     mrr: Math.round(mrr * 100) / 100,
   });
 }
