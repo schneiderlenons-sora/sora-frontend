@@ -188,15 +188,16 @@ export default function CaixaPage() {
             <Total rotulo="Saldo"    valor={doMes.saldo}    cor={doMes.saldo >= 0 ? '#16a34a' : '#ef4444'} Icon={Wallet} />
           </div>
 
-          {/* Contas em aberto do mês. Vira link pra /negocios/contas na fase 3. */}
           {doMes.aPagar > 0 && (
-            <div className="flex items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-border/40">
+            <Link href="/negocios/contas"
+                  className="flex items-center gap-2.5 px-4 sm:px-5 py-3 min-h-[52px] border-b border-border/40 hover:bg-muted/40 transition-colors">
               <CalendarClock size={15} className="text-amber-600 dark:text-amber-500 flex-shrink-0" />
               <span className="text-sm text-foreground flex-1 min-w-0">
                 <span className="font-semibold tabular">{fmtCent(doMes.aPagar)}</span>
                 <span className="text-muted-foreground"> em contas ainda não pagas</span>
               </span>
-            </div>
+              <ChevronRight size={15} className="text-muted-foreground flex-shrink-0" />
+            </Link>
           )}
 
           {/* Movimentações agrupadas por dia */}

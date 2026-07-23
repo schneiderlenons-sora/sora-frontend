@@ -57,6 +57,7 @@ function familiaDe(source: string): FamKey {
 const ICONE_SOURCE: Record<string, any> = {
   compromisso: CalendarDays, consulta: Stethoscope, recorrencia: Receipt,
   divida: Receipt, fatura: CreditCard, fechamento: CreditCard, manutencao: Wrench,
+  conta_negocio: Briefcase, // contas a pagar da empresa (aba Negócios)
 };
 
 const ANTEC = [
