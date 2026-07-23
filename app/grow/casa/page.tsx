@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import {
   ShoppingCart, Sparkles, Loader2, Plus, Check, Trash2, X,
@@ -190,9 +191,7 @@ export default function CasaPage() {
       </div>
 
       {loading ? (
-        <div className="card rounded-3xl p-16 flex items-center justify-center">
-          <Loader2 size={22} className="animate-spin text-primary" />
-        </div>
+        <SectionSkeleton />
       ) : (
         <div className="animate-fade-in">
           {tab === 'compras'    && <TabCompras phone={phone!} itens={itens} setItens={setItens} onReload={carregar} />}

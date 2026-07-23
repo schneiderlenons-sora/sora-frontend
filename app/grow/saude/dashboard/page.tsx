@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import { useApi } from '@/lib/useApi';
 import SaudeNav from '../SaudeNav';
 import {
@@ -76,11 +77,7 @@ export default function SaudeDashboardPage() {
   }
 
   if (loading) {
-    return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
-    );
+    return <SectionSkeleton />;
   }
 
   const semPerfil = !data?.perfil?.altura_cm;

@@ -125,8 +125,13 @@ export default function TarefasPage() {
 
       {/* Kanban */}
       {loading ? (
-        <div className="card rounded-3xl p-12 flex items-center justify-center">
-          <Loader2 size={20} className="animate-spin text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[0, 1, 2].map(c => (
+            <div key={c} className="card rounded-2xl p-4 min-h-[300px] space-y-3 animate-pulse">
+              <div className="h-5 w-24 rounded bg-muted/50" />
+              {[0, 1, 2].map(i => <div key={i} className="h-16 rounded-xl bg-muted/40" />)}
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in" style={{ animationDelay: '120ms' }}>

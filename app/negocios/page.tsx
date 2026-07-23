@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
 import ModalCustos from '@/components/negocios/ModalCustos';
+import PageSkeleton from '@/components/ui/PageSkeleton';
 import {
   Briefcase, ArrowUpRight, ArrowDownRight, Plug, Sparkles, RefreshCw,
   Crown, Trophy, ChevronRight, BarChart3, Zap, Calendar, TrendingUp,
@@ -202,12 +203,10 @@ function SeletorPeriodo({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
+// Skeleton no lugar do spinner central — a aba "aparece" como conteúdo (KPIs +
+// gráfico + lista) enquanto o DRE carrega, em vez de uma baleia girando.
 function LoadingState() {
-  return (
-    <div className="max-w-7xl mx-auto pt-20 flex items-center justify-center">
-      <Loader2 size={20} className="animate-spin text-muted-foreground" />
-    </div>
-  );
+  return <PageSkeleton />;
 }
 
 // ─────────────────────────────────────────────────────────────────────────

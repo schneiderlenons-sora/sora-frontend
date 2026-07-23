@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import { useApi } from '@/lib/useApi';
 import {
   Heart, Sparkles, Loader2, Check, Smile, Plus, TrendingUp,
@@ -85,9 +86,7 @@ export default function BemEstarPage() {
       </GrowHero>
 
       {loading ? (
-        <div className="card rounded-3xl p-12 flex items-center justify-center">
-          <Loader2 size={20} className="animate-spin" style={{ color: BRAND }} />
-        </div>
+        <SectionSkeleton />
       ) : (
         <>
           {/* CHECKIN DO DIA */}

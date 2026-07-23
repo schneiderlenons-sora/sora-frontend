@@ -4,13 +4,14 @@ import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import { useApi } from '@/lib/useApi';
 import EstudosNav from '../EstudosNav';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import ModalProva from '@/components/estudos/ModalProva';
 import AtividadeEstudos from '@/components/estudos/AtividadeEstudos';
 import {
-  GraduationCap, BookOpen, Sparkles, Loader2, Plus, Play, Flame,
+  GraduationCap, BookOpen, Sparkles, Plus, Play, Flame,
   Clock, Trophy, Target, ArrowRight, Calendar, FileText, ChevronRight,
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -81,11 +82,7 @@ export default function EstudosDashboard() {
   }, [sessoes]);
 
   if (loading) {
-    return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
-    );
+    return <SectionSkeleton />;
   }
 
   const streak = data?.streak || 0;
