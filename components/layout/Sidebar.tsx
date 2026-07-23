@@ -127,17 +127,24 @@ export default function Sidebar() {
   const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
 
-  // Aquece as abas mais usadas no tempo ocioso → a 1ª visita a elas já é
-  // instantânea (sem competir com a carga inicial do dashboard). Prefetcha a
-  // ROTA (chunk da página; recharts é dynamic, não vem junto) + os DADOS.
+  // Aquece TODAS as abas principais no tempo ocioso → clicar em qualquer uma
+  // (inclusive no mobile, onde não há hover) já é instantâneo, porque a rota
+  // (RSC + chunk) já foi baixada. Não compete com o LCP do dashboard (roda no
+  // ocioso, low-priority) e o recharts é dynamic → não vem no chunk da rota.
   useEffect(() => {
     if (!phone) return;
+    const rotas = [
+      NAV_DASHBOARD.href,
+      ...NAV_FINANCE.map((i) => i.href),
+      ...NAV_GROW.map((i) => i.href),
+      '/wrapped', '/central-sora', '/planos', '/configuracoes',
+    ];
     const warm = () => {
-      ['/transacoes', '/categorias', '/relatorios'].forEach((r) => router.prefetch(r));
-      prefetchTopTabs(phone);
+      rotas.forEach((r) => router.prefetch(r));
+      prefetchTopTabs(phone); // + dados das 3 mais usadas
     };
     const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
-    const id = ric ? ric(warm) : window.setTimeout(warm, 2000);
+    const id = ric ? ric(warm) : window.setTimeout(warm, 1500);
     return () => {
       const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
       if (ric && cic) cic(id as number); else clearTimeout(id as number);
@@ -236,8 +243,10 @@ export default function Sidebar() {
         // daquela aba → quando clicar, tanto o código quanto os dados já estão
         // prontos = navegação instantânea (fim da travada do clique). Barato:
         // só a aba apontada, não todas de uma vez (por isso o prefetch={false}).
+        // Só no HOVER (desktop). No mobile NÃO prefetchamos no toque: (1) o
+        // aquecimento ocioso já baixou a rota, e (2) fazer prefetch no touchstart
+        // adiciona jank ao próprio toque. Também prefetcha os dados da aba.
         onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
-        onTouchStart={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
         // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
         // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
         // e /investimentos, /metas, /relatorios, /juros e /planejamento carregam
