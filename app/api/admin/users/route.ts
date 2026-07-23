@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
       .or('recuperacao_signup_em.not.is.null,recuperacao_enviada_em.not.is.null');
     // Vitalícios: pagamento único (não recorrem).
     else if (filter === 'vitalicios')    query = query.eq('vitalicio', true);
+    // Anuais: assinatura anual ATIVA (pré-paga, fora do MRR mensal).
+    else if (filter === 'anuais')        query = query.eq('plano_intervalo', 'anual').neq('plano', 'inativo');
     // Recorrentes: pagante ATIVO que não é vitalício e não cancelou — quem
     // sustenta o MRR. `not(..., is, true)` casa false E null.
     else if (filter === 'recorrentes') {

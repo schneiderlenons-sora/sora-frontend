@@ -8,7 +8,7 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -78,8 +78,15 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
       {recorrente && (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
               style={{ background: 'color-mix(in srgb, #10b981 16%, transparent)', color: '#10b981' }}
-              title={`Assinatura ativa que renova (${anual ? 'anual' : 'mensal'}) — não cancelou`}>
-          <Repeat size={10} /> Recorrente{anual ? ' · anual' : ''}
+              title="Assinatura ativa que renova — não cancelou">
+          <Repeat size={10} /> Recorrente
+        </span>
+      )}
+      {pago && anual && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #3b82f6 16%, transparent)', color: '#3b82f6' }}
+              title="Assinatura ANUAL (pré-paga, paga 1×/ano) — não entra no MRR mensal">
+          <CalendarClock size={10} /> Anual
         </span>
       )}
       {pago && u.assinatura_cancelada && (
@@ -125,7 +132,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
@@ -279,7 +286,7 @@ export default function AdminPage() {
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['vitalicios', 'Vitalícios'], ['ativos', 'Ativos'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['ativos', 'Ativos'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
