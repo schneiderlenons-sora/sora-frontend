@@ -8,12 +8,18 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
 import ModalCustos from '@/components/negocios/ModalCustos';
+import ModalEmpresa from '@/components/negocios/ModalEmpresa';
+import SeletorEmpresa from '@/components/negocios/SeletorEmpresa';
 import PageSkeleton from '@/components/ui/PageSkeleton';
+import {
+  corEmpresa, lerEmpresaAtiva, salvarEmpresaAtiva, mostraIntegracoes,
+  type Empresa,
+} from '@/lib/empresas';
 import {
   Briefcase, ArrowUpRight, ArrowDownRight, Plug, Sparkles, RefreshCw,
   Crown, Trophy, ChevronRight, BarChart3, Zap, Calendar, TrendingUp,
-  ShoppingBag, Receipt, Info, Settings as SettingsIcon, Loader2,
-  Wallet, Landmark,
+  ShoppingBag, Receipt, Settings as SettingsIcon, Loader2,
+  Wallet, Landmark, Store, Laptop, Plus,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -30,36 +36,6 @@ function periodoLabel(periodoIso: string) {
   return `${MES_NOMES[parseInt(m) - 1]} ${a}`;
 }
 
-// ── MOCK DATA (usado como fallback se nenhuma integração ativa) ──
-const MOCK_DRE = {
-  periodo: '2026-05-01',
-  receita_bruta:    14230000,
-  taxas_plataforma:   823000,
-  taxas_gateway:      218000,
-  impostos:           854000,
-  reembolsos:         180000,
-  receita_liquida:  12155000,
-  custos_total:      7361760,
-  lucro_liquido:     4793240,
-  margem_pct: 33.7,
-  delta_vs_anterior: 23.1,
-  total_vendas: 287,
-  ticket_medio: 49580,
-  mrr: 1880000,
-  por_plataforma: [
-    { plataforma: 'hotmart', valor: 8940000, vendas: 142 },
-    { plataforma: 'kiwify',  valor: 3820000, vendas:  89 },
-    { plataforma: 'stripe',  valor: 1470000, vendas:  56 },
-  ],
-  por_produto: [
-    { nome: 'Mentoria Black 1:1',      valor: 4500000, vendas: 18 },
-    { nome: 'Curso Sora Pro 2026',     valor: 3820000, vendas: 76 },
-    { nome: 'Ebook Finanças WhatsApp', valor: 1230000, vendas: 142 },
-    { nome: 'Workshop Hábitos',        valor:  680000, vendas: 51 },
-  ],
-  spark: [38, 42, 35, 48, 52, 47, 55, 61, 58, 65, 70, 68, 75, 82, 79, 86, 90, 88, 95, 102, 98, 110, 118, 115, 125, 132, 128, 140, 145, 148],
-};
-
 const CORES_PLAT: Record<string, string> = {
   hotmart: '#f04e23', kiwify: '#0066ff', eduzz: '#ff6b00',
   stripe: '#635bff',  mercadopago: '#00b1ea',
@@ -73,37 +49,47 @@ const NOME_PLAT: Record<string, string> = {
   shopify: 'Shopify', woocommerce: 'WooCommerce',
 };
 
-const MOCK_INSIGHT = {
-  tipo: 'lucro_subiu',
-  titulo: 'Lucro 23% acima de abril',
-  descricao: 'Mentoria Black 1:1 puxou R$ 12k a mais que mês passado. Kiwify também subiu 18%.',
-  acao: 'Ver detalhe',
-};
-
 export default function NegociosPage() {
-  const { isPremium, phone } = useAuth();
+  const { isPremium, phone, user } = useAuth();
 
   const hojeIso = new Date().toISOString().slice(0, 7);
   const [periodo, setPeriodo] = useState(hojeIso); // YYYY-MM
   const [recalculando, setRecalc]   = useState(false);
   const [modalCfg, setModalCfg]     = useState(false);
   const [modalCustos, setModalCustos] = useState(false);
+  const [modalEmpresa, setModalEmpresa] = useState<'nova' | Empresa | null>(null);
 
-  // Dados via SWR (com fallback de mock quando não há eventos). Revisita instantânea.
-  const { data: dreWrap, mutate: mDre } = useApi(
-    (phone && isPremium) ? `neg:dre:${phone}:${periodo}` : null,
-    async () => {
-      try {
-        const d = await api.negocios.dre.get(phone, periodo);
-        if (!d || d.total_vendas === 0) return { dre: MOCK_DRE, usandoMock: true };
-        return { dre: d, usandoMock: false };
-      } catch { return { dre: MOCK_DRE, usandoMock: true }; }
-    },
+  // ── Empresas (multi-empresa, ilimitadas no Premium) ──────────────
+  const { data: empresasData, mutate: mEmp } = useApi(
+    (phone && isPremium) ? `neg:empresas:${phone}` : null,
+    () => api.negocios.empresas.listar(phone),
   );
-  const dre: any = (dreWrap as any)?.dre ?? null;
-  const usandoMock: boolean = (dreWrap as any)?.usandoMock ?? false;
-  const loading = dreWrap === undefined;
+  const empresas: Empresa[] = Array.isArray(empresasData) ? empresasData : [];
+  const carregandoEmpresas = empresasData === undefined;
+
+  // Empresa ativa: a última escolhida (por usuário) ou a primeira da lista.
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!empresas.length) return;
+    const salva = lerEmpresaAtiva(user?.id);
+    const valida = empresas.find(e => e.id === salva) || empresas[0];
+    setEmpresaId(prev => (prev && empresas.some(e => e.id === prev) ? prev : valida.id));
+  }, [empresas, user?.id]);
+  const empresa = empresas.find(e => e.id === empresaId) || null;
+
+  function trocarEmpresa(e: Empresa) {
+    setEmpresaId(e.id);
+    salvarEmpresaAtiva(user?.id, e.id);
+  }
+
+  // ── DRE da empresa ativa. SEM mock: sem dado = empty state de verdade. ──
+  const { data: dre, mutate: mDre } = useApi(
+    (phone && isPremium && empresa) ? `neg:dre:${phone}:${empresa.id}:${periodo}` : null,
+    () => api.negocios.dre.get(phone, periodo),
+  );
+  const loading = carregandoEmpresas || (!!empresa && dre === undefined);
   const carregar = () => mDre();
+  const semDados = !!dre && !(dre as any).total_vendas && !(dre as any).receita_bruta;
 
   async function handleRecalcular() {
     if (!phone || recalculando) return;
@@ -113,33 +99,56 @@ export default function NegociosPage() {
     finally { setRecalc(false); }
   }
 
+  const modalEmpresaEl = modalEmpresa && (
+    <ModalEmpresa
+      empresa={modalEmpresa === 'nova' ? null : modalEmpresa}
+      onClose={() => setModalEmpresa(null)}
+      onSalvo={(e) => { mEmp(); trocarEmpresa(e); }}
+    />
+  );
+
   if (!isPremium) return <DashboardLayout><PaywallBlack /></DashboardLayout>;
-  if (loading || !dre) return <DashboardLayout><LoadingState /></DashboardLayout>;
+  if (loading) return <DashboardLayout><PageSkeleton /></DashboardLayout>;
+
+  // Nenhuma empresa cadastrada → onboarding real (no lugar dos dados fictícios).
+  if (!empresa) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+          <PrimeiraEmpresa onCriar={() => setModalEmpresa('nova')} />
+        </div>
+        {modalEmpresaEl}
+      </DashboardLayout>
+    );
+  }
+
+  const cor = corEmpresa(empresa);
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto pb-24 space-y-7">
+      <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
-        {usandoMock && <DemoBanner />}
+        {/* Sem lançamentos ainda: os números ficam ZERADOS (nada de demo) e
+            mostramos o caminho pra começar. */}
+        {semDados && <ComeceAqui cor={cor} tipo={empresa.tipo} />}
 
         {/* HEADER */}
         <header className="flex items-start justify-between flex-wrap gap-4 animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                 style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #000 100%)' }}>
-              <Briefcase size={20} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Negócios</h1>
-              <p className="text-xs text-muted-foreground">Seu DRE em tempo real, conciliado com a Sora Finance.</p>
-            </div>
+          <div className="flex items-center gap-3 min-w-0">
+            <SeletorEmpresa
+              empresas={empresas}
+              ativa={empresa}
+              onTrocar={trocarEmpresa}
+              onNova={() => setModalEmpresa('nova')}
+              onGerenciar={() => setModalEmpresa(empresa)}
+            />
           </div>
           {/* Botões de ação — scroll horizontal no mobile pra não quebrar */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
             <SeletorPeriodo value={periodo} onChange={setPeriodo} />
             <button
               onClick={handleRecalcular}
-              disabled={recalculando || usandoMock}
+              disabled={recalculando}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0"
             >
               {recalculando
@@ -155,10 +164,14 @@ export default function NegociosPage() {
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
               <Landmark size={13} /> Tributário
             </button>
-            <Link href="/negocios/integracoes"
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
-              <Plug size={13} /> Integrações
-            </Link>
+            {/* Integrações só fazem sentido pra quem vende online — a aba se
+                adapta ao tipo da empresa (nada de tela morta pra loja física). */}
+            {mostraIntegracoes(empresa.tipo) && (
+              <Link href="/negocios/integracoes"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-card border border-border hover:bg-muted/60 transition-colors whitespace-nowrap flex-shrink-0">
+                <Plug size={13} /> Integrações
+              </Link>
+            )}
           </div>
         </header>
 
@@ -177,6 +190,7 @@ export default function NegociosPage() {
 
       {modalCfg    && <ModalConfigTributaria onClose={() => { setModalCfg(false); carregar(); }} />}
       {modalCustos && <ModalCustos periodo={periodo} onClose={() => { setModalCustos(false); carregar(); }} />}
+      {modalEmpresaEl}
     </DashboardLayout>
   );
 }
@@ -203,31 +217,92 @@ function SeletorPeriodo({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
-// Skeleton no lugar do spinner central — a aba "aparece" como conteúdo (KPIs +
-// gráfico + lista) enquanto o DRE carrega, em vez de uma baleia girando.
-function LoadingState() {
-  return <PageSkeleton />;
-}
-
 // ─────────────────────────────────────────────────────────────────────────
 // COMPONENTES
 // ─────────────────────────────────────────────────────────────────────────
 
-function DemoBanner() {
+// Primeira visita: nenhuma empresa cadastrada. Substitui os antigos dados
+// FICTÍCIOS — em vez de simular um negócio que não existe, convidamos a criar
+// o de verdade (§8 empty-states: mensagem útil + ação clara).
+function PrimeiraEmpresa({ onCriar }: { onCriar: () => void }) {
+  const passos = [
+    { icon: Store,  titulo: 'Loja física',  desc: 'Caixa do dia, contas a pagar e equipe' },
+    { icon: Laptop, titulo: 'Digital',      desc: 'Integrações e DRE automático' },
+    { icon: Wallet, titulo: 'Tudo junto',   desc: 'Conciliado com a sua Sora Finance' },
+  ];
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-transparent p-4 flex items-start gap-3 animate-fade-in">
-      <div className="w-9 h-9 rounded-xl bg-amber-400/20 flex items-center justify-center flex-shrink-0">
-        <Info size={16} className="text-amber-500" />
+    <section
+      className="relative overflow-hidden rounded-3xl border border-border/40 backdrop-blur-xl p-6 sm:p-10 text-center animate-fade-in"
+      style={{ background: 'hsl(var(--bg-card) / 0.5)' }}
+    >
+      <div className="absolute inset-0 pointer-events-none"
+           style={{ background: `radial-gradient(circle at top right, ${BRAND}24 0%, transparent 70%)` }} />
+      <div className="relative">
+        <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4"
+             style={{ background: `color-mix(in srgb, ${BRAND} 16%, transparent)` }}>
+          <Briefcase size={24} style={{ color: BRAND }} />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+          Cadastre sua empresa
+        </h1>
+        <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+          A aba Negócios se molda ao seu negócio. Diga o que você toca e a Sora
+          mostra só o que importa — sem tela inútil.
+        </p>
+
+        <button
+          onClick={onCriar}
+          className="inline-flex items-center gap-2 px-6 h-12 mt-6 rounded-2xl text-white text-sm font-bold shadow-lg transition-opacity hover:opacity-90"
+          style={{ background: BRAND, boxShadow: `0 10px 30px -10px ${BRAND}` }}
+        >
+          <Plus size={17} /> Criar minha empresa
+        </button>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 text-left">
+          {passos.map((p, i) => {
+            const Icon = p.icon;
+            return (
+              <div key={p.titulo}
+                   className="rounded-2xl border border-border/40 p-4 animate-[slide-up_500ms_ease-out_both]"
+                   style={{ background: 'hsl(var(--bg-subtle) / 0.5)', animationDelay: `${i * 40}ms` }}>
+                <Icon size={17} style={{ color: BRAND }} />
+                <p className="text-sm font-bold text-foreground mt-2">{p.titulo}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{p.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Empresa criada, mas ainda sem lançamento. Os números ficam ZERADOS (nada de
+// demo) e este card mostra o próximo passo — que muda conforme o tipo.
+function ComeceAqui({ cor, tipo }: { cor: string; tipo: string }) {
+  const digital = tipo === 'digital' || tipo === 'hibrido';
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border/40 p-4 flex items-start gap-3 animate-fade-in"
+         style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+           style={{ background: `color-mix(in srgb, ${cor} 16%, transparent)` }}>
+        <Sparkles size={16} style={{ color: cor }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground">Dados de demonstração</p>
-        <p className="text-xs text-muted-foreground mt-0.5">Conecte sua primeira plataforma para ver receita, custos e lucro reais.</p>
+        <p className="text-sm font-semibold text-foreground">Tudo pronto — agora é só alimentar</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {digital
+            ? 'Conecte uma plataforma e o DRE se monta sozinho. Os valores ficam zerados até chegar a primeira venda.'
+            : 'Lance a primeira entrada ou uma conta a pagar. Os valores ficam zerados até você começar.'}
+        </p>
       </div>
-      <Link href="/negocios/integracoes"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex-shrink-0"
-            style={{ background: `linear-gradient(135deg, ${BRAND} 0%, hsl(var(--primary)) 100%)` }}>
-        <Plug size={13} /> Conectar
-      </Link>
+      {digital && (
+        <Link href="/negocios/integracoes"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold text-white flex-shrink-0 transition-opacity hover:opacity-90"
+              style={{ background: cor }}>
+          <Plug size={13} /> Conectar
+        </Link>
+      )}
     </div>
   );
 }
@@ -479,8 +554,8 @@ function CardInsight() {
       .finally(() => setCarregando(false));
   }, [phone]);
 
-  // Fallback pro mock se não houver insights reais ainda
-  const exibir = topo || (carregando ? null : { ...MOCK_INSIGHT, acao_url: '/negocios/insights', acao_label: 'Ver insights' });
+  // Sem insight real ainda → não inventamos um. Mostra o estado honesto.
+  const exibir = topo;
 
   return (
     <div className="rounded-2xl border bg-card p-5 animate-fade-in relative overflow-hidden"

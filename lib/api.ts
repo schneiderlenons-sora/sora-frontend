@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { Empresa } from '@/lib/empresas';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -830,6 +831,18 @@ export const api = {
 
   // ── NEGÓCIOS (CFO de bolso — DRE, integrações, custos, IA) ────
   negocios: {
+    // Multi-empresa (ilimitadas no Premium). `tipo` define como a aba se
+    // adapta: digital = integrações/DRE · fisico = caixa/contas/equipe.
+    empresas: {
+      listar: (phone: string) =>
+        req<Empresa[]>(`/api/negocios/empresas/${phone}`),
+      criar: (body: Partial<Empresa> & { nome: string }) =>
+        req<{ ok: boolean; empresa: Empresa }>('/api/negocios/empresas', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: Partial<Empresa> & { nome: string }) =>
+        req<{ ok: boolean; empresa: Empresa }>(`/api/negocios/empresas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/empresas/${id}`, { method: 'DELETE' }),
+    },
     integracoes: {
       listar: (phone: string) =>
         req<any[]>(`/api/negocios/integracoes/${phone}`),
