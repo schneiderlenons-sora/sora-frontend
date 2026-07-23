@@ -185,6 +185,11 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `lib/plan-intent.ts` | Intenção de plano salva no signup (localStorage, TTL 24h) |
 | `lib/analytics.ts` | Helpers de eventos Meta Pixel + CAPI |
 | `lib/planos-display.ts` | FONTE ÚNICA dos dados visuais dos planos |
+| `lib/ssr.ts` | SSR das abas: `contextoSSR()` (phone/token/grupoId/userId), `backendGet`, `mesRefSSR` |
+| `lib/ssr-data.ts` | Leitura DIRETA no Supabase pro SSR — **porte fiel do backend** (ver Performance) |
+| `lib/swr-cache.ts` | Cache do SWR em localStorage (+ `limparCacheSWR` no logout) |
+| `lib/perfil-cache.ts` | Perfil persistido (cold-start instantâneo) — por `userId`, limpo no logout |
+| `lib/prefetch.ts` | Prefetch dos dados das abas (hover + ocioso), usado pela Sidebar |
 
 ---
 
@@ -303,6 +308,11 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Fix "phone obrigatório" no Grow** (backend `routes/grow.js`, `saude.js`, `dados.js`): `requireGrow`/`requirePremiumGrow` NÃO exigem mais `phone` (o usuário vem do JWT via `req.authUser.id`); antes editar tarefa/consulta/Drive dava 400.
 - **Fix CLS na landing** (`components/landing/SocialProof.tsx`): depoimentos empilhados em grid ([grid-area:1/1]) + altura fixa dos avatares → sem pulo ao trocar de depoimento.
 - **Ícone da PWA no iOS** (`app/layout.tsx`): `apple-touch-icon` agora é `/sora-icon.png` (verde full-bleed) em vez de `/brands/sora.png` (círculo transparente → borda branca). iOS precisa REINSTALAR o PWA pra atualizar o ícone.
+- **Categorias v3 — taxonomia refeita** (migrations **084/085/086/087**): `criar_categorias_padrao` redefinida com a taxonomia nova (despesas + receitas), `unique(grupo_id, nome)` força nome único no grupo, e a **087 remapeia transações** das categorias antigas pras novas. A aba `/categorias` mostra **despesas E receitas juntas** com filtro (o botão de alternar saiu). ⚠️ O **categorizador é acoplado aos NOMES** (`categorizar.js`/`.ts` + `ia.js`) — renomear categoria exige mexer lá. Memória `project-categorias-v3`. Gotcha da 087: `for r in (values …) as t(...)` é inválido em PL/pgSQL — usar `for r in select … from (values …) as t(...)`.
+- **Marcas personalizadas** (migration **083** `marcas_personalizadas`): o usuário sobe a logo de uma loja e ela casa por nome na transação (igual iFood/Nike). `MarcasCustomContext` + `CategoriaIcon` (prioridade máxima no ícone) + gerenciador "Minhas marcas" na aba Categorias, com **zoom/enquadramento livre** da imagem dentro do círculo. Memória `project-marcas-personalizadas`.
+- **Import OFX robusto** (`components/transacoes/ImportarModal.tsx`): o parser agora fatia por `<STMTTRN>` (SGML sem tag de fechamento) e trata decimal com vírgula. Alguns bancos (ex.: **Mercado Pago**) exportam um "OFX" que na prática é PDF/extrato — o painel avisa isso na tela de importação. Nubank funciona.
+- **Dívidas com imagem** (migration **088** `divida_imagem`): mesma organização por foto que já existia em metas.
+- **Fix do checkup de hábitos** (`app/grow/habitos/page.tsx`): marcar rápido 2 hábitos perdia um. Causa: otimista com `revalidate:false` sem reconciliar. Fix = **revalidação debounced (600ms)** no `finally` do toggle. Esse é o padrão pra qualquer toggle rápido.
 
 ## Open Finance (Polp) — teste fechado, fatura do cartão
 
@@ -378,10 +388,60 @@ JS 3 MB → 1,16 MB; FCP 2,2s → 1,1s). O que quebrou e não pode voltar:
   script e sujam o resultado. E o Lighthouse roda em **emulação mobile** —
   desktop e mobile dão números bem diferentes.
 
-> **PENDENTE — o teto atual:** o LCP espera `carregar JS → hidratar → ida e volta
-> no Render (~1,1s)`. Nenhum ajuste de bundle muda essa ORDEM; o teto é ~70-80.
-> Passar de 90 exige **SSR do dashboard** (Server Component busca os dados, HTML
-> já chega pintado, SWR assume depois). Memória: `project-ssr-dashboard`.
+### Rodada 2 (jul/2026) — SSR + dados diretos + cache — **EM PRODUÇÃO**
+
+O que era "PENDENTE" (SSR) foi feito. A ordem antiga era `baixa JS → hidrata →
+chama o Render → pinta`; agora o **servidor busca e o HTML já chega pintado**.
+Regras que não podem regredir:
+
+- **SSR por aba** — toda a navegação de Finanças é Server Component, no padrão:
+  `page.tsx` (server, busca os dados) + `<Aba>Client.tsx` (`'use client'`) +
+  `layout.tsx` (o `DashboardLayout`) + `loading.tsx` (skeleton).
+  ⚠️ A key do SWR depende do `phone` — por isso o server passa **`phoneInicial`**;
+  sem ele a key é `null` no servidor e o `fallbackData` NÃO pinta.
+- **`lib/ssr.ts`** — `contextoSSR()` (sessão via cookie → `phone`, `token`,
+  `grupoId`, `userId`), `backendGet()` e `mesRefSSR()` (mês no fuso SP).
+- **`lib/ssr-data.ts` — lê DIRETO do Supabase** (corta o hop do Render).
+  **Medido:** dashboard **155ms direto × 483ms via Render**. O Render é free tier
+  (CPU ~0,1 vCPU) em **Oregon**; o Supabase está em **us-east-2 (Ohio)**.
+  ⚠️ **É PORTE FIEL do backend** (`routes/dashboard.js` + `services/resumoTransacoes.js`).
+  O backend continua **canônico** e o cliente revalida por ele — se a regra do que
+  conta como gasto/transferência mudar lá, **espelhar aqui**, senão os números
+  "pulam" na tela ao revalidar.
+  ⚠️ **Rotas gated por plano (metas, investimentos) NÃO entram aqui** — ler direto
+  furaria o `exigirPlano` do backend; elas seguem no `backendGet`.
+- **`lib/swr-cache.ts`** (cache do SWR em localStorage → revisita instantânea) e
+  **`lib/perfil-cache.ts`** (perfil persistido → cold-start/F5 instantâneo,
+  hidratado com `useLayoutEffect` pra não dar hydration mismatch).
+  🔒 **Os dois são limpos no `signOut` e descartados se a sessão for de outro
+  `userId`** — senão vaza dado financeiro pro próximo usuário num PC compartilhado.
+- **`lib/prefetch.ts` + Sidebar** — prefetch de rota + dados no hover (desktop) e
+  no ocioso (`requestIdleCallback`) pra todas as abas. **Sem `onTouchStart`** — no
+  mobile isso causava travada no toque.
+- **`app/grow/layout.tsx`** — o gate de auth do Grow **não pode voltar a bloquear
+  tudo num spinner**: hoje mostra **shell (sidebar) + skeleton**. O spinner antigo
+  mascarava qualquer HTML pintado — por isso **SSR nas páginas do Grow é inútil**.
+- **Skeletons:** `components/ui/PageSkeleton.tsx` (abas SSR, via `loading.tsx`) e
+  `components/ui/SectionSkeleton.tsx` (abas client+SWR: Negócios e todo o Grow).
+  Exceções de propósito: `grow/dados` (é gate de **PIN**) e os redirects.
+- **Listas longas:** `content-visibility: auto` + `contain-intrinsic-size` nas
+  linhas (transações 500+ e movimentações dos relatórios) — virtualização nativa
+  do browser, **sem lib** e sem mexer no grid/scroll horizontal.
+- **Mutação otimista** (`optimisticData` + `rollbackOnError` + `populateCache:false`):
+  transações criar/editar/excluir e deletes de metas/dívidas/categorias. Os modais
+  expõem props opt-in (`onOptimisticCreate`/`onOptimisticSave`) — retrocompatíveis.
+  ⚠️ Em **toggle rápido** usar `revalidate:false` + **revalidação debounced** (o
+  padrão do hábitos); sem isso, clicar rápido perde marcação.
+- **`/api/perf-diag`** (auth-gated) — cronometra sessão, lookup, Supabase direto e
+  o hop do Render (2× pra flagrar cold start) + região da Vercel. **Medir antes de
+  otimizar** (foi ele que provou que o #2 valia).
+
+> **O que sobrou (decisão consciente):** o Render free em Oregon ainda paga a
+> travessia até o Supabase (Ohio), mas **as leituras não passam mais por ele** e as
+> escritas são otimistas → quase não se sente no painel. Ainda afeta a resposta da
+> **Sora no WhatsApp** (toda mensagem passa pelo Render). `sql/089` (índices) é
+> seguro de ESCALA, opcional hoje. Falta só o item #7 do roadmap (View Transitions).
+> Memórias: `project-roadmap-performance-ultra` e `project-ssr-dados-diretos`.
 
 ---
 
@@ -511,9 +571,17 @@ sql/075_categoria_trabalho.sql  — categoria "💼 Trabalho/Negócio" (anúncio
 sql/076_recategorizar_of.sql    — re-categoriza transações OF JÁ importadas (o sync dedupa por of_tx_id e NUNCA reescreve linha existente — de propósito: senão apagaria a categoria corrigida à mão)
 sql/077_cartao_minimo.sql       — coluna pagamento_minimo em wallets (o painel estimava 15% da fatura; o banco manda o valor real)
 sql/078_limpa_parcela_futura.sql — remove parcelas FUTURAS importadas como gasto (a Polp manda parcela a vencer como transação datada em 2027; o sync já corta, isto limpa o passado)
+sql/083_marcas_personalizadas.sql — tabela marcas_personalizadas (logo de loja custom que casa por nome)
+sql/084_categorias_v3.sql        — taxonomia nova: redefine criar_categorias_padrao (aditiva)
+sql/085_categorias_v3_dedup.sql  — unique(grupo_id, nome) + dedup das duplicadas
+sql/086_fix_probe_shein.sql      — remove categoria bugada __probe__ e move a sub "Shein" pra Encomendas
+sql/087_categorias_v4_rebuild.sql — rebuild final + REMAPEIA as transações das categorias antigas pras novas
+sql/088_divida_imagem.sql        — coluna de imagem em dividas (organização por foto, igual metas)
+sql/089_indices_performance.sql  — índices das queries quentes (transacoes grupo_id+data, wallets, categorias, limites, dividas, metas). OPCIONAL hoje: é seguro de ESCALA — as queries já voltam em ~58ms; não muda a latência atual
 ```
 
-> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
+> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas). Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
+> **Já rodadas:** 083 (marcas) e 084→087 (categorias v3). **089 (índices) NÃO foi rodada — é opcional** (ganho só em escala).
 > **Drive Inteligente:** NÃO tem migration própria — reusa 041 (tabelas) + 042 (bucket). Se o Drive não guardar arquivo, quase sempre é o **bucket 042 que não rodou**.
 
 > **Atenção (lição aprendida):** colunas novas NÃO podem entrar no `select()` de queries do caminho crítico (ex.: `getUser` em `routes/grow.js`) ANTES da migration rodar — o Supabase erra e a feature inteira quebra ("Usuário não encontrado"). Buscar colunas novas em query separada/tolerante (try/catch ou maybeSingle) e retornar default se faltar. **Sempre mandar o link da migration nova pro usuário** (ele roda à mão no Supabase).
