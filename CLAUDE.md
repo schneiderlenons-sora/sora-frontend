@@ -208,7 +208,7 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `/categorias` | Categorias com barras de consumo e limites |
 | `/transacoes` | Lista de transações com scroll horizontal no mobile |
 | `/investimentos` | Premium+ (era Black-only, mudou) |
-| `/negocios` | Premium+ (DRE, vendas, forecast, integrações) — antes Black-only |
+| `/negocios` | Premium+ **multi-empresa** (digital/físico/híbrido): DRE, vendas, forecast, integrações + **/caixa, /contas, /equipe** (loja física). Ver "Negócios 2.0" |
 | `/grow/*` | Sora Grow — hábitos, tarefas, bem-estar, saúde, estudos, casa, agenda, **coleções (viagens/midia/leituras)**, **Drive (`/grow/dados` — ex-Dados Pessoais)**, **configurações** |
 | `/wrapped` | Sora Wrapped — retrospectiva financeira do mês (aviso WhatsApp dedup via `wrapped_avisado`) |
 | `/admin` | Painel admin (métricas internas) — acesso restrito |
@@ -313,6 +313,30 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Import OFX robusto** (`components/transacoes/ImportarModal.tsx`): o parser agora fatia por `<STMTTRN>` (SGML sem tag de fechamento) e trata decimal com vírgula. Alguns bancos (ex.: **Mercado Pago**) exportam um "OFX" que na prática é PDF/extrato — o painel avisa isso na tela de importação. Nubank funciona.
 - **Dívidas com imagem** (migration **088** `divida_imagem`): mesma organização por foto que já existia em metas.
 - **Fix do checkup de hábitos** (`app/grow/habitos/page.tsx`): marcar rápido 2 hábitos perdia um. Causa: otimista com `revalidate:false` sem reconciliar. Fix = **revalidação debounced (600ms)** no `finally` do toggle. Esse é o padrão pra qualquer toggle rápido.
+
+---
+
+## Negócios 2.0 — multi-empresa + negócio FÍSICO (5 fases, EM PRODUÇÃO jul/2026)
+
+A aba Negócios era 100% infoprodutor. Agora atende **loja física** e **múltiplas empresas** (ilimitadas no Premium). Detalhes/pegadinhas: memória `project-negocios-multiempresa`.
+
+- **`empresas`** (migration 090): cada empresa tem `tipo` (`digital`|`fisico`|`hibrido`), logo (data URL, sem bucket — mesmo padrão de marcas), cor de destaque e ícone. **A aba SE ADAPTA ao tipo** — gates `mostraCaixa`/`mostraIntegracoes` em `lib/empresas.ts`. Loja física não vê "Integrações"; digital não vê "Caixa".
+- **Empresa ativa por usuário** (`lib/useEmpresaAtiva.ts` + localStorage `sora-empresa-ativa:<userId>`). Componentes: `SeletorEmpresa` (dropdown desktop / bottom sheet mobile), `ModalEmpresa`, `EmpresaAvatar` (iniciais com contraste por luminância WCAG).
+- **Caixa** (`/negocios/caixa`, `lancamentos_negocio` migration 091): entradas/saídas, saldo do dia. **Pendente NÃO entra no saldo realizado.**
+- **Contas a pagar** (`/negocios/contas`): saída `status=pendente` + vencimento. Uma tabela resolve caixa E contas. Baixa otimista.
+- **Equipe/folha** (`/negocios/equipe`, `funcionarios_negocio` migration 092): folha SIMPLES (registro de pagamento, **sem encargos CLT** — decisão consciente). "Pagar" gera lançamento de saída categoria `folha` (não cria estrutura paralela → entra no caixa e no DRE).
+- **DRE unificado** (`handlers/negocios.js gerarDre`): agora **por empresa** (era por user_id) e soma o caixa (entrada→receita, saída→custo; só PAGO). Loja física passou a ter DRE.
+- **Lembretes de graça:** `agendaFeed.montarFeed` ganhou as fontes `conta_negocio` e `folha` (evento virtual via `ocorrenciasMensais`) → contas/salários vencendo entram no **briefing matinal do WhatsApp** sem cron novo (o briefing já consome o feed).
+- **Mock REMOVIDO:** não existe mais `MOCK_DRE`/`DemoBanner`. Sem empresa → onboarding; sem lançamento → zerado (`DRE_ZERO`).
+- ⚠️ **Pegadinha resolvida:** `conciliacao_negocio` é a ÚNICA tabela de negócios só com `user_id` (sem grupo_id); `dre_snapshots` unique virou `(empresa_id, periodo)`. Ao mudar constraint, procurar todo `onConflict`/`upsert` que a referencia (isso quebrou o "Atualizar" do DRE entre a 090 e a fase 5).
+
+## Painel admin — MRR (correções jul/2026)
+
+`/admin` são **Route Handlers do Next** (`app/api/admin/*`), não o backend Express — usam `supabaseAdmin`. MRR calculado em `app/api/admin/overview/route.ts`.
+- **MRR mensal** = só pagantes de intervalo **mensal** (ou null). **Anual é pré-pago → fora do MRR mensal** (contava anual pelo preço mensal = inflava). Retorna `anuais`/`recorrentesMensais` pro breakdown.
+- **Colunas 074:** `mrr_excluir` (flag admin de cortesia) + `assinatura_cancelada` (webhook Stripe). Fora do MRR: vitalício, cancelado, mrr_excluir, e-mail admin, anual.
+- **Badges no card:** `Recorrente` (pagante ativo não-cancelado), `Anual` (azul), `Cancelou`, `Vitalício`. **Filtros:** Recorrentes · Anuais · Vitalícios (+ os antigos).
+- ⚠️ **Toggle dentro de `<label>` dispara 2×** (label reencaminha o clique pro button) → use `<button>` na linha inteira, nunca `<button>` aninhado em `<label>`.
 
 ## Open Finance (Polp) — teste fechado, fatura do cartão
 
@@ -481,6 +505,39 @@ A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Me
 
 ---
 
+## 🌍 Internacionalização (Espanhol) — PRÓXIMO FOCO (planejado, NÃO iniciado)
+
+> Objetivo do usuário: **traduzir a Sora pro espanhol e vender pra outros países**. Este é o roteiro pré-desenhado. Memória: `project-i18n-espanhol`. **Ao começar, use a skill `ui-ux-pro-max` no que for UI e `ai-prompting` no que for IA.**
+
+**Diagnóstico do terreno (medido nesta base):**
+- **Nenhuma lib de i18n** instalada. App é **100% português hardcoded** (~75 arquivos usam `Intl … 'pt-BR'` / `currency: 'BRL'`).
+- **IA do backend** tem `responda em português` cravado no system prompt (`sora-backend/src/services/ia.js` ~linha 158). O interpretador devolve **nomes de categoria em PT** e o categorizador é **acoplado a esses nomes** (`categorizar.js`/`.ts` + `ia.js`) — ver `project-categorias-v3`. **Esse acoplamento é o problema técnico mais difícil da tradução.**
+- **Transações não têm coluna de moeda** — hoje é implícito BRL. Multi-moeda de verdade = migration + tocar em tudo.
+- **Pagamento:** Stripe (BRL) + Mercado Pago (BRL). MP cobre LatAm (MX/AR/CO/CL) com credenciais por país; Stripe pro resto.
+- **WhatsApp:** número Meta é BR (+55); templates são **por idioma e por WABA** (precisa aprovar versões ES). Máscara de telefone é BR (`components/ui/WhatsappInput.tsx`) — futuro i18n via `libphonenumber-js` já anotado (`project-whatsapp-input-i18n`).
+
+**⚠️ DECISÕES QUE O USUÁRIO PRECISA TOMAR ANTES (perguntar no início):**
+1. **Mercado primeiro?** (México / Argentina / Espanha / Colômbia / pan-LatAm) — define moeda, meio de pagamento, formato de telefone e se "DRE/tributário" faz sentido.
+2. **Moeda:** por país (MXN/ARS/COP/CLP/USD) ou **USD pra todos** no começo? Recomendação: **moeda por GRUPO/usuário** (não por transação) no MVP — evita a migration de multi-moeda por linha.
+3. **Domínio/SEO:** `forsora.com/es`, subdomínio, ou domínio `.mx`/`.com.ar` novo?
+4. **WhatsApp:** manter o número BR (funciona, mas +55 gera desconfiança e paga a travessia Render-Oregon→Supabase) ou número local por país (melhor, mais trabalho)?
+
+**Arquitetura recomendada (Next 16 App Router):**
+- **`next-intl`** (padrão pra App Router + Server Components). Routing por locale (`/es`, `/pt`), middleware de detecção, catálogos `messages/pt.json` + `messages/es.json`.
+- **Extrair as strings hardcoded** pros catálogos — é o grosso do trabalho (~75+ arquivos). Fazer por lote/aba, como foi o SSR.
+- **Moeda/data locale-aware:** trocar `'pt-BR'`/`'BRL'` fixos por `locale`/`currency` do usuário (helper central; hoje está espalhado). Criar `lib/i18n.ts` como fonte única de `formatMoney(valor, {locale, currency})`.
+
+**Fases sugeridas (cada uma vai pro preview e valida antes da master):**
+1. **Infra i18n** — instala next-intl, locale routing, extrai strings do painel pra `pt.json`/`es.json` (PT continua igual pra quem já usa). Sem mudança de comportamento pro BR.
+2. **Locale-aware** — moeda/data/telefone pelo país do usuário (coluna `idioma`/`pais`/`moeda` em `users` ou `grupos`).
+3. **IA em espanhol** (skill `ai-prompting`) — system prompt condicional por `idioma`; **decidir a estratégia de categorias**: dar às categorias uma **KEY/slug estável** (neutra) + nome de exibição por locale, e o categorizador casa por key/aliases nos DOIS idiomas — senão a IA em ES devolve nomes que o categorizador PT não reconhece. FAQ local-first, welcome, resumos, briefing e templates da Meta ganham versão ES.
+4. **Pagamento + preços por país** (Mercado Pago por país / Stripe internacional; tabela de preços local em `lib/planos-display.ts`).
+5. **Landings + SEO + marketing** em ES.
+
+**Regra de ouro:** PT (BR) não pode regredir. Cada fase mantém o português intacto e adiciona o ES ao lado.
+
+---
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
@@ -578,10 +635,13 @@ sql/086_fix_probe_shein.sql      — remove categoria bugada __probe__ e move a 
 sql/087_categorias_v4_rebuild.sql — rebuild final + REMAPEIA as transações das categorias antigas pras novas
 sql/088_divida_imagem.sql        — coluna de imagem em dividas (organização por foto, igual metas)
 sql/089_indices_performance.sql  — índices das queries quentes (transacoes grupo_id+data, wallets, categorias, limites, dividas, metas). OPCIONAL hoje: é seguro de ESCALA — as queries já voltam em ~58ms; não muda a latência atual
+sql/090_empresas.sql             — Negócios 2.0: tabela `empresas` + empresa_id em tudo + BACKFILL (quem já usava ganha "Meu negócio") + config_negocio PK vira empresa_id + eventos_financeiros.integracao_id nullable (receita manual). RODADA.
+sql/091_lancamentos_negocio.sql  — livro caixa do negócio (entrada|saida, status pago|pendente, vencimento). Conta a pagar = saída pendente. RODADA.
+sql/092_funcionarios_negocio.sql — quadro de pessoal + folha + FK do lancamentos_negocio.funcionario_id. RODADA.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas). Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
-> **Já rodadas:** 083 (marcas) e 084→087 (categorias v3). **089 (índices) NÃO foi rodada — é opcional** (ganho só em escala).
+> **Já rodadas:** 074 (mrr_excluir/assinatura_cancelada), 083 (marcas), 084→087 (categorias v3), **090+091+092 (Negócios 2.0)**. **089 (índices) NÃO foi rodada — é opcional** (ganho só em escala).
 > **Drive Inteligente:** NÃO tem migration própria — reusa 041 (tabelas) + 042 (bucket). Se o Drive não guardar arquivo, quase sempre é o **bucket 042 que não rodou**.
 
 > **Atenção (lição aprendida):** colunas novas NÃO podem entrar no `select()` de queries do caminho crítico (ex.: `getUser` em `routes/grow.js`) ANTES da migration rodar — o Supabase erra e a feature inteira quebra ("Usuário não encontrado"). Buscar colunas novas em query separada/tolerante (try/catch ou maybeSingle) e retornar default se faltar. **Sempre mandar o link da migration nova pro usuário** (ele roda à mão no Supabase).
