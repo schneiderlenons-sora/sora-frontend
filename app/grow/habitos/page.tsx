@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +9,7 @@ import ModalHabito, { periodoDoHorario } from '@/components/habitos/ModalHabito'
 import GrowHero from '@/components/grow/GrowHero';
 import RotinaSemanal from '@/components/grow/RotinaSemanal';
 import {
-  Plus, Target, Loader2, Check, Flame, Trash2, X, Sparkles, Pencil,
+  Plus, Target, Check, Flame, Trash2, X, Sparkles, Pencil,
   Sun, Sunrise, Moon, Trophy, Calendar, BarChart3, Settings,
   ChevronLeft, ChevronRight, Award, Lock, GripVertical, Eye, EyeOff,
   Archive, ArchiveRestore, Activity, Bell, Clock, Dumbbell,
@@ -201,9 +202,7 @@ export default function HabitosPage() {
       </div>
 
       {loading ? (
-        <div className="card rounded-3xl p-16 flex items-center justify-center">
-          <Loader2 size={22} className="animate-spin text-primary" />
-        </div>
+        <SectionSkeleton />
       ) : (
         <div className="animate-fade-in">
           {/* Planejamento semanal fica ABAIXO do card de hábitos nas duas seções.

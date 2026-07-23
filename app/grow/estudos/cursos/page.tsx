@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +9,7 @@ import EstudosNav from '../EstudosNav';
 import ModalCurso from '@/components/estudos/ModalCurso';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import {
-  BookOpen, Sparkles, Loader2, Plus, ExternalLink, Clock, Play,
+  BookOpen, Sparkles, Plus, ExternalLink, Clock, Play,
   Pencil, Check, Pause,
 } from 'lucide-react';
 
@@ -79,9 +80,7 @@ export default function CursosPage() {
 
   if (loading) {
     return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
+      <SectionSkeleton />
     );
   }
 

@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +9,7 @@ import SaudeNav from '../SaudeNav';
 import ModalConsulta from '@/components/saude/ModalConsulta';
 import ModalExame from '@/components/saude/ModalExame';
 import {
-  CalendarHeart, Sparkles, Loader2, Plus, MapPin, Clock, Calendar,
+  CalendarHeart, Sparkles, Plus, MapPin, Clock, Calendar,
   TestTube, Pencil, ChevronRight, History, TrendingDown, TrendingUp, Minus,
 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceArea } from 'recharts';
@@ -91,9 +92,7 @@ export default function ConsultasPage() {
 
   if (loading) {
     return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
+      <SectionSkeleton />
     );
   }
 

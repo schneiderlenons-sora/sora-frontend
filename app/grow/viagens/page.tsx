@@ -1,10 +1,11 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
-import { Plane, Plus, Loader2, MapPin, Wallet, CheckCircle2, X, Sparkles, Trash2 } from 'lucide-react';
+import { Plane, Plus, MapPin, Wallet, CheckCircle2, X, Sparkles, Trash2 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 import { Capa, Segmented, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
 
@@ -98,7 +99,7 @@ export default function ViagensPage() {
       </div>
 
       {loading ? (
-        <div className="card rounded-3xl p-12 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-primary" /></div>
+        <SectionSkeleton />
       ) : erroAtivo ? (
         <ErroCard onRetry={() => { mV(); mB(); }} />
       ) : aba === 'viagens' ? (

@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -133,9 +134,7 @@ export default function NutricaoPage() {
 
   if (loading) {
     return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
+      <SectionSkeleton />
     );
   }
 

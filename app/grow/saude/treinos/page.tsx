@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +8,7 @@ import { useApi } from '@/lib/useApi';
 import ModalTreino from '@/components/saude/ModalTreino';
 import SaudeNav from '../SaudeNav';
 import {
-  Dumbbell, Sparkles, Loader2, Plus, Trash2, Flame, Clock, Calendar, ChevronRight,
+  Dumbbell, Sparkles, Plus, Trash2, Flame, Clock, Calendar, ChevronRight,
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -109,9 +110,7 @@ export default function TreinosPage() {
 
   if (loading) {
     return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
+      <SectionSkeleton />
     );
   }
 

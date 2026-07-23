@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +11,7 @@ import ModalDisciplina from '@/components/estudos/ModalDisciplina';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import ModalProva from '@/components/estudos/ModalProva';
 import {
-  Trophy, Sparkles, Loader2, Plus, Flame, Clock, Calendar, Target,
+  Trophy, Sparkles, Plus, Flame, Clock, Calendar, Target,
   Pencil, ChevronRight, FileText, BookOpen, Play, TrendingUp,
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
@@ -158,9 +159,7 @@ export default function ConcursosPage() {
 
   if (loading) {
     return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
+      <SectionSkeleton />
     );
   }
 

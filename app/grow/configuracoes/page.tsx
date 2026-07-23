@@ -5,9 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import GrowHero from '@/components/grow/GrowHero';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import {
   Lock, Users, Home, Plane, Clapperboard, BookOpen,
-  Loader2, ShieldCheck, Info,
+  ShieldCheck, Info,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -116,9 +117,7 @@ export default function GrowConfiguracoesPage() {
         )}
 
         {loading ? (
-          <div className="py-10 flex items-center justify-center">
-            <Loader2 size={20} className="animate-spin" style={{ color: BRAND }} />
-          </div>
+          <SectionSkeleton />
         ) : (
           <div className="space-y-2.5">
             {OPCIONAIS.map((aba, i) => {

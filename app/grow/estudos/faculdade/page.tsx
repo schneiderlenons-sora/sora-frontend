@@ -1,4 +1,5 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +11,7 @@ import ModalDisciplina from '@/components/estudos/ModalDisciplina';
 import ModalProva from '@/components/estudos/ModalProva';
 import ModalSessao from '@/components/estudos/ModalSessao';
 import {
-  GraduationCap, Sparkles, Loader2, Plus, Pencil, FileText, Calendar,
+  GraduationCap, Sparkles, Plus, Pencil, FileText, Calendar,
   BookOpen, Clock, ChevronRight, Trophy, Play, Target,
 } from 'lucide-react';
 
@@ -85,9 +86,7 @@ export default function FaculdadePage() {
 
   if (loading) {
     return (
-      <div className="card rounded-3xl p-16 flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-primary" />
-      </div>
+      <SectionSkeleton />
     );
   }
 

@@ -1,10 +1,11 @@
 'use client';
+import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
-import { Clapperboard, Plus, Loader2, Star, Film, Eye, Trophy } from 'lucide-react';
+import { Clapperboard, Plus, Star, Film, Eye, Trophy } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 import { Capa, StatBox, Filtros, Segmented, NotaInput, NotaBadge, Campo, ModalShell, Vazio, ErroCard, favRing, FavBadge, ordenarPorNota } from '@/components/grow/colecao';
 
@@ -72,7 +73,7 @@ export default function MidiaPage() {
       </GrowHero>
 
       {loading ? (
-        <div className="card rounded-3xl p-12 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-primary" /></div>
+        <SectionSkeleton />
       ) : error ? (
         <ErroCard onRetry={() => mutate()} />
       ) : itens.length === 0 ? (
