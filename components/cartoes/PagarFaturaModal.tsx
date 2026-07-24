@@ -9,6 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtBR = (raw: string) => !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Valor sentinela do <select> pra "pago por fora" (sem conta no painel).
+const EXTERNA = '__externa__';
+
 interface Props {
   cartaoId:    string;
   cartaoNome:  string;
@@ -63,16 +66,22 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
   async function pagar() {
     setErro('');
     const itens = linhas
-      .map(l => ({ wallet_id: l.walletId, valor: parseInt(l.valorRaw || '0', 10) / 100, descricao: l.quem.trim() }))
-      .filter(i => i.wallet_id && i.valor > 0);
+      .map(l => ({
+        externa:   l.walletId === EXTERNA,
+        wallet_id: l.walletId === EXTERNA ? undefined : l.walletId,
+        valor:     parseInt(l.valorRaw || '0', 10) / 100,
+        descricao: l.quem.trim() || (l.walletId === EXTERNA ? 'Externo' : ''),
+      }))
+      .filter(i => i.valor > 0 && (i.externa || i.wallet_id));
 
     if (!itens.length) { setErro('Escolha a conta e informe o valor.'); return; }
-    const contasUsadas = new Set(itens.map(i => i.wallet_id));
-    if (dividido && contasUsadas.size < itens.length) { setErro('Você repetiu a mesma conta em duas linhas.'); return; }
+    // Repetir a MESMA conta real em duas linhas é provável engano (externo pode repetir).
+    const reais = itens.filter(i => !i.externa).map(i => i.wallet_id);
+    if (new Set(reais).size < reais.length) { setErro('Você repetiu a mesma conta em duas linhas.'); return; }
 
     setLoading(true);
     try {
-      if (itens.length === 1) {
+      if (itens.length === 1 && !itens[0].externa) {
         await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, wallet_id: itens[0].wallet_id, valor: itens[0].valor });
       } else {
         await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, pagamentos: itens });
@@ -124,7 +133,9 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
             <p className="text-sm text-muted-foreground text-center py-4">Nenhuma conta cadastrada pra pagar a fatura.</p>
           ) : (
             <div className="space-y-3">
-              {linhas.map((l, i) => (
+              {linhas.map((l, i) => {
+                const externa = l.walletId === EXTERNA;
+                return (
                 <div key={l.key} className="rounded-2xl border border-border/70 p-3.5 space-y-3 bg-muted/20">
                   {dividido && (
                     <div className="flex items-center justify-between">
@@ -135,7 +146,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
                     </div>
                   )}
 
-                  {/* Conta (sempre visível) */}
+                  {/* Conta (sempre visível) — inclui a opção "pago por fora" */}
                   <div>
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
                       <WalletIcon size={12} className="text-primary" /> De qual conta
@@ -144,11 +155,12 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
                             className="input py-2.5 w-full">
                       <option value="">Selecione a conta…</option>
                       {contas.map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.saldo)}</option>)}
+                      <option value={EXTERNA}>Pago por outra pessoa (fora do painel)</option>
                     </select>
                   </div>
 
-                  {/* Valor + quem pagou */}
-                  <div className={`grid gap-3 ${dividido ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {/* Valor + quem pagou (nome). Nome aparece quando dividido OU externo. */}
+                  <div className={`grid gap-3 ${(dividido || externa) ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Valor</label>
                       <div className="flex items-baseline gap-1 input py-2.5">
@@ -158,17 +170,25 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
                                className="text-lg font-bold text-foreground bg-transparent border-none outline-none w-full tabular p-0" />
                       </div>
                     </div>
-                    {dividido && (
+                    {(dividido || externa) && (
                       <div>
-                        <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Quem pagou</label>
+                        <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">{externa ? 'Nome' : 'Quem pagou'}</label>
                         <input value={l.quem} maxLength={40} placeholder="Ex.: Esposa"
                                onChange={e => setLinha(l.key, { quem: e.target.value })}
                                className="input py-2.5 w-full" />
                       </div>
                     )}
                   </div>
+
+                  {externa && (
+                    <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                      <WalletIcon size={11} className="mt-0.5 flex-shrink-0" />
+                      Não sai de nenhuma conta sua — fica só registrado no histórico como pago por fora.
+                    </p>
+                  )}
                 </div>
-              ))}
+                );
+              })}
 
               <button onClick={addLinha}
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 active:scale-[0.99] transition-all">
