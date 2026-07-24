@@ -226,7 +226,7 @@ export const api = {
     pagarFatura: (body: {
       phone: string; cartao_id: string;
       wallet_id?: string; valor?: number;
-      pagamentos?: { wallet_id: string; valor: number }[];
+      pagamentos?: { wallet_id: string; valor: number; descricao?: string }[];
     }) =>
       req<{ ok: boolean; debito: any; debitos?: any[] }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
     // Transfere valor entre duas contas (ajusta saldos + grava registro)
