@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +33,9 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
   );
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+  // Portal só depois de montar no cliente (SSR não tem document).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   // Carrega as contas (sem cartões de crédito — não se paga fatura com fatura).
   useEffect(() => {
@@ -82,8 +86,13 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
 
   const podePagar = linhas.some(l => l.walletId && (parseInt(l.valorRaw || '0', 10) / 100) > 0);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+  if (!mounted) return null;
+
+  // Portal pro body: escapa de qualquer ancestral com backdrop-blur/transform
+  // (os cards do painel usam), que prendem o position:fixed e faziam o modal
+  // aparecer ATRÁS do card de Faturas em vez de cobrir a tela.
+  return createPortal((
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[92dvh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
@@ -193,5 +202,5 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
