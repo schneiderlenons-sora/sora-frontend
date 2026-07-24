@@ -6,8 +6,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
 import {
-  ArrowLeft, ChevronRight, Calendar, Loader2, Download, RefreshCw,
+  ArrowLeft, ChevronRight, Calendar, Loader2, Download, RefreshCw, Landmark,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -51,6 +52,7 @@ export default function DreDetalhadoPage() {
   const { isPremium, phone } = useAuth();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const [modalImposto, setModalImposto] = useState(false);
 
   // Dados via SWR — revisita instantânea (cache em memória).
   const { data: dreData, mutate: mDre } = useApi((phone && isPremium) ? `negdre:${phone}:${periodo}` : null, () => api.negocios.dre.detalhado(phone, periodo));
@@ -147,12 +149,20 @@ export default function DreDetalhadoPage() {
                 </select>
                 <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
               </div>
+              <button onClick={() => setModalImposto(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-card border border-border hover:bg-muted/60"
+                      title="Ligar/desligar reserva de imposto">
+                <Landmark size={13} /> Impostos
+              </button>
               <button onClick={carregar}
                       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-card border border-border hover:bg-muted/60">
                 <RefreshCw size={13} /> Atualizar
               </button>
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            💡 A reserva de imposto vem <strong className="text-foreground">desligada</strong> por padrão. Ligue em <button onClick={() => setModalImposto(true)} className="underline font-semibold">Impostos</button> se quiser provisionar o DAS.
+          </p>
         </div>
 
         {/* Resumo da margem */}
@@ -241,6 +251,10 @@ export default function DreDetalhadoPage() {
         </div>
 
       </div>
+
+      {modalImposto && (
+        <ModalConfigTributaria onClose={() => { setModalImposto(false); mDre(); }} />
+      )}
     </DashboardLayout>
   );
 }

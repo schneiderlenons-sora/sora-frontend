@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Empresa } from '@/lib/empresas';
-import type { Lancamento } from '@/lib/lancamentos';
+import type { Lancamento, ContaNegocio } from '@/lib/lancamentos';
 import type { Funcionario } from '@/lib/funcionarios';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -855,6 +855,17 @@ export const api = {
         req<{ ok: boolean; empresa: Empresa }>(`/api/negocios/empresas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       arquivar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/empresas/${id}`, { method: 'DELETE' }),
+    },
+    // Contas do negócio (caixas nomeadas) por empresa — migration 095.
+    contas: {
+      listar: (phone: string, empresa_id: string) =>
+        req<ContaNegocio[]>(`/api/negocios/contas/${phone}?empresa_id=${empresa_id}`),
+      criar: (body: { empresa_id: string; nome: string; tipo?: string; saldo_inicial?: number; cor?: string }) =>
+        req<{ ok: boolean; conta: ContaNegocio }>('/api/negocios/contas', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: { nome?: string; tipo?: string; saldo_inicial?: number; cor?: string }) =>
+        req<{ ok: boolean; conta: ContaNegocio }>(`/api/negocios/contas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/contas/${id}`, { method: 'DELETE' }),
     },
     // Livro caixa: entradas, saídas e contas a pagar (saída pendente).
     // `valor` SEMPRE em centavos.

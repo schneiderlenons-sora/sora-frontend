@@ -22,10 +22,23 @@ export interface Lancamento {
   pago_em?:        string | null;
   forma_pagamento?: string | null;
   contraparte?:    string | null;
+  conta_id?:       string | null;   // conta do negócio (caixa) — migration 095
   recorrente?:     boolean;
   recorrencia?:    string | null;
   observacao?:     string | null;
   created_at?:     string;
+}
+
+// Conta do negócio (caixa nomeada) — migration 095.
+export type TipoContaNegocio = 'dinheiro' | 'banco' | 'cartao' | 'outro';
+export interface ContaNegocio {
+  id:            string;
+  empresa_id:    string;
+  nome:          string;
+  tipo:          TipoContaNegocio;
+  saldo_inicial: number;            // CENTAVOS
+  cor?:          string | null;
+  ativa?:        boolean;
 }
 
 export const CATEGORIAS_ENTRADA = [
@@ -86,6 +99,33 @@ export function totais(lancs: Lancamento[]) {
     else saidas += l.valor;
   }
   return { entradas, saidas, saldo: entradas - saidas, aPagar };
+}
+
+/** Saldo realizado por conta do negócio: saldo_inicial + entradas pagas −
+ *  saídas pagas (pendente NÃO conta, igual ao caixa). Retorna, por conta, o
+ *  saldo e os totais; inclui uma linha virtual "sem conta" pros lançamentos
+ *  antigos/sem conta_id que tenham movimento. */
+export function saldoPorConta(lancs: Lancamento[], contas: ContaNegocio[]) {
+  const acc = new Map<string, { entradas: number; saidas: number }>();
+  const bump = (id: string, l: Lancamento) => {
+    const a = acc.get(id) || { entradas: 0, saidas: 0 };
+    if (l.tipo === 'entrada') a.entradas += l.valor; else a.saidas += l.valor;
+    acc.set(id, a);
+  };
+  for (const l of lancs) {
+    if (l.status !== 'pago') continue;          // só realizado
+    bump(l.conta_id || '__sem__', l);
+  }
+  const linhas = contas.map(c => {
+    const a = acc.get(c.id) || { entradas: 0, saidas: 0 };
+    return { conta: c, saldo: (c.saldo_inicial || 0) + a.entradas - a.saidas, ...a };
+  });
+  // "Sem conta" só aparece se houver movimento órfão (não polui quem já organizou).
+  const orfao = acc.get('__sem__');
+  if (orfao && (orfao.entradas || orfao.saidas)) {
+    linhas.push({ conta: null as unknown as ContaNegocio, saldo: orfao.entradas - orfao.saidas, ...orfao });
+  }
+  return linhas;
 }
 
 /** Agrupa por dia (YYYY-MM-DD) preservando a ordem recebida. */

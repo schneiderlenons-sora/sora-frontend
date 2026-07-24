@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import {
   categoriasDe, FORMAS_PAGAMENTO, fmtCent,
-  type Lancamento, type TipoLancamento,
+  type Lancamento, type TipoLancamento, type ContaNegocio,
 } from '@/lib/lancamentos';
 
 // Lançamento do caixa. Os campos de CONTA A PAGAR (vencimento) só aparecem
@@ -26,6 +28,7 @@ export default function ModalLancamento({
   onExcluido?: () => void;
 }) {
   const editando = !!lancamento?.id;
+  const { phone } = useAuth();
 
   const [tipo, setTipo] = useState<TipoLancamento>(lancamento?.tipo || tipoInicial);
   // Valor em CENTAVOS, digitado como número inteiro (igual ao modal de transação).
@@ -38,12 +41,30 @@ export default function ModalLancamento({
   const [pago, setPago] = useState((lancamento?.status || 'pago') === 'pago');
   const [vencimento, setVencimento] = useState(lancamento?.vencimento || hoje());
 
+  // Conta do negócio (caixa) — migration 095.
+  const [contas, setContas] = useState<ContaNegocio[]>([]);
+  const [contaId, setContaId] = useState<string | null>(lancamento?.conta_id || null);
+  const [gerenciarContas, setGerenciarContas] = useState(false);
+
+  // Categoria própria (texto livre além da lista fixa).
+  const catInicial = lancamento?.categoria || '';
+  const catNaLista = (t: TipoLancamento, v: string) => categoriasDe(t).some(c => c.v === v);
+  const [catCustom, setCatCustom] = useState(catInicial && !catNaLista(tipo, catInicial) ? catInicial : '');
+  const [mostraCustom, setMostraCustom] = useState(!!(catInicial && !catNaLista(tipo, catInicial)));
+
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
   const ehEntrada = tipo === 'entrada';
   const corTipo = ehEntrada ? '#16a34a' : '#ef4444';
   const cats = categoriasDe(tipo);
+
+  // Carrega as contas da empresa (pra o seletor de conta).
+  async function carregarContas() {
+    if (!phone) return;
+    try { setContas((await api.negocios.contas.listar(phone, empresaId)) || []); } catch { /* noop */ }
+  }
+  useEffect(() => { carregarContas(); /* eslint-disable-line */ }, [phone, empresaId]);
 
   const valorCent = parseInt(valor || '0', 10) || 0;
 
@@ -55,10 +76,11 @@ export default function ModalLancamento({
 
     setSalvando(true);
     try {
+      const catFinal = mostraCustom ? catCustom.trim() : categoria;
       const body: any = {
         empresa_id: empresaId,
         tipo,
-        categoria: categoria || null,
+        categoria: catFinal || null,
         descricao: descricao.trim(),
         valor: valorCent,
         data,
@@ -66,6 +88,7 @@ export default function ModalLancamento({
         vencimento: pago ? null : vencimento,
         forma_pagamento: forma || null,
         contraparte: contraparte.trim() || null,
+        conta_id: contaId,
       };
       if (editando) await api.negocios.lancamentos.editar(lancamento!.id, body);
       else await api.negocios.lancamentos.criar(body);
@@ -118,7 +141,7 @@ export default function ModalLancamento({
             ] as const).map(o => {
               const on = tipo === o.v;
               return (
-                <button key={o.v} onClick={() => { setTipo(o.v); setCategoria(''); }}
+                <button key={o.v} onClick={() => { setTipo(o.v); setCategoria(''); setMostraCustom(false); setCatCustom(''); }}
                         aria-pressed={on}
                         className={`h-11 rounded-xl text-sm font-bold transition-all inline-flex items-center justify-center gap-1.5 ${
                           on ? 'bg-card shadow-sm' : 'text-muted-foreground'
@@ -159,14 +182,14 @@ export default function ModalLancamento({
                    className="input w-full" placeholder={ehEntrada ? 'Ex.: Venda no balcão' : 'Ex.: Compra de farinha'} />
           </div>
 
-          {/* Categoria */}
+          {/* Categoria (lista fixa + "Outra" pra categoria própria) */}
           <div>
             <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Categoria</span>
             <div className="flex flex-wrap gap-2">
               {cats.map(c => {
-                const on = categoria === c.v;
+                const on = !mostraCustom && categoria === c.v;
                 return (
-                  <button key={c.v} onClick={() => setCategoria(on ? '' : c.v)}
+                  <button key={c.v} onClick={() => { setMostraCustom(false); setCategoria(on ? '' : c.v); }}
                           aria-pressed={on}
                           className="h-11 px-3.5 rounded-xl text-xs font-semibold border transition-colors"
                           style={{
@@ -178,7 +201,57 @@ export default function ModalLancamento({
                   </button>
                 );
               })}
+              {/* Outra → categoria própria */}
+              <button onClick={() => { setMostraCustom(true); setCategoria(''); }} aria-pressed={mostraCustom}
+                      className="h-11 px-3.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1"
+                      style={{
+                        borderColor: mostraCustom ? cor : 'hsl(var(--border) / 0.6)',
+                        background: mostraCustom ? `color-mix(in srgb, ${cor} 12%, transparent)` : 'transparent',
+                        color: mostraCustom ? cor : 'hsl(var(--foreground))',
+                      }}>
+                <Plus size={13} /> Outra
+              </button>
             </div>
+            {mostraCustom && (
+              <input value={catCustom} onChange={e => setCatCustom(e.target.value)} maxLength={30}
+                     placeholder="Sua categoria (ex.: Delivery, Fiado)" className="input w-full mt-2" autoFocus />
+            )}
+          </div>
+
+          {/* Conta (caixa) — pra onde entra / de onde sai */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                {ehEntrada ? 'Entra na conta' : 'Sai da conta'}
+              </span>
+              <button onClick={() => setGerenciarContas(true)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
+                <Plus size={12} /> Gerenciar
+              </button>
+            </div>
+            {contas.length === 0 ? (
+              <button onClick={() => setGerenciarContas(true)}
+                      className="w-full h-11 rounded-xl border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2">
+                <Plus size={15} /> Criar uma conta (Dinheiro, Banco, Maquininha…)
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {contas.map(c => {
+                  const on = contaId === c.id;
+                  const Icon = iconeConta(c.tipo);
+                  return (
+                    <button key={c.id} onClick={() => setContaId(on ? null : c.id)} aria-pressed={on}
+                            className="h-11 px-3.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1.5"
+                            style={{
+                              borderColor: on ? cor : 'hsl(var(--border) / 0.6)',
+                              background: on ? `color-mix(in srgb, ${cor} 12%, transparent)` : 'transparent',
+                              color: on ? cor : 'hsl(var(--foreground))',
+                            }}>
+                      <Icon size={13} /> {c.nome}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Data + forma */}
@@ -253,6 +326,12 @@ export default function ModalLancamento({
           </button>
         </div>
       </div>
+
+      {gerenciarContas && (
+        <ModalContas empresaId={empresaId} cor={cor}
+          onClose={() => setGerenciarContas(false)}
+          onChanged={carregarContas} />
+      )}
     </div>
   );
 }

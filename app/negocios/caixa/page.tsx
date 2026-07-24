@@ -11,13 +11,14 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useEmpresaAtiva } from '@/lib/useEmpresaAtiva';
 import { corEmpresa, type Empresa } from '@/lib/empresas';
+import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import {
-  fmtCent, labelCategoria, labelForma, porDia, totais,
-  type Lancamento, type TipoLancamento,
+  fmtCent, labelCategoria, labelForma, porDia, totais, saldoPorConta,
+  type Lancamento, type TipoLancamento, type ContaNegocio,
 } from '@/lib/lancamentos';
 import {
   ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Plus, Minus,
-  Wallet, CalendarClock, ArrowLeft, Inbox,
+  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2,
 } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
@@ -36,6 +37,7 @@ export default function CaixaPage() {
   const { empresas, empresa, trocar, carregando, recarregar, phone, isPremium } = useEmpresaAtiva();
   const [modalEmpresa, setModalEmpresa] = useState<'nova' | Empresa | null>(null);
   const [modalLanc, setModalLanc] = useState<{ tipo: TipoLancamento; item?: Lancamento } | null>(null);
+  const [modalContas, setModalContas] = useState(false);
 
   // Mês visualizado (0 = atual). Livre pra frente e pra trás — igual transações.
   const [mesIndex, setMesIndex] = useState(0);
@@ -52,6 +54,14 @@ export default function CaixaPage() {
   );
   const lancamentos: Lancamento[] = Array.isArray(lancData) ? lancData : [];
   const carregandoLanc = !!empresa && lancData === undefined;
+
+  // Contas do negócio (caixas) — pra mostrar saldo por conta. Migration 095.
+  const { data: contasData, mutate: mContas } = useApi(
+    (phone && empresa) ? `neg:contas:${empresa.id}` : null,
+    () => api.negocios.contas.listar(phone, empresa!.id),
+  );
+  const contas: ContaNegocio[] = Array.isArray(contasData) ? contasData : [];
+  const saldosConta = useMemo(() => saldoPorConta(lancamentos, contas), [lancamentos, contas]);
 
   const doMes = useMemo(() => totais(lancamentos), [lancamentos]);
   const deHoje = useMemo(
@@ -200,6 +210,36 @@ export default function CaixaPage() {
             </Link>
           )}
 
+          {/* Saldo por conta (dinheiro, banco, maquininha…) — migration 095 */}
+          <div className="px-4 sm:px-5 py-3 border-b border-border/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Saldo por conta</span>
+              <button onClick={() => setModalContas(true)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
+                <Settings2 size={12} /> Gerenciar
+              </button>
+            </div>
+            {saldosConta.length === 0 ? (
+              <button onClick={() => setModalContas(true)}
+                      className="w-full h-11 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2">
+                <Plus size={15} /> Criar contas (Dinheiro, Banco, Maquininha…)
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {saldosConta.map((s, i) => {
+                  const Icon = iconeConta(s.conta?.tipo);
+                  const neg = s.saldo < 0;
+                  return (
+                    <div key={s.conta?.id || `sem-${i}`} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/60 bg-muted/20">
+                      <Icon size={14} className="text-muted-foreground flex-shrink-0" />
+                      <span className="text-xs font-medium text-foreground">{s.conta?.nome || 'Sem conta'}</span>
+                      <span className="text-sm font-bold tabular" style={{ color: neg ? '#ef4444' : '#16a34a' }}>{fmtCent(s.saldo)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Movimentações agrupadas por dia */}
           {carregandoLanc ? (
             <div className="p-5"><SectionSkeleton /></div>
@@ -253,8 +293,16 @@ export default function CaixaPage() {
           tipoInicial={modalLanc.tipo}
           lancamento={modalLanc.item}
           onClose={() => setModalLanc(null)}
-          onSalvo={() => mLanc()}
-          onExcluido={() => mLanc()}
+          onSalvo={() => { mLanc(); mContas(); }}
+          onExcluido={() => { mLanc(); mContas(); }}
+        />
+      )}
+      {modalContas && empresa && (
+        <ModalContas
+          empresaId={empresa.id}
+          cor={cor}
+          onClose={() => setModalContas(false)}
+          onChanged={() => mContas()}
         />
       )}
     </DashboardLayout>
