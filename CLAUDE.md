@@ -502,6 +502,7 @@ A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Me
 - **Negócios:** botões header em scroll horizontal com `whitespace-nowrap`
 - **Saúde/Estudos layouts:** `sticky top-0` (não mais `calc(env(safe-area-inset-top))`)
 - **Regra geral:** nunca usar `opacity-0 group-hover:opacity-100` pra elementos de ação no mobile — usar `lg:opacity-0 lg:group-hover:opacity-100`
+- **⚠️ Modal/overlay `fixed` SEMPRE via `createPortal(jsx, document.body)`** — NUNCA renderizar um modal solto dentro da árvore de um card. Os cards do painel usam **`backdrop-blur`** (design system) e um ancestral com `backdrop-filter`/`transform`/`filter`/`will-change` vira o *containing block* do `position: fixed`: o modal fica **preso/recortado dentro do card e aparece ATRÁS** do conteúdo abaixo (bug real: `PagarFaturaModal` ia pra trás do card "Faturas"). z-index NÃO resolve. Guardar `mounted` (`useEffect`→`setMounted(true)` + `if(!mounted) return null`) porque SSR não tem `document`. Memória `feedback-modal-portal-backdrop-blur`.
 
 ---
 
