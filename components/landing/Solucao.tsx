@@ -1,39 +1,18 @@
 'use client';
 
 import { Wallet, Sparkles, Briefcase, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
-const PILARES = [
-  {
-    cor: '#61ce70',
-    badge: 'Sora Finance',
-    titulo: 'Dinheiro sob controle.',
-    desc: 'Tenha um controle total da sua vida financeira com transações automáticas, contas, cartões, dívidas, metas e investimentos. Tudo via WhatsApp ou painel.',
-    items: ['Lançamentos por áudio, imagem ou texto', 'Gestão Compartilhada', 'Limites por categoria + alertas inteligentes', 'Investimentos com cálculo automático de aportes', 'Importação OFX', 'Wrapped mensal compartilhável'],
-    icon: Wallet,
-    bg: 'from-emerald-500/8 to-emerald-500/0',
-  },
-  {
-    cor: '#7c3aed',
-    badge: 'Sora Grow',
-    titulo: 'Vida sob controle.',
-    desc: 'Hábitos, saúde, dietas, estudos, casa, bem-estar. Sora te ajuda a ser quem você quer ser — todo dia.',
-    items: ['Hábitos com streak + heatmap GitHub-style', 'Saúde: consultas, remédios, treinos, peso', 'Estudos: cursos, provas, sessões cronometradas', 'Tarefas e bem-estar conectados ao seu calendário', 'Wrapped mensal compartilhável'],
-    icon: Sparkles,
-    bg: 'from-violet-500/8 to-violet-500/0',
-  },
-  {
-    cor: '#fbbf24',
-    badge: 'Sora Negócios',
-    titulo: 'Negócio sob controle.',
-    desc: 'Para empreendedores digitais. DRE em tempo real, integrações Hotmart/Stripe/Kiwify e insights da IA.',
-    items: ['DRE detalhado com drill-down por plataforma', 'Webhook em tempo real — Hotmart, Kiwify, Stripe, Eduzz', 'Forecast de receita 3 meses + insights da IA', 'Wrapped mensal compartilhável'],
-    icon: Briefcase,
-    bg: 'from-amber-500/8 to-amber-500/0',
-    plan: 'Plano Premium',
-  },
+const PILAR_STYLE = [
+  { cor: '#61ce70', icon: Wallet,    bg: 'from-emerald-500/8 to-emerald-500/0' },
+  { cor: '#7c3aed', icon: Sparkles,  bg: 'from-violet-500/8 to-violet-500/0' },
+  { cor: '#fbbf24', icon: Briefcase, bg: 'from-amber-500/8 to-amber-500/0' },
 ];
 
 export default function Solucao() {
+  const t = useTranslations('solucao');
+  const pilares = t.raw('pilares') as { badge: string; titulo: string; desc: string; items: string[]; plan?: string }[];
+  const PILARES = PILAR_STYLE.map((s, i) => ({ ...s, ...pilares[i] }));
   return (
     <section id="solucao" className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
 
@@ -48,17 +27,17 @@ export default function Solucao() {
         {/* Section label + title */}
         <div className="text-center mb-16 lg:mb-20">
           <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-            A solução
+            {t('label')}
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            A Sora é{' '}
+            {t('tituloInicio')}{' '}
             <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
-              uma só coisa
-            </span>:<br />
-            organização total via WhatsApp.
+              {t('tituloDestaque')}
+            </span>{t('tituloMeio')}<br />
+            {t('tituloFim')}
           </h2>
           <p className="mt-6 text-lg lg:text-xl text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-            Três pilares conectados. Um produto. Uma assinatura.
+            {t('subtitulo')}
           </p>
         </div>
 
@@ -128,8 +107,8 @@ export default function Solucao() {
         </div>
 
         <p className="text-center mt-12 text-sm text-zinc-500 dark:text-white/50">
-          Os três pilares conversam entre si.{' '}
-          <span className="text-zinc-900 dark:text-white font-semibold">Uma só assinatura</span>, organização completa.
+          {t('rodapeInicio')}{' '}
+          <span className="text-zinc-900 dark:text-white font-semibold">{t('rodapeDestaque')}</span>{t('rodapeFim')}
         </p>
       </div>
     </section>

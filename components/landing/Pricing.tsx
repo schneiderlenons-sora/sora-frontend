@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Check, Sparkles, ShieldCheck, Zap, Crown, Flame } from 'lucide-react';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
-import { PLANOS_INFO } from '@/lib/stripe';
+import { precosDoLocale, partesPreco, type PlanoLandingId } from '@/lib/landing-precos';
 
 // Ícone exibido junto ao nome do plano destacado. Mantido aqui pra não
 // vazar dependência de lucide-react no lib/planos-display.
@@ -12,8 +13,13 @@ const ICONES = { premium: Sparkles } as const;
 
 // `vitalicio` controla o 3º card (Premium Vitalício). A landing principal
 // (forsora.com) passa `false`; /financas e afins seguem mostrando.
-export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
+// `esperaLista` (usado no /es): o checkout MXN ainda não existe → o CTA vira
+// captura de interesse ("Próximamente") em vez de mandar pro /signup em BRL.
+export default function Pricing({ vitalicio = true, esperaLista = false }: { vitalicio?: boolean; esperaLista?: boolean }) {
   const [anual, setAnual] = useState(false); // mensal por padrão
+  const locale = useLocale();
+  const t = useTranslations('pricing');
+  const precos = precosDoLocale(locale);
 
   return (
     <section id="pricing" className="relative scroll-mt-24 py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
@@ -27,11 +33,11 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
         {/* Header */}
         <div className="text-center mb-12">
           <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-            Planos
+            {t('label')}
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            Escolha o seu.<br />
-            <span className="text-zinc-400 dark:text-white/30">Cancele quando quiser.</span>
+            {t('tituloL1')}<br />
+            <span className="text-zinc-400 dark:text-white/30">{t('tituloL2')}</span>
           </h2>
         </div>
 
@@ -44,7 +50,7 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
                 !anual ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-sm' : 'text-zinc-600 dark:text-white/60'
               }`}
             >
-              Mensal
+              {t('mensal')}
             </button>
             <button
               onClick={() => setAnual(true)}
@@ -52,11 +58,11 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
                 anual ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-sm' : 'text-zinc-600 dark:text-white/60'
               }`}
             >
-              Anual
+              {t('anual')}
               {!anual && (
                 <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white"
                       style={{ background: '#61ce70' }}>
-                  -20%
+                  {t('descontoBadge', { pct: precos.planos.premium.descAnual })}
                 </span>
               )}
             </button>
@@ -66,8 +72,11 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
         {/* Cards de planos */}
         <div className={`grid grid-cols-1 gap-5 mx-auto ${vitalicio ? 'lg:grid-cols-3 max-w-5xl' : 'lg:grid-cols-2 max-w-3xl'}`}>
           {PLANOS_DISPLAY.map((p) => {
-            const info = PLANOS_INFO[p.id];
+            const info = precos.planos[p.id as PlanoLandingId];
             const precoExibido = anual ? info.anual : info.mensal;
+            const { inteiro, decimal } = partesPreco(precoExibido, precos.separadorDecimal);
+            const txt = t.raw('planos') as Record<string, { nome: string; subtitulo: string; badge: string; features: string[] }>;
+            const pt = txt[p.id];
             const Icon = ICONES[p.id as keyof typeof ICONES];
 
             return (
@@ -88,11 +97,11 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
 
                 <div className="relative">
                   {/* Badge no topo */}
-                  {p.badge && (
+                  {pt.badge && (
                     <div className="absolute -top-9 -right-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-white shadow-md whitespace-nowrap"
                          style={{ background: `linear-gradient(135deg, ${p.cor} 0%, ${escurecer(p.cor)} 100%)` }}>
                       {p.destaque && <Sparkles size={9} />}
-                      {p.badge}
+                      {pt.badge}
                     </div>
                   )}
 
@@ -104,40 +113,54 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
                         <Icon size={13} style={{ color: p.cor }} />
                       </div>
                     )}
-                    <h3 className="text-xl font-bold tracking-tight">{p.nome}</h3>
+                    <h3 className="text-xl font-bold tracking-tight">{pt.nome}</h3>
                   </div>
-                  <p className="text-sm text-zinc-500 dark:text-white/50 mb-6">{p.subtitulo}</p>
+                  <p className="text-sm text-zinc-500 dark:text-white/50 mb-6">{pt.subtitulo}</p>
 
                   {/* Preço */}
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-sm font-bold">R$</span>
+                      <span className="text-sm font-bold">{precos.simbolo}</span>
                       <span className="text-5xl font-bold tabular-nums tracking-tight">
-                        {Math.floor(precoExibido)}
-                        <span className="text-2xl">,{(precoExibido % 1).toFixed(2).slice(2)}</span>
+                        {inteiro}
+                        {decimal && <span className="text-2xl">{decimal}</span>}
                       </span>
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-white/50 mt-1">
-                      por mês{anual && <> · pago anualmente · <span style={{ color: p.cor }} className="font-bold">{info.descAnual}% off</span></>}
+                      {t('porMes')}{anual && <> · {t('pagoAnualmente')} · <span style={{ color: p.cor }} className="font-bold">{t('descOff', { pct: info.descAnual })}</span></>}
                     </p>
                   </div>
 
                   {/* CTA */}
-                  <Link
-                    href={`/signup?plano=${p.id}${anual ? '&ciclo=anual' : ''}`}
-                    className={`block w-full text-center px-4 py-3 text-sm font-bold rounded-xl mb-7 transition-all hover:-translate-y-0.5 ${
-                      p.destaque
-                        ? 'text-white shadow-md hover:shadow-lg'
-                        : 'text-zinc-950 dark:text-white border border-zinc-300 dark:border-white/[0.14] hover:bg-zinc-100 dark:hover:bg-white/[0.04]'
-                    }`}
-                    style={p.destaque ? { background: `linear-gradient(135deg, ${p.cor} 0%, ${escurecer(p.cor)} 100%)` } : {}}
-                  >
-                    Começar agora →
-                  </Link>
+                  {esperaLista ? (
+                    <a
+                      href={`mailto:contato@forsora.com?subject=${encodeURIComponent('Lista de espera Sora México')}&body=${encodeURIComponent('Hola, me interesa el plan ' + pt.nome + '. Avísenme cuando Sora esté disponible en México.')}`}
+                      className={`block w-full text-center px-4 py-3 text-sm font-bold rounded-xl mb-7 transition-all hover:-translate-y-0.5 ${
+                        p.destaque
+                          ? 'text-white shadow-md hover:shadow-lg'
+                          : 'text-zinc-950 dark:text-white border border-zinc-300 dark:border-white/[0.14] hover:bg-zinc-100 dark:hover:bg-white/[0.04]'
+                      }`}
+                      style={p.destaque ? { background: `linear-gradient(135deg, ${p.cor} 0%, ${escurecer(p.cor)} 100%)` } : {}}
+                    >
+                      {t('ctaEspera')}
+                    </a>
+                  ) : (
+                    <Link
+                      href={`/signup?plano=${p.id}${anual ? '&ciclo=anual' : ''}`}
+                      className={`block w-full text-center px-4 py-3 text-sm font-bold rounded-xl mb-7 transition-all hover:-translate-y-0.5 ${
+                        p.destaque
+                          ? 'text-white shadow-md hover:shadow-lg'
+                          : 'text-zinc-950 dark:text-white border border-zinc-300 dark:border-white/[0.14] hover:bg-zinc-100 dark:hover:bg-white/[0.04]'
+                      }`}
+                      style={p.destaque ? { background: `linear-gradient(135deg, ${p.cor} 0%, ${escurecer(p.cor)} 100%)` } : {}}
+                    >
+                      {t('ctaComecar')}
+                    </Link>
+                  )}
 
                   {/* Features list */}
                   <ul className="space-y-2.5">
-                    {p.features.map(f => (
+                    {pt.features.map(f => (
                       <li key={f} className="flex items-start gap-2 text-[13px] text-zinc-700 dark:text-white/75 leading-snug">
                         <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center"
                               style={{ background: `${p.cor}22` }}>
@@ -169,15 +192,15 @@ export default function Pricing({ vitalicio = true }: { vitalicio?: boolean }) {
               <ShieldCheck size={30} className="text-white" />
             </div>
             <div className="relative">
-              <p className="text-lg sm:text-xl font-bold tracking-tight">Garantia de 7 dias</p>
+              <p className="text-lg sm:text-xl font-bold tracking-tight">{t('garantiaTitulo')}</p>
               <p className="text-sm text-zinc-600 dark:text-white/65 mt-0.5 leading-relaxed">
-                Não curtiu? Devolvemos <span className="font-bold text-zinc-900 dark:text-white">100% do valor</span> em até 7 dias. Sem perguntas, sem burocracia.
+                {t('garantiaInicio')} <span className="font-bold text-zinc-900 dark:text-white">{t('garantiaDestaque')}</span> {t('garantiaFim')}
               </p>
             </div>
           </div>
           <p className="text-center mt-5 text-sm text-zinc-500 dark:text-white/50">
-            Cancele a qualquer momento.{' '}
-            <span className="text-zinc-900 dark:text-white font-semibold">Sem letras miúdas.</span>
+            {t('cancele')}{' '}
+            <span className="text-zinc-900 dark:text-white font-semibold">{t('semLetras')}</span>
           </p>
         </div>
       </div>

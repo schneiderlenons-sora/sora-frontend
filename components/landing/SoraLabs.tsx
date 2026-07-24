@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Beaker, ArrowLeft, ArrowRight, GraduationCap, CreditCard, Heart, Brain, Clock,
   PlayCircle, Sparkles, ArrowRight as ArrowRightIcon,
@@ -22,67 +23,19 @@ type Curso = {
   comingSoon?: boolean;
 };
 
-const CURSOS: Curso[] = [
-  {
-    id: 'gestao-financeira',
-    titulo: 'Domine sua vida financeira',
-    tag: 'Curso · Finanças',
-    duracao: '12 aulas · 2h',
-    desc: 'Do zero ao controle: organize contas, monte sua reserva e saia do vermelho de uma vez.',
-    cor: '#61ce70',
-    corDark: '#1f6f3d',
-    corGlow: 'rgba(97, 206, 112, 0.45)',
-    icon: GraduationCap,
-    novo: true,
-  },
-  {
-    id: 'creditos-cartao',
-    titulo: 'Cartão de crédito a seu favor',
-    tag: 'Curso · Crédito',
-    duracao: '8 aulas · 1h20',
-    desc: 'Use limite, pontos e cashback como alavanca. Nunca mais pague juros à toa.',
-    cor: '#3b82f6',
-    corDark: '#1d3a8a',
-    corGlow: 'rgba(59, 130, 246, 0.45)',
-    icon: CreditCard,
-  },
-  {
-    id: 'desafio-10kg',
-    titulo: 'Desafio: 10kg em 30 dias',
-    tag: 'Desafio · Saúde',
-    duracao: '30 dias · cardápio',
-    desc: 'Plano alimentar dia a dia, treinos curtos e checkpoints. Emagreça com saúde.',
-    cor: '#f97316',
-    corDark: '#9a3412',
-    corGlow: 'rgba(249, 115, 22, 0.45)',
-    icon: Heart,
-  },
-  {
-    id: 'anti-procrastinacao',
-    titulo: 'Organização anti-procrastinação',
-    tag: 'Curso · Produtividade',
-    duracao: '6 aulas · 45min',
-    desc: 'Sistema de rotina e foco pra quem sempre adia. Comece pequeno, mantenha grande.',
-    cor: '#8b5cf6',
-    corDark: '#4c1d95',
-    corGlow: 'rgba(139, 92, 246, 0.45)',
-    icon: Brain,
-  },
-  {
-    id: 'em-breve',
-    titulo: 'Novos conteúdos todo mês',
-    tag: 'Em breve',
-    duracao: 'Atualizações mensais',
-    desc: 'Toda assinatura ativa recebe cursos, desafios e dicas novas sem custo extra.',
-    cor: '#52525b',
-    corDark: '#27272a',
-    corGlow: 'rgba(82, 82, 91, 0.35)',
-    icon: Clock,
-    comingSoon: true,
-  },
+// Estilo/estrutura fixos; titulo/tag/duracao/desc vêm do catálogo (soraLabs.cursos).
+const CURSO_STYLE = [
+  { id: 'gestao-financeira',   cor: '#61ce70', corDark: '#1f6f3d', corGlow: 'rgba(97, 206, 112, 0.45)', icon: GraduationCap, novo: true },
+  { id: 'creditos-cartao',     cor: '#3b82f6', corDark: '#1d3a8a', corGlow: 'rgba(59, 130, 246, 0.45)', icon: CreditCard },
+  { id: 'desafio-10kg',        cor: '#f97316', corDark: '#9a3412', corGlow: 'rgba(249, 115, 22, 0.45)', icon: Heart },
+  { id: 'anti-procrastinacao', cor: '#8b5cf6', corDark: '#4c1d95', corGlow: 'rgba(139, 92, 246, 0.45)', icon: Brain },
+  { id: 'em-breve',            cor: '#52525b', corDark: '#27272a', corGlow: 'rgba(82, 82, 91, 0.35)',  icon: Clock, comingSoon: true },
 ];
 
 export default function SoraLabs() {
+  const t = useTranslations('soraLabs');
+  const cursoTxt = t.raw('cursos') as { titulo: string; tag: string; duracao: string; desc: string }[];
+  const CURSOS: Curso[] = CURSO_STYLE.map((s, i) => ({ ...s, ...cursoTxt[i] }));
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [podeEsq, setPodeEsq] = useState(false);
   const [podeDir, setPodeDir] = useState(true);
@@ -139,26 +92,27 @@ export default function SoraLabs() {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 border border-zinc-200 dark:border-white/[0.08] bg-zinc-100/60 dark:bg-white/[0.03] backdrop-blur-sm">
             <Beaker size={11} style={{ color: BRAND }} />
             <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-700 dark:text-white/70">
-              Sora Labs
+              {t('badge')}
             </span>
           </div>
 
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            A Sora vai além<br />
+            {t('tituloL1')}<br />
             <span className="text-transparent bg-clip-text"
                   style={{ backgroundImage: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-              da organização.
+              {t('tituloL2')}
             </span>
           </h2>
 
           <div className="mt-6 max-w-2xl mx-auto space-y-3 text-zinc-600 dark:text-white/65 text-base sm:text-lg leading-relaxed">
             <p>
-              Além de toda a plataforma de organização, você recebe acesso ao{' '}
-              <strong className="text-zinc-900 dark:text-white">Sora Labs</strong> — uma plataforma feita exclusivamente para você{' '}
-              <span className="font-semibold" style={{ color: BRAND }}>evoluir</span>.
+              {t.rich('intro1', {
+                b: (c) => <strong className="text-zinc-900 dark:text-white">{c}</strong>,
+                g: (c) => <span className="font-semibold" style={{ color: BRAND }}>{c}</span>,
+              })}
             </p>
             <p className="text-sm sm:text-base text-zinc-500 dark:text-white/50">
-              Acesse mensalmente novos cursos, desafios, dicas financeiras, ideias de negócios e muito mais.
+              {t('intro2')}
             </p>
           </div>
         </div>
@@ -170,7 +124,7 @@ export default function SoraLabs() {
             type="button"
             onClick={() => scrollBy('left')}
             disabled={!podeEsq}
-            aria-label="Cards anteriores"
+            aria-label={t('cardsAnteriores')}
             className={`hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-12 h-12 rounded-full items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/[0.1] shadow-lg transition-all duration-200 ${
               podeEsq ? 'hover:scale-110 hover:shadow-xl active:scale-95 cursor-pointer' : 'opacity-30 cursor-not-allowed'
             }`}
@@ -181,7 +135,7 @@ export default function SoraLabs() {
             type="button"
             onClick={() => scrollBy('right')}
             disabled={!podeDir}
-            aria-label="Próximos cards"
+            aria-label={t('proximosCards')}
             className={`hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-12 h-12 rounded-full items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/[0.1] shadow-lg transition-all duration-200 ${
               podeDir ? 'hover:scale-110 hover:shadow-xl active:scale-95 cursor-pointer' : 'opacity-30 cursor-not-allowed'
             }`}
@@ -202,7 +156,8 @@ export default function SoraLabs() {
             }}
           >
             {CURSOS.map((c, i) => (
-              <CursoCard key={c.id} curso={c} index={i} />
+              <CursoCard key={c.id} curso={c} index={i}
+                labels={{ novo: t('novo'), emBreve: t('emBreve'), acessar: t('acessarCurso') }} />
             ))}
           </div>
         </div>
@@ -212,15 +167,15 @@ export default function SoraLabs() {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 border border-zinc-200 dark:border-white/[0.08] bg-zinc-100/60 dark:bg-white/[0.03] backdrop-blur-sm">
             <Sparkles size={11} style={{ color: BRAND }} />
             <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-700 dark:text-white/70">
-              O diferencial Sora
+              {t('diferencial')}
             </span>
           </div>
           <p className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[-0.02em] leading-[1.15]">
-            <span className="text-zinc-400 dark:text-white/40">Outros softwares vendem só a ferramenta.</span>
+            <span className="text-zinc-400 dark:text-white/40">{t('fraseFinalL1')}</span>
             <br />
             <span className="text-transparent bg-clip-text"
                   style={{ backgroundImage: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-              A Sora entrega a ferramenta e o conhecimento.
+              {t('fraseFinalL2')}
             </span>
           </p>
         </div>
@@ -231,7 +186,7 @@ export default function SoraLabs() {
 
 // ─── Card de curso ────────────────────────────────────────────────────────────
 
-function CursoCard({ curso, index }: { curso: Curso; index: number }) {
+function CursoCard({ curso, index, labels }: { curso: Curso; index: number; labels: { novo: string; emBreve: string; acessar: string } }) {
   const Icon = curso.icon;
 
   return (
@@ -328,7 +283,7 @@ function CursoCard({ curso, index }: { curso: Curso; index: number }) {
         <div className="absolute top-4 right-4 z-10">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-white text-zinc-950 shadow-md">
             <Sparkles size={9} />
-            Novo
+            {labels.novo}
           </span>
         </div>
       )}
@@ -361,12 +316,12 @@ function CursoCard({ curso, index }: { curso: Curso; index: number }) {
           {curso.comingSoon ? (
             <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/80">
               <Clock size={12} />
-              Em breve
+              {labels.emBreve}
             </div>
           ) : (
             <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white transition-all duration-200 group-hover:gap-2.5">
               <PlayCircle size={13} />
-              Acessar curso
+              {labels.acessar}
               <ArrowRightIcon
                 size={12}
                 className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all duration-200"

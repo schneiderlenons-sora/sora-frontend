@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Wallet, Play } from 'lucide-react';
 import ChatFeature from './ChatFeature';
 import { BolhaSora, BolhaUsuario, Digitando, InputBar, Caret } from './chatbits';
@@ -46,21 +47,19 @@ const ComprovanteBolha = (
 
 type Fala = { who: 'user' | 'sora'; texto?: string; media?: React.ReactNode };
 
-// Roteiro: texto (typewriter/input) ou media (áudio/imagem que aparece direto).
-const ROTEIRO: Fala[] = [
-  { who: 'user', texto: 'Gastei 82 reais no iFood' },
-  { who: 'sora', texto: 'Prontinho! 🚀 Acabei de registrar sua despesa de R$ 82,00 no iFood.' },
-
-  // Áudio: nota de voz "gastei 27 reais com uber" → a Sora ouve e lança
+// Roteiro: cada fala é uma chave de texto (typewriter/input) OU media (áudio/
+// imagem que aparece direto). Os textos vêm do catálogo (namespace financasChat
+// → roteiro.*) pra tradução; a ordem/media fica aqui.
+type FalaSpec = { who: 'user' | 'sora'; key?: string; media?: React.ReactNode };
+const ROTEIRO_SPEC: FalaSpec[] = [
+  { who: 'user', key: 'u1' },
+  { who: 'sora', key: 's1' },
   { who: 'user', media: AudioBolha },
-  { who: 'sora', texto: 'Prontinho! 🚀 Ouvi seu áudio e registrei R$ 27,00 no Uber 🚗' },
-
-  // Imagem: foto do comprovante do mercado → a Sora lê e lança (OCR)
+  { who: 'sora', key: 's2' },
   { who: 'user', media: ComprovanteBolha },
-  { who: 'sora', texto: '🧾 Comprovante lido! Lancei R$ 68,90 em Mercado — compras da semana ✅' },
-
-  { who: 'user', texto: 'Sora, quanto eu gastei com iFood essa semana?' },
-  { who: 'sora', texto: 'Essa semana foram R$ 227,00 no iFood 🍔 Já virou sua categoria que mais pesa.' },
+  { who: 'sora', key: 's3' },
+  { who: 'user', key: 'u2' },
+  { who: 'sora', key: 's4' },
 ];
 
 function useInView<T extends HTMLElement>(threshold = 0.35) {
@@ -80,6 +79,12 @@ function useInView<T extends HTMLElement>(threshold = 0.35) {
 // "digitando", typewriter letra a letra, input centralizado quando vazio,
 // clip no topo e fade de saída no loop. Áudio/imagem aparecem direto.
 function FinancasCard() {
+  const t = useTranslations('financasChat.roteiro');
+  const ROTEIRO: Fala[] = ROTEIRO_SPEC.map((f) => ({
+    who: f.who,
+    media: f.media,
+    texto: f.key ? t(f.key) : undefined,
+  }));
   const { ref, inView } = useInView<HTMLDivElement>();
   const [msgs, setMsgs] = useState<Fala[]>([]);
   const [typingIdx, setTypingIdx] = useState<number | null>(null);
@@ -163,19 +168,16 @@ function FinancasCard() {
 }
 
 export default function FinancasChat() {
+  const t = useTranslations('financasChat');
   return (
     <ChatFeature
       accent="#61ce70"
       accentTo="#4DAE61"
       badgeIcon={Wallet}
-      badgeText="Controle Financeiro"
-      heading={<>Anote seus gastos<br className="hidden sm:block" /> por áudio ou texto.</>}
-      paragraph="Registre cada despesa ou receita em segundos. A Sora ouve seus áudios, entende sua fala natural e categoriza tudo automaticamente."
-      items={[
-        'Consulte qualquer gasto pelo WhatsApp',
-        'Seus gastos já chegam categorizados',
-        'Resumo do dia direto pra você',
-      ]}
+      badgeText={t('badge')}
+      heading={<>{t('headingL1')}<br className="hidden sm:block" /> {t('headingL2')}</>}
+      paragraph={t('paragraph')}
+      items={t.raw('items') as string[]}
       visual={<FinancasCard />}
     />
   );

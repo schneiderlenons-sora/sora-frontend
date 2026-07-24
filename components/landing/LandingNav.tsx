@@ -3,18 +3,21 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 import { Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
-
-const LINKS = [
-  { href: '#solucao',    label: 'Solução'  },
-  { href: '#pricing',    label: 'Planos'   },
-  { href: '#faq',        label: 'Dúvidas'  },
-];
+import LanguageSwitcher from './LanguageSwitcher';
 
 export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggle?: boolean } = {}) {
   const { user } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
+  const t = useTranslations('nav');
+
+  const LINKS = [
+    { href: '#solucao', label: t('solucao') },
+    { href: '#pricing', label: t('planos')  },
+    { href: '#faq',     label: t('duvidas') },
+  ];
   const [open, setOpen]       = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -68,6 +71,9 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
 
           {/* Ações */}
           <div className="flex items-center gap-2">
+            {/* Seletor de idioma (PT/ES) */}
+            <LanguageSwitcher />
+
             {/* Toggle de tema (escondido em páginas de tema fixo, ex.: /kit) */}
             {!hideThemeToggle && (
               <button
@@ -83,12 +89,12 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
             {user ? (
               <Link href="/dashboard"
                     className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-lg text-zinc-950 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors">
-                Meu painel <ArrowRight size={13} />
+                {t('meuPainel')} <ArrowRight size={13} />
               </Link>
             ) : (
               <Link href="/login"
                     className="hidden sm:inline-flex items-center px-3.5 py-2 text-sm font-semibold rounded-lg text-zinc-700 dark:text-white/80 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors">
-                Entrar
+                {t('entrar')}
               </Link>
             )}
 
@@ -96,7 +102,7 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
             <Link href={user ? '/dashboard' : '#pricing'}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white shadow-[0_2px_10px_-2px_rgba(97,206,112,0.5)] rounded-lg transition-all hover:shadow-[0_4px_20px_-4px_rgba(97,206,112,0.6)] hover:-translate-y-[1px]"
                   style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
-              {user ? 'Abrir Sora' : 'Começar'} <ArrowRight size={13} />
+              {user ? t('abrirSora') : t('comecar')} <ArrowRight size={13} />
             </Link>
 
             {/* Mobile menu */}
@@ -139,7 +145,7 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
                       onClick={() => setOpen(false)}
                       className="block w-full text-center px-4 py-3 text-sm font-bold text-white rounded-xl shadow-md"
                       style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
-                  {user ? 'Abrir Sora' : 'Começar'}
+                  {user ? t('abrirSora') : t('comecar')}
                 </Link>
               </li>
               {!user && (
@@ -147,7 +153,7 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
                   <Link href="/login"
                         onClick={() => setOpen(false)}
                         className="block w-full text-center px-4 py-3 text-sm font-semibold text-zinc-700 dark:text-white/80">
-                    Entrar
+                    {t('entrar')}
                   </Link>
                 </li>
               )}

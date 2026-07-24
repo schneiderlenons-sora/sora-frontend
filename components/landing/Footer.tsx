@@ -1,45 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
-const COLUNAS = [
-  {
-    titulo: 'Produto',
-    links: [
-      { label: 'Recursos',       href: '#features' },
-      { label: 'Demo no zap',    href: '#demo' },
-      { label: 'Planos',         href: '#pricing' },
-    ],
-  },
-  {
-    titulo: 'Empresa',
-    links: [
-      { label: 'Sobre nós',      href: '#' },
-      { label: 'Blog',           href: '#' },
-      { label: 'Carreiras',      href: '#' },
-      { label: 'Imprensa',       href: '#' },
-    ],
-  },
-  {
-    titulo: 'Suporte',
-    links: [
-      { label: 'Central de ajuda', href: '#' },
-      { label: 'WhatsApp',         href: '#' },
-      { label: 'Status do sistema', href: '#' },
-      { label: 'Contato',          href: '#' },
-    ],
-  },
-  {
-    titulo: 'Legal',
-    links: [
-      { label: 'Termos de uso',     href: '/termos' },
-      { label: 'Privacidade',       href: '/privacidade' },
-      { label: 'LGPD',              href: '/privacidade' },
-    ],
-  },
+// Só os hrefs ficam no código; os rótulos/títulos vêm do catálogo (mesma ordem).
+const COLUNA_HREFS = [
+  ['#features', '#demo', '#pricing'],
+  ['#', '#', '#', '#'],
+  ['#', '#', '#', '#'],
+  ['/termos', '/privacidade', '/privacidade'],
 ];
 
 export default function Footer() {
+  const t = useTranslations('footer');
+  const cols = t.raw('colunas') as { titulo: string; links: string[] }[];
+  const COLUNAS = cols.map((c, i) => ({
+    titulo: c.titulo,
+    links: c.links.map((label, j) => ({ label, href: COLUNA_HREFS[i]?.[j] ?? '#' })),
+  }));
   return (
     <footer className="relative border-t border-zinc-200/50 dark:border-white/[0.04] pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
@@ -53,7 +31,7 @@ export default function Footer() {
               <span className="font-bold text-lg tracking-tight">Sora</span>
             </Link>
             <p className="text-sm text-zinc-600 dark:text-white/60 leading-relaxed max-w-sm">
-              Finanças, hábitos, saúde, estudos e negócios — organizados pelo seu WhatsApp.
+              {t('tagline')}
             </p>
             <div className="flex items-center gap-3 mt-6">
               <SocialIcon label="Instagram"><InstaSvg /></SocialIcon>
@@ -85,7 +63,7 @@ export default function Footer() {
             legal + necessário pra verificação de negócio na Meta. */}
         <div className="py-6 border-t border-zinc-200 dark:border-white/[0.06] text-xs text-zinc-500 dark:text-white/45 leading-relaxed space-y-1">
           <p>
-            <span className="font-semibold text-zinc-700 dark:text-white/65">Sora</span> é um produto de{' '}
+            <span className="font-semibold text-zinc-700 dark:text-white/65">Sora</span> {t('produtoDe')}{' '}
             <span className="font-semibold text-zinc-700 dark:text-white/65">ENOTAS DESENVOLVIMENTO DE SOFTWARES LTDA</span>
             {' · '}CNPJ 14.422.279/0001-06
           </p>
@@ -105,14 +83,14 @@ export default function Footer() {
                 <span className="absolute inset-0 rounded-full animate-ping bg-green-500 opacity-50" />
                 <span className="relative rounded-full w-1.5 h-1.5 bg-green-500" />
               </span>
-              Todos os sistemas operacionais
+              {t('sistemasOk')}
             </span>
             <span className="hidden sm:inline w-px h-3 bg-zinc-300 dark:bg-white/15" />
-            <span className="hidden sm:inline">LGPD · ISO 27001</span>
+            <span className="hidden sm:inline">{t('compliance')}</span>
           </div>
 
           <p className="text-xs text-zinc-500 dark:text-white/40">
-            © {new Date().getFullYear()} Sora · Feito no Brasil 🇧🇷
+            © {new Date().getFullYear()} Sora · {t('feitoNoBrasil')}
           </p>
         </div>
       </div>

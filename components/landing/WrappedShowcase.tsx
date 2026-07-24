@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Calendar, Wallet, Sprout, Share2 } from 'lucide-react';
 
 // Imagens de exemplo do Wrapped (artes 9:16, formato story).
@@ -14,6 +15,7 @@ const WRAPPED_IMGS = [
 // Card 9:16 com a arte do Wrapped (+ brilho de vidro). Fallback elegante
 // enquanto a imagem não existe — a feature já fica apresentável.
 function WrappedImg({ src }: { src: string }) {
+  const t = useTranslations('wrappedShowcase');
   const [erro, setErro] = useState(false);
   return (
     <div className="relative w-full aspect-[9/16] rounded-[22px] overflow-hidden shadow-2xl ring-1 ring-black/20 dark:ring-white/10 bg-zinc-900">
@@ -21,13 +23,13 @@ function WrappedImg({ src }: { src: string }) {
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center px-3"
              style={{ background: 'linear-gradient(160deg, rgba(97,206,112,0.22), rgba(124,58,237,0.12) 55%, #0a0a0c)' }}>
           <span className="text-3xl" aria-hidden>🐳</span>
-          <span className="text-[10px] text-white/60">Wrapped em breve</span>
+          <span className="text-[10px] text-white/60">{t('emBreve')}</span>
         </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt="Exemplo do Sora Wrapped"
+          alt={t('imgAlt')}
           loading="lazy"
           draggable={false}
           onError={() => setErro(true)}
@@ -59,14 +61,12 @@ function FanItem({ base, children }: { base: string; children: React.ReactNode }
   );
 }
 
-const CHIPS = [
-  { icon: Calendar, txt: 'Mensal e anual' },
-  { icon: Wallet, txt: 'Finanças' },
-  { icon: Sprout, txt: 'Sora Grow' },
-  { icon: Share2, txt: 'Pronto pro story' },
-];
+const CHIP_ICON = [Calendar, Wallet, Sprout, Share2];
 
 export default function WrappedShowcase() {
+  const t = useTranslations('wrappedShowcase');
+  const chipTxt = t.raw('chips') as string[];
+  const CHIPS = CHIP_ICON.map((icon, i) => ({ icon, txt: chipTxt[i] }));
   return (
     <section className="relative py-24 lg:py-32 border-t border-zinc-200/50 dark:border-white/[0.04] overflow-hidden">
       {/* glow de fundo */}
@@ -77,15 +77,15 @@ export default function WrappedShowcase() {
 
       <div className="relative max-w-5xl mx-auto px-5 sm:px-8 text-center">
         <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-          Sora Wrapped
+          {t('label')}
         </p>
 
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-[-0.03em] max-w-3xl mx-auto">
-          No fim do mês, seus números<br className="hidden sm:block" /> viram um story.
+          {t('tituloL1')}<br className="hidden sm:block" /> {t('tituloL2')}
         </h2>
 
         <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto mt-5">
-          Tipo o Spotify Wrapped — só que do seu dinheiro e da sua evolução.
+          {t('sub')}
         </p>
 
         {/* ── Leque de cards (slides reais do Wrapped) ── */}
@@ -120,10 +120,9 @@ export default function WrappedShowcase() {
         </div>
 
         <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-          Todo mês — e todo fim de ano — a Sora transforma seus dados num resumo animado e lindo:
-          seu <strong className="text-zinc-900 dark:text-white">maior vilão de gastos</strong>, quanto você
-          economizou, sua <strong className="text-zinc-900 dark:text-white">sequência de treinos</strong>, seus
-          hábitos campeões. Do jeitinho que dá vontade de mostrar pra todo mundo — em um toque.
+          {t.rich('descricao', {
+            b: (chunks) => <strong className="text-zinc-900 dark:text-white">{chunks}</strong>,
+          })}
         </p>
       </div>
     </section>

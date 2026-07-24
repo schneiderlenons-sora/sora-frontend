@@ -2,43 +2,11 @@
 
 import { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
-
-const PERGUNTAS = [
-  {
-    q: 'O Open Finance é seguro?',
-    a: 'Totalmente. A Sora opera dentro do convênio oficial do Banco Central. Você autoriza via app do seu banco, suas credenciais nunca passam pela Sora, e você pode revogar o acesso a qualquer momento direto pelo seu banco. Tudo criptografado ponta-a-ponta.',
-  },
-  {
-    q: 'O WhatsApp da Sora é seguro?',
-    a: 'Sim. Cada conta é vinculada a um número único, e a Sora só responde a você. Suas mensagens não são compartilhadas com ninguém e ficam protegidas pela criptografia do próprio WhatsApp. A IA processa só o necessário pra entender e responder.',
-  },
-  {
-    q: 'Quais bancos vocês suportam?',
-    a: 'Todos os bancos do Sistema Financeiro Nacional via Open Finance: Nubank, Itaú, Bradesco, Banco do Brasil, Santander, Caixa, C6, Inter, Will, Mercado Pago, PagBank, Sicredi, Sicoob, BTG, Next, Original — e mais 50+ instituições conveniadas.',
-  },
-  {
-    q: 'Preciso instalar algum app?',
-    a: 'Não. A Sora roda no seu WhatsApp (que você já tem) e num painel web que você acessa pelo navegador. Tem versão PWA — se quiser, dá pra "instalar" o painel como se fosse um app, sem passar pela App Store.',
-  },
-  {
-    q: 'Tem garantia? E se eu não gostar?',
-    a: 'Tem garantia de 7 dias. Se você assinar e não curtir, devolvemos 100% do valor em até 7 dias — é só pedir pelo suporte, sem perguntas e sem burocracia.',
-  },
-  {
-    q: 'Como cancelo? Perco meus dados?',
-    a: 'Cancela direto pelo painel em 1 clique — sem ligar, sem email. Seus dados ficam disponíveis por 30 dias pra você exportar (CSV/OFX). Depois disso são removidos permanentemente, conforme LGPD.',
-  },
-  {
-    q: 'Funciona pra empreendedor digital?',
-    a: 'Sim, é exatamente pra isso que existe o Plano Premium. Conecta Hotmart, Kiwify, Eduzz, Stripe via webhook e captura cada venda em tempo real. Sora monta seu DRE, calcula imposto, faz forecast e gera insights automáticos.',
-  },
-  {
-    q: 'Posso compartilhar a conta com família ou sócio?',
-    a: 'Sim — a partir do plano Premium. Gestão compartilhada permite que casal, família ou sócio tenham acesso ao mesmo painel financeiro, com transações e metas conjuntas. Cada um com seu login próprio.',
-  },
-];
+import { useTranslations } from 'next-intl';
 
 export default function Faq() {
+  const t = useTranslations('faq');
+  const PERGUNTAS = t.raw('perguntas') as { q: string; a: string }[];
   const [aberto, setAberto] = useState<number | null>(0);
 
   return (
@@ -47,11 +15,11 @@ export default function Faq() {
 
         <div className="text-center mb-14">
           <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-            Dúvidas
+            {t('label')}
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em]">
-            Perguntas<br />
-            <span className="text-zinc-400 dark:text-white/30">frequentes.</span>
+            {t('tituloL1')}<br />
+            <span className="text-zinc-400 dark:text-white/30">{t('tituloL2')}</span>
           </h2>
         </div>
 

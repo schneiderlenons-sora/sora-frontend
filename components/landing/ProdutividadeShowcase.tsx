@@ -6,6 +6,7 @@ import {
   Sparkles, Pencil, Trash2, FileText, MessageCircle, ListTodo,
 } from 'lucide-react';
 import { Caret } from './chatbits';
+import { useTranslations } from 'next-intl';
 
 const VERDE = '#16a34a';   // acento escuro (contraste em card branco)
 const VERDE_CLARO = '#61ce70';
@@ -37,11 +38,12 @@ function Onda({ cor = VERDE }: { cor?: string }) {
 // CARD 1 — Crie projetos (formulário com typewriter → dashboard com progresso)
 // ---------------------------------------------------------------------------
 function ProjetoMini({ nome, cat, pct, counts, on }: { nome: string; cat: string; pct: number; counts: [number, number, number, number]; on: boolean }) {
+  const t = useTranslations('produtividade');
   const stats = [
-    { n: counts[0], l: 'PEND.', c: 'text-zinc-500' },
-    { n: counts[1], l: 'FAZENDO', c: 'text-emerald-600' },
-    { n: counts[2], l: 'ATRASO', c: 'text-red-500' },
-    { n: counts[3], l: 'CONCL.', c: 'text-green-600' },
+    { n: counts[0], l: t('stPend'), c: 'text-zinc-500' },
+    { n: counts[1], l: t('stFazendo'), c: 'text-emerald-600' },
+    { n: counts[2], l: t('stAtraso'), c: 'text-red-500' },
+    { n: counts[3], l: t('stConcl'), c: 'text-green-600' },
   ];
   return (
     <div className="rounded-xl border border-zinc-200/80 bg-white p-3">
@@ -55,7 +57,7 @@ function ProjetoMini({ nome, cat, pct, counts, on }: { nome: string; cat: string
         </div>
       </div>
       <div className="flex items-center justify-between text-[10px] text-zinc-500 mb-1">
-        <span>Progresso</span><span className="font-semibold tabular-nums">{on ? pct : 0}%</span>
+        <span>{t('progresso')}</span><span className="font-semibold tabular-nums">{on ? pct : 0}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-zinc-100 overflow-hidden mb-2.5">
         <div className="h-full rounded-full transition-[width] duration-[900ms] ease-out"
@@ -74,6 +76,7 @@ function ProjetoMini({ nome, cat, pct, counts, on }: { nome: string; cat: string
 }
 
 function ProjetosCard() {
+  const t = useTranslations('produtividade');
   const { ref, inView } = useInView<HTMLDivElement>();
   const [fase, setFase] = useState<'form' | 'dash'>('form');
   const [nome, setNome] = useState('');
@@ -86,7 +89,7 @@ function ProjetosCard() {
     let vivo = true;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const espera = (ms: number) => new Promise<void>((r) => { timers.push(setTimeout(r, ms)); });
-    const NOME = 'Mudança de Apartamento';
+    const NOME = t('projetoNomeAnim');
     (async () => {
       while (vivo) {
         setFase('form'); setNome(''); setSalvando(false); setProg(false); setVisivel(true);
@@ -106,10 +109,10 @@ function ProjetosCard() {
   return (
     <div ref={ref} className="rounded-3xl bg-white/95 backdrop-blur p-6 sm:p-8 shadow-[0_20px_60px_-25px_rgba(0,0,0,0.35)]">
       <h3 className="text-2xl sm:text-[28px] font-bold leading-tight tracking-tight text-zinc-900">
-        Crie projetos e acompanhe<br className="hidden sm:block" /> sua evolução no painel.
+        {t('projetosTituloL1')}<br className="hidden sm:block" /> {t('projetosTituloL2')}
       </h3>
       <p className="mt-3 text-zinc-500 leading-relaxed max-w-md">
-        Crie seus projetos por áudio e acompanhe tudo: o que falta fazer, o que tá atrasado e o que já concluiu.
+        {t('projetosDesc')}
       </p>
 
       <div className={`relative mt-7 h-[290px] transition-opacity duration-300 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
@@ -121,32 +124,32 @@ function ProjetosCard() {
                 <Folder size={17} style={{ color: VERDE }} />
               </span>
               <div className="leading-tight">
-                <p className="font-bold text-sm text-zinc-900">Novo Projeto</p>
-                <p className="text-[11px] text-zinc-400">Crie um projeto para agrupar suas tarefas.</p>
+                <p className="font-bold text-sm text-zinc-900">{t('novoProjeto')}</p>
+                <p className="text-[11px] text-zinc-400">{t('novoProjetoDesc')}</p>
               </div>
             </div>
-            <p className="text-[10px] font-bold tracking-wider text-zinc-400 mt-4 mb-1.5">NOME DO PROJETO</p>
+            <p className="text-[10px] font-bold tracking-wider text-zinc-400 mt-4 mb-1.5">{t('lblNomeProjeto')}</p>
             <div className="h-10 rounded-lg border border-zinc-200 bg-white px-3 flex items-center text-[13px] text-zinc-800">
               {nome}<Caret />
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
               <div>
-                <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-1.5">CATEGORIA</p>
+                <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-1.5">{t('lblCategoria')}</p>
                 <div className="h-9 rounded-lg border border-zinc-200 px-3 flex items-center justify-between text-[12px] text-zinc-600">
-                  Pessoal <ChevronDown size={13} className="text-zinc-400" />
+                  {t('catPessoal')} <ChevronDown size={13} className="text-zinc-400" />
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-1.5">PRAZO</p>
+                <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-1.5">{t('lblPrazo')}</p>
                 <div className="h-9 rounded-lg border border-zinc-200 px-3 flex items-center gap-1.5 text-[12px] text-zinc-500">
-                  <Calendar size={12} /> 15 de Jul
+                  <Calendar size={12} /> {t('dataPrazo')}
                 </div>
               </div>
             </div>
             <div className="flex justify-end mt-4">
               <button className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-[13px] font-bold transition-transform ${salvando ? 'scale-95' : ''}`}
                       style={{ background: `linear-gradient(135deg, ${VERDE_CLARO}, ${VERDE})` }}>
-                <Check size={14} strokeWidth={3} /> Salvar Projeto
+                <Check size={14} strokeWidth={3} /> {t('salvarProjeto')}
               </button>
             </div>
           </div>
@@ -155,12 +158,12 @@ function ProjetosCard() {
         {fase === 'dash' && (
         <div className="absolute inset-0">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-bold text-sm text-zinc-900">Projetos</p>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold" style={{ color: VERDE, background: 'rgba(97,206,112,0.14)' }}>+ Novo Projeto</span>
+            <p className="font-bold text-sm text-zinc-900">{t('projetos')}</p>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold" style={{ color: VERDE, background: 'rgba(97,206,112,0.14)' }}>{t('btnNovoProjeto')}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <ProjetoMini nome="Mudança de Apto" cat="Pessoal"  pct={0}  counts={[3, 0, 0, 0]} on={prog} />
-            <ProjetoMini nome="TCC da Faculdade" cat="Educação" pct={33} counts={[2, 1, 2, 1]} on={prog} />
+            <ProjetoMini nome={t('proj1Nome')} cat={t('catPessoal')}  pct={0}  counts={[3, 0, 0, 0]} on={prog} />
+            <ProjetoMini nome={t('proj2Nome')} cat={t('catEducacao')} pct={33} counts={[2, 1, 2, 1]} on={prog} />
           </div>
         </div>
         )}
@@ -172,13 +175,11 @@ function ProjetosCard() {
 // ---------------------------------------------------------------------------
 // CARD 2 — Divida em tarefas + prioridade (áudio → prioridade → lista)
 // ---------------------------------------------------------------------------
-const PRIOS = [
-  { l: 'Baixa / Normal', cor: '#16a34a' },
-  { l: 'Alta Prioridade', cor: '#d97706' },
-  { l: 'Urgente', cor: '#ef4444' },
-];
+const PRIO_COR = ['#16a34a', '#d97706', '#ef4444'];
 
 function TarefasCard() {
+  const t = useTranslations('produtividade');
+  const PRIOS = (t.raw('prios') as string[]).map((l, i) => ({ l, cor: PRIO_COR[i] }));
   const { ref, inView } = useInView<HTMLDivElement>();
   const [fase, setFase] = useState<'input' | 'list'>('input');
   const [transc, setTransc] = useState('');
@@ -191,7 +192,7 @@ function TarefasCard() {
     let vivo = true;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const espera = (ms: number) => new Promise<void>((r) => { timers.push(setTimeout(r, ms)); });
-    const T = 'Preciso escrever a conclusão do meu TCC até 30 de novembro';
+    const T = t('tarefaTranscAnim');
     (async () => {
       while (vivo) {
         setFase('input'); setTransc(''); setAbriu(false); setSel(false); setVisivel(true);
@@ -211,10 +212,10 @@ function TarefasCard() {
   return (
     <div ref={ref} className="rounded-3xl bg-white/95 backdrop-blur p-6 sm:p-8 shadow-[0_20px_60px_-25px_rgba(0,0,0,0.35)]">
       <h3 className="text-2xl sm:text-[28px] font-bold leading-tight tracking-tight text-zinc-900">
-        Divida seus projetos em tarefas<br className="hidden sm:block" /> e defina o que vem primeiro.
+        {t('tarefasTituloL1')}<br className="hidden sm:block" /> {t('tarefasTituloL2')}
       </h3>
       <p className="mt-3 text-zinc-500 leading-relaxed max-w-md">
-        Cada projeto vira uma lista de pequenos afazeres. Defina prioridades e inclua sua equipe.
+        {t('tarefasDesc')}
       </p>
 
       <div className={`relative mt-7 h-[290px] transition-opacity duration-300 ${visivel ? 'opacity-100' : 'opacity-0'}`}>
@@ -229,10 +230,10 @@ function TarefasCard() {
             <p className="mt-2 text-[12px] italic text-zinc-600 leading-snug min-h-[32px]">“{transc}<Caret />”</p>
           </div>
 
-          <p className="text-[10px] font-bold tracking-wider text-zinc-400 mt-5 mb-2">NÍVEL DE PRIORIDADE</p>
+          <p className="text-[10px] font-bold tracking-wider text-zinc-400 mt-5 mb-2">{t('nivelPrioridade')}</p>
           <div className={`rounded-xl border border-zinc-200 bg-white overflow-hidden transition-all duration-300 ${abriu ? 'opacity-100 max-h-56' : 'opacity-0 max-h-0'}`}>
-            {PRIOS.map((p) => {
-              const ativo = sel && p.l === 'Urgente';
+            {PRIOS.map((p, i) => {
+              const ativo = sel && i === 2;
               return (
                 <div key={p.l} className="flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] transition-colors"
                      style={ativo ? { background: 'rgba(239,68,68,0.08)' } : undefined}>
@@ -247,35 +248,35 @@ function TarefasCard() {
         )}
         {fase === 'list' && (
         <div className="absolute inset-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">Pendente</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">{t('pendente')}</p>
           <div className="rounded-xl border border-zinc-200 bg-white p-3.5 animate-[slide-up_450ms_ease-out_both]">
             <div className="flex items-start gap-2.5">
               <span className="w-4 h-4 rounded-full border-2 border-zinc-300 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[13px] text-zinc-900">Conclusão do TCC</p>
+                <p className="font-semibold text-[13px] text-zinc-900">{t('tarefaConclusao')}</p>
                 <p className="text-[11px] text-zinc-400 flex items-center gap-2 mt-0.5">
-                  <span className="flex items-center gap-1"><Calendar size={11} /> 30 de novembro</span>
+                  <span className="flex items-center gap-1"><Calendar size={11} /> {t('data30nov')}</span>
                   <span className="flex items-center gap-1 font-semibold" style={{ color: '#ef4444' }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#ef4444' }} /> Urgente
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#ef4444' }} /> {t('urgente')}
                   </span>
                 </p>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-2 text-[11px] font-semibold">
-              <span className="flex items-center gap-1 text-zinc-400"><Pencil size={11} /> Editar</span>
-              <span className="flex items-center gap-1 text-red-500"><Trash2 size={11} /> Excluir</span>
+              <span className="flex items-center gap-1 text-zinc-400"><Pencil size={11} /> {t('editar')}</span>
+              <span className="flex items-center gap-1 text-red-500"><Trash2 size={11} /> {t('excluir')}</span>
             </div>
           </div>
 
-          <p className="text-[11px] font-bold uppercase tracking-wider mt-4 mb-2" style={{ color: VERDE }}>Concluídas</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider mt-4 mb-2" style={{ color: VERDE }}>{t('concluidas')}</p>
           <div className="rounded-xl border-l-4 border border-zinc-200 bg-white p-3.5 animate-[slide-up_500ms_ease-out_both]" style={{ borderLeftColor: VERDE_CLARO, animationDelay: '120ms' }}>
             <div className="flex items-center gap-2.5">
               <span className="w-4 h-4 rounded-full grid place-items-center flex-shrink-0" style={{ background: VERDE_CLARO }}>
                 <Check size={11} strokeWidth={3} className="text-white" />
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] text-zinc-400 line-through">Pesquisar a estrutura do TCC</p>
-                <p className="text-[11px] text-zinc-300 flex items-center gap-1 mt-0.5"><Calendar size={11} /> Sem prazo</p>
+                <p className="text-[13px] text-zinc-400 line-through">{t('tarefaPesquisar')}</p>
+                <p className="text-[11px] text-zinc-300 flex items-center gap-1 mt-0.5"><Calendar size={11} /> {t('semPrazo')}</p>
               </div>
             </div>
           </div>
@@ -338,6 +339,7 @@ function Resultado({ on, icon, label, atraso = 0 }: { on: boolean; icon: React.R
 }
 
 export default function ProdutividadeShowcase({ onLight = false }: { onLight?: boolean }) {
+  const t = useTranslations('produtividade');
   return (
     <section className={`relative overflow-hidden py-20 lg:py-28 ${onLight ? 'border-t border-zinc-200/50 dark:border-white/[0.04]' : ''}`}
              style={onLight ? undefined : { background: 'linear-gradient(165deg, #0b3d22 0%, #14713f 45%, #2aa15c 100%)' }}>
@@ -351,14 +353,13 @@ export default function ProdutividadeShowcase({ onLight = false }: { onLight?: b
         <div className="text-center max-w-3xl mx-auto">
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold shadow-sm"
                 style={onLight ? { background: `linear-gradient(135deg, ${VERDE_CLARO}, ${VERDE})`, color: '#fff' } : { background: '#fff', color: VERDE }}>
-            <Zap size={15} fill="currentColor" /> Produtividade &amp; Gestão
+            <Zap size={15} fill="currentColor" /> {t('badge')}
           </span>
           <h2 className={`mt-6 text-3xl sm:text-5xl font-bold leading-[1.08] tracking-tight ${onLight ? 'text-zinc-900 dark:text-white' : 'text-white'}`}>
-            Fale tudo que está na sua cabeça.<br className="hidden sm:block" /> A Sora anota, organiza e não esquece nada.
+            {t('tituloL1')}<br className="hidden sm:block" /> {t('tituloL2')}
           </h2>
           <p className={`mt-5 text-base sm:text-lg leading-relaxed ${onLight ? 'text-zinc-500 dark:text-white/60' : 'text-white/75'}`}>
-            Não importa se é uma tarefa rápida, um projeto grande ou uma ideia que veio agora — a Sora anota,
-            organiza e acompanha tudo por você.
+            {t('subtitulo')}
           </p>
         </div>
 
@@ -371,25 +372,25 @@ export default function ProdutividadeShowcase({ onLight = false }: { onLight?: b
         {/* 3 CARDS MENORES */}
         <div className="mt-6 grid md:grid-cols-3 gap-6">
           <MiniCard
-            titulo="A Sora te lembra na hora certa."
-            desc="Você configura o lembrete uma vez e a Sora dispara sozinha no seu WhatsApp — remédio, conta, hábito ou qualquer compromisso."
+            titulo={t('mini1Titulo')}
+            desc={t('mini1Desc')}
           >
             {(on) => (
               <>
                 <div className="absolute left-0 top-0 w-[62%] rounded-xl bg-white border border-zinc-100 shadow-md p-3">
-                  <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-zinc-400"><Bell size={12} /> LEMBRETE</p>
-                  <p className="mt-2 text-[12px] font-semibold text-zinc-800">💊 Tomar remédio</p>
-                  <p className="text-[10px] text-zinc-400">Todo dia · 08:00</p>
+                  <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-zinc-400"><Bell size={12} /> {t('lblLembrete')}</p>
+                  <p className="mt-2 text-[12px] font-semibold text-zinc-800">{t('lembreteRemedio')}</p>
+                  <p className="text-[10px] text-zinc-400">{t('lembreteHora')}</p>
                 </div>
                 <Selo on={on} />
-                <Resultado on={on} icon={<MessageCircle size={11} />} label="ENVIADO NO WHATSAPP" />
+                <Resultado on={on} icon={<MessageCircle size={11} />} label={t('enviadoWhatsApp')} />
               </>
             )}
           </MiniCard>
 
           <MiniCard
-            titulo="Fale, e vira tarefa organizada."
-            desc="Manda um áudio contando o que precisa fazer. A Sora entende, transcreve e cria a tarefa já categorizada pra você."
+            titulo={t('mini2Titulo')}
+            desc={t('mini2Desc')}
           >
             {(on) => (
               <>
@@ -399,17 +400,17 @@ export default function ProdutividadeShowcase({ onLight = false }: { onLight?: b
                     <Onda />
                     <span className="ml-auto text-[10px] text-zinc-400">0:05</span>
                   </div>
-                  <p className="mt-2 text-[10px] italic text-zinc-500 leading-snug">“lembra de comprar as passagens...”</p>
+                  <p className="mt-2 text-[10px] italic text-zinc-500 leading-snug">“{t('audioTarefa')}”</p>
                 </div>
                 <Selo on={on} />
-                <Resultado on={on} icon={<ListTodo size={11} />} label="TAREFA CRIADA" />
+                <Resultado on={on} icon={<ListTodo size={11} />} label={t('tarefaCriada')} />
               </>
             )}
           </MiniCard>
 
           <MiniCard
-            titulo="Salve insights e consulte via WhatsApp."
-            desc="Não importa se é uma ideia solta ou um insight sobre um projeto. É só perguntar pra ela depois e ela encontra na hora."
+            titulo={t('mini3Titulo')}
+            desc={t('mini3Desc')}
           >
             {(on) => (
               <>
@@ -419,10 +420,10 @@ export default function ProdutividadeShowcase({ onLight = false }: { onLight?: b
                     <Onda />
                     <span className="ml-auto text-[10px] text-zinc-400">0:12</span>
                   </div>
-                  <p className="mt-2 text-[10px] italic text-zinc-500 leading-snug">“Tive uma ideia sobre o projeto de expansão...”</p>
+                  <p className="mt-2 text-[10px] italic text-zinc-500 leading-snug">“{t('audioNota')}”</p>
                 </div>
                 <Selo on={on} />
-                <Resultado on={on} icon={<FileText size={11} />} label="NOTA SALVA" />
+                <Resultado on={on} icon={<FileText size={11} />} label={t('notaSalva')} />
               </>
             )}
           </MiniCard>

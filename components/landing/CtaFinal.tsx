@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 
 const BRAND = '#61ce70';
 
 export default function CtaFinal() {
   const { user } = useAuth();
+  const t = useTranslations('ctaFinal');
 
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
@@ -45,36 +47,36 @@ export default function CtaFinal() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 border border-white/15 bg-white/5 backdrop-blur-sm">
               <Sparkles size={11} style={{ color: BRAND }} />
-              <span className="text-[11px] font-bold tracking-widest uppercase">A vida que você quer</span>
+              <span className="text-[11px] font-bold tracking-widest uppercase">{t('badge')}</span>
             </div>
 
             <h2 className="text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.02] tracking-[-0.03em] mb-6">
-              Comece hoje.<br />
+              {t('titulo1')}<br />
               <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-                Sua vida agradece.
+                {t('titulo2')}
               </span>
             </h2>
 
             <p className="text-lg lg:text-xl text-white/65 max-w-2xl mx-auto leading-relaxed mb-10">
-              Cancele em 1 toque. Sem letras miúdas, sem permanência.
+              {t('subtitulo')}
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href={user ? '/dashboard' : '#pricing'}
                     className="group inline-flex items-center gap-2 px-6 py-4 text-base font-bold text-white rounded-2xl shadow-[0_15px_50px_-10px_rgba(97,206,112,0.6)] hover:-translate-y-0.5 transition-all"
                     style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-                {user ? 'Abrir meu painel' : 'Escolher meu plano'}
+                {user ? t('botaoPainel') : t('botaoPlano')}
                 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </Link>
 
               <a href="#pricing"
                  className="inline-flex items-center gap-2 px-6 py-4 text-base font-bold rounded-2xl border border-white/15 bg-white/[0.03] backdrop-blur-sm text-white/90 hover:bg-white/[0.08] transition-all">
-                Ver planos
+                {t('verPlanos')}
               </a>
             </div>
 
             <p className="text-xs text-white/40 mt-8">
-              Sem cartão pra começar. Cancele em 1 clique.
+              {t('rodape')}
             </p>
           </div>
         </div>

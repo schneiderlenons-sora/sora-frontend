@@ -1,10 +1,13 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 /**
  * Conteúdo do iPhone 1 — conversa WhatsApp com a Sora pixel-perfect.
  * Cores oficiais do WhatsApp dark: #0B141A bg, #005C4B bolha enviada, #202C33 bolha recebida.
  */
 export default function HeroPhoneWhatsApp() {
+  const t = useTranslations('heroPhone');
   return (
     <div className="relative w-full h-full bg-[#0B141A] flex flex-col text-white text-[10px] text-left"
          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -28,7 +31,7 @@ export default function HeroPhoneWhatsApp() {
              className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
         <div className="flex-1 min-w-0 leading-tight">
           <p className="font-semibold truncate">Sora</p>
-          <p className="text-[8px] text-white/55">online</p>
+          <p className="text-[8px] text-white/55">{t('online')}</p>
         </div>
         <div className="flex items-center gap-2 text-white/70 text-[10px]">
           <span>📹</span>
@@ -47,7 +50,7 @@ export default function HeroPhoneWhatsApp() {
         <div className="flex justify-end">
           <div className="relative max-w-[80%] px-2 py-1.5 rounded-lg rounded-tr-sm text-[9px] leading-snug shadow-sm"
                style={{ background: '#005C4B' }}>
-            gastei 50 no mercado
+            {t('msg1User')}
             <div className="text-[7px] text-white/55 text-right mt-0.5 flex items-center justify-end gap-0.5">
               9:41
               <svg width="10" height="6" viewBox="0 0 12 8" fill="#53BDEB" className="ml-0.5"><path d="M0 4l3 3 5-6M5 4l3 3 4-7" stroke="#53BDEB" strokeWidth="1.2" fill="none" /></svg>
@@ -59,9 +62,9 @@ export default function HeroPhoneWhatsApp() {
         <div className="flex justify-start">
           <div className="relative max-w-[85%] px-2 py-1.5 rounded-lg rounded-tl-sm text-[9px] leading-snug shadow-sm"
                style={{ background: '#202C33' }}>
-            Anotei! <span style={{ color: '#61ce70' }}>💸 R$ 50,00</span> em Mercado.
+            {t('msg1SoraInicio')} <span style={{ color: '#61ce70' }}>{t('msg1SoraValor')}</span> {t('msg1SoraFim')}
             <br />
-            Você já gastou R$ 487 esse mês nessa categoria.
+            {t('msg1SoraLinha2')}
             <div className="text-[7px] text-white/45 text-right mt-0.5">9:41</div>
           </div>
         </div>
@@ -84,10 +87,10 @@ export default function HeroPhoneWhatsApp() {
         <div className="flex justify-start">
           <div className="max-w-[85%] px-2 py-1.5 rounded-lg rounded-tl-sm text-[9px] leading-snug"
                style={{ background: '#202C33' }}>
-            <p className="mb-1">Saldo do mês:</p>
+            <p className="mb-1">{t('saldoMes')}</p>
             <div className="rounded-md p-1.5 mt-0.5" style={{ background: 'rgba(97,206,112,0.15)', border: '1px solid rgba(97,206,112,0.3)' }}>
-              <p className="text-[7px] uppercase tracking-wider text-white/55">Disponível</p>
-              <p className="font-bold text-[12px]" style={{ color: '#61ce70' }}>R$ 3.450,00</p>
+              <p className="text-[7px] uppercase tracking-wider text-white/55">{t('disponivel')}</p>
+              <p className="font-bold text-[12px]" style={{ color: '#61ce70' }}>{t('saldoValor')}</p>
             </div>
             <div className="text-[7px] text-white/45 text-right mt-1">9:42</div>
           </div>
@@ -107,7 +110,7 @@ export default function HeroPhoneWhatsApp() {
       <div className="flex items-center gap-1.5 px-1.5 py-1.5 bg-[#1F2C33]">
         <div className="flex-1 flex items-center gap-1 px-2 py-1 bg-[#2A3942] rounded-full">
           <span className="text-white/40 text-[10px]">😊</span>
-          <span className="text-[9px] text-white/40 flex-1">Mensagem</span>
+          <span className="text-[9px] text-white/40 flex-1">{t('inputPlaceholder')}</span>
           <span className="text-white/40 text-[10px]">📎</span>
           <span className="text-white/40 text-[10px]">📷</span>
         </div>

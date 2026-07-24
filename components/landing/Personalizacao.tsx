@@ -1,23 +1,27 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, ArrowRight, ZoomIn, X, Palette } from 'lucide-react';
 import Link from 'next/link';
 
 // Seção "Personalizado por você" — mostra o MESMO painel em várias cores.
 // Coloque os prints (1 por cor) em: public/landing/cores/<id>.png
-// (verde.png, azul.png, vermelho.png, laranja.png, rosa.png, roxo.png, black.png)
-const CORES = [
-  { id: 'verde',    nome: 'Verde Sora', hex: '#61ce70' },
-  { id: 'azul',     nome: 'Azul',       hex: '#3b82f6' },
-  { id: 'roxo',     nome: 'Roxo',       hex: '#7c3aed' },
-  { id: 'rosa',     nome: 'Rosa',       hex: '#ec4899' },
-  { id: 'vermelho', nome: 'Vermelho',   hex: '#ef4444' },
-  { id: 'laranja',  nome: 'Laranja',    hex: '#f97316' },
-  { id: 'black',    nome: 'Black',      hex: '#18181b' },
-].map((c) => ({ ...c, img: `/landing/cores/${c.id}.png` }));
+// id/hex ficam aqui; o nome de cada cor vem do catálogo (personalizacao.cores).
+const COR_STYLE = [
+  { id: 'verde',    hex: '#61ce70' },
+  { id: 'azul',     hex: '#3b82f6' },
+  { id: 'roxo',     hex: '#7c3aed' },
+  { id: 'rosa',     hex: '#ec4899' },
+  { id: 'vermelho', hex: '#ef4444' },
+  { id: 'laranja',  hex: '#f97316' },
+  { id: 'black',    hex: '#18181b' },
+];
 
 export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: string } = {}) {
+  const t = useTranslations('personalizacao');
+  const nomes = t.raw('cores') as string[];
+  const CORES = COR_STYLE.map((c, i) => ({ ...c, nome: nomes[i], img: `/landing/cores/${c.id}.png` }));
   const [idx, setIdx]   = useState(0);
   const [zoom, setZoom] = useState(false);
   const [imgError, setImgError] = useState<Set<string>>(new Set());
@@ -72,19 +76,17 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
         {/* Header */}
         <div className="text-center mb-12 lg:mb-16">
           <p className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-            <Palette size={13} style={{ color: ativo.hex }} className="transition-colors duration-500" /> Aparência
+            <Palette size={13} style={{ color: ativo.hex }} className="transition-colors duration-500" /> {t('label')}
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            Personalizado<br />
+            {t('tituloL1')}<br />
             <span className="text-transparent bg-clip-text transition-all duration-700"
                   style={{ backgroundImage: `linear-gradient(135deg, ${ativo.hex} 0%, ${ativo.hex}99 100%)` }}>
-              por você.
+              {t('tituloL2')}
             </span>
           </h2>
           <p className="mt-5 text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-            Seu painel, com a sua cara. Escolha o tema que combina com você e a Sora se pinta
-            inteira na hora — do dashboard aos gráficos. Porque organizar a vida é muito melhor
-            quando o app parece <span className="text-zinc-900 dark:text-white font-medium">seu</span>.
+            {t.rich('subtitulo', { b: (c) => <span className="text-zinc-900 dark:text-white font-medium">{c}</span> })}
           </p>
         </div>
 
@@ -109,11 +111,11 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
 
             {/* Setas de navegação no chrome */}
             <div className="ml-auto flex items-center gap-1">
-              <button onClick={prev} aria-label="Cor anterior"
+              <button onClick={prev} aria-label={t('corAnterior')}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
                 <ArrowLeft size={14} />
               </button>
-              <button onClick={next} aria-label="Próxima cor"
+              <button onClick={next} aria-label={t('proximaCor')}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
                 <ArrowRight size={14} />
               </button>
@@ -123,16 +125,16 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
           {/* Screenshot — clique pra ampliar */}
           <button
             onClick={() => setZoom(true)}
-            aria-label={`Ampliar tema ${ativo.nome}`}
+            aria-label={t('ampliarTema', { nome: ativo.nome })}
             className="group relative aspect-[1919/864] w-full overflow-hidden bg-zinc-950 block cursor-zoom-in"
           >
             {falhou(ativo.id) ? (
-              <PlaceholderTema cor={ativo.hex} nome={ativo.nome} />
+              <PlaceholderTema cor={ativo.hex} nome={ativo.nome} temaLabel={t('tema', { nome: ativo.nome })} emBreve={t('printEmBreve')} />
             ) : (
               <img
                 key={ativo.id}
                 src={ativo.img}
-                alt={`Painel da Sora no tema ${ativo.nome}`}
+                alt={t('painelTema', { nome: ativo.nome })}
                 onError={() => onImgError(ativo.id)}
                 className="absolute inset-0 w-full h-full object-cover object-top animate-[fade-in_500ms_ease-out_both]"
                 loading="lazy"
@@ -142,13 +144,13 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
 
             {/* Hint de zoom */}
             <span className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md bg-black/50 border border-white/15 text-white text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-              <ZoomIn size={13} /> Clique para ampliar
+              <ZoomIn size={13} /> {t('cliqueAmpliar')}
             </span>
 
             {/* Caption flutuante — só desktop */}
             <span className="hidden sm:flex absolute bottom-5 left-5 items-center gap-2 px-4 py-2.5 rounded-xl backdrop-blur-md bg-black/60 border border-white/10 text-white shadow-2xl">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: ativo.hex }} />
-              <span className="font-bold text-sm">Tema {ativo.nome}</span>
+              <span className="font-bold text-sm">{t('tema', { nome: ativo.nome })}</span>
             </span>
           </button>
         </div>
@@ -156,7 +158,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
         {/* Caption mobile */}
         <div className="sm:hidden mb-4 px-1 flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: ativo.hex }} />
-          <p className="font-bold text-base">Tema {ativo.nome}</p>
+          <p className="font-bold text-base">{t('tema', { nome: ativo.nome })}</p>
         </div>
 
         {/* Seletor de cores — swatches */}
@@ -167,7 +169,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
               <button
                 key={c.id}
                 onClick={() => setIdx(i)}
-                aria-label={`Tema ${c.nome}`}
+                aria-label={t('tema', { nome: c.nome })}
                 aria-pressed={ativa}
                 title={c.nome}
                 className={`relative w-8 h-8 sm:w-11 sm:h-11 rounded-full transition-all duration-200 ${
@@ -197,19 +199,19 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
         {/* Fechamento + CTA */}
         <div className="mt-20 lg:mt-28 text-center">
           <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.03em] leading-[1.05]">
-            Do seu jeito,<br />
+            {t('fechamentoL1')}<br />
             <span className="text-transparent bg-clip-text transition-all duration-700"
                   style={{ backgroundImage: `linear-gradient(135deg, ${ativo.hex} 0%, ${ativo.hex}99 100%)` }}>
-              de cabo a rabo.
+              {t('fechamentoL2')}
             </span>
           </h3>
           <p className="mt-4 text-base lg:text-lg text-zinc-600 dark:text-white/60 max-w-xl mx-auto leading-relaxed">
-            Troque a cor quando quiser, direto no painel. Sem complicação.
+            {t('fechamentoSub')}
           </p>
           <Link href={ctaHref}
                 className="inline-flex items-center gap-2 mt-7 px-5 py-3 text-sm font-bold text-white rounded-xl shadow-md hover:-translate-y-0.5 transition-all"
                 style={{ background: `linear-gradient(135deg, ${ativo.hex} 0%, ${ativo.hex}cc 100%)` }}>
-            Começar agora →
+            {t('cta')}
           </Link>
         </div>
       </div>
@@ -221,22 +223,22 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
           onClick={() => setZoom(false)}
           role="dialog"
           aria-modal="true"
-          aria-label={`Tema ${ativo.nome} ampliado`}
+          aria-label={t('temaAmpliado', { nome: ativo.nome })}
         >
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
 
           {/* Fechar */}
-          <button onClick={() => setZoom(false)} aria-label="Fechar"
+          <button onClick={() => setZoom(false)} aria-label={t('fechar')}
                   className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white backdrop-blur transition-colors">
             <X size={20} />
           </button>
 
           {/* Setas */}
-          <button onClick={(e) => { e.stopPropagation(); prev(); }} aria-label="Cor anterior"
+          <button onClick={(e) => { e.stopPropagation(); prev(); }} aria-label={t('corAnterior')}
                   className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white backdrop-blur transition-colors">
             <ArrowLeft size={20} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); next(); }} aria-label="Próxima cor"
+          <button onClick={(e) => { e.stopPropagation(); next(); }} aria-label={t('proximaCor')}
                   className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 text-white backdrop-blur transition-colors">
             <ArrowRight size={20} />
           </button>
@@ -251,7 +253,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
               <img
                 key={ativo.id}
                 src={ativo.img}
-                alt={`Painel da Sora no tema ${ativo.nome}`}
+                alt={t('painelTema', { nome: ativo.nome })}
                 onError={() => onImgError(ativo.id)}
                 className="w-full h-auto max-h-[85dvh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
                 draggable={false}
@@ -259,7 +261,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
             )}
             <div className="mt-3 flex items-center justify-center gap-2 text-white/80">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: ativo.hex }} />
-              <span className="text-sm font-semibold">Tema {ativo.nome}</span>
+              <span className="text-sm font-semibold">{t('tema', { nome: ativo.nome })}</span>
             </div>
           </div>
         </div>
@@ -270,15 +272,15 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
 
 // Placeholder exibido enquanto o print da cor ainda não foi adicionado
 // (evita "imagem quebrada" no ar antes do upload dos arquivos).
-function PlaceholderTema({ cor, nome }: { cor: string; nome: string }) {
+function PlaceholderTema({ cor, temaLabel, emBreve }: { cor: string; nome: string; temaLabel: string; emBreve: string }) {
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6"
       style={{ background: `linear-gradient(135deg, ${cor}26 0%, ${cor}0a 60%, transparent 100%)` }}
     >
       <span className="w-10 h-10 rounded-full" style={{ background: cor }} />
-      <p className="text-sm font-bold text-white/90">Tema {nome}</p>
-      <p className="text-[11px] text-white/50">Print em breve</p>
+      <p className="text-sm font-bold text-white/90">{temaLabel}</p>
+      <p className="text-[11px] text-white/50">{emBreve}</p>
     </div>
   );
 }
