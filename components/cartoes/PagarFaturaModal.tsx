@@ -16,9 +16,12 @@ interface Props {
   cartaoId:    string;
   cartaoNome:  string;
   valorFatura: number;
+  competencia?: string;   // 'YYYY-MM' da fatura (default mês atual)
   onClose:  () => void;
   onPago:   () => void; // chamado após pagar com sucesso
 }
+
+const ymAtual = () => new Date().toISOString().slice(0, 7);
 
 // Uma linha = uma conta + o valor que sai dela (+ um apelido opcional de quem
 // pagou). Com 1 linha é o pagamento normal; com 2+ divide a fatura entre contas
@@ -28,9 +31,13 @@ interface Linha { key: number; walletId: string; valorRaw: string; quem: string 
 let _seq = 0;
 const novaLinha = (valorRaw = ''): Linha => ({ key: ++_seq, walletId: '', valorRaw, quem: '' });
 
-export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, onClose, onPago }: Props) {
+export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, competencia, onClose, onPago }: Props) {
   const { phone } = useAuth();
+  const comp = competencia || ymAtual();
   const [contas, setContas] = useState<{ id: string; nome: string; saldo: number }[]>([]);
+  // Status da fatura: já pago / restante (migration 096). Default = valorFatura.
+  const [status, setStatus] = useState<{ fatura: number; pago: number; restante: number } | null>(null);
+  const restante = status ? status.restante : valorFatura;
   const [linhas, setLinhas] = useState<Linha[]>(
     () => [novaLinha(valorFatura ? String(Math.round(valorFatura * 100)) : '')]
   );
@@ -39,6 +46,20 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
   // Portal só depois de montar no cliente (SSR não tem document).
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  // Busca o status (fatura/pago/restante) e ajusta o valor default pro restante.
+  useEffect(() => {
+    if (!phone) return;
+    api.wallets.faturaStatus(phone, cartaoId, comp)
+      .then((st) => {
+        setStatus(st);
+        // Só ajusta a 1ª linha se o usuário ainda não mexeu (valor = fatura cheia).
+        setLinhas(ls => (ls.length === 1 && ls[0].valorRaw === String(Math.round(valorFatura * 100)))
+          ? [{ ...ls[0], valorRaw: st.restante > 0 ? String(Math.round(st.restante * 100)) : '' }]
+          : ls);
+      })
+      .catch(() => { /* tolerante: sem status, usa valorFatura */ });
+  }, [phone, cartaoId, comp]);
 
   // Carrega as contas (sem cartões de crédito — não se paga fatura com fatura).
   useEffect(() => {
@@ -82,9 +103,9 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
     setLoading(true);
     try {
       if (itens.length === 1 && !itens[0].externa) {
-        await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, wallet_id: itens[0].wallet_id, valor: itens[0].valor });
+        await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, competencia: comp, wallet_id: itens[0].wallet_id, valor: itens[0].valor });
       } else {
-        await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, pagamentos: itens });
+        await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, competencia: comp, pagamentos: itens });
       }
       onPago();
       onClose();
@@ -123,10 +144,29 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
         {/* Corpo (rola no mobile) */}
         <div className="p-5 sm:p-6 space-y-4 overflow-y-auto overscroll-contain">
           {valorFatura > 0 && (
-            <div className="flex items-center justify-between text-sm rounded-xl bg-muted/40 px-3.5 py-2.5">
-              <span className="text-muted-foreground">Fatura atual</span>
-              <strong className="text-foreground tabular">{fmt(valorFatura)}</strong>
+            <div className="rounded-xl bg-muted/40 px-3.5 py-2.5 space-y-1.5 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Fatura</span>
+                <strong className="text-foreground tabular">{fmt(status?.fatura ?? valorFatura)}</strong>
+              </div>
+              {status && status.pago > 0 && (
+                <>
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="text-muted-foreground">Já pago</span>
+                    <span className="text-green-600 dark:text-green-400 tabular">− {fmt(status.pago)}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border/50 pt-1.5">
+                    <span className="font-semibold text-foreground">Restante</span>
+                    <strong className="tabular" style={{ color: status.restante > 0 ? '#ef4444' : '#16a34a' }}>{fmt(status.restante)}</strong>
+                  </div>
+                </>
+              )}
             </div>
+          )}
+          {valorFatura > 0 && (
+            <p className="text-[11px] text-muted-foreground -mt-2">
+              💡 Pode pagar só uma parte — o que sobrar rola pra próxima fatura (a Sora te avisa no vencimento).
+            </p>
           )}
 
           {contas.length === 0 ? (

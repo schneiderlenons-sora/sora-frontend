@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
-  ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2,
+  ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight,
 } from 'lucide-react';
 const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -296,6 +296,8 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                   fatura={faturaPorCartao[w.id] || 0}
                   comprometido={comprometidoPorCartao[w.id] || 0}
                   ocultar={ocultar}
+                  competencia={`${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`}
+                  ehMesAtual={mesIndex === 0}
                   compartilhado={compartilhado}
                   delay={i * 50}
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
@@ -426,6 +428,8 @@ interface CardCartaoProps {
   comprometido: number;
   ocultar:   boolean;
   delay:     number;
+  competencia: string;   // 'YYYY-MM' do mês visualizado
+  ehMesAtual: boolean;
   compartilhado?: boolean;
   onEditar:  () => void;
   onExcluir: () => void;
@@ -433,13 +437,34 @@ interface CardCartaoProps {
   onRefresh: () => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, compartilhado, onEditar, onExcluir, onAbrir, onRefresh }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh }: CardCartaoProps) {
+  const { phone } = useAuth();
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);
+  // Cartão MANUAL: rastreia pago/restante/rollover (migration 096). OF fica de fora.
+  const ehManual = !cartao.of_conta_id;
+  const [status, setStatus] = useState<{ fatura: number; pago: number; restante: number; rollover?: any } | null>(null);
+  const [rolando, setRolando] = useState(false);
 
   useEffect(() => {
     setMeta(loadCartaoMeta(cartao.id));
   }, [cartao.id]);
+
+  // Busca status da fatura (pago/restante/rollover) — só cartão manual.
+  const recarregarStatus = useCallback(() => {
+    if (!phone || !ehManual) { setStatus(null); return; }
+    api.wallets.faturaStatus(phone, cartao.id, competencia)
+      .then(setStatus).catch(() => setStatus(null));
+  }, [phone, cartao.id, competencia, ehManual]);
+  useEffect(() => { recarregarStatus(); }, [recarregarStatus, fatura]);
+
+  async function rolarAgora() {
+    if (!status?.rollover?.id) return;
+    setRolando(true);
+    try { await api.wallets.rolarFatura({ rollover_id: status.rollover.id }); onRefresh(); }
+    catch { /* noop */ }
+    finally { setRolando(false); }
+  }
 
   // Fonte da verdade = banco (wallets.dia_fechamento/vencimento, migration 023);
   // localStorage só como fallback. Antes lia só o `meta` em state, que não
@@ -458,12 +483,17 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, compartilhad
   const hoje = new Date();
   const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
-  // Flag de pagamento
-  const [paga, setPaga] = useState(false);
+  // Flag de pagamento. Cartão MANUAL usa o restante real (fatura − pago) do
+  // status (migration 096); OF (e enquanto o status não carrega) usa o
+  // localStorage legado.
+  const [pagaLS, setPagaLS] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setPaga(localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga');
+    setPagaLS(localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga');
   }, [cartao.id, mesRef]);
+  const restante = ehManual && status ? status.restante : fatura;
+  const jaPago   = ehManual && status ? status.pago : 0;
+  const paga     = ehManual && status ? status.restante <= 0.01 : pagaLS;
 
   // Próximo vencimento — helper compartilhado com o modal de detalhes (fonte
   // única; antes cada tela calculava o seu e davam meses diferentes).
@@ -539,7 +569,28 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, compartilhad
           {ocultar ? '••••••' : fmt(fatura)}
         </p>
 
-        {fatura > 0 && !paga && (
+        {/* Pagamento parcial: mostra quanto já foi pago e o que resta */}
+        {ehManual && jaPago > 0 && restante > 0 && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Pago {fmt(jaPago)} · <span className="font-semibold text-red-600 dark:text-red-400">Restam {ocultar ? '•••' : fmt(restante)}</span>
+          </p>
+        )}
+
+        {/* Banner de rollover aguardando confirmação */}
+        {ehManual && status?.rollover && (
+          <div onClick={(e) => e.stopPropagation()}
+               className="relative z-10 mt-2 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 p-2.5">
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
+              Sobrou <strong>{fmt(Number(status.rollover.valor) || 0)}</strong> da fatura anterior. Rolar pra próxima?
+            </p>
+            <button onClick={rolarAgora} disabled={rolando}
+              className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500 text-white text-[11px] font-bold hover:bg-amber-600 transition-colors disabled:opacity-60">
+              {rolando ? <Loader2 size={11} className="animate-spin" /> : <ArrowRight size={11} />} Rolar pra próxima fatura
+            </button>
+          </div>
+        )}
+
+        {restante > 0 && !paga && (
           <button onClick={(e) => { e.stopPropagation(); setPagarOpen(true); }}
             className="relative z-10 mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-bold hover:bg-primary hover:text-white transition-colors">
             <CreditCard size={11} /> Pagar fatura
@@ -640,10 +691,13 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, compartilhad
         cartaoId={cartao.id}
         cartaoNome={cartao.nome}
         valorFatura={fatura}
+        competencia={competencia}
         onClose={() => setPagarOpen(false)}
         onPago={() => {
-          try { localStorage.setItem(`sora-fatura-${cartao.id}-${mesRef}`, 'paga'); } catch {}
-          setPaga(true);
+          // Manual: recarrega o restante real (pagamento pode ter sido parcial).
+          // OF/legado: mantém a flag localStorage.
+          if (ehManual) { recarregarStatus(); }
+          else { try { localStorage.setItem(`sora-fatura-${cartao.id}-${mesRef}`, 'paga'); } catch {} setPagaLS(true); }
           onRefresh();
         }}
       />

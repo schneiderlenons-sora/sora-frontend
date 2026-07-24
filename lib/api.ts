@@ -223,12 +223,21 @@ export const api = {
     },
     // Paga a fatura do cartão debitando de UMA conta (wallet_id + valor) OU de
     // VÁRIAS (pagamentos: [{wallet_id, valor}]) pra dividir entre contas.
+    // `competencia` (YYYY-MM) = mês da fatura paga (rastreio parcial/rollover).
     pagarFatura: (body: {
-      phone: string; cartao_id: string;
+      phone: string; cartao_id: string; competencia?: string;
       wallet_id?: string; valor?: number;
       pagamentos?: { wallet_id?: string; valor: number; descricao?: string; externa?: boolean }[];
     }) =>
       req<{ ok: boolean; debito: any; debitos?: any[] }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
+    // Status da fatura: { fatura, pago, restante, rollover? } (migration 096).
+    faturaStatus: (phone: string, cartao_id: string, competencia?: string) => {
+      const q = new URLSearchParams({ cartao_id }); if (competencia) q.set('competencia', competencia);
+      return req<{ fatura: number; pago: number; restante: number; competencia: string; rollover?: any }>(`/api/wallets/fatura/status/${phone}?${q}`);
+    },
+    // Confirma o rollover do saldo que sobrou pra próxima fatura.
+    rolarFatura: (body: { rollover_id?: string; cartao_id?: string; competencia?: string }) =>
+      req<{ ok: boolean; transacao_id?: string }>('/api/wallets/fatura/rolar', { method: 'POST', body: JSON.stringify(body) }),
     // Transfere valor entre duas contas (ajusta saldos + grava registro)
     transferir: (body: { phone: string; origem_id: string; destino_id: string; valor: number }) =>
       req<{ ok: boolean; tx: any }>('/api/wallets/transferir', { method: 'POST', body: JSON.stringify(body) }),
