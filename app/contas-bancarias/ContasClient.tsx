@@ -108,6 +108,7 @@ interface Wallet {
   tipo: string;
   saldo: number;
   limite: number;
+  cheque_especial?: number;
   padrao?: boolean;
   arquivada?: boolean;
   dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
@@ -117,9 +118,10 @@ interface Form {
   nome:  string;
   tipo:  string;
   saldo: string;
+  cheque: string;   // limite de cheque especial (R$)
 }
 
-const FORM_VAZIO: Form = { nome: '', tipo: 'Corrente', saldo: '' };
+const FORM_VAZIO: Form = { nome: '', tipo: 'Corrente', saldo: '', cheque: '' };
 
 type Tab = 'ativas' | 'arquivadas';
 
@@ -189,7 +191,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
     setErro(''); setSucesso(false);
     if (w) {
       setEditando(w);
-      setForm({ nome: w.nome, tipo: w.tipo, saldo: String(w.saldo) });
+      setForm({ nome: w.nome, tipo: w.tipo, saldo: String(w.saldo), cheque: w.cheque_especial ? String(w.cheque_especial) : '' });
     } else {
       setEditando(null);
       setForm(FORM_VAZIO);
@@ -216,6 +218,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
       tipo:   form.tipo,
       saldo:  parseFloat((form.saldo || '0').replace(',', '.')) || 0,
       limite: 0,
+      cheque_especial: Math.abs(parseFloat((form.cheque || '0').replace(',', '.')) || 0),
     };
     console.log('[contas] salvar wallet — payload:', payload);
 
@@ -916,6 +919,30 @@ function ContaModal({
               </p>
             </div>
 
+            {/* Cheque especial (limite de saldo negativo) */}
+            <div>
+              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
+                Cheque especial <span className="text-muted-foreground/60 normal-case font-medium">(opcional)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">
+                  R$
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={form.cheque}
+                  onChange={e => setForm(f => ({ ...f, cheque: e.target.value.replace(/[^\d.,]/g, '') }))}
+                  className="input pl-11 py-3 tabular text-lg font-semibold"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                <AlertCircle size={10} />
+                Limite pra conta ficar negativa (transferências podem usar o cheque especial)
+              </p>
+            </div>
+
             {/* Erro */}
             {erro && (
               <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
@@ -1068,7 +1095,11 @@ function TransferenciaModal({
   const contaDestino = wallets.find(w => w.id === destino);
   const v            = parseFloat((valor || '0').replace(',', '.')) || 0;
   const saldoOrigem  = contaOrigem?.saldo || 0;
-  const insuficiente = v > saldoOrigem;
+  // Cheque especial: pode transferir até saldo + limite (deixa a conta negativa).
+  const chequeOrigem = Math.abs(contaOrigem?.cheque_especial || 0);
+  const disponivel   = saldoOrigem + chequeOrigem;
+  const insuficiente = v > disponivel;
+  const usaCheque    = v > saldoOrigem && !insuficiente; // vai usar o cheque especial
   const valido       = !!origem && !!destino && origem !== destino && v > 0 && !insuficiente;
 
   function inverter() { setOrigem(destino); setDestino(origem); }
@@ -1159,7 +1190,8 @@ function TransferenciaModal({
                            className="input pl-11 py-3 tabular text-lg font-semibold" />
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1.5 tabular">
-                    Disponível em {contaOrigem?.nome}: <span className="font-semibold text-foreground">{fmt(saldoOrigem)}</span>
+                    Disponível em {contaOrigem?.nome}: <span className="font-semibold text-foreground">{fmt(disponivel)}</span>
+                    {chequeOrigem > 0 && <span className="text-muted-foreground/70"> (saldo {fmt(saldoOrigem)} + cheque especial {fmt(chequeOrigem)})</span>}
                   </p>
                 </div>
 
@@ -1169,12 +1201,17 @@ function TransferenciaModal({
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Depois da transferência</p>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-foreground truncate mr-2">{contaOrigem.nome}</span>
-                      <span className="tabular text-muted-foreground whitespace-nowrap">{fmt(saldoOrigem)} → <span className="font-bold text-foreground">{fmt(saldoOrigem - v)}</span></span>
+                      <span className="tabular text-muted-foreground whitespace-nowrap">{fmt(saldoOrigem)} → <span className={`font-bold ${saldoOrigem - v < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{fmt(saldoOrigem - v)}</span></span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-foreground truncate mr-2">{contaDestino.nome}</span>
                       <span className="tabular text-muted-foreground whitespace-nowrap">{fmt(contaDestino.saldo || 0)} → <span className="font-bold text-foreground">{fmt((contaDestino.saldo || 0) + v)}</span></span>
                     </div>
+                    {usaCheque && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-0.5">
+                        <AlertCircle size={10} /> Usa o cheque especial de {contaOrigem.nome} (fica negativa).
+                      </p>
+                    )}
                   </div>
                 )}
 

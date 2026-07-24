@@ -221,9 +221,14 @@ export const api = {
       return req<{ ok: boolean; movidas?: number; excluidas?: number }>(
         `/api/wallets/${id}${q ? `?${q}` : ''}`, { method: 'DELETE' });
     },
-    // Paga a fatura do cartão debitando de uma conta (cria a transação de saída)
-    pagarFatura: (body: { phone: string; cartao_id: string; wallet_id: string; valor: number }) =>
-      req<{ ok: boolean; debito: any }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
+    // Paga a fatura do cartão debitando de UMA conta (wallet_id + valor) OU de
+    // VÁRIAS (pagamentos: [{wallet_id, valor}]) pra dividir entre contas.
+    pagarFatura: (body: {
+      phone: string; cartao_id: string;
+      wallet_id?: string; valor?: number;
+      pagamentos?: { wallet_id: string; valor: number }[];
+    }) =>
+      req<{ ok: boolean; debito: any; debitos?: any[] }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
     // Transfere valor entre duas contas (ajusta saldos + grava registro)
     transferir: (body: { phone: string; origem_id: string; destino_id: string; valor: number }) =>
       req<{ ok: boolean; tx: any }>('/api/wallets/transferir', { method: 'POST', body: JSON.stringify(body) }),
