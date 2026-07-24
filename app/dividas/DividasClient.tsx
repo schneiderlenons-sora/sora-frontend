@@ -136,14 +136,14 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 mb-3">
                 <Sparkles size={12} style={{ color: BRAND }} />
                 <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>
-                  Controle de dívidas
+                  Dívidas e parcelamentos
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
-                Dívidas
+                Dívidas e Parcelamentos
               </h1>
               <p className="text-muted-foreground text-sm mt-2 max-w-md">
-                Acompanhe empréstimos, financiamentos e parcelas em um só lugar.
+                Empréstimos, financiamentos e compras parceladas (inclusive sem cartão) em um só lugar.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

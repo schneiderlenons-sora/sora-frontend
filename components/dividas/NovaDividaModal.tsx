@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2 } from 'lucide-react';
+import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
@@ -32,6 +32,7 @@ const TIPOS = [
   { v: 'emprestimo',       l: 'Empréstimo',         icon: Briefcase,    cor: '#3b82f6', desc: 'Pessoal, consignado livre, etc.' },
   { v: 'financiamento',    l: 'Financiamento',      icon: Home,         cor: '#8b5cf6', desc: 'Imóvel, veículo, equipamento' },
   { v: 'crediario',        l: 'Crediário',          icon: ShoppingCart, cor: '#f59e0b', desc: 'Loja de departamento, eletro' },
+  { v: 'parcelamento',     l: 'Parcelamento',       icon: Users,        cor: '#10b981', desc: 'Parcelei com alguém, sem cartão' },
   { v: 'cartao_rotativo',  l: 'Cartão rotativo',    icon: CreditCard,   cor: '#ef4444', desc: 'Saldo não pago da fatura' },
   { v: 'cheque_especial',  l: 'Cheque especial',    icon: AlertTriangle,cor: '#f97316', desc: 'Limite do banco usado' },
   { v: 'consignado',       l: 'Consignado',         icon: Building2,    cor: '#06b6d4', desc: 'Descontado em folha' },

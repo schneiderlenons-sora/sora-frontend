@@ -44,7 +44,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/categorias',         label: 'Categorias',        icon: Tag },
   { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
   { href: '/metas',              label: 'Metas',             icon: Flag },
-  { href: '/dividas',            label: 'Dívidas',           icon: Receipt },
+  { href: '/dividas',            label: 'Dívidas e Parcelas', icon: Receipt },
   { href: '/juros',              label: 'Calculadora de Juros', icon: Percent },
   { href: '/planejamento',       label: 'Planejamento Anual', icon: CalendarRange },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat } from 'lucide-react';
+import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
@@ -9,6 +9,9 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import IconeMarca from '@/components/ui/IconeMarca';
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+// Valor sentinela do picker de conta pra "compra parcelada SEM cartão".
+const SEM_CARTAO = '__sem_cartao__';
 
 interface CatItem { id?: string; emoji: string; nome: string; filhos?: CatItem[] }
 
@@ -67,11 +70,14 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   const [loading,    setLoading]    = useState(false);
   const [erro,       setErro]       = useState('');
 
-  // ── Compra parcelada (só cartão de crédito, só despesa) ──────────
+  // ── Compra parcelada (cartão de crédito OU "sem cartão", só despesa) ──
   const [parcelado,   setParcelado]   = useState(false);
   const [numParcelas, setNumParcelas] = useState(2);
   const [pagas,       setPagas]       = useState<Set<number>>(new Set());
-  const [avisoParcela, setAvisoParcela] = useState(''); // "só cartão" ao tentar parcelar sem cartão
+  const [avisoParcela, setAvisoParcela] = useState(''); // aviso ao tentar parcelar sem conta válida
+  // Parcelamento SEM cartão (parcelei com alguém): vira um parcelamento em Dívidas.
+  const [credor,        setCredor]        = useState('');   // "de quem comprou" (opcional)
+  const [diaVencimento, setDiaVencimento] = useState('');   // dia do mês do vencimento
 
   // Categorias do usuário (carregadas da API)
   const [catsDespesa, setCatsDespesa] = useState<CatItem[]>([]);
@@ -130,23 +136,26 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
     return wallets;
   }, [wallets, tipo]);
 
-  // Se tipo virou Receita e a wallet selecionada era cartão, troca
+  // Se tipo virou Receita e a wallet selecionada era cartão OU "sem cartão", troca
   useEffect(() => {
     const atual = wallets.find(w => w.id === walletId);
-    if (tipo === 'Recebimento' && atual?.tipo === 'Crédito') {
+    if (tipo === 'Recebimento' && (atual?.tipo === 'Crédito' || walletId === SEM_CARTAO)) {
       const nova = walletsVisiveis[0];
       setWalletId(nova?.id || '');
     }
   }, [tipo, walletId, wallets, walletsVisiveis]);
 
   // ── Compra parcelada ─────────────────────────────────────────────
-  // Cartão selecionado? (parcelado só vale pra cartão de crédito + despesa)
+  // Cartão selecionado? (parcelado vale pra cartão de crédito OU "sem cartão", só despesa)
   const walletSel = useMemo(() => wallets.find(w => w.id === walletId), [wallets, walletId]);
   const ehCartaoSel = walletSel?.tipo === 'Crédito' && tipo === 'Gasto';
+  // "Sem cartão" = parcelei com alguém (vira parcelamento em Dívidas). Só p/ despesa.
+  const semCartao   = walletId === SEM_CARTAO && tipo === 'Gasto';
+  const podeParcelar = ehCartaoSel || semCartao;
 
-  // Sai de cartão / vira receita → desliga o parcelado. Ao voltar pra um cartão,
-  // limpa o aviso de "só cartão".
-  useEffect(() => { if (ehCartaoSel) setAvisoParcela(''); else setParcelado(false); }, [ehCartaoSel]);
+  // Sai de cartão/sem-cartão ou vira receita → desliga o parcelado. Voltando pra
+  // uma opção válida, limpa o aviso.
+  useEffect(() => { if (podeParcelar) setAvisoParcela(''); else setParcelado(false); }, [podeParcelar]);
 
   // Datas das parcelas (parcela i = data da 1ª + (i-1) meses) + quais já venceram.
   const parcelasInfo = useMemo(() => {
@@ -186,7 +195,8 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   async function handleSalvar() {
     setErro('');
     if (!valor || valor === '0') { setErro(parcelado ? 'Informe o valor de cada parcela.' : 'Informe o valor.'); return; }
-    if (!categoria) { setErro('Selecione uma categoria.'); return; }
+    // Parcelamento sem cartão vira Dívida — categoria não se aplica.
+    if (!categoria && !(parcelado && semCartao)) { setErro('Selecione uma categoria.'); return; }
     if (walletsVisiveis.length > 0 && !walletId) { setErro('Selecione a conta de origem.'); return; }
 
     const walletNome = wallets.find(w => w.id === walletId)?.nome;
@@ -214,7 +224,27 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
 
     setLoading(true);
     try {
-      if (parcelado) {
+      if (parcelado && semCartao) {
+        // Parcelei com alguém, sem cartão → cria um PARCELAMENTO em Dívidas.
+        // Sem debitar nada agora; cada parcela é paga (da conta escolhida) no vencimento.
+        const diaVenc = diaVencimento
+          ? Math.min(31, Math.max(1, parseInt(diaVencimento, 10)))
+          : new Date(`${data}T12:00:00`).getDate();
+        const vParcela = parseInt(valor, 10) / 100;
+        await api.dividas.criar({
+          phone,
+          titulo:         (descricao || '').trim() || 'Compra parcelada',
+          credor:         credor.trim() || undefined,
+          tipo:           'parcelamento',
+          valor_total:    vParcela * numParcelas,
+          valor_parcela:  vParcela,
+          parcelas_total: numParcelas,
+          parcelas_pagas: 0,
+          dia_vencimento: diaVenc,
+          data_inicio:    data,
+          observacao:     descricao || undefined,
+        });
+      } else if (parcelado) {
         if (!ehCartaoSel || !walletNome) { setErro('Compra parcelada só pode ser lançada em um cartão de crédito.'); setLoading(false); return; }
         await api.transacoes.criarParcelado({
           phone,
@@ -339,6 +369,26 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
                     </button>
                   );
                 })}
+                {/* "Sem cartão" — pra compra parcelada com alguém (vira parcelamento) */}
+                {tipo === 'Gasto' && (
+                  <button
+                    type="button"
+                    onClick={() => setWalletId(SEM_CARTAO)}
+                    className={`relative flex items-center gap-2 p-2 rounded-xl border text-left transition-all ${
+                      semCartao
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                        : 'border-dashed border-border bg-muted/20 hover:border-primary/40 hover:bg-muted/40'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted text-muted-foreground">
+                      <Users size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">Sem cartão</p>
+                      <span className="text-[9px] font-medium text-muted-foreground truncate block mt-0.5">Parcelei com alguém</span>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -364,10 +414,10 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
             <button
               type="button"
               onClick={() => {
-                if (!ehCartaoSel) { setAvisoParcela('Compra parcelada só em cartão de crédito — escolha um cartão na conta abaixo.'); return; }
+                if (!podeParcelar) { setAvisoParcela('Parcelar: escolha um cartão de crédito ou "Sem cartão" na conta acima.'); return; }
                 setAvisoParcela(''); setParcelado(v => !v);
               }}
-              className={`flex items-center justify-between gap-1.5 px-3 py-2.5 rounded-xl border text-left transition-all ${parcelado ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'} ${!ehCartaoSel ? 'opacity-70' : ''}`}
+              className={`flex items-center justify-between gap-1.5 px-3 py-2.5 rounded-xl border text-left transition-all ${parcelado ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'} ${!podeParcelar ? 'opacity-70' : ''}`}
             >
               <span className="flex items-center gap-1.5 min-w-0">
                 <CreditCard size={15} className="flex-shrink-0 text-purple-500" />
@@ -408,7 +458,31 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
                 </span>
               </div>
 
-              {/* parcelas já pagas */}
+              {/* SEM CARTÃO: de quem comprou + dia de vencimento */}
+              {semCartao && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1"><Users size={11} /> De quem comprou?</label>
+                      <input value={credor} maxLength={40} placeholder="Ex.: João (opcional)"
+                             onChange={e => setCredor(e.target.value)} className="input py-2 text-sm w-full" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1"><CalendarClock size={11} /> Dia do vencimento</label>
+                      <input value={diaVencimento} inputMode="numeric" placeholder="Ex.: 10"
+                             onChange={e => setDiaVencimento(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                             className="input py-2 text-sm w-full" />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                    <AlertCircle size={11} className="mt-0.5 flex-shrink-0" />
+                    Vira um parcelamento em <b className="text-foreground font-semibold">Dívidas e Parcelamentos</b>. Não desconta de nenhuma conta agora — a cada vencimento você escolhe de qual conta pagar.
+                  </p>
+                </>
+              )}
+
+              {/* parcelas já pagas (só cartão) */}
+              {!semCartao && (
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">Parcelas já pagas</p>
                 <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
@@ -430,6 +504,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1.5">Já marcamos as que venceram até hoje. Ajuste se precisar.</p>
               </div>
+              )}
             </div>
           )}
 
