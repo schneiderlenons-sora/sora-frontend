@@ -21,15 +21,12 @@ import CtaPlanos       from '@/components/landing/CtaPlanos';
 import Faq             from '@/components/landing/Faq';
 import CtaFinal        from '@/components/landing/CtaFinal';
 import Footer          from '@/components/landing/Footer';
-import { getTranslations } from 'next-intl/server';
-
 // Composição compartilhada da landing (forsora.com e forsora.com/es). Os textos
-// vêm dos catálogos messages/{pt,es}.json via next-intl — o locale é resolvido
-// no middleware pelo pathname. `esperaLista` faz os CTAs de compra virarem
-// captura de interesse (usado no /es, onde o checkout MXN ainda não existe).
-export default async function LandingPage({ esperaLista = false }: { esperaLista?: boolean }) {
-  const t = await getTranslations('cta');
-
+// vêm dos catálogos messages/{pt,es}.json via next-intl. Todo texto é resolvido
+// em componentes CLIENT (useTranslations) contra o provider de idioma mais
+// próximo — no /es é o app/es/layout.tsx (força es), então não depende do
+// layout raiz (que não re-renderiza na navegação client-side).
+export default function LandingPage({ esperaLista = false }: { esperaLista?: boolean }) {
   return (
     // Landing segue o tema escolhido (toggle na nav). bg/text theme-aware;
     // as seções já têm variantes light + dark:.
@@ -44,15 +41,15 @@ export default async function LandingPage({ esperaLista = false }: { esperaLista
       <OpenFinance />
       <AgendaChat />
       <HabitosSaude />
-      <CtaPlanos frase={t('comecarAgora')} />
+      <CtaPlanos fraseKey="comecarAgora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />
       <WrappedShowcase />
-      <CtaPlanos frase={t('queroWrapped')} />
+      <CtaPlanos fraseKey="queroWrapped" />
       <ProdutividadeShowcase />
       <DriveShowcase />
       <SocialProof />
-      <CtaPlanos frase={t('queroParticipar')} />
+      <CtaPlanos fraseKey="queroParticipar" />
       <Personalizacao />
       <MobileShowcase />
       <SoraLabs />

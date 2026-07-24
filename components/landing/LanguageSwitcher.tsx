@@ -1,7 +1,7 @@
 'use client';
 
 import { useLocale } from 'next-intl';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Check, Globe } from 'lucide-react';
 
@@ -15,7 +15,6 @@ const IDIOMAS = [
 
 export default function LanguageSwitcher() {
   const locale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,7 +32,11 @@ export default function LanguageSwitcher() {
   function trocar(destino: string, loc: string) {
     document.cookie = `sora-locale=${loc}; path=/; max-age=31536000; samesite=lax`;
     setOpen(false);
-    if (pathname !== destino) router.push(destino);
+    // Navegação com carga COMPLETA (não router.push): o layout raiz não
+    // re-renderiza numa navegação client-side, então o idioma poderia não
+    // aplicar. window.location garante a árvore certa (root p/ PT, /es layout
+    // p/ ES) desde o servidor.
+    if (pathname !== destino) window.location.assign(destino);
   }
 
   return (
