@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, Check, CreditCard } from 'lucide-react';
+import { X, Loader2, Check, CreditCard, Plus, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+const fmtBR = (raw: string) => !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface Props {
   cartaoId:    string;
@@ -16,23 +17,50 @@ interface Props {
   onPago:   () => void; // chamado após pagar com sucesso
 }
 
+// Uma linha = uma conta + o valor que sai dela. Com 1 linha é o pagamento
+// normal; com 2+ divide a fatura entre contas (ex.: parte da esposa, parte do
+// filho). Cada linha tem uma key estável pro React não bagunçar os selects.
+interface Linha { key: number; walletId: string | null; valorRaw: string }
+
+let _seq = 0;
+const novaLinha = (valorRaw = ''): Linha => ({ key: ++_seq, walletId: null, valorRaw });
+
 export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, onClose, onPago }: Props) {
   const { phone } = useAuth();
-  const [valorRaw, setValorRaw] = useState<string>(valorFatura ? String(Math.round(valorFatura * 100)) : '');
-  const [walletId, setWalletId] = useState<string | null>(null);
+  // Começa com uma linha já preenchida com o valor da fatura (fluxo de sempre).
+  const [linhas, setLinhas] = useState<Linha[]>(
+    () => [novaLinha(valorFatura ? String(Math.round(valorFatura * 100)) : '')]
+  );
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
 
-  const valor = parseInt(valorRaw || '0', 10) / 100;
-  const fmtBR = (raw: string) => !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const dividido = linhas.length > 1;
+  const total = linhas.reduce((s, l) => s + (parseInt(l.valorRaw || '0', 10) / 100), 0);
+
+  function setLinha(key: number, patch: Partial<Linha>) {
+    setLinhas(ls => ls.map(l => (l.key === key ? { ...l, ...patch } : l)));
+  }
+  function addLinha() { setLinhas(ls => [...ls, novaLinha()]); }
+  function removerLinha(key: number) { setLinhas(ls => ls.filter(l => l.key !== key)); }
 
   async function pagar() {
     setErro('');
-    if (!valor || valor <= 0) { setErro('Informe o valor da fatura.'); return; }
-    if (!walletId) { setErro('Escolha a conta de onde sai o pagamento.'); return; }
+    const itens = linhas
+      .map(l => ({ wallet_id: l.walletId || '', valor: parseInt(l.valorRaw || '0', 10) / 100 }))
+      .filter(i => i.wallet_id && i.valor > 0);
+
+    if (!itens.length) { setErro('Escolha a conta e informe o valor.'); return; }
+    // Duas linhas na mesma conta é permitido, mas provavelmente engano — avisa.
+    const contas = new Set(itens.map(i => i.wallet_id));
+    if (dividido && contas.size < itens.length) { setErro('Você repetiu a mesma conta em duas linhas.'); return; }
+
     setLoading(true);
     try {
-      await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, wallet_id: walletId, valor });
+      if (itens.length === 1) {
+        await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, wallet_id: itens[0].wallet_id, valor: itens[0].valor });
+      } else {
+        await api.wallets.pagarFatura({ phone: phone!, cartao_id: cartaoId, pagamentos: itens });
+      }
       onPago();
       onClose();
     } catch (e: any) {
@@ -40,11 +68,14 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
     } finally { setLoading(false); }
   }
 
+  const podePagar = linhas.some(l => l.walletId && (parseInt(l.valorRaw || '0', 10) / 100) > 0);
+  const diferente = valorFatura > 0 && Math.abs(total - valorFatura) > 0.005;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[90dvh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">
               <CreditCard size={20} className="text-primary" />
@@ -59,30 +90,66 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, on
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">Valor a pagar</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-2xl font-bold text-muted-foreground">R$</span>
-              <input inputMode="numeric" value={fmtBR(valorRaw)} autoFocus
-                     onChange={e => setValorRaw(e.target.value.replace(/\D/g, ''))}
-                     className="text-4xl font-bold text-foreground bg-transparent border-none outline-none text-center w-full tabular" />
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {valorFatura > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Fatura atual</span>
+              <strong className="text-foreground tabular">{fmt(valorFatura)}</strong>
             </div>
-            {valorFatura > 0 && valor !== valorFatura && (
-              <p className="text-[11px] text-muted-foreground mt-2">Fatura atual: <strong className="text-foreground tabular">{fmt(valorFatura)}</strong></p>
-            )}
+          )}
+
+          {/* Linhas de pagamento (conta + valor) */}
+          <div className="space-y-3">
+            {linhas.map((l, i) => (
+              <div key={l.key} className="rounded-2xl border border-border/70 p-3 space-y-3 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {dividido ? `Conta ${i + 1}` : 'Descontar de'}
+                  </span>
+                  {dividido && (
+                    <button onClick={() => removerLinha(l.key)} aria-label="Remover conta"
+                            className="p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-red-500">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                <ContaDebitoSelect value={l.walletId} onChange={(id) => setLinha(l.key, { walletId: id })} label="" />
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-bold text-muted-foreground">R$</span>
+                  <input inputMode="numeric" value={fmtBR(l.valorRaw)}
+                         onChange={e => setLinha(l.key, { valorRaw: e.target.value.replace(/\D/g, '') })}
+                         className="text-xl font-bold text-foreground bg-transparent border-none outline-none w-full tabular" />
+                </div>
+              </div>
+            ))}
           </div>
 
-          <ContaDebitoSelect value={walletId} onChange={setWalletId} label="Descontar de qual conta?" />
+          <button onClick={addLinha}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-colors">
+            <Plus size={15} /> Dividir com outra conta
+          </button>
+
+          {/* Total (só quando dividido, pra conferência) */}
+          {dividido && (
+            <div className="flex items-center justify-between text-sm rounded-xl bg-muted/40 px-3 py-2.5">
+              <span className="text-muted-foreground">Total dos pagamentos</span>
+              <strong className={`tabular ${diferente ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>{fmt(total)}</strong>
+            </div>
+          )}
+          {dividido && diferente && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              O total ({fmt(total)}) é diferente da fatura ({fmt(valorFatura)}). Pode ser pagamento parcial — se não for, ajuste os valores.
+            </p>
+          )}
 
           {erro && <p className="text-xs text-red-600" role="alert">{erro}</p>}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 shrink-0">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
-          <button onClick={pagar} disabled={loading || !valor || !walletId} className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm">
+          <button onClick={pagar} disabled={loading || !podePagar} className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Pagar fatura
+            Pagar {dividido ? fmt(total) : 'fatura'}
           </button>
         </div>
       </div>
