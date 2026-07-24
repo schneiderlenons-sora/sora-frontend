@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Gift, Check, Copy, X } from 'lucide-react';
 
 const BRAND = '#61ce70';
@@ -11,6 +12,7 @@ const KEY = 'cupom-sora10-dismiss';
 // rolamento; fecha no X (some pela sessão) e copia o cupom. Theme-aware: tema
 // claro na landing principal/oferta e escuro na /kit (dark forçado) ou no dark.
 export default function CupomFlutuante() {
+  const t = useTranslations('cupom');
   const [visivel, setVisivel] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
@@ -49,7 +51,7 @@ export default function CupomFlutuante() {
                       dark:from-[#0f1a10] dark:to-[#0a0a0a] dark:border-[#61ce70]/55
                       dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]">
         {/* Fechar */}
-        <button onClick={fechar} aria-label="Fechar cupom"
+        <button onClick={fechar} aria-label={t('fechar')}
                 className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-colors
                            text-zinc-400 hover:text-zinc-700 hover:bg-black/5
                            dark:text-white/50 dark:hover:text-white dark:hover:bg-white/10">
@@ -62,9 +64,9 @@ export default function CupomFlutuante() {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-bold leading-snug text-zinc-900 dark:text-white">
-              Você acabou de ganhar <span style={{ color: BRAND }}>10% OFF</span> 🎉
+              {t('ganhouInicio')} <span style={{ color: BRAND }}>{t('ganhouDesconto')}</span> 🎉
             </p>
-            <p className="text-xs mt-0.5 leading-snug text-zinc-500 dark:text-white/60">Aproveite! Use o cupom no checkout:</p>
+            <p className="text-xs mt-0.5 leading-snug text-zinc-500 dark:text-white/60">{t('aproveite')}</p>
           </div>
         </div>
 
@@ -77,7 +79,7 @@ export default function CupomFlutuante() {
           <button onClick={copiar}
                   className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-black text-sm active:scale-[0.97] transition min-w-[7rem]"
                   style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)` }}>
-            {copiado ? <><Check size={15} /> Copiado!</> : <><Copy size={15} /> Copiar</>}
+            {copiado ? <><Check size={15} /> {t('copiado')}</> : <><Copy size={15} /> {t('copiar')}</>}
           </button>
         </div>
       </div>

@@ -1,28 +1,19 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 // Seções de destaque (título + imagem + subtítulo) logo após o Open Finance.
 // Imagens em public/landing/ — versões separadas pra tema claro e escuro
 // (as PNGs já vêm transparentes; renderizadas sem moldura/fundo).
-const SECOES = [
-  {
-    eyebrow:  'Clareza total',
-    titulo:   'A Sora detalha exatamente para onde seu dinheiro está indo',
-    imgDark:  '/landing/para-onde-vai.png',
-    imgLight: '/landing/para-onde-vai-light.png',
-    alt:      'Painel da Sora detalhando os gastos por categoria',
-    sub:      'E ainda te mostra onde dá pra economizar da melhor forma.',
-  },
-  {
-    eyebrow:  'Em conjunto',
-    titulo:   'Gestão Compartilhada',
-    imgDark:  '/landing/gestao-compartilhada.png',
-    imgLight: '/landing/gestao-compartilhada-light.png',
-    alt:      'Gestão financeira compartilhada entre casal ou família',
-    sub:      'Organize sua vida e suas finanças em casal ou família, cada um com seu próprio acesso.',
-  },
-] as const;
+const SECAO_IMG = [
+  { imgDark: '/landing/para-onde-vai.png', imgLight: '/landing/para-onde-vai-light.png' },
+  { imgDark: '/landing/gestao-compartilhada.png', imgLight: '/landing/gestao-compartilhada-light.png' },
+];
 
 export default function Showcase() {
+  const t = useTranslations('showcase');
+  const txt = t.raw('secoes') as { eyebrow: string; titulo: string; alt: string; sub: string }[];
+  const SECOES = SECAO_IMG.map((s, i) => ({ ...s, ...txt[i] }));
   return (
     <>
       {SECOES.map((s) => (

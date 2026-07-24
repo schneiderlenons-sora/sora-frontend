@@ -1,44 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Star } from 'lucide-react';
 
-// Depoimentos de figuras conhecidas. As frases combinam com a "vibe" de cada um.
+// Depoimentos de figuras conhecidas. Nome/cor/foto ficam aqui; role e quote vêm
+// do catálogo (socialProof.depoimentos, mesma ordem) pra tradução.
 // FOTOS: solte os arquivos em public/landing/depoimentos/<arquivo> que aparecem
 // automaticamente; enquanto não existir, mostra as iniciais (sem imagem quebrada).
-const DEPOIMENTOS = [
-  {
-    nome: 'Mari Gonzalez', role: 'Influenciadora & Empresária', cor: '#ec4899',
-    img: '/landing/depoimentos/Mari-gonzales.jpg',
-    quote: 'Amo praticidade! Mando um áudio e a Sora organiza meus gastos e minha agenda. Do jeitinho que eu preciso pra dar conta de tudo.',
-  },
-  {
-    nome: 'Ferrugem', role: 'Cantor', cor: '#f59e0b',
-    img: '/landing/depoimentos/ferrugem.jpg',
-    quote: 'Rapaziada, testa aí! Eu só falo e ela anota tudo. Nunca mais esqueci uma conta nem um compromisso da família.',
-  },
-  {
-    nome: 'Gusttavo Lima', role: 'Cantor sertanejo', cor: '#61ce70',
-    img: '/landing/depoimentos/gusttavo-lima.jpg',
-    quote: 'Com a correria dos shows eu nunca parava pra ver pra onde ia o dinheiro. Agora é só mandar um áudio e a Sora organiza tudo — contas, agenda e lembrete. Simples desse jeito!',
-  },
-  {
-    nome: 'Duda Rubert', role: 'Influenciadora', cor: '#a855f7',
-    img: '/landing/depoimentos/duda-rubert.jpg',
-    quote: 'Gente, muito fácil! Só mando mensagem e tá tudo organizado — gastos, lembretes, tudo. Virei fã na primeira semana!',
-  },
-  {
-    nome: 'Coringa', role: 'Criador de conteúdo', cor: '#3b82f6',
-    img: '/landing/depoimentos/coringa.jpg',
-    quote: 'Mano, que coisa útil! Eu falo e ela faz. Organiza documento, lembra de tudo… é tipo ter um assistente de verdade.',
-  },
-];
-
-const METRICAS = [
-  { valor: '12k+',   label: 'Usuários ativos' },
-  { valor: 'R$ 18M', label: 'Movimentados por mês' },
-  { valor: '+2M',    label: 'Lançamentos automáticos' },
-  { valor: '4.9/5',  label: 'Avaliação dos usuários' },
+const DEPOIMENTO_STYLE = [
+  { nome: 'Mari Gonzalez', cor: '#ec4899', img: '/landing/depoimentos/Mari-gonzales.jpg' },
+  { nome: 'Ferrugem',      cor: '#f59e0b', img: '/landing/depoimentos/ferrugem.jpg' },
+  { nome: 'Gusttavo Lima', cor: '#61ce70', img: '/landing/depoimentos/gusttavo-lima.jpg' },
+  { nome: 'Duda Rubert',   cor: '#a855f7', img: '/landing/depoimentos/duda-rubert.jpg' },
+  { nome: 'Coringa',       cor: '#3b82f6', img: '/landing/depoimentos/coringa.jpg' },
 ];
 
 function iniciais(nome: string) {
@@ -63,6 +38,10 @@ function Foto({ nome, img, cor, tamanho }: { nome: string; img: string; cor: str
 }
 
 export default function SocialProof() {
+  const t = useTranslations('socialProof');
+  const dtxt = t.raw('depoimentos') as { role: string; quote: string }[];
+  const DEPOIMENTOS = DEPOIMENTO_STYLE.map((s, i) => ({ ...s, ...dtxt[i] }));
+  const METRICAS = t.raw('metricas') as { valor: string; label: string }[];
   const [ativo, setAtivo] = useState(2);
   const [compact, setCompact] = useState(false); // avatares menores no mobile
 
@@ -97,12 +76,12 @@ export default function SocialProof() {
       <div className="relative max-w-6xl mx-auto px-5 sm:px-8">
 
         <div className="text-center mb-12 lg:mb-16">
-          <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">Quem usa</p>
+          <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">{t('label')}</p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            Milhares já transformaram<br />
-            <span className="text-zinc-400 dark:text-white/30">a própria rotina.</span>
+            {t('tituloL1')}<br />
+            <span className="text-zinc-400 dark:text-white/30">{t('tituloL2')}</span>
           </h2>
-          <p className="mt-5 text-lg text-zinc-600 dark:text-white/60">Veja quem já vive no automático com a Sora.</p>
+          <p className="mt-5 text-lg text-zinc-600 dark:text-white/60">{t('sub')}</p>
         </div>
 
         {/* Métricas — barra única com divisórias */}
@@ -133,7 +112,7 @@ export default function SocialProof() {
               const tamanho = tamPorDist(dist);
               const opacidade = dist === 0 ? 1 : dist === 1 ? 0.7 : 0.4;
               return (
-                <button key={d.nome} onClick={() => setAtivo(idx)} aria-label={`Ver depoimento de ${d.nome}`}
+                <button key={d.nome} onClick={() => setAtivo(idx)} aria-label={t('verDepoimento', { nome: d.nome })}
                         className="rounded-full transition-all duration-500 focus:outline-none flex-shrink-0"
                         style={{ opacity: opacidade, filter: on ? 'none' : 'grayscale(0.35)' }}>
                   {/* Foto SEMPRE montada (mesma posição na árvore) — só muda tamanho/anel;

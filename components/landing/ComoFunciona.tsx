@@ -1,40 +1,29 @@
 'use client';
 
 import { UserPlus, MessageCircle, Wand2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
-const PASSOS = [
-  {
-    n: '01',
-    titulo: 'Cria sua conta',
-    desc: 'Email, senha e um nome. Em 30 segundos você está dentro.',
-    icon: UserPlus,
-  },
-  {
-    n: '02',
-    titulo: 'Conecta o WhatsApp',
-    desc: 'Vincula o número numa única tela. Sora já fala com você no zap.',
-    icon: MessageCircle,
-  },
-  {
-    n: '03',
-    titulo: 'Conversa normalmente',
-    desc: 'Manda texto, áudio ou foto. Sora interpreta e organiza tudo no painel.',
-    icon: Wand2,
-  },
+const PASSO_STYLE = [
+  { n: '01', icon: UserPlus },
+  { n: '02', icon: MessageCircle },
+  { n: '03', icon: Wand2 },
 ];
 
 export default function ComoFunciona() {
+  const t = useTranslations('comoFunciona');
+  const passos = t.raw('passos') as { titulo: string; desc: string }[];
+  const PASSOS = PASSO_STYLE.map((s, i) => ({ ...s, ...passos[i] }));
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
 
         <div className="text-center mb-16 lg:mb-20">
           <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-            Como funciona
+            {t('label')}
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            3 passos.<br />
-            <span className="text-zinc-400 dark:text-white/30">Sem complicação.</span>
+            {t('tituloL1')}<br />
+            <span className="text-zinc-400 dark:text-white/30">{t('tituloL2')}</span>
           </h2>
         </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { CalendarDays, Check, MessageCircle, Play, Mic } from 'lucide-react';
 import { BolhaSora, BolhaUsuario, Digitando, InputBar, Caret } from './chatbits';
 
@@ -10,15 +11,9 @@ const SPEED_USER = 42;   // ms por caractere (usuário digitando no input)
 
 type Fala = { who: 'user' | 'sora'; text: string };
 
-// Conversa da aba de chat (fase 1). Segue os prints: briefing → marcar reunião →
-// consultar compromissos de amanhã.
-const CONVERSA: Fala[] = [
-  { who: 'sora', text: 'Bom dia! ☀️ Passando pra te lembrar do seu dia:\n\n⏰ 11:00h — Reunião com a Phillips\n\nQualquer coisa, tô por aqui! ✌️' },
-  { who: 'user', text: 'Marcar reunião hoje às 14h com o time todo' },
-  { who: 'sora', text: 'Prontinho! ✅ Reunião marcada pra hoje às 14:00 e já avisei o time todo 🙌' },
-  { who: 'user', text: 'Quais são meus compromissos de amanhã?' },
-  { who: 'sora', text: 'Seu dia amanhã tá agitado! 🗓️\n\n• Dentista às 9:00h 🦷\n• Call de vendas às 11:00h 📞\n• Filmagem de anúncios às 14:00h 🎥\n\nQualquer ajuste, é só falar! 🚀' },
-];
+// Ordem/autoria da conversa simulada; os textos vêm do catálogo
+// (agendaShowcase.conversa[i]) pra tradução.
+const CONVERSA_WHO: ('user' | 'sora')[] = ['sora', 'user', 'sora', 'user', 'sora'];
 
 const DIAS = Array.from({ length: 21 }, (_, i) => i + 1);
 const HOJE = 9;
@@ -43,6 +38,8 @@ function Texto({ children, caret }: { children: React.ReactNode; caret?: boolean
 
 // ---- Aba do CALENDÁRIO (fase 2) ---------------------------------------------
 function CalendarView({ audio, evento, lista }: { audio: boolean; evento: boolean; lista: boolean }) {
+  const t = useTranslations('agendaShowcase');
+  const semana = t.raw('diasSemana') as string[];
   return (
     <div className="relative h-full flex flex-col">
       {/* header */}
@@ -52,11 +49,11 @@ function CalendarView({ audio, evento, lista }: { audio: boolean; evento: boolea
           <CalendarDays size={17} />
         </span>
         <div className="leading-tight">
-          <p className="font-bold text-sm text-zinc-900 dark:text-white">Minha Agenda</p>
-          <p className="text-[11px] text-zinc-400 dark:text-white/40">Julho 2026</p>
+          <p className="font-bold text-sm text-zinc-900 dark:text-white">{t('minhaAgenda')}</p>
+          <p className="text-[11px] text-zinc-400 dark:text-white/40">{t('mesAno')}</p>
         </div>
         <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-white/40">
-          <MessageCircle size={12} /> via WhatsApp
+          <MessageCircle size={12} /> {t('viaWhatsApp')}
         </span>
       </div>
 
@@ -74,12 +71,12 @@ function CalendarView({ audio, evento, lista }: { audio: boolean; evento: boolea
           <span className="text-[10px] text-zinc-600 dark:text-white/70 flex-shrink-0">0:04</span>
           <Mic size={12} className="text-zinc-500 dark:text-white/60 flex-shrink-0" />
         </div>
-        <span className="text-[10px] italic text-zinc-400 dark:text-white/40 pr-1">“marca meu dentista amanhã às 9h”</span>
+        <span className="text-[10px] italic text-zinc-400 dark:text-white/40 pr-1">“{t('audioLegenda')}”</span>
       </div>
 
       {/* dias da semana */}
       <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-[10px] font-medium text-zinc-400 dark:text-white/40 text-center">
-        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i}>{d}</span>)}
+        {semana.map((d, i) => <span key={i}>{d}</span>)}
       </div>
 
       {/* grade de dias */}
@@ -102,18 +99,18 @@ function CalendarView({ audio, evento, lista }: { audio: boolean; evento: boolea
 
       {/* lista do dia */}
       <div className="mt-5">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-white/40 mb-2">Amanhã · 10 Jul</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-white/40 mb-2">{t('amanhaData')}</p>
         <div className={`transition-all duration-500 ${lista ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
           <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-[#1e2530] border border-zinc-100 dark:border-white/[0.06]"
                style={{ borderLeft: `3px solid ${BRAND}` }}>
             <span className="w-9 h-9 rounded-lg grid place-items-center text-lg flex-shrink-0" style={{ background: 'rgba(97,206,112,0.15)' }}>🦷</span>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-[13px] text-zinc-900 dark:text-white">Dentista</p>
-              <p className="text-[11px] text-zinc-400 dark:text-white/40">9:00 · lembrete 1h antes</p>
+              <p className="font-semibold text-[13px] text-zinc-900 dark:text-white">{t('dentista')}</p>
+              <p className="text-[11px] text-zinc-400 dark:text-white/40">{t('dentistaHora')}</p>
             </div>
             <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full flex-shrink-0"
                   style={{ color: '#4DAE61', background: 'rgba(97,206,112,0.15)' }}>
-              <Check size={11} strokeWidth={3} /> criado
+              <Check size={11} strokeWidth={3} /> {t('criado')}
             </span>
           </div>
         </div>
@@ -124,6 +121,9 @@ function CalendarView({ audio, evento, lista }: { audio: boolean; evento: boolea
 
 // ---- Card completo: chat (com typewriter) → fecha → calendário → loop --------
 export default function AgendaShowcase() {
+  const t = useTranslations('agendaShowcase');
+  const textos = t.raw('conversa') as string[];
+  const CONVERSA: Fala[] = CONVERSA_WHO.map((who, i) => ({ who, text: textos[i] }));
   const { ref, inView } = useInView<HTMLDivElement>();
   const [modo, setModo] = useState<'chat' | 'cal'>('chat');
   const [msgs, setMsgs] = useState<Fala[]>([]);       // todas as mensagens (a última pode estar digitando)

@@ -1,22 +1,11 @@
 'use client';
 
 import { Folder, FileText, Search, Check, Image as ImageIcon, BadgeCheck, MessageCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const BRAND = '#61ce70';
 const BRAND_DARK = '#4DAE61';
 const VERDE = '#16a34a';
-
-const PILLS = [
-  'Envie arquivos direto pelo WhatsApp',
-  'A Sora organiza nas pastas certas',
-  'Ache qualquer arquivo só descrevendo ele',
-];
-
-const FEATURES = [
-  { t: 'Envie pelo WhatsApp', d: 'Mande qualquer arquivo na conversa e peça para salvar. Sem app, sem login, sem complicação.' },
-  { t: 'Organização automática', d: 'A IA entende o conteúdo e organiza nas pastas certas. Você nunca mais perde um documento.' },
-  { t: 'Busca por significado', d: '“Ache minha foto na neve”. A IA analisa o conteúdo real dos arquivos e encontra o que você precisa.' },
-];
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -26,7 +15,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   );
 }
 
-function CabecalhoSora() {
+function CabecalhoSora({ online }: { online: string }) {
   return (
     <div className="flex items-center gap-2.5 px-4 py-3 border-b border-zinc-100 dark:border-white/[0.05]">
       <div className="w-9 h-9 rounded-full grid place-items-center overflow-hidden flex-shrink-0" style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND_DARK})` }}>
@@ -37,7 +26,7 @@ function CabecalhoSora() {
         <p className="font-bold text-[13px] text-zinc-900 dark:text-white flex items-center gap-1">
           Sora <BadgeCheck size={13} className="text-[#3b9eff]" fill="#3b9eff" stroke="white" />
         </p>
-        <p className="text-[11px] font-semibold" style={{ color: '#22c55e' }}>online</p>
+        <p className="text-[11px] font-semibold" style={{ color: '#22c55e' }}>{online}</p>
       </div>
     </div>
   );
@@ -75,6 +64,9 @@ function Conector() {
 }
 
 export default function DriveShowcase() {
+  const t = useTranslations('driveShowcase');
+  const PILLS = t.raw('pills') as string[];
+  const FEATURES = t.raw('features') as { t: string; d: string }[];
   return (
     <section className="relative overflow-hidden py-20 lg:py-28 border-t border-zinc-200/50 dark:border-white/[0.04]">
       <div aria-hidden className="absolute inset-0 pointer-events-none">
@@ -90,14 +82,13 @@ export default function DriveShowcase() {
           <div>
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold text-white shadow-sm"
                   style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND_DARK})` }}>
-              <Folder size={16} /> Drive Inteligente
+              <Folder size={16} /> {t('badge')}
             </span>
             <h2 className="mt-6 text-4xl sm:text-5xl font-bold leading-[1.05] tracking-[-0.03em] text-zinc-900 dark:text-white">
-              Seus documentos guardados.<br className="hidden sm:block" /> Encontrados por IA.
+              {t('tituloL1')}<br className="hidden sm:block" /> {t('tituloL2')}
             </h2>
             <p className="mt-5 text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-md">
-              Envie qualquer arquivo pelo WhatsApp e tenha tudo salvo e organizado. Quando precisar,
-              é só descrever com suas palavras que a Sora encontra.
+              {t('desc')}
             </p>
             <ul className="mt-8 space-y-3">
               {PILLS.map((t) => (
@@ -114,17 +105,17 @@ export default function DriveShowcase() {
           {/* direita: chat salvar + Meu Drive */}
           <div className="w-full max-w-md mx-auto lg:max-w-none">
             <Card>
-              <CabecalhoSora />
+              <CabecalhoSora online={t('online')} />
               <div className="p-4 space-y-2.5">
                 <BolhaUser>
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/70 dark:bg-black/20 mb-1.5">
                     <FileText size={15} className="text-red-500 flex-shrink-0" />
-                    <span className="text-[12px] text-zinc-700 dark:text-zinc-200 truncate">comprovante_mecanico.pdf</span>
+                    <span className="text-[12px] text-zinc-700 dark:text-zinc-200 truncate">{t('arquivoNome')}</span>
                   </div>
-                  Salva isso na pasta de comprovantes 👆
+                  {t('salvarPedido')}
                 </BolhaUser>
                 <BolhaSora>
-                  Pronto! Salvei na pasta 📁 <strong className="font-semibold text-zinc-900 dark:text-white">Comprovantes / Veículos</strong>. ✅
+                  {t.rich('salvarResposta', { b: (c) => <strong className="font-semibold text-zinc-900 dark:text-white">{c}</strong> })}
                 </BolhaSora>
               </div>
             </Card>
@@ -134,33 +125,33 @@ export default function DriveShowcase() {
             <Card className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="flex items-center gap-2 font-bold text-sm text-zinc-900 dark:text-white">
-                  <Folder size={16} style={{ color: VERDE }} /> Meu Drive
+                  <Folder size={16} style={{ color: VERDE }} /> {t('meuDrive')}
                 </p>
                 <Search size={15} className="text-zinc-400" />
               </div>
-              <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-2">PASTAS</p>
+              <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-2">{t('pastas')}</p>
               <div className="flex gap-2 mb-4">
-                {['Comprov…', 'Contratos', 'Fotos'].map((f) => (
+                {(t.raw('pastasChips') as string[]).map((f) => (
                   <span key={f} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.06] text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
                     <Folder size={12} style={{ color: VERDE }} /> {f}
                   </span>
                 ))}
               </div>
-              <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-2">RECENTES</p>
+              <p className="text-[10px] font-bold tracking-wider text-zinc-400 mb-2">{t('recentes')}</p>
               <div className="space-y-2">
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-50 dark:bg-white/[0.04]">
                   <span className="w-8 h-8 rounded-lg grid place-items-center bg-red-50 dark:bg-red-500/10 flex-shrink-0"><FileText size={15} className="text-red-500" /></span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[12px] text-zinc-900 dark:text-white truncate">comprovante_mecanico.pdf</p>
-                    <p className="text-[10px] text-zinc-400 truncate">Comprovantes / Veículos · Agora</p>
+                    <p className="font-semibold text-[12px] text-zinc-900 dark:text-white truncate">{t('arquivoNome')}</p>
+                    <p className="text-[10px] text-zinc-400 truncate">{t('arquivoLocalAgora')}</p>
                   </div>
-                  <span className="text-[9px] font-bold text-white px-2 py-1 rounded-full flex-shrink-0" style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND_DARK})` }}>NOVO</span>
+                  <span className="text-[9px] font-bold text-white px-2 py-1 rounded-full flex-shrink-0" style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND_DARK})` }}>{t('novo')}</span>
                 </div>
                 <div className="flex items-center gap-3 p-2.5 rounded-xl">
                   <span className="w-8 h-8 rounded-lg grid place-items-center bg-blue-50 dark:bg-blue-500/10 flex-shrink-0"><ImageIcon size={15} className="text-blue-500" /></span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[12px] text-zinc-900 dark:text-white truncate">contrato_aluguel.pdf</p>
-                    <p className="text-[10px] text-zinc-400 truncate">Contratos · 2 dias atrás</p>
+                    <p className="font-semibold text-[12px] text-zinc-900 dark:text-white truncate">{t('arquivo2Nome')}</p>
+                    <p className="text-[10px] text-zinc-400 truncate">{t('arquivo2Local')}</p>
                   </div>
                 </div>
               </div>
@@ -188,21 +179,21 @@ export default function DriveShowcase() {
           {/* direita: chat buscar */}
           <div className="w-full max-w-md mx-auto lg:max-w-none">
             <Card>
-              <CabecalhoSora />
+              <CabecalhoSora online={t('online')} />
               <div className="p-4 space-y-2.5">
-                <BolhaUser>Ache o comprovante que fiz pro mecânico esse ano</BolhaUser>
-                <BolhaSora>Achei! Aqui está o comprovante que você salvou em março 👇</BolhaSora>
+                <BolhaUser>{t('buscarPedido')}</BolhaUser>
+                <BolhaSora>{t('buscarResposta')}</BolhaSora>
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-white/[0.04] border border-zinc-100 dark:border-white/[0.06]">
                   <span className="w-9 h-9 rounded-lg grid place-items-center bg-red-50 dark:bg-red-500/10 flex-shrink-0"><FileText size={16} className="text-red-500" /></span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[13px] text-zinc-900 dark:text-white truncate">comprovante_mecanico.pdf</p>
-                    <p className="text-[11px] text-zinc-400 flex items-center gap-1 truncate"><Folder size={11} /> Comprovantes / Veículos · 285.5 KB</p>
+                    <p className="font-semibold text-[13px] text-zinc-900 dark:text-white truncate">{t('arquivoNome')}</p>
+                    <p className="text-[11px] text-zinc-400 flex items-center gap-1 truncate"><Folder size={11} /> {t('arquivoLocalTamanho')}</p>
                   </div>
                 </div>
               </div>
             </Card>
             <p className="mt-4 flex items-center justify-center gap-1.5 text-[12px] text-zinc-400 dark:text-white/40">
-              <MessageCircle size={13} /> Tudo pelo WhatsApp, sem abrir app nenhum
+              <MessageCircle size={13} /> {t('rodape')}
             </p>
           </div>
         </div>

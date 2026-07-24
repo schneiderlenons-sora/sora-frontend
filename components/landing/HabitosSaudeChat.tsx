@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Avatar, BolhaSora, BolhaUsuario, Digitando, InputBar, Caret } from './chatbits';
 
 const VERDE = '#61ce70';
@@ -11,25 +12,27 @@ const SPEED_USER = 40;   // ms por caractere (usuário digitando no input)
 
 type Msg = { who: 'user' | 'sora'; texto?: string; card?: 'academia' | 'habitos' | 'macros' };
 
-// Roteiro: 5 trocas. Respostas iguais aos prints, adaptadas ao chat da Sora.
-const ROTEIRO: Msg[] = [
-  { who: 'user', texto: 'acabei de voltar da academia 🏋️' },
-  { who: 'sora', texto: 'Aeee, foi! 🔥' },
+// Roteiro: autoria + chave de texto (ou card). Textos vêm do catálogo
+// (habitosSaudeChat.roteiro[i]); onde é card, o texto do card também é do catálogo.
+type MsgSpec = { who: 'user' | 'sora'; key?: string; card?: 'academia' | 'habitos' | 'macros' };
+const ROTEIRO_SPEC: MsgSpec[] = [
+  { who: 'user', key: 'm0' },
+  { who: 'sora', key: 'm1' },
   { who: 'sora', card: 'academia' },
-  { who: 'sora', texto: '13 dias seguidos! Faltam 17 pro marco de 1 mês. Você é uma máquina 💪' },
-  { who: 'user', texto: 'como estão meus hábitos?' },
+  { who: 'sora', key: 'm3' },
+  { who: 'user', key: 'm4' },
   { who: 'sora', card: 'habitos' },
-  { who: 'sora', texto: 'Tá voando! 21 dias de água é seu recorde 🏆' },
-  { who: 'user', texto: 'comi 2 ovos, 1 pão na chapa e um café com leite' },
-  { who: 'sora', texto: '🍽️ Calculei os macros da sua refeição:' },
+  { who: 'sora', key: 'm6' },
+  { who: 'user', key: 'm7' },
+  { who: 'sora', key: 'm8' },
   { who: 'sora', card: 'macros' },
-  { who: 'sora', texto: 'É só me contar o que comeu — calculo caloria e macros na hora 😋' },
-  { who: 'user', texto: 'minha pressão tá 12/8' },
-  { who: 'sora', texto: 'Registrado: 120/80 mmHg 💗' },
-  { who: 'sora', texto: 'Dentro do ideal! Sua média do mês: 122/82 — bem estável 👍' },
-  { who: 'user', texto: 'estudei 2h de cálculo' },
-  { who: 'sora', texto: '📄 Sessão registrada: Cálculo I — 2h. Total da semana: 9h 🎯' },
-  { who: 'sora', texto: 'Faltam 6h pra bater sua meta semanal. Bom ritmo!' },
+  { who: 'sora', key: 'm10' },
+  { who: 'user', key: 'm11' },
+  { who: 'sora', key: 'm12' },
+  { who: 'sora', key: 'm13' },
+  { who: 'user', key: 'm14' },
+  { who: 'sora', key: 'm15' },
+  { who: 'sora', key: 'm16' },
 ];
 
 function useInView<T extends HTMLElement>(threshold = 0.3) {
@@ -56,36 +59,39 @@ function Barra({ pct }: { pct: number }) {
 const LABEL = 'text-[10px] font-bold tracking-wider uppercase text-zinc-400 dark:text-white/40';
 
 function CardAcademia() {
+  const t = useTranslations('habitosSaudeChat.cardAcademia');
   return (
     <>
-      <p className={LABEL}>Academia</p>
+      <p className={LABEL}>{t('titulo')}</p>
       <p className="flex items-baseline gap-1.5 mt-1">
         <span className="text-base">🔥</span>
         <span className="text-2xl font-bold" style={{ color: VERDE_DARK }}>13</span>
-        <span className="text-[13px] text-zinc-500 dark:text-white/50">dias seguidos</span>
+        <span className="text-[13px] text-zinc-500 dark:text-white/50">{t('diasSeguidos')}</span>
       </p>
       <Barra pct={43} />
-      <p className="text-[11px] text-zinc-400 dark:text-white/40 mt-1.5">próximo marco: 30 dias</p>
+      <p className="text-[11px] text-zinc-400 dark:text-white/40 mt-1.5">{t('proximoMarco')}</p>
     </>
   );
 }
 
 function CardHabitos() {
+  const t = useTranslations('habitosSaudeChat.cardHabitos');
+  const nomes = t.raw('nomes') as string[];
   const habitos = [
-    { i: '🏋️', n: 'Academia', d: 13, p: 90 },
-    { i: '📚', n: 'Ler 30min', d: 7, p: 52 },
-    { i: '💧', n: 'Água 2L', d: 21, p: 100 },
-    { i: '📵', n: 'Sem celular 1h', d: 4, p: 30 },
-  ];
+    { i: '🏋️', d: 13, p: 90 },
+    { i: '📚', d: 7, p: 52 },
+    { i: '💧', d: 21, p: 100 },
+    { i: '📵', d: 4, p: 30 },
+  ].map((h, idx) => ({ ...h, n: nomes[idx] }));
   return (
     <>
-      <p className={LABEL}>Total: 12/15 hoje</p>
+      <p className={LABEL}>{t('total')}</p>
       <div className="space-y-2.5 mt-2.5">
         {habitos.map((h) => (
           <div key={h.n}>
             <div className="flex items-center justify-between text-[13px]">
               <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">{h.i} {h.n}</span>
-              <span className="font-bold tabular-nums" style={{ color: VERDE_DARK }}>{h.d} dias</span>
+              <span className="font-bold tabular-nums" style={{ color: VERDE_DARK }}>{t('dias', { n: h.d })}</span>
             </div>
             <Barra pct={h.p} />
           </div>
@@ -100,10 +106,12 @@ function Chip({ children, cor }: { children: React.ReactNode; cor: string }) {
 }
 
 function CardMacros() {
-  const itens = [['2 ovos', '156 kcal'], ['Pão na chapa', '180 kcal'], ['Café com leite', '79 kcal']];
+  const t = useTranslations('habitosSaudeChat.cardMacros');
+  const nomes = t.raw('itens') as string[];
+  const itens: [string, string][] = [[nomes[0], '156 kcal'], [nomes[1], '180 kcal'], [nomes[2], '79 kcal']];
   return (
     <>
-      <p className={LABEL}>Café da manhã</p>
+      <p className={LABEL}>{t('titulo')}</p>
       <p className="mt-1"><span className="text-2xl font-bold" style={{ color: VERDE_DARK }}>415</span> <span className="text-[13px] text-zinc-500 dark:text-white/50">kcal</span></p>
       <div className="mt-2.5 space-y-1 text-[13px]">
         {itens.map(([n, v]) => (
@@ -118,7 +126,7 @@ function CardMacros() {
         <Chip cor="#d97706">C 38g</Chip>
         <Chip cor="#a855f7">G 19g</Chip>
       </div>
-      <p className="text-[11px] text-zinc-400 dark:text-white/40 mt-2.5">Hoje: 415 / 2.000 kcal · 👍 24g de proteína</p>
+      <p className="text-[11px] text-zinc-400 dark:text-white/40 mt-2.5">{t('rodape')}</p>
     </>
   );
 }
@@ -138,6 +146,12 @@ function BolhaSoraCard({ children }: { children: React.ReactNode }) {
 }
 
 export default function HabitosSaudeChat() {
+  const t = useTranslations('habitosSaudeChat.roteiro');
+  const ROTEIRO: Msg[] = ROTEIRO_SPEC.map((m) => ({
+    who: m.who,
+    card: m.card,
+    texto: m.key ? t(m.key) : undefined,
+  }));
   const { ref, inView } = useInView<HTMLDivElement>();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typingIdx, setTypingIdx] = useState<number | null>(null);

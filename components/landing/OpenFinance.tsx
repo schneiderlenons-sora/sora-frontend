@@ -1,6 +1,7 @@
 'use client';
 
 import { ShieldCheck, Lock, Eye, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const BANCOS = [
   { nome: 'Nubank',       cor: '#8A05BE' },
@@ -21,14 +22,12 @@ const BANCOS = [
   { nome: 'Original',     cor: '#00C16E' },
 ];
 
-const GARANTIAS = [
-  { icon: ShieldCheck, titulo: 'Convênio BACEN',     desc: 'Conexão oficial via Open Finance Brasil.' },
-  { icon: Lock,        titulo: 'Criptografia ponta-a-ponta', desc: 'Suas credenciais nunca passam pela Sora.' },
-  { icon: Eye,         titulo: 'Você revoga quando quiser', desc: 'Acesso pode ser desconectado a qualquer momento.' },
-  { icon: RefreshCw,   titulo: 'Atualização em tempo real',  desc: 'Saldo e transações sincronizados automaticamente.' },
-];
+const GARANTIA_ICON = [ShieldCheck, Lock, Eye, RefreshCw];
 
 export default function OpenFinance() {
+  const t = useTranslations('openFinance');
+  const gtxt = t.raw('garantias') as { titulo: string; desc: string }[];
+  const GARANTIAS = GARANTIA_ICON.map((icon, i) => ({ icon, ...gtxt[i] }));
   return (
     <section className="relative py-24 lg:py-36 border-t border-zinc-200/50 dark:border-white/[0.04]">
 
@@ -42,17 +41,16 @@ export default function OpenFinance() {
         {/* Header */}
         <div className="text-center mb-14">
           <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-            Open Finance
+            {t('label')}
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-[-0.03em] max-w-3xl mx-auto">
-            Não quer nem digitar?<br />
+            {t('tituloL1')}<br />
             <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
-              Conecte seu banco.
+              {t('tituloL2')}
             </span>
           </h2>
           <p className="mt-6 text-lg lg:text-xl text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-            Cada transação que cai no seu banco aparece organizada e categorizada na Sora.
-            Sem CSV, sem importação manual.
+            {t('subtitulo')}
           </p>
         </div>
 
@@ -103,10 +101,10 @@ export default function OpenFinance() {
         <div className="flex items-center justify-center gap-6 text-zinc-500 dark:text-white/40">
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} />
-            <span className="text-xs font-bold tracking-widest uppercase">Autorizado pelo BACEN</span>
+            <span className="text-xs font-bold tracking-widest uppercase">{t('seloAutorizado')}</span>
           </div>
           <span className="w-px h-4 bg-zinc-300 dark:bg-white/15" />
-          <span className="text-xs font-bold tracking-widest uppercase">100% LGPD</span>
+          <span className="text-xs font-bold tracking-widest uppercase">{t('seloLgpd')}</span>
         </div>
       </div>
     </section>

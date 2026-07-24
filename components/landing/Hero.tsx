@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight, Check, Sparkles, Lock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/AuthContext';
 import IPhoneFrame from './IPhoneFrame';
 import HeroPhoneWhatsApp from './HeroPhoneWhatsApp';
@@ -12,6 +13,7 @@ const BRAND = '#61ce70';
 
 export default function Hero() {
   const { user } = useAuth();
+  const t = useTranslations('hero');
 
   return (
     <section className="relative isolate overflow-hidden pt-10 lg:pt-20 pb-20 lg:pb-32">
@@ -31,29 +33,29 @@ export default function Hero() {
               <span className="relative rounded-full w-1.5 h-1.5" style={{ background: BRAND }} />
             </span>
             <span className="text-[11px] font-bold tracking-wide uppercase text-zinc-700 dark:text-white/80">
-              Disponível agora
+              {t('badge')}
             </span>
           </div>
 
           {/* Headline */}
           <h1 className="mt-6 text-[40px] sm:text-[54px] lg:text-[64px] font-bold leading-[0.98] tracking-[-0.03em] animate-[slide-up_700ms_ease-out_both]" style={{ animationDelay: '80ms' }}>
-            Sua vida inteira{' '}
+            {t('tituloParte1')}{' '}
             <span className="relative inline-block">
-              sob controle.
+              {t('tituloDestaque')}
               <svg className="absolute -bottom-1 left-0 w-full" height="8" viewBox="0 0 200 8" preserveAspectRatio="none">
                 <path d="M2,5 Q50,2 100,4 T198,5" stroke={BRAND} strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6" />
               </svg>
             </span>
             <br />
             <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-              Em um único sistema.
+              {t('tituloParte2')}
             </span>
           </h1>
 
           {/* Subhead */}
           <p className="mt-6 text-base sm:text-lg lg:text-xl text-zinc-600 dark:text-white/70 leading-relaxed max-w-xl mx-auto lg:mx-0 animate-[slide-up_800ms_ease-out_both]" style={{ animationDelay: '160ms' }}>
-            Finanças, hábitos, saúde, dietas, estudos, trabalhos, investimentos.{' '}
-            <span className="text-zinc-900 dark:text-white font-medium">Tudo num lugar só</span>, organizados e controlados direto pelo seu WhatsApp.
+            {t('subheadInicio')}{' '}
+            <span className="text-zinc-900 dark:text-white font-medium">{t('subheadDestaque')}</span>{t('subheadFim')}
           </p>
 
           {/* MOBILE ONLY — Mockups aqui (logo após subheadline) */}
@@ -66,21 +68,21 @@ export default function Hero() {
             <Link href={user ? '/dashboard' : '#pricing'}
                   className="group inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold text-white rounded-xl shadow-[0_8px_30px_-8px_rgba(97,206,112,0.6)] hover:shadow-[0_12px_40px_-8px_rgba(97,206,112,0.7)] hover:-translate-y-0.5 transition-all"
                   style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #4DAE61 100%)` }}>
-              {user ? 'Abrir meu painel' : 'Começar agora'}
+              {user ? t('ctaPainel') : t('ctaPrincipal')}
               <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </Link>
 
             <a href="#demo"
                className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold rounded-xl border border-zinc-300 dark:border-white/[0.12] bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm hover:bg-white dark:hover:bg-white/[0.08] hover:-translate-y-0.5 transition-all">
               <Sparkles size={14} style={{ color: BRAND }} />
-              Testar Sora no zap
+              {t('ctaDemo')}
             </a>
           </div>
 
           {/* Trust bar */}
           <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-[12px] text-zinc-500 dark:text-white/50 animate-[slide-up_1000ms_ease-out_both]" style={{ animationDelay: '320ms' }}>
-            <span className="inline-flex items-center gap-1.5"><Lock size={12} /> Criptografia de ponta</span>
-            <span className="inline-flex items-center gap-1.5"><Check size={12} /> 100% LGPD</span>
+            <span className="inline-flex items-center gap-1.5"><Lock size={12} /> {t('trust1')}</span>
+            <span className="inline-flex items-center gap-1.5"><Check size={12} /> {t('trust2')}</span>
           </div>
         </div>
 
@@ -98,6 +100,7 @@ export default function Hero() {
  * Usado tanto no mobile (entre subheadline e CTAs) quanto no desktop (coluna direita).
  */
 export function HeroPhones() {
+  const t = useTranslations('hero');
   return (
     <div className="relative h-[440px] sm:h-[540px] lg:h-[680px] flex items-center justify-center mx-auto max-w-md lg:max-w-none">
 
@@ -123,13 +126,13 @@ export function HeroPhones() {
 
       {/* Floating chips — z-40 fica acima dos phones */}
       <FloatingChip className="top-[8%] right-[0%] sm:right-[2%]" delay="600ms">
-        <span style={{ color: BRAND }}>↑</span> R$ 3.450 saldo
+        <span style={{ color: BRAND }}>↑</span> {t('chipSaldo')}
       </FloatingChip>
       <FloatingChip className="bottom-[10%] left-[-2%] sm:left-[0%]" delay="900ms">
-        🔥 12 dias de hábito
+        {t('chipHabito')}
       </FloatingChip>
       <FloatingChip className="top-[42%] left-[-6%] sm:left-[-4%] hidden sm:flex" delay="1100ms" variant="accent">
-        <Sparkles size={11} /> Lançado
+        <Sparkles size={11} /> {t('chipLancado')}
       </FloatingChip>
     </div>
   );

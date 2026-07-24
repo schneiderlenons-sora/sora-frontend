@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import IPhoneFrame from './IPhoneFrame';
 
 // Seção "também no celular" — 2 mockups de iPhone lado a lado.
@@ -12,6 +13,7 @@ const PRINTS = [
 ];
 
 export default function MobileShowcase() {
+  const t = useTranslations('mobileShowcase');
   return (
     <section className="relative py-24 lg:py-32 border-t border-zinc-200/50 dark:border-white/[0.04] overflow-hidden">
       {/* glow de fundo (mesmo padrão das outras seções) */}
@@ -22,16 +24,15 @@ export default function MobileShowcase() {
 
       <div className="relative max-w-5xl mx-auto px-5 sm:px-8 text-center">
         <p className="text-[11px] font-bold tracking-[0.25em] uppercase text-zinc-500 dark:text-white/40 mb-4">
-          No seu bolso
+          {t('eyebrow')}
         </p>
 
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-[-0.03em] max-w-3xl mx-auto">
-          E claro, também disponível<br className="hidden sm:block" /> no seu celular.
+          {t('tituloL1')}<br className="hidden sm:block" /> {t('tituloL2')}
         </h2>
 
         <p className="mt-5 text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-          Toda a Sora na palma da mão — instale como app e acesse seu painel
-          de qualquer lugar, com a mesma experiência do desktop.
+          {t('sub')}
         </p>
 
         {/* ── 2 mockups lado a lado, levemente inclinados ── */}
@@ -54,13 +55,14 @@ export default function MobileShowcase() {
 
 // Print dentro da moldura — com fallback elegante enquanto a imagem não existe.
 function PrintTela({ img, alt }: { img: string; alt: string }) {
+  const t = useTranslations('mobileShowcase');
   const [erro, setErro] = useState(false);
   if (erro) {
     return (
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4"
            style={{ background: 'linear-gradient(160deg, rgba(97,206,112,0.25) 0%, rgba(97,206,112,0.05) 60%, #0a0a0c 100%)' }}>
         <span className="w-9 h-9 rounded-full bg-[#61ce70]" />
-        <p className="text-[11px] font-bold text-white/90">Print em breve</p>
+        <p className="text-[11px] font-bold text-white/90">{t('printEmBreve')}</p>
       </div>
     );
   }
