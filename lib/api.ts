@@ -91,6 +91,12 @@ export const api = {
       set: (body: Partial<AvisosPrefs>) =>
         req<{ ok: boolean }>('/api/user/avisos', { method: 'POST', body: JSON.stringify(body) }),
     },
+    /** Reseta os dados da conta por módulo (sem excluir a conta). */
+    resetar: (body: { financas?: boolean; negocios?: boolean; grow?: boolean }) =>
+      req<{ ok: boolean; resetado: Record<string, boolean> }>('/api/user/resetar', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
 
   // ── RELATAR BUG ───────────────────────────────────────────────

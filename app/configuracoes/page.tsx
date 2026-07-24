@@ -16,8 +16,11 @@ import {
   Download, Trash2, Mail, Phone, Lock, Info, Upload,
   Zap, Calendar, Receipt, Settings as SettingsIcon,
   ArrowUpRight, ArrowDownRight, ShieldX, Gem, Palette,
+  RotateCcw, Wallet, Briefcase, Sprout, Users,
 } from 'lucide-react';
 import { PALETAS, getPaletaSalva, aplicarPaleta } from '@/lib/theme-colors';
+import { limparCacheSWR } from '@/lib/swr-cache';
+import { limparPerfilCache } from '@/lib/perfil-cache';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -1134,12 +1137,55 @@ function Recurso({ emoji, titulo, desc }: { emoji: string; titulo: string; desc:
 // SEÇÃO: PRIVACIDADE E DADOS
 // ═══════════════════════════════════════════════════════════════
 function SecaoDados() {
-  const { phone, user, signOut, podeUsar } = useAuth();
+  const { phone, user, perfil, signOut, podeUsar } = useAuth();
+  const grupoId = (perfil as any)?.grupo_ativo as string | undefined;
   const podeExportar = podeUsar('export_dados');
   const [exportando, setExportando] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [digitouConfirma, setDigitouConfirma] = useState('');
   const [mensagem, setMensagem] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+
+  // ── Resetar conta (limpar dados por módulo, sem excluir a conta) ──
+  const [modResetar, setModResetar] = useState({ financas: false, negocios: false, grow: false });
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [digitouReset, setDigitouReset] = useState('');
+  const [resetando, setResetando] = useState(false);
+  const [compartilhada, setCompartilhada] = useState(false);
+
+  // Conta compartilhada? (grupo com >1 membro) → Finanças/Negócios ficam
+  // bloqueados no reset (apagariam dados do parceiro). O backend é a trava real.
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      if (!grupoId) return;
+      try {
+        const membros = await api.grupos.membros(grupoId);
+        if (vivo) setCompartilhada(Array.isArray(membros) && membros.length > 1);
+      } catch { /* tolerante: mantém como solo; backend valida no reset */ }
+    })();
+    return () => { vivo = false; };
+  }, [grupoId]);
+
+  const algumMarcado = modResetar.financas || modResetar.negocios || modResetar.grow;
+
+  async function resetarConta() {
+    if (digitouReset.toUpperCase() !== 'RESETAR' || !algumMarcado) return;
+    setResetando(true);
+    try {
+      await api.user.resetar(modResetar);
+      // Cache local guarda dado financeiro/perfil — limpar pra não mostrar velho.
+      limparCacheSWR();
+      limparPerfilCache();
+      flash('ok', 'Conta resetada. Recarregando…');
+      setTimeout(() => window.location.assign('/dashboard'), 900);
+    } catch (e: any) {
+      flash('erro', e.message || 'Não foi possível resetar.');
+      setConfirmReset(false);
+      setDigitouReset('');
+    } finally {
+      setResetando(false);
+    }
+  }
 
   function flash(tipo: 'ok' | 'erro', texto: string) {
     setMensagem({ tipo, texto });
@@ -1237,6 +1283,75 @@ function SecaoDados() {
         </div>
       </Card>
 
+      <Card titulo="Resetar minha conta" subtitulo="Limpar dados pra recomeçar — sem excluir a conta">
+        <div className="rounded-xl p-4 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center flex-shrink-0">
+              <RotateCcw size={18} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Escolha o que limpar</p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-1 leading-relaxed">
+                Mantém seu login, plano e WhatsApp. Marque os módulos que quer zerar pra reorganizar do zero.
+              </p>
+
+              {compartilhada && (
+                <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-100/70 dark:bg-amber-900/30 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
+                  <Users size={13} className="flex-shrink-0 mt-0.5" />
+                  <span>Conta compartilhada: Finanças e Negócios ficam bloqueados pra não apagar dados dos outros membros. O Sora Grow pode ser resetado.</span>
+                </div>
+              )}
+
+              <div className="mt-3 space-y-2">
+                {([
+                  { id: 'financas', icon: Wallet,    titulo: 'Finanças',  desc: 'Transações, contas, cartões, metas, dívidas, investimentos e limites. Recria as categorias padrão.', bloq: compartilhada },
+                  { id: 'negocios', icon: Briefcase, titulo: 'Negócios',  desc: 'Empresas, caixa, contas a pagar, folha, DRE e integrações.', bloq: compartilhada },
+                  { id: 'grow',     icon: Sprout,    titulo: 'Sora Grow', desc: 'Hábitos, tarefas, saúde, estudos, agenda, casa, notas e Drive.', bloq: false },
+                ] as const).map((m) => {
+                  const Icon = m.icon;
+                  const marcado = modResetar[m.id];
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      disabled={m.bloq}
+                      onClick={() => setModResetar(s => ({ ...s, [m.id]: !s[m.id] }))}
+                      className={`w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                        m.bloq
+                          ? 'opacity-50 cursor-not-allowed border-border/50 bg-muted/30'
+                          : marcado
+                            ? 'border-amber-400 dark:border-amber-600 bg-amber-100/60 dark:bg-amber-900/30'
+                            : 'border-border hover:bg-muted/40'
+                      }`}
+                    >
+                      <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border ${
+                        marcado ? 'bg-amber-500 border-amber-500' : 'border-border bg-transparent'
+                      }`}>
+                        {marcado && <Check size={13} className="text-white" strokeWidth={3} />}
+                      </span>
+                      <Icon size={16} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-foreground">{m.titulo}</span>
+                        <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">{m.desc}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setConfirmReset(true)}
+                disabled={!algumMarcado}
+                className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              >
+                <RotateCcw size={13} /> Resetar selecionados
+              </button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <Card titulo="Zona de perigo" subtitulo="Ações irreversíveis" perigo>
         <div className="rounded-xl p-4 bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/60">
           <div className="flex items-start gap-3">
@@ -1259,6 +1374,52 @@ function SecaoDados() {
       </Card>
 
       {mensagem && <Flash tipo={mensagem.tipo} texto={mensagem.texto} />}
+
+      {/* Modal de confirmação de RESET */}
+      {confirmReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => !resetando && setConfirmReset(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl border border-border animate-fade-in p-6"
+               onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center mb-4">
+              <RotateCcw size={22} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Resetar estes dados?</h3>
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+              Vamos apagar de forma <strong className="text-foreground">permanente</strong> os módulos marcados. Sua conta, plano e WhatsApp continuam. Não dá pra recuperar.
+            </p>
+            <ul className="mt-3 space-y-1 text-sm">
+              {modResetar.financas && <li className="flex items-center gap-2 text-foreground"><Wallet size={14} className="text-amber-600" /> Finanças <span className="text-muted-foreground text-xs">(+ categorias padrão)</span></li>}
+              {modResetar.negocios && <li className="flex items-center gap-2 text-foreground"><Briefcase size={14} className="text-amber-600" /> Negócios</li>}
+              {modResetar.grow && <li className="flex items-center gap-2 text-foreground"><Sprout size={14} className="text-amber-600" /> Sora Grow</li>}
+            </ul>
+            <div className="mt-4">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                Pra confirmar, digite <span className="font-mono text-amber-600 dark:text-amber-400">RESETAR</span>
+              </label>
+              <input
+                value={digitouReset}
+                onChange={e => setDigitouReset(e.target.value)}
+                className="input"
+                placeholder="RESETAR"
+                autoFocus
+                disabled={resetando}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button onClick={() => { setConfirmReset(false); setDigitouReset(''); }} disabled={resetando} className="btn-ghost px-4 py-2 text-sm">
+                Cancelar
+              </button>
+              <button onClick={resetarConta}
+                      disabled={digitouReset.toUpperCase() !== 'RESETAR' || resetando}
+                      className="px-4 py-2 text-sm gap-2 inline-flex items-center rounded-lg text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                {resetando ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Resetar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmação de exclusão */}
       {confirmDel && (
