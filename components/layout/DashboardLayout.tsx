@@ -17,7 +17,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const mostrarBadge = !ehPessoal && papel;
 
   return (
-    <div className="flex h-dvh md:h-screen bg-background overflow-hidden">
+    <div
+      className="flex h-dvh md:h-screen overflow-hidden"
+      // Fundo = --bg, MENOS a faixa do home-indicator (safe-area) que fica
+      // --bg-card, pra casar com o BottomNav (que é bg-card). No black mode
+      // --bg == --bg-card, então a faixa some sozinha; no desktop env()=0.
+      style={{
+        background:
+          'linear-gradient(to bottom, hsl(var(--bg)) calc(100% - env(safe-area-inset-bottom, 0px)), hsl(var(--bg-card)) calc(100% - env(safe-area-inset-bottom, 0px)))',
+      }}
+    >
       <Sidebar mobileOpen={navOpen} onMobileClose={() => setNavOpen(false)} />
       <main
         className="
