@@ -29,13 +29,13 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
 
   const ativo = (href: string) => pathname === href || pathname?.startsWith(href + '/');
 
+  // Só ícones (sem rótulos), toque ≥44px.
   const Item = ({ href, icon: Icon, label }: { href: string; icon: any; label: string }) => {
     const on = ativo(href);
     return (
       <Link href={href} aria-label={label} aria-current={on ? 'page' : undefined}
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full min-w-0 active:scale-95 transition-transform">
-        <Icon size={22} className={on ? 'text-primary' : 'text-muted-foreground'} strokeWidth={on ? 2.4 : 2} />
-        <span className={`text-[10px] leading-none font-medium ${on ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
+        className="flex-1 flex items-center justify-center h-full min-w-0 active:scale-90 transition-transform">
+        <Icon size={25} className={on ? 'text-primary' : 'text-muted-foreground'} strokeWidth={on ? 2.5 : 2} />
       </Link>
     );
   };
@@ -43,7 +43,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   return (
     <>
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-lg"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         aria-label="Navegação principal"
       >
@@ -66,9 +66,8 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
           <Item href="/relatorios" icon={BarChart2} label="Relatórios" />
 
           <button onClick={onPerfil} aria-label="Menu e perfil"
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full min-w-0 active:scale-95 transition-transform">
-            <User size={22} className="text-muted-foreground" />
-            <span className="text-[10px] leading-none font-medium text-muted-foreground">Perfil</span>
+            className="flex-1 flex items-center justify-center h-full min-w-0 active:scale-90 transition-transform">
+            <User size={25} className="text-muted-foreground" strokeWidth={2} />
           </button>
         </div>
       </nav>

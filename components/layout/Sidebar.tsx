@@ -71,11 +71,10 @@ const NAV_GROW: NavItem[] = [
 const NAV_GERAL: NavItem[] = [
   { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
   { href: '/avisos',        label: 'Avisos',          icon: Bell },
-  { href: '/central-sora',  label: 'Central da Sora', icon: MessageCircle },
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
   { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
-  { href: '/configuracoes', label: 'Configurações',   icon: Settings },
+  // Central da Sora e Configurações ficam FIXAS no rodapé (não rolam com a lista).
 ];
 
 // ── Sora Labs (painel separado) — âncoras pras fileiras do /labs ─────
@@ -409,8 +408,21 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         </div>
       </nav>
 
-      <div className="px-3 pt-4 border-t border-white/20" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-        <button onClick={ciclarTema} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
+      <div className="px-3 pt-3 border-t border-white/20 space-y-1.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+        {/* Fixos: Central da Sora + Configurações (não rolam com a lista) */}
+        <div className="grid grid-cols-2 gap-1.5">
+          <Link href="/central-sora" onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            <MessageCircle size={16} /> Central
+          </Link>
+          <Link href="/configuracoes" onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            <Settings size={16} /> Config.
+          </Link>
+        </div>
+
+        {/* Tema */}
+        <button onClick={ciclarTema} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all">
           <ProxIcon size={18} />
           <span>{proxLabel}</span>
           <span className="ml-auto flex items-center gap-0.5">
@@ -419,11 +431,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             ))}
           </span>
         </button>
-        <button onClick={() => { setOpen(false); abrirInstall(); }} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
-          <Download size={18} />
-          <span>Instalar app</span>
-        </button>
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm mb-2">
+
+        {/* Perfil */}
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm">
           <AvatarMembro
             name={perfil?.name}
             src={perfil?.avatar_url}
@@ -440,10 +450,18 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             {plano}
           </span>
         </div>
-        <button onClick={signOut} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all">
-          <LogOut size={18} />
-          <span>Sair</span>
-        </button>
+
+        {/* Instalar app | Sair (mesma linha, economiza espaço) */}
+        <div className="grid grid-cols-2 gap-1.5">
+          <button onClick={() => { setOpen(false); abrirInstall(); }}
+            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/75 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            <Download size={16} /> Instalar
+          </button>
+          <button onClick={signOut}
+            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/75 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            <LogOut size={16} /> Sair
+          </button>
+        </div>
       </div>
     </div>
   );
