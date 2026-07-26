@@ -82,7 +82,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  // Painel estático no mobile (pedido do usuário): sem pinch-zoom nem auto-zoom
+  // ao focar campo. Trade-off de acessibilidade assumido conscientemente.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#FAFAFA' },

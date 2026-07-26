@@ -1,5 +1,7 @@
 'use client';
+import { useState } from 'react';
 import Sidebar from './Sidebar';
+import BottomNav from './BottomNav';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { Crown, Pencil, Eye } from 'lucide-react';
@@ -8,24 +10,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { papel, perfil } = useAuth();
   const grupoNome = perfil?.grupo_ativo?.nome || '';
   const ehPessoal = /pessoal/i.test(grupoNome);
+  // Drawer mobile (sidebar em tela cheia), aberto pelo ícone de perfil do BottomNav.
+  const [navOpen, setNavOpen] = useState(false);
 
   // Em grupo Pessoal o usuário é sempre admin, esconde o badge para não poluir
   const mostrarBadge = !ehPessoal && papel;
 
   return (
     <div className="flex h-dvh md:h-screen bg-background overflow-hidden">
-      <Sidebar />
+      <Sidebar mobileOpen={navOpen} onMobileClose={() => setNavOpen(false)} />
       <main
         className="
           flex-1 overflow-y-auto relative
           px-4 sm:px-6
           pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:pt-6
-          pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-6
+          pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:pb-6
         "
       >
         {mostrarBadge && <PapelBadge papel={papel} />}
         {children}
       </main>
+      <BottomNav onPerfil={() => setNavOpen(true)} />
       <ThemeToggle />
     </div>
   );

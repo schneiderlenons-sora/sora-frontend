@@ -279,6 +279,9 @@ body { background-color: hsl(var(--bg)); }
 
   html {
     overscroll-behavior-y: none;
+    /* Painel estático no mobile: mata o double-tap-zoom e remove o delay de 300ms
+       do toque (o pinch/auto-zoom já saem pelo viewport user-scalable=false). */
+    touch-action: manipulation;
     /* SEM scroll-behavior: smooth. Já tentamos no <html> (animava a restauração
        de scroll = "anda sozinha") e no :focus-within (assim que algo ganhava
        foco, toda rolagem virava animada e a página "pulava ao parar de rolar").

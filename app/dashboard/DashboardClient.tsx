@@ -7,9 +7,9 @@ import { useVisivel } from '@/lib/useVisivel';
 import { useAuth } from '@/contexts/AuthContext';
 import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
+import ResumoCards from '@/components/dashboard/ResumoCards';
 import GrowResumo from '@/components/dashboard/GrowResumo';
 import GrowHabitosCard from '@/components/dashboard/GrowHabitosCard';
-import QuickAddSheet from '@/components/dashboard/QuickAddSheet';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
@@ -127,7 +127,6 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const phone = authPhone || phoneInicial || '';
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
 
   const hoje        = new Date();
@@ -360,68 +359,17 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
         </div>
 
         {/* ══════════════════════════════════════════════════════
-            4 STAT CARDS
+            4 STAT CARDS (Saldo · Receitas · Gastos · Cartões)
+            — Saldo/Gastos/Cartões expandem num painel abaixo do grid.
         ══════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              label: 'Saldo Total',
-              value: fmt(saldoTotal),
-              sub: `${wallets.filter(w=>w.tipo!=='Crédito').length} conta(s)`,
-              icon: Wallet,
-              iconColor: BRAND,
-              valueColor: BRAND,
-            },
-            {
-              label: 'Receitas',
-              value: fmt(resumo?.receitas||0),
-              badge: <VarBadge val={varReceitas} />,
-              icon: TrendingUp,
-              iconColor: BRAND,
-            },
-            {
-              label: 'Gastos',
-              value: fmt(resumo?.gastos||0),
-              badge: <VarBadge val={varGastos} invert />,
-              icon: TrendingDown,
-              iconColor: '#ef4444',
-              valueColor: '#ef4444',
-            },
-            {
-              label: 'Economia',
-              value: fmt(economia),
-              sub: 'receitas − gastos',
-              icon: BarChart3,
-              iconColor: economia >= 0 ? BRAND : '#ef4444',
-              valueColor: economia >= 0 ? BRAND : '#ef4444',
-            },
-          ].map((card, i) => (
-            <div key={i}
-                 className="card rounded-2xl p-5 relative overflow-hidden animate-fade-in"
-                 style={{ animationDelay: `${i * 50}ms` }}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {card.label}
-                </p>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                     style={{ background: `color-mix(in srgb, ${card.iconColor} 9%, transparent)` }}>
-                  <card.icon size={15} style={{ color: card.iconColor }} />
-                </div>
-              </div>
-              <p className="text-lg sm:text-2xl font-bold tabular tracking-tight truncate leading-tight"
-                 style={{ color: card.valueColor || 'hsl(var(--fg))' }}>
-                {card.value}
-              </p>
-              <div className="mt-1.5">
-                {card.badge || (
-                  <p className="text-xs text-muted-foreground">
-                    {card.sub}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <ResumoCards
+          wallets={wallets}
+          txsMes={txsMes}
+          resumo={resumo}
+          saldoTotal={saldoTotal}
+          varReceitas={varReceitas}
+          varGastos={varGastos}
+        />
 
         {/* ══════════════════════════════════════════════════════
             SORA GROW — seu dia (hábitos, tarefas, bem-estar, agenda)
@@ -609,30 +557,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════
-          Botão "+" de atalhos — ao lado do menu (centro inferior), mobile.
-          Abre a folha de atalhos rápidos (transação, compromisso, etc).
-      ══════════════════════════════════════════════════════ */}
-      <div
-        className="md:hidden fixed z-40"
-        style={{ left: '50%', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)', transform: 'translateX(-50%)' }}
-      >
-        <button
-          onClick={() => setQuickOpen(true)}
-          aria-label="Atalhos de adição"
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-glow active:scale-95 transition-transform"
-          style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})` }}
-        >
-          <Plus size={22} />
-        </button>
-      </div>
-
-      <QuickAddSheet
-        open={quickOpen}
-        onClose={() => setQuickOpen(false)}
-        onNovaTransacao={() => setModalOpen(true)}
-      />
-
+      {/* O "+" de atalhos e o menu agora vivem no BottomNav global (mobile). */}
       {modalOpen && (
         <NovaTransacaoModal
           phone={phone}

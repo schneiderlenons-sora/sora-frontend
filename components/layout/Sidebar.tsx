@@ -121,7 +121,7 @@ function PainelOpcao({ ativo, titulo, sub, onClick, logo, icon: Icon }:
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
@@ -152,7 +152,10 @@ export default function Sidebar() {
   }, [phone, router]);
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
   // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
-  const [open, setOpen] = useState(false); // drawer mobile
+  // Drawer mobile agora é CONTROLADO pelo DashboardLayout (aberto pelo perfil do
+  // BottomNav) — mantém `setOpen(false)` como fechar-mobile.
+  const open = mobileOpen;
+  const setOpen = (_v: boolean) => { if (!_v) onMobileClose?.(); };
   const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown Sora ↔ Labs
   const ehLabs = !!pathname?.startsWith('/labs');
 
@@ -453,22 +456,10 @@ export default function Sidebar() {
         {conteudo}
       </aside>
 
-      {/* Botão de menu — canto superior esquerdo, flutuando sobre os cards. */}
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Abrir menu"
-        className="md:hidden fixed left-3 z-50 w-11 h-11 rounded-xl bg-card/95 backdrop-blur-md border border-border shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
-      >
-        <Menu size={20} className="text-foreground" />
-      </button>
-
+      {/* Drawer mobile — TELA CHEIA (aberto pelo ícone de perfil do BottomNav). */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-[60] flex">
-          <div className="w-72 h-full flex flex-col shadow-xl overscroll-contain" style={sidebarStyle}>
-            {conteudo}
-          </div>
-          <div className="flex-1 bg-black/40" onClick={() => setOpen(false)} />
+        <div className="md:hidden fixed inset-0 z-[60] flex flex-col animate-fade-in overscroll-contain" style={sidebarStyle}>
+          {conteudo}
         </div>
       )}
     </>
