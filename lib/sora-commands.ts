@@ -345,12 +345,21 @@ export const COMANDOS: Comando[] = [
     id: 'pagar-fatura',
     titulo: 'Pagar fatura do cartão',
     exemplo: 'pagar fatura nubank',
-    descricao: 'A Sora soma a fatura do mês e pergunta de qual conta você quer pagar — ao escolher, ela debita o saldo e registra a saída nas transações.',
+    descricao: 'A Sora soma a fatura do mês e pergunta de qual conta você quer pagar — ao escolher, ela debita o saldo e registra a saída. Você pode pagar só uma PARTE: o que sobrar rola pra próxima fatura (a Sora avisa no vencimento e, se você não responder em 24h, rola sozinha). No painel dá pra dividir o pagamento entre várias contas.',
     variantes: ['quitar a fatura do nubank'],
     categoria: 'cartoes',
   },
 
-  // ─── DÍVIDAS ──────────────────────────────────────────────────────
+  // ─── DÍVIDAS E PARCELAMENTOS ──────────────────────────────────────
+  {
+    id: 'parcelamento-sem-cartao',
+    titulo: 'Compra parcelada SEM cartão',
+    exemplo: 'comprei um celular em 5x de 300 sem cartão',
+    descricao: 'Parcelou algo sem cartão (com um amigo, direto na loja)? A Sora cria um parcelamento em "Dívidas e Parcelamentos", te lembra a cada vencimento e você escolhe de qual conta pagar. Ela ainda pergunta se você já pagou a 1ª parcela. Não desconta de nenhum cartão.',
+    variantes: ['parcelei o sofá com o joão em 3x de 200 dia 10', 'parcelei a tv com meu pai em 10x de 150'],
+    destaque: true,
+    categoria: 'dividas',
+  },
   {
     id: 'criar-divida',
     titulo: 'Criar dívida parcelada',
