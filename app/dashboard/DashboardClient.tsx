@@ -128,10 +128,15 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
 
   const [modalOpen, setModalOpen] = useState(false);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
+  // Qual mini-stat do hero está expandido (mobile mostra valor truncado; toque
+  // abre o valor completo num painel abaixo). Um por vez.
+  const [statExpandido, setStatExpandido] = useState<'gasto'|'vs'|'maior'|null>(null);
 
   const hoje        = new Date();
   const today       = hoje.getDate();
   const monthName   = hoje.toLocaleDateString('pt-BR', { month: 'long' });
+  const monthNameAnt = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)
+    .toLocaleDateString('pt-BR', { month: 'long' });
   const primeiroNome = perfil?.name?.split(' ')[0] || 'amigo';
   // Em grupo compartilhado (não-Pessoal), mostra o avatar de quem fez cada lançamento.
   const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
@@ -308,37 +313,107 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                 </p>
               </div>
 
-              {/* Mini stats */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                <div className="min-w-0 rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
-                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium mb-1 leading-tight">
-                    Gasto em {monthName.slice(0,3)}
-                  </p>
-                  <p className="text-foreground font-bold text-sm sm:text-base tabular leading-tight truncate">{fmt(resumo?.gastos||0)}</p>
-                </div>
-                <div className="min-w-0 rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
-                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium mb-1 leading-tight">
-                    VS mês anterior
-                  </p>
-                  <p className={`font-bold text-sm sm:text-base mt-0.5 tabular leading-tight truncate ${
-                    !resumoAnt?.gastos
+              {/* Mini stats — no mobile o valor é truncado; toque expande o
+                  valor completo num painel abaixo (um por vez). */}
+              {(() => {
+                const chips = [
+                  {
+                    key: 'gasto' as const,
+                    label: `Gasto em ${monthName.slice(0, 3)}`,
+                    valor: fmt(resumo?.gastos || 0),
+                    cls: 'text-foreground',
+                    full: (
+                      <p className="text-foreground font-bold text-2xl tabular tracking-tight">{fmt(resumo?.gastos || 0)}</p>
+                    ),
+                  },
+                  {
+                    key: 'vs' as const,
+                    label: 'VS mês anterior',
+                    valor: resumoAnt?.gastos ? (varGastos > 0 ? '+' : '') + varGastos + '%' : '—',
+                    cls: !resumoAnt?.gastos
                       ? 'text-muted-foreground'
-                      : varGastos > 0
-                        ? 'text-red-500 dark:text-red-400'
-                        : 'text-green-600 dark:text-green-400'
-                  }`}>
-                    {resumoAnt?.gastos ? (varGastos > 0 ? '+' : '') + varGastos + '%' : '—'}
-                  </p>
-                </div>
-                <div className="min-w-0 rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm bg-white/60 dark:bg-white/5 border border-border/40 dark:border-white/10">
-                  <p className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium mb-1 leading-tight">
-                    Maior gasto
-                  </p>
-                  <p className="text-foreground font-bold text-sm mt-0.5 truncate leading-tight">
-                    {maiorCat ? parseCategoria(maiorCat.categoria).nome : '—'}
-                  </p>
-                </div>
-              </div>
+                      : varGastos > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+                    full: resumoAnt?.gastos ? (
+                      <>
+                        <p className={`font-bold text-2xl tabular tracking-tight ${varGastos > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                          {(varGastos > 0 ? '+' : '') + varGastos}% {varGastos > 0 ? 'a mais' : varGastos < 0 ? 'a menos' : 'igual'}
+                        </p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          De {fmt(resumoAnt.gastos)} ({monthNameAnt}) para {fmt(resumo?.gastos || 0)} ({monthName})
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">Sem dados de {monthNameAnt} pra comparar ainda.</p>
+                    ),
+                  },
+                  {
+                    key: 'maior' as const,
+                    label: 'Maior gasto',
+                    valor: maiorCat ? parseCategoria(maiorCat.categoria).nome : '—',
+                    cls: 'text-foreground',
+                    full: maiorCat ? (
+                      <>
+                        <p className="text-foreground font-bold text-2xl tracking-tight">{parseCategoria(maiorCat.categoria).nome}</p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          {fmt(maiorCat.total)}{totalGastos ? ` · ${Math.round((maiorCat.total / totalGastos) * 100)}% do total de ${monthName}` : ''}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">Nenhum gasto registrado em {monthName} ainda.</p>
+                    ),
+                  },
+                ];
+                const aberto = chips.find((c) => c.key === statExpandido);
+                return (
+                  <div>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                      {chips.map((c) => {
+                        const on = statExpandido === c.key;
+                        return (
+                          <button
+                            key={c.key}
+                            type="button"
+                            onClick={() => setStatExpandido((p) => (p === c.key ? null : c.key))}
+                            aria-expanded={on}
+                            aria-label={`${c.label}: ${c.valor}. Toque para ${on ? 'recolher' : 'ver completo'}`}
+                            className={`min-w-0 text-left rounded-2xl p-3 sm:p-3.5 backdrop-blur-sm border transition-all active:scale-[0.98] ${
+                              on
+                                ? 'bg-white/90 dark:bg-white/10 border-[#61D17B]/60 ring-1 ring-[#61D17B]/40'
+                                : 'bg-white/60 dark:bg-white/5 border-border/40 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1 mb-1">
+                              <span className="text-muted-foreground/70 dark:text-muted-foreground text-[9px] sm:text-[10px] uppercase tracking-wider font-medium leading-tight truncate">
+                                {c.label}
+                              </span>
+                              <ChevronRight size={11} className={`flex-shrink-0 text-muted-foreground/60 transition-transform ${on ? 'rotate-90' : ''}`} />
+                            </span>
+                            <span className={`block font-bold text-sm sm:text-base tabular leading-tight truncate ${c.cls}`}>
+                              {c.valor}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Painel expandido — valor completo, largura total, sem corte */}
+                    <div
+                      className="grid transition-all duration-300 ease-out"
+                      style={{ gridTemplateRows: aberto ? '1fr' : '0fr', opacity: aberto ? 1 : 0 }}
+                    >
+                      <div className="overflow-hidden">
+                        {aberto && (
+                          <div className="mt-2 rounded-2xl p-4 backdrop-blur-sm bg-white/70 dark:bg-white/5 border border-border/40 dark:border-white/10 animate-fade-in">
+                            <p className="text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-1.5">
+                              {aberto.label}
+                            </p>
+                            {aberto.full}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* CTA — Nova transação (só com permissão de escrita) */}
               <PermissaoGuard>
