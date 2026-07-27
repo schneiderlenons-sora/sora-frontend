@@ -11,6 +11,7 @@ import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { mutate as mutateGlobal } from 'swr';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
   ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight,
@@ -562,17 +563,17 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
         </span>
       </div>
 
-      {/* Fatura atual */}
+      {/* Fatura atual — mostra o VALOR QUE FALTA (já diminui com pagamentos). */}
       <div className="relative">
         <p className="text-xs text-muted-foreground">Fatura atual</p>
         <p className="text-2xl font-bold text-foreground tabular tracking-tight mt-0.5">
-          {ocultar ? '••••••' : fmt(fatura)}
+          {ocultar ? '••••••' : fmt(restante)}
         </p>
 
-        {/* Pagamento parcial: mostra quanto já foi pago e o que resta */}
-        {ehManual && jaPago > 0 && restante > 0 && (
+        {/* Nota discreta do que já foi pago no mês (sem "restam", que já é o número acima). */}
+        {ehManual && jaPago > 0 && (
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Pago {fmt(jaPago)} · <span className="font-semibold text-red-600 dark:text-red-400">Restam {ocultar ? '•••' : fmt(restante)}</span>
+            {fmt(jaPago)} já pago este mês
           </p>
         )}
 
@@ -699,6 +700,9 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
           if (ehManual) { recarregarStatus(); }
           else { try { localStorage.setItem(`sora-fatura-${cartao.id}-${mesRef}`, 'paga'); } catch {} setPagaLS(true); }
           onRefresh();
+          // Revalida TUDO (SWR global): saldo das contas, transações e dashboard
+          // são caches separados — sem isso o débito e a transação não aparecem.
+          mutateGlobal(() => true);
         }}
       />
     )}
