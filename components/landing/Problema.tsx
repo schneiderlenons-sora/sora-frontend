@@ -26,9 +26,17 @@ export default function Problema() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => e.isIntersecting && setVisible(true), { threshold: 0.2 });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
+    if (!ref.current) return;
+    // threshold:0 + rootMargin → revela assim que a seção ENTRA na tela, mesmo
+    // sendo mais alta que a viewport (tablet retrato). Antes, threshold 0.2 não
+    // era atingido e o grid de apps ficava preso em opacity-0 (área em branco).
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0, rootMargin: '0px 0px -10% 0px' },
+    );
+    obs.observe(ref.current);
+    const fb = setTimeout(() => setVisible(true), 1800);
+    return () => { obs.disconnect(); clearTimeout(fb); };
   }, []);
 
   return (

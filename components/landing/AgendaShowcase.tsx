@@ -25,9 +25,16 @@ function useInView<T extends HTMLElement>(threshold = 0.3) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setInView(true); }, { threshold });
+    // threshold:0 + rootMargin → revela assim que a seção ENTRA na tela, mesmo
+    // sendo mais alta que a viewport (tablet retrato). Fallback por timeout
+    // garante que nada fique preso em opacity-0 se o observer não disparar.
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0, rootMargin: '0px 0px -10% 0px' },
+    );
     obs.observe(el);
-    return () => obs.disconnect();
+    const fb = setTimeout(() => setInView(true), 1800);
+    return () => { obs.disconnect(); clearTimeout(fb); };
   }, [threshold]);
   return { ref, inView };
 }
