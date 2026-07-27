@@ -344,9 +344,9 @@ export const COMANDOS: Comando[] = [
   {
     id: 'pagar-fatura',
     titulo: 'Pagar fatura do cartão',
-    exemplo: 'pagar fatura nubank',
-    descricao: 'A Sora soma a fatura do mês e pergunta de qual conta você quer pagar — ao escolher, ela debita o saldo e registra a saída. Você pode pagar só uma PARTE: o que sobrar rola pra próxima fatura (a Sora avisa no vencimento e, se você não responder em 24h, rola sozinha). No painel dá pra dividir o pagamento entre várias contas.',
-    variantes: ['quitar a fatura do nubank'],
+    exemplo: 'paguei a fatura do nubank',
+    descricao: 'A Sora soma a fatura do mês e pergunta de qual conta você quer pagar — ao escolher, ela debita o saldo e registra a saída. Você pode pagar só uma PARTE ("paguei 100 da fatura do nubank"): a fatura diminui e o que sobra rola pra próxima (a Sora avisa no vencimento e, se você não responder em 24h, rola sozinha). No painel dá pra dividir o pagamento entre várias contas.',
+    variantes: ['pagar fatura nubank', 'quitar a fatura do nubank', 'paguei 100 da fatura do itaú'],
     categoria: 'cartoes',
   },
 
