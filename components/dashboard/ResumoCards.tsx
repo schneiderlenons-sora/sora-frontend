@@ -82,91 +82,105 @@ export default function ResumoCards({
     return [...map.entries()].map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
   }, [txsMes]);
 
-  return (
-    <div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Saldo Total (expansível) */}
-        <StatCard
-          label="Saldo Total" value={fmt(saldoTotal)} valueColor={BRAND}
-          icon={Wallet} iconColor={BRAND}
-          sub={`${contas.length} conta${contas.length === 1 ? '' : 's'}`}
-          aberto={aberto === 'saldo'} onToggle={() => toggle('saldo')} delay={0}
-        />
-        {/* Receitas (simples) */}
-        <StatCard
-          label="Receitas" value={fmt(resumo?.receitas || 0)}
-          icon={TrendingUp} iconColor={BRAND}
-          badge={<VarBadge val={varReceitas} />} delay={50}
-        />
-        {/* Gastos (expansível) */}
-        <StatCard
-          label="Gastos" value={fmt(resumo?.gastos || 0)} valueColor="#ef4444"
-          icon={TrendingDown} iconColor="#ef4444"
-          badge={<VarBadge val={varGastos} invert />}
-          aberto={aberto === 'gastos'} onToggle={() => toggle('gastos')} delay={100}
-        />
-        {/* Cartões (novo, expansível) — fatura mais alta + barra de limite */}
-        <StatCard
-          label="Cartões"
-          value={cartaoTop ? fmt(cartaoTop.fatura) : 'R$ 0,00'}
-          valueColor="#7c3aed"
-          icon={CreditCard} iconColor="#7c3aed"
-          sub={cartaoTop ? `Maior fatura · ${cartaoTop.nome}` : 'Nenhum cartão'}
-          barra={cartaoTop && cartaoTop.limite > 0 ? Math.min((cartaoTop.fatura / cartaoTop.limite) * 100, 100) : null}
-          barraCor="#7c3aed"
-          aberto={aberto === 'cartoes'}
-          onToggle={cartoes.length ? () => toggle('cartoes') : undefined}
-          delay={150}
-        />
-      </div>
-
-      {/* Painel de detalhe — full-width, abaixo do grid, um por vez, altura animada */}
-      <div className="grid transition-[grid-template-rows] duration-200 ease-out"
-           style={{ gridTemplateRows: aberto ? '1fr' : '0fr' }}>
-        <div className="overflow-hidden">
-          <div className="mt-4 card rounded-2xl p-4 sm:p-5">
-            {aberto === 'saldo' && (
-              <Detalhe titulo="Saldo por conta" vazio="Sem contas cadastradas."
-                linhas={saldoPorConta.map(c => ({ nome: c.nome, valor: fmt(c.saldo), cor: c.saldo < 0 ? '#ef4444' : undefined }))} />
-            )}
-            {aberto === 'gastos' && (
-              <Detalhe titulo="Gastos por conta" vazio="Nenhum gasto neste mês."
-                linhas={gastoPorConta.map(c => ({ nome: c.nome, valor: fmt(c.total), cor: '#ef4444' }))} />
-            )}
-            {aberto === 'cartoes' && (
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Faturas por cartão</p>
-                <div className="space-y-3">
-                  {cartoes.map(c => {
-                    const pct = c.limite > 0 ? Math.min((c.fatura / c.limite) * 100, 100) : 0;
-                    return (
-                      <div key={c.id}>
-                        <div className="flex items-center justify-between gap-3 mb-1.5">
-                          <span className="flex items-center gap-2 min-w-0">
-                            <span className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 bg-muted">
-                              <IconeMarca nome={c.nome} size={28} className="w-full h-full" fallback={<CreditCard size={14} className="text-muted-foreground" />} />
-                            </span>
-                            <span className="text-sm font-semibold text-foreground truncate">{c.nome}</span>
-                          </span>
-                          <span className="text-sm font-bold tabular text-foreground whitespace-nowrap">{fmt(c.fatura)}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: '#7c3aed' }} />
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-1 tabular">
-                          {c.limite > 0
-                            ? <>Limite: usado {fmt(c.fatura)} de {fmt(c.limite)} · disponível {fmt(c.disponivel)}</>
-                            : <>Sem limite cadastrado</>}
-                        </p>
-                      </div>
-                    );
-                  })}
+  // Conteúdo do painel de detalhe (um por vez).
+  const painelContent = (
+    <>
+      {aberto === 'saldo' && (
+        <Detalhe titulo="Saldo por conta" vazio="Sem contas cadastradas."
+          linhas={saldoPorConta.map(c => ({ nome: c.nome, valor: fmt(c.saldo), cor: c.saldo < 0 ? '#ef4444' : undefined }))} />
+      )}
+      {aberto === 'gastos' && (
+        <Detalhe titulo="Gastos por conta" vazio="Nenhum gasto neste mês."
+          linhas={gastoPorConta.map(c => ({ nome: c.nome, valor: fmt(c.total), cor: '#ef4444' }))} />
+      )}
+      {aberto === 'cartoes' && (
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Faturas por cartão</p>
+          <div className="space-y-3">
+            {cartoes.map(c => {
+              const pct = c.limite > 0 ? Math.min((c.fatura / c.limite) * 100, 100) : 0;
+              return (
+                <div key={c.id}>
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 bg-muted">
+                        <IconeMarca nome={c.nome} size={28} className="w-full h-full" fallback={<CreditCard size={14} className="text-muted-foreground" />} />
+                      </span>
+                      <span className="text-sm font-semibold text-foreground truncate">{c.nome}</span>
+                    </span>
+                    <span className="text-sm font-bold tabular text-foreground whitespace-nowrap">{fmt(c.fatura)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: '#7c3aed' }} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 tabular">
+                    {c.limite > 0
+                      ? <>Limite: usado {fmt(c.fatura)} de {fmt(c.limite)} · disponível {fmt(c.disponivel)}</>
+                      : <>Sem limite cadastrado</>}
+                  </p>
                 </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
+    </>
+  );
+
+  return (
+    // O painel de detalhe vive DENTRO do grid como item full-width (col-span).
+    // Via `order`, no mobile ele cai logo depois da LINHA do card tocado (Saldo
+    // está na 1ª linha → painel entra entre as linhas); no desktop (fileira única
+    // de 4) o `lg:order-last` mantém ele sempre abaixo de todos. Assim o usuário
+    // vê a expansão colada no card, não perdida embaixo dos outros.
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Saldo Total (expansível) — 1ª linha, col 1 */}
+      <StatCard
+        className="order-1"
+        label="Saldo Total" value={fmt(saldoTotal)} valueColor={BRAND}
+        icon={Wallet} iconColor={BRAND}
+        sub={`${contas.length} conta${contas.length === 1 ? '' : 's'}`}
+        aberto={aberto === 'saldo'} onToggle={() => toggle('saldo')} delay={0}
+      />
+      {/* Receitas (simples) — 1ª linha, col 2 */}
+      <StatCard
+        className="order-2"
+        label="Receitas" value={fmt(resumo?.receitas || 0)}
+        icon={TrendingUp} iconColor={BRAND}
+        badge={<VarBadge val={varReceitas} />} delay={50}
+      />
+      {/* Gastos (expansível) — 2ª linha, col 1 */}
+      <StatCard
+        className="order-4"
+        label="Gastos" value={fmt(resumo?.gastos || 0)} valueColor="#ef4444"
+        icon={TrendingDown} iconColor="#ef4444"
+        badge={<VarBadge val={varGastos} invert />}
+        aberto={aberto === 'gastos'} onToggle={() => toggle('gastos')} delay={100}
+      />
+      {/* Cartões (expansível) — 2ª linha, col 2 */}
+      <StatCard
+        className="order-5"
+        label="Cartões"
+        value={cartaoTop ? fmt(cartaoTop.fatura) : 'R$ 0,00'}
+        valueColor="#7c3aed"
+        icon={CreditCard} iconColor="#7c3aed"
+        sub={cartaoTop ? `Maior fatura · ${cartaoTop.nome}` : 'Nenhum cartão'}
+        barra={cartaoTop && cartaoTop.limite > 0 ? Math.min((cartaoTop.fatura / cartaoTop.limite) * 100, 100) : null}
+        barraCor="#7c3aed"
+        aberto={aberto === 'cartoes'}
+        onToggle={cartoes.length ? () => toggle('cartoes') : undefined}
+        delay={150}
+      />
+
+      {/* Painel de detalhe — full-width. order-3 (após a 1ª linha) quando é o
+          Saldo; order-6 (após a 2ª linha) pros demais. Desktop: sempre por último. */}
+      {aberto && (
+        <div className={`col-span-2 lg:col-span-4 card rounded-2xl p-4 sm:p-5 animate-fade-in ${
+          aberto === 'saldo' ? 'order-3 lg:order-last' : 'order-6 lg:order-last'
+        }`}>
+          {painelContent}
+        </div>
+      )}
     </div>
   );
 }
@@ -174,16 +188,16 @@ export default function ResumoCards({
 // ── Card de estatística (compacto, com expand opcional) ──
 function StatCard({
   label, value, valueColor, icon: Icon, iconColor, sub, badge, barra, barraCor,
-  aberto, onToggle, delay = 0,
+  aberto, onToggle, delay = 0, className = '',
 }: {
   label: string; value: string; valueColor?: string;
   icon: any; iconColor: string;
   sub?: string; badge?: React.ReactNode;
   barra?: number | null; barraCor?: string;
-  aberto?: boolean; onToggle?: () => void; delay?: number;
+  aberto?: boolean; onToggle?: () => void; delay?: number; className?: string;
 }) {
   return (
-    <div className="card rounded-2xl p-4 sm:p-5 relative overflow-hidden animate-fade-in flex flex-col"
+    <div className={`card rounded-2xl p-4 sm:p-5 relative overflow-hidden animate-fade-in flex flex-col ${className}`}
          style={{ animationDelay: `${delay}ms` }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
