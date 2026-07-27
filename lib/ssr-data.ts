@@ -167,6 +167,11 @@ export async function dividasDireto(grupoId: string, userId: string) {
     if (!d.dia_vencimento) return;
     const venc = new Date(hoje.getFullYear(), hoje.getMonth(), d.dia_vencimento);
     if (d.dia_vencimento < diaHoje) venc.setMonth(venc.getMonth() + 1);
+    // 1ª parcela nunca vence no mês da compra (data_inicio) — pula pro seguinte.
+    if (d.data_inicio) {
+      const ini = new Date(d.data_inicio + 'T00:00:00');
+      if (venc.getTime() <= ini.getTime()) venc.setMonth(venc.getMonth() + 1);
+    }
     const dias = Math.ceil((venc.getTime() - hoje.getTime()) / 86400000);
     if (!proxima || dias < proxima.dias) {
       proxima = { divida_id: d.id, titulo: d.titulo, valor: d.valor_parcela, data: venc.toISOString().slice(0, 10), dias };

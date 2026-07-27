@@ -359,6 +359,14 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
     if (concluida || !divida.dia_vencimento) return null;
     const v = new Date(hoje.getFullYear(), hoje.getMonth(), divida.dia_vencimento);
     if (divida.dia_vencimento < hoje.getDate()) v.setMonth(v.getMonth() + 1);
+    // A 1ª parcela nunca vence no mês da compra: se o vencimento cair em/antes
+    // do dia da compra (data_inicio), pula pro mês seguinte (~30 dias depois).
+    // No-op p/ dívidas antigas (data_inicio no passado). Ex.: parcelou hoje dia
+    // 27 → 1ª parcela dia 27 do mês que vem, não amanhã.
+    if (divida.data_inicio) {
+      const ini = new Date(divida.data_inicio + 'T00:00:00');
+      if (v.getTime() <= ini.getTime()) v.setMonth(v.getMonth() + 1);
+    }
     const dias = Math.ceil((v.getTime() - hoje.getTime()) / 86400000);
     return { data: v, dias };
   })();
