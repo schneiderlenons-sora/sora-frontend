@@ -17,17 +17,16 @@ function useInView<T extends HTMLElement>(threshold = 0.25) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // threshold:0 + rootMargin → revela assim que a seção ENTRA na tela, mesmo
-    // sendo mais alta que a viewport (tablet retrato). Um threshold alto nunca
-    // era atingido e o conteúdo ficava preso em opacity-0. O timeout é fallback:
-    // se o observer não disparar (alguns navegadores de tablet), revela mesmo.
+    // Dispara quando o usuário CHEGA na seção. threshold:0 + rootMargin negativo
+    // no rodapé faz o gatilho depender da POSIÇÃO da seção na tela (não de quantos
+    // % dela cabem na viewport) — funciona mesmo quando a seção é mais alta que a
+    // tela (tablet retrato), que era o que prendia o conteúdo em opacity-0.
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
-      { threshold: 0, rootMargin: '0px 0px -10% 0px' },
+      { threshold: 0, rootMargin: '0px 0px -20% 0px' },
     );
     obs.observe(el);
-    const fb = setTimeout(() => setInView(true), 1800);
-    return () => { obs.disconnect(); clearTimeout(fb); };
+    return () => obs.disconnect();
   }, [threshold]);
   return { ref, inView };
 }

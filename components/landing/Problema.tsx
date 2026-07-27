@@ -27,16 +27,16 @@ export default function Problema() {
 
   useEffect(() => {
     if (!ref.current) return;
-    // threshold:0 + rootMargin → revela assim que a seção ENTRA na tela, mesmo
-    // sendo mais alta que a viewport (tablet retrato). Antes, threshold 0.2 não
-    // era atingido e o grid de apps ficava preso em opacity-0 (área em branco).
+    // Dispara quando o usuário CHEGA na seção. threshold:0 + rootMargin negativo
+    // no rodapé faz o gatilho depender da POSIÇÃO da seção na tela (não de quantos
+    // % dela cabem na viewport) — funciona mesmo quando a seção é mais alta que a
+    // tela (tablet retrato), que antes prendia o grid de apps em opacity-0.
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0, rootMargin: '0px 0px -10% 0px' },
+      { threshold: 0, rootMargin: '0px 0px -20% 0px' },
     );
     obs.observe(ref.current);
-    const fb = setTimeout(() => setVisible(true), 1800);
-    return () => { obs.disconnect(); clearTimeout(fb); };
+    return () => obs.disconnect();
   }, []);
 
   return (
