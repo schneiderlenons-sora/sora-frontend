@@ -338,6 +338,44 @@ A aba Negócios era 100% infoprodutor. Agora atende **loja física** e **múltip
 - **Badges no card:** `Recorrente` (pagante ativo não-cancelado), `Anual` (azul), `Cancelou`, `Vitalício`. **Filtros:** Recorrentes · Anuais · Vitalícios (+ os antigos).
 - ⚠️ **Toggle dentro de `<label>` dispara 2×** (label reencaminha o clique pro button) → use `<button>` na linha inteira, nunca `<button>` aninhado em `<label>`.
 
+## Fatura do cartão = CICLO REAL de fechamento (jul/2026) — fonte única
+
+A fatura **NÃO é o mês-calendário**. Vai do dia seguinte ao fechamento anterior
+até o fechamento — uma compra em 30/07 e outra em 01/08 caem na **mesma** fatura
+se o cartão fecha dia 5. (Era a queixa de um cliente; antes havia **5 regras de
+período** coexistindo, o que já causou "fatura zerada no zap × R$ 146,89 no painel".)
+
+- **Aritmética canônica:** `sora-backend/src/services/cicloFatura.js`, espelhada
+  **fielmente** em `sora-frontend/lib/ciclo-fatura.ts`. Mexeu num, mexa no outro e
+  rode os DOIS evals (`npm run eval:ciclo` nos dois repos) — o do front compara
+  1313 casos campo a campo contra o backend. **Backend é canônico.**
+- **`competencia` = 'YYYY-MM' do VENCIMENTO** ("fatura de agosto" = vence em
+  agosto, igual Nubank/Itaú). É a chave de `pagamentos_fatura` e `fatura_rollover`
+  (096) — e é **única por ciclo**, o que a `unique(cartao_id, competencia)` exige.
+- **Clamp ao ÚLTIMO DIA do mês, NUNCA a 28** (`sql/068` já aceita 1..31; 10 cartões
+  da base fecham 29/30/31). Cartão que fecha 31 fecha em 28/02 em fevereiro. Ciclos
+  consecutivos têm de ser **contíguos** (sem gap nem overlap) — o eval trava isso.
+- **`competenciaAtual` = 1º ciclo com `venc >= hoje`**, e olha **1 mês pra trás**:
+  quando `venc <= fech` (28 cartões da base), a fatura que vence hoje fechou no mês
+  passado — sem isso ele pula pra fatura errada.
+- **Cartão sem `dia_fechamento` → mês-calendário** (comportamento legado; quem não
+  configurou não sente mudança). **Open Finance continua por `−saldo`** (ver regra
+  de ouro abaixo) — não somar transações nele.
+- **Datas em `hojeSP()`, nunca `toISOString()`** (é UTC: às 21h BR já é o dia/mês
+  seguinte e o pagamento ia pra fatura errada).
+- O painel soma filtrando **todas** as transações pelo `[ini, fimExcl)` do ciclo —
+  **não** dá pra buscar por mês (o ciclo cruza meses). Fonte em lote pro painel:
+  **`GET /api/wallets/faturas/:phone?offset=0`** (offset navega FATURAS, não meses),
+  que devolve período, vencimento, `restante` e `vencida` (fatura anterior que
+  venceu e ainda tem saldo — não esconder dívida do usuário).
+- O rollover ancora o "Fatura anterior" no **`ini` do ciclo seguinte** (era o dia 1
+  do mês, podia cair na fatura errada).
+- ⚠️ Fatura em aberto **não** é `pago=false`: gasto em cartão nasce `pago=true`
+  (por isso o aviso do cron quase nunca saía). Use `statusFatura` (fatura do ciclo
+  − `pagamentos_fatura`).
+- **Fora de escopo (decisão consciente):** "contabilizar a fatura pelo mês do
+  pagamento" (regime de caixa) — mexeria em dashboard/categorias/relatórios/Wrapped.
+
 ## Open Finance (Polp) — teste fechado, fatura do cartão
 
 Integração **funcionando** com banco real (Nubank + Mercado Pago). Allowlist nos
