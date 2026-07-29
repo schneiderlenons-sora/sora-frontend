@@ -1,11 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Wallet, TrendingUp, TrendingDown, CreditCard, ChevronDown,
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import IconeMarca from '@/components/ui/IconeMarca';
+import { api } from '@/lib/api';
+import { competenciaAtual, cicloPorCompetencia, dentroDoCiclo } from '@/lib/ciclo-fatura';
 
 const BRAND = 'hsl(var(--primary))';
 const fmt = (v: number) =>
@@ -31,7 +33,7 @@ function VarBadge({ val, invert = false }: { val: number; invert?: boolean }) {
 type Aberto = 'saldo' | 'gastos' | 'cartoes' | null;
 
 export default function ResumoCards({
-  wallets, txsMes, resumo, saldoTotal, varReceitas, varGastos,
+  wallets, txsMes, resumo, saldoTotal, varReceitas, varGastos, phone,
 }: {
   wallets: any[];
   txsMes: any[];
@@ -39,6 +41,7 @@ export default function ResumoCards({
   saldoTotal: number;
   varReceitas: number;
   varGastos: number;
+  phone?: string;
 }) {
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
@@ -48,19 +51,46 @@ export default function ResumoCards({
     [wallets],
   );
 
-  // Fatura por cartão (OF → -saldo; manual → soma dos Gasto do mês).
+  // Restante canônico por cartão (endpoint em lote — mesma fonte do painel de
+  // cartões, do WhatsApp e dos crons). Busca DEPOIS de pintar: o card já
+  // aparece com o valor local e é corrigido quando isto chega, então não
+  // competimos com o LCP.
+  const [restanteApi, setRestanteApi] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!phone || !wallets.some(w => w.tipo === 'Crédito')) return;
+    let vivo = true;
+    api.wallets.faturas(phone)
+      .then((r) => {
+        if (!vivo) return;
+        const acc: Record<string, number> = {};
+        for (const f of r.faturas || []) acc[f.cartao_id] = f.restante;
+        setRestanteApi(acc);
+      })
+      .catch(() => { /* mantém o cálculo local */ });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, wallets.length]);
+
+  // Fatura por cartão: OF → −saldo (o banco manda); manual → soma dos Gasto do
+  // CICLO REAL de fechamento. O valor local é aproximado quando o ciclo começa
+  // no mês anterior (`txsMes` só tem o mês corrente); o `restanteApi` corrige
+  // pro número canônico assim que responde.
   const cartoes = useMemo(() => {
     return wallets
       .filter(w => w.tipo === 'Crédito')
       .map(w => {
-        const fatura = (w.of_conta_id && typeof w.saldo === 'number')
+        const ciclo = cicloPorCompetencia(w, competenciaAtual(w));
+        const local = (w.of_conta_id && typeof w.saldo === 'number')
           ? Math.max(-(w.saldo as number), 0)
-          : txsMes.filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto').reduce((s, t) => s + (t.valor || 0), 0);
+          : txsMes
+              .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
+              .reduce((s, t) => s + (t.valor || 0), 0);
+        const fatura = restanteApi[w.id] ?? local;
         const limite = w.limite || 0;
         return { id: w.id, nome: w.nome, fatura, limite, disponivel: Math.max(limite - fatura, 0) };
       })
       .sort((a, b) => b.fatura - a.fatura);
-  }, [wallets, txsMes]);
+  }, [wallets, txsMes, restanteApi]);
 
   const cartaoTop = cartoes[0] || null;
 

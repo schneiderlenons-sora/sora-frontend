@@ -66,6 +66,29 @@ export type AvisosPrefs = {
   lembretes_dividas: boolean;
 };
 
+// Período de uma fatura (ciclo real de fechamento) — espelha o `ciclo` que o
+// backend devolve (services/cicloFatura.js).
+export type FaturaCiclo = {
+  ini: string; fim: string; fimExcl: string;  // 'YYYY-MM-DD' (fimExcl exclusivo)
+  venc: string; competencia: string;          // vencimento e 'YYYY-MM' dele
+  label: string;                              // 'DD/MM a DD/MM'
+  porCiclo: boolean;                          // false = fallback mês-calendário
+};
+
+// Fatura de um cartão vinda de GET /api/wallets/faturas/:phone (em lote).
+export type FaturaCartao = FaturaCiclo & {
+  cartao_id: string;
+  nome: string;
+  limite: number | null;
+  of: boolean;             // Open Finance → valor vem do banco (−saldo)
+  fatura: number;          // total do ciclo
+  pago: number;            // já pago nessa competência
+  restante: number;        // fatura − pago (é o que o painel destaca)
+  /** Fatura anterior que já venceu e ainda tem saldo (alerta de atraso). */
+  vencida?: { competencia: string; venc: string; restante: number; label: string } | null;
+  rollover?: { id: string; valor: number; competencia: string; status: string; confirmar_ate?: string } | null;
+};
+
 // ── USUÁRIO ──────────────────────────────────────────────────────
 export const api = {
   user: {
@@ -230,11 +253,18 @@ export const api = {
       pagamentos?: { wallet_id?: string; valor: number; descricao?: string; externa?: boolean }[];
     }) =>
       req<{ ok: boolean; debito: any; debitos?: any[] }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
-    // Status da fatura: { fatura, pago, restante, rollover? } (migration 096).
+    // Status da fatura: { fatura, pago, restante, ciclo, rollover? } (migration 096).
     faturaStatus: (phone: string, cartao_id: string, competencia?: string) => {
       const q = new URLSearchParams({ cartao_id }); if (competencia) q.set('competencia', competencia);
-      return req<{ fatura: number; pago: number; restante: number; competencia: string; rollover?: any }>(`/api/wallets/fatura/status/${phone}?${q}`);
+      return req<{ fatura: number; pago: number; restante: number; competencia: string; ciclo?: FaturaCiclo; rollover?: any }>(`/api/wallets/fatura/status/${phone}?${q}`);
     },
+    /**
+     * Faturas de TODOS os cartões numa chamada, pelo CICLO REAL de fechamento
+     * (fonte única compartilhada com o WhatsApp e os crons). `offset` navega
+     * entre faturas: 0 = atual (próxima a vencer), -1 = anterior, +1 = próxima.
+     */
+    faturas: (phone: string, offset = 0) =>
+      req<{ offset: number; faturas: FaturaCartao[] }>(`/api/wallets/faturas/${phone}?offset=${offset}`),
     // Confirma o rollover do saldo que sobrou pra próxima fatura.
     rolarFatura: (body: { rollover_id?: string; cartao_id?: string; competencia?: string }) =>
       req<{ ok: boolean; transacao_id?: string }>('/api/wallets/fatura/rolar', { method: 'POST', body: JSON.stringify(body) }),

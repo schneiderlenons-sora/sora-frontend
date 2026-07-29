@@ -5,6 +5,7 @@ import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, Cre
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
+import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, dentroDoCiclo } from '@/lib/ciclo-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
@@ -43,12 +44,20 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   const meta = loadCartaoMeta(cartao.id);
   const logo = bancoLogo(cartao.nome);
 
-  // Recalcula o mês de referência quando navega (offsetMes)
+  // `mesRef` = competência (YYYY-MM do VENCIMENTO) da fatura exibida. `offsetMes`
+  // navega FATURAS pelo ciclo real, não meses do calendário.
   useEffect(() => {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() + offsetMes, 1);
-    setMesRef(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    const atual = competenciaAtual(cartao);
+    setMesRef(offsetMes === 0 ? atual : competenciaVizinha(cartao, atual, offsetMes));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offsetMes]);
+  }, [offsetMes, cartao?.id, cartao?.dia_fechamento, cartao?.dia_vencimento]);
+
+  // Ciclo da fatura exibida — período que agrupa as compras dessa fatura.
+  const ciclo = useMemo(
+    () => cicloPorCompetencia(cartao, mesRef),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cartao?.dia_fechamento, cartao?.dia_vencimento, mesRef],
+  );
 
   // Carrega contas bancárias (não-crédito) p/ escolher de onde pagar
   useEffect(() => {
@@ -78,26 +87,29 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     }
   }
 
-  // Carrega transações do mês atual no cartão
+  // Carrega as transações da fatura exibida. O ciclo cruza meses (ex.: 25/06 a
+  // 24/07), então busca os DOIS meses que ele toca e filtra pelo intervalo.
   useEffect(() => {
     if (!phone || !cartao?.id) return;
     setLoading(true);
-    api.transacoes.listar(phone, { mes: mesRef, limit: 500 })
-      .then((r: any) => {
-        const todas = r?.transacoes || [];
+    const mesesDoCiclo = Array.from(new Set([ciclo.ini.slice(0, 7), ciclo.fim.slice(0, 7)]));
+    Promise.all(mesesDoCiclo.map((m) => api.transacoes.listar(phone, { mes: m, limit: 500 })))
+      .then((rs: any[]) => {
+        const todas = rs.flatMap((r) => r?.transacoes || []);
         // As transações guardam carteira_nome (string), não wallet_id — match por nome
         const nomeCartao = (cartao.nome || '').trim().toLowerCase();
         const doCartao = todas.filter(
           (t: any) =>
             (t.wallet_id === cartao.id ||
              (t.carteira_nome || '').trim().toLowerCase() === nomeCartao) &&
-            t.tipo === 'Gasto'
+            t.tipo === 'Gasto' &&
+            dentroDoCiclo(t.data, ciclo)
         );
         setTxs(doCartao);
       })
       .catch(() => setTxs([]))
       .finally(() => setLoading(false));
-  }, [phone, cartao?.id, mesRef]);
+  }, [phone, cartao?.id, cartao?.nome, ciclo]);
 
   // Métricas
   // Cartão do Open Finance no mês ATUAL: o valor devido vem do banco (saldo

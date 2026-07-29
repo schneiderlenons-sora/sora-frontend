@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { hojeSP } from '@/lib/ciclo-fatura';
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtBR = (raw: string) => !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,7 +22,9 @@ interface Props {
   onPago:   () => void; // chamado após pagar com sucesso
 }
 
-const ymAtual = () => new Date().toISOString().slice(0, 7);
+// Mês corrente no fuso SP. `toISOString()` é UTC e à noite (21h BR = 00h UTC do
+// dia seguinte) virava o mês antes da hora, mandando o pagamento pra fatura errada.
+const ymAtual = () => hojeSP().slice(0, 7);
 
 // Uma linha = uma conta + o valor que sai dela (+ um apelido opcional de quem
 // pagou). Com 1 linha é o pagamento normal; com 2+ divide a fatura entre contas

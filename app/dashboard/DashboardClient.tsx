@@ -444,6 +444,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           saldoTotal={saldoTotal}
           varReceitas={varReceitas}
           varGastos={varGastos}
+          phone={phone}
         />
 
         {/* ══════════════════════════════════════════════════════

@@ -1,4 +1,4 @@
-import { contextoSSR, mesRefSSR } from '@/lib/ssr';
+import { contextoSSR } from '@/lib/ssr';
 import { walletsDireto, transacoesDireto } from '@/lib/ssr-data';
 import CartaoClient from './CartaoClient';
 
@@ -8,15 +8,15 @@ export const dynamic = 'force-dynamic';
 export default async function CartaoDeCreditoPage() {
   const ctx = await contextoSSR();
   if (!ctx?.grupoId) return <CartaoClient phoneInicial={ctx?.phone} />;
-  const mes = mesRefSSR(0);
   let initialData: any;
   try {
-    const [wallets, txMes, txAll] = await Promise.all([
+    // Só as transações mais recentes (sem recorte de mês): a fatura é somada pelo
+    // CICLO de fechamento, que cruza meses — um recorte mensal cortaria compras.
+    const [wallets, txAll] = await Promise.all([
       walletsDireto(ctx.grupoId),
-      transacoesDireto(ctx.grupoId, { mes, limit: 500 }),
       transacoesDireto(ctx.grupoId, { limit: 1000 }),
     ]);
-    initialData = { wallets, txMes, txAll };
+    initialData = { wallets, txAll };
   } catch {
     initialData = undefined;
   }

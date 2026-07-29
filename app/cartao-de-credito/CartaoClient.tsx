@@ -13,6 +13,10 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { mutate as mutateGlobal } from 'swr';
 import {
+  competenciaAtual, competenciaVizinha, cicloPorCompetencia, dentroDoCiclo, labelCompetencia,
+  type Ciclo,
+} from '@/lib/ciclo-fatura';
+import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
   ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight,
 } from 'lucide-react';
@@ -52,37 +56,40 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   const [addOpen,        setAddOpen]        = useState(false);
   const [edicao,         setEdicao]         = useState<Wallet | null>(null);
   const [detalhes,       setDetalhes]       = useState<Wallet | null>(null);
-  const [mesIndex,       setMesIndex]       = useState(0); // 0 = mês atual, -1 = mês passado, etc.
+  // Navega FATURAS (ciclos), não meses: 0 = a atual (próxima a vencer), -1 = a anterior.
+  const [mesIndex,       setMesIndex]       = useState(0);
   const [confirmDel,     setConfirmDel]     = useState<Wallet | null>(null);
   const hoje = new Date();
-  const mesAtualRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
-  // Mês selecionado para "Faturas anteriores"
+  // Referência de mês só pro rótulo de fallback (vários cartões com ciclos
+  // diferentes) e pro eixo do gráfico.
   const refDate = useMemo(() => {
     const d = new Date(hoje.getFullYear(), hoje.getMonth() + mesIndex, 1);
     return d;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mesIndex]);
 
-  const refMesLabel = `${MES_NOMES[refDate.getMonth()].charAt(0).toUpperCase() + MES_NOMES[refDate.getMonth()].slice(1)} de ${refDate.getFullYear()}`;
+  const mesFallbackLabel = `${MES_NOMES[refDate.getMonth()].charAt(0).toUpperCase() + MES_NOMES[refDate.getMonth()].slice(1)} de ${refDate.getFullYear()}`;
 
   // Dados via SWR — revisita instantânea (cache em memória).
+  // Uma lista só de transações (as 1000 mais recentes): o ciclo da fatura cruza
+  // meses, então filtrar por mês não serve. Antes havia um fetch extra só do mês
+  // corrente — virou desnecessário quando a fatura passou a ser por ciclo.
   const { data: wRaw,     mutate: mW }  = useApi(phone ? `cart:wallets:${phone}` : null, () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
-  const { data: tMesData, mutate: mTM } = useApi(phone ? `cart:txmes:${phone}:${mesAtualRef}` : null, () => api.transacoes.listar(phone, { mes: mesAtualRef, limit: 500 }), { fallbackData: initialData?.txMes });
   const { data: tAllData, mutate: mTA } = useApi(phone ? `cart:txall:${phone}` : null, () => api.transacoes.listar(phone, { limit: 1000 }), { fallbackData: initialData?.txAll });
 
   const wallets: Wallet[] = ((wRaw as Wallet[]) ?? []).filter((w: any) => w.tipo === 'Crédito');
-  const txsMes: any[]     = (tMesData as any)?.transacoes ?? [];
   const txsTodas: any[]   = (tAllData as any)?.transacoes ?? [];
   const loading = wRaw === undefined;
-  const carregar = useCallback(() => Promise.all([mW(), mTM(), mTA()]), [mW, mTM, mTA]);
+  const carregar = useCallback(() => Promise.all([mW(), mTA()]), [mW, mTA]);
 
-  // Carrega 6 últimos meses para o gráfico de histórico
+  // Carrega os últimos meses pro gráfico de histórico. 7 (não 6) porque o ciclo
+  // da fatura mais antiga começa no mês anterior a ela.
   useEffect(() => {
     if (!phone) return;
     (async () => {
       const novosHistoricos: Record<string, any[]> = {};
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 7; i++) {
         const d = new Date(hoje.getFullYear(), hoje.getMonth() + mesIndex - i, 1);
         const ref = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         if (txsHistorico[ref]) {
@@ -107,23 +114,48 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     t.wallet_id === w.id ||
     (t.carteira_nome || '').trim().toLowerCase() === (w.nome || '').trim().toLowerCase();
 
-  // Fatura por cartão. Cartão do Open Finance no mês atual usa o valor que o
-  // sync calculou (saldo = −fatura, já sem as parcelas a vencer) — somar as
-  // transações do mês daria o mês do calendário e ignoraria o pagamento da
-  // fatura. Cartão manual e meses passados seguem pela soma.
+  // Ciclo da fatura exibida, por cartão. `mesIndex` navega FATURAS (não meses):
+  // 0 = a atual (próxima a vencer), -1 = a anterior. Cada cartão tem o seu ciclo
+  // (dependem de dia_fechamento), então a competência varia de cartão pra cartão.
+  const cicloPorCartao = useMemo(() => {
+    const acc: Record<string, ReturnType<typeof cicloPorCompetencia>> = {};
+    wallets.forEach(w => {
+      const atual = competenciaAtual(w);
+      const comp = mesIndex === 0 ? atual : competenciaVizinha(w, atual, mesIndex);
+      acc[w.id] = cicloPorCompetencia(w, comp);
+    });
+    return acc;
+  }, [wallets, mesIndex]);
+
+  // Rótulo da fatura exibida ("Agosto de 2026") + o período do ciclo embaixo.
+  // Com 1 cartão usa a competência dele; com vários (ciclos diferentes) cai no
+  // mês-calendário como referência e omite o período pra não confundir.
+  const umCartao = wallets.length === 1 ? wallets[0] : null;
+  const refMesLabel = umCartao
+    ? labelCompetencia(cicloPorCartao[umCartao.id]?.competencia || '')
+    : mesFallbackLabel;
+  const cicloLabel = umCartao && cicloPorCartao[umCartao.id]?.porCiclo
+    ? cicloPorCartao[umCartao.id].label
+    : null;
+
+  // Fatura por cartão, somada pelo CICLO REAL (não pelo mês-calendário) — é o
+  // que agrupa uma compra de 30/07 e outra de 01/08 na MESMA fatura.
+  // Cartão do Open Finance na fatura atual usa o valor que o sync calculou
+  // (saldo = −fatura, já sem as parcelas a vencer). Usa `txsTodas` porque o
+  // ciclo cruza meses — `txsMes` (só o mês corrente) cortaria as compras.
   const faturaPorCartao = useMemo(() => {
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
       const doBanco = mesIndex === 0 && w.of_conta_id && typeof w.saldo === 'number';
-      acc[w.id] = doBanco
-        ? Math.max(-(w.saldo as number), 0)
-        : txsMes
-            .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto')
-            .reduce((s, t) => s + (t.valor || 0), 0);
+      if (doBanco) { acc[w.id] = Math.max(-(w.saldo as number), 0); return; }
+      const ciclo = cicloPorCartao[w.id];
+      acc[w.id] = txsTodas
+        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
+        .reduce((s, t) => s + (t.valor || 0), 0);
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsMes, mesIndex]);
+  }, [wallets, txsTodas, cicloPorCartao, mesIndex]);
 
   // Restante pós-pagamento por cartão (reportado por cada CardCartao — é ele
   // quem sabe o status real via /fatura/status, migration 096). O header
@@ -134,8 +166,8 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     setRestantePorCartao(prev => (prev[id] === valor ? prev : { ...prev, [id]: valor }));
   }, []);
 
-  // O restante só vale pro mês ATUAL (é o que os cards reportam); navegando pra
-  // um mês passado, o header volta a somar o bruto daquele mês (sem "restante").
+  // O restante só vale pra fatura ATUAL (é o que os cards reportam); navegando
+  // pra uma fatura anterior, o header volta a somar o bruto daquele ciclo.
   const faturaTotal = useMemo(
     () => wallets.reduce((s, w) => {
       const bruto = faturaPorCartao[w.id] || 0;
@@ -147,36 +179,44 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
 
   // Limite COMPROMETIDO por cartão = fatura atual + parcelas futuras.
   // No cartão, a transação fica pago=true ao ser lançada, mas conceitualmente
-  // ocupa o limite até a fatura ser paga — então contamos tudo do mês atual
-  // em diante (compras do mês + parcelas dos próximos meses).
+  // ocupa o limite até a fatura ser paga — então contamos tudo do início do
+  // ciclo atual em diante (compras do ciclo + parcelas dos próximos meses).
   const comprometidoPorCartao = useMemo(() => {
-    const inicioMesAtual = `${mesAtualRef}-01`;
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
+      const inicio = cicloPorCompetencia(w, competenciaAtual(w)).ini;
       acc[w.id] = txsTodas
-        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && (t.data || '') >= inicioMesAtual)
+        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && (t.data || '').slice(0, 10) >= inicio)
         .reduce((s, t) => s + (t.valor || 0), 0);
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsTodas, mesAtualRef]);
+  }, [wallets, txsTodas]);
 
-  // Dados do gráfico (6 meses, mais recente à direita)
+  // Dados do gráfico (6 FATURAS, mais recente à direita). Como o ciclo cruza
+  // meses, junta as transações de todos os meses baixados num pote só e soma
+  // por ciclo de cada cartão. Panorama de tendência — não é número contábil.
   const dadosHistorico = useMemo(() => {
+    const pote = Object.values(txsHistorico).flat() as any[];
     return Array.from({ length: 6 }, (_, idx) => {
-      const i = 5 - idx;
-      const d = new Date(hoje.getFullYear(), hoje.getMonth() + mesIndex - i, 1);
-      const ref = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const txs = txsHistorico[ref] || [];
-      const total = txs
-        .filter((t: any) => wallets.some(w => mesmaCarteira(t, w)) && t.tipo === 'Gasto')
-        .reduce((s: number, t: any) => s + (t.valor || 0), 0);
-      return {
-        mes: MES_ABREV[d.getMonth()],
-        ref,
-        total,
-        atual: i === 0,
-      };
+      const i = 5 - idx;                       // 5 = mais antiga … 0 = a exibida
+      const passo = mesIndex - i;
+      let total = 0;
+      let rotulo = '';
+      for (const w of wallets) {
+        const comp = passo === 0 ? competenciaAtual(w) : competenciaVizinha(w, competenciaAtual(w), passo);
+        const ciclo = cicloPorCompetencia(w, comp);
+        if (!rotulo) rotulo = MES_ABREV[parseInt(comp.slice(5, 7), 10) - 1];
+        total += pote
+          .filter((t) => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
+          .reduce((s: number, t: any) => s + (t.valor || 0), 0);
+      }
+      // Sem cartão nenhum: mantém o eixo com o rótulo do mês.
+      if (!rotulo) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() + passo, 1);
+        rotulo = MES_ABREV[d.getMonth()];
+      }
+      return { mes: rotulo, ref: String(passo), total, atual: i === 0 };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txsHistorico, wallets, mesIndex]);
@@ -312,7 +352,8 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                   fatura={faturaPorCartao[w.id] || 0}
                   comprometido={comprometidoPorCartao[w.id] || 0}
                   ocultar={ocultar}
-                  competencia={`${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`}
+                  competencia={cicloPorCartao[w.id]?.competencia || ''}
+                  ciclo={cicloPorCartao[w.id]}
                   ehMesAtual={mesIndex === 0}
                   compartilhado={compartilhado}
                   delay={i * 50}
@@ -340,24 +381,34 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                 <h2 className="text-base font-bold text-foreground">Faturas</h2>
               </div>
 
-              {/* Navegação de mês */}
+              {/* Navegação de FATURA (por ciclo, não por mês-calendário) */}
               <div className="flex items-center bg-muted/40 rounded-xl p-1">
                 <button
                   onClick={() => setMesIndex(i => i - 1)}
                   className="p-1.5 rounded-lg hover:bg-card transition-colors"
-                  title="Mês anterior"
+                  title="Fatura anterior"
+                  aria-label="Fatura anterior"
                 >
                   <ChevronLeft size={14} className="text-muted-foreground" />
                 </button>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold text-foreground min-w-[140px] justify-center">
-                  <Calendar size={12} className="text-muted-foreground" />
-                  {refMesLabel}
+                <div className="px-3 py-1 min-w-[150px] text-center">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                    <Calendar size={12} className="text-muted-foreground" />
+                    {refMesLabel}
+                  </span>
+                  {/* Período do ciclo — deixa claro POR QUE o valor é esse */}
+                  {cicloLabel && (
+                    <span className="block text-[10px] text-muted-foreground tabular leading-tight mt-0.5">
+                      {cicloLabel}
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => setMesIndex(i => Math.min(12, i + 1))}
                   disabled={mesIndex >= 12}
                   className="p-1.5 rounded-lg hover:bg-card transition-colors disabled:opacity-40"
-                  title="Próximo mês"
+                  title="Próxima fatura"
+                  aria-label="Próxima fatura"
                 >
                   <ChevronRight size={14} className="text-muted-foreground" />
                 </button>
@@ -445,7 +496,9 @@ interface CardCartaoProps {
   comprometido: number;
   ocultar:   boolean;
   delay:     number;
-  competencia: string;   // 'YYYY-MM' do mês visualizado
+  competencia: string;   // 'YYYY-MM' do VENCIMENTO da fatura exibida
+  /** Ciclo real da fatura exibida (período + vencimento). */
+  ciclo?: Ciclo;
   ehMesAtual: boolean;
   compartilhado?: boolean;
   onEditar:  () => void;
@@ -457,7 +510,7 @@ interface CardCartaoProps {
   onRestanteChange?: (cartaoId: string, restante: number) => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
   const { phone } = useAuth();
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);
@@ -591,15 +644,25 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
 
       {/* Fatura atual — mostra o VALOR QUE FALTA (já diminui com pagamentos). */}
       <div className="relative">
-        <p className="text-xs text-muted-foreground">Fatura atual</p>
+        <p className="text-xs text-muted-foreground">
+          {ehMesAtual ? 'Fatura atual' : `Fatura de ${labelCompetencia(competencia)}`}
+        </p>
         <p className="text-2xl font-bold text-foreground tabular tracking-tight mt-0.5">
           {ocultar ? '••••••' : fmt(restante)}
         </p>
 
-        {/* Nota discreta do que já foi pago no mês (sem "restam", que já é o número acima). */}
+        {/* Período do ciclo — explica de onde vem o valor (compras de X a Y),
+            que é o ponto todo da migração pro ciclo real de fechamento. */}
+        {ciclo?.porCiclo && (
+          <p className="text-[11px] text-muted-foreground tabular mt-0.5">
+            Compras de {ciclo.label}
+          </p>
+        )}
+
+        {/* Nota discreta do que já foi pago nessa fatura. */}
         {ehManual && jaPago > 0 && (
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {fmt(jaPago)} já pago este mês
+            {fmt(jaPago)} já pago nesta fatura
           </p>
         )}
 
