@@ -199,6 +199,37 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
   const totalDespesa = categorias.filter(c => !c.parent_id && (c.tipo || 'despesa') === 'despesa').length;
   const totalReceita = categorias.filter(c => !c.parent_id && c.tipo === 'receita').length;
 
+  // Árvore SEMPRE de despesas (independente da aba/filtro ativo) — usada pro
+  // header "gasto em <mês>" e o donut ao lado, que são um resumo fixo de
+  // GASTO. Antes o header somava `arvore` (que na aba "todas" mistura receita
+  // junto), então uma receita como Salário entrava no total rotulado "gasto".
+  const arvoreDespesa = useMemo(() => {
+    const pais = categorias.filter(c => !c.parent_id
+      && (c.tipo || 'despesa') === 'despesa'
+      && nomeCategoria(c.nome) !== 'Fatura cartão');
+    return pais.map(p => {
+      const filhos = categorias.filter(c => c.parent_id === p.id);
+      const gastoProprio = valorDeNome(p.nome, p.tipo);
+      const gastoFilhos  = filhos.reduce((s, f) => s + valorDeNome(f.nome, p.tipo), 0);
+      return { pai: p, gastoTotal: gastoProprio + gastoFilhos };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorias, resumo]);
+  const totalMesDespesa = useMemo(() => arvoreDespesa.reduce((s, x) => s + x.gastoTotal, 0), [arvoreDespesa]);
+
+  // Total de receita (pra % de cada categoria de receita ser sobre o total de
+  // receita, não sobre o total de despesa — faria % > 100% sem sentido).
+  const totalMesReceita = useMemo(() => {
+    const pais = categorias.filter(c => !c.parent_id && c.tipo === 'receita');
+    return pais.reduce((s, p) => {
+      const filhos = categorias.filter(c => c.parent_id === p.id);
+      const gastoProprio = valorDeNome(p.nome, p.tipo);
+      const gastoFilhos  = filhos.reduce((s2, f) => s2 + valorDeNome(f.nome, p.tipo), 0);
+      return s + gastoProprio + gastoFilhos;
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorias, resumo]);
+
   // Aplica busca + filtros
   const arvoreFiltrada = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -220,20 +251,19 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
     .sort((a, b) => (b.gastoTotal - a.gastoTotal) || a.pai.nome.localeCompare(b.pai.nome));
   }, [arvore, busca, filtro, mostrarZeradas]);
 
-  const totalMes = arvore.reduce((s, x) => s + x.gastoTotal, 0);
-
-  // Dados do donut chart (top 8)
+  // Dados do donut chart (top 8) — sempre de DESPESA (o donut fica ao lado do
+  // header "gasto em <mês>", que é um resumo fixo, não filtrado pela aba).
   const dadosPie = useMemo(() => {
-    return arvore
+    return arvoreDespesa
       .filter(x => x.gastoTotal > 0)
       .sort((a, b) => b.gastoTotal - a.gastoTotal)
       .slice(0, 8)
       .map(x => ({
         name: x.pai.nome,
         value: x.gastoTotal,
-        color: citrico(normalizaCor(x.pai.cor, x.pai.nome).fg),
+        color: citrico(normalizaCor((x.pai as any).cor, x.pai.nome).fg),
       }));
-  }, [arvore]);
+  }, [arvoreDespesa]);
 
   function toggleExpand(id: string) {
     setExpandidas(prev => {
@@ -358,7 +388,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
             {/* Total */}
             <div className="flex-1 text-center lg:text-left">
               <p className="text-3xl sm:text-5xl font-bold text-foreground tabular tracking-tight leading-none">
-                {ocultar ? '••••••••' : fmt(totalMes)}
+                {ocultar ? '••••••••' : fmt(totalMesDespesa)}
               </p>
               <p className="text-muted-foreground text-sm mt-2">
                 gasto em <span className="font-semibold text-foreground">{mesLabel}</span>
@@ -545,7 +575,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
                 <CategoriaRow
                   key={item.pai.id}
                   item={item}
-                  totalMes={totalMes}
+                  totalMes={item.pai.tipo === 'receita' ? totalMesReceita : totalMesDespesa}
                   ocultar={ocultar}
                   expandida={expandidas.has(item.pai.id)}
                   toggleExpand={() => toggleExpand(item.pai.id)}

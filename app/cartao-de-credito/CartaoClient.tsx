@@ -125,9 +125,24 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallets, txsMes, mesIndex]);
 
+  // Restante pós-pagamento por cartão (reportado por cada CardCartao — é ele
+  // quem sabe o status real via /fatura/status, migration 096). O header
+  // "Fatura atual" soma isso, não o bruto do mês — senão continuava mostrando
+  // o total cheio mesmo depois do usuário pagar uma fatura.
+  const [restantePorCartao, setRestantePorCartao] = useState<Record<string, number>>({});
+  const onRestanteChange = useCallback((id: string, valor: number) => {
+    setRestantePorCartao(prev => (prev[id] === valor ? prev : { ...prev, [id]: valor }));
+  }, []);
+
+  // O restante só vale pro mês ATUAL (é o que os cards reportam); navegando pra
+  // um mês passado, o header volta a somar o bruto daquele mês (sem "restante").
   const faturaTotal = useMemo(
-    () => Object.values(faturaPorCartao).reduce((s, v) => s + v, 0),
-    [faturaPorCartao]
+    () => wallets.reduce((s, w) => {
+      const bruto = faturaPorCartao[w.id] || 0;
+      const usaRestante = mesIndex === 0 && restantePorCartao[w.id] !== undefined;
+      return s + (usaRestante ? restantePorCartao[w.id] : bruto);
+    }, 0),
+    [wallets, restantePorCartao, faturaPorCartao, mesIndex]
   );
 
   // Limite COMPROMETIDO por cartão = fatura atual + parcelas futuras.
@@ -304,6 +319,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
                   onExcluir={() => setConfirmDel(w)}
                   onAbrir={() => setDetalhes(w)}
+                  onRestanteChange={onRestanteChange}
                   onRefresh={carregar}
                 />
               ))}
@@ -436,9 +452,12 @@ interface CardCartaoProps {
   onExcluir: () => void;
   onAbrir:   () => void;
   onRefresh: () => void;
+  /** Reporta o RESTANTE (pós-pagamento) pro pai somar no header "Fatura atual"
+   *  — sem isso o header ficava com a soma bruta do mês, sem descontar pagamento. */
+  onRestanteChange?: (cartaoId: string, restante: number) => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
   const { phone } = useAuth();
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);
@@ -495,6 +514,13 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
   const restante = ehManual && status ? status.restante : fatura;
   const jaPago   = ehManual && status ? status.pago : 0;
   const paga     = ehManual && status ? status.restante <= 0.01 : pagaLS;
+
+  // Reporta o restante pro pai (soma do header "Fatura atual"). Só quando é o
+  // mês ATUAL — meses passados não entram na fatura "atual" do topo.
+  useEffect(() => {
+    if (ehMesAtual) onRestanteChange?.(cartao.id, restante);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartao.id, restante, ehMesAtual]);
 
   // Próximo vencimento — helper compartilhado com o modal de detalhes (fonte
   // única; antes cada tela calculava o seu e davam meses diferentes).

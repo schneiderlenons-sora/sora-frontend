@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
-  ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed,
+  ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
-import { getCategoriaTheme } from '@/lib/categorias';
+import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -44,7 +44,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const [carregando, setCarreg]   = useState(true);
   const [confirmando, setConfirm] = useState<string | null>(null); // id em confirmação de cancelamento
   const [removendo, setRemovendo] = useState<string | null>(null);
-  const [addOpen, setAddOpen]     = useState(false);
+  // 'novo' = form de criação aberto; um item = editando ESSE item; null = fechado.
+  const [formTarget, setFormTarget] = useState<'novo' | Recorrencia | null>(null);
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
   const [aceitando, setAceitando] = useState<string | null>(null); // descricao em processamento
 
@@ -152,24 +153,25 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         </div>
 
         <button
-          onClick={() => setAddOpen((v) => !v)}
+          onClick={() => setFormTarget((v) => (v ? null : 'novo'))}
           className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
                      hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
-          style={{ background: addOpen ? 'hsl(var(--bg-muted))' : `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: addOpen ? undefined : BRAND }}
-          aria-expanded={addOpen}
+          style={{ background: formTarget ? 'hsl(var(--bg-muted))' : `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: formTarget ? undefined : BRAND }}
+          aria-expanded={!!formTarget}
         >
-          {addOpen ? <X size={16} /> : <Plus size={16} />}
-          <span className="hidden sm:inline">{addOpen ? 'Fechar' : 'Adicionar'}</span>
+          {formTarget ? <X size={16} /> : <Plus size={16} />}
+          <span className="hidden sm:inline">{formTarget ? 'Fechar' : 'Adicionar'}</span>
         </button>
       </div>
 
-      {/* ── Form de adicionar (progressive disclosure) ───────── */}
-      {addOpen && (
+      {/* ── Form de adicionar/editar (progressive disclosure) ── */}
+      {formTarget && (
         <AddForm
           phone={phone}
           contas={wallets}
-          onCancel={() => setAddOpen(false)}
-          onSaved={() => { setAddOpen(false); carregar(); }}
+          editItem={formTarget === 'novo' ? null : formTarget}
+          onCancel={() => setFormTarget(null)}
+          onSaved={() => { setFormTarget(null); carregar(); }}
         />
       )}
 
@@ -239,9 +241,9 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
             <strong className="text-foreground/80">Fixas</strong> (aluguel, Netflix, salário) a Sora lança sozinha no dia certo.
             {' '}<strong className="text-foreground/80">Variáveis</strong> (luz, água, cartão) ela te lembra pra você confirmar o valor.
           </p>
-          {!addOpen && (
+          {!formTarget && (
             <button
-              onClick={() => setAddOpen(true)}
+              onClick={() => setFormTarget('novo')}
               className="mt-1 flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold"
               style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}
             >
@@ -265,7 +267,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                 {g.itens.map((item, idx) => (
                   <Linha key={item.id} item={item} idx={idx}
                     confirmando={confirmando} removendo={removendo}
-                    onPedir={setConfirm} onCancelar={cancelar} />
+                    onPedir={setConfirm} onCancelar={cancelar}
+                    onEditar={() => setFormTarget(item)} />
                 ))}
               </ul>
             </div>
@@ -280,7 +283,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 // Linha de uma recorrência (gasto ou receita, fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function Linha({
-  item, idx, confirmando, removendo, onPedir, onCancelar,
+  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar,
 }: {
   item:        Recorrencia;
   idx:         number;
@@ -288,6 +291,7 @@ function Linha({
   removendo:   string | null;
   onPedir:     (id: string | null) => void;
   onCancelar:  (id: string) => void;
+  onEditar:    () => void;
 }) {
   const tema = getCategoriaTheme(item.descricao);
   // Emoji da categoria (se tiver) OU o do tema da descrição — ex.: "academia" → 💪
@@ -353,16 +357,26 @@ function Linha({
           </button>
         </div>
       ) : (
-        <button
-          onClick={() => onPedir(item.id)}
-          className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 text-muted-foreground
-                     hover:text-red-500 hover:bg-red-500/10 transition-colors
-                     lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
-          aria-label={`Cancelar ${item.descricao}`}
-          title="Cancelar"
-        >
-          <Trash2 size={15} />
-        </button>
+        <div className="flex items-center gap-0.5 flex-shrink-0 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
+          <button
+            onClick={onEditar}
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground
+                       hover:text-foreground hover:bg-muted transition-colors"
+            aria-label={`Editar ${item.descricao}`}
+            title="Editar"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={() => onPedir(item.id)}
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground
+                       hover:text-red-500 hover:bg-red-500/10 transition-colors"
+            aria-label={`Cancelar ${item.descricao}`}
+            title="Cancelar"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       )}
     </li>
   );
@@ -372,21 +386,41 @@ function Linha({
 // Form inline de adicionar recorrência (fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function AddForm({
-  phone, contas, onCancel, onSaved,
+  phone, contas, editItem, onCancel, onSaved,
 }: {
   phone?:    string;
   contas:    Wallet[];
+  /** Presente = editando esse item (tipo/valor-variável ficam travados —
+   *  são estruturais; categoria/valor/dia/conta são editáveis). */
+  editItem?: Recorrencia | null;
   onCancel:  () => void;
   onSaved:   () => void;
 }) {
-  const [tipo, setTipo]                   = useState<Tipo>('Gasto');
-  const [valorVariavel, setValorVariavel] = useState(false);
-  const [descricao, setDescricao]         = useState('');
-  const [valor, setValor]                 = useState('');
-  const [dia, setDia]                     = useState('5');
+  const editando = !!editItem;
+  const [tipo, setTipo]                   = useState<Tipo>(editItem?.tipo || 'Gasto');
+  const [valorVariavel, setValorVariavel] = useState(!!editItem?.valor_variavel);
+  const [descricao, setDescricao]         = useState(editItem?.descricao || '');
+  const [valor, setValor]                 = useState(editItem?.valor ? String(editItem.valor).replace('.', ',') : '');
+  const [dia, setDia]                     = useState(editItem ? String(editItem.dia_vencimento) : '5');
+  const [categoria, setCategoria]         = useState(editItem?.categoria || '');
+  const [cats, setCats]                   = useState<string[]>(editItem?.categoria ? [editItem.categoria] : []);
   const [salvando, setSalvando]           = useState(false);
   const [erro, setErro]                   = useState('');
   const descRef = useRef<HTMLInputElement>(null);
+
+  // Catálogo de categorias do grupo, filtrado pelo tipo (despesa/receita) —
+  // mesmo padrão do EditarTransacaoModal. Recarrega se o tipo mudar (só ao criar;
+  // ao editar, tipo é fixo).
+  useEffect(() => {
+    if (!phone) return;
+    api.categorias.listar(phone, tipo === 'Recebimento' ? 'receita' : 'despesa')
+      .then((cs: any[]) => {
+        const nomes = (cs || []).map((c) => c.nome).filter(Boolean);
+        setCats(Array.from(new Set([editItem?.categoria, ...nomes].filter(Boolean) as string[])));
+      })
+      .catch(() => { /* mantém ao menos a atual */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, tipo]);
 
   // Contas válidas pro tipo: receita fixa não cai em cartão de crédito.
   // Garante "Dinheiro" como opção e remove duplicatas por nome.
@@ -409,7 +443,7 @@ function AddForm({
     });
   }, [contas, tipo]);
 
-  const [carteira, setCarteira] = useState(opcoesContas[0]?.nome || 'Dinheiro');
+  const [carteira, setCarteira] = useState(editItem?.carteira || opcoesContas[0]?.nome || 'Dinheiro');
 
   useEffect(() => { descRef.current?.focus(); }, []);
 
@@ -435,15 +469,26 @@ function AddForm({
     setErro('');
     setSalvando(true);
     try {
-      await api.recorrencias.criar({
-        phone,
-        tipo,
-        descricao:      descricao.trim(),
-        valor:          temValor ? valorNum : 0,   // variável sem estimativa → 0
-        dia_vencimento: diaLimpo,
-        carteira:       carteira || 'Dinheiro',
-        valor_variavel: valorVariavel,
-      });
+      if (editando && editItem) {
+        await api.recorrencias.editar(editItem.id, {
+          categoria:      categoria || undefined,
+          descricao:      descricao.trim(),
+          valor:          temValor ? valorNum : 0,
+          dia_vencimento: diaLimpo,
+          carteira:       carteira || 'Dinheiro',
+        });
+      } else {
+        await api.recorrencias.criar({
+          phone,
+          tipo,
+          descricao:      descricao.trim(),
+          valor:          temValor ? valorNum : 0,   // variável sem estimativa → 0
+          dia_vencimento: diaLimpo,
+          carteira:       carteira || 'Dinheiro',
+          valor_variavel: valorVariavel,
+          categoria:      categoria || undefined,
+        });
+      }
       onSaved();
     } catch {
       setErro('Não consegui salvar. Tente de novo.');
@@ -471,15 +516,21 @@ function AddForm({
 
   return (
     <div className="p-4 sm:p-6 bg-muted/20 border-b border-border/60 animate-fade-in">
-      {/* Dois eixos: tipo (gasto/receita) × valor (fixo/variável) */}
+      {editando && (
+        <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
+          <Pencil size={12} /> Editando {tipo === 'Gasto' ? 'gasto' : 'receita'} {valorVariavel ? 'variável' : 'fixo'}
+        </p>
+      )}
+      {/* Dois eixos: tipo (gasto/receita) × valor (fixo/variável) — travados ao
+          editar (são estruturais; mudar isso é como criar outro item). */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Tipo">
-          {eixo(tipo === 'Gasto', 'Gasto', () => setTipo('Gasto'))}
-          {eixo(tipo === 'Recebimento', 'Receita', () => setTipo('Recebimento'))}
+        <div className={`inline-flex p-1 rounded-xl bg-muted/60 ${editando ? 'opacity-60' : ''}`} role="group" aria-label="Tipo">
+          {eixo(tipo === 'Gasto', 'Gasto', () => !editando && setTipo('Gasto'))}
+          {eixo(tipo === 'Recebimento', 'Receita', () => !editando && setTipo('Recebimento'))}
         </div>
-        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Valor">
-          {eixo(!valorVariavel, 'Valor fixo', () => setValorVariavel(false))}
-          {eixo(valorVariavel, 'Valor varia', () => setValorVariavel(true))}
+        <div className={`inline-flex p-1 rounded-xl bg-muted/60 ${editando ? 'opacity-60' : ''}`} role="group" aria-label="Valor">
+          {eixo(!valorVariavel, 'Valor fixo', () => !editando && setValorVariavel(false))}
+          {eixo(valorVariavel, 'Valor varia', () => !editando && setValorVariavel(true))}
         </div>
       </div>
 
@@ -520,6 +571,21 @@ function AddForm({
         </div>
       </div>
 
+      {/* Categoria — se não escolher, a Sora tenta auto-categorizar pela
+          descrição (senão cai em "Outros"). Escolher aqui garante o certo. */}
+      <div className="mt-2.5">
+        <select
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+          className="w-full sm:w-auto px-3.5 h-11 rounded-xl bg-background border border-border text-sm
+                     focus:outline-none focus:border-primary transition-colors"
+          aria-label="Categoria"
+        >
+          <option value="">Categoria automática (pela descrição)</option>
+          {cats.map((c) => <option key={c} value={c}>{nomeCategoria(c)}</option>)}
+        </select>
+      </div>
+
       {/* Conta de origem */}
       <div className="mt-2.5">
         <select
@@ -555,7 +621,7 @@ function AddForm({
           style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
         >
           {salvando ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-          Salvar
+          {editando ? 'Salvar alterações' : 'Salvar'}
         </button>
         <button
           onClick={onCancel}
