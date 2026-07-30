@@ -27,6 +27,9 @@ const CORES_TIPO: Record<string, string> = {
   'Cripto':          '#f59e0b',
   'Tesouro Direto':  '#22c55e',
   'CDB':             '#ec4899',
+  // Vindos do Open Finance (Celcoin): debêntures/CRI/CRA e fundos de investimento.
+  'Renda Fixa':      '#0ea5e9',
+  'Fundos':          '#6366f1',
   'Previdência':     '#14b8a6',
   'Reserva':         '#10b981',
   'Imóveis':         '#f97316',

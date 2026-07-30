@@ -12,6 +12,8 @@ const TIPOS = [
   { v: 'Cripto',          emoji: '₿',  desc: 'Bitcoin, Ethereum, etc.',      autoCripto: true },
   { v: 'Tesouro Direto',  emoji: '💵', desc: 'Selic, IPCA+, Prefixado' },
   { v: 'CDB',             emoji: '🏦', desc: 'CDB, CDI, LCI, LCA' },
+  { v: 'Renda Fixa',      emoji: '📜', desc: 'Debêntures, CRI, CRA' },
+  { v: 'Fundos',          emoji: '🧺', desc: 'Fundos de investimento' },
   { v: 'Previdência',     emoji: '🏖️', desc: 'PGBL, VGBL' },
   { v: 'Reserva',         emoji: '🛡️', desc: 'Liquidez diária', isReserva: true },
   { v: 'Imóveis',         emoji: '🏠', desc: 'Físicos próprios' },
