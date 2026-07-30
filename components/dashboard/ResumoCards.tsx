@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import IconeMarca from '@/components/ui/IconeMarca';
 import { api } from '@/lib/api';
-import { competenciaAtual, cicloPorCompetencia, dentroDoCiclo } from '@/lib/ciclo-fatura';
+import { competenciaAtual, cicloPorCompetencia, pertenceAFatura } from '@/lib/ciclo-fatura';
 
 const BRAND = 'hsl(var(--primary))';
 const fmt = (v: number) =>
@@ -85,7 +85,7 @@ export default function ResumoCards({
         const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
           ? -(w.saldo as number)
           : txsMes
-              .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
+              .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, true))
               .reduce((s, t) => s + (t.valor || 0), 0);
         const fatura = restanteApi[w.id] ?? local;
         const limite = w.limite || 0;

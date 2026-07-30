@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { mutate as mutateGlobal } from 'swr';
 import {
-  competenciaAtual, competenciaVizinha, cicloPorCompetencia, dentroDoCiclo, labelCompetencia,
+  competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, labelCompetencia,
   type Ciclo,
 } from '@/lib/ciclo-fatura';
 import {
@@ -154,7 +154,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       if (doBanco) { acc[w.id] = -(w.saldo as number); return; }
       const ciclo = cicloPorCartao[w.id];
       acc[w.id] = txsTodas
-        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
+        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, mesIndex === 0))
         .reduce((s, t) => s + (t.valor || 0), 0);
     });
     return acc;
@@ -212,7 +212,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
         const ciclo = cicloPorCompetencia(w, comp);
         if (!rotulo) rotulo = MES_ABREV[parseInt(comp.slice(5, 7), 10) - 1];
         total += pote
-          .filter((t) => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
+          .filter((t) => mesmaCarteira(t, w) && t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, passo === 0))
           .reduce((s: number, t: any) => s + (t.valor || 0), 0);
       }
       // Sem cartão nenhum: mantém o eixo com o rótulo do mês.

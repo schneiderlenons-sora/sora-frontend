@@ -192,7 +192,9 @@ export const api = {
 
   // ── TRANSAÇÕES ────────────────────────────────────────────────
   transacoes: {
-    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por?: string; criado_por_me?: boolean; criado_por_phone?: string; ate?: string }) => {
+    // `bill_id` busca pela FATURA do emissor (Open Finance) em vez de por mês —
+    // é o único jeito de trazer a parcela cujo lançamento tem a data da compra.
+    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por?: string; criado_por_me?: boolean; criado_por_phone?: string; ate?: string; bill_id?: string }) => {
       const q = new URLSearchParams(params as any).toString();
       return req<{ transacoes: any[]; total: number }>(`/api/transacoes/${phone}${q ? `?${q}` : ''}`);
     },

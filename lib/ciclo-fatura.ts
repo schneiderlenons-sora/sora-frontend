@@ -158,6 +158,31 @@ export function dentroDoCiclo(dataTx: string | null | undefined, ciclo: Ciclo): 
   return d >= ciclo.ini && d < ciclo.fimExcl;
 }
 
+/**
+ * A transação entra NESTA fatura?
+ *
+ * Por data (o ciclo) resolve o cartão manual, mas erra no Open Finance quando há
+ * PARCELAMENTO: o banco manda as N parcelas com a data da COMPRA, então uma
+ * compra de 20/06 em 3× cairia inteira na fatura de junho, quando na verdade se
+ * espalha por julho, agosto e setembro. Quem sabe em qual fatura a linha entra é
+ * o EMISSOR — e ele diz isso no `of_bill_id` (migration 101).
+ *
+ * Por isso: havendo vínculo do emissor E sabendo qual fatura está aberta, o
+ * vínculo manda. Sem um dos dois (cartão manual, trilho Pluggy, transação
+ * importada antes da 101), cai no ciclo — o comportamento de sempre.
+ */
+export function pertenceAFatura(
+  tx: any,
+  cartao: any,
+  ciclo: Ciclo,
+  ehFaturaAtual: boolean,
+): boolean {
+  const vinculo = tx?.of_bill_id;
+  const faturaAberta = ehFaturaAtual ? cartao?.of_bill_atual : null;
+  if (vinculo && faturaAberta) return vinculo === faturaAberta;
+  return dentroDoCiclo(tx?.data, ciclo);
+}
+
 /** Rótulo humano da fatura: "Agosto de 2026". */
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];

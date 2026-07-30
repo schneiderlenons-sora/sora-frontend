@@ -5,7 +5,7 @@ import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, Cre
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
-import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, dentroDoCiclo } from '@/lib/ciclo-fatura';
+import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura } from '@/lib/ciclo-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
@@ -98,10 +98,24 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     let cancelado = false;
     setLoading(true);
     const mesesDoCiclo = Array.from(new Set([ciclo.ini.slice(0, 7), ciclo.fim.slice(0, 7)]));
-    Promise.all(mesesDoCiclo.map((m) => api.transacoes.listar(phone, { mes: m, limit: 500 })))
+    const buscas: Promise<any>[] = mesesDoCiclo.map((m) => api.transacoes.listar(phone, { mes: m, limit: 500 }));
+    // Compra PARCELADA é lançada com a data da COMPRA, então pode estar meses
+    // atrás do ciclo e nem seria carregada pela busca por mês. Quando o banco
+    // diz qual fatura está aberta, buscamos também por ela. Best-effort: se a
+    // migration 101 ainda não rodou, essa busca falha e as outras seguem.
+    const faturaAberta = offsetMes === 0 ? cartao?.of_bill_atual : null;
+    if (faturaAberta) {
+      buscas.push(
+        api.transacoes.listar(phone, { bill_id: faturaAberta, limit: 500 }).catch(() => null),
+      );
+    }
+    Promise.all(buscas)
       .then((rs: any[]) => {
         if (cancelado) return;
-        const todas = rs.flatMap((r) => r?.transacoes || []);
+        // Dedup: uma transação pode vir pelos dois caminhos (mês e fatura).
+        const vistas = new Set<string>();
+        const todas = rs.flatMap((r) => r?.transacoes || [])
+          .filter((t: any) => (t?.id && vistas.has(t.id) ? false : (vistas.add(t?.id), true)));
         // As transações guardam carteira_nome (string), não wallet_id — match por nome
         const nomeCartao = (cartao.nome || '').trim().toLowerCase();
         const doCartao = todas.filter(
@@ -109,14 +123,15 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
             (t.wallet_id === cartao.id ||
              (t.carteira_nome || '').trim().toLowerCase() === nomeCartao) &&
             t.tipo === 'Gasto' &&
-            dentroDoCiclo(t.data, ciclo)
+            pertenceAFatura(t, cartao, ciclo, offsetMes === 0)
         );
         setTxs(doCartao);
       })
       .catch(() => { if (!cancelado) setTxs([]); })
       .finally(() => { if (!cancelado) setLoading(false); });
     return () => { cancelado = true; };
-  }, [phone, cartao?.id, cartao?.nome, ciclo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, cartao?.id, cartao?.nome, cartao?.of_bill_atual, offsetMes, ciclo]);
 
   // Métricas
   // Cartão do Open Finance no mês ATUAL: o valor devido vem do banco (saldo
