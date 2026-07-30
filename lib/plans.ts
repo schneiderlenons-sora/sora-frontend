@@ -54,7 +54,11 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   grow_despensa:      ['premium', 'black'],
   sora_grow_trial:    [], // descontinuado
   compartilhamento:   ['premium', 'black'],   // painel do casal — só na Completa
-  open_finance:       ['premium', 'black'],   // conexão com bancos — só na Completa
+  // Open Finance entra no Básico também, mas com 1 conexão só (ver LIMITES).
+  // ⚠️ Ter a feature não basta: é só pra assinatura RECORRENTE — o vitalício
+  // ficou de fora porque cada conexão tem custo MENSAL do agregador e o
+  // vitalício não gera receita recorrente. Quem decide é `temOpenFinance()`.
+  open_finance:       ['basico', 'premium', 'black'],
   import_ofx:         ['kit', 'premium', 'black'],
   import_csv:         ['kit', 'premium', 'black'],
   export_dados:       ['kit', 'premium', 'black'],
@@ -71,7 +75,16 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
 export const LIMITES = {
   contas:  { inativo: 3, basico: 3, kit: Infinity, premium: Infinity, black: Infinity },
   cartoes: { inativo: 3, basico: 3, kit: Infinity, premium: Infinity, black: Infinity },
+  // ⚠️ CONEXÃO de banco (Open Finance) ≠ CONTA. Conta criada à mão continua
+  // ilimitada no Premium; o que é limitado é o vínculo automático com o banco,
+  // porque cada um custa mensalidade nossa no agregador.
+  // Acima do limite: +R$5/mês por conexão extra — a COBRANÇA ainda não existe,
+  // então hoje o painel apenas bloqueia e oferece o upgrade.
+  conexoes_of: { inativo: 0, basico: 1, kit: 0, premium: 3, black: 3 },
 } as const satisfies Record<string, Record<Plano, number>>;
+
+/** Preço da conexão de Open Finance além do limite do plano (ainda não cobrado). */
+export const PRECO_CONEXAO_EXTRA = 5;
 
 export type Recurso = keyof typeof LIMITES;
 
@@ -84,6 +97,24 @@ export function podeUsar(plano: Plano | null | undefined, feature: Feature): boo
 
 export function limiteDe(plano: Plano | null | undefined, recurso: Recurso): number {
   return LIMITES[recurso][plano || 'inativo'];
+}
+
+/**
+ * Open Finance liberado? Só pra assinatura RECORRENTE.
+ *
+ * Ter o plano na feature não basta: o vitalício pagou uma vez e cada conexão de
+ * banco nos custa mensalidade no agregador, então ele fica de fora por ora
+ * (mesmo com `plano='premium'`, que é o caso de 29 contas da base).
+ *
+ * Fonte única — front (aba, avisos) e back (rotas) decidem por aqui, senão a
+ * tela libera algo que a API recusa.
+ */
+export function temOpenFinance(
+  plano: Plano | null | undefined,
+  opts?: { vitalicio?: boolean | null },
+): boolean {
+  if (opts?.vitalicio) return false;
+  return podeUsar(plano, 'open_finance');
 }
 
 // Plano mínimo recomendado pra uma feature — usado nos paywalls pra orientar

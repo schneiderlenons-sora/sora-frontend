@@ -605,6 +605,7 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
   const [testePhone, setTestePhone] = useState('');
   const [busy, setBusy] = useState<'' | 'contar' | 'teste' | 'disparar'>('');
   const [total, setTotal] = useState<number | null>(null);
+  const [soRecorrentes, setSoRecorrentes] = useState(false);
 
   const toggle = (p: Plano) => { setTotal(null); setPlanos((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]); };
 
@@ -618,7 +619,7 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
   async function contar() {
     if (planos.length === 0) { flash('⚠️ Marque ao menos um plano.'); return; }
     setBusy('contar');
-    try { const d = await post({ modo: 'contar', planos }); setTotal(d.total ?? 0); }
+    try { const d = await post({ modo: 'contar', planos, apenasRecorrentes: soRecorrentes }); setTotal(d.total ?? 0); }
     catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
     finally { setBusy(''); }
   }
@@ -637,14 +638,14 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
     // Conta primeiro pra confirmar com o número real.
     setBusy('disparar');
     let n = 0;
-    try { const d = await post({ modo: 'contar', planos }); n = d.total ?? 0; setTotal(n); }
+    try { const d = await post({ modo: 'contar', planos, apenasRecorrentes: soRecorrentes }); n = d.total ?? 0; setTotal(n); }
     catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); setBusy(''); return; }
     setBusy('');
     if (!n) { flash('Ninguém nesse filtro.'); return; }
     if (!confirm(`Enviar esse comunicado pra ${n} pessoa(s)?\n\nManda WhatsApp de verdade agora e NÃO dá pra desfazer.`)) return;
     if (!confirm(`Confirma mesmo? ${n} mensagens vão sair.`)) return;
     setBusy('disparar');
-    try { const d = await post({ modo: 'disparar', texto: texto.trim(), planos }); flash(`Disparo iniciado pra ${d.total ?? n} pessoas ✓`); }
+    try { const d = await post({ modo: 'disparar', texto: texto.trim(), planos, apenasRecorrentes: soRecorrentes }); flash(`Disparo iniciado pra ${d.total ?? n} pessoas ✓`); }
     catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
     finally { setBusy(''); }
   }
@@ -699,6 +700,24 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
               );
             })}
           </div>
+          {/* Vitalício tem plano='premium' no banco, então filtrar só por plano
+              o inclui. Pra aviso de recurso de assinatura (ex.: Open Finance)
+              isso mandaria a novidade pra quem não tem acesso a ela. */}
+          <button onClick={() => { setTotal(null); setSoRecorrentes((v) => !v); }}
+                  role="switch" aria-checked={soRecorrentes}
+                  className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl border border-border hover:bg-muted/30 transition-colors text-left"
+                  style={{ minHeight: 44 }}>
+            <span className="min-w-0">
+              <span className="text-xs font-bold text-foreground block">Só quem assina (exclui vitalício)</span>
+              <span className="text-[11px] text-muted-foreground block mt-0.5">
+                Use em aviso de recurso que é só da assinatura — o vitalício aparece como Premium.
+              </span>
+            </span>
+            <span className={`w-10 h-6 rounded-full flex-shrink-0 relative transition-colors ${soRecorrentes ? '' : 'bg-muted'}`}
+                  style={soRecorrentes ? { background: BRAND } : undefined}>
+              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${soRecorrentes ? 'left-5' : 'left-1'}`} />
+            </span>
+          </button>
           <p className="text-[11px] text-muted-foreground">Só usuários com WhatsApp vinculado recebem. Números repetidos entram uma vez só.</p>
         </div>
 

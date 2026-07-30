@@ -12,11 +12,14 @@ export async function POST(req: NextRequest) {
   const gate = await checkAdmin();
   if ('error' in gate) return gate.error;
 
-  const { modo, texto, planos, testePhone } = (await req.json().catch(() => ({}))) as {
+  const { modo, texto, planos, testePhone, apenasRecorrentes } = (await req.json().catch(() => ({}))) as {
     modo?: 'contar' | 'teste' | 'disparar';
     texto?: string;
     planos?: string[];
     testePhone?: string;
+    // Exclui vitalícios (têm plano='premium' no banco). Necessário pra avisos de
+    // recurso que é só de assinatura, como o Open Finance.
+    apenasRecorrentes?: boolean;
   };
 
   const base = process.env.NEXT_PUBLIC_API_URL;
@@ -36,9 +39,9 @@ export async function POST(req: NextRequest) {
     if (!phone) return NextResponse.json({ erro: 'Sem número de teste — digite um ou vincule seu WhatsApp.' }, { status: 400 });
     payload = { texto: String(texto || '').trim(), teste: phone };
   } else if (modo === 'contar') {
-    payload = { planos: planos || [], dryRun: true };
+    payload = { planos: planos || [], dryRun: true, apenasRecorrentes: !!apenasRecorrentes };
   } else if (modo === 'disparar') {
-    payload = { texto: String(texto || '').trim(), planos: planos || [] };
+    payload = { texto: String(texto || '').trim(), planos: planos || [], apenasRecorrentes: !!apenasRecorrentes };
   } else {
     return NextResponse.json({ erro: 'modo inválido' }, { status: 400 });
   }

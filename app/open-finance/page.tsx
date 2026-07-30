@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
+import { limiteDe, PLANO_LABEL, PRECO_CONEXAO_EXTRA } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import {
@@ -58,8 +59,14 @@ function quando(iso: string) {
 }
 
 export default function OpenFinancePage() {
-  const { perfil, phone } = useAuth();
-  const liberado = isAdminEmail(perfil?.email) || podeVerOpenFinance(perfil?.email, phone);
+  const { perfil, phone, plano, loading: carregandoPerfil } = useAuth();
+  // ⚠️ O acesso depende do PLANO, que chega junto com o perfil. Enquanto ele não
+  // carrega não dá pra decidir — sem isto, quem TEM acesso via a tela de "só na
+  // assinatura" piscar antes do conteúdo.
+  const liberado = isAdminEmail(perfil?.email) || podeVerOpenFinance(perfil?.email, phone, perfil);
+  const indefinido = carregandoPerfil || (!perfil && !liberado);
+  // Conexões são limitadas por plano (≠ contas, que no Premium são ilimitadas).
+  const limiteConexoes = limiteDe(plano, 'conexoes_of');
 
   const [conexoes, setConexoes] = useState<Conexao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -121,10 +128,11 @@ export default function OpenFinancePage() {
   // usuário toca em "Conectar banco" a lista costuma estar pronta (era o
   // "demora pra aparecer os bancos"). O prefetch é silencioso.
   useEffect(() => {
+    if (indefinido) return;            // perfil ainda chegando: segura o skeleton
     if (!liberado) { setCarregando(false); return; }
     carregar();
     carregarInsts(false);
-  }, [liberado, carregar, carregarInsts]);
+  }, [indefinido, liberado, carregar, carregarInsts]);
 
   // A URL de autorização nasce um instante DEPOIS do create. Em vez de segurar a
   // resposta do /conectar (eram ~7s), o modal abre na hora e a URL entra aqui.
@@ -159,7 +167,18 @@ export default function OpenFinancePage() {
     return () => { vivo = false; clearTimeout(t); };
   }, [authId, authUrl, authTry]);
 
+  // Já no limite do plano? Avisa aqui em vez de deixar o usuário escolher o
+  // banco, digitar CPF e só então tomar 403 do backend.
+  const noLimite = conexoes.length >= limiteConexoes;
+
   function abrirPicker() {
+    if (noLimite) {
+      setErro(
+        `Seu plano ${PLANO_LABEL[plano] || ''} permite ${limiteConexoes} ${limiteConexoes === 1 ? 'conexão' : 'conexões'} de banco. ` +
+        'Desconecte um banco pra trocar, ou faça upgrade pra conectar mais.',
+      );
+      return;
+    }
     setPickerOpen(true); setErro(''); setInstSel(null); setBusca('');
     if (!insts.length) carregarInsts(true);
   }
@@ -258,10 +277,24 @@ export default function OpenFinancePage() {
           </div>
         )}
 
-        {!liberado ? (
-          /* Fora da allowlist: Open Finance em teste fechado. Em vez de expor o
-             fluxo real, mostra o aviso "Em atualização" (o mesmo de sempre) +
-             recomendação de OFX. Restaurado do commit a936e09. */
+        {indefinido ? (
+          /* Perfil a caminho: skeleton do card, pra não piscar "sem acesso". */
+          <div className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-4 animate-pulse" aria-busy="true">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex-shrink-0" />
+              <div className="space-y-2">
+                <div className="h-3 w-20 rounded bg-muted" />
+                <div className="h-4 w-48 rounded bg-muted" />
+              </div>
+            </div>
+            <div className="h-3 w-full rounded bg-muted" />
+            <div className="h-3 w-4/5 rounded bg-muted" />
+          </div>
+        ) : !liberado ? (
+          /* Sem acesso. O recurso NÃO está mais "em atualização" — está aberto,
+             mas só pra assinatura (Básico 1 conexão, Premium 3). O vitalício
+             fica de fora porque cada conexão custa mensalidade no agregador.
+             Duas mensagens diferentes: quem paga uma vez × quem não assina. */
           <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8">
             <div aria-hidden className="absolute -top-16 -right-12 w-52 h-52 rounded-full opacity-20 pointer-events-none"
                  style={{ background: `radial-gradient(circle, ${BRAND} 0%, transparent 60%)` }} />
@@ -270,32 +303,46 @@ export default function OpenFinancePage() {
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl flex-shrink-0"
                       style={{ background: `color-mix(in srgb, ${BRAND} 16%, transparent)` }}>
-                  <Wrench size={22} style={{ color: BRAND }} />
+                  <ShieldCheck size={22} style={{ color: BRAND }} />
                 </span>
                 <div>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest"
                         style={{ background: `color-mix(in srgb, ${BRAND} 14%, transparent)`, color: BRAND }}>
-                    <Sparkles size={11} /> Em breve
+                    <Sparkles size={11} /> Novidade
                   </span>
-                  <h2 className="text-xl font-bold text-foreground tracking-tight mt-1.5">Em atualização</h2>
+                  <h2 className="text-xl font-bold text-foreground tracking-tight mt-1.5">
+                    {perfil?.vitalicio ? 'Recurso dos planos por assinatura' : 'Conecte seu banco à Sora'}
+                  </h2>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm text-muted-foreground leading-relaxed [&_b]:text-foreground [&_b]:font-semibold">
                 <p>
-                  Estamos migrando o Open Finance para uma conexão <b>nova, mais moderna e completa</b>.
-                  Ao usar a integração anterior, percebemos que ela <b>não trazia todos os seus dados
-                  com precisão</b> — como <b>cartões virtuais extras na mesma conta bancária</b> e
-                  <b> investimentos feitos direto no banco</b>.
+                  O Open Finance traz <b>saldo, transações, fatura do cartão e investimentos</b> direto
+                  do seu banco, sem digitar nada — com autorização pelo app do próprio banco e
+                  <b> leitura apenas</b> (a Sora não movimenta dinheiro).
                 </p>
-                <p>
-                  Como a sua organização financeira depende de dados 100% corretos, preferimos
-                  <b> pausar essa conexão</b> a te entregar algo pela metade. Já estamos construindo uma
-                  integração Open Finance <b>bem melhor</b>, que puxa tudo certinho — contas, cartões e
-                  investimentos — e mantém seus saldos e transações sempre atualizados. Em breve ela
-                  aparece aqui mesmo. 🚀
-                </p>
+                {perfil?.vitalicio ? (
+                  <p>
+                    Ele é exclusivo dos <b>planos por assinatura</b>: cada banco conectado tem um custo
+                    mensal nosso, que a compra única não cobre. Seu acesso vitalício continua igual —
+                    e você segue trazendo tudo pelo <b>WhatsApp</b> e pela <b>importação de extrato (OFX)</b>.
+                  </p>
+                ) : (
+                  <p>
+                    Está no <b>Básico</b> (1 banco conectado) e no <b>Premium</b> (até 3 bancos).
+                    Criar contas na mão continua ilimitado no Premium — o limite é só da conexão automática.
+                  </p>
+                )}
               </div>
+
+              {!perfil?.vitalicio && (
+                <a href="/planos"
+                   className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99]"
+                   style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+                  Ver planos <ArrowRight size={16} />
+                </a>
+              )}
 
               {/* Recomendação OFX */}
               <div className="rounded-2xl border border-border bg-muted/40 p-4 flex items-start gap-3">
@@ -320,10 +367,29 @@ export default function OpenFinancePage() {
           </div>
         ) : (
           <>
+            {/* Quantas conexões o plano permite — o usuário precisa saber ANTES
+                de escolher o banco. Só conexão é limitada; conta manual, não. */}
+            {!carregando && limiteConexoes > 0 && (
+              <p className="text-xs text-muted-foreground">
+                <b className="text-foreground tabular">{conexoes.length}</b> de{' '}
+                <b className="text-foreground tabular">{limiteConexoes}</b>{' '}
+                {limiteConexoes === 1 ? 'conexão' : 'conexões'} do plano {PLANO_LABEL[plano]}
+                {noLimite && (plano === 'basico'
+                  // Básico tem pra onde subir; no Premium o caminho é a conexão
+                  // avulsa (+R$5/mês), que ainda não está à venda — então aqui
+                  // a gente avisa em vez de mandar pra uma página sem saída.
+                  ? <> · <a href="/planos" className="font-semibold underline underline-offset-2" style={{ color: BRAND }}>
+                      fazer upgrade
+                    </a></>
+                  : <> · conexões extras a R$ {PRECO_CONEXAO_EXTRA}/mês em breve</>
+                )}
+              </p>
+            )}
+
             {/* Ação principal */}
             <div className="flex flex-col sm:flex-row gap-2">
-              <button onClick={abrirPicker}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99]"
+              <button onClick={abrirPicker} aria-disabled={noLimite}
+                className={`flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99] ${noLimite ? 'opacity-50' : ''}`}
                 style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
                 <Plus size={17} /> Conectar banco
               </button>
