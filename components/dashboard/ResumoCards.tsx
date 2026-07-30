@@ -80,8 +80,10 @@ export default function ResumoCards({
       .filter(w => w.tipo === 'Crédito')
       .map(w => {
         const ciclo = cicloPorCompetencia(w, competenciaAtual(w));
-        const local = (w.of_conta_id && typeof w.saldo === 'number')
-          ? Math.max(-(w.saldo as number), 0)
+        // Saldo ZERO num cartão do OF não é "fatura zerada": é o banco não ter
+        // publicado o total do ciclo em aberto — aí soma as transações, igual manual.
+        const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
+          ? -(w.saldo as number)
           : txsMes
               .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))
               .reduce((s, t) => s + (t.valor || 0), 0);

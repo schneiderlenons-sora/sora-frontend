@@ -28,10 +28,11 @@ interface Props {
 }
 
 export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh, onExcluir }: Props) {
-  const hoje = new Date();
-  const [mesRef, setMesRef] = useState(
-    `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
-  );
+  // ⚠️ Começa JÁ na competência da fatura (mês do vencimento), não no mês do
+  // calendário: partir do mês errado fazia o modal buscar as transações de DOIS
+  // ciclos diferentes ao abrir, e a resposta que chegasse por último ganhava —
+  // era por isso que fechar e abrir de novo mostrava valores diferentes.
+  const [mesRef, setMesRef] = useState(() => competenciaAtual(cartao));
   const [txs,     setTxs]      = useState<any[]>([]);
   const [loading, setLoading]  = useState(false);
   const [verTudo, setVerTudo]  = useState(false);
@@ -91,10 +92,15 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // 24/07), então busca os DOIS meses que ele toca e filtra pelo intervalo.
   useEffect(() => {
     if (!phone || !cartao?.id) return;
+    // Guarda contra corrida: trocar de fatura dispara um fetch novo enquanto o
+    // anterior ainda está no ar, e sem isto a resposta ATRASADA sobrescrevia a
+    // atual (o modal mostrava o total de outro ciclo, mudando a cada abertura).
+    let cancelado = false;
     setLoading(true);
     const mesesDoCiclo = Array.from(new Set([ciclo.ini.slice(0, 7), ciclo.fim.slice(0, 7)]));
     Promise.all(mesesDoCiclo.map((m) => api.transacoes.listar(phone, { mes: m, limit: 500 })))
       .then((rs: any[]) => {
+        if (cancelado) return;
         const todas = rs.flatMap((r) => r?.transacoes || []);
         // As transações guardam carteira_nome (string), não wallet_id — match por nome
         const nomeCartao = (cartao.nome || '').trim().toLowerCase();
@@ -107,8 +113,9 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
         );
         setTxs(doCartao);
       })
-      .catch(() => setTxs([]))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!cancelado) setTxs([]); })
+      .finally(() => { if (!cancelado) setLoading(false); });
+    return () => { cancelado = true; };
   }, [phone, cartao?.id, cartao?.nome, ciclo]);
 
   // Métricas
@@ -126,8 +133,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // o resto soma as transações do mês. Ter duas contas diferentes aqui e na
   // lista já fez as duas telas mostrarem números diferentes.
   const valorFatura = useMemo(() => {
-    const doBanco = offsetMes === 0 && cartao?.of_conta_id && typeof cartao?.saldo === 'number';
-    return doBanco ? Math.max(-(cartao.saldo as number), 0) : somaMes;
+    // ⚠️ Saldo ZERO não é "fatura zerada" — é o banco ainda não ter publicado o
+    // total do ciclo em aberto (o Mercado Pago manda 0/null o mês inteiro). Só
+    // saldo NEGATIVO é valor do banco; sem ele, soma as transações do ciclo.
+    const doBanco = offsetMes === 0 && cartao?.of_conta_id && typeof cartao?.saldo === 'number' && cartao.saldo < 0;
+    return doBanco ? -(cartao.saldo as number) : somaMes;
   }, [offsetMes, cartao?.of_conta_id, cartao?.saldo, somaMes]);
   const pagoFlag = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -327,8 +337,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
             </div>
           )}
 
-          {/* Alerta: data de fechamento não cadastrada */}
-          {!meta.diaFechamento && (
+          {/* Alerta: data de fechamento não cadastrada.
+              O `meta` é só o localStorage do cadastro manual — o cartão do Open
+              Finance traz o fechamento do próprio banco em `dia_fechamento`, e
+              olhar só o localStorage acusava "não cadastrada" com a data lá. */}
+          {!meta.diaFechamento && !cartao?.dia_fechamento && (
             <div className="rounded-2xl p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
                 <Calendar size={18} className="text-amber-600 dark:text-amber-400" />
