@@ -23,6 +23,9 @@ type User = {
   stripe_customer_id?: string | null; onboarding_completed?: boolean; welcomed_at?: string | null;
   mrr_excluir?: boolean | null; assinatura_cancelada?: boolean | null;
   recuperacao_signup_em?: string | null; recuperacao_enviada_em?: string | null;
+  // Pagamento recusado pelo gateway: quando (047) e por quê (102).
+  recuperacao_pendente_em?: string | null; recuperacao_motivo?: string | null;
+  vitalicio_intent?: string | null;
   created_at: string;
 };
 type Overview = {
@@ -60,7 +63,25 @@ function metaStatus(u: { plano: Plano; plano_intervalo?: string | null }) {
   return { label: m.label, cor: m.cor, icon: m.icon, title: undefined as string | undefined };
 }
 
-function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em'> }) {
+// Motivos de recusa do Mercado Pago, em português — o `status_detail` cru não
+// diz nada pra quem vai ligar pro cliente, e cada caso pede uma abordagem.
+const MOTIVO_RECUSA: Record<string, string> = {
+  cc_rejected_high_risk: 'Antifraude barrou — ofereça Pix ou outro cartão',
+  cc_rejected_insufficient_amount: 'Sem limite — sugira parcelar ou Pix',
+  cc_rejected_bad_filled_card_number: 'Número do cartão errado',
+  cc_rejected_bad_filled_date: 'Validade errada',
+  cc_rejected_bad_filled_security_code: 'CVV errado',
+  cc_rejected_bad_filled_other: 'Dado do cartão errado',
+  cc_rejected_call_for_authorize: 'Banco precisa autorizar — peça pra ligar no banco',
+  cc_rejected_card_disabled: 'Cartão desabilitado',
+  cc_rejected_duplicated_payment: 'Pagamento duplicado',
+  cc_rejected_max_attempts: 'Tentativas demais — aguardar e refazer',
+  cc_rejected_blacklist: 'Cartão em blacklist do MP',
+  cc_rejected_other_reason: 'Recusado pelo banco emissor',
+};
+const textoMotivo = (m?: string | null) => (m ? MOTIVO_RECUSA[m] || m : null);
+
+function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em' | 'recuperacao_pendente_em' | 'recuperacao_motivo'> }) {
   const m = metaStatus(u);
   const Icon = m.icon;
   const recuperado = u.plano !== 'inativo' && !!(u.recuperacao_signup_em || u.recuperacao_enviada_em);
@@ -94,6 +115,24 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
               style={{ background: 'color-mix(in srgb, #f59e0b 16%, transparent)', color: '#d97706' }}
               title="Cancelou na Stripe — ainda tem acesso até o fim do período, mas não renova">
           <XCircle size={10} /> Cancelou
+        </span>
+      )}
+      {/* Venda a recuperar. "Pagamento falhou" = o gateway recusou (temos o
+          motivo). "Não concluiu" = montou o pagamento e parou — recusa antiga
+          sem registro, Pix não pago ou desistência; não dá pra afirmar recusa.
+          Some sozinho quando ele compra (o /process limpa a marca ao aprovar). */}
+      {!u.vitalicio && u.recuperacao_pendente_em && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #ef4444 16%, transparent)', color: '#ef4444' }}
+              title={textoMotivo(u.recuperacao_motivo) || 'Pagamento recusado pelo gateway'}>
+          <XCircle size={10} /> Pagamento falhou
+        </span>
+      )}
+      {!u.vitalicio && !u.recuperacao_pendente_em && u.vitalicio_intent && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #f59e0b 16%, transparent)', color: '#d97706' }}
+              title={`Abriu o checkout do vitalício (${u.vitalicio_intent}) e não concluiu`}>
+          <AlertTriangle size={10} /> Não concluiu
         </span>
       )}
       {u.vitalicio && (
@@ -132,7 +171,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
@@ -286,7 +325,7 @@ export default function AdminPage() {
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['ativos', 'Ativos'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
@@ -425,6 +464,26 @@ export default function AdminPage() {
                     <span className="text-muted-foreground">Cliente Stripe</span>
                     <span className="text-[11px] text-foreground flex items-center gap-1">abrir <ExternalLink size={11} /></span>
                   </a>
+                )}
+                {/* Venda a recuperar: o motivo define a abordagem (antifraude
+                    pede Pix; sem limite pede parcelar; CVV errado é só refazer). */}
+                {!sel.vitalicio && (sel.recuperacao_pendente_em || sel.vitalicio_intent) && (
+                  <div className="col-span-2 rounded-xl px-3 py-2 space-y-0.5"
+                       style={sel.recuperacao_pendente_em
+                         ? { background: 'color-mix(in srgb, #ef4444 8%, transparent)', border: '1px solid color-mix(in srgb, #ef4444 24%, transparent)' }
+                         : { background: 'color-mix(in srgb, #f59e0b 8%, transparent)', border: '1px solid color-mix(in srgb, #f59e0b 24%, transparent)' }}>
+                    <p className="text-[11px] font-bold" style={{ color: sel.recuperacao_pendente_em ? '#ef4444' : '#d97706' }}>
+                      {sel.recuperacao_pendente_em
+                        ? `Pagamento recusado em ${dataCurta(sel.recuperacao_pendente_em)}`
+                        : 'Abriu o checkout do vitalício e não concluiu'}
+                      {sel.vitalicio_intent ? ` · tier ${sel.vitalicio_intent}` : ''}
+                    </p>
+                    <p className="text-[11px] text-foreground/80">
+                      {sel.recuperacao_pendente_em
+                        ? (textoMotivo(sel.recuperacao_motivo) || 'Motivo não registrado (tentativa anterior à migration 102).')
+                        : 'Sem registro de recusa: pode ter sido recusa antiga não gravada, Pix não pago ou desistência.'}
+                    </p>
+                  </div>
                 )}
               </div>
 

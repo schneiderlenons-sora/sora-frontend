@@ -7,6 +7,36 @@ import { ativarVitalicio } from '@/lib/vitalicio';
 
 export const dynamic = 'force-dynamic';
 
+// Status do MP que significam venda perdida. `pending`/`in_process` NÃO entram:
+// é o Pix aguardando pagamento, que ainda pode ser aprovado pelo webhook.
+const FALHOU = new Set(['rejected', 'cancelled', 'charged_back', 'refunded']);
+
+/**
+ * Marca que a venda do vitalício falhou, pra ela aparecer no painel admin
+ * ("Pagamento falhou") e no cron de recuperação.
+ *
+ * ⚠️ NÃO filtrar por `plano='inativo'` — era o que fazia sumir justamente a
+ * venda mais valiosa: assinante do Básico comprando o vitalício Completo teve a
+ * marcação descartada em silêncio (update com filtro que não casa não dá erro).
+ * O único que não faz sentido marcar é quem JÁ tem o vitalício.
+ *
+ * Tolerante de propósito: falha de registro nunca pode derrubar o checkout.
+ */
+async function marcarPagamentoFalho(userId: string, motivo?: string | null) {
+  const patch: Record<string, unknown> = { recuperacao_pendente_em: new Date().toISOString() };
+  if (motivo) patch.recuperacao_motivo = String(motivo).slice(0, 120);
+  try {
+    const { error } = await supabaseAdmin.from('users')
+      .update(patch).eq('id', userId).not('vitalicio', 'is', true);
+    // `recuperacao_motivo` é da migration 102: sem ela, grava ao menos a data.
+    if (error) {
+      await supabaseAdmin.from('users')
+        .update({ recuperacao_pendente_em: patch.recuperacao_pendente_em })
+        .eq('id', userId).not('vitalicio', 'is', true);
+    }
+  } catch { /* migration 047 pendente */ }
+}
+
 // Checkout Transparente: recebe o formData do Payment Brick e cria o pagamento
 // no Mercado Pago. Se aprovado (cartão), ativa o vitalício na hora. Pix volta
 // 'pending' com o QR pra exibir (o webhook confirma quando pago).
@@ -94,20 +124,37 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const payment = await mpCreatePayment({
-      transaction_amount: valor,
-      description: cfg.titulo,
-      token: form.token,
-      installments: form.installments || 1,
-      payment_method_id: form.payment_method_id,
-      issuer_id: form.issuer_id,
-      payer: { email: form.payer?.email || user.email, identification: form.payer?.identification, ...payerNome },
-      additional_info,
-      external_reference: user.id,
-      metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta },
-      notification_url: `${origin}/api/mercadopago/webhook`,
-      statement_descriptor: 'SORA',
-    }, form.deviceId);
+    // ⚠️ O MP nem sempre recusa com `status: rejected`: quando barra no controle
+    // de segurança/antifraude, costuma responder ERRO HTTP — e aí a exceção
+    // pulava direto pro catch lá embaixo, sem registrar nada. A tentativa
+    // desaparecia do painel como se nunca tivesse existido.
+    let payment;
+    try {
+      payment = await mpCreatePayment({
+        transaction_amount: valor,
+        description: cfg.titulo,
+        token: form.token,
+        installments: form.installments || 1,
+        payment_method_id: form.payment_method_id,
+        issuer_id: form.issuer_id,
+        payer: { email: form.payer?.email || user.email, identification: form.payer?.identification, ...payerNome },
+        additional_info,
+        external_reference: user.id,
+        metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta },
+        notification_url: `${origin}/api/mercadopago/webhook`,
+        statement_descriptor: 'SORA',
+      }, form.deviceId);
+    } catch (e: unknown) {
+      const motivo = e instanceof Error ? e.message : 'erro_ao_criar_pagamento';
+      console.log(`[mp/process] ERRO | user=${user.id} | tier=${cfg.plano} | valor=${valor} | ${motivo}`);
+      // Registra a intenção + a falha ANTES de propagar, senão a venda some.
+      try {
+        const intent = ['kit', 'completa', 'upgrade'].includes(form.tier || '') ? form.tier : 'completa';
+        await supabaseAdmin.from('users').update({ vitalicio_intent: intent }).eq('id', user.id);
+      } catch { /* migration 064 pendente */ }
+      await marcarPagamentoFalho(user.id, motivo);
+      throw e;
+    }
 
     // Log do resultado (o status_detail diz POR QUE o MP recusou —
     // cc_rejected_high_risk, insufficient_amount, etc. — e antes era descartado).
@@ -127,15 +174,17 @@ export async function POST(req: NextRequest) {
     if (payment.status === 'approved') {
       ativado = await ativarVitalicio(user.id, cfg.plano, valor);
       // Limpa flag de recuperação (caso tenha falhado antes e agora deu certo).
-      try { await supabaseAdmin.from('users').update({ recuperacao_pendente_em: null }).eq('id', user.id); } catch {}
-    } else if (payment.status === 'rejected') {
-      // #1 — pagamento recusado: marca pra recuperação (o cron manda o WhatsApp de
-      // "cartão recusado" pra quem tem telefone). Só p/ lead inativo. Tolerante.
       try {
         await supabaseAdmin.from('users')
-          .update({ recuperacao_pendente_em: new Date().toISOString() })
-          .eq('id', user.id).eq('plano', 'inativo');
-      } catch { /* migration 047 pendente */ }
+          .update({ recuperacao_pendente_em: null, recuperacao_motivo: null }).eq('id', user.id);
+      } catch {
+        try { await supabaseAdmin.from('users').update({ recuperacao_pendente_em: null }).eq('id', user.id); } catch {}
+      }
+    } else if (FALHOU.has(payment.status)) {
+      // Venda perdida → entra na lista de recuperação do painel (e no cron, que
+      // manda o WhatsApp de "cartão recusado" pra quem tem telefone).
+      // `pending`/`in_process` ficam de fora: é o Pix esperando pagamento.
+      await marcarPagamentoFalho(user.id, payment.status_detail || payment.status);
     }
 
     const td = payment.point_of_interaction?.transaction_data;

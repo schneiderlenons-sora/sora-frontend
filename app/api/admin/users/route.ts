@@ -12,9 +12,14 @@ export async function GET(req: NextRequest) {
   const q = (searchParams.get('q') || '').replace(/[,()*%]/g, '').trim(); // sanitiza p/ o .or
   const filter = searchParams.get('filter') || 'todos';
 
-  const BASE = 'id,name,email,phone,plano,plano_intervalo,plano_valido_ate,vitalicio,vitalicio_em,stripe_customer_id,onboarding_completed,welcomed_at,created_at,recuperacao_signup_em,recuperacao_enviada_em';
+  // `recuperacao_pendente_em` + `vitalicio_intent` estavam de fora: a marcação de
+  // pagamento recusado existia no banco desde a 047, mas nunca chegava na tela —
+  // não dava pra ver (nem filtrar) quem tentou comprar e falhou.
+  const BASE = 'id,name,email,phone,plano,plano_intervalo,plano_valido_ate,vitalicio,vitalicio_em,stripe_customer_id,onboarding_completed,welcomed_at,created_at,recuperacao_signup_em,recuperacao_enviada_em,recuperacao_pendente_em,vitalicio_intent';
   // Colunas da migration 074 (exclusão do MRR) — só somam se já existirem.
   const COM_MRR = `${BASE},mrr_excluir,assinatura_cancelada`;
+  // Motivo da recusa é a migration 102 — pedido só quando ela já rodou.
+  const COM_MOTIVO = `${COM_MRR},recuperacao_motivo`;
 
   // `temMrr` = as colunas da 074 (mrr_excluir/assinatura_cancelada) existem.
   // O filtro "recorrentes" depende delas; sem a migration, cai numa versão
@@ -30,6 +35,16 @@ export async function GET(req: NextRequest) {
     else if (filter === 'nao_concluido') query = query.eq('plano', 'inativo').is('plano_intervalo', null);
     else if (filter === 'recuperados')   query = query.neq('plano', 'inativo')
       .or('recuperacao_signup_em.not.is.null,recuperacao_enviada_em.not.is.null');
+    // Venda do vitalício que não fechou. Duas fontes, porque a marcação de
+    // recusa (`recuperacao_pendente_em`) só passou a ser confiável agora:
+    //   · recuperacao_pendente_em → o gateway recusou (temos o motivo);
+    //   · vitalicio_intent        → chegou a montar o pagamento e não concluiu
+    //     (recusa antiga não registrada, Pix não pago ou desistência).
+    // Quem já virou vitalício sai: comprou depois, venda recuperada.
+    else if (filter === 'pagamento_falhou') {
+      query = query.not('vitalicio', 'is', true)
+        .or('recuperacao_pendente_em.not.is.null,vitalicio_intent.not.is.null');
+    }
     // Vitalícios: pagamento único (não recorrem).
     else if (filter === 'vitalicios')    query = query.eq('vitalicio', true);
     // Anuais: assinatura anual ATIVA (pré-paga, fora do MRR mensal).
@@ -44,8 +59,9 @@ export async function GET(req: NextRequest) {
     return query;
   };
 
-  // Tenta com as colunas novas; se a 074 não rodou, cai na versão base.
-  let { data, error } = await build(COM_MRR, true);
+  // Degrada por migration: 102 (motivo) → 074 (MRR) → base.
+  let { data, error } = await build(COM_MOTIVO, true);
+  if (error) ({ data, error } = await build(COM_MRR, true));
   if (error) ({ data, error } = await build(BASE, false));
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
   return NextResponse.json({ users: data || [] });
