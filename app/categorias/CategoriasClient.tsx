@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { ehPagamentoFatura } from '@/lib/categorizar';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -184,7 +185,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
     // nunca listada aqui, mesmo que exista no catálogo.
     const pais = categorias.filter(c => !c.parent_id
       && (tipoTab === 'todas' || (c.tipo || 'despesa') === tipoTab)
-      && nomeCategoria(c.nome) !== 'Fatura cartão');
+      && !ehPagamentoFatura(nomeCategoria(c.nome)));
     return pais.map(p => {
       const filhos = categorias.filter(c => c.parent_id === p.id);
       const gastoProprio = valorDeNome(p.nome, p.tipo);
@@ -206,7 +207,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
   const arvoreDespesa = useMemo(() => {
     const pais = categorias.filter(c => !c.parent_id
       && (c.tipo || 'despesa') === 'despesa'
-      && nomeCategoria(c.nome) !== 'Fatura cartão');
+      && !ehPagamentoFatura(nomeCategoria(c.nome)));
     return pais.map(p => {
       const filhos = categorias.filter(c => c.parent_id === p.id);
       const gastoProprio = valorDeNome(p.nome, p.tipo);

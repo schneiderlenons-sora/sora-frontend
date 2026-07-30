@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { ehPagamentoFatura } from '@/lib/categorizar';
 import dynamic from 'next/dynamic';
 import { useApi } from '@/lib/useApi';
 import { useVisivel } from '@/lib/useVisivel';
@@ -181,7 +182,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // Memoizado: percorre até 500 transações; sem isso recalcula a cada toggle.
   const dadosDiarios = useMemo(
     // Exclui pagamento de fatura/transferência (não é consumo) — consistente com o total.
-    () => computeDailyAmount(txsMes.filter(t => !t.transferencia && t.categoria !== 'Fatura cartão' && t.categoria !== 'Transferências'), today),
+    () => computeDailyAmount(txsMes.filter(t => !t.transferencia && !ehPagamentoFatura(t.categoria) && t.categoria !== 'Transferências'), today),
     [txsMes, today]);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)

@@ -47,6 +47,15 @@ const MARCAS: Record<string, Marca> = {
   'apple tv':        { local: '/brands/apple-tv.png',      si: 'appletv' },
   'apple tv+':       { local: '/brands/apple-tv.png',      si: 'appletv' },
   appletv:           { local: '/brands/apple-tv.png',      si: 'appletv' },
+  // Cobrança da Apple no extrato: "APPLE.COM/BILL" (iCloud, App Store, Apple
+  // One…). Normalizado vira "apple com bill" — sem uma chave que case como
+  // palavra inteira, caía no ícone genérico da categoria. As específicas vêm
+  // ANTES do 'apple' solto pra "apple music"/"apple tv" não perderem o logo.
+  'apple com bill':  { si: 'apple', domain: 'apple.com' },
+  'apple store':     { si: 'apple', domain: 'apple.com' },
+  itunes:            { si: 'apple', domain: 'apple.com' },
+  icloud:            { si: 'icloud', domain: 'apple.com' },
+  apple:             { si: 'apple', domain: 'apple.com' },
   deezer:            { si: 'deezer' },
   'youtube music':   { si: 'youtubemusic' },
   youtubemusic:      { si: 'youtubemusic' },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ehPagamentoFatura } from '@/lib/categorizar';
 import {
   Wallet, TrendingUp, TrendingDown, CreditCard, ChevronDown,
   ArrowUpRight, ArrowDownRight,
@@ -107,7 +108,7 @@ export default function ResumoCards({
     const map = new Map<string, number>();
     for (const t of txsMes) {
       if (t.tipo !== 'Gasto') continue;
-      if (t.transferencia || t.categoria === 'Fatura cartão' || t.categoria === 'Transferências') continue;
+      if (t.transferencia || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências') continue;
       const k = t.carteira_nome || 'Sem conta';
       map.set(k, (map.get(k) || 0) + (t.valor || 0));
     }

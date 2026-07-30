@@ -34,6 +34,12 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   const [cats,     setCats]     = useState<string[]>(tx.categoria ? [tx.categoria] : []);
   const [salvando, setSalvando] = useState(false);
   const [erro,     setErro]     = useState('');
+  // "Vale pra todas": vira regra do estabelecimento — reclassifica as antigas e
+  // passa a valer nas próximas importações (maquininha de barbearia/dentista
+  // vem com nome de pessoa, e o usuário corrigiria o mesmo nome todo mês).
+  const [aplicarTodas, setAplicarTodas] = useState(false);
+  const mudouCategoria = (categoria || '') !== (tx.categoria || '');
+  const estabelecimento = (tx.observacao || '').trim();
 
   // Carrega o catálogo de categorias do grupo pro seletor.
   useEffect(() => {
@@ -51,14 +57,19 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
     const v = parseFloat(String(valor).replace(',', '.'));
     if (isNaN(v) || v <= 0) { setErro('Informe um valor válido.'); return; }
 
+    const querRegra = aplicarTodas && mudouCategoria && !!estabelecimento;
     const payload = {
       phone, tipo, categoria: categoria || 'Outros', valor: v,
       observacao, carteira_nome: carteira || undefined, data, pago,
+      ...(querRegra ? { aplicar_todas: true } : {}),
     };
 
     // #6 otimista (opt-in): fecha na hora e delega o save pro pai, que troca a
     // linha no cache imediatamente e chama a API em segundo plano.
-    if (onOptimisticSave) {
+    // ⚠️ Com "vale pra todas" NÃO usamos o caminho otimista: o servidor mexe em
+    // várias linhas e só ele sabe quantas — fechar antes mostraria a tela com
+    // uma transação corrigida e as outras ainda erradas.
+    if (onOptimisticSave && !querRegra) {
       const optimisticRow = { ...tx, ...payload, wallet_nome: carteira || undefined };
       onOptimisticSave(optimisticRow, () => api.transacoes.editar(tx.id, payload));
       onClose();
@@ -111,6 +122,32 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
               {cats.map(c => <option key={c} value={c}>{nomeCategoria(c)}</option>)}
               {!cats.includes('Outros') && <option value="Outros">Outros</option>}
             </select>
+
+            {/* Só aparece quando a categoria mudou de verdade — oferecer isso
+                sem mudança nenhuma seria ruído. Vira regra do estabelecimento:
+                corrige o histórico e vale pras próximas importações. */}
+            {mudouCategoria && estabelecimento && (
+              <button type="button" onClick={() => setAplicarTodas(v => !v)}
+                      role="switch" aria-checked={aplicarTodas}
+                      className={`mt-2.5 w-full flex items-start gap-2.5 p-3 rounded-xl text-left transition-colors ${
+                        aplicarTodas ? 'bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+                      style={{ border: `1px solid ${aplicarTodas ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))'}`, minHeight: 44 }}>
+                <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+                        aplicarTodas ? 'bg-primary text-white' : 'bg-card'}`}
+                      style={aplicarTodas ? undefined : { border: '1px solid hsl(var(--border))' }}>
+                  {aplicarTodas && <Check size={13} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">
+                    Valer para todas de &ldquo;{estabelecimento.slice(0, 28)}{estabelecimento.length > 28 ? '…' : ''}&rdquo;
+                  </span>
+                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Corrige as anteriores e as próximas entram já em{' '}
+                    <b className="text-foreground">{nomeCategoria(categoria) || 'Outros'}</b>.
+                  </span>
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Descrição */}

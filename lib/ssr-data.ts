@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { ehPagamentoFatura } from './categorizar';
 
 // =============================================================================
 // Leitura DIRETA no Supabase para o SSR — corta o hop lento do Render no
@@ -22,7 +23,7 @@ function proximoMesPrimeiroDia(mes: string): string {
 
 // Transferência / quitação de dívida (não é consumo nem receita).
 function ehTransferencia(r: any): boolean {
-  return r.transferencia === true || r.categoria === 'Fatura cartão' || r.categoria === 'Transferências';
+  return r.transferencia === true || ehPagamentoFatura(r.categoria) || r.categoria === 'Transferências';
 }
 
 // Porte fiel de services/resumoTransacoes.calcularResumo.

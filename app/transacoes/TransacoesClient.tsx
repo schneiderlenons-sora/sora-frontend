@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { ehPagamentoFatura } from '@/lib/categorizar';
 import { createPortal } from 'react-dom';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
@@ -131,7 +132,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // consumo — as compras já contam nas categorias reais). Bate com o /resumo.
   const despesasTotal = useMemo(() =>
     txsFiltradas
-      .filter(t => t.tipo === 'Gasto' && !t.transferencia && t.categoria !== 'Fatura cartão' && t.categoria !== 'Transferências')
+      .filter(t => t.tipo === 'Gasto' && !t.transferencia && !ehPagamentoFatura(t.categoria) && t.categoria !== 'Transferências')
       .reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas]);
   const pendentesTotal = useMemo(() =>
@@ -434,7 +435,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             value={ocultar ? null : despesasTotal}
             icon={TrendingDown}
             colorHue={0}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && !t.transferencia && t.categoria !== 'Fatura cartão').length} saídas`}
+            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && !t.transferencia && !ehPagamentoFatura(t.categoria)).length} saídas`}
             delay={120}
             negative
           />
