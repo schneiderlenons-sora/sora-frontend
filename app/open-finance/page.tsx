@@ -139,8 +139,17 @@ export default function OpenFinancePage() {
         if (!vivo) return;
         if (r.urlToAuthenticate) { setAuthUrl(r.urlToAuthenticate); return; }
         const s = (r.status || '').toString().toUpperCase();
-        if (s === 'UPDATED')     { setAuthId(''); setFlash('Esse banco já está autorizado — toque em Sincronizar.'); return; }
-        if (s === 'LOGIN_ERROR') { setAuthId(''); setErro('O banco recusou o login. Conecte de novo.'); return; }
+        // Status "já autorizado": UPDATED no trilho Pluggy (v1) e AUTHORISED no
+        // Celcoin (v2) — os dois provedores convivem.
+        if (s === 'UPDATED' || s === 'AUTHORISED') {
+          setAuthId(''); setFlash('Esse banco já está autorizado — toque em Sincronizar.'); return;
+        }
+        if (s === 'LOGIN_ERROR' || s === 'REJECTED') {
+          setAuthId(''); setErro('O banco recusou a autorização. Conecte de novo.'); return;
+        }
+        if (s === 'EXPIRED') {
+          setAuthId(''); setErro('O consentimento expirou. Conecte de novo.'); return;
+        }
       } catch { /* rede instável: segue tentando */ }
       if (!vivo) return;
       if (++tentativas >= 20) { setAuthLento(true); return; }
