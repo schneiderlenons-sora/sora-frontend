@@ -6,6 +6,7 @@ import {
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { mutate as mutateGlobal } from 'swr';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 
@@ -470,13 +471,16 @@ function AddForm({
     setSalvando(true);
     try {
       if (editando && editItem) {
-        await api.recorrencias.editar(editItem.id, {
+        const r: any = await api.recorrencias.editar(editItem.id, {
           categoria:      categoria || undefined,
           descricao:      descricao.trim(),
           valor:          temValor ? valorNum : 0,
           dia_vencimento: diaLimpo,
           carteira:       carteira || 'Dinheiro',
         });
+        // O backend propaga a categoria nova pro lançamento deste mês; sem
+        // invalidar o cache, a lista de transações continuaria com a antiga.
+        if (r?.propagadas) mutateGlobal(() => true, undefined, { revalidate: true });
       } else {
         await api.recorrencias.criar({
           phone,

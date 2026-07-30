@@ -309,8 +309,11 @@ export const api = {
       req<{ ok: boolean }>('/api/recorrencias/dispensar', { method: 'POST', body: JSON.stringify({ descricao }) }),
     criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string; valor_variavel?: boolean }) =>
       req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
+    /** `propagadas` = quantos lançamentos DESTE MÊS tiveram a categoria atualizada
+     *  junto (a recorrência é template; sem isso o lançamento já feito ficava com
+     *  a categoria antiga e parecia que a edição não salvou). */
     editar: (id: string, body: { categoria?: string; valor?: number; dia_vencimento?: number; descricao?: string; carteira?: string }) =>
-      req<any>(`/api/recorrencias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      req<any & { propagadas?: number }>(`/api/recorrencias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     cancelar: (id: string, phone: string) =>
       req(`/api/recorrencias/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
   },
