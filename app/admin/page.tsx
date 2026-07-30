@@ -671,7 +671,10 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
           </div>
           <div>
             <h2 className="text-sm font-bold text-foreground leading-none">Comunicado em massa</h2>
-            <p className="text-[11px] text-muted-foreground mt-1">Vai com a capa da Sora. Quebras de linha viram espaço.</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Template <b className="text-foreground">comunicado_sora</b>: já abre com
+              &ldquo;Oi, &lt;nome&gt;!&rdquo; e leva a capa. Quebras de linha viram espaço.
+            </p>
           </div>
         </div>
 
@@ -679,7 +682,7 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
         <div className="space-y-1.5">
           <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Mensagem</label>
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4}
-                    placeholder="Ex.: Novidade! Agora a Sora estuda a Bíblia com você no Grow 📖"
+                    placeholder="Não repita a saudação — o template já diz “Oi, <nome>!”. Comece pelo aviso: Novidade! Agora a Sora…"
                     className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary" />
           <p className="text-[11px] text-muted-foreground text-right tabular-nums">{chars} caracteres</p>
         </div>
