@@ -29,6 +29,10 @@ const fmt = (v: number) =>
 const fmtData = (d: string) =>
   new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
+// Final do cartão que fez a compra. Os dois trilhos do Open Finance gravam em
+// colunas diferentes — Pluggy em `pluggy_card`, Celcoin em `of_card`.
+const cardDaTx = (t: any): string | null => t?.of_card || t?.pluggy_card || null;
+
 type Tipo   = 'todos' | 'Gasto' | 'Recebimento';
 type Status = 'todos' | 'pago' | 'pendente';
 
@@ -114,7 +118,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                           (status === 'pago' && t.pago) ||
                           (status === 'pendente' && !t.pago);
       const matchMembro = membroFiltro === 'todos' || t.criado_por === membroFiltro;
-      const matchCartao = cartaoFiltro === 'todos' || t.pluggy_card === cartaoFiltro;
+      const matchCartao = cartaoFiltro === 'todos' || cardDaTx(t) === cartaoFiltro;
       return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro && matchCartao;
     });
   }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro]);
@@ -153,9 +157,11 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   }, [txs]);
 
   // ── Cartões virtuais que aparecem nas transações (Open Finance) ──
+  // Dois trilhos gravam o final do cartão em colunas diferentes: `pluggy_card`
+  // (Pluggy) e `of_card` (Celcoin). Ler só uma escondia o cartão do outro.
   const cartoes = useMemo(() => {
     const map = new Map<string, number>();
-    for (const t of txs) if (t.pluggy_card) map.set(t.pluggy_card, (map.get(t.pluggy_card) || 0) + 1);
+    for (const t of txs) { const c = cardDaTx(t); if (c) map.set(c, (map.get(c) || 0) + 1); }
     return Array.from(map, ([numero, qtd]) => ({ numero, qtd })).sort((a, b) => b.qtd - a.qtd);
   }, [txs]);
 
@@ -881,9 +887,9 @@ function TransactionRow({
           />
         )}
         <span className="text-xs text-muted-foreground truncate">{tx.wallet_nome || '—'}</span>
-        {tx.pluggy_card && (
+        {cardDaTx(tx) && (
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap tabular-nums">
-            ••{tx.pluggy_card}
+            ••{cardDaTx(tx)}
           </span>
         )}
       </div>

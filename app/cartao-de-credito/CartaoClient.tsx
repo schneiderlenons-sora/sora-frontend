@@ -146,8 +146,12 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   const faturaPorCartao = useMemo(() => {
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
-      const doBanco = mesIndex === 0 && w.of_conta_id && typeof w.saldo === 'number';
-      if (doBanco) { acc[w.id] = Math.max(-(w.saldo as number), 0); return; }
+      // ⚠️ `saldo` zerado NÃO é "fatura zero": enquanto o ciclo não fecha, o banco
+      // costuma não publicar o total (o Mercado Pago manda 0/null o mês inteiro).
+      // Aí a fatura sai das transações importadas, pelo ciclo — senão o painel
+      // mostrava "R$ 0,00" com 26 compras na lista logo abaixo.
+      const doBanco = mesIndex === 0 && w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0;
+      if (doBanco) { acc[w.id] = -(w.saldo as number); return; }
       const ciclo = cicloPorCartao[w.id];
       acc[w.id] = txsTodas
         .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && dentroDoCiclo(t.data, ciclo))

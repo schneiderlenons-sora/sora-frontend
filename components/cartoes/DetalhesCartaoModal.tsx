@@ -162,7 +162,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // Gastos por cartão virtual (Open Finance) — fatura/limite seguem únicos.
   const porCartao = useMemo(() => {
     const acc: Record<string, number> = {};
-    txs.forEach(t => { if (t.pluggy_card) acc[t.pluggy_card] = (acc[t.pluggy_card] || 0) + (t.valor || 0); });
+    // Pluggy grava em `pluggy_card`, Celcoin em `of_card` — aceitar os dois.
+    txs.forEach(t => {
+      const c = t.of_card || t.pluggy_card;
+      if (c) acc[c] = (acc[c] || 0) + (t.valor || 0);
+    });
     return Object.entries(acc).sort((a, b) => b[1] - a[1]).map(([numero, total]) => ({ numero, total }));
   }, [txs]);
   const maiorCartao = porCartao[0]?.total || 1;
