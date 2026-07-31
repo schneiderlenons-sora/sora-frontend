@@ -775,6 +775,14 @@ export const COMANDOS: Comando[] = [
     categoria: 'negocios',
     feature: 'negocios',
   },
+  {
+    id: 'negocios-registrar-venda',
+    titulo: 'Registrar venda',
+    exemplo: 'vendi 3 bolos por 90 pra dona Maria',
+    descricao: 'Registra a venda, lança no caixa e dá baixa no estoque — sem abrir o painel. Diga "fiado" e vira conta a receber.',
+    categoria: 'negocios',
+    feature: 'negocios',
+  },
 
   // ─── ESPECIAIS ────────────────────────────────────────────────────
   {
