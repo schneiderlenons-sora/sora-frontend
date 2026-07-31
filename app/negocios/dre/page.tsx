@@ -1,268 +1,407 @@
 'use client';
 
+// =============================================================================
+// DRE gerencial.
+//
+// A tela é organizada pela pergunta, não pela contabilidade:
+//   1. Sobrou ou faltou dinheiro?          → resultado do mês
+//   2. Quanto preciso vender pra empatar?  → ponto de equilíbrio
+//   3. Onde o dinheiro foi parar?          → cascata expansível
+//   4. Estou melhorando?                   → indicadores + histórico
+//
+// A cascata mostra o PESO de cada linha em barra: um número ao lado do outro
+// não diz que o aluguel come metade do lucro bruto — a barra diz de relance.
+//
+// Cada linha traz uma frase de ajuda porque a maioria dos donos nunca leu um
+// DRE. Relatório que não ensina a lê-lo é relatório que ninguém usa.
+// =============================================================================
+
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
+import { corEmpresa } from '@/lib/empresas';
+import { cascata, csvDre, type DreGerencial } from '@/lib/dre';
 import {
-  ArrowLeft, ChevronRight, Calendar, Loader2, Download, RefreshCw, Landmark,
+  ChevronRight, Calendar, Download, RefreshCw, Landmark, Target,
+  TrendingUp, TrendingDown, Info, Printer, Boxes, Loader2,
 } from 'lucide-react';
 
-const BRAND = 'hsl(var(--primary))';
-const RED   = '#ef4444';
+const GraficoEvolucao = dynamic(() => import('@/components/negocios/GraficoEvolucao'), {
+  ssr: false,
+  // Mesma altura do gráfico real — skeleton menor faz a página saltar ao montar.
+  loading: () => <div className="h-[260px] rounded-2xl bg-muted/40 animate-pulse" />,
+});
 
-const NOME_PLAT: Record<string, string> = {
-  hotmart: 'Hotmart', kiwify: 'Kiwify', eduzz: 'Eduzz',
-  stripe: 'Stripe', mercadopago: 'Mercado Pago',
-  asaas: 'Asaas', pagseguro: 'PagSeguro',
-  shopify: 'Shopify', woocommerce: 'WooCommerce',
-};
-const CORES_PLAT: Record<string, string> = {
-  hotmart: '#f04e23', kiwify: '#0066ff', eduzz: '#ff6b00',
-  stripe: '#635bff', mercadopago: '#00b1ea',
-  asaas: '#1e7d8c', pagseguro: '#fdb022',
-  shopify: '#95bf47', woocommerce: '#7f54b3',
-};
-const CAT_LABEL: Record<string, { label: string; emoji: string }> = {
-  trafego_pago: { label: 'Tráfego pago', emoji: '📣' },
-  ferramentas:  { label: 'Ferramentas',  emoji: '🛠️' },
-  equipe:       { label: 'Equipe',       emoji: '👥' },
-  assinaturas:  { label: 'Assinaturas',  emoji: '🔁' },
-  mentoria:     { label: 'Mentoria',     emoji: '🎓' },
-  infra:        { label: 'Infraestrutura', emoji: '🖥️' },
-  operacional:  { label: 'Operacional',  emoji: '📦' },
-  outros:       { label: 'Outros',       emoji: '✨' },
-};
-
+const RED = '#ef4444';
 const MES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const periodoLabel = (iso: string) => {
+const mesLabel = (iso: string) => {
   const [a, m] = iso.split('-');
-  return `${MES_NOMES[parseInt(m) - 1]} ${a}`;
+  return `${MES_NOMES[parseInt(m, 10) - 1]} de ${a}`;
 };
+const fmt = (c: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((c || 0) / 100);
 
-const fmt = (centavos: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((centavos || 0) / 100);
-
-type Tipo = 'positivo' | 'negativo' | 'neutro' | 'total';
-
-export default function DreDetalhadoPage() {
+export default function DrePage() {
   const { isPremium, phone } = useAuth();
-  const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
-  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const { empresa } = useEmpresa();
+  const cor = corEmpresa(empresa);
+
+  const [periodo, setPeriodo] = useState(() =>
+    new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7));
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [modalImposto, setModalImposto] = useState(false);
+  const [atualizando, setAtualizando] = useState(false);
 
-  // Dados via SWR — revisita instantânea (cache em memória).
-  const { data: dreData, mutate: mDre } = useApi((phone && isPremium) ? `negdre:${phone}:${periodo}` : null, () => api.negocios.dre.detalhado(phone, periodo));
-  const dre: any = (dreData as any) ?? null;
-  const loading = dreData === undefined;
-  const carregar = () => mDre();
+  const { data, mutate, isLoading } = useApi(
+    (phone && isPremium && empresa) ? `negdre2:${empresa.id}:${periodo}` : null,
+    () => api.negocios.dre.gerencial(phone, periodo, empresa!.id),
+  );
+  const dre = (data ?? null) as DreGerencial | null;
 
-  function toggle(key: string) {
-    setExpandidos(s => {
-      const n = new Set(s);
-      n.has(key) ? n.delete(key) : n.add(key);
-      return n;
-    });
-  }
-
-  const opcoesPeriodo = useMemo(() => {
+  const opcoes = useMemo(() => {
     const out: { v: string; label: string }[] = [];
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(); d.setMonth(d.getMonth() - i);
-      const v = d.toISOString().slice(0, 7);
-      out.push({ v, label: periodoLabel(v + '-01') });
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+      const v = d.toLocaleDateString('en-CA').slice(0, 7);
+      out.push({ v, label: mesLabel(v) });
     }
     return out;
   }, []);
 
+  const linhas = useMemo(() => (dre ? cascata(dre) : []), [dre]);
+
+  async function atualizar() {
+    setAtualizando(true);
+    try { await api.negocios.dre.recalcular({ phone, periodo, empresa_id: empresa?.id }); await mutate(); }
+    finally { setAtualizando(false); }
+  }
+
+  function exportar() {
+    if (!dre) return;
+    const blob = new Blob(['﻿' + csvDre(dre, empresa?.nome || 'Negócio')],
+                          { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `dre-${periodo}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   if (!isPremium) {
-    return <><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
-    </div></>;
+    return <p className="max-w-md mx-auto pt-20 text-center text-sm text-muted-foreground">
+      Disponível no plano Premium.
+    </p>;
   }
 
-  if (loading || !dre) {
-    return <><div className="pt-20 flex justify-center">
-      <Loader2 size={20} className="animate-spin text-muted-foreground" />
-    </div></>;
+  if (isLoading) return <Esqueleto />;
+
+  if (!dre) {
+    return (
+      <div className="max-w-md mx-auto pt-16 text-center">
+        <p className="text-base font-bold text-foreground">Sem dados para o DRE</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Cadastre uma empresa e registre movimentações no caixa — o demonstrativo se monta sozinho.
+        </p>
+      </div>
+    );
   }
 
-  // Linhas do DRE detalhado
-  const linhas: Array<{
-    key: string; label: string; valor: number; tipo: Tipo;
-    breakdown?: { plataforma?: string; categoria?: string; valor: number; meta?: string }[];
-    indent?: number;
-  }> = [
-    { key: 'rec_bruta', label: 'Receita bruta',         valor: dre.receita_bruta.total,    tipo: 'total',
-      breakdown: dre.receita_bruta.por_plataforma },
-    { key: 'taxa_plat', label: '(-) Taxas plataforma',  valor: -dre.taxas_plataforma.total, tipo: 'negativo',
-      breakdown: dre.taxas_plataforma.por_plataforma },
-    { key: 'taxa_gw',   label: '(-) Taxas gateway',     valor: -dre.taxas_gateway.total,    tipo: 'negativo',
-      breakdown: dre.taxas_gateway.por_plataforma },
-    { key: 'refund',    label: '(-) Reembolsos',        valor: -dre.reembolsos.total,       tipo: 'negativo',
-      breakdown: dre.reembolsos.por_plataforma },
-    { key: 'cb',        label: '(-) Chargebacks',       valor: -dre.chargebacks.total,      tipo: 'negativo',
-      breakdown: dre.chargebacks.por_plataforma },
-    { key: 'comissoes', label: '(-) Comissões afiliados', valor: -dre.comissoes.total,      tipo: 'negativo',
-      breakdown: dre.comissoes.por_plataforma },
-    { key: 'imp',       label: '(-) Impostos',          valor: -dre.impostos.total,         tipo: 'negativo',
-      breakdown: [
-        { categoria: 'Retido na origem',  valor: dre.impostos.retido_origem, meta: 'plataforma já reteve' },
-        { categoria: `Reserva (${dre.impostos.aliquota_aplicada}% Simples)`, valor: dre.impostos.reserva_simples, meta: 'separado p/ DAS' },
-      ].filter(x => x.valor > 0),
-    },
-    { key: 'rec_liq',   label: 'Receita líquida',       valor: dre.receita_liquida.total,   tipo: 'total',
-      breakdown: dre.receita_liquida.por_plataforma },
-    { key: 'custos',    label: '(-) Custos operacionais', valor: -dre.custos.total,         tipo: 'negativo',
-      breakdown: dre.custos.por_categoria.map((c: any) => ({
-        categoria: CAT_LABEL[c.categoria]?.label || c.categoria,
-        valor: c.total,
-        meta: `${c.itens.length} ${c.itens.length === 1 ? 'item' : 'itens'}`,
-      })) },
-    { key: 'lucro',     label: 'LUCRO LÍQUIDO',         valor: dre.lucro_liquido,           tipo: 'total' },
-  ];
+  const positivo = dre.lucro_liquido >= 0;
+  const corResultado = positivo ? cor : RED;
+  const antLucro = dre.anterior?.lucro_liquido;
+  const delta = (antLucro != null && antLucro !== 0)
+    ? ((dre.lucro_liquido - antLucro) / Math.abs(antLucro)) * 100 : null;
+
+  // Escala das barras: proporção sobre a maior linha, pra comparação visual.
+  const maior = Math.max(...linhas.map(l => Math.abs(l.valor)), 1);
+
+  const historico = (dre.historico || []).map(h => ({
+    mes: h.periodo,
+    receita: h.receita_bruta,
+    despesa: h.custos_total,
+    lucro: h.lucro_liquido,
+  }));
 
   return (
-    <>
-      <div className="pb-24 space-y-6">
+    <div className="pb-24 space-y-5">
+      {/* Impressão: leva só o demonstrativo, sem sidebar nem botões. */}
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #dre-print, #dre-print * { visibility: visible; }
+          #dre-print { position: absolute; left: 0; top: 0; width: 100%; }
+          .nao-imprime { display: none !important; }
+        }
+      `}</style>
 
-        {/* HEADER */}
-        <div className="animate-fade-in">
-          <Link href="/negocios" className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3">
-            <ArrowLeft size={13} /> Voltar para Negócios
-          </Link>
-          <div className="flex items-start justify-between flex-wrap gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">DRE detalhado</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Demonstração de Resultado do Exercício · {periodoLabel(dre.periodo)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <select value={periodo} onChange={e => setPeriodo(e.target.value)}
-                        className="appearance-none cursor-pointer pl-9 pr-9 py-2 rounded-xl text-xs font-semibold bg-card border border-border hover:bg-muted/60 transition-colors">
-                  {opcoesPeriodo.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
-                </select>
-                <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
-              </div>
-              <button onClick={() => setModalImposto(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-card border border-border hover:bg-muted/60"
-                      title="Ligar/desligar reserva de imposto">
-                <Landmark size={13} /> Impostos
-              </button>
-              <button onClick={carregar}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-card border border-border hover:bg-muted/60">
-                <RefreshCw size={13} /> Atualizar
-              </button>
-            </div>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            💡 A reserva de imposto vem <strong className="text-foreground">desligada</strong> por padrão. Ligue em <button onClick={() => setModalImposto(true)} className="underline font-semibold">Impostos</button> se quiser provisionar o DAS.
+      <header className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">
+            {empresa?.nome || 'Negócios'}
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-0.5">DRE</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {mesLabel(periodo)}
+            {dre.em_curso && <span className="ml-1.5 text-[11px] font-bold" style={{ color: cor }}>· mês em curso</span>}
           </p>
         </div>
 
-        {/* Resumo da margem */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>
-          <KpiCard label="Receita bruta"    valor={fmt(dre.receita_bruta.total)} />
-          <KpiCard label="Lucro líquido"    valor={fmt(dre.lucro_liquido)} accent={BRAND} />
-          <KpiCard label="Margem"            valor={`${dre.margem_pct.toFixed(1)}%`} />
+        <div className="flex items-center gap-2 flex-wrap nao-imprime">
+          <div className="relative">
+            <select value={periodo} onChange={e => setPeriodo(e.target.value)} aria-label="Período"
+                    className="appearance-none cursor-pointer pl-9 pr-8 h-11 rounded-xl text-xs font-bold bg-card border border-border"
+                    style={{ minHeight: 44 }}>
+              {opcoes.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
+            </select>
+            <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+          </div>
+          <Acao onClick={() => setModalImposto(true)} icone={<Landmark size={14} />} label="Impostos" />
+          <Acao onClick={exportar} icone={<Download size={14} />} label="CSV" />
+          <Acao onClick={() => window.print()} icone={<Printer size={14} />} label="Imprimir" />
+          <Acao onClick={atualizar} icone={atualizando
+            ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} label="Atualizar" />
         </div>
+      </header>
 
-        {/* DRE expansível */}
-        <div className="rounded-3xl border border-border bg-card overflow-hidden animate-fade-in" style={{ animationDelay: '120ms' }}>
-          {linhas.map(linha => {
-            const exp = expandidos.has(linha.key);
-            const tem = (linha.breakdown?.length || 0) > 0;
-            const cor = linha.tipo === 'negativo' ? RED
-                      : linha.tipo === 'total'    ? BRAND
-                      : 'inherit';
-            const fundoTotal = linha.tipo === 'total' ? 'bg-foreground/[0.03]' : '';
+      <div id="dre-print" className="space-y-5">
+
+        {/* 1. Sobrou ou faltou? */}
+        <section className="rounded-3xl border border-border bg-card p-5 sm:p-6"
+                 style={{ background: `linear-gradient(160deg, color-mix(in srgb, ${corResultado} 7%, hsl(var(--card))) 0%, hsl(var(--card)) 60%)` }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            {positivo ? 'Sobrou no mês' : 'Faltou no mês'}
+          </p>
+          <p className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight mt-1"
+             style={{ color: corResultado }}>
+            {fmt(Math.abs(dre.lucro_liquido))}
+          </p>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">
+              margem de <b className="text-foreground tabular-nums">{dre.margem_pct.toFixed(1)}%</b>
+            </span>
+            {delta != null && (
+              // Direção e significado são coisas diferentes: cair o prejuízo é
+              // seta pra baixo e notícia boa. A cor segue o resultado, não a seta.
+              <span className="inline-flex items-center gap-1 text-sm font-bold tabular-nums"
+                    style={{ color: delta >= 0 ? cor : RED }}>
+                {delta >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                {delta >= 0 ? '+' : ''}{delta.toFixed(0)}% vs mês anterior
+              </span>
+            )}
+          </div>
+        </section>
+
+        {/* 2. Quanto preciso vender pra empatar? */}
+        <PontoEquilibrio dre={dre} cor={cor} />
+
+        {/* 3. Onde o dinheiro foi parar? */}
+        <section className="rounded-3xl border border-border bg-card overflow-hidden">
+          {linhas.map(l => {
+            const aberta = abertos.has(l.key);
+            const temDetalhe = (l.detalhe?.length || 0) > 0;
+            const negativa = l.tipo === 'deducao';
+            const corLinha = negativa ? RED
+                           : l.tipo === 'resultado' ? corResultado
+                           : 'hsl(var(--foreground))';
+            const largura = Math.max(2, (Math.abs(l.valor) / maior) * 100);
 
             return (
-              <div key={linha.key} className={`border-b border-border/60 last:border-0 ${fundoTotal}`}>
-                <button
-                  onClick={() => tem && toggle(linha.key)}
-                  disabled={!tem}
-                  className={`w-full flex items-center justify-between gap-3 px-5 py-3.5 transition-colors ${
-                    tem ? 'hover:bg-muted/30 cursor-pointer' : 'cursor-default'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {tem ? (
-                      <ChevronRight size={14}
-                                    className={`text-muted-foreground transition-transform ${exp ? 'rotate-90' : ''}`} />
-                    ) : (
-                      <span className="w-[14px]" />
-                    )}
-                    <span className={`text-sm tabular-nums truncate ${
-                      linha.tipo === 'total' ? 'font-bold' : 'text-muted-foreground'
-                    } ${linha.key === 'lucro' ? 'uppercase text-xs tracking-wider' : ''}`}>
-                      {linha.label}
+              <div key={l.key} className={`border-b border-border/50 last:border-0 ${
+                l.tipo === 'resultado' ? 'bg-foreground/[0.035]' : ''}`}>
+                <button onClick={() => temDetalhe && setAbertos(s => {
+                          const n = new Set(s);
+                          if (n.has(l.key)) n.delete(l.key); else n.add(l.key);
+                          return n;
+                        })}
+                        disabled={!temDetalhe} aria-expanded={temDetalhe ? aberta : undefined}
+                        className={`w-full text-left px-4 sm:px-5 py-3.5 ${temDetalhe ? 'hover:bg-muted/30' : 'cursor-default'} transition-colors`}
+                        style={{ minHeight: 44 }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      {temDetalhe
+                        ? <ChevronRight size={14} className={`text-muted-foreground transition-transform flex-shrink-0 ${aberta ? 'rotate-90' : ''}`} />
+                        : <span className="w-[14px] flex-shrink-0" />}
+                      <span className={`truncate ${l.tipo === 'deducao'
+                        ? 'text-sm text-muted-foreground' : 'text-sm font-bold text-foreground'}`}>
+                        {negativa ? '(−) ' : ''}{l.label}
+                      </span>
+                    </span>
+                    <span className={`font-bold tabular-nums flex-shrink-0 ${
+                      l.tipo === 'resultado' ? 'text-xl' : 'text-sm'}`} style={{ color: corLinha }}>
+                      {negativa ? '−' : ''}{fmt(Math.abs(l.valor))}
                     </span>
                   </div>
-                  <span className={`font-bold tabular-nums tracking-tight flex-shrink-0 ${
-                    linha.key === 'lucro' ? 'text-2xl' : 'text-sm'
-                  }`} style={{ color: cor }}>
-                    {linha.valor < 0 ? '-' : ''}{fmt(Math.abs(linha.valor))}
-                  </span>
+
+                  {/* Peso da linha: o que a coluna de números não conta */}
+                  <div className="h-1 rounded-full bg-muted mt-2 ml-[22px] overflow-hidden">
+                    <div className="h-full rounded-full transition-[width] duration-500"
+                         style={{ width: `${largura}%`, background: corLinha, opacity: negativa ? 0.55 : 0.85 }} />
+                  </div>
+
+                  {l.ajuda && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5 ml-[22px] leading-snug">{l.ajuda}</p>
+                  )}
                 </button>
 
-                {exp && tem && (
-                  <div className="bg-muted/20 border-t border-border/40">
-                    {linha.breakdown!.map((b, i) => {
-                      const nome = b.plataforma ? (NOME_PLAT[b.plataforma] || b.plataforma)
-                                                : (b.categoria || 'Item');
-                      const corDot = b.plataforma ? (CORES_PLAT[b.plataforma] || '#94a3b8') : '#94a3b8';
-                      return (
-                        <div key={i} className="flex items-center justify-between px-12 py-2 hover:bg-muted/30 transition-colors">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: corDot }} />
-                            <span className="text-xs font-medium text-foreground truncate">{nome}</span>
-                            {b.meta && (
-                              <span className="text-[10px] text-muted-foreground flex-shrink-0">· {b.meta}</span>
-                            )}
-                          </div>
-                          <span className="text-xs font-semibold tabular-nums text-foreground flex-shrink-0">
-                            {linha.tipo === 'negativo' ? '-' : ''}{fmt(b.valor)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {aberta && temDetalhe && (
+                  <ul className="bg-muted/25 border-t border-border/40">
+                    {l.detalhe!.map((b, i) => (
+                      <li key={i} className="flex items-center justify-between gap-3 pl-11 pr-5 py-2">
+                        <span className="text-xs text-foreground truncate">
+                          {b.label}{b.meta && <span className="text-muted-foreground"> · {b.meta}</span>}
+                        </span>
+                        <span className="text-xs font-semibold tabular-nums text-foreground flex-shrink-0">
+                          {fmt(b.valor)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             );
           })}
-        </div>
+        </section>
 
-        {/* Dica */}
-        <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-4 animate-fade-in" style={{ animationDelay: '180ms' }}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Como ler o DRE</p>
-          <ul className="space-y-1.5 text-xs text-muted-foreground leading-relaxed">
-            <li>· <strong className="text-foreground">Receita bruta</strong>: total faturado antes de qualquer dedução</li>
-            <li>· <strong className="text-foreground">Receita líquida</strong>: o que sobra depois de taxas, reembolsos, chargebacks, comissões e imposto</li>
-            <li>· <strong className="text-foreground">Lucro líquido</strong>: receita líquida menos custos operacionais (tráfego, ferramentas, equipe)</li>
-            <li>· Clique em qualquer linha pra ver detalhamento por plataforma ou categoria</li>
-          </ul>
-        </div>
+        {/* Compra de estoque: a pergunta nº 1 de quem abastece a loja */}
+        {dre.compras_estoque > 0 && (
+          <section className="rounded-2xl border border-dashed border-border p-4 flex items-start gap-3">
+            <Boxes size={17} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Você comprou <b className="text-foreground tabular-nums">{fmt(dre.compras_estoque)}</b> em mercadoria
+              neste mês. Isso <b className="text-foreground">saiu do caixa, mas não é despesa</b> — virou estoque
+              e só entra no resultado quando o item for vendido. É por isso que o dinheiro na conta pode estar
+              menor que o lucro.
+            </p>
+          </section>
+        )}
 
+        {/* 4. Estou melhorando? */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Indicador label="Margem bruta" valor={`${dre.margem_bruta_pct.toFixed(1)}%`}
+                     nota="sobra depois do custo do produto" />
+          <Indicador label="Margem líquida" valor={`${dre.margem_pct.toFixed(1)}%`}
+                     nota="sobra depois de tudo" accent={corResultado} />
+          <Indicador label="Ticket médio" valor={fmt(dre.ticket_medio)}
+                     nota={`${dre.total_vendas} ${dre.total_vendas === 1 ? 'venda' : 'vendas'}`} />
+          <Indicador label="Custo fixo" valor={fmt(dre.despesas_fixas)}
+                     nota="a loja custa isso parada" />
+        </section>
+
+        <section className="rounded-3xl border border-border bg-card p-4 sm:p-5">
+          <h2 className="text-sm font-bold text-foreground mb-1">Últimos 6 meses</h2>
+          <p className="text-[11px] text-muted-foreground mb-3">Receita, despesa e o que sobrou</p>
+          <GraficoEvolucao dados={historico} cor={cor} />
+        </section>
       </div>
 
       {modalImposto && (
-        <ModalConfigTributaria onClose={() => { setModalImposto(false); mDre(); }} />
+        <ModalConfigTributaria onClose={() => { setModalImposto(false); mutate(); }} />
       )}
-    </>
+    </div>
   );
 }
 
-function KpiCard({ label, valor, accent }: { label: string; valor: string; accent?: string }) {
+// ── Ponto de equilíbrio ─────────────────────────────────────────────────────
+// O número que o dono de comércio pequeno mais precisa e quase nunca tem.
+function PontoEquilibrio({ dre, cor }: { dre: DreGerencial; cor: string }) {
+  const pe = dre.ponto_equilibrio;
+
+  if (pe == null) {
+    // Honesto sobre o motivo: um "R$ 0,00" aqui leria como "já empatou".
+    const semReceita = dre.receita_bruta <= 0;
+    return (
+      <section className="rounded-3xl border border-dashed border-border p-5 flex items-start gap-3">
+        <Target size={18} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold text-foreground">Ponto de equilíbrio indisponível</p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            {semReceita
+              ? 'Ainda não há venda no período — sem faturamento não dá pra medir quanto sobra de cada real vendido.'
+              : 'O custo dos produtos e as despesas variáveis estão consumindo tudo que entra. Nenhum volume de venda cobre o custo fixo assim: o caminho é preço ou custo, não quantidade.'}
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  const progresso = Math.min(100, (dre.receita_bruta / pe) * 100);
+  const bateu = dre.receita_bruta >= pe;
+  const falta = dre.falta_para_empatar ?? Math.max(0, pe - dre.receita_bruta);
+
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+            <Target size={12} /> Ponto de equilíbrio
+          </p>
+          <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground mt-1">{fmt(pe)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">é o quanto precisa faturar pra não perder dinheiro</p>
+        </div>
+        {/* Ícone + texto, nunca só a cor */}
+        <span className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-bold flex-shrink-0"
+              style={{
+                background: `color-mix(in srgb, ${bateu ? cor : '#f59e0b'} 14%, transparent)`,
+                color: bateu ? cor : '#b45309',
+              }}>
+          {bateu ? '✓ já passou' : `faltam ${fmt(falta)}`}
+        </span>
+      </div>
+
+      <div className="h-2.5 rounded-full bg-muted mt-4 overflow-hidden">
+        <div className="h-full rounded-full transition-[width] duration-700"
+             style={{ width: `${progresso}%`, background: bateu ? cor : '#f59e0b' }} />
+      </div>
+      <div className="flex items-center justify-between mt-1.5">
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          faturou {fmt(dre.receita_bruta)}
+        </span>
+        <span className="text-[11px] text-muted-foreground tabular-nums">{progresso.toFixed(0)}%</span>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
+        <Info size={12} className="flex-shrink-0 mt-0.5" />
+        Cada R$ 1,00 vendido deixa <b className="text-foreground">
+          {((dre.margem_contribuicao_pct ?? 0) / 100).toFixed(2).replace('.', ',')}
+        </b> pra pagar o custo fixo de <b className="text-foreground">{fmt(dre.despesas_fixas)}</b>.
+      </p>
+    </section>
+  );
+}
+
+function Indicador({ label, valor, nota, accent }: {
+  label: string; valor: string; nota?: string; accent?: string;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="text-2xl font-bold tabular-nums tracking-tight mt-1" style={{ color: accent }}>{valor}</p>
+      <p className="text-xl font-bold tabular-nums tracking-tight mt-1" style={{ color: accent }}>{valor}</p>
+      {nota && <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{nota}</p>}
+    </div>
+  );
+}
+
+function Acao({ onClick, icone, label }: { onClick: () => void; icone: React.ReactNode; label: string }) {
+  return (
+    <button onClick={onClick}
+            className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-xl text-xs font-bold bg-card border border-border hover:bg-muted/60 transition-colors"
+            style={{ minHeight: 44 }}>
+      {icone} {label}
+    </button>
+  );
+}
+
+function Esqueleto() {
+  return (
+    <div className="space-y-5 animate-pulse" aria-busy="true">
+      <div className="h-9 w-36 rounded-xl bg-muted" />
+      <div className="h-36 rounded-3xl bg-muted/60" />
+      <div className="h-32 rounded-3xl bg-muted/60" />
+      <div className="h-80 rounded-3xl bg-muted/60" />
     </div>
   );
 }

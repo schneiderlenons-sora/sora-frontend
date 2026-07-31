@@ -1073,6 +1073,15 @@ export const api = {
       },
       detalhado: (phone: string, periodo?: string) =>
         req<any>(`/api/negocios/dre-detalhado/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
+      // Cascata completa + ponto de equilíbrio + histórico (fase 4).
+      gerencial: (phone: string, periodo?: string, empresaId?: string) => {
+        const q = new URLSearchParams();
+        if (periodo) q.set('periodo', periodo);
+        if (empresaId) q.set('empresa_id', empresaId);
+        const s = q.toString();
+        return req<import('./dre').DreGerencial | null>(
+          `/api/negocios/dre-gerencial/${phone}${s ? `?${s}` : ''}`);
+      },
       recalcular: (body: { phone: string; periodo?: string; empresa_id?: string }) =>
         req<any>('/api/negocios/dre/recalcular', { method: 'POST', body: JSON.stringify(body) }),
     },
