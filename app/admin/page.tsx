@@ -686,7 +686,13 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
   async function enviarTeste() {
     if (!texto.trim()) { flash('⚠️ Escreva a mensagem primeiro.'); return; }
     setBusy('teste');
-    try { await post({ modo: 'teste', texto: texto.trim(), testePhone: testePhone.replace(/\D/g, '') }); flash('Teste enviado ✓ — confere no seu WhatsApp'); }
+    try {
+      const d = await post({ modo: 'teste', texto: texto.trim(), testePhone: testePhone.replace(/\D/g, '') });
+      // O aviso vem quando o modelo de N parágrafos não está aprovado e o texto
+      // saiu achatado. Sem mostrar, o admin dispara pra base inteira achando que
+      // os parágrafos foram.
+      flash(d?.aviso ? `⚠️ ${d.aviso}` : `Teste enviado ✓ — confere no seu WhatsApp${d?.nome ? ` (saiu como "Oi, ${String(d.nome).split(' ')[0]}!")` : ''}`);
+    }
     catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
     finally { setBusy(''); }
   }
@@ -732,8 +738,9 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
             <h2 className="text-sm font-bold text-foreground leading-none">Comunicado em massa</h2>
             <p className="text-[11px] text-muted-foreground mt-1">
               Template <b className="text-foreground">atualizacao_sora</b>: já abre com
-              &ldquo;Oi, &lt;nome&gt;! Uma atualização da Sora pra você:&rdquo; e leva a capa.
-              Quebras de linha viram espaço.
+              &ldquo;Oi, &lt;nome&gt;! Nova atualização no ar!&rdquo; e leva a capa.
+              Separe parágrafos com <b className="text-foreground">linha em branco</b> (até 3);
+              quebra simples vira espaço.
             </p>
           </div>
         </div>
