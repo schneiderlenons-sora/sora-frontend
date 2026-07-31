@@ -953,6 +953,8 @@ export const api = {
         cliente_id?: string | null; cliente_nome?: string; desconto?: number;
         forma_pagamento?: string; status?: 'pago' | 'pendente'; vencimento?: string;
         data?: string; conta_id?: string | null; observacao?: string;
+        /** quem vendeu — o backend calcula e congela a comissão a partir daqui */
+        vendedor_id?: string | null;
       }) => req<{ ok: boolean; venda: VendaNegocio }>('/api/negocios/vendas', { method: 'POST', body: JSON.stringify(body) }),
       cancelar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/vendas/${id}`, { method: 'DELETE' }),

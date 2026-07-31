@@ -56,6 +56,7 @@ export default function BalcaoVenda({
   const [aPrazo, setAPrazo]       = useState(false);
   const [vencimento, setVencimento] = useState(hojeSP());
   const [clienteId, setClienteId] = useState<string | null>(null);
+  const [vendedorId, setVendedorId] = useState<string | null>(null);
   const [clienteNome, setClienteNome] = useState('');
   const [desconto, setDesconto]   = useState('');
   const [salvando, setSalvando]   = useState(false);
@@ -75,6 +76,16 @@ export default function BalcaoVenda({
     () => api.negocios.clientes.listar(phone, empresaId),
   );
   const clientes: ClienteNegocio[] = useMemo(() => Array.isArray(clientesData) ? clientesData : [], [clientesData]);
+
+  // Quem vendeu — só aparece se existir alguém que ganha comissão. Num balcão
+  // sem comissão, esse campo seria só mais um toque entre o cliente e o troco.
+  const { data: equipeData } = useApi(
+    (phone && etapa === 'pagamento') ? `neg:func:${empresaId}` : null,
+    () => api.negocios.funcionarios.listar(phone, empresaId),
+  );
+  const comissionados = useMemo(
+    () => (Array.isArray(equipeData) ? equipeData : []).filter(f => (f.comissao_pct || 0) > 0),
+    [equipeData]);
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -144,6 +155,7 @@ export default function BalcaoVenda({
         forma_pagamento: forma,
         status: aPrazo ? 'pendente' : 'pago',
         vencimento: aPrazo ? vencimento : undefined,
+        vendedor_id: vendedorId || undefined,
       });
       onVendido();
     } catch (e: any) {
@@ -322,6 +334,28 @@ export default function BalcaoVenda({
                      className="input w-full" style={{ minHeight: 44 }} />
             )}
           </div>
+
+          {/* Quem vendeu — só quando alguém ganha comissão */}
+          {comissionados.length > 0 && (
+            <div>
+              <label htmlFor="bv-vend" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                Quem vendeu <span className="font-normal normal-case tracking-normal">(opcional)</span>
+              </label>
+              <select id="bv-vend" value={vendedorId || ''}
+                      onChange={e => setVendedorId(e.target.value || null)}
+                      className="input w-full" style={{ minHeight: 44 }}>
+                <option value="">Ninguém / não gera comissão</option>
+                {comissionados.map(f => (
+                  <option key={f.id} value={f.id}>{f.nome} · {f.comissao_pct}%</option>
+                ))}
+              </select>
+              {vendedorId && (
+                <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                  Comissão desta venda: {fmtCent(Math.round(total * ((comissionados.find(f => f.id === vendedorId)?.comissao_pct || 0) / 100)))}
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label htmlFor="bv-desc" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
