@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { supabase } from '@/lib/supabase';
-import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
+import IconeMarca, { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
@@ -14,31 +14,9 @@ import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
   Archive, ArchiveRestore, ArrowLeftRight, DollarSign,
-  Shield, Star, Sparkles, AlertCircle, Eye, EyeOff, Link2, Clock, Zap,
+  Shield, Star, Sparkles, AlertCircle, Eye, EyeOff,
   ChevronDown, ChevronRight,
 } from 'lucide-react';
-
-// Bancos suportados pelo Open Finance via Pluggy (em breve disponíveis)
-const BANCOS_OPEN_FINANCE = [
-  { nome: 'Nubank' },
-  { nome: 'Itaú' },
-  { nome: 'Bradesco' },
-  { nome: 'Santander' },
-  { nome: 'Banco do Brasil' },
-  { nome: 'Caixa' },
-  { nome: 'Inter' },
-  { nome: 'C6 Bank' },
-  { nome: 'BTG Pactual' },
-  { nome: 'XP' },
-  { nome: 'Next' },
-  { nome: 'Mercado Pago' },
-  { nome: 'PicPay' },
-  { nome: 'PagBank' },
-  { nome: 'Original' },
-  { nome: 'Safra' },
-  { nome: 'Sicredi' },
-  { nome: 'Neon' },
-];
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -145,7 +123,6 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const [ocultar,    setOcultar]    = useState(false);
   const [ajusteOpen, setAjusteOpen] = useState<Wallet | null>(null);
   const [transferOpen,setTransferOpen] = useState(false);
-  const [openFinanceAberto, setOpenFinanceAberto] = useState(false);
 
   const plano        = perfil?.plano || 'inativo';
   const limiteContas = limiteDe('contas');
@@ -433,92 +410,6 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════
-            CONECTAR VIA OPEN FINANCE — colapsado por padrão
-        ═══════════════════════════════════════════════════════ */}
-        <div className="card rounded-3xl animate-fade-in relative overflow-hidden"
-             style={{ animationDelay: '180ms' }}>
-          {/* Halo decorativo */}
-          <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full pointer-events-none opacity-15"
-               style={{ background: `radial-gradient(circle, ${BRAND} 0%, transparent 70%)` }} />
-
-          <button
-            onClick={() => setOpenFinanceAberto(v => !v)}
-            className="relative w-full flex items-center gap-3 px-5 sm:px-6 py-4 text-left hover:bg-muted/30 transition-colors"
-            aria-expanded={openFinanceAberto}
-          >
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-glow-sm"
-                 style={{ background: `linear-gradient(135deg, ${BRAND}, color-mix(in srgb, ${BRAND} 67%, transparent))` }}>
-              <Link2 size={16} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm sm:text-base font-bold text-foreground">
-                  Conectar via Open Finance
-                </h3>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider">
-                  <Clock size={9} /> Em breve
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
-                Sincronize seus extratos automaticamente — toque para ver os bancos suportados.
-              </p>
-            </div>
-            <ChevronDown
-              size={18}
-              className="text-muted-foreground flex-shrink-0 transition-transform duration-300"
-              style={{ transform: openFinanceAberto ? 'rotate(180deg)' : 'rotate(0deg)' }}
-            />
-          </button>
-
-          {openFinanceAberto && (
-            <div className="relative px-5 sm:px-6 pb-5 sm:pb-6 animate-fade-in">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-2">
-                {BANCOS_OPEN_FINANCE.map((b, i) => {
-                  const conhecida = slugDaMarca(b.nome);
-                  return (
-                    <div
-                      key={b.nome}
-                      title={`${b.nome} — em breve via Open Finance`}
-                      aria-label={`${b.nome} — em breve`}
-                      className="group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-muted/30 border border-border/60 cursor-not-allowed transition-all hover:bg-muted/50 hover:border-primary/30 animate-fade-in"
-                      style={{ animationDelay: `${i * 25}ms` }}
-                    >
-                      {conhecida ? (
-                        <CategoriaIcon
-                          nome={b.nome}
-                          size={44}
-                          rounded="rounded-xl"
-                          className="transition-transform group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden ring-1 ring-border/40 transition-transform group-hover:scale-105"
-                             style={{ background: '#fff' }}>
-                          <span className="text-base font-bold text-foreground">{b.nome.charAt(0)}</span>
-                        </div>
-                      )}
-                      <p className="text-[11px] font-semibold text-foreground text-center leading-tight line-clamp-1">
-                        {b.nome}
-                      </p>
-                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
-                        Em breve
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-start gap-2 mt-5 pt-4 border-t border-border/40">
-                <Zap size={12} className="text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">Estamos integrando Open Finance.</strong>{' '}
-                  Em breve será possível sincronizar gastos e saldo dos seus bancos automaticamente.
-                  Por enquanto, adicione suas contas <strong className="text-foreground">manualmente</strong>.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════
