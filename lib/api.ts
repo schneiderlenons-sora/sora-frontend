@@ -902,6 +902,12 @@ export const api = {
       arquivar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/empresas/${id}`, { method: 'DELETE' }),
     },
+    // Painel da loja física: TODOS os números numa chamada só (evita 4 idas ao
+    // Render pra desenhar uma tela). Valores em CENTAVOS.
+    indicadores: (phone: string, empresa_id: string, mes?: string) =>
+      req<IndicadoresNegocio>(
+        `/api/negocios/indicadores/${phone}?empresa_id=${empresa_id}${mes ? `&mes=${mes}` : ''}`,
+      ),
     // Contas do negócio (caixas nomeadas) por empresa — migration 095.
     contas: {
       listar: (phone: string, empresa_id: string) =>

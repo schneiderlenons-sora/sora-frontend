@@ -41,6 +41,41 @@ export interface ContaNegocio {
   ativa?:        boolean;
 }
 
+/**
+ * Painel da loja física — resposta de `GET /negocios/indicadores`.
+ * ⚠️ Todo valor em CENTAVOS; percentual já vem em base 100 (12.5 = 12,5%).
+ */
+export interface IndicadoresNegocio {
+  mes:              string;         // YYYY-MM
+  receita:          number;
+  despesa:          number;
+  lucro:            number;
+  margem:           number;         // %
+  ticket_medio:     number;
+  vendas_qtd:       number;
+  lancamentos_qtd:  number;
+  comparativo: {
+    receita: number; despesa: number; lucro: number;   // variação % vs mês anterior
+    anterior: { receita: number; despesa: number; lucro: number; margem: number };
+  };
+  a_receber:    PendenteNegocio;
+  a_pagar:      PendenteNegocio;
+  saldo_contas: number;
+  contas:       { id: string; nome: string; tipo: string; saldo: number }[];
+  evolucao:     { mes: string; receita: number; despesa: number; lucro: number }[];
+  por_dia:      { dia: string; entrada: number; saida: number }[];
+  por_categoria:{ categoria: string; valor: number }[];
+  por_forma:    { forma: string; valor: number }[];
+}
+
+export interface PendenteNegocio {
+  total:       number;
+  qtd:         number;
+  vencido:     number;
+  vencido_qtd: number;
+  proximos:    { descricao: string; valor: number; vencimento: string; vencido: boolean }[];
+}
+
 export const CATEGORIAS_ENTRADA = [
   { v: 'vendas',    label: 'Vendas',          icone: 'ShoppingBag' },
   { v: 'servicos',  label: 'Serviços',        icone: 'Wrench' },

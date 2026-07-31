@@ -9,6 +9,8 @@ import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
 import ModalCustos from '@/components/negocios/ModalCustos';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
+import PainelLoja from '@/components/negocios/PainelLoja';
+import ModalLancamento from '@/components/negocios/ModalLancamento';
 import {
   corEmpresa, mostraIntegracoes, mostraCaixa,
   type Empresa,
@@ -16,7 +18,7 @@ import {
 import {
   Briefcase, ArrowUpRight, ArrowDownRight, Plug, Sparkles, RefreshCw,
   Crown, Trophy, ChevronRight, BarChart3, Zap, Calendar, TrendingUp,
-  ShoppingBag, Receipt, Settings as SettingsIcon, Loader2,
+  ShoppingBag, Receipt, Loader2,
   Wallet, Landmark, Store, Laptop, Plus, CalendarClock, Users,
 } from 'lucide-react';
 
@@ -58,7 +60,7 @@ const NOME_PLAT: Record<string, string> = {
 };
 
 export default function NegociosPage() {
-  const { isPremium, phone, user } = useAuth();
+  const { isPremium, phone } = useAuth();
 
   const hojeIso = new Date().toISOString().slice(0, 7);
   const [periodo, setPeriodo] = useState(hojeIso); // YYYY-MM
@@ -68,14 +70,36 @@ export default function NegociosPage() {
   // ── Empresa ativa: vem do SHELL (EmpresaProvider no layout do segmento).
   // Antes esta página tinha a própria cópia dessa lógica — duas fontes pro
   // mesmo estado, e trocar de empresa aqui não mexia na sidebar.
-  const { empresas, empresa, carregando: carregandoEmpresas, recarregar: mEmp, abrirCadastro } = useEmpresa();
+  const { empresa, carregando: carregandoEmpresas, abrirCadastro } = useEmpresa();
+
+  // Visão do painel. Empresa de um tipo só não escolhe — segue o que ela é.
+  // Híbrida alterna, e a escolha fica salva POR EMPRESA (quem tem loja e loja
+  // online quer abrir cada uma no lado que estava vendo).
+  const [visaoManual, setVisaoManual] = useState<Record<string, 'loja' | 'digital'>>({});
+  const visao: 'loja' | 'digital' =
+    empresa?.tipo === 'fisico'  ? 'loja'
+    : empresa?.tipo === 'digital' ? 'digital'
+    : (empresa ? visaoManual[empresa.id] ?? 'loja' : 'loja');
+  const setVisao = (v: 'loja' | 'digital') => {
+    if (empresa) setVisaoManual(prev => ({ ...prev, [empresa.id]: v }));
+  };
+
+  const [modalLanc, setModalLanc] = useState<{ tipo: 'entrada' | 'saida' } | null>(null);
+
+  // Indicadores da loja: uma chamada traz TUDO da tela (ver rota /indicadores).
+  const { data: indicadores, mutate: mIndicadores } = useApi(
+    (phone && isPremium && empresa && visao === 'loja') ? `neg:ind:${phone}:${empresa.id}:${periodo}` : null,
+    () => api.negocios.indicadores(phone, empresa!.id, periodo),
+  );
 
   // ── DRE da empresa ativa. SEM mock: sem dado = empty state de verdade. ──
   const { data: dre, mutate: mDre } = useApi(
     (phone && isPremium && empresa) ? `neg:dre:${phone}:${empresa.id}:${periodo}` : null,
     () => api.negocios.dre.get(phone, periodo, empresa!.id),
   );
-  const loading = carregandoEmpresas || (!!empresa && dre === undefined);
+  // A visão LOJA não usa o DRE — esperar por ele aqui atrasaria a tela por um
+  // dado que ela nem mostra. Cada visão espera só o que consome.
+  const loading = carregandoEmpresas || (!!empresa && visao === 'digital' && dre === undefined);
   const carregar = () => mDre();
   // `dre` vem null quando a empresa ainda não tem movimento → usa o zerado.
   const d: any = dre || DRE_ZERO;
@@ -106,24 +130,54 @@ export default function NegociosPage() {
 
   const cor = corEmpresa(empresa);
 
+  // ── Loja física vê o painel DA LOJA; digital vê o de infoproduto ────────
+  // São dois negócios diferentes: quem tem padaria não fatura por Hotmart, e
+  // quem vende curso não tem caixa de balcão. A empresa HÍBRIDA escolhe qual
+  // visão quer ver no momento (a escolha fica salva por empresa).
+  if (visao === 'loja') {
+    return (
+      <div className="pb-20 space-y-5">
+        <CabecalhoPainel
+          empresa={empresa} tipo={empresa.tipo} visao={visao} onVisao={setVisao}
+          subtitulo="O dinheiro da sua loja, do jeito que ele acontece"
+        />
+        <PainelLoja
+          dados={indicadores}
+          carregando={indicadores === undefined}
+          cor={cor}
+          mes={periodo}
+          onMes={setPeriodo}
+          onNovaEntrada={() => setModalLanc({ tipo: 'entrada' })}
+          onNovaSaida={() => setModalLanc({ tipo: 'saida' })}
+        />
+        {modalLanc && (
+          <ModalLancamento
+            empresaId={empresa.id}
+            cor={cor}
+            tipoInicial={modalLanc.tipo}
+            onClose={() => setModalLanc(null)}
+            onSalvo={() => { setModalLanc(null); mIndicadores(); }}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="pb-20 space-y-6">
+
+        <CabecalhoPainel
+          empresa={empresa} tipo={empresa.tipo} visao={visao} onVisao={setVisao}
+          subtitulo="Suas vendas digitais e integrações"
+        />
 
         {/* Sem lançamentos ainda: os números ficam ZERADOS (nada de demo) e
             mostramos o caminho pra começar. */}
         {semDados && <ComeceAqui cor={cor} tipo={empresa.tipo} />}
 
-        {/* HEADER */}
-        <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Seletor de empresa mora na SIDEBAR — aqui só o nome da tela. */}
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{empresa?.nome || "Negócios"}</p>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mt-0.5">Painel</h1>
-              <p className="text-sm text-muted-foreground mt-1">Como o seu negócio está indo</p>
-            </div>
-          </div>
+        {/* Barra de ações da visão digital (o título já veio no CabecalhoPainel) */}
+        <header className="relative z-30 flex items-center justify-end flex-wrap gap-4 animate-fade-in">
           {/* Botões de ação — scroll horizontal no mobile pra não quebrar */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
             {/* Caixa: só pra loja física/híbrida — a aba se adapta ao tipo. */}
@@ -223,6 +277,46 @@ function SeletorPeriodo({ value, onChange }: { value: string; onChange: (v: stri
 // Primeira visita: nenhuma empresa cadastrada. Substitui os antigos dados
 // FICTÍCIOS — em vez de simular um negócio que não existe, convidamos a criar
 // o de verdade (§8 empty-states: mensagem útil + ação clara).
+/**
+ * Cabeçalho do painel + alternador de visão.
+ *
+ * O alternador só aparece pra empresa HÍBRIDA — quem tem só loja física não
+ * precisa saber que existe uma visão digital, e vice-versa. Mostrar um controle
+ * que não muda nada é ruído; escondê-lo de quem precisa é pior.
+ */
+function CabecalhoPainel({ empresa, tipo, visao, onVisao, subtitulo }: {
+  empresa: Empresa; tipo: string; visao: 'loja' | 'digital';
+  onVisao: (v: 'loja' | 'digital') => void; subtitulo: string;
+}) {
+  const hibrida = tipo === 'hibrido';
+  return (
+    <header className="flex items-start justify-between gap-4 flex-wrap animate-fade-in">
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">
+          {empresa.nome}
+        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mt-0.5">Painel</h1>
+        <p className="text-sm text-muted-foreground mt-1">{subtitulo}</p>
+      </div>
+
+      {hibrida && (
+        <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60"
+             role="tablist" aria-label="Visão do painel">
+          {([['loja', 'Loja', Store], ['digital', 'Digital', Laptop]] as const).map(([id, label, Icone]) => (
+            <button key={id} onClick={() => onVisao(id)}
+              role="tab" aria-selected={visao === id}
+              className={`inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl text-xs font-bold transition-all ${
+                visao === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              style={{ minHeight: 40 }}>
+              <Icone size={14} /> {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </header>
+  );
+}
+
 function PrimeiraEmpresa({ onCriar }: { onCriar: () => void }) {
   const passos = [
     { icon: Store,  titulo: 'Loja física',  desc: 'Caixa do dia, contas a pagar e equipe' },
