@@ -41,6 +41,91 @@ export interface ContaNegocio {
   ativa?:        boolean;
 }
 
+// ── Operação: clientes, produtos e vendas (migration 106) ──────────────────
+// ⚠️ Dinheiro sempre em CENTAVOS, como no resto do painel.
+
+export interface ClienteNegocio {
+  id:         string;
+  empresa_id: string;
+  nome:       string;
+  telefone?:  string | null;   // só dígitos — é por aqui que a Sora cobra
+  email?:     string | null;
+  documento?: string | null;
+  endereco?:  string | null;
+  observacao?: string | null;
+  ativo?:     boolean;
+}
+
+/** Ficha do cliente: cadastro + quanto ele já rendeu. */
+export interface ClienteFicha extends ClienteNegocio {
+  resumo: {
+    compras:      number;
+    total_gasto:  number;
+    lucro_gerado: number;
+    ticket_medio: number;
+    ultima_compra: string | null;
+    em_aberto:    number;
+  };
+  vendas: { id: string; data: string; total: number; custo_total: number; status: string; forma_pagamento?: string | null }[];
+}
+
+export interface ProdutoNegocio {
+  id:            string;
+  empresa_id:    string;
+  nome:          string;
+  sku?:          string | null;
+  codigo_barras?: string | null;
+  categoria?:    string | null;
+  preco:         number;        // CENTAVOS
+  custo:         number;        // CENTAVOS
+  unidade?:      string | null; // un, kg, h…
+  eh_servico?:   boolean;       // serviço não tem estoque
+  estoque_min?:  number | null;
+  foto_url?:     string | null;
+  ativo?:        boolean;
+}
+
+export interface ItemVenda {
+  id?:         string;
+  produto_id?: string | null;
+  nome:        string;          // CONGELADO no momento da venda
+  quantidade:  number;
+  preco_unit:  number;          // CENTAVOS, congelado
+  custo_unit:  number;          // CENTAVOS, congelado
+  subtotal:    number;          // CENTAVOS
+}
+
+export interface VendaNegocio {
+  id:           string;
+  empresa_id:   string;
+  cliente_id?:  string | null;
+  cliente_nome?: string | null;
+  data:         string;         // YYYY-MM-DD
+  total:        number;
+  desconto:     number;
+  custo_total:  number;
+  forma_pagamento?: string | null;
+  status:       'pago' | 'pendente' | 'cancelada';
+  vencimento?:  string | null;
+  observacao?:  string | null;
+  vendedor_id?: string | null;
+  conta_id?:    string | null;
+  lancamento_id?: string | null;
+  itens?:       ItemVenda[];
+  cliente?:     { id: string; nome: string; telefone?: string | null } | null;
+}
+
+/** Margem do produto em % (0 quando não dá pra calcular). */
+export function margemProduto(p: Pick<ProdutoNegocio, 'preco' | 'custo'>): number {
+  if (!p.preco) return 0;
+  return Math.round(((p.preco - p.custo) / p.preco) * 1000) / 10;
+}
+
+/** Lucro da venda = total (já com desconto) − custo congelado dos itens. */
+export function lucroVenda(v: Pick<VendaNegocio, 'total' | 'custo_total'>): number {
+  return (v.total || 0) - (v.custo_total || 0);
+}
+
 /** Centro de custo (migration 105) — "qual parte do negócio consumiu isto". */
 export interface CentroCusto {
   id:         string;

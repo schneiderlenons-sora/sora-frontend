@@ -56,9 +56,9 @@ export const GRUPOS_NEGOCIOS: GrupoNegocios[] = [
     titulo: 'Operação',
     itens: [
       { href: '/negocios/vendas',      label: 'Vendas',      icone: 'ShoppingCart' },
-      { href: '/negocios/produtos',    label: 'Produtos',    icone: 'Package',   breve: true, tipos: ['fisico', 'hibrido'] },
+      { href: '/negocios/produtos',    label: 'Produtos',    icone: 'Package',   tipos: ['fisico', 'hibrido'] },
       { href: '/negocios/estoque',     label: 'Estoque',     icone: 'Boxes',     breve: true, tipos: ['fisico', 'hibrido'] },
-      { href: '/negocios/clientes',    label: 'Clientes',    icone: 'Users',     breve: true },
+      { href: '/negocios/clientes',    label: 'Clientes',    icone: 'Users' },
       { href: '/negocios/fornecedores',label: 'Fornecedores',icone: 'Truck',     breve: true, tipos: ['fisico', 'hibrido'] },
     ],
   },

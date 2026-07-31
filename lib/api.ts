@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { Empresa } from '@/lib/empresas';
 import type {
   Lancamento, ContaNegocio, CentroCusto, IndicadoresNegocio,
+  ClienteNegocio, ClienteFicha, ProdutoNegocio, VendaNegocio,
 } from '@/lib/lancamentos';
 import type { Funcionario } from '@/lib/funcionarios';
 
@@ -910,6 +911,51 @@ export const api = {
       req<IndicadoresNegocio>(
         `/api/negocios/indicadores/${phone}?empresa_id=${empresa_id}${mes ? `&mes=${mes}` : ''}`,
       ),
+    // ── Operação: clientes, produtos e vendas (migration 106) ────────────
+    clientes: {
+      listar: (phone: string, empresa_id: string, q?: string) =>
+        req<ClienteNegocio[]>(`/api/negocios/clientes/${phone}?empresa_id=${empresa_id}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+      // Ficha = cadastro + o que ele já comprou (responde "quanto vale").
+      ficha: (phone: string, id: string) =>
+        req<ClienteFicha>(`/api/negocios/clientes/${phone}/${id}`),
+      criar: (body: Partial<ClienteNegocio> & { empresa_id: string; nome: string }) =>
+        req<{ ok: boolean; cliente: ClienteNegocio }>('/api/negocios/clientes', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: Partial<ClienteNegocio>) =>
+        req<{ ok: boolean; cliente: ClienteNegocio }>(`/api/negocios/clientes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/clientes/${id}`, { method: 'DELETE' }),
+    },
+    produtos: {
+      // `codigo` busca exata (scanner de código de barras); `q` busca por texto.
+      listar: (phone: string, empresa_id: string, opts?: { q?: string; codigo?: string }) => {
+        const p = new URLSearchParams({ empresa_id });
+        if (opts?.q)      p.set('q', opts.q);
+        if (opts?.codigo) p.set('codigo', opts.codigo);
+        return req<ProdutoNegocio[]>(`/api/negocios/produtos/${phone}?${p.toString()}`);
+      },
+      criar: (body: Partial<ProdutoNegocio> & { empresa_id: string; nome: string }) =>
+        req<{ ok: boolean; produto: ProdutoNegocio }>('/api/negocios/produtos', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: Partial<ProdutoNegocio>) =>
+        req<{ ok: boolean; produto: ProdutoNegocio }>(`/api/negocios/produtos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/produtos/${id}`, { method: 'DELETE' }),
+    },
+    vendas: {
+      listar: (phone: string, empresa_id: string, opts?: { mes?: string; cliente_id?: string; status?: string }) => {
+        const p = new URLSearchParams({ empresa_id, ...(opts || {}) } as any);
+        return req<VendaNegocio[]>(`/api/negocios/vendas/${phone}?${p.toString()}`);
+      },
+      // Registra a venda E o dinheiro dela (lançamento no caixa).
+      criar: (body: {
+        empresa_id: string;
+        itens: { produto_id?: string | null; nome?: string; quantidade: number; preco_unit?: number; custo_unit?: number }[];
+        cliente_id?: string | null; cliente_nome?: string; desconto?: number;
+        forma_pagamento?: string; status?: 'pago' | 'pendente'; vencimento?: string;
+        data?: string; conta_id?: string | null; observacao?: string;
+      }) => req<{ ok: boolean; venda: VendaNegocio }>('/api/negocios/vendas', { method: 'POST', body: JSON.stringify(body) }),
+      cancelar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/vendas/${id}`, { method: 'DELETE' }),
+    },
     // Centros de custo (migration 105) — "qual parte do negócio gastou isto".
     centrosCusto: {
       listar: (phone: string, empresa_id: string) =>
