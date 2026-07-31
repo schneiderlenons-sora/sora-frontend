@@ -731,8 +731,9 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
           <div>
             <h2 className="text-sm font-bold text-foreground leading-none">Comunicado em massa</h2>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Template <b className="text-foreground">comunicado_sora</b>: já abre com
-              &ldquo;Oi, &lt;nome&gt;!&rdquo; e leva a capa. Quebras de linha viram espaço.
+              Template <b className="text-foreground">atualizacao_sora</b>: já abre com
+              &ldquo;Oi, &lt;nome&gt;! Uma atualização da Sora pra você:&rdquo; e leva a capa.
+              Quebras de linha viram espaço.
             </p>
           </div>
         </div>
