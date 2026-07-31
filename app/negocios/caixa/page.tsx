@@ -9,17 +9,28 @@ import { useApi } from '@/lib/useApi';
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import { corEmpresa, type Empresa } from '@/lib/empresas';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
+import ModalCentrosCusto from '@/components/negocios/ModalCentrosCusto';
 import {
   fmtCent, labelCategoria, labelForma, porDia, totais, saldoPorConta,
   type Lancamento, type TipoLancamento, type ContaNegocio,
 } from '@/lib/lancamentos';
 import {
   ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Plus, Minus,
-  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2,
+  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers,
 } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// Recortes do fluxo de caixa. Todos terminam HOJE, menos "mês", que navega.
+type PeriodoCaixa = 'hoje' | 'semana' | 'mes' | 'trimestre' | 'ano';
+const PERIODOS: { v: PeriodoCaixa; label: string }[] = [
+  { v: 'hoje',      label: 'Hoje' },
+  { v: 'semana',    label: 'Semana' },
+  { v: 'mes',       label: 'Mês' },
+  { v: 'trimestre', label: 'Trimestre' },
+  { v: 'ano',       label: 'Ano' },
+];
 
 function rotuloDia(iso: string) {
   const h = hojeIso();
@@ -34,6 +45,12 @@ export default function CaixaPage() {
   const { empresa, carregando, recarregar, phone, isPremium } = useEmpresa();
   const [modalLanc, setModalLanc] = useState<{ tipo: TipoLancamento; item?: Lancamento } | null>(null);
   const [modalContas, setModalContas] = useState(false);
+  const [modalCentros, setModalCentros] = useState(false);
+
+  // Período visualizado. "mês" mantém o navegador de mês a mês; os outros são
+  // recortes fixos terminando HOJE (o backend calcula no fuso de SP — em UTC,
+  // às 21h no Brasil "hoje" já virou amanhã e o caixa do dia apareceria vazio).
+  const [periodo, setPeriodo] = useState<PeriodoCaixa>('mes');
 
   // Mês visualizado (0 = atual). Livre pra frente e pra trás — igual transações.
   const [mesIndex, setMesIndex] = useState(0);
@@ -45,8 +62,10 @@ export default function CaixaPage() {
   const mesLabel = `${MESES[ref.getMonth()]} ${ref.getFullYear()}`;
 
   const { data: lancData, mutate: mLanc } = useApi(
-    (phone && empresa) ? `neg:lanc:${empresa.id}:${mes}` : null,
-    () => api.negocios.lancamentos.listar(phone, { empresa_id: empresa!.id, mes }),
+    (phone && empresa) ? `neg:lanc:${empresa.id}:${periodo === 'mes' ? mes : periodo}` : null,
+    () => api.negocios.lancamentos.listar(phone, periodo === 'mes'
+      ? { empresa_id: empresa!.id, mes }
+      : { empresa_id: empresa!.id, periodo }),
   );
   const lancamentos: Lancamento[] = Array.isArray(lancData) ? lancData : [];
   const carregandoLanc = !!empresa && lancData === undefined;
@@ -163,11 +182,32 @@ export default function CaixaPage() {
           </div>
         </section>
 
+        {/* Recorte do período. Scroll horizontal no mobile pra caber sem
+            quebrar linha; o chip ativo tem estado de FORMA (fundo + peso), não
+            só cor. */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0"
+             role="tablist" aria-label="Período">
+          {PERIODOS.map(p => {
+            const on = periodo === p.v;
+            return (
+              <button key={p.v} onClick={() => setPeriodo(p.v)}
+                role="tab" aria-selected={on}
+                className={`h-10 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap flex-shrink-0 transition-colors border ${
+                  on ? 'text-white' : 'text-muted-foreground hover:text-foreground border-border'}`}
+                style={{ minHeight: 40, ...(on ? { background: cor, borderColor: cor } : undefined) }}>
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* RESUMO DO MÊS + navegação */}
         <section className="rounded-3xl border border-border/40 overflow-hidden"
                  style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
           <div className="flex items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-border/40">
-            <div className="inline-flex items-center gap-1">
+            {/* O navegador mês-a-mês só faz sentido no recorte "mês" — nos
+                outros o período é fixo e termina hoje. */}
+            <div className="inline-flex items-center gap-1" hidden={periodo !== 'mes'}>
               <button onClick={() => setMesIndex(i => i - 1)} aria-label="Mês anterior"
                       className="w-11 h-11 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
                 <ChevronLeft className="w-[18px] h-[18px] sm:w-4 sm:h-4" />
@@ -188,6 +228,17 @@ export default function CaixaPage() {
                 </button>
               )}
             </div>
+
+            {/* Fora do recorte "mês" o navegador some — sem um rótulo aqui, o
+                usuário veria três números sem saber de que período são. */}
+            {periodo !== 'mes' && (
+              <span className="text-[11px] font-semibold uppercase tracking-wider px-2" style={{ color: cor }}>
+                {periodo === 'hoje'      ? 'Hoje'
+                 : periodo === 'semana'   ? 'Esta semana'
+                 : periodo === 'trimestre'? 'Este trimestre'
+                 :                          'Este ano'}
+              </span>
+            )}
           </div>
 
           {/* Totais do mês */}
@@ -213,9 +264,14 @@ export default function CaixaPage() {
           <div className="px-4 sm:px-5 py-3 border-b border-border/40">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Saldo por conta</span>
-              <button onClick={() => setModalContas(true)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
-                <Settings2 size={12} /> Gerenciar
-              </button>
+              <span className="inline-flex items-center gap-3">
+                <button onClick={() => setModalCentros(true)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
+                  <Layers size={12} /> Centros de custo
+                </button>
+                <button onClick={() => setModalContas(true)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
+                  <Settings2 size={12} /> Gerenciar
+                </button>
+              </span>
             </div>
             {saldosConta.length === 0 ? (
               <button onClick={() => setModalContas(true)}
@@ -294,6 +350,14 @@ export default function CaixaPage() {
           cor={cor}
           onClose={() => setModalContas(false)}
           onChanged={() => mContas()}
+        />
+      )}
+      {modalCentros && empresa && (
+        <ModalCentrosCusto
+          empresaId={empresa.id}
+          cor={cor}
+          onClose={() => setModalCentros(false)}
+          onChanged={() => mLanc()}
         />
       )}
     </>

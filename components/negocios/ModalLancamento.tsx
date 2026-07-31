@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus, Layers } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import {
   categoriasDe, FORMAS_PAGAMENTO, fmtCent,
-  type Lancamento, type TipoLancamento, type ContaNegocio,
+  type Lancamento, type TipoLancamento, type ContaNegocio, type CentroCusto,
 } from '@/lib/lancamentos';
 
 // Lançamento do caixa. Os campos de CONTA A PAGAR (vencimento) só aparecem
@@ -44,6 +44,8 @@ export default function ModalLancamento({
   // Conta do negócio (caixa) — migration 095.
   const [contas, setContas] = useState<ContaNegocio[]>([]);
   const [contaId, setContaId] = useState<string | null>(lancamento?.conta_id || null);
+  const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [centroId, setCentroId] = useState<string | null>((lancamento as any)?.centro_custo_id || null);
   const [gerenciarContas, setGerenciarContas] = useState(false);
 
   // Categoria própria (texto livre além da lista fixa).
@@ -65,6 +67,17 @@ export default function ModalLancamento({
     try { setContas((await api.negocios.contas.listar(phone, empresaId)) || []); } catch { /* noop */ }
   }
   useEffect(() => { carregarContas(); /* eslint-disable-line */ }, [phone, empresaId]);
+
+  // Centros de custo (migration 105). Best-effort: quem não usa o recurso não
+  // vê o campo, em vez de um seletor vazio ocupando espaço no formulário.
+  useEffect(() => {
+    if (!phone) return;
+    let vivo = true;
+    api.negocios.centrosCusto.listar(phone, empresaId)
+      .then(cs => { if (vivo) setCentros(cs || []); })
+      .catch(() => { /* migration pendente → campo some */ });
+    return () => { vivo = false; };
+  }, [phone, empresaId]);
 
   const valorCent = parseInt(valor || '0', 10) || 0;
 
@@ -89,6 +102,7 @@ export default function ModalLancamento({
         forma_pagamento: forma || null,
         contraparte: contraparte.trim() || null,
         conta_id: contaId,
+        centro_custo_id: centroId,
       };
       if (editando) await api.negocios.lancamentos.editar(lancamento!.id, body);
       else await api.negocios.lancamentos.criar(body);
@@ -253,6 +267,34 @@ export default function ModalLancamento({
               </div>
             )}
           </div>
+
+          {/* Centro de custo — só aparece pra quem já criou algum (migration
+              105). Seletor vazio num formulário longo é ruído puro. */}
+          {centros.length > 0 && (
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                Centro de custo <span className="font-normal normal-case tracking-normal">(opcional)</span>
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {centros.map(cc => {
+                  const on = centroId === cc.id;
+                  const tom = cc.cor || cor;
+                  return (
+                    <button key={cc.id} onClick={() => setCentroId(on ? null : cc.id)} aria-pressed={on}
+                            className="h-11 px-3.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1.5"
+                            style={{
+                              borderColor: on ? tom : 'hsl(var(--border) / 0.6)',
+                              background: on ? `color-mix(in srgb, ${tom} 12%, transparent)` : 'transparent',
+                              color: on ? tom : 'hsl(var(--foreground))',
+                              minHeight: 44,
+                            }}>
+                      <Layers size={13} /> {cc.nome}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Data + forma */}
           <div className="grid grid-cols-2 gap-3">
