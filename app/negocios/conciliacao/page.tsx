@@ -81,7 +81,7 @@ export default function ConciliacaoPage() {
 
   return (
     <>
-      <div className="max-w-4xl mx-auto pb-24 space-y-5">
+      <div className="pb-24 space-y-5">
 
         {/* HEADER */}
         <div className="animate-fade-in">

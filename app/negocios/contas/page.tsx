@@ -84,7 +84,7 @@ export default function ContasPage() {
   if (!isPremium) {
     return (
       <>
-        <div className="max-w-7xl mx-auto pb-20">
+        <div className="pb-20">
           <p className="text-sm text-muted-foreground">Contas a pagar faz parte do plano Premium.</p>
         </div>
       </>
@@ -96,7 +96,7 @@ export default function ContasPage() {
   if (!empresa) {
     return (
       <>
-        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+        <div className="pb-20 space-y-6">
           <Voltar />
           <div className="rounded-3xl border border-border/40 p-8 text-center" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
             <p className="text-sm text-muted-foreground">
@@ -110,7 +110,7 @@ export default function ContasPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto pb-20 space-y-6">
+      <div className="pb-20 space-y-6">
         <Voltar />
 
         <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">

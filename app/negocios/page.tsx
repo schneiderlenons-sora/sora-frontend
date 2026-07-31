@@ -96,7 +96,7 @@ export default function NegociosPage() {
   if (!empresa) {
     return (
       <>
-        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+        <div className="pb-20 space-y-6">
           <PrimeiraEmpresa onCriar={() => abrirCadastro(null)} />
         </div>
         
@@ -108,7 +108,7 @@ export default function NegociosPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto pb-20 space-y-6">
+      <div className="pb-20 space-y-6">
 
         {/* Sem lançamentos ainda: os números ficam ZERADOS (nada de demo) e
             mostramos o caminho pra começar. */}

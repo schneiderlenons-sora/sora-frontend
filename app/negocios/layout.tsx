@@ -21,7 +21,18 @@ import { EmpresaProvider } from '@/components/negocios/EmpresaContext';
 export default function NegociosLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardLayout>
-      <EmpresaProvider>{children}</EmpresaProvider>
+      <EmpresaProvider>
+        {/* CONTAINER PADRÃO DO PAINEL — largura e respiro iguais em TODA tela.
+            Fica aqui, e não em cada página, porque quando cada uma declarava o
+            próprio `max-w-*` elas divergiam de fato: o Fluxo de caixa abria em
+            `7xl` e o DRE em `5xl`, e a borda "pulava" ao trocar de aba.
+            ⚠️ Tela nova NÃO declara `max-w-… mx-auto` no bloco raiz — só o
+            conteúdo. Empty state estreito (paywall, "sem empresa") pode usar
+            `max-w-md mx-auto` DENTRO daqui: isso é conteúdo, não container. */}
+        <div className="max-w-7xl mx-auto w-full">
+          {children}
+        </div>
+      </EmpresaProvider>
     </DashboardLayout>
   );
 }

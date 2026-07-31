@@ -84,7 +84,7 @@ export default function DreDetalhadoPage() {
   }
 
   if (loading || !dre) {
-    return <><div className="max-w-7xl mx-auto pt-20 flex justify-center">
+    return <><div className="pt-20 flex justify-center">
       <Loader2 size={20} className="animate-spin text-muted-foreground" />
     </div></>;
   }
@@ -126,7 +126,7 @@ export default function DreDetalhadoPage() {
 
   return (
     <>
-      <div className="max-w-4xl mx-auto pb-24 space-y-6">
+      <div className="pb-24 space-y-6">
 
         {/* HEADER */}
         <div className="animate-fade-in">

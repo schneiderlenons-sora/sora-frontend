@@ -91,7 +91,7 @@ export default function InsightsPage() {
 
   return (
     <>
-      <div className="max-w-3xl mx-auto pb-24 space-y-5">
+      <div className="pb-24 space-y-5">
 
         {/* HEADER */}
         <div className="animate-fade-in">

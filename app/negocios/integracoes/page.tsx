@@ -110,7 +110,7 @@ export default function IntegracoesPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto pb-24 space-y-6">
+      <div className="pb-24 space-y-6">
 
         {/* HEADER */}
         <div className="animate-fade-in">

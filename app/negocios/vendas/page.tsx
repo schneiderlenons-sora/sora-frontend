@@ -101,7 +101,7 @@ export default function VendasPage() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto pb-24 space-y-5">
+      <div className="pb-24 space-y-5">
 
         {/* HEADER */}
         <div className="animate-fade-in">

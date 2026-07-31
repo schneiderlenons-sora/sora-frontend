@@ -71,7 +71,7 @@ export default function CaixaPage() {
   if (!isPremium) {
     return (
       <>
-        <div className="max-w-7xl mx-auto pb-20">
+        <div className="pb-20">
           <p className="text-sm text-muted-foreground">O Caixa faz parte do plano Premium.</p>
         </div>
       </>
@@ -83,7 +83,7 @@ export default function CaixaPage() {
   if (!empresa) {
     return (
       <>
-        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+        <div className="pb-20 space-y-6">
           <VoltarNegocios />
           <div className="rounded-3xl border border-border/40 p-8 text-center"
                style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
@@ -98,7 +98,7 @@ export default function CaixaPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto pb-20 space-y-6">
+      <div className="pb-20 space-y-6">
 
         <VoltarNegocios />
 

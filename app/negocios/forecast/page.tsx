@@ -44,7 +44,7 @@ export default function ForecastPage() {
     </div></>;
   }
   if (loading) {
-    return <><div className="max-w-5xl mx-auto pt-20 flex justify-center">
+    return <><div className="pt-20 flex justify-center">
       <Loader2 size={20} className="animate-spin text-muted-foreground" />
     </div></>;
   }
@@ -54,7 +54,7 @@ export default function ForecastPage() {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto pb-24 space-y-5">
+      <div className="pb-24 space-y-5">
 
         {/* HEADER */}
         <div className="animate-fade-in">

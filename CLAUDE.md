@@ -330,6 +330,46 @@ A aba Negócios era 100% infoprodutor. Agora atende **loja física** e **múltip
 - **Mock REMOVIDO:** não existe mais `MOCK_DRE`/`DemoBanner`. Sem empresa → onboarding; sem lançamento → zerado (`DRE_ZERO`).
 - ⚠️ **Pegadinha resolvida:** `conciliacao_negocio` é a ÚNICA tabela de negócios só com `user_id` (sem grupo_id); `dre_snapshots` unique virou `(empresa_id, periodo)`. Ao mudar constraint, procurar todo `onConflict`/`upsert` que a referencia (isso quebrou o "Atualizar" do DRE entre a 090 e a fase 5).
 
+## Sora Negócios — painel próprio (reconstrução em 7 fases, jul/2026)
+
+Negócios deixou de ser um item da barra do app pessoal e virou **painel irmão do
+Sora Labs**: switcher com 3 opções (Sora · Sora Negócios · Sora Labs), navegação
+própria e seletor de empresa no topo da sidebar. Plano completo e decisões
+aprovadas (ordem das fases, nota fiscal adiada, folha simples + cálculo opcional,
+plano pago à parte): memória `project-sora-negocios-fases`.
+
+### ⚠️ ESPAÇAMENTO PADRÃO — vale pra TODA tela do painel
+
+**O container é do LAYOUT, não da página.** `app/negocios/layout.tsx` já envolve
+tudo em `max-w-7xl mx-auto w-full`. Tela nova **NÃO declara `max-w-… mx-auto`
+no bloco raiz** — devolve só o conteúdo.
+
+> Bug real que gerou a regra: cada página trazia o próprio container (`7xl` no
+> Fluxo de caixa, `5xl` no DRE, `3xl` no Insights, `6xl` no Vendas…). A borda
+> **pulava de largura ao trocar de aba** e o painel parecia remendado.
+
+Continua valendo dentro do container: `max-w-md mx-auto` em empty state estreito
+(paywall, "sem empresa") — isso é **conteúdo**, não container.
+
+### Estrutura (o que garante navegação sem delay)
+
+- **`app/negocios/layout.tsx`** — monta `DashboardLayout` + `EmpresaProvider`
+  UMA vez. ⚠️ Página do painel **não importa `DashboardLayout`** (aninharia dois
+  shells e traria de volta o remount que causava o delay: antes, cada uma das 11
+  páginas montava o próprio, e trocar de aba desmontava sidebar, tema e auth).
+- **`components/negocios/EmpresaContext.tsx`** — empresa ativa do painel inteiro.
+  Estado DERIVADO (sem `useEffect` sincronizando com props, que dava render em
+  cascata e flash de "sem empresa"). Expõe `abrirCadastro()` — o `ModalEmpresa`
+  vive no shell e é alcançável de qualquer tela.
+- **`lib/negocios-nav.ts`** — FONTE ÚNICA das rotas, agrupadas (Visão geral ·
+  Dinheiro · Operação · Gente · Canais). `tipos` esconde o que não faz sentido
+  (loja física não vê Integrações; digital não vê Estoque). `breve: true` mostra
+  a rota das próximas fases como "em breve" em vez de levar a 404.
+- **`app/negocios/loading.tsx`** — skeleton do segmento, no formato do conteúdo
+  real (bloco de tamanho errado = salto de layout quando o dado chega).
+- **BottomNav tem modo Negócios** — sem ele, cada toque no mobile jogava o
+  usuário de volta pro app pessoal.
+
 ## Painel admin — MRR (correções jul/2026)
 
 `/admin` são **Route Handlers do Next** (`app/api/admin/*`), não o backend Express — usam `supabaseAdmin`. MRR calculado em `app/api/admin/overview/route.ts`.
