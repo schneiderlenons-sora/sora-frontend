@@ -1050,6 +1050,16 @@ export const api = {
         req<{ ok: boolean }>(`/api/negocios/funcionarios/${id}`, { method: 'DELETE' }),
       pagar: (id: string, body?: { valor?: number; data?: string; forma_pagamento?: string; status?: string }) =>
         req<{ ok: boolean; lancamento: any }>(`/api/negocios/funcionarios/${id}/pagar`, { method: 'POST', body: JSON.stringify(body || {}) }),
+      pagarComissao: (id: string) =>
+        req<{ ok: boolean; total?: number; nada?: boolean }>(
+          `/api/negocios/funcionarios/${id}/pagar-comissao`, { method: 'POST', body: '{}' }),
+      // Mês inteiro numa chamada: salário, comissão devida e encargos por pessoa.
+      equipe: (phone: string, empresaId: string, mes?: string, inssPatronal?: boolean) => {
+        const q = new URLSearchParams({ empresa_id: empresaId });
+        if (mes) q.set('mes', mes);
+        if (inssPatronal) q.set('inss_patronal', '1');
+        return req<import('./funcionarios').ResumoEquipe>(`/api/negocios/equipe/${phone}?${q}`);
+      },
     },
     integracoes: {
       listar: (phone: string) =>

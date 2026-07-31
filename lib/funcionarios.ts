@@ -20,6 +20,33 @@ export interface Funcionario {
   pix?:           string | null;
   ativo?:         boolean;
   observacao?:    string | null;
+  /** % sobre o total das vendas em que a pessoa é a vendedora (migration 109) */
+  comissao_pct?:  number;
+  /** estimar FGTS/13º/férias no custo desta pessoa — opt-in, só faz sentido em CLT */
+  encargos?:      boolean;
+}
+
+/** Linha da equipe já consolidada pelo backend (GET /api/negocios/equipe). */
+export interface EquipeItem extends Funcionario {
+  /** encargos estimados do mês (0 quando desligado) */
+  encargos_valor?:  number;
+  comissao_aberta:  number;   // devida, de qualquer mês
+  comissao_mes:     number;   // apurada no mês exibido
+  vendas_mes:       number;
+  pago_no_mes:      number;
+  salario_pago:     boolean;
+  a_pagar:          number;   // sai do caixa hoje (salário + comissão)
+  custo_total:      number;   // com as provisões
+  detalhe:          { chave: string; label: string; valor: number }[];
+}
+
+export interface ResumoEquipe {
+  mes: string;
+  equipe: EquipeItem[];
+  folha_salarios: number;
+  comissoes_abertas: number;
+  encargos_estimados: number;
+  custo_total: number;
 }
 
 export const VINCULOS: { v: VinculoFuncionario; label: string }[] = [

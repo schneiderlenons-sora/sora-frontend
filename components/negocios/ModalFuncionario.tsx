@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Check, Loader2, AlertCircle, Camera, Trash2, UserRound } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle, Camera, Trash2, UserRound, ShieldAlert } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fmtCent } from '@/lib/lancamentos';
 import { VINCULOS, iniciais, type Funcionario, type VinculoFuncionario } from '@/lib/funcionarios';
@@ -55,6 +55,9 @@ export default function ModalFuncionario({
   const [dia, setDia] = useState(funcionario?.dia_pagamento ? String(funcionario.dia_pagamento) : '');
   const [pix, setPix] = useState(funcionario?.pix || '');
   const [foto, setFoto] = useState<string | null>(funcionario?.foto_url || null);
+  const [comissao, setComissao] = useState(
+    funcionario?.comissao_pct ? String(funcionario.comissao_pct).replace('.', ',') : '');
+  const [encargos, setEncargos] = useState(!!funcionario?.encargos);
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
@@ -87,6 +90,8 @@ export default function ModalFuncionario({
         dia_pagamento: diaNum ?? undefined,
         pix: pix.trim() || undefined,
         foto_url: foto || undefined,
+        comissao_pct: parseFloat((comissao || '0').replace(',', '.')) || 0,
+        encargos,
       };
       if (editando) await api.negocios.funcionarios.editar(funcionario!.id, body);
       else await api.negocios.funcionarios.criar(body);
@@ -207,6 +212,47 @@ export default function ModalFuncionario({
                      className="input w-full tabular" placeholder="5" />
               <p className="text-[11px] text-muted-foreground mt-1">A Sora te lembra na Agenda</p>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="f-com" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+              Comissão por venda <span className="normal-case tracking-normal font-medium">(opcional)</span>
+            </label>
+            <div className="relative">
+              <input id="f-com" inputMode="decimal" value={comissao}
+                     onChange={e => setComissao(e.target.value.replace(/[^\d.,]/g, '').slice(0, 5))}
+                     className="input w-full tabular pr-9" placeholder="0" />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">%</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              A Sora calcula sozinha a cada venda registrada com essa pessoa como vendedora.
+            </p>
+          </div>
+
+          {/* Encargos: opt-in, com o motivo do padrão desligado escrito */}
+          <div className="rounded-2xl border border-border p-3.5">
+            <button onClick={() => setEncargos(v => !v)} role="switch" aria-checked={encargos}
+                    className="w-full flex items-center gap-3 text-left" style={{ minHeight: 44 }}>
+              <span className="w-11 h-6 rounded-full flex-shrink-0 transition-colors relative"
+                    style={{ background: encargos ? cor : 'hsl(var(--muted))' }}>
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+                      style={{ left: encargos ? 22 : 2 }} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">Estimar encargos</span>
+                <span className="block text-[11px] text-muted-foreground leading-snug">
+                  FGTS, 13º e férias — soma ~29% ao custo desta pessoa
+                </span>
+              </span>
+            </button>
+            {encargos && (
+              <p className="flex items-start gap-2 text-[11px] text-muted-foreground mt-2.5 pt-2.5 border-t border-border/60 leading-relaxed">
+                <ShieldAlert size={13} className="flex-shrink-0 mt-0.5" />
+                É estimativa gerencial pra você saber o custo — <b className="text-foreground">não é folha
+                oficial</b>. No Simples Nacional (anexos I a III) a contribuição patronal já vai dentro do DAS.
+                Confirme com seu contador.
+              </p>
+            )}
           </div>
 
           <div>
