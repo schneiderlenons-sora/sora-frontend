@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { useEmpresa } from '@/components/negocios/EmpresaContext';
+import VendasLoja from '@/components/negocios/VendasLoja';
+import { corEmpresa } from '@/lib/empresas';
 import {
   ArrowLeft, Calendar, Loader2, Search, ChevronLeft, ChevronRight,
   X, ArrowUpRight, ArrowDownRight, AlertTriangle, CreditCard, Mail,
@@ -49,6 +52,18 @@ const dataBr = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 const dataHoraBr = (iso: string) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export default function VendasPage() {
+  const { empresa } = useEmpresa();
+
+  // Loja física vende no balcão; negócio digital recebe da plataforma. São
+  // telas diferentes porque são operações diferentes — a mesma separação do
+  // painel. Híbrida cai no balcão, que é o lado que ela opera na mão.
+  if (empresa && empresa.tipo !== 'digital') {
+    return <VendasLoja empresaId={empresa.id} cor={corEmpresa(empresa)} nomeEmpresa={empresa.nome} />;
+  }
+  return <VendasDigital />;
+}
+
+function VendasDigital() {
   const { isPremium, phone } = useAuth();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [tipo, setTipo]       = useState('');
