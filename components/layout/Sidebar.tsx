@@ -11,7 +11,13 @@ import {
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2, Bell,
   Percent, CalendarRange, FolderLock,
+  // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
+  HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
+  IdCard, Plug, CheckCheck, Store,
 } from 'lucide-react';
+import { gruposPara, rotaAtiva, rotasNavegaveis } from '@/lib/negocios-nav';
+import { useEmpresa } from '@/components/negocios/EmpresaContext';
+import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useState } from 'react';
@@ -98,7 +104,16 @@ const SIDEBAR_BG_LIGHT = 'linear-gradient(180deg, hsl(var(--primary)) 0%, color-
 const SIDEBAR_BG_DARK  = 'linear-gradient(180deg, color-mix(in srgb, hsl(var(--primary)) 86%, #000) 0%, color-mix(in srgb, hsl(var(--primary)) 68%, #000) 100%)';
 const SIDEBAR_BG_BLACK = '#000000';
 
-// Opção do dropdown de troca de painel (Sora / Sora Labs).
+// Ícones do painel Negócios, resolvidos pelo NOME que vem de lib/negocios-nav.
+// O catálogo de rotas fica livre de import de componente e pode ser lido no
+// servidor (prefetch, testes) sem arrastar a árvore do lucide junto.
+type IconeLucide = React.ComponentType<{ size?: number; className?: string }>;
+const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
+  LayoutDashboard, Sparkles, ArrowLeftRight, Receipt, HandCoins, FileBarChart,
+  TrendingUp, ShoppingCart, Package, Boxes, Users, Truck, IdCard, Plug, CheckCheck,
+};
+
+// Opção do dropdown de troca de painel (Sora / Sora Negócios / Sora Labs).
 function PainelOpcao({ ativo, titulo, sub, onClick, logo, icon: Icon }:
   { ativo: boolean; titulo: string; sub: string; onClick: () => void; logo?: boolean; icon?: any }) {
   return (
@@ -155,8 +170,30 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // BottomNav) — mantém `setOpen(false)` como fechar-mobile.
   const open = mobileOpen;
   const setOpen = (_v: boolean) => { if (!_v) onMobileClose?.(); };
-  const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown Sora ↔ Labs
-  const ehLabs = !!pathname?.startsWith('/labs');
+  const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown entre painéis
+  const ehLabs     = !!pathname?.startsWith('/labs');
+  const ehNegocios = !!pathname?.startsWith('/negocios');
+
+  // Empresa ativa — só existe dentro do painel Negócios; fora dele o hook
+  // devolve estado vazio (não quebra o app pessoal).
+  const { empresa, empresas, trocar, abrirCadastro } = useEmpresa();
+  const [empresaMenu, setEmpresaMenu] = useState(false);
+
+  // Prefetch das rotas do painel assim que ele abre: são poucas e leves, e o
+  // usuário do Negócios navega entre elas o tempo todo. Sem isto, a PRIMEIRA
+  // visita a cada aba paga o download do chunk — que é exatamente o "delay ao
+  // trocar de aba". Roda no ocioso pra não competir com o conteúdo.
+  useEffect(() => {
+    if (!ehNegocios) return;
+    const rotas = rotasNavegaveis(empresa?.tipo);
+    const warm = () => rotas.forEach((r) => router.prefetch(r));
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
+    const id = ric ? ric(warm) : window.setTimeout(warm, 600);
+    return () => {
+      const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
+      if (ric && cic) cic(id as number); else clearTimeout(id as number);
+    };
+  }, [ehNegocios, empresa?.tipo, router]);
 
   // Colapso dos grupos (persistido). Grow começa colapsado pra quem não tem acesso.
   const [openFin, setOpenFin]   = useState(true);
@@ -321,12 +358,20 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/15 shadow-sm">
                 <Beaker size={18} className="text-white" />
               </span>
+            ) : ehNegocios ? (
+              <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/15 shadow-sm">
+                <Store size={18} className="text-white" />
+              </span>
             ) : (
               <img src="/brands/sora.png" alt="Sora" width={36} height={36} className="w-9 h-9 rounded-xl flex-shrink-0 shadow-sm" draggable={false} />
             )}
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-white font-bold text-lg leading-none truncate">{ehLabs ? 'Sora Labs' : 'Sora'}</p>
-              <p className="text-white/55 text-[10px] leading-none mt-1 truncate">{ehLabs ? 'Aprenda & evolua' : 'Sua vida organizada'}</p>
+              <p className="text-white font-bold text-lg leading-none truncate">
+                {ehLabs ? 'Sora Labs' : ehNegocios ? 'Sora Negócios' : 'Sora'}
+              </p>
+              <p className="text-white/55 text-[10px] leading-none mt-1 truncate">
+                {ehLabs ? 'Aprenda & evolua' : ehNegocios ? 'Gestão do seu negócio' : 'Sua vida organizada'}
+              </p>
             </div>
             <ChevronDown size={16} className={`text-white/60 flex-shrink-0 transition-transform duration-200 ${switcherOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -345,8 +390,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             <div className="fixed inset-0 z-20" onClick={() => setSwitcherOpen(false)} />
             <div className="absolute left-4 right-4 top-full -mt-1 z-30 rounded-xl p-1.5 shadow-2xl border border-border animate-fade-in"
                  style={{ background: 'hsl(var(--bg-card))' }}>
-              <PainelOpcao ativo={!ehLabs} titulo="Sora" sub="Finanças, Grow e agenda"
+              <PainelOpcao ativo={!ehLabs && !ehNegocios} titulo="Sora" sub="Finanças, Grow e agenda"
                 onClick={() => irPara('/dashboard')} logo />
+              <PainelOpcao ativo={ehNegocios} titulo="Sora Negócios" sub="Caixa, vendas e equipe"
+                onClick={() => irPara('/negocios')} icon={Store} />
               <PainelOpcao ativo={ehLabs} titulo="Sora Labs" sub="Cursos e conteúdos"
                 onClick={() => irPara('/labs')} icon={Beaker} />
             </div>
@@ -355,7 +402,130 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       </div>
 
       <nav className="flex-1 min-h-0 px-3 py-3 overflow-y-auto overscroll-contain">
-        {ehLabs ? (
+        {ehNegocios ? (
+          /* ── NAV do Sora Negócios ── */
+          <div className="animate-fade-in">
+            {/* Seletor de empresa: o CONTEXTO de tudo que vem abaixo. Fica no
+                topo e sempre visível porque cada número da tela pertence a uma
+                empresa — sem ele, o usuário multi-empresa lê o dado errado. */}
+            {empresas.length > 0 && (
+              <div className="relative mb-3">
+                <button
+                  onClick={() => setEmpresaMenu(v => !v)}
+                  aria-expanded={empresaMenu}
+                  aria-label="Trocar de empresa"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-white/10 hover:bg-white/15 active:scale-[0.99] transition-all"
+                  style={{ minHeight: 44 }}
+                >
+                  <EmpresaAvatar empresa={empresa} tamanho="sm" />
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block text-white text-sm font-semibold leading-tight truncate">
+                      {empresa?.nome || 'Escolher empresa'}
+                    </span>
+                    <span className="block text-white/50 text-[10px] leading-tight mt-0.5">
+                      {empresas.length === 1 ? 'Sua empresa' : `${empresas.length} empresas`}
+                    </span>
+                  </span>
+                  <ChevronDown size={15} className={`text-white/60 flex-shrink-0 transition-transform duration-200 ${empresaMenu ? 'rotate-180' : ''}`} />
+                </button>
+
+                {empresaMenu && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setEmpresaMenu(false)} />
+                    <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl p-1.5 shadow-2xl border border-border animate-fade-in max-h-64 overflow-y-auto"
+                         style={{ background: 'hsl(var(--bg-card))' }}>
+                      {empresas.map(e => (
+                        <button key={e.id}
+                          onClick={() => { trocar(e); setEmpresaMenu(false); }}
+                          className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-colors ${
+                            e.id === empresa?.id ? 'bg-primary/10' : 'hover:bg-muted/70'}`}
+                          style={{ minHeight: 44 }}>
+                          <EmpresaAvatar empresa={e} tamanho="sm" />
+                          <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{e.nome}</span>
+                          {e.id === empresa?.id && <Check size={15} className="text-primary flex-shrink-0" />}
+                        </button>
+                      ))}
+
+                      {/* Gerenciar a empresa a partir de QUALQUER tela — antes
+                          isso só existia no header de 4 páginas. */}
+                      <div className="mt-1 pt-1 border-t border-border">
+                        {empresa && (
+                          <button onClick={() => { abrirCadastro(empresa); setEmpresaMenu(false); }}
+                            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left hover:bg-muted/70 transition-colors"
+                            style={{ minHeight: 44 }}>
+                            <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
+                              <Settings size={14} className="text-muted-foreground" />
+                            </span>
+                            <span className="text-sm font-medium text-foreground">Editar {empresa.nome}</span>
+                          </button>
+                        )}
+                        <button onClick={() => { abrirCadastro(null); setEmpresaMenu(false); }}
+                          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left hover:bg-muted/70 transition-colors"
+                          style={{ minHeight: 44 }}>
+                          <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-primary/15">
+                            <Building2 size={14} className="text-primary" />
+                          </span>
+                          <span className="text-sm font-medium text-foreground">Nova empresa</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {gruposPara(empresa?.tipo).map(grupo => (
+              <div key={grupo.id} className="mb-1">
+                <p className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  {grupo.titulo}
+                </p>
+                <div className="space-y-0.5">
+                  {grupo.itens.map(item => {
+                    const Icon = ICONES_NEGOCIOS[item.icone] || Briefcase;
+                    const ativo = rotaAtiva(pathname, item.href);
+
+                    // Rota das próximas fases: aparece pra dar noção do todo,
+                    // mas não navega pra lugar nenhum (404 é pior que "em breve").
+                    if (item.breve) {
+                      return (
+                        <span key={item.href} aria-disabled="true"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/35 cursor-default select-none">
+                          <Icon size={18} />
+                          <span className="flex-1 truncate">{item.label}</span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-white/45">
+                            em breve
+                          </span>
+                        </span>
+                      );
+                    }
+                    return (
+                      <Link key={item.href} href={item.href}
+                        onClick={() => setOpen(false)}
+                        onMouseEnter={() => router.prefetch(item.href)}
+                        aria-current={ativo ? 'page' : undefined}
+                        className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                          ativo ? 'bg-white/20 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-white/15'}`}
+                        style={{ minHeight: 44 }}>
+                        {/* Barra de rota ativa: estado também na FORMA, não só
+                            na cor (regra de acessibilidade — cor sozinha não
+                            comunica pra quem não distingue contraste). */}
+                        {ativo && <span aria-hidden className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-white" />}
+                        <Icon size={18} />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            <Link href="/dashboard" onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 mt-3 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/15 transition-all border-t border-white/10 pt-4"
+              style={{ minHeight: 44 }}>
+              <ArrowLeft size={18} /> <span>Voltar pro app</span>
+            </Link>
+          </div>
+        ) : ehLabs ? (
           /* ── NAV do Sora Labs ── */
           <div className="animate-fade-in">
             <Link href="/dashboard" onClick={() => setOpen(false)}

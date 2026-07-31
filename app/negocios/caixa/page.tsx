@@ -2,14 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
-import SeletorEmpresa from '@/components/negocios/SeletorEmpresa';
-import ModalEmpresa from '@/components/negocios/ModalEmpresa';
 import ModalLancamento from '@/components/negocios/ModalLancamento';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
-import { useEmpresaAtiva } from '@/lib/useEmpresaAtiva';
+import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import { corEmpresa, type Empresa } from '@/lib/empresas';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import {
@@ -34,8 +31,7 @@ function rotuloDia(iso: string) {
 }
 
 export default function CaixaPage() {
-  const { empresas, empresa, trocar, carregando, recarregar, phone, isPremium } = useEmpresaAtiva();
-  const [modalEmpresa, setModalEmpresa] = useState<'nova' | Empresa | null>(null);
+  const { empresa, carregando, recarregar, phone, isPremium } = useEmpresa();
   const [modalLanc, setModalLanc] = useState<{ tipo: TipoLancamento; item?: Lancamento } | null>(null);
   const [modalContas, setModalContas] = useState(false);
 
@@ -74,19 +70,19 @@ export default function CaixaPage() {
 
   if (!isPremium) {
     return (
-      <DashboardLayout>
+      <>
         <div className="max-w-7xl mx-auto pb-20">
           <p className="text-sm text-muted-foreground">O Caixa faz parte do plano Premium.</p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
-  if (carregando) return <DashboardLayout><SectionSkeleton /></DashboardLayout>;
+  if (carregando) return <><SectionSkeleton /></>;
 
   if (!empresa) {
     return (
-      <DashboardLayout>
+      <>
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
           <VoltarNegocios />
           <div className="rounded-3xl border border-border/40 p-8 text-center"
@@ -96,23 +92,26 @@ export default function CaixaPage() {
             </p>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         <VoltarNegocios />
 
         {/* HEADER */}
         <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">
-          <SeletorEmpresa
-            empresas={empresas} ativa={empresa} onTrocar={trocar}
-            onNova={() => setModalEmpresa('nova')}
-            onGerenciar={() => setModalEmpresa(empresa)}
-          />
+          {/* O seletor de empresa vive na SIDEBAR (contexto de todo o
+              painel). Aqui fica só o nome da tela — dois seletores na mesma
+              página deixavam dúvida sobre qual valia. */}
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{empresa?.nome || "Negócios"}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mt-0.5">Fluxo de caixa</h1>
+            <p className="text-sm text-muted-foreground mt-1">Entradas e saídas do dia a dia</p>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setModalLanc({ tipo: 'entrada' })}
@@ -278,14 +277,6 @@ export default function CaixaPage() {
           )}
         </section>
       </div>
-
-      {modalEmpresa && (
-        <ModalEmpresa
-          empresa={modalEmpresa === 'nova' ? null : modalEmpresa}
-          onClose={() => setModalEmpresa(null)}
-          onSalvo={(e) => { recarregar(); trocar(e); }}
-        />
-      )}
       {modalLanc && empresa && (
         <ModalLancamento
           empresaId={empresa.id}
@@ -305,7 +296,7 @@ export default function CaixaPage() {
           onChanged={() => mContas()}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

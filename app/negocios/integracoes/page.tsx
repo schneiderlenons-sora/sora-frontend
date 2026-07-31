@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -94,7 +93,7 @@ export default function IntegracoesPage() {
   const loading = conData === undefined;
   const carregar = () => mCon();
 
-  if (!isPremium) return <DashboardLayout><BloqueioBlack /></DashboardLayout>;
+  if (!isPremium) return <><BloqueioBlack /></>;
 
   // Marca cards como conectada quando há integração ativa daquela plataforma
   const plataformasComStatus = PLATAFORMAS.map(p => {
@@ -110,7 +109,7 @@ export default function IntegracoesPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-24 space-y-6">
 
         {/* HEADER */}
@@ -167,7 +166,7 @@ export default function IntegracoesPage() {
       </div>
 
       {modal && <ModalConectar plataforma={modal} onClose={() => { setModal(null); carregar(); }} />}
-    </DashboardLayout>
+    </>
   );
 }
 

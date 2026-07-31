@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { mutate } from 'swr';
-import { Home, List, Plus, BarChart2, User } from 'lucide-react';
+import {
+  Home, List, Plus, BarChart2, User,
+  LayoutDashboard, ArrowLeftRight, Receipt, FileBarChart,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import QuickAddSheet from '@/components/dashboard/QuickAddSheet';
@@ -39,6 +42,31 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
       </Link>
     );
   };
+
+  // No painel Negócios a barra leva às telas DO NEGÓCIO. Com os atalhos do app
+  // pessoal, cada toque no mobile jogava o usuário pra fora do painel — o
+  // oposto de "painel único". O "+" (transação pessoal) também não cabe aqui.
+  const ehNegocios = !!pathname?.startsWith('/negocios');
+  if (ehNegocios) {
+    return (
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        aria-label="Navegação do painel Negócios"
+      >
+        <div className="flex items-stretch h-14 px-1">
+          <Item href="/negocios"         icon={LayoutDashboard} label="Painel" />
+          <Item href="/negocios/caixa"   icon={ArrowLeftRight}  label="Caixa" />
+          <Item href="/negocios/contas"  icon={Receipt}         label="A pagar" />
+          <Item href="/negocios/dre"     icon={FileBarChart}    label="DRE" />
+          <button onClick={onPerfil} aria-label="Menu do painel"
+            className="flex-1 flex items-center justify-center h-full min-w-0 active:scale-90 transition-transform">
+            <User size={25} className="text-muted-foreground" strokeWidth={2} />
+          </button>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <>

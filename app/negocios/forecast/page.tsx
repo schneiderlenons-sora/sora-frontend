@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import {
@@ -40,21 +39,21 @@ export default function ForecastPage() {
   }, [phone, isPremium]);
 
   if (!isPremium) {
-    return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
+    return <><div className="max-w-md mx-auto pt-20 px-6 text-center">
       <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
-    </div></DashboardLayout>;
+    </div></>;
   }
   if (loading) {
-    return <DashboardLayout><div className="max-w-5xl mx-auto pt-20 flex justify-center">
+    return <><div className="max-w-5xl mx-auto pt-20 flex justify-center">
       <Loader2 size={20} className="animate-spin text-muted-foreground" />
-    </div></DashboardLayout>;
+    </div></>;
   }
 
   const todos = [...(data?.historico || []), ...(data?.projecao || [])];
   const semDados = !todos.some(m => m.receita_bruta > 0);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-5xl mx-auto pb-24 space-y-5">
 
         {/* HEADER */}
@@ -200,7 +199,7 @@ export default function ForecastPage() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

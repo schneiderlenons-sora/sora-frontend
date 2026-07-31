@@ -2,17 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
 import ModalCustos from '@/components/negocios/ModalCustos';
-import ModalEmpresa from '@/components/negocios/ModalEmpresa';
-import SeletorEmpresa from '@/components/negocios/SeletorEmpresa';
 import PageSkeleton from '@/components/ui/PageSkeleton';
+import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import {
-  corEmpresa, lerEmpresaAtiva, salvarEmpresaAtiva, mostraIntegracoes, mostraCaixa,
+  corEmpresa, mostraIntegracoes, mostraCaixa,
   type Empresa,
 } from '@/lib/empresas';
 import {
@@ -67,30 +65,10 @@ export default function NegociosPage() {
   const [recalculando, setRecalc]   = useState(false);
   const [modalCfg, setModalCfg]     = useState(false);
   const [modalCustos, setModalCustos] = useState(false);
-  const [modalEmpresa, setModalEmpresa] = useState<'nova' | Empresa | null>(null);
-
-  // ── Empresas (multi-empresa, ilimitadas no Premium) ──────────────
-  const { data: empresasData, mutate: mEmp } = useApi(
-    (phone && isPremium) ? `neg:empresas:${phone}` : null,
-    () => api.negocios.empresas.listar(phone),
-  );
-  const empresas: Empresa[] = Array.isArray(empresasData) ? empresasData : [];
-  const carregandoEmpresas = empresasData === undefined;
-
-  // Empresa ativa: a última escolhida (por usuário) ou a primeira da lista.
-  const [empresaId, setEmpresaId] = useState<string | null>(null);
-  useEffect(() => {
-    if (!empresas.length) return;
-    const salva = lerEmpresaAtiva(user?.id);
-    const valida = empresas.find(e => e.id === salva) || empresas[0];
-    setEmpresaId(prev => (prev && empresas.some(e => e.id === prev) ? prev : valida.id));
-  }, [empresas, user?.id]);
-  const empresa = empresas.find(e => e.id === empresaId) || null;
-
-  function trocarEmpresa(e: Empresa) {
-    setEmpresaId(e.id);
-    salvarEmpresaAtiva(user?.id, e.id);
-  }
+  // ── Empresa ativa: vem do SHELL (EmpresaProvider no layout do segmento).
+  // Antes esta página tinha a própria cópia dessa lógica — duas fontes pro
+  // mesmo estado, e trocar de empresa aqui não mexia na sidebar.
+  const { empresas, empresa, carregando: carregandoEmpresas, recarregar: mEmp, abrirCadastro } = useEmpresa();
 
   // ── DRE da empresa ativa. SEM mock: sem dado = empty state de verdade. ──
   const { data: dre, mutate: mDre } = useApi(
@@ -111,33 +89,25 @@ export default function NegociosPage() {
     finally { setRecalc(false); }
   }
 
-  const modalEmpresaEl = modalEmpresa && (
-    <ModalEmpresa
-      empresa={modalEmpresa === 'nova' ? null : modalEmpresa}
-      onClose={() => setModalEmpresa(null)}
-      onSalvo={(e) => { mEmp(); trocarEmpresa(e); }}
-    />
-  );
-
-  if (!isPremium) return <DashboardLayout><PaywallBlack /></DashboardLayout>;
-  if (loading) return <DashboardLayout><PageSkeleton /></DashboardLayout>;
+  if (!isPremium) return <><PaywallBlack /></>;
+  if (loading) return <><PageSkeleton /></>;
 
   // Nenhuma empresa cadastrada → onboarding real (no lugar dos dados fictícios).
   if (!empresa) {
     return (
-      <DashboardLayout>
+      <>
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
-          <PrimeiraEmpresa onCriar={() => setModalEmpresa('nova')} />
+          <PrimeiraEmpresa onCriar={() => abrirCadastro(null)} />
         </div>
-        {modalEmpresaEl}
-      </DashboardLayout>
+        
+      </>
     );
   }
 
   const cor = corEmpresa(empresa);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         {/* Sem lançamentos ainda: os números ficam ZERADOS (nada de demo) e
@@ -147,13 +117,12 @@ export default function NegociosPage() {
         {/* HEADER */}
         <header className="relative z-30 flex items-start justify-between flex-wrap gap-4 animate-fade-in">
           <div className="flex items-center gap-3 min-w-0">
-            <SeletorEmpresa
-              empresas={empresas}
-              ativa={empresa}
-              onTrocar={trocarEmpresa}
-              onNova={() => setModalEmpresa('nova')}
-              onGerenciar={() => setModalEmpresa(empresa)}
-            />
+            {/* Seletor de empresa mora na SIDEBAR — aqui só o nome da tela. */}
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{empresa?.nome || "Negócios"}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mt-0.5">Painel</h1>
+              <p className="text-sm text-muted-foreground mt-1">Como o seu negócio está indo</p>
+            </div>
           </div>
           {/* Botões de ação — scroll horizontal no mobile pra não quebrar */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0">
@@ -220,8 +189,8 @@ export default function NegociosPage() {
 
       {modalCfg    && <ModalConfigTributaria onClose={() => { setModalCfg(false); carregar(); }} />}
       {modalCustos && <ModalCustos periodo={periodo} onClose={() => { setModalCustos(false); carregar(); }} />}
-      {modalEmpresaEl}
-    </DashboardLayout>
+      
+    </>
   );
 }
 

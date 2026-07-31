@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -79,15 +78,15 @@ export default function DreDetalhadoPage() {
   }, []);
 
   if (!isPremium) {
-    return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
+    return <><div className="max-w-md mx-auto pt-20 px-6 text-center">
       <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
-    </div></DashboardLayout>;
+    </div></>;
   }
 
   if (loading || !dre) {
-    return <DashboardLayout><div className="max-w-7xl mx-auto pt-20 flex justify-center">
+    return <><div className="max-w-7xl mx-auto pt-20 flex justify-center">
       <Loader2 size={20} className="animate-spin text-muted-foreground" />
-    </div></DashboardLayout>;
+    </div></>;
   }
 
   // Linhas do DRE detalhado
@@ -126,7 +125,7 @@ export default function DreDetalhadoPage() {
   ];
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-4xl mx-auto pb-24 space-y-6">
 
         {/* HEADER */}
@@ -255,7 +254,7 @@ export default function DreDetalhadoPage() {
       {modalImposto && (
         <ModalConfigTributaria onClose={() => { setModalImposto(false); mDre(); }} />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

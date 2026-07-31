@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -75,13 +74,13 @@ export default function ConciliacaoPage() {
   }
 
   if (!isPremium) {
-    return <DashboardLayout><div className="max-w-md mx-auto pt-20 px-6 text-center">
+    return <><div className="max-w-md mx-auto pt-20 px-6 text-center">
       <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
-    </div></DashboardLayout>;
+    </div></>;
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-4xl mx-auto pb-24 space-y-5">
 
         {/* HEADER */}
@@ -176,7 +175,7 @@ export default function ConciliacaoPage() {
           )
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 
