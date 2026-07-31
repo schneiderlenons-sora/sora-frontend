@@ -37,6 +37,7 @@ export default function ModalProduto({
   const [unidade, setUnidade]   = useState(produto?.unidade || 'un');
   const [ehServico, setEhServico] = useState(!!produto?.eh_servico);
   const [estoqueMin, setEstoqueMin] = useState(produto?.estoque_min != null ? String(produto.estoque_min) : '');
+  const [controlaEstoque, setControlaEstoque] = useState(!!(produto as any)?.controla_estoque);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro]         = useState('');
 
@@ -70,6 +71,7 @@ export default function ModalProduto({
         categoria: categoria.trim() || undefined,
         unidade,
         eh_servico: ehServico,
+        controla_estoque: !ehServico && controlaEstoque,
         estoque_min: estoqueMin ? parseInt(estoqueMin, 10) : null,
       };
       if (editando) await api.negocios.produtos.editar(produto!.id, body);
@@ -220,15 +222,38 @@ export default function ModalProduto({
                          placeholder="opcional" className="input w-full tabular-nums" style={{ minHeight: 44 }} />
                 </div>
               </div>
+              {/* Controle de estoque é OPT-IN: ligar pra todo mundo encheria a
+                  tela de "produto zerado" no primeiro acesso, e nem todo item
+                  merece contagem (o pãozinho da padaria, por exemplo). */}
               {!ehServico && (
-                <div>
-                  <label htmlFor="pr-min" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
-                    Estoque mínimo <span className="font-normal normal-case tracking-normal">(avisa quando chegar nele)</span>
-                  </label>
-                  <input id="pr-min" inputMode="numeric" value={estoqueMin}
-                         onChange={e => setEstoqueMin(e.target.value.replace(/\D/g, ''))}
-                         placeholder="opcional" className="input w-full tabular-nums" style={{ minHeight: 44 }} />
-                </div>
+                <>
+                  <button type="button" onClick={() => setControlaEstoque(v => !v)}
+                          role="switch" aria-checked={controlaEstoque}
+                          className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border border-border text-left"
+                          style={{ minHeight: 44 }}>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-foreground">Controlar estoque</span>
+                      <span className="block text-[11px] text-muted-foreground mt-0.5">
+                        A venda dá baixa e a compra dá entrada, sozinhas
+                      </span>
+                    </span>
+                    <span className={`w-11 h-6 rounded-full flex-shrink-0 relative transition-colors ${controlaEstoque ? '' : 'bg-muted'}`}
+                          style={controlaEstoque ? { background: cor } : undefined}>
+                      <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${controlaEstoque ? 'left-6' : 'left-1'}`} />
+                    </span>
+                  </button>
+
+                  {controlaEstoque && (
+                    <div>
+                      <label htmlFor="pr-min" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                        Estoque mínimo <span className="font-normal normal-case tracking-normal">(avisa quando chegar nele)</span>
+                      </label>
+                      <input id="pr-min" inputMode="numeric" value={estoqueMin}
+                             onChange={e => setEstoqueMin(e.target.value.replace(/\D/g, ''))}
+                             placeholder="opcional" className="input w-full tabular-nums" style={{ minHeight: 44 }} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </details>

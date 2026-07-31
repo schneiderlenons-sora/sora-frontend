@@ -115,6 +115,66 @@ export interface VendaNegocio {
   cliente?:     { id: string; nome: string; telefone?: string | null } | null;
 }
 
+// ── Estoque e compras (migration 107) ─────────────────────────────────────
+
+/** Produto na visão de estoque: saldo + o que ele significa. */
+export interface ItemEstoque extends ProdutoNegocio {
+  estoque_atual:  number;
+  valor_estoque:  number;        // CENTAVOS parados neste item
+  /** 'zerado' e 'baixo' pedem ações diferentes: repor hoje × entrar no pedido. */
+  status:         'ok' | 'baixo' | 'zerado';
+  ultima_entrada: string | null;
+  ultima_saida:   string | null;
+  vendido_90d:    number;
+  parado:         boolean;       // tem saldo e não vendeu nos últimos 90 dias
+}
+
+export interface ResumoEstoque {
+  itens:        number;
+  valor_total:  number;
+  zerados:      number;
+  baixos:       number;
+  parados:      number;
+  valor_parado: number;          // dinheiro preso no que não gira
+  sem_controle: number;          // produtos que ainda não ligaram o controle
+}
+
+export interface FornecedorNegocio {
+  id:         string;
+  empresa_id: string;
+  nome:       string;
+  telefone?:  string | null;
+  email?:     string | null;
+  documento?: string | null;
+  observacao?: string | null;
+  ativo?:     boolean;
+}
+
+export interface ItemCompra {
+  id?:         string;
+  produto_id?: string | null;
+  nome:        string;
+  quantidade:  number;
+  custo_unit:  number;   // CENTAVOS
+  subtotal:    number;
+}
+
+export interface CompraNegocio {
+  id:              string;
+  empresa_id:      string;
+  fornecedor_id?:  string | null;
+  fornecedor_nome?: string | null;
+  data:            string;
+  total:           number;
+  status:          'pedida' | 'recebida' | 'cancelada';
+  recebida_em?:    string | null;
+  vencimento?:     string | null;
+  observacao?:     string | null;
+  lancamento_id?:  string | null;
+  itens?:          ItemCompra[];
+  fornecedor?:     { id: string; nome: string } | null;
+}
+
 /** Margem do produto em % (0 quando não dá pra calcular). */
 export function margemProduto(p: Pick<ProdutoNegocio, 'preco' | 'custo'>): number {
   if (!p.preco) return 0;

@@ -3,6 +3,7 @@ import type { Empresa } from '@/lib/empresas';
 import type {
   Lancamento, ContaNegocio, CentroCusto, IndicadoresNegocio,
   ClienteNegocio, ClienteFicha, ProdutoNegocio, VendaNegocio,
+  ItemEstoque, ResumoEstoque, FornecedorNegocio, CompraNegocio,
 } from '@/lib/lancamentos';
 import type { Funcionario } from '@/lib/funcionarios';
 
@@ -955,6 +956,42 @@ export const api = {
       }) => req<{ ok: boolean; venda: VendaNegocio }>('/api/negocios/vendas', { method: 'POST', body: JSON.stringify(body) }),
       cancelar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/vendas/${id}`, { method: 'DELETE' }),
+    },
+    // ── Estoque e compras (migration 107) ────────────────────────────────
+    estoque: {
+      listar: (phone: string, empresa_id: string) =>
+        req<{ produtos: ItemEstoque[]; resumo: ResumoEstoque | null }>(
+          `/api/negocios/estoque/${phone}?empresa_id=${empresa_id}`),
+      // Acerto manual: contagem, perda/quebra, devolução.
+      ajustar: (body: {
+        empresa_id: string; produto_id: string; tipo: 'entrada' | 'saida';
+        quantidade: number; motivo?: 'ajuste' | 'perda' | 'devolucao';
+        custo_unit?: number; observacao?: string;
+      }) => req<{ ok: boolean; saldo: number; custo: number }>(
+        '/api/negocios/estoque/ajuste', { method: 'POST', body: JSON.stringify(body) }),
+    },
+    fornecedores: {
+      listar: (phone: string, empresa_id: string) =>
+        req<FornecedorNegocio[]>(`/api/negocios/fornecedores/${phone}?empresa_id=${empresa_id}`),
+      criar: (body: Partial<FornecedorNegocio> & { empresa_id: string; nome: string }) =>
+        req<{ ok: boolean; fornecedor: FornecedorNegocio }>('/api/negocios/fornecedores', { method: 'POST', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/fornecedores/${id}`, { method: 'DELETE' }),
+    },
+    compras: {
+      listar: (phone: string, empresa_id: string) =>
+        req<CompraNegocio[]>(`/api/negocios/compras/${phone}?empresa_id=${empresa_id}`),
+      // Gera conta a pagar; só entra no estoque quando `status='recebida'`.
+      criar: (body: {
+        empresa_id: string;
+        itens: { produto_id?: string | null; nome: string; quantidade: number; custo_unit: number }[];
+        fornecedor_id?: string | null; fornecedor_nome?: string;
+        status?: 'pedida' | 'recebida'; a_prazo?: boolean; vencimento?: string;
+        data?: string; conta_id?: string | null; observacao?: string;
+      }) => req<{ ok: boolean; compra: CompraNegocio }>('/api/negocios/compras', { method: 'POST', body: JSON.stringify(body) }),
+      // É aqui que a mercadoria pedida entra no estoque.
+      receber: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/compras/${id}/receber`, { method: 'POST' }),
     },
     // Centros de custo (migration 105) — "qual parte do negócio gastou isto".
     centrosCusto: {
