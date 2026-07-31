@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { supabase } from '@/lib/supabase';
-import IconeMarca, { marcaDe } from '@/components/ui/IconeMarca';
+import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
@@ -15,7 +15,7 @@ import {
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
   Archive, ArchiveRestore, ArrowLeftRight, DollarSign,
   Shield, Star, Sparkles, AlertCircle, Eye, EyeOff,
-  ChevronDown, ChevronRight,
+  ChevronRight,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
