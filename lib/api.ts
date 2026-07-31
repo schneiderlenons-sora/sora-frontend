@@ -1121,6 +1121,10 @@ export const api = {
       visto: (id: string) => req(`/api/negocios/insights/${id}/visto`, { method: 'POST' }),
       dispensar: (id: string) => req(`/api/negocios/insights/${id}/dispensar`, { method: 'POST' }),
       gerar: (phone: string) => req<{ ok: boolean; gerados: number; insights: any[] }>('/api/negocios/insights/gerar', { method: 'POST', body: JSON.stringify({ phone }) }),
+      // Loja física: calculado AO VIVO (estoque, preço, cliente, caixa).
+      loja: (phone: string, empresaId: string) =>
+        req<{ insights: any[]; gerado_em: string }>(
+          `/api/negocios/insights-loja/${phone}?empresa_id=${empresaId}`),
     },
     wrapped: {
       get: (phone: string, periodo?: string) =>
