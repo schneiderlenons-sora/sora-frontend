@@ -370,6 +370,49 @@ Continua valendo dentro do container: `max-w-md mx-auto` em empty state estreito
 - **BottomNav tem modo Negócios** — sem ele, cada toque no mobile jogava o
   usuário de volta pro app pessoal.
 
+### As 7 fases — TODAS EM PRODUÇÃO (jul/2026)
+
+Migrations **105→109** (rodar à mão no Supabase). Cada regra de dinheiro nova
+tem **eval próprio**: `npm run eval:dre | eval:estoque | eval:folha |
+eval:insights-loja | eval:venda-texto`. Erro nesses cálculos **não estoura** —
+vira número plausível e errado que o dono usa pra decidir preço.
+
+- **Fase 1 — painel da loja** (`GET /indicadores/:phone` numa chamada só) +
+  centro de custo (105).
+- **Fase 2 — clientes, produtos e vendas** (106). ⚠️ **VENDA GERA LANÇAMENTO
+  NO CAIXA** (à vista = pago, a prazo = pendente = conta a receber). Não existe
+  caixa de vendas paralelo — é o que faz DRE e indicadores enxergarem a venda
+  sem ponte. **`venda_itens` congela preço E custo**: reprecificar não pode
+  reescrever a margem de ontem.
+- **Fase 3 — estoque e compras** (107). Custo médio móvel em
+  `services/estoque.js` (só muda na ENTRADA). Compra "só pedi" não entra no
+  estoque; "recebi" dá entrada e recalcula o custo.
+- **Fase 4 — DRE gerencial** (108, `services/dre.js`). ⚠️ **COMPRA DE ESTOQUE
+  NÃO É DESPESA**: saída com `compra_id` sai das despesas e vira **CMV** no mês
+  em que o item é VENDIDO (pelo custo congelado). Sem isso o mês de
+  abastecimento fica no vermelho e o seguinte com margem irreal. Despesa **fixa
+  × variável** (mapa em `NATUREZA_PADRAO`, coluna `natureza` vence o mapa)
+  existe só pra ter **ponto de equilíbrio** — `null` quando não há receita ou a
+  margem de contribuição é negativa (zero leria como "já empatou"). **Mês em
+  curso é sempre recalculado**; mês fechado usa o snapshot.
+- **Fase 5 — equipe** (109). Comissão **congelada na venda** (`comissao_valor`)
+  e `comissao_paga_em` impede pagar duas vezes. Encargos (FGTS/13º/férias +
+  **FGTS sobre as provisões**) são **estimativa gerencial opt-in** com aviso de
+  contador — desligados porque no Simples I–III a patronal já está no DAS.
+  Separar **a pagar** (sai do caixa) de **custo** (com provisão) é o ponto.
+- **Fase 6 — insights de loja** (`services/insightsLoja.js`) calculados **AO
+  VIVO** (insight de ontem sobre estoque já reposto destrói a confiança na
+  tela). Duas regras: **nada abaixo de R$ 50 vira alerta** e a ordem é por
+  **ameaça ao caixa**. Mais **venda por WhatsApp** (`services/vendaTexto.js` +
+  `handlers/vendaNegocio.js`, local-first): "vendi 3 bolos por 90 pra dona
+  Maria". Valor dito = **TOTAL** ("cada" multiplica); **sem valor E sem
+  quantidade não é venda** ("vendi bem hoje"); pergunta nunca vira lançamento;
+  **fiado vira conta a receber**. Roda no webhook ANTES do Grow e **só com
+  empresa física/híbrida cadastrada** — em conta pessoal "vendi meu celular por
+  500" é receita.
+
+> **Adiado de propósito:** NF-e (decisão do usuário, entra depois das 7 fases).
+
 ## Painel admin — MRR (correções jul/2026)
 
 `/admin` são **Route Handlers do Next** (`app/api/admin/*`), não o backend Express — usam `supabaseAdmin`. MRR calculado em `app/api/admin/overview/route.ts`.
@@ -719,6 +762,11 @@ sql/089_indices_performance.sql  — índices das queries quentes (transacoes gr
 sql/090_empresas.sql             — Negócios 2.0: tabela `empresas` + empresa_id em tudo + BACKFILL (quem já usava ganha "Meu negócio") + config_negocio PK vira empresa_id + eventos_financeiros.integracao_id nullable (receita manual). RODADA.
 sql/091_lancamentos_negocio.sql  — livro caixa do negócio (entrada|saida, status pago|pendente, vencimento). Conta a pagar = saída pendente. RODADA.
 sql/092_funcionarios_negocio.sql — quadro de pessoal + folha + FK do lancamentos_negocio.funcionario_id. RODADA.
+sql/105_centros_custo.sql        — Sora Negócios fase 1: centro de custo. RODADA.
+sql/106_clientes_produtos_vendas.sql — fase 2: clientes, produtos, vendas + venda_itens (congela preço E custo). RODADA.
+sql/107_estoque_compras.sql      — fase 3: fornecedores, compras, estoque_movimentos + estoque_atual/controla_estoque nos produtos. RODADA.
+sql/108_dre_gerencial.sql        — fase 4: natureza fixa/variável (lançamentos e custos) + CMV/lucro bruto/despesas por natureza/ponto de equilíbrio em dre_snapshots.
+sql/109_comissao_encargos.sql    — fase 5: comissao_pct/encargos no funcionário + comissao_valor/comissao_paga_em na venda.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas). Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
