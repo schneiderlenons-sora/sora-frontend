@@ -46,7 +46,7 @@ export const GRUPOS_NEGOCIOS: GrupoNegocios[] = [
     itens: [
       { href: '/negocios/caixa',     label: 'Fluxo de caixa', icone: 'ArrowLeftRight' },
       { href: '/negocios/contas',    label: 'A pagar',        icone: 'Receipt' },
-      { href: '/negocios/receber',   label: 'A receber',      icone: 'HandCoins', breve: true },
+      { href: '/negocios/receber',   label: 'A receber',      icone: 'HandCoins' },
       { href: '/negocios/dre',       label: 'DRE',            icone: 'FileBarChart' },
       { href: '/negocios/forecast',  label: 'Previsão',       icone: 'TrendingUp' },
     ],

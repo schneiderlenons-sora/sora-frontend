@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import type { Empresa } from '@/lib/empresas';
-import type { Lancamento, ContaNegocio } from '@/lib/lancamentos';
+import type {
+  Lancamento, ContaNegocio, CentroCusto, IndicadoresNegocio,
+} from '@/lib/lancamentos';
 import type { Funcionario } from '@/lib/funcionarios';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -908,6 +910,17 @@ export const api = {
       req<IndicadoresNegocio>(
         `/api/negocios/indicadores/${phone}?empresa_id=${empresa_id}${mes ? `&mes=${mes}` : ''}`,
       ),
+    // Centros de custo (migration 105) — "qual parte do negócio gastou isto".
+    centrosCusto: {
+      listar: (phone: string, empresa_id: string) =>
+        req<CentroCusto[]>(`/api/negocios/centros-custo/${phone}?empresa_id=${empresa_id}`),
+      criar: (body: { empresa_id: string; nome: string; cor?: string }) =>
+        req<{ ok: boolean; centro: CentroCusto }>('/api/negocios/centros-custo', { method: 'POST', body: JSON.stringify(body) }),
+      editar: (id: string, body: { nome?: string; cor?: string }) =>
+        req<{ ok: boolean; centro: CentroCusto }>(`/api/negocios/centros-custo/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      arquivar: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/centros-custo/${id}`, { method: 'DELETE' }),
+    },
     // Contas do negócio (caixas nomeadas) por empresa — migration 095.
     contas: {
       listar: (phone: string, empresa_id: string) =>
@@ -922,8 +935,16 @@ export const api = {
     // Livro caixa: entradas, saídas e contas a pagar (saída pendente).
     // `valor` SEMPRE em centavos.
     lancamentos: {
-      listar: (phone: string, params: { empresa_id: string; mes?: string; status?: string }) => {
-        const q = new URLSearchParams(params as any).toString();
+      // `status:'pendente'` + `tipo:'entrada'` = contas a RECEBER;
+      // + `tipo:'saida'` = contas a PAGAR. `periodo` recorta o fluxo de caixa
+      // (hoje·semana·trimestre·ano) e ignora `mes`.
+      listar: (phone: string, params: {
+        empresa_id: string; mes?: string; status?: string;
+        tipo?: 'entrada' | 'saida'; periodo?: 'hoje' | 'semana' | 'mes' | 'trimestre' | 'ano';
+      }) => {
+        const q = new URLSearchParams(
+          Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== '')) as any,
+        ).toString();
         return req<Lancamento[]>(`/api/negocios/lancamentos/${phone}?${q}`);
       },
       criar: (body: Partial<Lancamento> & { empresa_id: string; tipo: string; descricao: string; valor: number; data: string }) =>

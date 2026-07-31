@@ -41,6 +41,15 @@ export interface ContaNegocio {
   ativa?:        boolean;
 }
 
+/** Centro de custo (migration 105) — "qual parte do negócio consumiu isto". */
+export interface CentroCusto {
+  id:         string;
+  empresa_id: string;
+  nome:       string;
+  cor?:       string | null;
+  ativo?:     boolean;
+}
+
 /**
  * Painel da loja física — resposta de `GET /negocios/indicadores`.
  * ⚠️ Todo valor em CENTAVOS; percentual já vem em base 100 (12.5 = 12,5%).
