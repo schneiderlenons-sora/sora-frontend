@@ -167,20 +167,50 @@ export function dentroDoCiclo(dataTx: string | null | undefined, ciclo: Ciclo): 
  * espalha por julho, agosto e setembro. Quem sabe em qual fatura a linha entra é
  * o EMISSOR — e ele diz isso no `of_bill_id` (migration 101).
  *
- * Por isso: havendo vínculo do emissor E sabendo qual fatura está aberta, o
- * vínculo manda. Sem um dos dois (cartão manual, trilho Pluggy, transação
- * importada antes da 101), cai no ciclo — o comportamento de sempre.
+ * ⚠️ O CRITÉRIO É ESCOLHIDO UMA VEZ POR FATURA, NUNCA POR TRANSAÇÃO.
+ *
+ * A versão anterior decidia linha a linha: quem tinha `of_bill_id` era julgada
+ * pelo vínculo, quem não tinha caía na data. Como o emissor só vincula as
+ * compras DEPOIS que a fatura fecha, o ciclo aberto tem transações sem vínculo —
+ * e a fatura passava a somar as duas coisas: as compras da fatura vinculada MAIS
+ * as compras soltas do ciclo novo. Numa conta real deu R$ 3.143,75 (julho, já
+ * pago) + R$ 1.870,24 (agosto) = R$ 5.013,99 onde o banco mostrava R$ 3.423,57.
+ *
+ * Quem decide o critério é `criterioDaFatura`, chamado uma vez por cartão.
  */
 export function pertenceAFatura(
   tx: any,
   cartao: any,
   ciclo: Ciclo,
   ehFaturaAtual: boolean,
+  /** Resultado de `criterioDaFatura`. Sem ele, cai no ciclo — nunca mistura. */
+  criterio?: 'bill' | 'ciclo',
 ): boolean {
-  const vinculo = tx?.of_bill_id;
-  const faturaAberta = ehFaturaAtual ? cartao?.of_bill_atual : null;
-  if (vinculo && faturaAberta) return vinculo === faturaAberta;
+  if (criterio === 'bill') {
+    const alvo = ehFaturaAtual ? cartao?.of_bill_atual : null;
+    return !!alvo && tx?.of_bill_id === alvo;
+  }
   return dentroDoCiclo(tx?.data, ciclo);
+}
+
+/**
+ * Qual critério vale pra ESTA fatura deste cartão.
+ *
+ * Só usa o vínculo do emissor quando ele cobre a fatura inteira: existe uma
+ * fatura aberta publicada E as transações dela vieram vinculadas. Se parte veio
+ * sem vínculo, a data é o único critério que trata todas igual — melhor um
+ * número que erra por menos do que um que soma duas faturas.
+ */
+export function criterioDaFatura(
+  txs: any[],
+  cartao: any,
+  ehFaturaAtual: boolean,
+): 'bill' | 'ciclo' {
+  const alvo = ehFaturaAtual ? cartao?.of_bill_atual : null;
+  if (!alvo) return 'ciclo';
+  const doCartao = (txs || []).filter((t) => t?.of_bill_id);
+  if (!doCartao.length) return 'ciclo';
+  return doCartao.some((t) => t.of_bill_id === alvo) ? 'bill' : 'ciclo';
 }
 
 /** Rótulo humano da fatura: "Agosto de 2026". */

@@ -5,7 +5,7 @@ import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, Cre
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
-import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura } from '@/lib/ciclo-fatura';
+import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
@@ -118,13 +118,14 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
           .filter((t: any) => (t?.id && vistas.has(t.id) ? false : (vistas.add(t?.id), true)));
         // As transações guardam carteira_nome (string), não wallet_id — match por nome
         const nomeCartao = (cartao.nome || '').trim().toLowerCase();
-        const doCartao = todas.filter(
-          (t: any) =>
-            (t.wallet_id === cartao.id ||
-             (t.carteira_nome || '').trim().toLowerCase() === nomeCartao) &&
-            t.tipo === 'Gasto' &&
-            pertenceAFatura(t, cartao, ciclo, offsetMes === 0)
-        );
+        const minhas = todas.filter(
+          (t: any) => t.wallet_id === cartao.id ||
+            (t.carteira_nome || '').trim().toLowerCase() === nomeCartao);
+        // Critério UMA vez por fatura (ver criterioDaFatura): por transação,
+        // misturava a fatura vinculada com as compras do ciclo novo.
+        const criterio = criterioDaFatura(minhas, cartao, offsetMes === 0);
+        const doCartao = minhas.filter(
+          (t: any) => t.tipo === 'Gasto' && pertenceAFatura(t, cartao, ciclo, offsetMes === 0, criterio));
         setTxs(doCartao);
       })
       .catch(() => { if (!cancelado) setTxs([]); })

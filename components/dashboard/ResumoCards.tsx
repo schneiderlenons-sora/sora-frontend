@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import IconeMarca from '@/components/ui/IconeMarca';
 import { api } from '@/lib/api';
-import { competenciaAtual, cicloPorCompetencia, pertenceAFatura } from '@/lib/ciclo-fatura';
+import { competenciaAtual, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
 
 const BRAND = 'hsl(var(--primary))';
 const fmt = (v: number) =>
@@ -83,10 +83,14 @@ export default function ResumoCards({
         const ciclo = cicloPorCompetencia(w, competenciaAtual(w));
         // Saldo ZERO num cartão do OF não é "fatura zerada": é o banco não ter
         // publicado o total do ciclo em aberto — aí soma as transações, igual manual.
+        const minhas = txsMes.filter(t => mesmaCarteira(t, w));
+        // Critério UMA vez por fatura — decidir por transação somava a fatura
+        // vinculada junto com o ciclo novo.
+        const criterio = criterioDaFatura(minhas, w, true);
         const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
           ? -(w.saldo as number)
-          : txsMes
-              .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, true))
+          : minhas
+              .filter(t => t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, true, criterio))
               .reduce((s, t) => s + (t.valor || 0), 0);
         const fatura = restanteApi[w.id] ?? local;
         const limite = w.limite || 0;

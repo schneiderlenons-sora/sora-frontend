@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { mutate as mutateGlobal } from 'swr';
 import {
-  competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, labelCompetencia,
+  competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, labelCompetencia,
   type Ciclo,
 } from '@/lib/ciclo-fatura';
 import {
@@ -153,8 +153,12 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       const doBanco = mesIndex === 0 && w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0;
       if (doBanco) { acc[w.id] = -(w.saldo as number); return; }
       const ciclo = cicloPorCartao[w.id];
-      acc[w.id] = txsTodas
-        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, mesIndex === 0))
+      const minhas = txsTodas.filter(t => mesmaCarteira(t, w));
+      // Critério decidido UMA vez por fatura. Decidir por transação misturava a
+      // fatura vinculada com o ciclo novo e somava as duas.
+      const criterio = criterioDaFatura(minhas, w, mesIndex === 0);
+      acc[w.id] = minhas
+        .filter(t => t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, mesIndex === 0, criterio))
         .reduce((s, t) => s + (t.valor || 0), 0);
     });
     return acc;
