@@ -36,6 +36,10 @@ interface Wallet {
   // Vínculo com a conta do Open Finance: quando existe, `saldo` é a dívida que
   // o BANCO informa — e não uma soma nossa.
   of_conta_id?: string | number | null;
+  // Limite comprometido segundo o EMISSOR (migration 110). Inclui parcelas de
+  // faturas futuras — por isso é maior que a fatura em aberto, e por isso vale
+  // pra barra de limite mas NÃO pro valor da fatura.
+  of_limite_usado?: number | null;
   // Metadados de cartão (migration 023) — fonte da verdade pro fechamento/vencimento
   dia_fechamento?: number | null;
   dia_vencimento?: number | null;
@@ -555,9 +559,14 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
 
   const logo = bancoLogo(cartao.nome);
   const limite = cartao.limite || 0;
-  // "Usado" do limite = total comprometido (fatura atual + parcelas futuras
-  // em aberto), com fallback pra fatura do mês se ainda não carregou.
-  const usado = comprometido || fatura;
+  // "Usado" do limite: no Open Finance quem sabe é o BANCO — ele informa o
+  // limite comprometido, que inclui parcelas de faturas futuras. Nossa soma de
+  // transações não vê essas parcelas (a Celcoin manda cada uma com a data da
+  // COMPRA), então calcular aqui dava um número menor que a própria fatura —
+  // era o "Usado R$ 1.870,24" embaixo de uma fatura maior.
+  // Cartão manual segue no comprometido (fatura + parcelas futuras lançadas).
+  const usadoBanco = typeof cartao.of_limite_usado === 'number' ? cartao.of_limite_usado : null;
+  const usado = usadoBanco ?? (comprometido || fatura);
   const disponivel = Math.max(limite - usado, 0);
   const pctUsado = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
 
@@ -671,6 +680,19 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
         {ehManual && jaPago > 0 && (
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {fmt(jaPago)} já pago nesta fatura
+          </p>
+        )}
+
+        {/* ⚠️ Fatura em ABERTO no Open Finance é aproximada: o banco só publica
+            o total quando ela fecha, e as parcelas que entram nela chegam com a
+            data da COMPRA — a soma daqui não as vê. Quando o limite usado que o
+            banco informa é maior que a soma, é exatamente essa diferença. Dizer
+            isso é melhor que exibir um número redondo que não bate com o app. */}
+        {!ehManual && ehMesAtual && usadoBanco != null && usadoBanco > restante + 0.01 && (
+          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+            Parcial: soma as compras deste ciclo. O banco informa{' '}
+            <span className="font-semibold text-foreground tabular">{fmt(usadoBanco)}</span> de limite
+            usado — a diferença são parcelas que ele ainda não lançou nesta fatura.
           </p>
         )}
 

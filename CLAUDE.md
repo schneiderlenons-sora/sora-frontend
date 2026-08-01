@@ -485,6 +485,34 @@ fatura do cartão = balance − parcelas a vencer
   das transações; isso dá o mês do CALENDÁRIO, não o ciclo, e ignora o pagamento
   da fatura — deu 1410 onde o real era 708.)
 
+**⚠️ NO TRILHO CELCOIN (v2) A REGRA DE OURO NÃO FECHA — medido em ago/2026:**
+- `limits[].used_amount` **4.061,99** × fatura no app do Nubank **3.423,57** →
+  sobram **638,42** de parcelas de faturas FUTURAS ocupando limite hoje.
+- Não dá pra descontar: **transações com data futura vêm ZERO** (a Celcoin manda
+  cada parcela com a data da **COMPRA**, ao contrário da Pluggy), e
+  `parcelamentos` vem **DUPLICADO** (3 linhas pro mesmo Mercado Livre, com
+  `paidInstallments` 5, 3 e 1) — somando dá 2.887,67 ou 1.159,49, nenhuma perto
+  de 638,42.
+- Por isso, **no Celcoin a fatura em aberto sai das TRANSAÇÕES do ciclo**
+  (auditável: bate com a lista logo abaixo do valor na tela). Sai a MENOS quando
+  há parcelamento, e o card **diz isso** em vez de exibir número redondo errado.
+  O `used_amount` vai pra **barra de limite** (`wallets.of_limite_usado`,
+  migration 110), que é o lugar dele.
+- **Nunca exibir o limite usado como "Fatura atual".** Travado em
+  `npm run eval:fatura-of`.
+- ⚠️ **`escolherFaturaAberta` NÃO tem fallback pra "a mais recente"**: o emissor
+  só publica a fatura depois que ela FECHA, então no meio do ciclo a lista para
+  na passada. O fallback antigo elegia uma fatura fechada como atual e a tela
+  somava as compras dela + as do ciclo novo (**5.013,99** onde o banco mostrava
+  3.423,57). Sem fatura publicada à frente → `null`.
+- ⚠️ **`pertenceAFatura` decide o critério UMA VEZ por fatura**
+  (`criterioDaFatura`), nunca por transação: como o emissor só vincula depois do
+  fechamento, o ciclo aberto tem linhas sem `of_bill_id` — decidir linha a linha
+  misturava duas faturas.
+- Diagnóstico pronto: **`/api/admin/of-debug?email=<cliente>`** (painel, logado
+  como admin) mostra limite total/usado/disponível, `bill_total_amount` de cada
+  fatura e o que cada regra daria.
+
 **Bugs da POLP (reportados, não são nossos):**
 - `GET /accounts/{id}/balance` → **HTTP 500** em conta CREDIT (funciona em BANK).
 - `GET /accounts/{id}/installments` **não devolve `paid_installments`** (a doc
