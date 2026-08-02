@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { stripe, priceIdToPlano, priceIdToIntervalo } from '@/lib/stripe';
+import { stripe, priceIdToPlano, priceIdToIntervalo, ehPriceConexaoOf } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendCAPIEvent } from '@/lib/facebook-capi';
 
@@ -68,10 +68,55 @@ export async function POST(req: NextRequest) {
 
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
+// ── Add-on de conexão do Open Finance ───────────────────────────────────────
+//
+// ⚠️ É uma assinatura SEPARADA da do plano. Sem esta distinção, o handler do
+// plano leria a assinatura de R$6 e rebaixaria o cliente pra 'inativo' (o price
+// da conexão não mapeia pra plano nenhum). Por isso todo handler de assinatura
+// checa isto ANTES de qualquer coisa.
+function ehAddonConexao(sub: Stripe.Subscription): boolean {
+  if (sub.metadata?.tipo === 'conexao_of') return true;
+  return sub.items.data.some((i) => ehPriceConexaoOf(i.price?.id));
+}
+
+async function gravarConexoesPagas(userId: string, sub: Stripe.Subscription) {
+  const item = sub.items.data.find((i) => ehPriceConexaoOf(i.price?.id)) || sub.items.data[0];
+  // Só assinatura EM DIA libera conexão. 'past_due'/'unpaid' zera o acesso —
+  // é custo mensal nosso no agregador; manter ligado sem pagamento é prejuízo.
+  const ativa = sub.status === 'active' || sub.status === 'trialing';
+  const qtd = ativa ? (item?.quantity ?? 0) : 0;
+  const intervalo = item?.price?.recurring?.interval === 'year' ? 'anual' : 'mensal';
+
+  try {
+    await supabaseAdmin.from('users').update({
+      of_conexoes_pagas: qtd,
+      of_assinatura_id: sub.id,
+      of_assinatura_intervalo: intervalo,
+    }).eq('id', userId);
+  } catch (e) {
+    // Migration 111 pendente: não pode derrubar o webhook inteiro.
+    console.error('[stripe/webhook] conexão OF (migration 111?):', e instanceof Error ? e.message : e);
+  }
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId  = session.metadata?.supabase_user_id;
   const plano   = session.metadata?.plano;
   const intervalo = session.metadata?.intervalo;
+
+  // Add-on de conexão: não mexe em plano nenhum, só grava a quantidade.
+  if (userId && session.metadata?.tipo === 'conexao_of') {
+    try {
+      const sub = typeof session.subscription === 'string'
+        ? await stripe.subscriptions.retrieve(session.subscription)
+        : (session.subscription as Stripe.Subscription | null);
+      if (sub) await gravarConexoesPagas(userId, sub);
+    } catch (e) {
+      console.error('[stripe/webhook] add-on conexão:', e instanceof Error ? e.message : e);
+    }
+    return;
+  }
+
   if (!userId || !plano) return;
 
   // 1) ATIVA O PLANO JÁ a partir do metadata — NÃO depende de buscar a
@@ -155,6 +200,7 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   // Tenta pelo metadata da subscription (mais confiável)
   const userId = sub.metadata?.supabase_user_id;
   if (userId) {
+    if (ehAddonConexao(sub)) { await gravarConexoesPagas(userId, sub); return; }
     await updateUserFromSub(userId, sub);
     return;
   }
@@ -164,7 +210,9 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
     .select('id')
     .eq('stripe_customer_id', sub.customer as string)
     .single();
-  if (data) await updateUserFromSub(data.id, sub);
+  if (!data) return;
+  if (ehAddonConexao(sub)) { await gravarConexoesPagas(data.id, sub); return; }
+  await updateUserFromSub(data.id, sub);
 }
 
 async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
@@ -176,6 +224,17 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
     targetId = data?.id ?? null;
   }
   if (!targetId) return;
+
+  // Add-on cancelado: zera as conexões pagas e NÃO toca no plano — cancelar a
+  // conexão de R$6 não pode rebaixar quem paga Premium.
+  if (ehAddonConexao(sub)) {
+    try {
+      await supabaseAdmin.from('users').update({
+        of_conexoes_pagas: 0, of_assinatura_id: null, of_assinatura_intervalo: null,
+      }).eq('id', targetId);
+    } catch { /* migration 111 pendente */ }
+    return;
+  }
 
   // BLINDAGEM: vitalício nunca é rebaixado — só desvincula a assinatura antiga.
   if (await ehVitalicio(targetId)) {

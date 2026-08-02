@@ -38,6 +38,11 @@ interface Perfil {
   stripe_subscription_id?: string | null;
   vitalicio?:       boolean | null;
   vitalicio_em?:    string | null;
+  /** Conexões de Open Finance pagas à parte (R$6/mês cada, migration 111).
+   *  Somadas à franquia do plano; no vitalício são o limite inteiro. */
+  of_conexoes_pagas?: number | null;
+  of_assinatura_id?:  string | null;
+  of_assinatura_intervalo?: 'mensal' | 'anual' | null;
   plano_grow?:      PlanoGrow;
   grow_trial_inicio?: string | null;
   grow_trial_fim?:    string | null;

@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
-import { limiteDe, PLANO_LABEL, PRECO_CONEXAO_EXTRA } from '@/lib/plans';
+import { limiteConexoesOf, PLANO_LABEL, PRECO_CONEXAO_EXTRA } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import {
@@ -66,7 +66,12 @@ export default function OpenFinancePage() {
   const liberado = isAdminEmail(perfil?.email) || podeVerOpenFinance(perfil?.email, phone, perfil);
   const indefinido = carregandoPerfil || (!perfil && !liberado);
   // Conexões são limitadas por plano (≠ contas, que no Premium são ilimitadas).
-  const limiteConexoes = limiteDe(plano, 'conexoes_of');
+  // Franquia do plano + conexões contratadas à parte (R$6/mês cada). O vitalício
+  // não tem franquia, então o limite dele é só o que ele paga.
+  const limiteConexoes = limiteConexoesOf(plano, {
+    vitalicio: perfil?.vitalicio,
+    conexoesPagas: perfil?.of_conexoes_pagas,
+  });
 
   const [conexoes, setConexoes] = useState<Conexao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -324,9 +329,11 @@ export default function OpenFinancePage() {
                 </p>
                 {perfil?.vitalicio ? (
                   <p>
-                    Ele é exclusivo dos <b>planos por assinatura</b>: cada banco conectado tem um custo
-                    mensal nosso, que a compra única não cobre. Seu acesso vitalício continua igual —
-                    e você segue trazendo tudo pelo <b>WhatsApp</b> e pela <b>importação de extrato (OFX)</b>.
+                    Seu acesso vitalício <b>não tem mensalidade</b> — e é justamente por isso que a
+                    conexão fica de fora dele: cada banco conectado tem um custo que se repete todo
+                    mês pra nós, no sistema que faz a ponte com o seu banco.
+                    Se quiser usar, dá pra contratar <b>por banco conectado</b>, sem mexer no resto
+                    do seu plano.
                   </p>
                 ) : (
                   <p>
@@ -336,7 +343,9 @@ export default function OpenFinancePage() {
                 )}
               </div>
 
-              {!perfil?.vitalicio && (
+              {perfil?.vitalicio ? (
+                <ContratarConexao />
+              ) : (
                 <a href="/planos"
                    className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99]"
                    style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
@@ -629,5 +638,80 @@ export default function OpenFinancePage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contratar conexão avulsa — o caminho do VITALÍCIO.
+//
+// Ele não tem franquia (pagou uma vez; a conexão custa todo mês). Aqui ele
+// assina por banco conectado, numa assinatura separada da do plano.
+//
+// O anual aparece porque a taxa do cartão come ~12% de uma cobrança de R$ 6 —
+// no anual cai pra ~1%. Quem escolher mensal não perde nada; quem escolher
+// anual paga menos e a gente recebe melhor.
+// ─────────────────────────────────────────────────────────────────────────────
+function ContratarConexao() {
+  const [intervalo, setIntervalo] = useState<'mensal' | 'anual'>('mensal');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function contratar() {
+    if (enviando) return;
+    setEnviando(true); setErro('');
+    try {
+      const r = await fetch('/api/stripe/conexao-of', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantidade: 1, intervalo }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d?.url) { window.location.href = d.url; return; }
+      // Já assinava e só mudou a quantidade — recarrega pra tela liberar.
+      if (d?.ok) { window.location.reload(); return; }
+      setErro(d?.erro || 'Não consegui abrir o pagamento. Tente de novo.');
+    } catch {
+      setErro('Não consegui abrir o pagamento. Tente de novo.');
+    } finally { setEnviando(false); }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border p-4 space-y-3">
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Como pagar">
+        {([
+          { v: 'mensal' as const, titulo: 'R$ 6/mês', sub: 'por banco conectado' },
+          { v: 'anual'  as const, titulo: 'R$ 60/ano', sub: 'dois meses de graça' },
+        ]).map((o) => {
+          const on = intervalo === o.v;
+          return (
+            <button key={o.v} onClick={() => setIntervalo(o.v)} role="radio" aria-checked={on}
+              className="rounded-xl p-3 text-left transition-all"
+              style={{
+                minHeight: 44,
+                border: `1px solid ${on ? BRAND : 'hsl(var(--border))'}`,
+                background: on ? `color-mix(in srgb, ${BRAND} 10%, transparent)` : 'transparent',
+              }}>
+              <span className="block text-sm font-bold text-foreground">{o.titulo}</span>
+              <span className="block text-[11px] text-muted-foreground">{o.sub}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <button onClick={contratar} disabled={enviando}
+        className="w-full inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg disabled:opacity-60 transition-all active:scale-[0.99]"
+        style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+        {enviando ? <Loader2 size={16} className="animate-spin" /> : <Landmark size={16} />}
+        {enviando ? 'Abrindo…' : 'Conectar meu banco'}
+      </button>
+
+      {erro && <p role="alert" className="text-xs text-red-500">{erro}</p>}
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Cobrado por banco conectado. Dá pra cancelar quando quiser — o banco fica
+        conectado até o fim do período que você já pagou. Seu acesso vitalício ao
+        resto da Sora continua igual, sem mensalidade.
+      </p>
+    </div>
   );
 }

@@ -37,9 +37,12 @@ export function naAllowlistOpenFinance(email?: string | null, phone?: string | n
 export function podeVerOpenFinance(
   email?: string | null,
   phone?: string | null,
-  perfil?: { plano?: string | null; vitalicio?: boolean | null } | null,
+  perfil?: { plano?: string | null; vitalicio?: boolean | null; of_conexoes_pagas?: number | null } | null,
 ): boolean {
   if (naAllowlistOpenFinance(email, phone)) return true;
   if (!perfil) return false;
-  return temOpenFinance((perfil.plano || 'inativo') as Plano, { vitalicio: perfil.vitalicio });
+  return temOpenFinance((perfil.plano || 'inativo') as Plano, {
+    vitalicio: perfil.vitalicio,
+    conexoesPagas: perfil.of_conexoes_pagas,
+  });
 }

@@ -111,10 +111,27 @@ export function limiteDe(plano: Plano | null | undefined, recurso: Recurso): num
  */
 export function temOpenFinance(
   plano: Plano | null | undefined,
-  opts?: { vitalicio?: boolean | null },
+  opts?: { vitalicio?: boolean | null; conexoesPagas?: number | null },
 ): boolean {
+  // Conexão avulsa (R$6/mês) libera o recurso pra QUALQUER caso — inclusive o
+  // vitalício, que não tem franquia. É o que ele está pagando.
+  if ((opts?.conexoesPagas || 0) > 0) return true;
   if (opts?.vitalicio) return false;
   return podeUsar(plano, 'open_finance');
+}
+
+/**
+ * Quantas conexões este usuário pode ter: franquia do plano + as que ele paga.
+ * Vitalício não tem franquia — só o que contratar.
+ * Espelha `acessoOpenFinance` do backend (config/openFinanceAccess.js).
+ */
+export function limiteConexoesOf(
+  plano: Plano | null | undefined,
+  opts?: { vitalicio?: boolean | null; conexoesPagas?: number | null },
+): number {
+  const pagas = Math.max(0, opts?.conexoesPagas || 0);
+  if (opts?.vitalicio) return pagas;
+  return limiteDe(plano, 'conexoes_of') + pagas;
 }
 
 // Plano mínimo recomendado pra uma feature — usado nos paywalls pra orientar

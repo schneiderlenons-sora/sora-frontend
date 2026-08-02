@@ -49,6 +49,23 @@ export const PRICE_IDS: Record<PlanoId, Record<Intervalo, string>> = {
   },
 };
 
+// ── Conexão de Open Finance (add-on, cobrada por unidade) ───────────────────
+//
+// Preço COM QUANTIDADE (licensed, não metered): R$ 6/mês ou R$ 60/ano por banco
+// conectado. A quantidade é o número de conexões PAGAS — a franquia do plano
+// (Básico 1, Premium 3, vitalício 0) fica no nosso código, nunca no preço do
+// Stripe: ela muda por plano, e embutir isso aqui exigiria um preço por plano.
+export const PRICE_CONEXAO_OF: Record<Intervalo, string> = {
+  mensal: process.env.STRIPE_PRICE_CONEXAO_OF_MENSAL!,
+  anual:  process.env.STRIPE_PRICE_CONEXAO_OF_ANUAL!,
+};
+
+/** O price é do add-on de conexão? (o webhook usa pra não confundir com plano) */
+export function ehPriceConexaoOf(priceId?: string | null): boolean {
+  if (!priceId) return false;
+  return Object.values(PRICE_CONEXAO_OF).filter(Boolean).includes(priceId);
+}
+
 // Mapeamento inverso: price ID → plano
 export function priceIdToPlano(priceId: string): PlanoId | null {
   for (const [plano, intervals] of Object.entries(PRICE_IDS)) {
