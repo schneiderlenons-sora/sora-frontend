@@ -15,6 +15,8 @@ import OpenFinance from '@/components/landing/OpenFinance';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase from '@/components/landing/DriveShowcase';
 import Personalizacao from '@/components/landing/Personalizacao';
+import { PLANOS_INFO } from '@/lib/stripe';
+import { partesPreco } from '@/lib/landing-precos';
 import {
   ArrowRight, ArrowLeft, Check, CheckCheck, BadgeCheck, Send, Bell, Target, Sparkles, TrendingUp,
   ShieldCheck, Star, Clock, Lock, Wallet, PiggyBank, Search, Trophy, Tag, Zap,
@@ -609,9 +611,19 @@ function Countdown() {
 }
 
 function Etapa5() {
+  // Mensal por padrão (mesma convenção da landing /#pricing). O anual usa o
+  // valor POR MÊS já com desconto (PLANOS_INFO.premium.anual) — é o que o
+  // Stripe cobra de uma vez, mas a Sora sempre mostra "por mês" pra comparar
+  // igual ao mensal, do jeito que o resto do site já faz.
+  const [anual, setAnual] = useState(false);
+  const premium = PLANOS_INFO.premium;
+  const precoMes = anual ? premium.anual : premium.mensal;
+  const { inteiro, decimal } = partesPreco(precoMes, ',');
+  const totalAnual = (premium.anual * 12).toFixed(2).replace('.', ',');
+
   function assinar() {
-    try { trackInitiateCheckout({ value: 29.90, currency: 'BRL' }); } catch { /* noop */ }
-    window.location.href = '/signup?plano=premium';
+    try { trackInitiateCheckout({ value: precoMes, currency: 'BRL' }); } catch { /* noop */ }
+    window.location.href = `/signup?plano=premium${anual ? '&ciclo=anual' : ''}`;
   }
   return (
     <div className="space-y-6">
@@ -659,12 +671,38 @@ function Etapa5() {
             </span>
             <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/10">Sem fidelidade</span>
           </div>
+
+          {/* Mensal × Anual — mesmo par de opções da landing (/#pricing), com o
+              desconto do anual como badge, pra quem chegou aqui já saber comparar. */}
+          <div className="mt-4 inline-flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <button onClick={() => setAnual(false)} aria-pressed={!anual}
+                    className="px-4 h-11 rounded-xl text-[13px] font-bold transition-all"
+                    style={{ background: !anual ? '#fff' : 'transparent', color: !anual ? '#0a3d24' : 'rgba(255,255,255,0.65)', minWidth: 44 }}>
+              Mensal
+            </button>
+            <button onClick={() => setAnual(true)} aria-pressed={anual}
+                    className="relative px-4 h-11 rounded-xl text-[13px] font-bold transition-all"
+                    style={{ background: anual ? '#fff' : 'transparent', color: anual ? '#0a3d24' : 'rgba(255,255,255,0.65)', minWidth: 44 }}>
+              Anual
+              {!anual && (
+                <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white whitespace-nowrap"
+                      style={{ background: BRAND }}>
+                  -{premium.descAnual}%
+                </span>
+              )}
+            </button>
+          </div>
+
           <div className="mt-4 flex items-end gap-1.5">
             <span className="text-white/60 text-lg mb-1.5">R$</span>
-            <span className="text-6xl font-black leading-none tabular-nums">29,90</span>
+            <span className="text-6xl font-black leading-none tabular-nums">{inteiro}{decimal}</span>
             <span className="text-white/70 text-xl font-bold mb-2">/mês</span>
           </div>
-          <p className="text-white/70 text-[14px] mt-1.5">cobra todo mês · <b className="text-white font-bold">cancele quando quiser</b>, sem multa.</p>
+          <p className="text-white/70 text-[14px] mt-1.5">
+            {anual
+              ? <>cobrado <b className="text-white font-bold">R$ {totalAnual} por ano</b> · <b className="text-white font-bold">cancele quando quiser</b></>
+              : <>cobra todo mês · <b className="text-white font-bold">cancele quando quiser</b>, sem multa.</>}
+          </p>
 
           <ul className="mt-4 space-y-2">
             {[
@@ -710,9 +748,9 @@ function Etapa5() {
       </div>
 
       {/* Aparência (Personalização) — seção EXATA do forsora.com, full-bleed,
-          logo abaixo do preço. CTA aponta pro cadastro do Premium (mensal). */}
+          logo abaixo do preço. CTA segue o ciclo escolhido no toggle acima. */}
       <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
-        <Personalizacao ctaHref="/signup?plano=premium" />
+        <Personalizacao ctaHref={`/signup?plano=premium${anual ? '&ciclo=anual' : ''}`} />
       </div>
 
       <p className="text-center text-[12px] text-zinc-400 pb-2 flex items-center justify-center gap-1.5">
