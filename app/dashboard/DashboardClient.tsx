@@ -7,6 +7,7 @@ import { useApi } from '@/lib/useApi';
 import { useVisivel } from '@/lib/useVisivel';
 import { useAuth } from '@/contexts/AuthContext';
 import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
+import HeroVideoBg from '@/components/dashboard/HeroVideoBg';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ResumoCards from '@/components/dashboard/ResumoCards';
 import GrowResumo from '@/components/dashboard/GrowResumo';
@@ -285,6 +286,11 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           <div
             className="insight-hero lg:col-span-3 relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in"
           >
+
+            {/* Vídeo de fundo — só mobile (ver o componente pro porquê). Fica
+                atrás de tudo; os halos e o conteúdo continuam por cima igual
+                sempre foram. */}
+            <HeroVideoBg />
 
             {/* Halos decorativos apenas no light mode (toque verde da Sora) */}
             <div className="dark:hidden absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none opacity-30"
