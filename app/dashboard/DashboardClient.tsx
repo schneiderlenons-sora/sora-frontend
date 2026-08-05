@@ -8,6 +8,7 @@ import { useVisivel } from '@/lib/useVisivel';
 import { useAuth } from '@/contexts/AuthContext';
 import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
 import HeroVideoBg from '@/components/dashboard/HeroVideoBg';
+import { ALTURA_ESPACADOR } from '@/lib/dashboard-hero';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ResumoCards from '@/components/dashboard/ResumoCards';
 import GrowResumo from '@/components/dashboard/GrowResumo';
@@ -268,14 +269,38 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     </div>
   ), [chartMode, dadosDiarios, catsComPct, monthName, graficoVisivel, graficoRef]);
 
+  // Saudação do card (desktop) — frase longa, sem vídeo por trás.
+  const saudacao = temDados
+    ? `Olá, ${primeiroNome}! Veja como estão suas finanças`
+    : `Bem-vindo, ${primeiroNome}!`;
+
+  // Saudação sobre o vídeo (mobile) — curta e por período do dia, pra caber em
+  // UMA linha. Se quebrasse em duas, o card desceria e sairia do gradiente do
+  // vídeo (a calibragem está em lib/dashboard-hero.ts).
+  const h = hoje.getHours();
+  const saudacaoCurta = `${h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'}, ${primeiroNome}`;
+
   // O DashboardLayout (sidebar) agora vem do layout do segmento (layout.tsx),
   // pra persistir entre o loading.tsx e a página (sem remontar a sidebar).
   return (
     <>
-      <div className="max-w-7xl mx-auto pb-28 space-y-5">
+      {/* Vídeo de FUNDO — full-bleed no topo, só mobile. Fica atrás de todo o
+          conteúdo (o wrapper abaixo sobe com z-[1]). Sem véu por cima: o
+          arquivo já traz o gradiente que funde com o tema. */}
+      <HeroVideoBg />
 
-        {/* Upsell do Kit → Completa (só aparece pra quem tem o Kit) */}
-        <KitUpsellBanner />
+      <div className="max-w-7xl mx-auto pb-28 space-y-5 relative z-[1]">
+
+        {/* ── Cabeçalho sobre o vídeo (só mobile) ──────────────
+            O espaçador deixa a parte vívida do vídeo à mostra; a saudação cai
+            já no começo do gradiente do próprio vídeo, que é onde o texto tem
+            contraste. Logo abaixo o card (opaco) encosta no fim do gradiente. */}
+        <div className="md:hidden">
+          <div aria-hidden style={{ height: ALTURA_ESPACADOR }} />
+          <h1 className="hero-video-title text-[28px] leading-tight font-bold tracking-tight truncate text-zinc-900 dark:text-white">
+            {saudacaoCurta}
+          </h1>
+        </div>
 
         {/* ══════════════════════════════════════════════════════
             HERO ROW — Insight + Hábitos de hoje (Grow)
@@ -286,11 +311,6 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           <div
             className="insight-hero lg:col-span-3 relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in"
           >
-
-            {/* Vídeo de fundo — só mobile (ver o componente pro porquê). Fica
-                atrás de tudo; os halos e o conteúdo continuam por cima igual
-                sempre foram. */}
-            <HeroVideoBg />
 
             {/* Halos decorativos apenas no light mode (toque verde da Sora) */}
             <div className="dark:hidden absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none opacity-30"
@@ -308,10 +328,11 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
 
               {/* Texto de insight */}
               <div>
-                <p className="text-2xl sm:text-3xl font-bold leading-snug mb-2" style={{ color: BRAND }}>
-                  {temDados
-                    ? `Olá, ${primeiroNome}! Veja como estão suas finanças`
-                    : `Bem-vindo, ${primeiroNome}!`}
+                {/* No mobile a saudação sobe pro topo, sobre o vídeo de fundo
+                    (igual ao painel de referência). Aqui ela só aparece do
+                    md pra cima, onde não existe vídeo. */}
+                <p className="hidden md:block text-2xl sm:text-3xl font-bold leading-snug mb-2" style={{ color: BRAND }}>
+                  {saudacao}
                 </p>
                 <p className="text-muted-foreground text-sm leading-relaxed max-w-lg">
                   {temDados
@@ -439,6 +460,11 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
             {temAcessoGrow ? <GrowHabitosCard pronto={pronto} /> : fluxoCard}
           </div>
         </div>
+
+        {/* Upsell do Kit → Completa (só aparece pra quem tem o Kit). Fica
+            DEPOIS do hero: no mobile ele empurraria o card pra fora do
+            gradiente do vídeo se ficasse no topo. */}
+        <KitUpsellBanner />
 
         {/* ══════════════════════════════════════════════════════
             4 STAT CARDS (Saldo · Receitas · Gastos · Cartões)
