@@ -7,6 +7,7 @@ import {
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import IconeMarca from '@/components/ui/IconeMarca';
+import ValorAuto from '@/components/ui/ValorAuto';
 import { api } from '@/lib/api';
 import { competenciaAtual, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
 
@@ -244,10 +245,12 @@ function StatCard({
         </div>
       </div>
 
-      <p className="text-lg sm:text-2xl font-bold tabular tracking-tight truncate leading-tight"
-         style={{ color: valueColor || 'hsl(var(--fg))' }}>
+      {/* ValorAuto no lugar de `truncate`: o valor encolhe só o necessário e
+          aparece INTEIRO, em vez de virar "R$ 2.5…" no card estreito. */}
+      <ValorAuto max="1.5rem" className="font-bold tracking-tight leading-tight"
+                 style={{ color: valueColor || 'hsl(var(--fg))' }}>
         {value}
-      </p>
+      </ValorAuto>
 
       {typeof barra === 'number' && (
         <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">

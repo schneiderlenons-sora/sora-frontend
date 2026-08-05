@@ -9,6 +9,7 @@ import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria, citrico } from '@/lib/categorias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import ValorAuto from '@/components/ui/ValorAuto';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
@@ -563,9 +564,9 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                       <ArrowUpRight size={11} /> Total a receber
                     </span>
                   </div>
-                  <p className="text-3xl font-bold text-green-600 dark:text-green-400 tabular tracking-tight">
+                  <ValorAuto max="1.875rem" className="font-bold text-green-600 dark:text-green-400 tracking-tight">
                     {fmt(totalReceber)}
-                  </p>
+                  </ValorAuto>
                   <p className="text-xs text-muted-foreground mt-1.5">
                     {recebPendentes.length} lançamento{recebPendentes.length !== 1 ? 's' : ''} pendente{recebPendentes.length !== 1 ? 's' : ''}
                   </p>
@@ -582,7 +583,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                       <ArrowDownRight size={11} /> Total a pagar
                     </span>
                   </div>
-                  <p className="text-3xl font-bold text-red-500 tabular tracking-tight">{fmt(totalPagar)}</p>
+                  <ValorAuto max="1.875rem" className="font-bold text-red-500 tracking-tight">{fmt(totalPagar)}</ValorAuto>
                   <p className="text-xs text-muted-foreground mt-1.5">
                     {gastoPendentes.length} lançamento{gastoPendentes.length !== 1 ? 's' : ''} pendente{gastoPendentes.length !== 1 ? 's' : ''}
                   </p>
@@ -597,16 +598,16 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                 <div className="relative space-y-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-widest font-bold text-white/60 mb-1">Saldo disponível</p>
-                    <p className="text-xl font-bold text-white tabular">{fmt(saldoBanco)}</p>
+                    <ValorAuto max="1.25rem" className="font-bold text-white">{fmt(saldoBanco)}</ValorAuto>
                   </div>
                   <div className="h-px bg-white/10" />
                   <div>
                     <p className="text-[10px] uppercase tracking-widest font-bold text-white/60 mb-1 flex items-center gap-1">
                       Saldo previsto <span className="text-[9px] opacity-60">(?)</span>
                     </p>
-                    <p className={`text-xl font-bold tabular ${saldoPrevisto >= 0 ? 'text-white' : 'text-red-300'}`}>
+                    <ValorAuto max="1.25rem" className={`font-bold ${saldoPrevisto >= 0 ? 'text-white' : 'text-red-300'}`}>
                       {fmt(saldoPrevisto)}
-                    </p>
+                    </ValorAuto>
                   </div>
                 </div>
               </div>
@@ -724,14 +725,20 @@ function PremiumStatCard({
             <Icon size={14} style={{ color: `hsl(${hue} 65% 50%)` }} />
           </div>
         </div>
-        <p className={`text-2xl font-bold tabular tracking-tight ${
-          accent ? (value >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500') :
-          positive ? 'text-foreground' :
-          negative ? 'text-foreground' :
-                     'text-foreground'
-        }`}>
+        {/* ValorAuto: no mobile o card tem ~2 colunas e o valor negativo
+            ("-R$ 2.529,92") quebrava a linha depois do hífen. Agora fica em
+            uma linha só e a fonte encolhe só o quanto for preciso. */}
+        <ValorAuto
+          max="1.5rem"
+          className={`font-bold tracking-tight ${
+            accent ? (value >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500') :
+            positive ? 'text-foreground' :
+            negative ? 'text-foreground' :
+                       'text-foreground'
+          }`}
+        >
           {fmt(value)}
-        </p>
+        </ValorAuto>
         {sub && <p className="text-xs text-muted-foreground mt-1 truncate">{sub}</p>}
         {change !== undefined && (
           <div className="flex items-center gap-1 mt-1.5">
