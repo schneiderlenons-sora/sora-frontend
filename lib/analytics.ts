@@ -1,9 +1,14 @@
 // =============================================================================
-// Helpers de analytics — disparam eventos no Meta Pixel (client-side) E
-// na Conversions API (server-side via /api/analytics).
+// Helpers de analytics — disparam eventos no Meta Pixel + Conversions API
+// (via /api/analytics) E no TikTok Pixel + Events API (via
+// /api/analytics/tiktok), TUDO NA MESMA CHAMADA. Cada canal tem seu próprio
+// event_id, sem nenhum canal saber do outro — se um provider não tiver
+// pixel configurado (ttq/fbq ausente), o disparo pra ele só falha em
+// silêncio, os outros seguem normal.
 //
-// Deduplicação: cada evento gera um event_id único que é enviado em
-// ambos os canais. O Facebook ignora a duplicata automaticamente.
+// Deduplicação por canal: o event_id do Meta vai igual pro fbq() e pra CAPI;
+// o event_id do TikTok vai igual pro ttq.track() e pro Events API. Cada
+// provider ignora a própria duplicata.
 //
 // Uso:
 //   import { trackSignUp } from '@/lib/analytics';
@@ -13,6 +18,7 @@
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void;
+    ttq?: { track: (event: string, data?: Record<string, unknown>) => void };
   }
 }
 
@@ -32,10 +38,17 @@ function getCookie(name: string): string | undefined {
   return m?.[1];
 }
 
-// Dispara no pixel client-side
+// Dispara no pixel client-side (Meta)
 function fbq(...args: unknown[]) {
   if (typeof window !== 'undefined' && window.fbq) {
     window.fbq(...args);
+  }
+}
+
+// Dispara no pixel client-side (TikTok)
+function ttqTrack(event: string, data?: Record<string, unknown>) {
+  if (typeof window !== 'undefined' && window.ttq) {
+    window.ttq.track(event, data);
   }
 }
 
@@ -47,6 +60,17 @@ function sendToCAPI(payload: Record<string, unknown>) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
     keepalive: true, // garante envio mesmo se o user sair da página
+  }).catch(() => {}); // silencioso
+}
+
+// Envia pro /api/analytics/tiktok (Events API server-side). Non-blocking.
+function sendToTikTokAPI(payload: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  fetch('/api/analytics/tiktok', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    keepalive: true,
   }).catch(() => {}); // silencioso
 }
 
@@ -67,10 +91,34 @@ function buildUserData(info?: UserInfo) {
   };
 }
 
+// Monta user_data com cookies TikTok (_ttp = browser id automático do
+// ttq.load; ttclid = capturado na mão em TikTokPixel.tsx, ver o porquê lá)
+function buildTikTokUserData(info?: UserInfo) {
+  return {
+    email: info?.email,
+    phone: info?.phone,
+    ttp: getCookie('_ttp'),
+    ttclid: getCookie('ttclid'),
+  };
+}
+
+// Nome do evento no TikTok, quando é diferente do nome-padrão do Meta usado
+// nesse arquivo — https://ads.tiktok.com/marketing_api/docs?id=1701890979375106
+const TIKTOK_EVENT: Record<string, string> = {
+  Lead: 'SubmitForm',
+  Purchase: 'CompletePayment',
+  // CompleteRegistration e InitiateCheckout têm o MESMO nome nos dois.
+};
+
 // ─── Eventos públicos ────────────────────────────────────────────────────────
+// Cada função dispara nos DOIS canais (Meta + TikTok), client E server-side,
+// cada um com seu próprio event_id pra dedup. Sem `if (fbq)`/`if (ttq)`
+// espalhado: os helpers (fbq/ttqTrack/sendToCAPI/sendToTikTokAPI) já
+// verificam sozinhos se o provider está configurado.
 
 export function trackPageView() {
   fbq('track', 'PageView');
+  // ttq.page() já dispara sozinho no load do TikTokPixel — nada a fazer aqui.
 }
 
 export function trackSignUp(info?: UserInfo) {
@@ -81,6 +129,15 @@ export function trackSignUp(info?: UserInfo) {
     event_id: eventId,
     event_source_url: window.location.href,
     user_data: buildUserData(info),
+  });
+
+  const ttEventId = uuid();
+  ttqTrack('CompleteRegistration', { event_id: ttEventId });
+  sendToTikTokAPI({
+    event: 'CompleteRegistration',
+    event_id: ttEventId,
+    event_source_url: window.location.href,
+    user_data: buildTikTokUserData(info),
   });
 }
 
@@ -93,6 +150,15 @@ export function trackLead(info?: UserInfo) {
     event_source_url: window.location.href,
     user_data: buildUserData(info),
   });
+
+  const ttEventId = uuid();
+  ttqTrack(TIKTOK_EVENT.Lead, { event_id: ttEventId });
+  sendToTikTokAPI({
+    event: TIKTOK_EVENT.Lead,
+    event_id: ttEventId,
+    event_source_url: window.location.href,
+    user_data: buildTikTokUserData(info),
+  });
 }
 
 export function trackInitiateCheckout(params?: { value?: number; currency?: string }, info?: UserInfo) {
@@ -104,6 +170,16 @@ export function trackInitiateCheckout(params?: { value?: number; currency?: stri
     event_id: eventId,
     event_source_url: window.location.href,
     user_data: buildUserData(info),
+    custom_data: customData,
+  });
+
+  const ttEventId = uuid();
+  ttqTrack('InitiateCheckout', { ...customData, event_id: ttEventId });
+  sendToTikTokAPI({
+    event: 'InitiateCheckout',
+    event_id: ttEventId,
+    event_source_url: window.location.href,
+    user_data: buildTikTokUserData(info),
     custom_data: customData,
   });
 }
@@ -119,6 +195,16 @@ export function trackPurchase(params: { value: number; currency?: string }, info
     user_data: buildUserData(info),
     custom_data: customData,
   });
+
+  const ttEventId = uuid();
+  ttqTrack(TIKTOK_EVENT.Purchase, { ...customData, event_id: ttEventId });
+  sendToTikTokAPI({
+    event: TIKTOK_EVENT.Purchase,
+    event_id: ttEventId,
+    event_source_url: window.location.href,
+    user_data: buildTikTokUserData(info),
+    custom_data: customData,
+  });
 }
 
 export function trackCustom(event: string, data?: Record<string, unknown>, info?: UserInfo) {
@@ -129,6 +215,17 @@ export function trackCustom(event: string, data?: Record<string, unknown>, info?
     event_id: eventId,
     event_source_url: typeof window !== 'undefined' ? window.location.href : undefined,
     user_data: buildUserData(info),
+    custom_data: data,
+  });
+
+  const ttEventId = uuid();
+  const ttEvent = TIKTOK_EVENT[event] || event;
+  ttqTrack(ttEvent, { ...data, event_id: ttEventId });
+  sendToTikTokAPI({
+    event: ttEvent,
+    event_id: ttEventId,
+    event_source_url: typeof window !== 'undefined' ? window.location.href : undefined,
+    user_data: buildTikTokUserData(info),
     custom_data: data,
   });
 }

@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { stripe, priceIdToPlano, priceIdToIntervalo, ehPriceConexaoOf } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendCAPIEvent } from '@/lib/facebook-capi';
+import { sendTikTokEvent } from '@/lib/tiktok-events-api';
 
 // Necessário para ler o raw body e verificar a assinatura Stripe
 export const dynamic = 'force-dynamic';
@@ -152,6 +153,22 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     event_source_url: `https://forsora.com/planos?success=1`,
     user_data: {
       em: session.customer_details?.email || undefined,
+    },
+    custom_data: {
+      value: amount,
+      currency: session.currency?.toUpperCase() || 'BRL',
+      content_name: `Plano ${plano} ${intervalo}`,
+    },
+  }).catch(() => {}); // non-blocking
+
+  // Events API do TikTok: mesmo Purchase server-side, espelhando o CAPI acima
+  // (sem ttclid/_ttp aqui — o webhook não tem acesso ao cookie do navegador;
+  // o match fica só por e-mail, igual o CAPI do Meta nesse mesmo ponto).
+  sendTikTokEvent({
+    event: 'CompletePayment',
+    event_source_url: `https://forsora.com/planos?success=1`,
+    user_data: {
+      email: session.customer_details?.email || undefined,
     },
     custom_data: {
       value: amount,
