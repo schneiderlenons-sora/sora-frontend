@@ -3,6 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { checkAdmin } from '@/lib/admin-server';
 
 export const dynamic = 'force-dynamic';
+// O diagnóstico chama a Polp várias vezes e ainda paga o cold start do Render
+// (free tier). No limite padrão a URL não carregava. `foco=cartoes` corta o
+// grosso das chamadas; isto cobre o resto.
+export const maxDuration = 60;
 
 // Diagnóstico do Open Finance de UM usuário, aberto pelo navegador.
 //
@@ -72,6 +76,11 @@ export async function GET(req: NextRequest) {
   const consentParam = (req.nextUrl.searchParams.get('consent') || '').trim();
   const cru = req.nextUrl.searchParams.get('cru') === '1';
   const resumo = req.nextUrl.searchParams.get('resumo') === '1';
+  // `resumo=1` só olha cartão/parcelamento — então nem faz sentido pagar as
+  // chamadas de conta, investimento e empréstimo. Por isso o foco vem junto
+  // por padrão (dá pra forçar o completo com &foco=completo).
+  const focoParam = (req.nextUrl.searchParams.get('foco') || '').trim();
+  const foco = focoParam || (resumo ? 'cartoes' : '');
 
   let consents: string[] = consentParam ? [consentParam] : [];
   let contexto: Record<string, unknown> = {};
@@ -106,15 +115,23 @@ export async function GET(req: NextRequest) {
   const saida: Record<string, unknown> = { ...contexto, diagnostico: [] as unknown[] };
 
   for (const consent of consents) {
+    const qs = new URLSearchParams();
+    if (cru) qs.set('cru', '1');
+    if (foco && foco !== 'completo') qs.set('foco', foco);
+    const url = `${base}/api/open-finance/debug-celcoin/${encodeURIComponent(consent)}`
+      + (qs.toString() ? `?${qs}` : '');
     try {
-      const r = await fetch(
-        `${base}/api/open-finance/debug-celcoin/${encodeURIComponent(consent)}${cru ? '?cru=1' : ''}`,
-        { headers: { 'x-admin-secret': secret }, cache: 'no-store' },
-      );
+      const r = await fetch(url, { headers: { 'x-admin-secret': secret }, cache: 'no-store' });
       const body = await r.json().catch(() => ({ erro: `resposta inválida (${r.status})` }));
       (saida.diagnostico as unknown[]).push({ consent, status: r.status, ...body });
     } catch (e: unknown) {
-      (saida.diagnostico as unknown[]).push({ consent, erro: e instanceof Error ? e.message : 'falhou' });
+      // Erro de fetch aqui é quase sempre TIMEOUT (Render free em cold start).
+      // Dizer isso explicitamente evita caçar bug no lugar errado.
+      (saida.diagnostico as unknown[]).push({
+        consent,
+        erro: e instanceof Error ? e.message : 'falhou',
+        dica: 'Se demorou e caiu, provavelmente é cold start do Render. Recarregue a URL uma vez.',
+      });
     }
   }
 
