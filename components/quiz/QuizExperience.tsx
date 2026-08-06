@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react';
-import { trackInitiateCheckout } from '@/lib/analytics';
+import { trackAddToCart, trackViewContent } from '@/lib/analytics';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import AgendaChat from '@/components/landing/AgendaChat';
 import OpenFinance from '@/components/landing/OpenFinance';
@@ -621,8 +621,10 @@ function Etapa5() {
   const { inteiro, decimal } = partesPreco(precoMes, ',');
   const totalAnual = (premium.anual * 12).toFixed(2).replace('.', ',');
 
+  // InitiateCheckout NÃO dispara aqui — o /signup já dispara ele (+ AddToCart
+  // de novo) ao chegar no passo de pagamento; disparar nos 2 lados duplicaria.
   function assinar() {
-    try { trackInitiateCheckout({ value: precoMes, currency: 'BRL' }); } catch { /* noop */ }
+    try { trackAddToCart({ name: 'Plano premium', value: precoMes, currency: 'BRL' }); } catch { /* noop */ }
     window.location.href = `/signup?plano=premium${anual ? '&ciclo=anual' : ''}`;
   }
   return (
@@ -772,6 +774,10 @@ export default function QuizExperience() {
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }, [step, reduce]);
+
+  useEffect(() => {
+    try { trackViewContent({ name: 'Funil /quiz' }); } catch { /* noop */ }
+  }, []);
 
   const etapas = [
     <Etapa0 key={0} onNext={next} />,

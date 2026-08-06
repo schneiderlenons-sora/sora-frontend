@@ -161,6 +161,60 @@ export function trackLead(info?: UserInfo) {
   });
 }
 
+// ViewContent e AddToCart existem com o MESMO nome no Meta e no TikTok — sem
+// precisar de TIKTOK_EVENT. São os dois degraus que faltavam no funil (o
+// TikTok reclama "eventos ausentes: ViewContent/AddToCart" quando só chegam
+// InitiateCheckout+Purchase — o modelo de otimização deles quer o funil
+// inteiro, mesmo pra quem não vende produto físico).
+export function trackViewContent(params?: { name?: string; value?: number; currency?: string }, info?: UserInfo) {
+  const eventId = uuid();
+  const customData = { content_name: params?.name, value: params?.value, currency: params?.currency || 'BRL' };
+  fbq('track', 'ViewContent', customData, { eventID: eventId });
+  sendToCAPI({
+    event_name: 'ViewContent',
+    event_id: eventId,
+    event_source_url: window.location.href,
+    user_data: buildUserData(info),
+    custom_data: customData,
+  });
+
+  const ttEventId = uuid();
+  ttqTrack('ViewContent', { ...customData, event_id: ttEventId });
+  sendToTikTokAPI({
+    event: 'ViewContent',
+    event_id: ttEventId,
+    event_source_url: window.location.href,
+    user_data: buildTikTokUserData(info),
+    custom_data: customData,
+  });
+}
+
+// "Carrinho" da Sora = escolher um plano (não existe carrinho de verdade).
+// Disparado sempre JUNTO com trackInitiateCheckout, no mesmo clique — dois
+// eventos de funil por uma ação só, sem mudar UX nenhuma.
+export function trackAddToCart(params?: { name?: string; value?: number; currency?: string }, info?: UserInfo) {
+  const eventId = uuid();
+  const customData = { content_name: params?.name, value: params?.value, currency: params?.currency || 'BRL' };
+  fbq('track', 'AddToCart', customData, { eventID: eventId });
+  sendToCAPI({
+    event_name: 'AddToCart',
+    event_id: eventId,
+    event_source_url: window.location.href,
+    user_data: buildUserData(info),
+    custom_data: customData,
+  });
+
+  const ttEventId = uuid();
+  ttqTrack('AddToCart', { ...customData, event_id: ttEventId });
+  sendToTikTokAPI({
+    event: 'AddToCart',
+    event_id: ttEventId,
+    event_source_url: window.location.href,
+    user_data: buildTikTokUserData(info),
+    custom_data: customData,
+  });
+}
+
 export function trackInitiateCheckout(params?: { value?: number; currency?: string }, info?: UserInfo) {
   const eventId = uuid();
   const customData = { value: params?.value, currency: params?.currency || 'BRL' };

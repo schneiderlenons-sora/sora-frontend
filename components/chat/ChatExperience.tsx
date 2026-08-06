@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react';
-import { trackInitiateCheckout } from '@/lib/analytics';
+import { trackAddToCart, trackViewContent } from '@/lib/analytics';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import AgendaChat from '@/components/landing/AgendaChat';
 import OpenFinance from '@/components/landing/OpenFinance';
@@ -609,8 +609,10 @@ function Countdown() {
 }
 
 function Etapa5() {
+  // InitiateCheckout NÃO dispara aqui — o /checkout-vitalicio já dispara ele
+  // (+ AddToCart) sozinho ao montar; disparar nos 2 lados duplicaria.
   function assinar() {
-    try { trackInitiateCheckout({ value: 97, currency: 'BRL' }); } catch { /* noop */ }
+    try { trackAddToCart({ name: 'Vitalício Completa', value: 97, currency: 'BRL' }); } catch { /* noop */ }
     window.location.href = '/checkout-vitalicio?tier=completa';
   }
   return (
@@ -734,6 +736,10 @@ export default function ChatExperience() {
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   }, [step, reduce]);
+
+  useEffect(() => {
+    try { trackViewContent({ name: 'Funil /chat' }); } catch { /* noop */ }
+  }, []);
 
   const etapas = [
     <Etapa0 key={0} onNext={next} />,

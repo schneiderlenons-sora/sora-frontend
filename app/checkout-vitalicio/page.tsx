@@ -1,11 +1,12 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import MercadoPagoBrick from '@/components/checkout/MercadoPagoBrick';
 import AuthHero from '@/components/auth/AuthHero';
 import { aplicarCupomVitalicio, pctCupom } from '@/lib/cupons';
+import { trackAddToCart, trackInitiateCheckout } from '@/lib/analytics';
 import { Crown, ShieldCheck, Check, Tag, Loader2, X } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -44,6 +45,21 @@ function CheckoutContent() {
 
   const { valor: amountFinal, pct } = aplicarCupomVitalicio(t.amount, cupom);
   const gratis = pct >= 100;
+
+  // Quem chega direto de /oferta ou /kit (clicando num link, sem passar por
+  // /planos ou /signup) NUNCA disparava InitiateCheckout — chegar aqui JÁ É
+  // a intenção de checkout. Uma vez por sessão de página (ref, não depende do
+  // cupom pra não duplicar ao aplicar/remover cupom).
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (trackedRef.current) return;
+    trackedRef.current = true;
+    try {
+      trackAddToCart({ name: t.titulo, value: t.amount, currency: 'BRL' });
+      trackInitiateCheckout({ value: t.amount, currency: 'BRL' });
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (loading) return;

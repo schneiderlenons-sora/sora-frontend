@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
-import { trackSignUp, trackInitiateCheckout } from '@/lib/analytics';
+import { trackSignUp, trackInitiateCheckout, trackViewContent, trackAddToCart } from '@/lib/analytics';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { loadStripe } from '@stripe/stripe-js';
@@ -120,12 +120,15 @@ function SignupWizard() {
 
       if (vitalicioMode) {
         // Vitalício: checkout transparente (Mercado Pago) na nossa própria
-        // página, sem sair do site. Preserva o tier (kit/completa).
+        // página, sem sair do site. Preserva o tier (kit/completa). AddToCart
+        // + InitiateCheckout NÃO disparam aqui — o /checkout-vitalicio já
+        // dispara os dois sozinho ao montar (mesmo ponto que cobre quem
+        // chega direto de /oferta ou /kit); duplicaria se disparasse nos 2 lados.
         const tierQ = searchParams.get('tier') === 'kit' ? '?tier=kit' : '';
-        trackInitiateCheckout({ value: tierQ ? 47 : 97, currency: 'BRL' });
         router.push('/checkout-vitalicio' + tierQ);
         return;
       }
+      trackViewContent({ name: 'Signup — escolha de plano' });
       setStep('plano');
     } catch (err: any) {
       setErro(err.message || 'Erro ao criar conta.');
@@ -173,7 +176,9 @@ function SignupWizard() {
   // InitiateCheckout ao entrar no pagamento (Purchase é enviado pelo webhook/CAPI)
   useEffect(() => {
     if (step === 'pagamento') {
-      trackInitiateCheckout({ value: vitalicioMode ? 97 : PLANOS_INFO[planoSel][intervalo], currency: 'BRL' });
+      const valor = vitalicioMode ? 97 : PLANOS_INFO[planoSel][intervalo];
+      trackAddToCart({ name: vitalicioMode ? 'Vitalício Completa' : `Plano ${planoSel}`, value: valor, currency: 'BRL' });
+      trackInitiateCheckout({ value: valor, currency: 'BRL' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);

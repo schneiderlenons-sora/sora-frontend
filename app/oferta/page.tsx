@@ -27,11 +27,13 @@ import CtaPlanos        from '@/components/landing/CtaPlanos';
 import Faq              from '@/components/landing/Faq';
 import CtaFinal         from '@/components/landing/CtaFinal';
 import Footer           from '@/components/landing/Footer';
+import ViewContentTracker from '@/components/analytics/ViewContentTracker';
 
 export default function OfertaPage() {
   return (
     // Igual à principal; muda só o Pricing → PricingVitalicio.
     <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-clip">
+      <ViewContentTracker name="Oferta vitalício" />
       <LandingNav />
       <CupomFlutuante />
       <Hero />

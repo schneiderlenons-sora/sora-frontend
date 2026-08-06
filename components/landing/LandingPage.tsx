@@ -21,6 +21,7 @@ import CtaPlanos       from '@/components/landing/CtaPlanos';
 import Faq             from '@/components/landing/Faq';
 import CtaFinal        from '@/components/landing/CtaFinal';
 import Footer          from '@/components/landing/Footer';
+import ViewContentTracker from '@/components/analytics/ViewContentTracker';
 // Composição compartilhada da landing (forsora.com e forsora.com/es). Os textos
 // vêm dos catálogos messages/{pt,es}.json via next-intl. Todo texto é resolvido
 // em componentes CLIENT (useTranslations) contra o provider de idioma mais
@@ -31,6 +32,7 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
     // Landing segue o tema escolhido (toggle na nav). bg/text theme-aware;
     // as seções já têm variantes light + dark:.
     <main className="bg-white text-zinc-900 dark:bg-[#0a0a0a] dark:text-white antialiased overflow-x-clip">
+      <ViewContentTracker name="Landing principal" />
       <LandingNav />
       <CupomFlutuante />
       <Hero />

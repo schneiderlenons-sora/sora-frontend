@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANO_LABEL, type Plano } from '@/lib/plans';
-import { trackInitiateCheckout, trackPurchase } from '@/lib/analytics';
+import { trackInitiateCheckout, trackPurchase, trackViewContent, trackAddToCart } from '@/lib/analytics';
 import {
   Check, Crown, Sparkles, Loader2, AlertCircle, CheckCircle2,
   CreditCard, Settings, Zap, Infinity as InfinityIcon,
@@ -37,6 +37,10 @@ function PlanosContent() {
 
   useEffect(() => {
     fetch('/api/vitalicio/count').then((r) => r.json()).then(setVagas).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    try { trackViewContent({ name: 'Planos' }); } catch { /* noop */ }
   }, []);
 
   const success  = searchParams.get('success');
@@ -116,6 +120,7 @@ function PlanosContent() {
       const intervalo: Intervalo = intervaloForcado ?? (anual ? 'anual' : 'mensal');
       const info = PLANOS_INFO[plano];
       const preco = intervalo === 'anual' ? info.anual : info.mensal;
+      trackAddToCart({ name: `Plano ${plano}`, value: preco, currency: 'BRL' });
       trackInitiateCheckout({ value: preco, currency: 'BRL' });
 
       const res = await fetch('/api/stripe/checkout', {
@@ -137,10 +142,12 @@ function PlanosContent() {
   }
 
   // Oferta vitalícia: checkout transparente (Mercado Pago — parcelamento até
-  // 12x + Pix) na nossa própria página /checkout-vitalicio.
+  // 12x + Pix) na nossa própria página /checkout-vitalicio. AddToCart +
+  // InitiateCheckout NÃO disparam aqui — o /checkout-vitalicio já dispara os
+  // dois sozinho ao montar (é o mesmo ponto que cobre quem chega direto de
+  // /oferta ou /kit); disparar nos dois lados duplicaria o evento.
   function comprarVitalicio() {
     setLoading('vitalicio');
-    trackInitiateCheckout({ value: 97, currency: 'BRL' });
     window.location.href = '/checkout-vitalicio';
   }
 
