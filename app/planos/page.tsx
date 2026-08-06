@@ -10,7 +10,7 @@ import { PLANO_LABEL, type Plano } from '@/lib/plans';
 import { trackInitiateCheckout, trackPurchase, trackViewContent, trackAddToCart } from '@/lib/analytics';
 import {
   Check, Crown, Sparkles, Loader2, AlertCircle, CheckCircle2,
-  CreditCard, Settings, Zap, Infinity as InfinityIcon,
+  CreditCard, Settings, Zap,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -33,11 +33,6 @@ function PlanosContent() {
   const [loadingPlano, setLoading] = useState<string | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [erro, setErro]           = useState('');
-  const [vagas, setVagas] = useState<{ vendidos: number; vagas: number; restantes: number } | null>(null);
-
-  useEffect(() => {
-    fetch('/api/vitalicio/count').then((r) => r.json()).then(setVagas).catch(() => {});
-  }, []);
 
   useEffect(() => {
     try { trackViewContent({ name: 'Planos' }); } catch { /* noop */ }
@@ -141,16 +136,6 @@ function PlanosContent() {
     }
   }
 
-  // Oferta vitalícia: checkout transparente (Mercado Pago — parcelamento até
-  // 12x + Pix) na nossa própria página /checkout-vitalicio. AddToCart +
-  // InitiateCheckout NÃO disparam aqui — o /checkout-vitalicio já dispara os
-  // dois sozinho ao montar (é o mesmo ponto que cobre quem chega direto de
-  // /oferta ou /kit); disparar nos dois lados duplicaria o evento.
-  function comprarVitalicio() {
-    setLoading('vitalicio');
-    window.location.href = '/checkout-vitalicio';
-  }
-
   async function gerenciarAssinatura() {
     setErro('');
     setLoadingPortal(true);
@@ -244,8 +229,10 @@ function PlanosContent() {
           </div>
         )}
 
-        {/* ── OFERTA VITALÍCIA (Premium pra sempre, pagamento único) ───────── */}
-        {isVitalicio ? (
+        {/* Status de quem JÁ TEM vitalício (não é oferta — é o cartão de conta
+            de quem comprou; a oferta de venda foi retirada do painel a pedido
+            do usuário, continua em /oferta e /kit). */}
+        {isVitalicio && (
           <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-400/30 flex items-center gap-4 animate-fade-in"
                style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' }}>
             <Crown size={28} className="text-amber-400 flex-shrink-0" />
@@ -259,56 +246,6 @@ function PlanosContent() {
                   ? 'Acesso vitalício ao Kit — organize tudo pelo painel, pra sempre. 💚'
                   : 'Acesso completo à Sora, para sempre. Obrigado por acreditar desde o começo. 💚'}
               </p>
-            </div>
-          </div>
-        ) : (
-          <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-amber-400/25 animate-fade-in"
-               style={{ background: 'linear-gradient(135deg, #1c1917 0%, #0a0a0a 55%, #1c1917 100%)' }}>
-            <div className="absolute -top-20 -right-16 w-64 h-64 rounded-full pointer-events-none opacity-25"
-                 style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 60%)' }} />
-            <div className="relative grid lg:grid-cols-5 gap-6 items-center">
-              <div className="lg:col-span-3">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/15 mb-3">
-                  <Sparkles size={12} className="text-amber-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400">Oferta de fundador</span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight flex items-center gap-2">
-                  Premium <InfinityIcon size={26} className="text-amber-400" /> pra sempre
-                </h2>
-                <p className="text-white/60 text-sm mt-2 max-w-md">
-                  Pague <span className="text-white font-semibold">uma única vez</span> e tenha o plano Premium completo — contas ilimitadas, OCR, investimentos, Negócios e Sora Grow — <span className="text-white font-semibold">para sempre</span>. Sem mensalidade, nunca mais.
-                </p>
-                {vagas && vagas.restantes > 0 && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-[11px] mb-1.5">
-                      <span className="text-amber-300 font-semibold uppercase tracking-wider">Vagas de fundador</span>
-                      <span className="text-white/70 tabular-nums">Restam {vagas.restantes} de {vagas.vagas}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-300"
-                           style={{ width: `${Math.min(100, Math.max(4, (vagas.vendidos / vagas.vagas) * 100))}%` }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="lg:col-span-2 flex flex-col items-start lg:items-end gap-3">
-                <div className="flex items-end gap-1">
-                  <span className="text-white/50 text-sm mb-1">R$</span>
-                  <span className="text-5xl font-bold text-white tabular-nums leading-none">97</span>
-                  <span className="text-white/50 text-sm mb-1">único</span>
-                </div>
-                <p className="text-white/40 text-xs line-through">R$79,90/mês na assinatura</p>
-                <button
-                  onClick={comprarVitalicio}
-                  disabled={loadingPlano === 'vitalicio'}
-                  className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-black transition active:scale-[0.98] disabled:opacity-60"
-                  style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
-                  {loadingPlano === 'vitalicio'
-                    ? <><Loader2 size={16} className="animate-spin" /> Abrindo…</>
-                    : <><Crown size={16} /> Garantir vitalício</>}
-                </button>
-                <p className="text-white/40 text-[11px] text-center lg:text-right">Pagamento único e seguro via Stripe</p>
-              </div>
             </div>
           </div>
         )}
@@ -372,8 +309,10 @@ function PlanosContent() {
           </div>
         </div>
 
-        {/* Cards de planos */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Cards de planos — só Básico e Premium (a oferta vitalícia saiu
+            do painel); 2 colunas centralizadas, mesmo padrão da landing
+            (components/landing/Pricing.tsx) quando não mostra vitalício. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 max-w-3xl mx-auto gap-5">
           {PLANOS.map((p) => {
             const info       = PLANOS_INFO[p.id];
             const preco      = anual ? info.anual : info.mensal;
