@@ -6,7 +6,7 @@ import {
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
   Bell, ChevronDown, Link2,
 } from 'lucide-react';
-import { api, type ModoLancamentoFixo } from '@/lib/api';
+import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
 import { mutate as mutateGlobal } from 'swr';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
@@ -63,6 +63,9 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const [formTarget, setFormTarget] = useState<'novo' | Recorrencia | null>(null);
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
   const [aceitando, setAceitando] = useState<string | null>(null); // descricao em processamento
+  // Sugestões de CATEGORIA pras contas fixas que ficaram em "Outros",
+  // indexadas por id da recorrência (a linha consulta pelo próprio id).
+  const [sugCats, setSugCats] = useState<Record<string, SugestaoCategoriaFixa>>({});
 
   const carregar = useCallback(async () => {
     if (!phone) { setCarreg(false); return; }
@@ -81,7 +84,38 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     catch { setSugestoes([]); }
   }, []);
 
-  useEffect(() => { carregar(); carregarSugestoes(); }, [carregar, carregarSugestoes]);
+  const carregarSugCats = useCallback(async () => {
+    try {
+      const r = await api.recorrencias.categoriasSugeridas();
+      const ix: Record<string, SugestaoCategoriaFixa> = {};
+      for (const s of r.sugestoes || []) ix[s.id] = s;
+      setSugCats(ix);
+    } catch { setSugCats({}); }
+  }, []);
+
+  useEffect(() => { carregar(); carregarSugestoes(); carregarSugCats(); },
+    [carregar, carregarSugestoes, carregarSugCats]);
+
+  /** Aceita a categoria sugerida pra UMA conta fixa. Otimista, e some da lista
+   *  de sugestões na hora — o backend ainda propaga a categoria pro lançamento
+   *  deste mês (`propagadas`), então revalida o cache global quando isso ocorre. */
+  async function aceitarCategoria(s: SugestaoCategoriaFixa) {
+    setSugCats((prev) => { const n = { ...prev }; delete n[s.id]; return n; });
+    setItens((prev) => prev.map((i) => (i.id === s.id ? { ...i, categoria: s.sugerida } : i)));
+    try {
+      const r: { propagadas?: number } = await api.recorrencias.editar(s.id, { categoria: s.sugerida });
+      if (r?.propagadas) mutateGlobal(() => true, undefined, { revalidate: true });
+    } catch {
+      carregar(); carregarSugCats();   // servidor recusou: volta ao estado real
+    }
+  }
+
+  /** Ignora a sugestão só nesta sessão — não vale gravar "dispensada" no banco
+   *  por uma categoria; se a conta continuar em "Outros", faz sentido ela voltar
+   *  a aparecer na próxima visita. */
+  function ignorarCategoria(id: string) {
+    setSugCats((prev) => { const n = { ...prev }; delete n[id]; return n; });
+  }
 
   // Aprova uma sugestão (1 clique) → vira recorrência fixa.
   async function aceitarSugestao(s: Sugestao) {
@@ -297,7 +331,10 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
                     onEditar={() => setFormTarget(item)}
-                    onModo={mudarModo} />
+                    onModo={mudarModo}
+                    sugCat={sugCats[item.id]}
+                    onAceitarCat={aceitarCategoria}
+                    onIgnorarCat={ignorarCategoria} />
                 ))}
               </ul>
             </div>
@@ -313,6 +350,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 // ─────────────────────────────────────────────────────────────
 function Linha({
   item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo,
+  sugCat, onAceitarCat, onIgnorarCat,
 }: {
   item:        Recorrencia;
   idx:         number;
@@ -322,6 +360,9 @@ function Linha({
   onCancelar:  (id: string) => void;
   onEditar:    () => void;
   onModo:      (id: string, patch: { modo_lancamento?: ModoLancamento; lembrete?: boolean }) => void;
+  sugCat?:     SugestaoCategoriaFixa;
+  onAceitarCat: (s: SugestaoCategoriaFixa) => void;
+  onIgnorarCat: (id: string) => void;
 }) {
   const [aberto, setAberto] = useState(false);
   const modo = item.modo_lancamento || 'lancar';
@@ -436,6 +477,41 @@ function Linha({
         </div>
       )}
     </div>
+
+    {/* Sugestão de categoria pra conta fixa que ficou em "Outros". A ORIGEM
+        vem escrita: "você categorizou assim 5 de 5 vezes" pesa diferente de
+        "pelo nome da conta", e quem aceita com 1 clique merece saber a
+        diferença. Nunca aplica sozinha — categoria mexe em relatório,
+        limite e Wrapped. */}
+    {sugCat && (
+      <div className="mx-4 sm:mx-6 mb-3 -mt-1 flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-xl
+                      bg-primary/[0.07] border border-primary/20 animate-fade-in">
+        <Sparkles size={14} className="text-primary flex-shrink-0" />
+        <p className="text-xs text-foreground flex-1 min-w-0">
+          Categorizar como <strong className="font-semibold">{nomeCategoria(sugCat.sugerida)}</strong>?
+          <span className="text-muted-foreground"> — {sugCat.motivo}</span>
+        </p>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onAceitarCat(sugCat)}
+            className="h-9 px-3 rounded-lg bg-primary text-white text-xs font-semibold
+                       hover:opacity-90 transition-opacity active:scale-[0.98]"
+          >
+            Aplicar
+          </button>
+          <button
+            type="button"
+            onClick={() => onIgnorarCat(sugCat.id)}
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground
+                       hover:bg-muted transition-colors"
+            aria-label={`Ignorar sugestão para ${item.descricao}`}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+    )}
 
     {/* Controles do vencimento. Anima a altura com grid 0fr→1fr (sem
         max-height mágico) — mesmo padrão dos chips do hero do dashboard. */}

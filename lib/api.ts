@@ -63,6 +63,18 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
  *  banco reconciliar · `nao_lancar` não cria nada (o card só soma o custo fixo). */
 export type ModoLancamentoFixo = 'lancar' | 'prever' | 'nao_lancar';
 
+export type SugestaoCategoriaFixa = {
+  id: string;
+  descricao: string;
+  atual: string;
+  sugerida: string;
+  /** 'transacoes' = o usuário já categorizou assim · 'descricao' = palpite pelo nome. */
+  fonte: 'transacoes' | 'descricao';
+  motivo: string;
+  ocorrencias: number;
+  analisadas: number;
+};
+
 export type AvisosPrefs = {
   avisos_ativos: boolean;          // toggle mestre (kill-switch)
   resumo_semanal: boolean;
@@ -315,6 +327,11 @@ export const api = {
     /** Gastos/receitas fixas detectados nas transações (Open Finance/OFX). */
     sugestoes: () =>
       req<{ sugestoes: { descricao: string; valor: number; dia: number; tipo: 'Gasto' | 'Recebimento'; categoria: string; ocorrencias: number; meses: number }[] }>(`/api/recorrencias/sugestoes`),
+    /** Contas fixas em "Outros" que a Sora acha que sabe categorizar.
+     *  `fonte: 'transacoes'` é evidência real (o usuário já categorizou assim);
+     *  `'descricao'` é palpite pelo nome — mais fraco, e a tela avisa isso. */
+    categoriasSugeridas: () =>
+      req<{ sugestoes: SugestaoCategoriaFixa[] }>('/api/recorrencias/categorias-sugeridas'),
     /** Dispensa uma sugestão de gasto fixo (não volta a aparecer). */
     dispensarSugestao: (descricao: string) =>
       req<{ ok: boolean }>('/api/recorrencias/dispensar', { method: 'POST', body: JSON.stringify({ descricao }) }),
