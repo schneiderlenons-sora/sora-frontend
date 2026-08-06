@@ -20,13 +20,24 @@ export const maxDuration = 60;
 //       &resumo=1 → só os números que decidem a fatura, legível de bater o olho
 //                   (o payload completo tem milhares de linhas)
 
+type Candidatas = {
+  limite_usado_menos_futuras?: number | null;
+  soma_do_bill_da_aberta?: number | null;
+  soma_do_ciclo?: { valor: number; periodo: string; vence: string } | null;
+};
+
 type CartaoDebug = {
   normalizado?: { nome?: string; extras?: Record<string, unknown> };
   conferir?: Record<string, unknown>;
-  conferencia?: Record<string, unknown>;
+  conferencia?: {
+    limite_total?: number | null; limite_usado?: number | null;
+    bill_total_da_aberta?: number | null; candidatas?: Candidatas;
+    tx_total?: number; tx_com_data_futura?: number;
+  };
+  limits_crus?: unknown;
   parcelamentos_analise?: {
     parcelamentos?: number; compras_distintas?: number; duplicatas?: number;
-    detalhe_duplicatas?: unknown[];
+    detalhe_duplicatas?: unknown[]; detalhe?: unknown[];
     futuras?: Record<string, Record<string, number>>;
     com_regra_de_ouro?: Record<string, number | null>;
   };
@@ -38,7 +49,9 @@ function resumir(diagnostico: Record<string, unknown>[]) {
     consent: d.consent,
     cartoes: ((d.cartoes as CartaoDebug[]) || []).map((c) => {
       const an = c.parcelamentos_analise;
-      const conf = (c.conferencia || {}) as Record<string, number | null>;
+      const conf = c.conferencia || {};
+      const cand = conf.candidatas || {};
+      const usadoZeradoOuAusente = conf.limite_usado == null || conf.limite_usado === 0;
       return {
         cartao: c.normalizado?.nome,
         // ── A pergunta principal ──
@@ -50,13 +63,25 @@ function resumir(diagnostico: Record<string, unknown>[]) {
         linhas_na_api: an?.parcelamentos ?? null,
         compras_reais: an?.compras_distintas ?? null,
         duplicatas: an?.detalhe_duplicatas ?? [],
+        parcelamentos: an?.detalhe ?? [],
         // ── Os candidatos a fatura, pra comparar com o app do banco ──
         fatura_no_app_do_banco: '<<< preencher olhando o app',
-        limite_usado: conf.limite_usado ?? null,
+        // ⭐ é ESTE que o painel mostra quando o banco não publicou a fatura
+        fatura_que_o_painel_mostra: cand.soma_do_ciclo ?? null,
         fatura_publicada_pelo_banco: conf.bill_total_da_aberta ?? null,
-        soma_das_transacoes: (conf.candidatas as unknown as Record<string, number>)?.soma_do_bill_da_aberta ?? null,
+        soma_do_bill_da_aberta: cand.soma_do_bill_da_aberta ?? null,
+        limite_total: conf.limite_total ?? null,
+        limite_usado: conf.limite_usado ?? null,
+        // Sem limite usado a regra de ouro é matematicamente impossível — dizer
+        // isso evita interpretar um monte de zeros como "a regra dá zero".
+        aviso_regra_de_ouro: usadoZeradoOuAusente
+          ? 'Banco não informa limite usado (veio 0/null) — a regra de ouro NÃO se aplica aqui, os zeros abaixo não significam nada.'
+          : null,
         regra_de_ouro: an?.com_regra_de_ouro ?? null,
         futuras: an?.futuras ?? null,
+        transacoes_lidas: conf.tx_total ?? null,
+        tx_com_data_futura: conf.tx_com_data_futura ?? null,
+        limits_crus: c.limits_crus ?? null,
       };
     }),
   }));
