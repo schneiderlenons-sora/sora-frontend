@@ -58,6 +58,11 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 // Preferências da central de avisos (espelha /api/user/avisos no backend).
+/** O que a Sora faz no vencimento de uma conta fixa (migration 112).
+ *  `lancar` cria a transação paga · `prever` cria [Previsto] pra a cobrança do
+ *  banco reconciliar · `nao_lancar` não cria nada (o card só soma o custo fixo). */
+export type ModoLancamentoFixo = 'lancar' | 'prever' | 'nao_lancar';
+
 export type AvisosPrefs = {
   avisos_ativos: boolean;          // toggle mestre (kill-switch)
   resumo_semanal: boolean;
@@ -313,12 +318,12 @@ export const api = {
     /** Dispensa uma sugestão de gasto fixo (não volta a aparecer). */
     dispensarSugestao: (descricao: string) =>
       req<{ ok: boolean }>('/api/recorrencias/dispensar', { method: 'POST', body: JSON.stringify({ descricao }) }),
-    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string; valor_variavel?: boolean }) =>
+    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string; valor_variavel?: boolean; modo_lancamento?: ModoLancamentoFixo; lembrete?: boolean }) =>
       req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
     /** `propagadas` = quantos lançamentos DESTE MÊS tiveram a categoria atualizada
      *  junto (a recorrência é template; sem isso o lançamento já feito ficava com
      *  a categoria antiga e parecia que a edição não salvou). */
-    editar: (id: string, body: { categoria?: string; valor?: number; dia_vencimento?: number; descricao?: string; carteira?: string }) =>
+    editar: (id: string, body: { categoria?: string; valor?: number; dia_vencimento?: number; descricao?: string; carteira?: string; modo_lancamento?: ModoLancamentoFixo; lembrete?: boolean }) =>
       req<any & { propagadas?: number }>(`/api/recorrencias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     cancelar: (id: string, phone: string) =>
       req(`/api/recorrencias/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),

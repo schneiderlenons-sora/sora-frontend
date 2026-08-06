@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
+  Bell, ChevronDown, Link2,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, type ModoLancamentoFixo } from '@/lib/api';
 import { mutate as mutateGlobal } from 'swr';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
@@ -26,7 +27,20 @@ type Recorrencia = {
   carteira:       string | null;
   categoria:      string | null;
   valor_variavel?: boolean;
+  // Migration 112 — o que a Sora faz no vencimento, por conta fixa.
+  modo_lancamento?: ModoLancamento;
+  lembrete?:        boolean;
 };
+
+/** `lancar` cria a transação paga · `prever` cria [Previsto] pra reconciliar
+ *  com a cobrança do banco · `nao_lancar` não cria nada (só lembra). */
+type ModoLancamento = ModoLancamentoFixo;
+
+const MODOS: { id: ModoLancamento; label: string; ajuda: string }[] = [
+  { id: 'lancar',     label: 'Lançar',     ajuda: 'Cria a transação já paga e desconta do saldo.' },
+  { id: 'prever',     label: 'Só prever',  ajuda: 'Cria como previsto e deixa a cobrança do seu banco confirmar o valor. Evita o gasto contar duas vezes.' },
+  { id: 'nao_lancar', label: 'Não lançar', ajuda: 'Não cria nada. Serve só pra você somar seus custos fixos.' },
+];
 
 type Wallet = { id: string; nome: string; tipo?: string };
 
@@ -119,6 +133,19 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
       setItens(backup); // reverte se falhar
     }
     setRemovendo(null);
+  }
+
+  /** Muda o modo de lançamento / o lembrete de UMA conta fixa. Otimista: a
+   *  UI responde na hora e reverte se o servidor recusar (são toggles, o
+   *  usuário costuma mexer em vários seguidos). */
+  async function mudarModo(id: string, patch: { modo_lancamento?: ModoLancamento; lembrete?: boolean }) {
+    const backup = itens;
+    setItens((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    try {
+      await api.recorrencias.editar(id, patch);
+    } catch {
+      setItens(backup);
+    }
   }
 
   return (
@@ -269,7 +296,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                   <Linha key={item.id} item={item} idx={idx}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
-                    onEditar={() => setFormTarget(item)} />
+                    onEditar={() => setFormTarget(item)}
+                    onModo={mudarModo} />
                 ))}
               </ul>
             </div>
@@ -284,7 +312,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 // Linha de uma recorrência (gasto ou receita, fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function Linha({
-  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar,
+  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo,
 }: {
   item:        Recorrencia;
   idx:         number;
@@ -293,7 +321,12 @@ function Linha({
   onPedir:     (id: string | null) => void;
   onCancelar:  (id: string) => void;
   onEditar:    () => void;
+  onModo:      (id: string, patch: { modo_lancamento?: ModoLancamento; lembrete?: boolean }) => void;
 }) {
+  const [aberto, setAberto] = useState(false);
+  const modo = item.modo_lancamento || 'lancar';
+  const modoInfo = MODOS.find((m) => m.id === modo) || MODOS[0];
+  const querLembrete = item.lembrete !== false;
   const tema = getCategoriaTheme(item.descricao);
   // Emoji da categoria (se tiver) OU o do tema da descrição — ex.: "academia" → 💪
   // (antes caía no 📦 genérico do CategoriaIcon quando a recorrência era "Outros").
@@ -305,9 +338,10 @@ function Linha({
   const saindo = removendo === item.id;
   return (
     <li
-      className="group flex items-center gap-3 px-4 sm:px-6 py-3 transition-colors hover:bg-muted/30 animate-fade-in"
+      className="group transition-colors hover:bg-muted/30 animate-fade-in"
       style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
     >
+    <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
       <CategoriaIcon nome={item.descricao} icone={emoji} size={38} bg={tema.bg} color={tema.color} rounded="rounded-xl" />
 
       <div className="flex-1 min-w-0">
@@ -324,6 +358,28 @@ function Linha({
           )}
           {item.carteira && <span className="truncate">· {item.carteira}</span>}
         </div>
+
+        {/* Chip do modo — abre os controles. Toque ≥44pt e sempre visível
+            (não pode ser hover-only: no mobile ficaria inalcançável). */}
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          aria-expanded={aberto}
+          aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
+          className={`mt-1.5 inline-flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-lg text-[11px] font-semibold
+                      transition-colors active:scale-[0.98] ${
+            modo === 'nao_lancar'
+              ? 'bg-muted/70 text-muted-foreground hover:bg-muted'
+              : modo === 'prever'
+                ? 'bg-amber-500/12 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
+                : 'bg-primary/12 text-primary hover:bg-primary/20'
+          }`}
+        >
+          {modo === 'nao_lancar' ? <CircleDashed size={11} /> : modo === 'prever' ? <Link2 size={11} /> : <Check size={11} />}
+          {modoInfo.label}
+          {querLembrete && <Bell size={10} className="opacity-70" />}
+          <ChevronDown size={12} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
+        </button>
       </div>
 
       <div className="text-right flex-shrink-0">
@@ -379,6 +435,63 @@ function Linha({
           </button>
         </div>
       )}
+    </div>
+
+    {/* Controles do vencimento. Anima a altura com grid 0fr→1fr (sem
+        max-height mágico) — mesmo padrão dos chips do hero do dashboard. */}
+    <div className="grid transition-all duration-300 ease-out px-4 sm:px-6"
+         style={{ gridTemplateRows: aberto ? '1fr' : '0fr', opacity: aberto ? 1 : 0 }}>
+      <div className="overflow-hidden">
+        {aberto && (
+          <div className="pb-3 pt-0.5 space-y-2.5 animate-fade-in">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5">
+                No dia {item.dia_vencimento}, a Sora deve:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {MODOS.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onModo(item.id, { modo_lancamento: m.id })}
+                    aria-pressed={modo === m.id}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.98] ${
+                      modo === m.id
+                        ? 'bg-primary text-white shadow-glow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{modoInfo.ajuda}</p>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={querLembrete}
+              onClick={() => onModo(item.id, { lembrete: !querLembrete })}
+              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-muted/40
+                         hover:bg-muted/70 transition-colors active:scale-[0.99]"
+            >
+              <span className="flex items-center gap-2 text-xs font-medium text-foreground">
+                <Bell size={13} className="text-muted-foreground" />
+                Lembrar no WhatsApp
+              </span>
+              <span className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
+                querLembrete ? 'bg-primary' : 'bg-muted-foreground/30'
+              }`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                  querLembrete ? 'left-[1.125rem]' : 'left-0.5'
+                }`} />
+              </span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
     </li>
   );
 }
