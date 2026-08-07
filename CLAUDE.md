@@ -459,6 +459,52 @@ período** coexistindo, o que já causou "fatura zerada no zap × R$ 146,89 no p
 - **Fora de escopo (decisão consciente):** "contabilizar a fatura pelo mês do
   pagamento" (regime de caixa) — mexeria em dashboard/categorias/relatórios/Wrapped.
 
+## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
+
+O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
+regra só olhava `dia_vencimento` + calendário, nunca o pagamento. (Caso real:
+cliente quitou **16 dívidas** no dia 07, todas vencendo dia 10 — as 16
+seguiram cobrando, no painel **e** no lembrete do WhatsApp.)
+
+- **Aritmética canônica:** `sora-backend/src/services/vencimentoDivida.js`,
+  espelhada **fielmente** em `sora-frontend/lib/vencimento-divida.ts`. Mexeu
+  num, mexa no outro e rode `npm run eval:vencimento-divida`. Havia **5 cópias
+  divergentes** da regra (card, resumo do painel, `ssr-data`, cron de lembrete
+  e `agendaFeed`) — todas passaram a chamar o helper.
+- **`vencimentoCoberto(pagamento, dia)`** = qual parcela aquele pagamento
+  quitou: a ocorrência de `dia` **mais próxima** da data do pagamento. É o que
+  separa *"paguei dia 07 a que vence dia 10"* (adiantado → pula) de *"paguei
+  dia 12 a que venceu dia 10"* (atrasado → **não** pula a do mês seguinte).
+  Esse falso positivo está travado no eval — é o erro fácil aqui.
+- **Só anda PRA FRENTE.** Pagamento antigo nunca joga o vencimento pro passado.
+  Dívida **sem pagamento registrado na Sora** — todas as do **Open Finance**,
+  onde as parcelas pagas vêm do banco — dá o **mesmo** resultado de antes; o
+  eval compara 20 casos contra a regra antiga pra provar regressão zero.
+- **Clamp ao último dia do mês:** dívida que vence dia 31 vence em **28/02** —
+  `new Date(Y, 1, 31)` rolava pra 03/03. Datas em `hojeSP()`, nunca
+  `toISOString()` (UTC: depois das 21h no BR a parcela pulava de dia).
+- O card mostra **"Parcela paga · próxima em Nd"** (verde) no lugar do alerta.
+
+### Open Finance não duplica dívida cadastrada à mão
+
+Quem lançou o empréstimo manualmente e depois conectou o banco ficava com
+**duas linhas** do mesmo contrato — e a cópia manual costuma trazer o **saldo
+devedor** no lugar do valor contratado, inflando o total devido (caso real:
+`Empréstimo · R$ 18.255,88` convivendo com o `Credito Pessoal · R$ 8.000` que
+o OF trouxe do mesmo contrato de 36×629,51).
+
+`upsertDivida` (`polpCelcoinSync.js`) agora **adota** a linha manual em vez de
+criar a gêmea — preserva o `id`, logo o histórico de `divida_pagamentos`, a
+foto e o lembrete. O casamento (`mesmaDividaManual`) é **estreito de
+propósito**: mesmo nº de parcelas + mesma parcela (±R$1) + mesmo banco no
+credor/título. **O valor total fica FORA** — é justamente onde os dois
+divergem. Deixar uma duplicata passar custa muito menos do que **fundir duas
+dívidas diferentes** do usuário. Travado em `npm run eval:divida-duplicada`.
+
+> ⚠️ Ao investigar "o OF importou errado", **confira `origem`/`of_id`/`created_at`
+> antes**: neste caso a dívida acusada era `origem: 'manual'`, criada 8 dias
+> **antes** de a conexão OF existir. O sync estava correto.
+
 ## Open Finance (Polp) — teste fechado, fatura do cartão
 
 Integração **funcionando** com banco real (Nubank + Mercado Pago). Allowlist nos
