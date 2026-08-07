@@ -8,6 +8,7 @@ import NovaDividaModal from '@/components/dividas/NovaDividaModal';
 import PagarParcelaModal from '@/components/dividas/PagarParcelaModal';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
+import { proximoVencimento } from '@/lib/vencimento-divida';
 import {
   Plus, Sparkles, Receipt, Pencil, Trash2, ArrowDownRight, CheckCircle2,
   AlertCircle, Loader2, TrendingDown, Calendar, Zap, Eye, EyeOff,
@@ -353,23 +354,10 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
 
   const concluida = divida.status === 'quitada';
 
-  // Próximo vencimento desta dívida específica
-  const hoje = new Date();
-  const proxVenc = (() => {
-    if (concluida || !divida.dia_vencimento) return null;
-    const v = new Date(hoje.getFullYear(), hoje.getMonth(), divida.dia_vencimento);
-    if (divida.dia_vencimento < hoje.getDate()) v.setMonth(v.getMonth() + 1);
-    // A 1ª parcela nunca vence no mês da compra: se o vencimento cair em/antes
-    // do dia da compra (data_inicio), pula pro mês seguinte (~30 dias depois).
-    // No-op p/ dívidas antigas (data_inicio no passado). Ex.: parcelou hoje dia
-    // 27 → 1ª parcela dia 27 do mês que vem, não amanhã.
-    if (divida.data_inicio) {
-      const ini = new Date(divida.data_inicio + 'T00:00:00');
-      if (v.getTime() <= ini.getTime()) v.setMonth(v.getMonth() + 1);
-    }
-    const dias = Math.ceil((v.getTime() - hoje.getTime()) / 86400000);
-    return { data: v, dias };
-  })();
+  // Próximo vencimento desta dívida — regra única em lib/vencimento-divida.ts
+  // (porte fiel do backend). Já pula a parcela paga neste ciclo: antes o card
+  // seguia dizendo "Próxima parcela em 3 dias" depois do usuário pagar.
+  const proxVenc = concluida ? null : proximoVencimento(divida);
 
   const credor = divida.credor || divida.titulo;
   const temLogoOficial = slugDaMarca(credor);
@@ -506,16 +494,27 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
         </div>
       )}
 
-      {/* Próximo vencimento */}
+      {/* Próximo vencimento.
+          `quitadaNoCiclo` = a parcela deste ciclo já foi paga: em vez do alerta
+          vermelho (que insistia numa parcela quitada), confirma o pagamento e
+          mostra quando cai a próxima. */}
       {proxVenc && !concluida && (
         <div className={`rounded-xl p-2.5 flex items-center gap-2 text-[11px] mb-3 ${
-          proxVenc.dias <= 3
-            ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60'
-            : 'bg-muted/40 border border-border/60'
+          proxVenc.quitadaNoCiclo
+            ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60'
+            : proxVenc.dias <= 3
+              ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60'
+              : 'bg-muted/40 border border-border/60'
         }`}>
-          <Calendar size={13} className={proxVenc.dias <= 3 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'} />
-          <p className={proxVenc.dias <= 3 ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'}>
-            {proxVenc.dias === 0 ? <><strong>Vence hoje:</strong></> :
+          {proxVenc.quitadaNoCiclo
+            ? <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            : <Calendar size={13} className={`flex-shrink-0 ${proxVenc.dias <= 3 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} />}
+          <p className={
+            proxVenc.quitadaNoCiclo ? 'text-emerald-700 dark:text-emerald-300'
+              : proxVenc.dias <= 3 ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'
+          }>
+            {proxVenc.quitadaNoCiclo ? <><strong>Parcela paga</strong> · próxima em {proxVenc.dias} dia{proxVenc.dias === 1 ? '' : 's'}:</> :
+             proxVenc.dias === 0 ? <><strong>Vence hoje:</strong></> :
              proxVenc.dias < 0  ? <><strong>Atrasada</strong> há {Math.abs(proxVenc.dias)} dia{Math.abs(proxVenc.dias) === 1 ? '' : 's'}:</> :
              <>Próxima parcela <strong>em {proxVenc.dias} dia{proxVenc.dias === 1 ? '' : 's'}</strong>:</>}
             {' '}

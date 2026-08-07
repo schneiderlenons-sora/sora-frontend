@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ehPagamentoFatura } from './categorizar';
+import { proximoVencimento, hojeSP } from './vencimento-divida';
 
 // =============================================================================
 // Leitura DIRETA no Supabase para o SSR — corta o hop lento do Render no
@@ -153,6 +154,25 @@ export async function dividasDireto(grupoId: string, userId: string) {
     supabaseAdmin.from('dividas').select('*').eq('grupo_id', grupoId).order('created_at', { ascending: false }),
   ]);
   const lista: any[] = dividas || [];
+
+  // Data do último pagamento por dívida — é o que impede o painel de avisar de
+  // uma parcela que o usuário ACABOU de pagar. `juros_atraso` fica de fora
+  // (não anda parcela). Espelha o GET do backend.
+  if (lista.length) {
+    const { data: pgs } = await supabaseAdmin.from('divida_pagamentos')
+      .select('divida_id, data_pagamento, tipo')
+      .in('divida_id', lista.map((d) => d.id))
+      .neq('tipo', 'juros_atraso');
+    const mapa: Record<string, string> = {};
+    for (const p of pgs || []) {
+      const dt = String((p as any).data_pagamento || '').slice(0, 10);
+      if (dt && (!mapa[(p as any).divida_id] || dt > mapa[(p as any).divida_id])) {
+        mapa[(p as any).divida_id] = dt;
+      }
+    }
+    for (const d of lista) d.ultimo_pagamento = mapa[d.id] || null;
+  }
+
   const ativas = lista.filter((d) => d.status === 'ativa' || d.status === 'em_atraso');
   const total_devido = ativas.reduce((s, d) => {
     const restantes = Math.max(0, (d.parcelas_total || 0) - (d.parcelas_pagas || 0));
@@ -161,21 +181,13 @@ export async function dividasDireto(grupoId: string, userId: string) {
   }, 0);
   const total_quitado = lista.filter((d) => d.status === 'quitada').length;
 
-  const hoje = new Date();
-  const diaHoje = hoje.getDate();
+  const hojeStr = hojeSP();
   let proxima: any = null;
   ativas.forEach((d) => {
-    if (!d.dia_vencimento) return;
-    const venc = new Date(hoje.getFullYear(), hoje.getMonth(), d.dia_vencimento);
-    if (d.dia_vencimento < diaHoje) venc.setMonth(venc.getMonth() + 1);
-    // 1ª parcela nunca vence no mês da compra (data_inicio) — pula pro seguinte.
-    if (d.data_inicio) {
-      const ini = new Date(d.data_inicio + 'T00:00:00');
-      if (venc.getTime() <= ini.getTime()) venc.setMonth(venc.getMonth() + 1);
-    }
-    const dias = Math.ceil((venc.getTime() - hoje.getTime()) / 86400000);
-    if (!proxima || dias < proxima.dias) {
-      proxima = { divida_id: d.id, titulo: d.titulo, valor: d.valor_parcela, data: venc.toISOString().slice(0, 10), dias };
+    const v = proximoVencimento(d, hojeStr);
+    if (!v) return;
+    if (!proxima || v.dias < proxima.dias) {
+      proxima = { divida_id: d.id, titulo: d.titulo, valor: d.valor_parcela, data: v.data, dias: v.dias };
     }
   });
   const parcelas_mes_valor = ativas.reduce((s, d) => s + (d.valor_parcela || 0), 0);
