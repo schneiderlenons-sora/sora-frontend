@@ -57,7 +57,7 @@ function PlanosContent() {
   recarregarRef.current = recarregar;
   useEffect(() => {
     if (!success) return;
-    trackPurchase({ value: 0 });
+    trackPurchase({ name: 'Assinatura Sora', value: 0 });
     let cancelado = false;
     // Sync IMEDIATO direto do Stripe (não espera o webhook) — ativa na hora.
     (async () => {
@@ -116,7 +116,7 @@ function PlanosContent() {
       const info = PLANOS_INFO[plano];
       const preco = intervalo === 'anual' ? info.anual : info.mensal;
       trackAddToCart({ name: `Plano ${plano}`, value: preco, currency: 'BRL' });
-      trackInitiateCheckout({ value: preco, currency: 'BRL' });
+      trackInitiateCheckout({ name: `Plano ${plano}`, value: preco, currency: 'BRL' });
 
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',

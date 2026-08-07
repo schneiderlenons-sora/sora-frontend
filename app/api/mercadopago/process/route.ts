@@ -99,6 +99,14 @@ export async function POST(req: NextRequest) {
       fb_ua: (req.headers.get('user-agent') || '').slice(0, 256) || undefined,
       fb_em: user.email || undefined,
     };
+    // Mesma coisa pro TikTok — sem isso o webhook do MP nunca tinha como
+    // notificar o TikTok da compra (ele não via cookie nenhum do comprador).
+    // `ttp` = browser id automático do pixel; `ttclid` = capturado na mão em
+    // TikTokPixel.tsx (o TikTok não grava isso sozinho como o Meta faz com fbc).
+    const ttMeta = {
+      ttp:     req.cookies.get('_ttp')?.value || undefined,
+      ttclid:  req.cookies.get('ttclid')?.value || undefined,
+    };
 
     // Nome do pagador ajuda o antifraude do MP a pontuar melhor (junto do device
     // id e do CPF). Best-effort: vem do metadata do auth; se não tiver, omite.
@@ -140,7 +148,7 @@ export async function POST(req: NextRequest) {
         payer: { email: form.payer?.email || user.email, identification: form.payer?.identification, ...payerNome },
         additional_info,
         external_reference: user.id,
-        metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta },
+        metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta, ...ttMeta },
         notification_url: `${origin}/api/mercadopago/webhook`,
         statement_descriptor: 'SORA',
       }, form.deviceId);

@@ -56,7 +56,7 @@ function CheckoutContent() {
     trackedRef.current = true;
     try {
       trackAddToCart({ name: t.titulo, value: t.amount, currency: 'BRL' });
-      trackInitiateCheckout({ value: t.amount, currency: 'BRL' });
+      trackInitiateCheckout({ name: t.titulo, value: t.amount, currency: 'BRL' });
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

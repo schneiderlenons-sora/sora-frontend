@@ -177,8 +177,9 @@ function SignupWizard() {
   useEffect(() => {
     if (step === 'pagamento') {
       const valor = vitalicioMode ? 97 : PLANOS_INFO[planoSel][intervalo];
-      trackAddToCart({ name: vitalicioMode ? 'Vitalício Completa' : `Plano ${planoSel}`, value: valor, currency: 'BRL' });
-      trackInitiateCheckout({ value: valor, currency: 'BRL' });
+      const nomePlano = vitalicioMode ? 'Vitalício Completa' : `Plano ${planoSel}`;
+      trackAddToCart({ name: nomePlano, value: valor, currency: 'BRL' });
+      trackInitiateCheckout({ name: nomePlano, value: valor, currency: 'BRL' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);

@@ -22,6 +22,49 @@ declare global {
   }
 }
 
+// Vira um slug estável ("Plano premium" → "plano-premium"). É o content_id
+// que falta pro TikTok — ver o porquê logo abaixo, em resolveContentId().
+export function slugify(s: string): string {
+  return s
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'sora';
+}
+
+// ⚠️ O TikTok marcou "Crítica: O ID do conteúdo está ausente" em 100% dos
+// eventos ViewContent/AddToCart/CompletePayment — a Sora nunca mandou
+// `content_id`. O modelo deles é de e-commerce (produto com SKU); como a
+// Sora vende PLANOS, não existe um SKU de catálogo — a saída é um id
+// ESTÁVEL derivado do nome do plano/oferta ("Plano premium" → "plano-premium"),
+// que funciona igual a um SKU pros dois pixels (Meta também aceita/usa).
+// `id` explícito vence (pra quem já tem um identificador melhor, tipo o
+// `cfg.plano` do vitalício); sem ele, cai no nome; sem nome, cai num genérico
+// (melhor que mandar `undefined`, que é exatamente o que gerava o alerta).
+function resolveContentId(params?: { id?: string; name?: string }): string {
+  if (params?.id) return slugify(params.id);
+  if (params?.name) return slugify(params.name);
+  return 'plano-sora';
+}
+
+// custom_data comum aos 4 eventos de funil (ViewContent/AddToCart/
+// InitiateCheckout/Purchase) — mesmo objeto pros dois pixels, por isso leva
+// AS DUAS convenções de content id: `content_ids` (array) é o nome que o Meta
+// espera; `content_id` (singular) é o que o TikTok espera. Cada provider lê o
+// campo que reconhece e ignora o outro — inofensivo mandar os dois.
+function buildFunilData(params?: { name?: string; id?: string; value?: number; currency?: string }) {
+  const contentId = resolveContentId(params);
+  return {
+    content_id: contentId,
+    content_ids: [contentId],
+    content_type: 'product',
+    content_name: params?.name,
+    value: params?.value,
+    currency: params?.currency || 'BRL',
+  };
+}
+
 // Gera UUID v4 simples pra dedup
 function uuid(): string {
   return crypto.randomUUID?.() ||
@@ -166,9 +209,9 @@ export function trackLead(info?: UserInfo) {
 // TikTok reclama "eventos ausentes: ViewContent/AddToCart" quando só chegam
 // InitiateCheckout+Purchase — o modelo de otimização deles quer o funil
 // inteiro, mesmo pra quem não vende produto físico).
-export function trackViewContent(params?: { name?: string; value?: number; currency?: string }, info?: UserInfo) {
+export function trackViewContent(params?: { name?: string; id?: string; value?: number; currency?: string }, info?: UserInfo) {
   const eventId = uuid();
-  const customData = { content_name: params?.name, value: params?.value, currency: params?.currency || 'BRL' };
+  const customData = buildFunilData(params);
   fbq('track', 'ViewContent', customData, { eventID: eventId });
   sendToCAPI({
     event_name: 'ViewContent',
@@ -192,9 +235,9 @@ export function trackViewContent(params?: { name?: string; value?: number; curre
 // "Carrinho" da Sora = escolher um plano (não existe carrinho de verdade).
 // Disparado sempre JUNTO com trackInitiateCheckout, no mesmo clique — dois
 // eventos de funil por uma ação só, sem mudar UX nenhuma.
-export function trackAddToCart(params?: { name?: string; value?: number; currency?: string }, info?: UserInfo) {
+export function trackAddToCart(params?: { name?: string; id?: string; value?: number; currency?: string }, info?: UserInfo) {
   const eventId = uuid();
-  const customData = { content_name: params?.name, value: params?.value, currency: params?.currency || 'BRL' };
+  const customData = buildFunilData(params);
   fbq('track', 'AddToCart', customData, { eventID: eventId });
   sendToCAPI({
     event_name: 'AddToCart',
@@ -215,9 +258,9 @@ export function trackAddToCart(params?: { name?: string; value?: number; currenc
   });
 }
 
-export function trackInitiateCheckout(params?: { value?: number; currency?: string }, info?: UserInfo) {
+export function trackInitiateCheckout(params?: { name?: string; id?: string; value?: number; currency?: string }, info?: UserInfo) {
   const eventId = uuid();
-  const customData = { value: params?.value, currency: params?.currency || 'BRL' };
+  const customData = buildFunilData(params);
   fbq('track', 'InitiateCheckout', customData, { eventID: eventId });
   sendToCAPI({
     event_name: 'InitiateCheckout',
@@ -238,9 +281,9 @@ export function trackInitiateCheckout(params?: { value?: number; currency?: stri
   });
 }
 
-export function trackPurchase(params: { value: number; currency?: string }, info?: UserInfo) {
+export function trackPurchase(params: { name?: string; id?: string; value: number; currency?: string }, info?: UserInfo) {
   const eventId = uuid();
-  const customData = { value: params.value, currency: params.currency || 'BRL' };
+  const customData = buildFunilData(params);
   fbq('track', 'Purchase', customData, { eventID: eventId });
   sendToCAPI({
     event_name: 'Purchase',

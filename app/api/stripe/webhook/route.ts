@@ -4,6 +4,7 @@ import { stripe, priceIdToPlano, priceIdToIntervalo, ehPriceConexaoOf } from '@/
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendCAPIEvent } from '@/lib/facebook-capi';
 import { sendTikTokEvent } from '@/lib/tiktok-events-api';
+import { slugify } from '@/lib/analytics';
 
 // Necessário para ler o raw body e verificar a assinatura Stripe
 export const dynamic = 'force-dynamic';
@@ -148,6 +149,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // CAPI: Purchase server-side (mais confiável que o pixel client-side)
   const amount = session.amount_total ? session.amount_total / 100 : 0;
+  const nomePlano = `Plano ${plano} ${intervalo}`;
+  // content_id — sem ele o TikTok acusa "Crítica: ID do conteúdo ausente" em
+  // 100% dos eventos (a Sora vende plano, não SKU de catálogo; um slug
+  // estável do nome do plano funciona igual a um SKU pros dois pixels).
+  const contentId = slugify(nomePlano);
   sendCAPIEvent({
     event_name: 'Purchase',
     event_source_url: `https://forsora.com/planos?success=1`,
@@ -157,7 +163,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     custom_data: {
       value: amount,
       currency: session.currency?.toUpperCase() || 'BRL',
-      content_name: `Plano ${plano} ${intervalo}`,
+      content_name: nomePlano,
+      content_ids: [contentId],
     },
   }).catch(() => {}); // non-blocking
 
@@ -173,7 +180,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     custom_data: {
       value: amount,
       currency: session.currency?.toUpperCase() || 'BRL',
-      content_name: `Plano ${plano} ${intervalo}`,
+      content_name: nomePlano,
+      content_id: contentId,
+      content_type: 'product',
     },
   }).catch(() => {}); // non-blocking
 }

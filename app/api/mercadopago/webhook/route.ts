@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mpGetPayment } from '@/lib/mercadopago';
 import { ativarVitalicio } from '@/lib/vitalicio';
 import { sendCAPIEvent } from '@/lib/facebook-capi';
+import { sendTikTokEvent } from '@/lib/tiktok-events-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,8 @@ export async function POST(req: NextRequest) {
       // Dados de match capturados no /process (o webhook do MP não vê os cookies/IP
       // do comprador). event_id determinístico → dedup se o MP reenviar o webhook.
       const md = (payment.metadata || {}) as Record<string, string | undefined>;
+      const nomePlano = plano === 'kit' ? 'Kit Vitalício' : 'Premium Vitalício';
+      const contentId = `vitalicio-${plano}`; // estável — não usa slugify pra não puxar lib/analytics num arquivo tão pequeno
       sendCAPIEvent({
         event_name: 'Purchase',
         event_id: `mp_${paymentId}`,
@@ -44,7 +47,35 @@ export async function POST(req: NextRequest) {
         custom_data: {
           value: payment.transaction_amount || 97,
           currency: 'BRL',
-          content_name: plano === 'kit' ? 'Kit Vitalício' : 'Premium Vitalício',
+          content_name: nomePlano,
+          content_ids: [contentId],
+        },
+      }).catch(() => {});
+
+      // ⚠️ Vitalício é vendido pelo Mercado Pago, não pelo Stripe — este
+      // disparo NUNCA existiu pro TikTok antes (só ia pro Meta). Como boa
+      // parte das vendas da Sora passa por /oferta, /kit, /chat e /quiz
+      // (todas vitalício), o TikTok nunca via NENHUM "Compras" de verdade —
+      // é bem provável que seja a causa real do "Eventos ausentes: Compras"
+      // continuar aparecendo mesmo depois do funil ViewContent/AddToCart ter
+      // sido corrigido. content_id também vai junto (era o outro alerta:
+      // "Crítica: ID do conteúdo ausente").
+      sendTikTokEvent({
+        event: 'CompletePayment',
+        event_id: `mp_${paymentId}`,
+        event_source_url: 'https://www.forsora.com/oferta',
+        user_data: {
+          email: md.fb_em,
+          external_id: payment.external_reference,
+          ttp: md.ttp,
+          ttclid: md.ttclid,
+        },
+        custom_data: {
+          value: payment.transaction_amount || 97,
+          currency: 'BRL',
+          content_name: nomePlano,
+          content_id: contentId,
+          content_type: 'product',
         },
       }).catch(() => {});
     }
