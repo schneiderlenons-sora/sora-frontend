@@ -76,7 +76,11 @@ const NAV_GROW: NavItem[] = [
 // ── Geral (app-wide, sempre visível) ────────────────────────────────
 const NAV_GERAL: NavItem[] = [
   { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
-  { href: '/avisos',        label: 'Avisos',          icon: Bell },
+  // Os Agentes substituem a antiga Central de Avisos (mesmas preferências, com
+  // rosto e voz). No branch de preview as DUAS convivem pra comparar lado a
+  // lado; ao aprovar, /avisos vira redirect e some daqui.
+  { href: '/agentes',       label: 'Agentes',         icon: Sparkles },
+  { href: '/avisos',        label: 'Avisos (antigo)', icon: Bell },
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
   { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
