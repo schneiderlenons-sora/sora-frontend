@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock } from 'lucide-react';
+import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock, Undo2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
@@ -72,6 +72,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
 
   // ── Compra parcelada (cartão de crédito OU "sem cartão", só despesa) ──
   const [parcelado,   setParcelado]   = useState(false);
+  const [estorno,     setEstorno]     = useState(false);
   const [numParcelas, setNumParcelas] = useState(2);
   const [pagas,       setPagas]       = useState<Set<number>>(new Set());
   const [avisoParcela, setAvisoParcela] = useState(''); // aviso ao tentar parcelar sem conta válida
@@ -153,6 +154,13 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   const semCartao   = walletId === SEM_CARTAO && tipo === 'Gasto';
   const podeParcelar = ehCartaoSel || semCartao;
 
+  // Estorno = crédito na fatura (reembolso, cashback, compra cancelada). Vira um
+  // `Recebimento` com `transferencia: true`, que ABATE a fatura e devolve limite
+  // sem contar como receita. Só faz sentido num cartão — e o seletor esconde
+  // cartão quando o tipo é Recebimento, então a porta de entrada é esta.
+  const podeEstornar = ehCartaoSel && !parcelado;
+  useEffect(() => { if (!podeEstornar) setEstorno(false); }, [podeEstornar]);
+
   // Sai de cartão/sem-cartão ou vira receita → desliga o parcelado. Voltando pra
   // uma opção válida, limpa o aviso.
   useEffect(() => { if (podeParcelar) setAvisoParcela(''); else setParcelado(false); }, [podeParcelar]);
@@ -196,7 +204,8 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
     setErro('');
     if (!valor || valor === '0') { setErro(parcelado ? 'Informe o valor de cada parcela.' : 'Informe o valor.'); return; }
     // Parcelamento sem cartão vira Dívida — categoria não se aplica.
-    if (!categoria && !(parcelado && semCartao)) { setErro('Selecione uma categoria.'); return; }
+    // Estorno tem categoria fixa ('Reembolso'); parcelamento sem cartão vira Dívida.
+    if (!categoria && !estorno && !(parcelado && semCartao)) { setErro('Selecione uma categoria.'); return; }
     if (walletsVisiveis.length > 0 && !walletId) { setErro('Selecione a conta de origem.'); return; }
 
     const walletNome = wallets.find(w => w.id === walletId)?.nome;
@@ -206,16 +215,19 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
     // plano. Salvar "parece" instantâneo mesmo com o Render em ~500ms.
     if (onOptimisticCreate && !parcelado) {
       const valorNum = parseInt(valor, 10) / 100;
-      const catFull = `${catEmoji} ${categoria}`;
+      // Estorno entra como crédito na fatura, não como despesa nem receita.
+      const tipoFinal = estorno ? 'Recebimento' : tipo;
+      const catFull = estorno ? '↩️ Reembolso' : `${catEmoji} ${categoria}`;
       const optimisticRow = {
         id: `tmp-${Date.now()}`,
-        tipo, valor: valorNum, observacao: descricao, categoria: catFull,
+        tipo: tipoFinal, valor: valorNum, observacao: descricao, categoria: catFull,
         carteira_nome: walletNome, wallet_nome: walletNome, data,
-        pago: true, recorrente, _otimista: true,
+        pago: true, recorrente, transferencia: estorno, _otimista: true,
       };
       const doCreate = () => api.transacoes.criar({
-        phone, tipo, valor: valorNum, observacao: descricao, categoria: catFull,
+        phone, tipo: tipoFinal, valor: valorNum, observacao: descricao, categoria: catFull,
         wallet_id: walletId || undefined, carteira_nome: walletNome, data, recorrente,
+        transferencia: estorno,
       });
       onOptimisticCreate(optimisticRow, doCreate);
       onClose();
@@ -259,14 +271,15 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
       } else {
         await api.transacoes.criar({
           phone,
-          tipo,
+          tipo: estorno ? 'Recebimento' : tipo,
           valor: parseInt(valor, 10) / 100,
           observacao: descricao,
-          categoria: `${catEmoji} ${categoria}`,
+          categoria: estorno ? '↩️ Reembolso' : `${catEmoji} ${categoria}`,
           wallet_id: walletId || undefined,
           carteira_nome: walletNome,
           data,
           recorrente,
+          transferencia: estorno,   // abate a fatura, sem virar receita
         });
       }
       onSuccess();
@@ -432,6 +445,30 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
             <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 -mt-2">
               <AlertCircle size={12} className="flex-shrink-0" /> {avisoParcela}
             </p>
+          )}
+
+          {/* Estorno na fatura — só aparece com um cartão escolhido. Abate a
+              fatura e devolve limite, sem contar como receita no relatório. */}
+          {podeEstornar && (
+            <button
+              type="button"
+              onClick={() => setEstorno(v => !v)}
+              aria-pressed={estorno}
+              className={`flex items-center justify-between gap-1.5 px-3 py-2.5 rounded-xl border text-left transition-all -mt-2 ${estorno ? 'border-emerald-500 bg-emerald-500/5' : 'border-border hover:bg-muted/40'}`}
+            >
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Undo2 size={15} className="flex-shrink-0 text-emerald-500" />
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-medium text-foreground truncate">Estorno / crédito na fatura</span>
+                  <span className="block text-[11px] text-muted-foreground truncate">
+                    Reembolso, cashback ou compra cancelada — abate a fatura
+                  </span>
+                </span>
+              </span>
+              <span className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors" style={{ background: estorno ? 'hsl(160 84% 39%)' : 'hsl(var(--fg-muted) / .3)' }}>
+                <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform" style={{ transform: estorno ? 'translateX(18px)' : 'translateX(2px)' }} />
+              </span>
+            </button>
           )}
 
           {/* Config da compra parcelada */}

@@ -16,6 +16,7 @@ import {
   competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, labelCompetencia,
   type Ciclo,
 } from '@/lib/ciclo-fatura';
+import { somarFatura } from '@/lib/valor-fatura';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
   ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight,
@@ -161,9 +162,11 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       // Critério decidido UMA vez por fatura. Decidir por transação misturava a
       // fatura vinculada com o ciclo novo e somava as duas.
       const criterio = criterioDaFatura(minhas, w, mesIndex === 0);
-      acc[w.id] = minhas
-        .filter(t => t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, mesIndex === 0, criterio))
-        .reduce((s, t) => s + (t.valor || 0), 0);
+      // Soma ASSINADA (lib/valor-fatura.ts): compra soma, estorno/crédito
+      // ABATE, pagamento de fatura é neutro. Antes filtrava só `tipo==='Gasto'`
+      // e o crédito era descartado — a fatura ficava maior que a do banco.
+      acc[w.id] = somarFatura(
+        minhas.filter(t => pertenceAFatura(t, w, ciclo, mesIndex === 0, criterio)));
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,9 +200,10 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     const acc: Record<string, number> = {};
     wallets.forEach(w => {
       const inicio = cicloPorCompetencia(w, competenciaAtual(w)).ini;
-      acc[w.id] = txsTodas
-        .filter(t => mesmaCarteira(t, w) && t.tipo === 'Gasto' && (t.data || '').slice(0, 10) >= inicio)
-        .reduce((s, t) => s + (t.valor || 0), 0);
+      // Também assinada: estorno DEVOLVE limite. Era a queixa do cliente —
+      // pedia reembolso, o banco liberava o limite e a Sora não mexia em nada.
+      acc[w.id] = somarFatura(txsTodas
+        .filter(t => mesmaCarteira(t, w) && (t.data || '').slice(0, 10) >= inicio));
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,9 +223,8 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
         const comp = passo === 0 ? competenciaAtual(w) : competenciaVizinha(w, competenciaAtual(w), passo);
         const ciclo = cicloPorCompetencia(w, comp);
         if (!rotulo) rotulo = MES_ABREV[parseInt(comp.slice(5, 7), 10) - 1];
-        total += pote
-          .filter((t) => mesmaCarteira(t, w) && t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, passo === 0))
-          .reduce((s: number, t: any) => s + (t.valor || 0), 0);
+        total += somarFatura(pote
+          .filter((t) => mesmaCarteira(t, w) && pertenceAFatura(t, w, ciclo, passo === 0)));
       }
       // Sem cartão nenhum: mantém o eixo com o rótulo do mês.
       if (!rotulo) {

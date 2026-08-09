@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
 import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
+import { somarFatura } from '@/lib/valor-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
@@ -124,8 +125,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
         // Critério UMA vez por fatura (ver criterioDaFatura): por transação,
         // misturava a fatura vinculada com as compras do ciclo novo.
         const criterio = criterioDaFatura(minhas, cartao, offsetMes === 0);
+        // Inclui os CRÉDITOS (estorno/cashback) do ciclo, não só os Gasto: eles
+        // abatem a fatura e o usuário precisa vê-los na lista pra bater com o
+        // extrato do banco. Quem decide o sinal é `somarFatura`.
         const doCartao = minhas.filter(
-          (t: any) => t.tipo === 'Gasto' && pertenceAFatura(t, cartao, ciclo, offsetMes === 0, criterio));
+          (t: any) => pertenceAFatura(t, cartao, ciclo, offsetMes === 0, criterio));
         setTxs(doCartao);
       })
       .catch(() => { if (!cancelado) setTxs([]); })
@@ -140,10 +144,9 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // seu e mostravam números diferentes. Somar as transações do mês aqui não dá
   // a fatura: ignora o pagamento da fatura (que não é `tipo: 'Gasto'`) e pega o
   // mês do calendário, não o ciclo. Mês passado segue pela soma.
-  const somaMes = useMemo(
-    () => txs.reduce((s, t) => s + (t.valor || 0), 0),
-    [txs]
-  );
+  // Soma ASSINADA (lib/valor-fatura.ts): compra soma, estorno/crédito ABATE,
+  // pagamento de fatura é neutro.
+  const somaMes = useMemo(() => somarFatura(txs), [txs]);
   // Fatura: mesma fonte da lista de cartões — cartão do Open Finance no mês
   // atual usa o valor do sync (saldo = −fatura, já sem parcelas a vencer);
   // o resto soma as transações do mês. Ter duas contas diferentes aqui e na
@@ -171,10 +174,12 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   const pagamentoMinimo: number | null =
     typeof cartao?.pagamento_minimo === 'number' ? cartao.pagamento_minimo : null;
 
-  // Gastos por categoria
+  // Gastos por categoria — só os Gasto, de propósito: crédito entraria como
+  // barra negativa ("Reembolso: −R$ 40") e quebraria a leitura do ranking.
+  // O abatimento aparece no TOTAL da fatura, que é onde importa.
   const porCategoria = useMemo(() => {
     const acc: Record<string, number> = {};
-    txs.forEach(t => {
+    txs.filter(t => t.tipo === 'Gasto').forEach(t => {
       const cat = t.categoria || '📦 Outros';
       acc[cat] = (acc[cat] || 0) + (t.valor || 0);
     });
@@ -189,7 +194,8 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   const porCartao = useMemo(() => {
     const acc: Record<string, number> = {};
     // Pluggy grava em `pluggy_card`, Celcoin em `of_card` — aceitar os dois.
-    txs.forEach(t => {
+    // Só Gasto, mesma razão do ranking por categoria acima.
+    txs.filter(t => t.tipo === 'Gasto').forEach(t => {
       const c = t.of_card || t.pluggy_card;
       if (c) acc[c] = (acc[c] || 0) + (t.valor || 0);
     });

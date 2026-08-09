@@ -10,6 +10,7 @@ import IconeMarca from '@/components/ui/IconeMarca';
 import ValorAuto from '@/components/ui/ValorAuto';
 import { api } from '@/lib/api';
 import { competenciaAtual, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
+import { somarFatura } from '@/lib/valor-fatura';
 
 const BRAND = 'hsl(var(--primary))';
 const fmt = (v: number) =>
@@ -88,11 +89,10 @@ export default function ResumoCards({
         // Critério UMA vez por fatura — decidir por transação somava a fatura
         // vinculada junto com o ciclo novo.
         const criterio = criterioDaFatura(minhas, w, true);
+        // Soma ASSINADA (lib/valor-fatura.ts): estorno/crédito ABATE a fatura.
         const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
           ? -(w.saldo as number)
-          : minhas
-              .filter(t => t.tipo === 'Gasto' && pertenceAFatura(t, w, ciclo, true, criterio))
-              .reduce((s, t) => s + (t.valor || 0), 0);
+          : somarFatura(minhas.filter(t => pertenceAFatura(t, w, ciclo, true, criterio)));
         const fatura = restanteApi[w.id] ?? local;
         const limite = w.limite || 0;
         return { id: w.id, nome: w.nome, fatura, limite, disponivel: Math.max(limite - fatura, 0) };
