@@ -459,6 +459,47 @@ período** coexistindo, o que já causou "fatura zerada no zap × R$ 146,89 no p
 - **Fora de escopo (decisão consciente):** "contabilizar a fatura pelo mês do
   pagamento" (regime de caixa) — mexeria em dashboard/categorias/relatórios/Wrapped.
 
+## Fatura: crédito ABATE, pagamento é NEUTRO (ago/2026) — fonte única
+
+A fatura só sabia **somar**. Os **7** pontos que a calculavam filtravam
+`tipo === 'Gasto'` e **descartavam todo crédito** — estorno, cashback,
+"Crédito de parcelamento de compra". Estorno de R$ 40 não abatia nada: a fatura
+da Sora ficava R$ 40 maior que a do banco **para sempre**, e o limite
+comprometido nunca voltava. (Cliente Nubank conferia lançamento por lançamento
+todo mês.)
+
+- **Aritmética canônica:** `sora-backend/src/services/valorFatura.js`, espelhada
+  **fielmente** em `sora-frontend/lib/valor-fatura.ts`. Mexeu num, mexa no outro
+  e rode `npm run eval:valor-fatura`.
+- **A soma é ASSINADA:** compra `+valor` · estorno/cashback/crédito `−valor` ·
+  **pagamento da fatura `0`**. O pagamento já abate por `pagamentos_fatura`
+  (`restante = fatura − pago`) — contar nos dois lugares tira o valor **em dobro**.
+- **A regra é ESTREITA de propósito:** só abate `Recebimento` **+**
+  `transferencia = true` **+** categoria ≠ Fatura. Sem a condição de
+  `transferencia` eu abateria os `📦 Importado` de OFX (um de R$ 2.129,45 com
+  cara de pagamento) e um `Salário` lançado por engano na carteira do cartão.
+  **Medido nos 102 cartões da base: ZERO faturas mudam de valor.**
+- **`normalizeTxCartao` separa `pagouFatura` de `creditoAjuste`.** Antes os dois
+  saíam como `categoria: 'Fatura'`, indistinguíveis. Crédito nasce
+  `CATEGORIA_ESTORNO` (`'Reembolso'`, já existe na taxonomia v4 — **sem migration**)
+  e ambos seguem `transferencia: true`, então estorno **não vira "receita comum"**.
+- ⚠️ **`ehPagamentoFaturaCat` normaliza emoji/acento.** O `ehPagamentoFatura` do
+  catálogo compara a string EXATA, então `'💳 Fatura'` devolvia `false` — e a
+  linha viraria abatimento, derrubando a fatura indevidamente.
+- **Rollover intacto:** "Fatura anterior" é `Gasto` com `transferencia=true` e
+  continua **somando**. **Open Finance por `−saldo` intocado.**
+- O ranking por categoria do `DetalhesCartaoModal` segue **só com `Gasto`** —
+  crédito viraria barra negativa. O abatimento aparece no **total**.
+- Lançar estorno à mão: toggle **"Estorno / crédito na fatura"** no
+  `NovaTransacaoModal` (só com cartão selecionado; o seletor esconde cartão
+  quando o tipo é Recebimento, então é a única porta de entrada).
+
+> **Pendente:** "Pix no crédito/NuPay não importa" — única queixa não
+> diagnosticável pelo código. Suspeito nº 1: `if (!redistribuida && data > hoje)
+> return null` em `normalizeTxCartao` (Pix parcelado **sem** marcador "N/M" é
+> descartado). **Não mexer sem o payload cru** — é a mesma linha que impede
+> parcela virar despesa em 2027.
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
