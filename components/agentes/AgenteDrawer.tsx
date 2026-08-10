@@ -64,10 +64,10 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
         style={{ background: 'hsl(var(--bg-card))' }}
       >
         {/* Capa com o vídeo do agente */}
-        {/* Mesma proporção 3:4 dos cards e `object-top`: assim UM único arquivo
-            por agente serve os dois lugares e o rosto nunca é cortado. Teto de
-            altura pra capa não empurrar o conteúdo pra fora da tela no mobile. */}
-        <div className="relative aspect-[3/4] max-h-[36dvh] w-full overflow-hidden bg-muted">
+        {/* Mesma proporção 1:1 dos cards — um arquivo por agente serve os dois
+            lugares. Teto de altura pra capa não empurrar os toggles pra fora
+            da tela no mobile. */}
+        <div className="relative aspect-square max-h-[34dvh] w-full overflow-hidden bg-muted">
           {/* Fundo de identidade sob o vídeo — ver AgenteCard. */}
           <div
             className="absolute inset-0 grid place-items-center"
@@ -75,13 +75,16 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
           >
             <span className="text-6xl font-black text-white/20 select-none">{agente.nome.charAt(0)}</span>
           </div>
-          <video
-            src={agente.video}
-            poster={agente.imagem}
-            muted loop playsInline autoPlay
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover object-top"
-          />
+          {/* Sem `loop`: anima uma vez ao abrir e congela — mesmo efeito do card. */}
+          {agente.video && (
+            <video
+              src={agente.video}
+              poster={agente.imagem}
+              muted playsInline autoPlay
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--bg-card))] via-transparent to-transparent" />
 
           {/* Puxador do bottom-sheet (só mobile) */}

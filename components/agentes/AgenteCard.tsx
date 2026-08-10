@@ -5,16 +5,22 @@ import { Check, Pause, Sparkles } from 'lucide-react';
 import type { Agente } from '@/lib/agentes';
 
 // =============================================================================
-// Card de um agente — capa em vídeo (loop mudo) + nome + estado.
+// Card de um agente — a animação toca UMA VEZ e congela no último frame.
+//
+// É o mesmo comportamento do vídeo do dashboard mobile (`HeroVideoBg`): sem
+// `loop`, o <video> para sozinho no último frame e vira a "foto" do agente.
+// Loop infinito em 6 cards lado a lado viraria um letreiro piscando.
 //
 // DECISÕES QUE NÃO PODEM REGREDIR:
-// · `aspect-[3/4]` no wrapper reserva a altura ANTES do vídeo carregar. Sem
-//   isso a faixa inteira pula quando o primeiro frame chega (CLS).
-// · O vídeo só começa a tocar quando o card ENTRA NA TELA (IntersectionObserver)
-//   e pausa ao sair. Cinco vídeos tocando ao mesmo tempo num carrossel derrubam
-//   o frame rate no mobile — e o usuário só vê um por vez.
-// · `prefers-reduced-motion` → nunca dá play; fica no poster. É requisito de
-//   acessibilidade, não enfeite.
+// · `aspect-square` (os vídeos são 1:1) reserva a altura ANTES do vídeo
+//   carregar. Sem isso a faixa inteira pula quando o primeiro frame chega (CLS).
+// · A animação começa quando o card ENTRA NA TELA e recomeça do zero se ele
+//   sair e voltar — é o "abriu, animou" que o usuário pediu. Fora da tela nada
+//   toca: 6 vídeos simultâneos derrubam o frame rate no mobile.
+// · `prefers-reduced-motion` → nunca dá play; fica no primeiro frame, como uma
+//   foto. É requisito de acessibilidade, não enfeite.
+// · Agente sem vídeo ainda (Jacques, Aurora) cai no gradiente com a inicial —
+//   estado desenhado de propósito, não falha.
 // · O card inteiro é UM botão (abre o detalhe). O interruptor NÃO fica aqui
 //   dentro: botão dentro de botão é HTML inválido e o clique dispara os dois
 //   (o mesmo bug que já aconteceu no /admin com button dentro de label).
@@ -35,18 +41,24 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
-    // Respeita quem pediu menos movimento no sistema.
+    // Respeita quem pediu menos movimento no sistema: fica no 1º frame.
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
+    const tocarDoInicio = () => {
+      v.currentTime = 0;
+      v.play().catch(() => {});   // autoplay bloqueado = 1º frame, sem erro no console
+    };
+
     const io = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) v.play().catch(() => {});   // autoplay bloqueado = poster, sem erro no console
-        else v.pause();
-      },
+      ([e]) => { if (e.isIntersecting) tocarDoInicio(); },
       { threshold: 0.4 },
     );
     io.observe(v);
-    return () => io.disconnect();
+
+    // Voltou pro app depois de trocar de aba → anima de novo (igual HeroVideoBg).
+    const aoVoltar = () => { if (document.visibilityState === 'visible') tocarDoInicio(); };
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => { io.disconnect(); document.removeEventListener('visibilitychange', aoVoltar); };
   }, []);
 
   return (
@@ -60,8 +72,8 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
                  focus-visible:ring-offset-background animate-[slide-up_500ms_ease-out_both]"
       style={{ animationDelay: `${delay}ms`, ['--tw-ring-color' as string]: agente.cor }}
     >
-      {/* Capa: proporção fixa reserva o espaço e evita CLS */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
+      {/* Capa 1:1 (proporção dos vídeos). Reserva o espaço e evita CLS. */}
+      <div className="relative aspect-square w-full overflow-hidden bg-muted">
         {/* Fundo de identidade — fica SOB o vídeo. Enquanto os arquivos do
             agente não existem (ou falham), é isto que aparece: gradiente na cor
             dele + inicial. Preview sem asset fica intencional, não quebrado. */}
@@ -71,21 +83,25 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
         >
           <span className="text-5xl font-black text-white/25 select-none">{agente.nome.charAt(0)}</span>
         </div>
-        <video
-          ref={ref}
-          src={agente.video}
-          poster={agente.imagem}
-          muted
-          loop
-          playsInline
-          preload="none"
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500
-                     group-hover:scale-[1.04]"
-        />
-        {/* Véu inferior pro texto ter contraste em cima de qualquer frame.
-            Sem ele o nome some quando o vídeo tem um frame claro. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+        {/* Sem `loop`: toca uma vez e congela no último frame.
+            Só monta o <video> se o arquivo existe — evita 404 pros agentes
+            que ainda não têm animação. */}
+        {agente.video && (
+          <video
+            ref={ref}
+            src={agente.video}
+            poster={agente.imagem}
+            muted
+            playsInline
+            preload="none"
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500
+                       group-hover:scale-[1.04]"
+          />
+        )}
+        {/* Véu só no terço de baixo: dá contraste pro nome sem cobrir o
+            personagem (os vídeos são 1:1 e o bicho ocupa o quadro todo). */}
+        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
 
         {/* Selo de estado — ícone + texto, nunca só cor (acessibilidade) */}
         <span

@@ -49,8 +49,17 @@ export interface Agente {
   /** Uma linha sobre COMO ele fala. Aparece no drawer. */
   voz: string;
   cor: string;
-  /** Arquivos em public/agentes/. O vídeo é opcional (cai no poster). */
-  imagem: string;
+  /**
+   * Arquivos em `public/agentes/`. O `id` é o nome do arquivo — e é o MESMO id
+   * usado no backend (`src/agentes/index.js`), então renomear aqui exige
+   * renomear lá.
+   *
+   * `video` ausente = ainda não temos a animação: o card cai no gradiente com a
+   * inicial do agente, que é um estado desenhado de propósito (não é falha).
+   * `imagem` (poster) é opcional pelo mesmo motivo — e será obrigatória na
+   * fase 3, quando ela vira a capa da mensagem no WhatsApp.
+   */
+  imagem?: string;
   video?: string;
   cadencia: Cadencia;
   emBreve?: boolean;
@@ -64,7 +73,6 @@ export const AGENTES: Agente[] = [
     tagline: 'Vigia as contas que estão pra vencer',
     voz: 'Afobado e atento — fala rápido, mas nunca deixa passar uma data.',
     cor: '#38bdf8',
-    imagem: '/agentes/sardinha.png',
     video: '/agentes/sardinha.webm',
     cadencia: 'Quando acontece',
     avisos: [
@@ -95,13 +103,12 @@ export const AGENTES: Agente[] = [
     ],
   },
   {
-    id: 'baleaone',
-    nome: 'Don Baleaone',
+    id: 'don-baleone',
+    nome: 'Don Baleone',
     tagline: 'Puxa sua orelha quando o gasto passa da conta',
     voz: 'Mafioso das finanças: intimidador e engraçado, nunca ofensivo.',
     cor: '#ef4444',
-    imagem: '/agentes/baleaone.png',
-    video: '/agentes/baleaone.webm',
+    video: '/agentes/don-baleone.webm',
     cadencia: 'Quando acontece',
     avisos: [
       {
@@ -136,8 +143,6 @@ export const AGENTES: Agente[] = [
     tagline: 'Narra a expedição dos seus gastos',
     voz: 'Narrador de documentário — observa seu comportamento como quem estuda uma espécie rara.',
     cor: '#8b5cf6',
-    imagem: '/agentes/jacques.png',
-    video: '/agentes/jacques.webm',
     cadencia: 'Semanal',
     avisos: [
       {
@@ -172,8 +177,6 @@ export const AGENTES: Agente[] = [
     tagline: 'Organiza o seu dia antes dele começar',
     voz: 'Calma e matinal — a que já acordou, já tomou café e já viu sua agenda.',
     cor: '#f59e0b',
-    imagem: '/agentes/aurora.png',
-    video: '/agentes/aurora.webm',
     cadencia: 'Diário',
     avisos: [
       {
@@ -218,7 +221,6 @@ export const AGENTES: Agente[] = [
     tagline: 'Diagnostica sua saúde e não passa a mão na sua cabeça',
     voz: 'Brutalmente honesto e sarcástico — mas sempre certo. Parte do princípio de que todo mundo mente.',
     cor: '#10b981',
-    imagem: '/agentes/dr-house.png',
     video: '/agentes/dr-house.webm',
     cadencia: 'Diário',
     avisos: [
@@ -249,13 +251,12 @@ export const AGENTES: Agente[] = [
     ],
   },
   {
-    id: 'watson',
+    id: 'detetive-watson',
     nome: 'Detetive Watson',
     tagline: 'Caça transações duplicadas e cobranças estranhas',
     voz: 'Deduz em voz alta, no melhor estilo Sherlock — e sempre apresenta a prova.',
     cor: '#6366f1',
-    imagem: '/agentes/watson.png',
-    video: '/agentes/watson.webm',
+    video: '/agentes/detetive-watson.webm',
     cadencia: 'Quando acontece',
     emBreve: true,
     avisos: [
@@ -283,7 +284,6 @@ export const AGENTES: Agente[] = [
     tagline: 'Cuida dos seus investimentos como se fossem dele',
     voz: 'Tio rico e sovina simpático — comemora cada centavo rendido e sofre com cada taxa.',
     cor: '#eab308',
-    imagem: '/agentes/osvaldo.png',
     video: '/agentes/osvaldo.webm',
     cadencia: 'Diário',
     emBreve: true,
@@ -312,7 +312,6 @@ export const AGENTES: Agente[] = [
     tagline: 'Diz se aquela compra cabe no seu bolso',
     voz: 'Místico e curto — responde em uma frase, como quem já sabia a pergunta.',
     cor: '#a855f7',
-    imagem: '/agentes/oraculo.png',
     video: '/agentes/oraculo.webm',
     cadencia: 'Sob demanda',
     emBreve: true,
