@@ -9,7 +9,7 @@ import {
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
-  Plane, Clapperboard, BookOpen, Bug, Shield, Building2, Bell,
+  Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
   Percent, CalendarRange, FolderLock,
   // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
   HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
@@ -76,7 +76,10 @@ const NAV_GROW: NavItem[] = [
 // ── Geral (app-wide, sempre visível) ────────────────────────────────
 const NAV_GERAL: NavItem[] = [
   { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
-  { href: '/avisos',        label: 'Avisos',          icon: Bell },
+  // Os Agentes substituíram a Central de Avisos (mesmas preferências, agora com
+  // rosto e voz). `/avisos` continua existindo como REDIRECT — há link salvo e
+  // atalho de celular apontando pra lá.
+  { href: '/agentes',       label: 'Agentes',         icon: Sparkles },
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
   { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
