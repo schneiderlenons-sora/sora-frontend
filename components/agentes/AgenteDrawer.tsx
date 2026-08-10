@@ -126,7 +126,7 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
                 key={aviso.id}
                 aviso={aviso}
                 cor={agente.cor}
-                bloqueado={!!agente.emBreve}
+                bloqueado={!!agente.emBreve || !!aviso.emBreve}
                 ligado={!aviso.chave || prefs[aviso.chave] !== false}
                 horario={aviso.chaveHorario ? prefs[aviso.chaveHorario] : undefined}
                 onToggle={(v) => aviso.chave && onToggle(aviso.chave, v)}

@@ -38,6 +38,8 @@ export interface AvisoAgente {
   chave: ChaveAviso | null;
   /** Campo de horário que acompanha o toggle (só 2 avisos têm). */
   chaveHorario?: 'habito_lembrete_horario' | 'agenda_briefing_horario';
+  /** Aviso ainda não construído — o agente pode estar ativo com os outros. */
+  emBreve?: boolean;
   /** Exemplo real da mensagem, na voz do agente — é o que vende o agente. */
   exemplo: string;
 }
@@ -262,15 +264,14 @@ export const AGENTES: Agente[] = [
     cor: '#6366f1',
     video: '/agentes/detetive-watson.webm',
     cadencia: 'Quando acontece',
-    emBreve: true,
     avisos: [
       {
         id: 'duplicadas',
         titulo: 'Transações duplicadas',
-        desc: 'Encontra a mesma compra lançada duas vezes e deixa você escolher qual apagar.',
+        desc: 'Avisa quando a mesma compra entra duas vezes — pelo banco em dobro ou porque você já tinha lançado à mão.',
         cadencia: 'Quando acontece',
         chave: null,
-        exemplo: 'Elementar: R$ 89,90 na Amazon, dois lançamentos, três minutos de diferença. Um deles é impostor.',
+        exemplo: 'Elementar: R$ 56,66 na CHINOCA, dois lançamentos no mesmo instante. Duas entradas, uma compra só.',
       },
       {
         id: 'conta-fantasma',
@@ -278,6 +279,7 @@ export const AGENTES: Agente[] = [
         desc: 'Detecta lançamentos apontando pra uma carteira que você já apagou.',
         cadencia: 'Quando acontece',
         chave: null,
+        emBreve: true,
         exemplo: 'Há 4 transações órfãs numa conta que não existe mais. Alguém apagou a carteira e esqueceu os corpos.',
       },
     ],
