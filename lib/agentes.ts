@@ -56,8 +56,12 @@ export interface Agente {
    *
    * `video` ausente = ainda não temos a animação: o card cai no gradiente com a
    * inicial do agente, que é um estado desenhado de propósito (não é falha).
-   * `imagem` (poster) é opcional pelo mesmo motivo — e será obrigatória na
-   * fase 3, quando ela vira a capa da mensagem no WhatsApp.
+   *
+   * ⚠️ Os `.png` que existem em `public/agentes/` NÃO são referenciados aqui de
+   * propósito. Eles servem ao cabeçalho do template do WhatsApp, e o backend
+   * monta aquela URL sozinho (`src/agentes/index.js`). Usá-los como `poster`
+   * faria cada card baixar ~500 KB a mais sem ganho nenhum — o vídeo já pinta
+   * o primeiro frame na hora (conferido no preview).
    */
   imagem?: string;
   video?: string;
