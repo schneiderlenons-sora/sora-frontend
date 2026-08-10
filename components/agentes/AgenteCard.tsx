@@ -80,7 +80,7 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
           playsInline
           preload="none"
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500
+          className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500
                      group-hover:scale-[1.04]"
         />
         {/* Véu inferior pro texto ter contraste em cima de qualquer frame.

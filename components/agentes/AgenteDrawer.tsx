@@ -64,7 +64,10 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
         style={{ background: 'hsl(var(--bg-card))' }}
       >
         {/* Capa com o vídeo do agente */}
-        <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+        {/* Mesma proporção 3:4 dos cards e `object-top`: assim UM único arquivo
+            por agente serve os dois lugares e o rosto nunca é cortado. Teto de
+            altura pra capa não empurrar o conteúdo pra fora da tela no mobile. */}
+        <div className="relative aspect-[3/4] max-h-[36dvh] w-full overflow-hidden bg-muted">
           {/* Fundo de identidade sob o vídeo — ver AgenteCard. */}
           <div
             className="absolute inset-0 grid place-items-center"
@@ -77,7 +80,7 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
             poster={agente.imagem}
             muted loop playsInline autoPlay
             aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover object-top"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--bg-card))] via-transparent to-transparent" />
 
