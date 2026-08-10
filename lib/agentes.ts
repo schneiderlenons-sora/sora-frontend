@@ -181,8 +181,8 @@ export const AGENTES: Agente[] = [
   {
     id: 'loki',
     nome: 'Loki',
-    tagline: 'Organiza o seu dia antes dele começar',
-    voz: 'Calma e matinal — a que já acordou, já tomou café e já viu sua agenda.',
+    tagline: 'Mantém sua agenda em ordem — e não deixa você esquecer',
+    voz: 'Certinho e debochado — deixa tudo organizado e ironiza de leve quando você esquece.',
     cor: '#f59e0b',
     video: '/agentes/loki.webm',
     cadencia: 'Diário',
@@ -194,7 +194,7 @@ export const AGENTES: Agente[] = [
         cadencia: 'Diário',
         chave: 'agenda_briefing_ativo',
         chaveHorario: 'agenda_briefing_horario',
-        exemplo: 'Bom dia. Hoje: 2 compromissos, a luz vence e o Dr. House quer falar com você sobre água.',
+        exemplo: 'Enquanto você dormia, eu li sua agenda. Hoje: 2 compromissos, a luz vence e o Dr. House quer falar sobre água.',
       },
       {
         id: 'habitos',
@@ -203,7 +203,7 @@ export const AGENTES: Agente[] = [
         cadencia: 'Diário',
         chave: 'habito_lembrete_ativo',
         chaveHorario: 'habito_lembrete_horario',
-        exemplo: 'Antes de dormir: 3 dos 4 hábitos marcados hoje. Falta só a leitura.',
+        exemplo: 'Você marcou quase tudo hoje. Quase. Falta a leitura — dois toques e o dia fecha.',
       },
       {
         id: 'compromissos',
@@ -211,7 +211,7 @@ export const AGENTES: Agente[] = [
         desc: 'Avisa com a antecedência que você escolheu em cada compromisso.',
         cadencia: 'Quando acontece',
         chave: null,
-        exemplo: 'Dentista às 15h, daqui a uma hora. O endereço está no painel.',
+        exemplo: 'Dentista às 15h, daqui a uma hora. Lembrete que você jurou não precisar.',
       },
       {
         id: 'casa',
@@ -219,7 +219,7 @@ export const AGENTES: Agente[] = [
         desc: 'Troca de filtro, limpeza da caixa d’água, revisão — o que vence agora.',
         cadencia: 'Quando acontece',
         chave: null,
-        exemplo: 'O filtro de água venceu há 3 dias. Leva 5 minutos e você adia há uma semana.',
+        exemplo: 'O filtro de água venceu há 3 dias e continua ali, te encarando. Cinco minutos e você para de me dar trabalho.',
       },
     ],
   },
