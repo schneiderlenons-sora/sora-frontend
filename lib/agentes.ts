@@ -144,11 +144,12 @@ export const AGENTES: Agente[] = [
     ],
   },
   {
-    id: 'jacques',
-    nome: 'Jacques',
+    id: 'sora',
+    nome: 'Sora',
     tagline: 'Narra a expedição dos seus gastos',
     voz: 'Narrador de documentário — observa seu comportamento como quem estuda uma espécie rara.',
     cor: '#8b5cf6',
+    video: '/agentes/sora.webm',
     cadencia: 'Semanal',
     avisos: [
       {
@@ -178,11 +179,12 @@ export const AGENTES: Agente[] = [
     ],
   },
   {
-    id: 'aurora',
-    nome: 'Aurora',
+    id: 'loki',
+    nome: 'Loki',
     tagline: 'Organiza o seu dia antes dele começar',
     voz: 'Calma e matinal — a que já acordou, já tomou café e já viu sua agenda.',
     cor: '#f59e0b',
+    video: '/agentes/loki.webm',
     cadencia: 'Diário',
     avisos: [
       {
