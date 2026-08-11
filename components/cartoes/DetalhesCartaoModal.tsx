@@ -23,27 +23,41 @@ const fmt = (v: number) =>
 interface Props {
   phone: string;
   cartao: any;
+  /**
+   * Em qual fatura ABRIR, relativa à `competenciaAtual`. 1 = a seguinte, quando
+   * a atual já fechou E já foi paga.
+   *
+   * ⚠️ Vem PRONTO do pai. Já foi assim: o modal abria na fatura atual, buscava o
+   * status e só então pulava — e o usuário via o valor da fatura velha, um zero
+   * e o valor certo, um atrás do outro. Decisão de qual fatura mostrar não pode
+   * depender de um fetch que acontece depois do primeiro render.
+   */
+  offsetInicial?: number;
   onClose: () => void;
   onRefresh?: () => void;
   onExcluir?: () => void;
 }
 
-export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh, onExcluir }: Props) {
+export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, onClose, onRefresh, onExcluir }: Props) {
   // ⚠️ Começa JÁ na competência da fatura (mês do vencimento), não no mês do
   // calendário: partir do mês errado fazia o modal buscar as transações de DOIS
   // ciclos diferentes ao abrir, e a resposta que chegasse por último ganhava —
   // era por isso que fechar e abrir de novo mostrava valores diferentes.
-  const [mesRef, setMesRef] = useState(() => competenciaAtual(cartao));
+  const [mesRef, setMesRef] = useState(() => {
+    const atual = competenciaAtual(cartao);
+    return offsetInicial === 0 ? atual : competenciaVizinha(cartao, atual, offsetInicial);
+  });
   const [txs,     setTxs]      = useState<any[]>([]);
   const [loading, setLoading]  = useState(false);
   const [verTudo, setVerTudo]  = useState(false);
   const [antecipando, setAntecipando] = useState(false);
   const [contas, setContas] = useState<any[]>([]);
   const [escolhendoConta, setEscolhendoConta] = useState(false);
-  // Quão à frente/atrás do mês atual está a fatura exibida (0 = atual)
-  const [offsetMes, setOffsetMes] = useState(0);
-  // A fatura ATUAL — a próxima a vencer. É ela que recebe o valor do banco, o
-  // rótulo "atual" e o vínculo com `of_bill_atual`.
+  // Quão à frente/atrás da `competenciaAtual` está a fatura exibida.
+  const [offsetMes, setOffsetMes] = useState(offsetInicial);
+  // A fatura da `competenciaAtual` — é a ela que o valor do banco (`saldo`) e o
+  // `of_bill_atual` se referem, mesmo quando a tela abre na seguinte por já
+  // estar paga. Navegar de volta pra ela tem de mostrar o valor do banco.
   const ehFaturaEmCurso = offsetMes === 0;
 
   const meta = loadCartaoMeta(cartao.id);
@@ -57,12 +71,6 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offsetMes, cartao?.id, cartao?.dia_fechamento, cartao?.dia_vencimento]);
 
-  // ── Fatura FECHADA e PAGA → abre na seguinte ─────────────────────────────
-  // O critério é o PAGAMENTO, nunca o calendário: fatura que fechou e foi paga
-  // não é mais o que o usuário quer ver — as compras do ciclo novo ficavam
-  // escondidas atrás de um clique. Fatura fechada e NÃO paga continua na frente
-  // de propósito: some-la seria esconder dívida.
-  const [pulouParaSeguinte, setPulouParaSeguinte] = useState(false);
   // Parcelas que o BANCO já sabe que vão cair nesta fatura e que a Sora não tem
   // como transação (Mercado Pago manda parcela sem o marcador "N/M", então a 2ª
   // nunca é lançada). Projeção do sync — só existe em fatura FUTURA.
@@ -82,14 +90,8 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
         setPrevistas(st.parcelas_previstas || []);
         setTotalPrevisto(Number(st.total_previsto) || 0);
         setQuitadaServidor(!!st.quitada);
-        if (pulouParaSeguinte || offsetMes !== 0) return;
-        // `quitada` é do servidor: no cartão de banco o valor da fatura é do
-        // emissor (já líquido) e não dá pra deduzir daqui se foi paga — quem
-        // sabe é o livro de pagamentos, que o sync alimenta com o extrato.
-        if (st.fechada && st.quitada) setOffsetMes(1);
       })
-      .catch(() => { /* informativo — nunca impede o modal de abrir */ })
-      .finally(() => { if (!cancelado) setPulouParaSeguinte(true); });
+      .catch(() => { /* informativo — nunca impede o modal de abrir */ });
     return () => { cancelado = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phone, cartao?.id, mesRef]);
@@ -384,9 +386,12 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
                   que o banco considera aberta (que depois do fechamento já é a
                   seguinte). Marcar a de julho como "atual" era metade da
                   confusão de "por que estou vendo a fatura velha?". */}
-              {mesNome} {ano}{ehFaturaEmCurso
+              {/* "atual" é a fatura por onde a tela ABRE: com a do mês já paga,
+                  a que interessa é a seguinte — marcá-la como "futura" era
+                  metade da confusão. */}
+              {mesNome} {ano}{offsetMes === offsetInicial
                 ? ' · atual'
-                : offsetMes > 0 ? ' · futura' : ''}
+                : offsetMes > offsetInicial ? ' · futura' : ''}
             </span>
             <button onClick={() => setOffsetMes(o => Math.min(12, o + 1))}
                     disabled={offsetMes >= 12}

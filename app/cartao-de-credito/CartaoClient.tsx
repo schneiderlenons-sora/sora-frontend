@@ -82,6 +82,28 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   // corrente — virou desnecessário quando a fatura passou a ser por ciclo.
   const { data: wRaw,     mutate: mW }  = useApi(phone ? `cart:wallets:${phone}` : null, () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
   const { data: tAllData, mutate: mTA } = useApi(phone ? `cart:txall:${phone}` : null, () => api.transacoes.listar(phone, { limit: 1000 }), { fallbackData: initialData?.txAll });
+  // Situação da fatura ATUAL de cada cartão, numa chamada só. Serve pra uma
+  // decisão que precisa acontecer ANTES de desenhar: fatura fechada e já paga
+  // não é mais "a atual" — quem manda na tela é a seguinte.
+  // ⚠️ Sempre no offset 0 (a competência de verdade), nunca na deslocada: é o
+  // que impede o vaivém "pulou → não está mais paga → volta".
+  const { data: faturasData } = useApi(
+    phone ? `cart:faturas:${phone}` : null, () => api.wallets.faturas(phone, 0));
+  // A fatura SEGUINTE: é dela que saem as parcelas previstas de quem já pagou a
+  // atual (a projeção só existe pra fatura futura).
+  const { data: faturasProx } = useApi(
+    phone ? `cart:faturas1:${phone}` : null, () => api.wallets.faturas(phone, 1));
+
+  // Parcelas que só o banco conhece, por cartão+competência (migration 116).
+  const previstoPor = useMemo(() => {
+    const acc: Record<string, number> = {};
+    [(faturasData as any)?.faturas, (faturasProx as any)?.faturas].forEach((lista) => {
+      (lista || []).forEach((f: any) => {
+        acc[`${f.cartao_id}|${f.competencia}`] = Number(f.total_previsto) || 0;
+      });
+    });
+    return acc;
+  }, [faturasData, faturasProx]);
 
   const wallets: Wallet[] = ((wRaw as Wallet[]) ?? []).filter((w: any) => w.tipo === 'Crédito');
   const txsTodas: any[]   = (tAllData as any)?.transacoes ?? [];
@@ -122,15 +144,30 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   // Ciclo da fatura exibida, por cartão. `mesIndex` navega FATURAS (não meses):
   // 0 = a atual (próxima a vencer), -1 = a anterior. Cada cartão tem o seu ciclo
   // (dependem de dia_fechamento), então a competência varia de cartão pra cartão.
+  // Cartões cuja fatura atual JÁ FECHOU E JÁ FOI PAGA — a tela abre na seguinte.
+  // A decisão vem do servidor (`quitada` = pagamento DEPOIS do fechamento) e é
+  // tomada aqui, no pai, de propósito: quando quem decidia era o modal, ele
+  // abria na fatura velha e só então pulava — e o usuário via o valor antigo,
+  // um zero e o valor novo, em sequência.
+  const pulaUma = useMemo(() => {
+    const acc: Record<string, boolean> = {};
+    ((faturasData as any)?.faturas || []).forEach((f: any) => {
+      acc[f.cartao_id] = !!(f.fechada && f.quitada);
+    });
+    return acc;
+  }, [faturasData]);
+
   const cicloPorCartao = useMemo(() => {
     const acc: Record<string, ReturnType<typeof cicloPorCompetencia>> = {};
     wallets.forEach(w => {
       const atual = competenciaAtual(w);
-      const comp = mesIndex === 0 ? atual : competenciaVizinha(w, atual, mesIndex);
+      // `mesIndex` continua relativo: com a fatura paga, o ‹ leva de volta a ela.
+      const passo = mesIndex + (pulaUma[w.id] ? 1 : 0);
+      const comp = passo === 0 ? atual : competenciaVizinha(w, atual, passo);
       acc[w.id] = cicloPorCompetencia(w, comp);
     });
     return acc;
-  }, [wallets, mesIndex]);
+  }, [wallets, mesIndex, pulaUma]);
 
   // Rótulo da fatura exibida ("Agosto de 2026") + o período do ciclo embaixo.
   // Com 1 cartão usa a competência dele; com vários (ciclos diferentes) cai no
@@ -155,22 +192,31 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       // costuma não publicar o total (o Mercado Pago manda 0/null o mês inteiro).
       // Aí a fatura sai das transações importadas, pelo ciclo — senão o painel
       // mostrava "R$ 0,00" com 26 compras na lista logo abaixo.
-      const doBanco = mesIndex === 0 && w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0;
+      // ⚠️ `!pulaUma`: quando a fatura atual já foi paga, a tela mostra a
+      // SEGUINTE — e o valor do banco é o daquela que ficou pra trás. Sem esta
+      // condição, o card exibia R$ 560,68 (agosto, paga) rotulado como a fatura
+      // de setembro.
+      const ehAtualDoCartao = mesIndex === 0 && !pulaUma[w.id];
+      const doBanco = ehAtualDoCartao && w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0;
       if (doBanco) { acc[w.id] = -(w.saldo as number); return; }
       const ciclo = cicloPorCartao[w.id];
       const minhas = txsTodas.filter(t => mesmaCarteira(t, w));
       // Critério decidido UMA vez por fatura. Decidir por transação misturava a
       // fatura vinculada com o ciclo novo e somava as duas.
-      const criterio = criterioDaFatura(minhas, w, mesIndex === 0, ciclo);
+      const criterio = criterioDaFatura(minhas, w, ehAtualDoCartao, ciclo);
       // Soma ASSINADA (lib/valor-fatura.ts): compra soma, estorno/crédito
       // ABATE, pagamento de fatura é neutro. Antes filtrava só `tipo==='Gasto'`
       // e o crédito era descartado — a fatura ficava maior que a do banco.
-      acc[w.id] = somarFatura(
-        minhas.filter(t => pertenceAFatura(t, w, ciclo, mesIndex === 0, criterio)));
+      const soma = somarFatura(
+        minhas.filter(t => pertenceAFatura(t, w, ciclo, ehAtualDoCartao, criterio)));
+      // Parcelas que só o banco conhece (o MP manda parcela sem o marcador
+      // "N/M"): entram na fatura que ainda não fechou, senão ela sai a menos.
+      const prev = previstoPor[`${w.id}|${ciclo?.competencia}`] || 0;
+      acc[w.id] = Math.round((soma + prev) * 100) / 100;
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsTodas, cicloPorCartao, mesIndex]);
+  }, [wallets, txsTodas, cicloPorCartao, mesIndex, pulaUma, previstoPor]);
 
   // Restante pós-pagamento por cartão (reportado por cada CardCartao — é ele
   // quem sabe o status real via /fatura/status, migration 096). O header
@@ -481,6 +527,10 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
         <DetalhesCartaoModal
           phone={phone}
           cartao={detalhes}
+          // Decisão já tomada aqui: o modal abre direto na fatura certa em vez
+          // de abrir na velha e pular depois (o que fazia o valor antigo, um
+          // zero e o valor novo aparecerem em sequência).
+          offsetInicial={pulaUma[detalhes.id] ? 1 : 0}
           onClose={() => setDetalhes(null)}
           onRefresh={carregar}
           onExcluir={() => { setConfirmDel(detalhes); setDetalhes(null); }}
@@ -531,7 +581,10 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
   const [pagarOpen, setPagarOpen] = useState(false);
   // Cartão MANUAL: rastreia pago/restante/rollover (migration 096). OF fica de fora.
   const ehManual = !cartao.of_conta_id;
-  const [status, setStatus] = useState<{ fatura: number; pago: number; restante: number; rollover?: any } | null>(null);
+  const [status, setStatus] = useState<{
+    fatura: number; pago: number; restante: number; rollover?: any;
+    quitada?: boolean; fechada?: boolean;
+  } | null>(null);
   const [rolando, setRolando] = useState(false);
 
   useEffect(() => {
@@ -586,7 +639,13 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
   }, [cartao.id, mesRef]);
   const restante = ehManual && status ? status.restante : fatura;
   const jaPago   = ehManual && status ? status.pago : 0;
-  const paga     = ehManual && status ? status.restante <= 0.01 : pagaLS;
+  // No cartão de banco conectado, "paga" é o que o servidor sabe (pagamento
+  // registrado depois do fechamento, vindo do extrato). O localStorage fica só
+  // como marcação manual — era ele sozinho antes, e por isso cartão de Open
+  // Finance ficava eternamente "Em aberto" mesmo depois de pago.
+  const paga = status
+    ? (ehManual ? status.restante <= 0.01 : !!status.quitada)
+    : pagaLS;
 
   // Reporta o restante pro pai (soma do header "Fatura atual"). Só quando é o
   // mês ATUAL — meses passados não entram na fatura "atual" do topo.
