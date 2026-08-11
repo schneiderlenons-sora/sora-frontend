@@ -125,16 +125,29 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro]);
 
   // ── Métricas calculadas das filtradas ──────────────────────
+  //
+  // ⚠️ Transferência não é receita NEM despesa, e a regra tem de ser a MESMA
+  // dos dois lados. Estava só nas despesas: as receitas somavam tudo que fosse
+  // `Recebimento`, inclusive o "Pagamento da fatura" do cartão — que é a mesma
+  // grana saindo da conta e entrando no cartão, não dinheiro novo. Medido numa
+  // conta real: R$ 4.952,39 exibidos onde a receita de verdade era R$ 2.143,56,
+  // porque dois pagamentos de fatura (R$ 2.243,60 + R$ 565,68) entraram como
+  // ganho do mês.
+  //
+  // É o mesmo `ehTransferencia` do backend (services/resumoTransacoes.js) —
+  // manter os dois iguais é o que faz o card bater com o /resumo.
+  const ehTransferencia = useCallback((t: any) =>
+    t.transferencia === true || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências',
+  []);
+
   const receitasTotal = useMemo(() =>
-    txsFiltradas.filter(t => t.tipo === 'Recebimento').reduce((s, t) => s + (t.valor || 0), 0),
-    [txsFiltradas]);
-  // Exclui transferências/pagamento de fatura do total de despesas (não é
-  // consumo — as compras já contam nas categorias reais). Bate com o /resumo.
-  const despesasTotal = useMemo(() =>
-    txsFiltradas
-      .filter(t => t.tipo === 'Gasto' && !t.transferencia && !ehPagamentoFatura(t.categoria) && t.categoria !== 'Transferências')
+    txsFiltradas.filter(t => t.tipo === 'Recebimento' && !ehTransferencia(t))
       .reduce((s, t) => s + (t.valor || 0), 0),
-    [txsFiltradas]);
+    [txsFiltradas, ehTransferencia]);
+  const despesasTotal = useMemo(() =>
+    txsFiltradas.filter(t => t.tipo === 'Gasto' && !ehTransferencia(t))
+      .reduce((s, t) => s + (t.valor || 0), 0),
+    [txsFiltradas, ehTransferencia]);
   const pendentesTotal = useMemo(() =>
     txsFiltradas.filter(t => !t.pago).reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas]);
@@ -424,7 +437,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             value={ocultar ? null : receitasTotal}
             icon={TrendingUp}
             colorHue={142}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Recebimento').length} entradas`}
+            sub={`${txsFiltradas.filter(t => t.tipo === 'Recebimento' && !ehTransferencia(t)).length} entradas`}
             delay={60}
             positive
           />
@@ -435,7 +448,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             value={ocultar ? null : despesasTotal}
             icon={TrendingDown}
             colorHue={0}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && !t.transferencia && !ehPagamentoFatura(t.categoria)).length} saídas`}
+            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && !ehTransferencia(t)).length} saídas`}
             delay={120}
             negative
           />
