@@ -473,10 +473,18 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             BARRA DE FILTROS
         ═══════════════════════════════════════════════════════ */}
         <div className="card rounded-2xl p-4 animate-fade-in" style={{ animationDelay: '240ms' }}>
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          {/* ⚠️ `lg:flex-wrap` + `flex-shrink-0` em TUDO que não é a busca.
+              Sem isso, a barra vira uma linha só que não cabe: os selects de
+              membro/cartão vinham com `w-full` (100% do container!) e comiam o
+              espaço dos vizinhos, a busca era o único com `min-w-0` e encolhia
+              até sumir, e as pílulas — sem `flex-shrink-0` — ficavam espremidas
+              a ponto de "Todas" desaparecer atrás do ícone da lupa.
+              Agora a busca é a única elástica; o resto tem largura própria e
+              quebra pra linha de baixo quando não couber. */}
+          <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-3">
 
-            {/* Busca */}
-            <div className="relative flex-1 min-w-0">
+            {/* Busca — a única que estica; com piso pra não virar um tracinho */}
+            <div className="relative flex-1 min-w-full lg:min-w-[240px]">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <input
                 value={busca}
@@ -492,7 +500,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             </div>
 
             {/* Pílulas de tipo — centralizadas */}
-            <div className="flex justify-center gap-1 bg-muted/60 rounded-xl p-1">
+            <div className="flex justify-center gap-1 bg-muted/60 rounded-xl p-1 flex-shrink-0">
               {([
                 { v: 'todos',       l: 'Todas'    },
                 { v: 'Recebimento', l: 'Receitas' },
@@ -512,12 +520,15 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               ))}
             </div>
 
-            {/* Filtros secundários — row único, mesmo tamanho */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* Filtros secundários — 3 colunas no mobile, largura própria no
+                desktop. As larguras mínimas existem porque o rótulo estava
+                sendo cortado ("Categori…"): select truncado obriga a abrir pra
+                saber o que ele filtra. */}
+            <div className="grid grid-cols-3 gap-2 lg:flex lg:flex-shrink-0">
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value as Status)}
-                className="input py-2.5 text-sm text-foreground"
+                className="input py-2.5 text-sm text-foreground min-w-0 lg:w-[124px]"
               >
                 <option value="todos">Status</option>
                 <option value="pago">Pagos</option>
@@ -527,7 +538,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               <select
                 value={catFiltro}
                 onChange={e => setCatFiltro(e.target.value)}
-                className="input py-2.5 text-sm text-foreground"
+                className="input py-2.5 text-sm text-foreground min-w-0 lg:w-[150px]"
               >
                 <option value="todas">Categorias</option>
                 {categorias.map(c => (
@@ -538,7 +549,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               <select
                 value={contaId}
                 onChange={e => setContaId(e.target.value)}
-                className="input py-2.5 text-sm text-foreground"
+                className="input py-2.5 text-sm text-foreground min-w-0 lg:w-[140px]"
               >
                 <option value="todas">Contas</option>
                 {wallets.map(w => (
@@ -552,7 +563,9 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               <select
                 value={membroFiltro}
                 onChange={e => setMembroFiltro(e.target.value)}
-                className="input py-2.5 text-sm text-foreground w-full"
+                // `w-full` só no mobile: numa linha flex ele pedia 100% do
+                // container e esmagava todos os vizinhos.
+                className="input py-2.5 text-sm text-foreground w-full lg:w-[190px] lg:flex-shrink-0"
               >
                 <option value="todos">👥 Todos os membros</option>
                 {membros.map(m => (
@@ -566,7 +579,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               <select
                 value={cartaoFiltro}
                 onChange={e => setCartaoFiltro(e.target.value)}
-                className="input py-2.5 text-sm text-foreground w-full"
+                // Idem membro: era ele que ocupava metade da barra no desktop.
+                className="input py-2.5 text-sm text-foreground w-full lg:w-[190px] lg:flex-shrink-0"
               >
                 <option value="todos">💳 Todos os cartões</option>
                 {cartoes.map(c => (
