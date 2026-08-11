@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
@@ -62,6 +62,26 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // 'novo' = form de criação aberto; um item = editando ESSE item; null = fechado.
   const [formTarget, setFormTarget] = useState<'novo' | Recorrencia | null>(null);
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
+
+  // Seção recolhida — a lista é longa e fica no TOPO da aba de transações;
+  // quem já configurou os fixos quer passar por ela, não relê toda visita.
+  // A escolha é lembrada (localStorage): recolher e a seção reabrir no próximo
+  // acesso seria o mesmo que não ter o botão.
+  //
+  // Começa SEMPRE aberta no 1º render e só então lê o storage, com
+  // `useLayoutEffect`: ler no `useState` inicial faria o HTML do servidor
+  // (que não tem localStorage) divergir do cliente — hydration mismatch.
+  const [recolhida, setRecolhida] = useState(false);
+  useLayoutEffect(() => {
+    try { setRecolhida(localStorage.getItem('sora-previstos-recolhida') === '1'); } catch { /* modo privado */ }
+  }, []);
+  const alternarRecolhida = useCallback(() => {
+    setRecolhida((v) => {
+      const novo = !v;
+      try { localStorage.setItem('sora-previstos-recolhida', novo ? '1' : '0'); } catch { /* noop */ }
+      return novo;
+    });
+  }, []);
   const [aceitando, setAceitando] = useState<string | null>(null); // descricao em processamento
   // Sugestões de CATEGORIA pras contas fixas que ficaram em "Outros",
   // indexadas por id da recorrência (a linha consulta pelo próprio id).
@@ -214,17 +234,44 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           </div>
         </div>
 
-        <button
-          onClick={() => setFormTarget((v) => (v ? null : 'novo'))}
-          className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
-                     hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
-          style={{ background: formTarget ? 'hsl(var(--bg-muted))' : `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: formTarget ? undefined : BRAND }}
-          aria-expanded={!!formTarget}
-        >
-          {formTarget ? <X size={16} /> : <Plus size={16} />}
-          <span className="hidden sm:inline">{formTarget ? 'Fechar' : 'Adicionar'}</span>
-        </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            onClick={() => setFormTarget((v) => (v ? null : 'novo'))}
+            className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
+                       hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
+            style={{ background: formTarget ? 'hsl(var(--bg-muted))' : `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: formTarget ? undefined : BRAND }}
+            aria-expanded={!!formTarget}
+          >
+            {formTarget ? <X size={16} /> : <Plus size={16} />}
+            <span className="hidden sm:inline">{formTarget ? 'Fechar' : 'Adicionar'}</span>
+          </button>
+
+          {/* Recolher a seção. Fica SEPARADO do "Adicionar" (não é um menu
+              escondido) porque é o controle que o usuário vai usar toda vez
+              que a lista estiver no caminho. */}
+          <button
+            type="button"
+            onClick={alternarRecolhida}
+            aria-expanded={!recolhida}
+            aria-controls="previstos-conteudo"
+            aria-label={recolhida ? 'Mostrar os previstos do mês' : 'Recolher os previstos do mês'}
+            title={recolhida ? 'Mostrar' : 'Recolher'}
+            className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0
+                       text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <ChevronDown size={18} className={`transition-transform duration-200 ${recolhida ? '-rotate-90' : ''}`} />
+          </button>
+        </div>
       </div>
+
+      {/* Tudo daqui pra baixo é o conteúdo recolhível.
+          Render CONDICIONAL em vez de esconder por CSS: a lista tem N itens,
+          cada um com ícone e estado próprio — mantê-los montados só pra ficarem
+          invisíveis é trabalho à toa justo na aba mais pesada do painel.
+          Por isso não animo a altura: `0fr→1fr` exigiria o conteúdo montado. */}
+      {!recolhida && (
+      <div id="previstos-conteudo">
 
       {/* ── Form de adicionar/editar (progressive disclosure) ── */}
       {formTarget && (
@@ -341,6 +388,9 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           ))}
         </div>
       )}
+
+      </div>
+      )}{/* fim do conteúdo recolhível */}
     </section>
   );
 }
@@ -382,59 +432,79 @@ function Linha({
       className="group transition-colors hover:bg-muted/30 animate-fade-in"
       style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
     >
-    <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
-      <CategoriaIcon nome={item.descricao} icone={emoji} size={38} bg={tema.bg} color={tema.color} rounded="rounded-xl" />
+    {/* ── Layout em 3 faixas ────────────────────────────────────────────────
+        Antes era UMA linha com 8 elementos disputando espaço (ícone, título,
+        chip de dia, conta, valor, chip de modo, editar, excluir). Em 375px a
+        coluna do meio sobrava com ~130px: o nome da conta virava "Mercado …" e
+        o chip de modo quebrava em duas linhas ("Não / lançar"), que é a bagunça
+        que o usuário reportou.
 
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
-        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground flex-wrap">
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
-            <Calendar size={10} /> dia {item.dia_vencimento}
-          </span>
-          {ehVariavel && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
-                  style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
-              <CircleDashed size={10} /> estimado
+        Agora cada faixa tem um trabalho:
+          1. identidade + valor  → o que a pessoa lê primeiro, lado a lado
+          2. metadados           → dia e conta, com espaço pra caber inteiros
+          3. controles           → modo à esquerda, ações à direita
+
+        Vale nos dois tamanhos de tela de propósito: manter dois layouts
+        diferentes é o tipo de coisa que volta a desalinhar na próxima mexida. */}
+    <div className="px-4 sm:px-6 py-3">
+      <div className="flex items-start gap-3">
+        <CategoriaIcon nome={item.descricao} icone={emoji} size={38} bg={tema.bg} color={tema.color} rounded="rounded-xl" />
+
+        <div className="flex-1 min-w-0">
+          {/* 1. Título + valor */}
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-medium text-foreground truncate min-w-0">{item.descricao}</p>
+            <div className="flex-shrink-0 text-right">
+              {semEstimativa ? (
+                <p className="text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
+                  <CircleDashed size={13} /> a definir
+                </p>
+              ) : (
+                <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
+                  {ehVariavel ? '~' : ''}{fmt(item.valor)}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Metadados — agora com a largura toda, o nome da conta cabe */}
+          <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground flex-wrap">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+              <Calendar size={10} /> dia {item.dia_vencimento}
             </span>
-          )}
-          {item.carteira && <span className="truncate">· {item.carteira}</span>}
-        </div>
+            {ehVariavel && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                    style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
+                <CircleDashed size={10} /> estimado
+              </span>
+            )}
+            {item.carteira && <span className="truncate max-w-[60%]">· {item.carteira}</span>}
+          </div>
 
-        {/* Chip do modo — abre os controles. Toque ≥44pt e sempre visível
-            (não pode ser hover-only: no mobile ficaria inalcançável). */}
-        <button
-          type="button"
-          onClick={() => setAberto((v) => !v)}
-          aria-expanded={aberto}
-          aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
-          className={`mt-1.5 inline-flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-lg text-[11px] font-semibold
-                      transition-colors active:scale-[0.98] ${
-            modo === 'nao_lancar'
-              ? 'bg-muted/70 text-muted-foreground hover:bg-muted'
-              : modo === 'prever'
-                ? 'bg-amber-500/12 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
-                : 'bg-primary/12 text-primary hover:bg-primary/20'
-          }`}
-        >
-          {modo === 'nao_lancar' ? <CircleDashed size={11} /> : modo === 'prever' ? <Link2 size={11} /> : <Check size={11} />}
-          {modoInfo.label}
-          {querLembrete && <Bell size={10} className="opacity-70" />}
-          <ChevronDown size={12} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
-        </button>
-      </div>
-
-      <div className="text-right flex-shrink-0">
-        {semEstimativa ? (
-          <p className="text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
-            <CircleDashed size={13} /> a definir
-          </p>
-        ) : (
-          <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
-            {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
-            {ehVariavel ? '~' : ''}{fmt(item.valor)}
-          </p>
-        )}
-      </div>
+          {/* 3. Controles: modo à esquerda, ações à direita */}
+          <div className="flex items-center justify-between gap-2 mt-2">
+            {/* Chip do modo — abre os controles. `whitespace-nowrap` impede o
+                "Não / lançar" em duas linhas que aparecia no mobile. */}
+            <button
+              type="button"
+              onClick={() => setAberto((v) => !v)}
+              aria-expanded={aberto}
+              aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
+              className={`inline-flex items-center gap-1 pl-2.5 pr-2 h-9 rounded-lg text-[11px] font-semibold
+                          whitespace-nowrap flex-shrink-0 transition-colors active:scale-[0.98] ${
+                modo === 'nao_lancar'
+                  ? 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                  : modo === 'prever'
+                    ? 'bg-amber-500/12 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
+                    : 'bg-primary/12 text-primary hover:bg-primary/20'
+              }`}
+            >
+              {modo === 'nao_lancar' ? <CircleDashed size={11} /> : modo === 'prever' ? <Link2 size={11} /> : <Check size={11} />}
+              {modoInfo.label}
+              {querLembrete && <Bell size={10} className="opacity-70" />}
+              <ChevronDown size={12} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
+            </button>
 
       {emConfirm ? (
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -476,6 +546,9 @@ function Linha({
           </button>
         </div>
       )}
+          </div>{/* fim faixa 3: controles */}
+        </div>{/* fim coluna de conteúdo */}
+      </div>{/* fim linha ícone + conteúdo */}
     </div>
 
     {/* Sugestão de categoria pra conta fixa que ficou em "Outros". A ORIGEM
