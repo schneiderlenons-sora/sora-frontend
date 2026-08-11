@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Clock, Lock, MessageSquareQuote } from 'lucide-react';
+import Switch from '@/components/ui/Switch';
 import type { Agente, AvisoAgente } from '@/lib/agentes';
 
 // =============================================================================
@@ -79,7 +80,7 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
           {agente.video && (
             <video
               src={agente.video}
-              poster={agente.imagem}
+              poster={agente.poster}
               muted playsInline autoPlay
               aria-hidden="true"
               className="absolute inset-0 h-full w-full object-cover"
@@ -182,25 +183,7 @@ function LinhaAviso({
             <Lock size={10} /> {bloqueado ? 'Em breve' : 'Sempre'}
           </span>
         ) : (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={ligado}
-            aria-label={aviso.titulo}
-            onClick={() => onToggle(!ligado)}
-            className="relative h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-                       focus-visible:ring-offset-background"
-            style={{
-              background: ligado ? cor : 'hsl(var(--fg-muted) / .3)',
-              ['--tw-ring-color' as string]: cor,
-            }}
-          >
-            <span
-              className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-              style={{ transform: ligado ? 'translateX(22px)' : 'translateX(2px)' }}
-            />
-          </button>
+          <Switch on={ligado} onToggle={() => onToggle(!ligado)} label={aviso.titulo} cor={cor} tamanho="sm" />
         )}
       </div>
 

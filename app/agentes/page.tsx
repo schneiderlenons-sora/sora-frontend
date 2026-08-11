@@ -5,6 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import GrowHero from '@/components/grow/GrowHero';
 import AgenteCard from '@/components/agentes/AgenteCard';
 import AgenteDrawer from '@/components/agentes/AgenteDrawer';
+import Switch from '@/components/ui/Switch';
 import { api, type AvisosPrefs } from '@/lib/api';
 import { AGENTES, agenteAtivo, contagemAtivos, type Agente } from '@/lib/agentes';
 import {
@@ -88,21 +89,12 @@ export default function AgentesPage() {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={mestreLigado}
-                  aria-label="Avisos da Sora"
-                  onClick={() => patch('avisos_ativos', !mestreLigado)}
-                  className="relative h-7 w-12 flex-shrink-0 rounded-full transition-colors duration-200
-                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-                             focus-visible:ring-offset-background"
-                  style={{ background: mestreLigado ? BRAND : 'hsl(var(--fg-muted) / .3)',
-                           ['--tw-ring-color' as string]: BRAND }}
-                >
-                  <span className="absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-                        style={{ transform: mestreLigado ? 'translateX(26px)' : 'translateX(4px)' }} />
-                </button>
+                <Switch
+                  on={mestreLigado}
+                  onToggle={() => patch('avisos_ativos', !mestreLigado)}
+                  label="Avisos da Sora"
+                  cor={BRAND}
+                />
               </div>
             </div>
 

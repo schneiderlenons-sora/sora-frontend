@@ -90,10 +90,15 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
           <video
             ref={ref}
             src={agente.video}
-            poster={agente.imagem}
+            // `poster` + `preload="metadata"` matam o card vazio: o JPEG de
+            // ~14 KB pinta na hora e o vídeo assume por cima. Como o poster é o
+            // PRIMEIRO frame do próprio vídeo, a troca não tem salto.
+            // `preload="none"` (o que estava aqui) só ia buscar o arquivo no
+            // play, então o card ficava no gradiente até o .webm inteiro chegar.
+            poster={agente.poster}
             muted
             playsInline
-            preload="none"
+            preload="metadata"
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500
                        group-hover:scale-[1.04]"
@@ -122,8 +127,16 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
           </span>
         )}
 
-        {/* Identificação sobre a capa */}
-        <div className="absolute inset-x-0 bottom-0 p-3">
+        {/* MOBILE: só o NOME sobre a capa. Empilhar nome + descrição + contagem
+            em cima de um quadrado de 190px espremia tudo contra a arte e nada
+            ficava legível — era a queixa. O resto desce pra fora do vídeo. */}
+        <div className="absolute inset-x-0 bottom-0 p-2.5 sm:hidden">
+          <p className="text-[15px] font-bold leading-tight text-white drop-shadow-md">{agente.nome}</p>
+        </div>
+
+        {/* DESKTOP (sm+): sobreposição completa — ali sobra espaço e a capa
+            maior aguenta as três linhas sem competir com o personagem. */}
+        <div className="absolute inset-x-0 bottom-0 hidden p-3 sm:block">
           <p className="text-[15px] font-bold leading-tight text-white drop-shadow-sm">{agente.nome}</p>
           <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{agente.tagline}</p>
           {!agente.emBreve && (
@@ -139,6 +152,17 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
         className="h-1 w-full transition-opacity duration-200"
         style={{ background: agente.cor, opacity: ativo || agente.emBreve ? 1 : 0.3 }}
       />
+
+      {/* MOBILE: descrição, contagem e cadência ABAIXO do vídeo, em fluxo
+          normal — legíveis sobre o fundo do card em vez de sobre a arte. */}
+      <div className="p-3 sm:hidden">
+        <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">{agente.tagline}</p>
+        {!agente.emBreve && (
+          <p className="mt-1.5 text-[11px] font-medium tabular text-muted-foreground/80">
+            {ligados} de {total} avisos · {agente.cadencia}
+          </p>
+        )}
+      </div>
     </button>
   );
 }

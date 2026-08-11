@@ -59,13 +59,18 @@ export interface Agente {
    * `video` ausente = ainda não temos a animação: o card cai no gradiente com a
    * inicial do agente, que é um estado desenhado de propósito (não é falha).
    *
-   * ⚠️ Os `.png` que existem em `public/agentes/` NÃO são referenciados aqui de
-   * propósito. Eles servem ao cabeçalho do template do WhatsApp, e o backend
-   * monta aquela URL sozinho (`src/agentes/index.js`). Usá-los como `poster`
-   * faria cada card baixar ~500 KB a mais sem ganho nenhum — o vídeo já pinta
-   * o primeiro frame na hora (conferido no preview).
+   * São DOIS arquivos de imagem, com finalidades diferentes:
+   *
+   * · `<id>-thumb.jpg` (320px, ~14 KB) → `poster` do vídeo. Existe porque no
+   *   mobile o card ficava VAZIO até o .webm baixar (queixa real). O poster
+   *   aparece na hora e o vídeo entra por cima sem salto — é o PRIMEIRO frame
+   *   do próprio vídeo, então a troca é invisível.
+   *
+   * · `<id>.png` (640px) → cabeçalho do template do WhatsApp. NÃO entra aqui:
+   *   o backend monta aquela URL sozinho (`src/agentes/index.js`), e usar um
+   *   PNG de ~500 KB como poster desperdiçaria banda no painel.
    */
-  imagem?: string;
+  poster?: string;
   video?: string;
   cadencia: Cadencia;
   emBreve?: boolean;
@@ -79,6 +84,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Vigia as contas que estão pra vencer',
     voz: 'Afobado e atento — fala rápido, mas nunca deixa passar uma data.',
     cor: '#38bdf8',
+    poster: '/agentes/sardinha-thumb.jpg',
     video: '/agentes/sardinha.webm',
     cadencia: 'Quando acontece',
     avisos: [
@@ -114,6 +120,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Puxa sua orelha quando o gasto passa da conta',
     voz: 'Mafioso das finanças: intimidador e engraçado, nunca ofensivo.',
     cor: '#ef4444',
+    poster: '/agentes/don-baleone-thumb.jpg',
     video: '/agentes/don-baleone.webm',
     cadencia: 'Quando acontece',
     avisos: [
@@ -149,6 +156,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Narra a expedição dos seus gastos',
     voz: 'Narrador de documentário — observa seu comportamento como quem estuda uma espécie rara.',
     cor: '#8b5cf6',
+    poster: '/agentes/sora-thumb.jpg',
     video: '/agentes/sora.webm',
     cadencia: 'Semanal',
     avisos: [
@@ -184,6 +192,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Mantém sua agenda em ordem — e não deixa você esquecer',
     voz: 'Certinho e debochado — deixa tudo organizado e ironiza de leve quando você esquece.',
     cor: '#f59e0b',
+    poster: '/agentes/loki-thumb.jpg',
     video: '/agentes/loki.webm',
     cadencia: 'Diário',
     avisos: [
@@ -229,6 +238,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Diagnostica sua saúde e não passa a mão na sua cabeça',
     voz: 'Brutalmente honesto e sarcástico — mas sempre certo. Parte do princípio de que todo mundo mente.',
     cor: '#10b981',
+    poster: '/agentes/dr-house-thumb.jpg',
     video: '/agentes/dr-house.webm',
     cadencia: 'Diário',
     avisos: [
@@ -264,6 +274,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Caça transações duplicadas e cobranças estranhas',
     voz: 'Deduz em voz alta, no melhor estilo Sherlock — e sempre apresenta a prova.',
     cor: '#6366f1',
+    poster: '/agentes/detetive-watson-thumb.jpg',
     video: '/agentes/detetive-watson.webm',
     cadencia: 'Quando acontece',
     avisos: [
@@ -292,6 +303,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Cuida dos seus investimentos como se fossem dele',
     voz: 'Tio rico e sovina simpático — comemora cada centavo rendido e sofre com cada taxa.',
     cor: '#eab308',
+    poster: '/agentes/osvaldo-thumb.jpg',
     video: '/agentes/osvaldo.webm',
     cadencia: 'Diário',
     emBreve: true,
@@ -320,6 +332,7 @@ export const AGENTES: Agente[] = [
     tagline: 'Diz se aquela compra cabe no seu bolso',
     voz: 'Místico e curto — responde em uma frase, como quem já sabia a pergunta.',
     cor: '#a855f7',
+    poster: '/agentes/oraculo-thumb.jpg',
     video: '/agentes/oraculo.webm',
     cadencia: 'Sob demanda',
     emBreve: true,
