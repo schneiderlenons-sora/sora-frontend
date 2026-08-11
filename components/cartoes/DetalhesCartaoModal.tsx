@@ -7,7 +7,6 @@ import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
 import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, hojeSP } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
-import { offsetFaturaEmCurso } from '@/lib/fatura-em-curso';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
@@ -20,13 +19,6 @@ const fmt = (v: number) =>
 
 // (reconhecimento de marca agora vem do sistema oficial em IconeMarca/marcaDe —
 //  removido o mapa local de iniciais que mostrava "S"/"N"/"iF" em vez do logo.)
-
-/** Competência por onde o modal abre — ver `offsetFaturaEmCurso`. */
-function competenciaDeAbertura(cartao: any): string {
-  const atual = competenciaAtual(cartao);
-  const off = offsetFaturaEmCurso(cartao);
-  return off === 0 ? atual : competenciaVizinha(cartao, atual, off);
-}
 
 interface Props {
   phone: string;
@@ -41,19 +33,18 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // calendário: partir do mês errado fazia o modal buscar as transações de DOIS
   // ciclos diferentes ao abrir, e a resposta que chegasse por último ganhava —
   // era por isso que fechar e abrir de novo mostrava valores diferentes.
-  const [mesRef, setMesRef] = useState(() => competenciaDeAbertura(cartao));
+  const [mesRef, setMesRef] = useState(() => competenciaAtual(cartao));
   const [txs,     setTxs]      = useState<any[]>([]);
   const [loading, setLoading]  = useState(false);
   const [verTudo, setVerTudo]  = useState(false);
   const [antecipando, setAntecipando] = useState(false);
   const [contas, setContas] = useState<any[]>([]);
   const [escolhendoConta, setEscolhendoConta] = useState(false);
-  // Quão à frente/atrás está a fatura exibida (0 = a de `competenciaAtual`).
-  const [offsetMes, setOffsetMes] = useState(() => offsetFaturaEmCurso(cartao));
-  // A fatura EM CURSO — a que o banco considera aberta. É ela que recebe o valor
-  // do sync, o rótulo "atual" e o vínculo com `of_bill_atual`. Nem sempre é o
-  // offset 0: entre fechamento e vencimento o banco já virou pra seguinte.
-  const ehFaturaEmCurso = offsetMes === offsetFaturaEmCurso(cartao);
+  // Quão à frente/atrás do mês atual está a fatura exibida (0 = atual)
+  const [offsetMes, setOffsetMes] = useState(0);
+  // A fatura ATUAL — a próxima a vencer. É ela que recebe o valor do banco, o
+  // rótulo "atual" e o vínculo com `of_bill_atual`.
+  const ehFaturaEmCurso = offsetMes === 0;
 
   const meta = loadCartaoMeta(cartao.id);
   const logo = bancoLogo(cartao.nome);
@@ -66,12 +57,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offsetMes, cartao?.id, cartao?.dia_fechamento, cartao?.dia_vencimento]);
 
-  // ── Cartão MANUAL: fatura já paga → abre na seguinte ─────────────────────
-  // No cartão de Open Finance quem decide é o banco (`offsetFaturaEmCurso`).
-  // No manual não há valor do banco, então o critério é o pagamento: fatura
-  // FECHADA e quitada não é mais o que o usuário quer ver — as compras do ciclo
-  // novo ficavam escondidas atrás de um clique. Fatura fechada e NÃO paga
-  // continua na frente de propósito: some-la seria esconder dívida.
+  // ── Fatura FECHADA e PAGA → abre na seguinte ─────────────────────────────
+  // O critério é o PAGAMENTO, nunca o calendário: fatura que fechou e foi paga
+  // não é mais o que o usuário quer ver — as compras do ciclo novo ficavam
+  // escondidas atrás de um clique. Fatura fechada e NÃO paga continua na frente
+  // de propósito: some-la seria esconder dívida.
   const [pulouParaSeguinte, setPulouParaSeguinte] = useState(false);
   // Parcelas que o BANCO já sabe que vão cair nesta fatura e que a Sora não tem
   // como transação (Mercado Pago manda parcela sem o marcador "N/M", então a 2ª
@@ -388,7 +378,7 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
                   confusão de "por que estou vendo a fatura velha?". */}
               {mesNome} {ano}{ehFaturaEmCurso
                 ? ' · atual'
-                : offsetMes > offsetFaturaEmCurso(cartao) ? ' · futura' : ''}
+                : offsetMes > 0 ? ' · futura' : ''}
             </span>
             <button onClick={() => setOffsetMes(o => Math.min(12, o + 1))}
                     disabled={offsetMes >= 12}

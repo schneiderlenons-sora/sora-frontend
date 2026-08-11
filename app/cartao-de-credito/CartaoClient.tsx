@@ -16,7 +16,6 @@ import {
   competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, labelCompetencia,
   type Ciclo,
 } from '@/lib/ciclo-fatura';
-import { offsetFaturaEmCurso } from '@/lib/fatura-em-curso';
 import { somarFatura } from '@/lib/valor-fatura';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
@@ -121,19 +120,13 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     (t.carteira_nome || '').trim().toLowerCase() === (w.nome || '').trim().toLowerCase();
 
   // Ciclo da fatura exibida, por cartão. `mesIndex` navega FATURAS (não meses):
-  // 0 = a EM CURSO, -1 = a anterior. Cada cartão tem o seu ciclo (dependem de
-  // dia_fechamento), então a competência varia de cartão pra cartão.
-  //
-  // ⚠️ `offsetFaturaEmCurso` desloca o zero: no cartão de Open Finance, depois
-  // do fechamento a "próxima a vencer" já não é a fatura aberta no banco — e o
-  // valor que o card mostra vem do banco. Sem o deslocamento, o card exibia o
-  // total da fatura nova com o período e o vencimento da velha.
+  // 0 = a atual (próxima a vencer), -1 = a anterior. Cada cartão tem o seu ciclo
+  // (dependem de dia_fechamento), então a competência varia de cartão pra cartão.
   const cicloPorCartao = useMemo(() => {
     const acc: Record<string, ReturnType<typeof cicloPorCompetencia>> = {};
     wallets.forEach(w => {
       const atual = competenciaAtual(w);
-      const passo = mesIndex + offsetFaturaEmCurso(w);
-      const comp = passo === 0 ? atual : competenciaVizinha(w, atual, passo);
+      const comp = mesIndex === 0 ? atual : competenciaVizinha(w, atual, mesIndex);
       acc[w.id] = cicloPorCompetencia(w, comp);
     });
     return acc;
