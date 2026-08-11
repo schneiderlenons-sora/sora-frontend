@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Calendar, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { X, Calendar, CalendarClock, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2 } from 'lucide-react';
+import { api, type ParcelaPrevista } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
-import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
+import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, hojeSP } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -53,6 +53,44 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     setMesRef(offsetMes === 0 ? atual : competenciaVizinha(cartao, atual, offsetMes));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offsetMes, cartao?.id, cartao?.dia_fechamento, cartao?.dia_vencimento]);
+
+  // ── Fatura já paga → abre na SEGUINTE ────────────────────────────────────
+  // Queixa real: o cliente pagou a fatura dia 09, ela tinha fechado dia 08, e o
+  // modal continuava parado nela — "atual" é a próxima a VENCER, e ela vence
+  // dia 13 mesmo já quitada. Enquanto isso as compras do ciclo novo (que é o
+  // que ele queria ver) ficavam escondidas atrás de um clique.
+  //
+  // ⚠️ Isto é decisão de TELA, não de aritmética: `competenciaAtual` (com eval
+  // de 1313 casos) fica intocada — só mudamos de qual fatura o modal ABRE.
+  // Só pula com o ciclo FECHADO: fatura em curso, mesmo paga adiantada, ainda
+  // recebe compra e é nela que o usuário está mexendo.
+  const [pulouParaSeguinte, setPulouParaSeguinte] = useState(false);
+  // Parcelas que o BANCO já sabe que vão cair nesta fatura e que a Sora não tem
+  // como transação (Mercado Pago manda parcela sem o marcador "N/M", então a 2ª
+  // nunca é lançada). Projeção do sync — só existe em fatura FUTURA.
+  const [previstas, setPrevistas] = useState<ParcelaPrevista[]>([]);
+  const [totalPrevisto, setTotalPrevisto] = useState(0);
+
+  useEffect(() => {
+    if (!phone || !cartao?.id || !mesRef) return;
+    let cancelado = false;
+    setPrevistas([]); setTotalPrevisto(0);
+    api.wallets.faturaStatus(phone, cartao.id, mesRef)
+      .then((st) => {
+        if (cancelado || !st) return;
+        setPrevistas(st.parcelas_previstas || []);
+        setTotalPrevisto(Number(st.total_previsto) || 0);
+        if (pulouParaSeguinte || offsetMes !== 0) return;
+        const c = cicloPorCompetencia(cartao, st.competencia);
+        const fechada = c.fim < hojeSP();
+        const quitada = Number(st.fatura) > 0.01 && Number(st.restante) <= 0.01;
+        if (fechada && quitada) setOffsetMes(1);
+      })
+      .catch(() => { /* informativo — nunca impede o modal de abrir */ })
+      .finally(() => { if (!cancelado) setPulouParaSeguinte(true); });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, cartao?.id, mesRef]);
 
   // Ciclo da fatura exibida — período que agrupa as compras dessa fatura.
   const ciclo = useMemo(
@@ -162,8 +200,10 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // total do ciclo em aberto (o Mercado Pago manda 0/null o mês inteiro). Só
     // saldo NEGATIVO é valor do banco; sem ele, soma as transações do ciclo.
     const doBanco = offsetMes === 0 && cartao?.of_conta_id && typeof cartao?.saldo === 'number' && cartao.saldo < 0;
-    return doBanco ? -(cartao.saldo as number) : somaMes;
-  }, [offsetMes, cartao?.of_conta_id, cartao?.saldo, somaMes]);
+    // `totalPrevisto` só é ≠ 0 em fatura FUTURA: na fatura em curso a compra já
+    // chegou pelo extrato e somar as duas fontes contaria em dobro.
+    return (doBanco ? -(cartao.saldo as number) : somaMes) + totalPrevisto;
+  }, [offsetMes, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
   const pagoFlag = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';
@@ -529,11 +569,11 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
               <div className="py-6 flex items-center justify-center">
                 <Loader2 size={18} className="animate-spin text-muted-foreground" />
               </div>
-            ) : txs.length === 0 ? (
+            ) : txs.length === 0 && previstas.length === 0 ? (
               <p className="text-xs text-muted-foreground py-3 text-center">
                 Sem transações neste mês.
               </p>
-            ) : (
+            ) : txs.length === 0 ? null : (
               <div className="space-y-2">
                 {(verTudo ? txs : txs.slice(0, 8)).map((tx, i) => {
                   const data = new Date(tx.data).toLocaleDateString('pt-BR', {
@@ -571,6 +611,49 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
                     Mostrar mais {txs.length - 8}
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* ── Previstas pelo banco ──────────────────────────────────────
+                Parcelas que o emissor já sabe que vão cair nesta fatura e que
+                a Sora não tem como lançamento: o Mercado Pago manda a parcela
+                sem o marcador "N/M", então a 2ª nunca vira transação — e a
+                fatura de setembro saía R$ 282,27 onde o app mostrava 558,78.
+
+                Fica visualmente SEPARADO (borda tracejada + rótulo com ícone,
+                nunca só cor) porque é projeção: entra no total pra bater com o
+                banco, mas não é um lançamento que o usuário possa editar. */}
+            {previstas.length > 0 && !loading && (
+              <div className="mt-4 pt-3 rounded-2xl px-3 py-3"
+                   style={{ border: '1px dashed hsl(var(--border))' }}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CalendarClock size={13} className="text-muted-foreground flex-shrink-0" />
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Previstas pelo banco
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  {previstas.map((p, i) => (
+                    <div key={`${p.descricao}-${p.parcela_num}-${i}`} className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground truncate">
+                          {p.descricao || 'Compra parcelada'}
+                          <span className="ml-1.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400 tabular-nums">
+                            {p.parcela_num}/{p.parcela_total}
+                          </span>
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground tabular flex-shrink-0">
+                        {fmt(p.valor)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  Parcelas de compras anteriores que ainda não foram lançadas. Já
+                  entram no total desta fatura — o valor final pode variar em
+                  centavos no arredondamento da última parcela.
+                </p>
               </div>
             )}
           </div>

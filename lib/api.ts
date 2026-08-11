@@ -96,6 +96,19 @@ export type FaturaCiclo = {
   porCiclo: boolean;                          // false = fallback mês-calendário
 };
 
+/**
+ * Parcela que o BANCO já sabe que vai cair numa fatura futura e que a Sora não
+ * tem como transação — o Mercado Pago manda parcela sem o marcador "N/M", então
+ * a 2ª nunca é lançada. É PROJEÇÃO (migration 116), regravada a cada sync do
+ * Open Finance, e nunca vira transação.
+ */
+export type ParcelaPrevista = {
+  descricao: string | null;
+  valor: number;
+  parcela_num: number;
+  parcela_total: number;
+};
+
 // Fatura de um cartão vinda de GET /api/wallets/faturas/:phone (em lote).
 export type FaturaCartao = FaturaCiclo & {
   cartao_id: string;
@@ -105,6 +118,13 @@ export type FaturaCartao = FaturaCiclo & {
   fatura: number;          // total do ciclo
   pago: number;            // já pago nessa competência
   restante: number;        // fatura − pago (é o que o painel destaca)
+  /** Já foi paga por inteiro. Sinal de NAVEGAÇÃO (a tela pula pra seguinte). */
+  quitada?: boolean;
+  /** O ciclo já fechou — não entram mais compras nela. */
+  fechada?: boolean;
+  /** Parcelas que o banco projeta pra esta fatura (só em fatura futura). */
+  parcelas_previstas?: ParcelaPrevista[];
+  total_previsto?: number;
   /** Fatura anterior que já venceu e ainda tem saldo (alerta de atraso). */
   vencida?: { competencia: string; venc: string; restante: number; label: string } | null;
   rollover?: { id: string; valor: number; competencia: string; status: string; confirmar_ate?: string } | null;
@@ -279,7 +299,11 @@ export const api = {
     // Status da fatura: { fatura, pago, restante, ciclo, rollover? } (migration 096).
     faturaStatus: (phone: string, cartao_id: string, competencia?: string) => {
       const q = new URLSearchParams({ cartao_id }); if (competencia) q.set('competencia', competencia);
-      return req<{ fatura: number; pago: number; restante: number; competencia: string; ciclo?: FaturaCiclo; rollover?: any }>(`/api/wallets/fatura/status/${phone}?${q}`);
+      return req<{
+        fatura: number; pago: number; restante: number; competencia: string;
+        ciclo?: FaturaCiclo; rollover?: any;
+        parcelas_previstas?: ParcelaPrevista[]; total_previsto?: number;
+      }>(`/api/wallets/fatura/status/${phone}?${q}`);
     },
     /**
      * Faturas de TODOS os cartões numa chamada, pelo CICLO REAL de fechamento

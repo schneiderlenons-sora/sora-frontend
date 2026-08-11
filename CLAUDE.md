@@ -500,6 +500,57 @@ todo mês.)
 > descartado). **Não mexer sem o payload cru** — é a mesma linha que impede
 > parcela virar despesa em 2027.
 
+## Fatura: pagamento do banco e parcelas a vencer (ago/2026)
+
+Duas metades do mesmo relato ("o card do cartão continua completamente bugado").
+
+**1. O pagamento vinha e não contava.** O sync JÁ importava o pagamento da
+fatura como transação (`Recebimento` + `transferencia`, categoria Fatura), mas
+nada chegava em **`pagamentos_fatura`** — a tabela de onde sai
+`restante = fatura − pago`. Então `pago = 0` pra sempre e a fatura nunca ficava
+quitada. `faturaRollover.registrarPagamentosDoOF` fecha isso no fim do laço de
+cartões do `polpCelcoinSync`.
+- **Competência = vencimento MAIS PRÓXIMO da data do pagamento**
+  (`competenciaDoPagamento`), mesma ideia do `vencimentoCoberto` das dívidas:
+  pagar 12/07 quita a que vence 13/07; pagar 20/07 quita **a mesma**, atrasado,
+  não a de agosto. Escolher "a próxima a vencer" jogaria todo atraso pra frente.
+- **Idempotente por `transacao_id`** (o sync roda todo dia) e tolerante: falha
+  aqui não derruba o sync. **Sem `dia_vencimento` não grava** — sem ciclo o
+  "mais próximo" compara com o último dia do mês e erra a fatura.
+- **Raio de impacto medido antes de ligar:** 113 cartões (7 de OF) → 39
+  pagamentos registrados em 5 cartões e **1 único cartão** muda de
+  comportamento na tela.
+- ⚠️ **`quitada` NUNCA sai no cartão de Open Finance na fatura atual**: ali o
+  valor é do emissor e o `pago` é do nosso livro — bases diferentes (medido: o
+  banco publica 560,68 enquanto os pagamentos do ciclo somam 2.809,28). O modal
+  decide o pulo por `/fatura/status`, que é sempre soma do ciclo.
+- **Pulo pra fatura seguinte é decisão de TELA** (`DetalhesCartaoModal`): abre em
+  `offsetMes = 1` quando o ciclo **fechou** E está quitado. `competenciaAtual`
+  (eval de 1313 casos) fica intocada.
+
+**2. Parcelas que só o banco conhece.** A fatura de setembro saía **R$ 282,27**
+onde o app mostrava **R$ 558,78** — faltavam Prosed 79,86 + PayU Adidas 139,99 +
+Chinoca 56,66. O Mercado Pago manda parcela **sem o marcador "N/M"**, e é dele
+que a redistribuição do sync depende: a 2ª parcela nunca vira transação, só
+existe no endpoint `parcelamentos`. `services/parcelasPrevistas.js` +
+migration **116**.
+- **NÃO vira transação.** É projeção: apagada e regravada a cada sync. (Já
+  existiu uma `sql/078` só pra limpar parcela futura importada como gasto.)
+- **Dedup por INSTANTE DA COMPRA** (ao segundo) + nº de parcelas + valor ±R$1.
+  A Polp manda a mesma compra duas vezes com descrição e 1 centavo diferentes
+  (`JIM.COM PROSED ES` 79,86 × `JIM.COM PROSED ESPECIALID` 79,87) — casar por
+  descrição devolvia **zero** duplicatas justamente aí.
+- **Guiada por DATA, nunca por `paidInstallments`** (a Polp erra: o Chinoca vinha
+  "3 de 3 pagas" com uma por vencer).
+- ⚠️ **`jaEhTransacao` impede a contagem em dobro**: cartão que manda "N/M"
+  (Nubank) já tem a parcela futura lançada — projetar por cima faria a fatura
+  sair MAIOR que a do banco, o inverso do bug de origem.
+- **Só competência FUTURA.** No ciclo em curso a compra já chegou pelo extrato.
+- **Pode dar 1 centavo a mais por compra**: a API informa a parcela NOMINAL e o
+  banco arredonda na ÚLTIMA. Por isso a tela rotula "Previstas pelo banco" e diz
+  que aproxima — inventar a diferença seria pior.
+- Travado em `npm run eval:parcelas-previstas` e `npm run eval:pagamento-fatura`.
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
@@ -882,9 +933,12 @@ sql/106_clientes_produtos_vendas.sql — fase 2: clientes, produtos, vendas + ve
 sql/107_estoque_compras.sql      — fase 3: fornecedores, compras, estoque_movimentos + estoque_atual/controla_estoque nos produtos. RODADA.
 sql/108_dre_gerencial.sql        — fase 4: natureza fixa/variável (lançamentos e custos) + CMV/lucro bruto/despesas por natureza/ponto de equilíbrio em dre_snapshots.
 sql/109_comissao_encargos.sql    — fase 5: comissao_pct/encargos no funcionário + comissao_valor/comissao_paga_em na venda.
+sql/114_wallet_datas_manuais.sql — flag `datas_manuais` em wallets: fechamento/vencimento corrigidos à mão param de ser sobrescritos pelo sync do Open Finance (a API do MP publica 12/17 e o app mostra 8/14).
+sql/115_divida_nos_previstos.sql — flag `nos_previstos` em dividas: excluir a dívida do card "Previstos do mês" sem apagá-la da aba Dívidas (reversível lá).
+sql/116_of_parcelas_previstas.sql — tabela `of_parcelas_previstas`: parcelas a vencer que o BANCO conhece e a Sora não (MP manda parcela sem "N/M"). É PROJEÇÃO — reescrita a cada sync, nunca vira transação.
 ```
 
-> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas). Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
+> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115 e 116**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
 > **Já rodadas:** 074 (mrr_excluir/assinatura_cancelada), 083 (marcas), 084→087 (categorias v3), **090+091+092 (Negócios 2.0)**. **089 (índices) NÃO foi rodada — é opcional** (ganho só em escala).
 > **Drive Inteligente:** NÃO tem migration própria — reusa 041 (tabelas) + 042 (bucket). Se o Drive não guardar arquivo, quase sempre é o **bucket 042 que não rodou**.
 
