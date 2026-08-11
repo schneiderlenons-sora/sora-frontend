@@ -302,6 +302,12 @@ export const api = {
       return req<{
         fatura: number; pago: number; restante: number; competencia: string;
         ciclo?: FaturaCiclo; rollover?: any;
+        /** Paga por inteiro DEPOIS do fechamento — é o que libera pular pra seguinte. */
+        quitada?: boolean;
+        /** O ciclo já fechou. */
+        fechada?: boolean;
+        /** O valor veio do emissor (Open Finance), não da nossa soma do ciclo. */
+        doBanco?: boolean;
         parcelas_previstas?: ParcelaPrevista[]; total_previsto?: number;
       }>(`/api/wallets/fatura/status/${phone}?${q}`);
     },

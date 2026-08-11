@@ -520,13 +520,20 @@ cartões do `polpCelcoinSync`.
 - **Raio de impacto medido antes de ligar:** 113 cartões (7 de OF) → 39
   pagamentos registrados em 5 cartões e **1 único cartão** muda de
   comportamento na tela.
-- ⚠️ **`quitada` NUNCA sai no cartão de Open Finance na fatura atual**: ali o
-  valor é do emissor e o `pago` é do nosso livro — bases diferentes (medido: o
-  banco publica 560,68 enquanto os pagamentos do ciclo somam 2.809,28). O modal
-  decide o pulo por `/fatura/status`, que é sempre soma do ciclo.
+- ⚠️ **Só encerra a fatura o pagamento feito DEPOIS do fechamento**
+  (`quitadaDepoisDoFechamento`). No Mercado Pago é comum abater a fatura em curso
+  aos poucos — medido nesta conta: fatura de agosto R$ 2.804,28, abatida em
+  R$ 2.243,60 no dia 03 (fechando dia 08), e o banco passou a publicar
+  R$ 560,68. Ela seguia **aberta**; quem a encerrou foi o pagamento de R$ 565,68
+  no dia 09. Contar o abatimento como quitação dava fatura "paga" de pé.
 - **Pulo pra fatura seguinte é decisão de TELA** (`DetalhesCartaoModal`): abre em
-  `offsetMes = 1` quando o ciclo **fechou** E está quitado. `competenciaAtual`
+  `offsetMes = 1` quando o servidor diz `fechada && quitada`. `competenciaAtual`
   (eval de 1313 casos) fica intocada.
+- ⚠️ **Não deslocar a fatura "atual" pra frente.** Já tentei: assumi que o valor
+  do banco era da fatura NOVA e abri o modal na seguinte. É o contrário — o
+  `simulated_bill_total_amount` é o saldo da fatura que **fechou**, e o
+  deslocamento jogou o valor dela por cima da fatura em curso. A única regra é
+  "fechou E foi paga".
 
 **2. Parcelas que só o banco conhece.** A fatura de setembro saía **R$ 282,27**
 onde o app mostrava **R$ 558,78** — faltavam Prosed 79,86 + PayU Adidas 139,99 +
@@ -550,6 +557,18 @@ migration **116**.
   banco arredonda na ÚLTIMA. Por isso a tela rotula "Previstas pelo banco" e diz
   que aproxima — inventar a diferença seria pior.
 - Travado em `npm run eval:parcelas-previstas` e `npm run eval:pagamento-fatura`.
+
+**3. Quem decide o VALOR exibido: `services/faturaVista.js`** — fonte única das
+duas rotas de fatura (`/fatura/status` e `/faturas`), que antes decidiam cada uma
+a sua e faziam as duas telas divergirem no mesmo cartão. Três regras, nesta ordem:
+- **Cartão OF na fatura ATUAL → valor do BANCO** (`saldo = −fatura`, alimentado
+  pelo `simulated_bill_total_amount`). ⚠️ Ele já vem **líquido de pagamentos** —
+  descontar `pago` de novo zera fatura que ainda está de pé. Foi somando as
+  transações do ciclo que a tela mostrou **R$ 3.190,81** onde o banco dizia
+  R$ 560,68.
+- **Fatura FUTURA → soma do ciclo + parcelas previstas** (o emissor não publica
+  fatura que não fechou). Medido: 282,27 + 276,51 = **558,78**, igual ao app.
+- **Cartão manual → `fatura − pago`**, como sempre.
 
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 

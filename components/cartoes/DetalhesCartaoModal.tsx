@@ -5,7 +5,7 @@ import { X, Calendar, CalendarClock, ChevronRight, ChevronLeft, ExternalLink, Lo
 import { api, type ParcelaPrevista } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
-import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, hojeSP } from '@/lib/ciclo-fatura';
+import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -68,21 +68,25 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // nunca é lançada). Projeção do sync — só existe em fatura FUTURA.
   const [previstas, setPrevistas] = useState<ParcelaPrevista[]>([]);
   const [totalPrevisto, setTotalPrevisto] = useState(0);
+  // Fatura quitada segundo o SERVIDOR (pagamento registrado depois do
+  // fechamento — inclusive o que o Open Finance trouxe do extrato).
+  const [quitadaServidor, setQuitadaServidor] = useState(false);
 
   useEffect(() => {
     if (!phone || !cartao?.id || !mesRef) return;
     let cancelado = false;
-    setPrevistas([]); setTotalPrevisto(0);
+    setPrevistas([]); setTotalPrevisto(0); setQuitadaServidor(false);
     api.wallets.faturaStatus(phone, cartao.id, mesRef)
       .then((st) => {
         if (cancelado || !st) return;
         setPrevistas(st.parcelas_previstas || []);
         setTotalPrevisto(Number(st.total_previsto) || 0);
+        setQuitadaServidor(!!st.quitada);
         if (pulouParaSeguinte || offsetMes !== 0) return;
-        const c = cicloPorCompetencia(cartao, st.competencia);
-        const fechada = c.fim < hojeSP();
-        const quitada = Number(st.fatura) > 0.01 && Number(st.restante) <= 0.01;
-        if (fechada && quitada) setOffsetMes(1);
+        // `quitada` é do servidor: no cartão de banco o valor da fatura é do
+        // emissor (já líquido) e não dá pra deduzir daqui se foi paga — quem
+        // sabe é o livro de pagamentos, que o sync alimenta com o extrato.
+        if (st.fechada && st.quitada) setOffsetMes(1);
       })
       .catch(() => { /* informativo — nunca impede o modal de abrir */ })
       .finally(() => { if (!cancelado) setPulouParaSeguinte(true); });
@@ -212,10 +216,14 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // que explica a distância entre os lançamentos e o total do banco.
     return doBanco ? -(cartao.saldo as number) : somaMes + totalPrevisto;
   }, [ehFaturaEmCurso, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
-  const pagoFlag = useMemo(() => {
+  // "Paga" vem do SERVIDOR quando ele sabe. O localStorage fica só como
+  // marcação manual do usuário, que era tudo o que existia antes: cartão de
+  // banco conectado ficava eternamente "Em aberto" mesmo depois de pago.
+  const pagoFlagLS = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';
   }, [cartao?.id, mesRef]);
+  const pagoFlag = quitadaServidor || pagoFlagLS;
 
   const dataPagamento = useMemo(() => {
     if (typeof window === 'undefined') return '';
