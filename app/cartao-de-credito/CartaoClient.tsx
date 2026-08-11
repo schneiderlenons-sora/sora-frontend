@@ -161,7 +161,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       const minhas = txsTodas.filter(t => mesmaCarteira(t, w));
       // Critério decidido UMA vez por fatura. Decidir por transação misturava a
       // fatura vinculada com o ciclo novo e somava as duas.
-      const criterio = criterioDaFatura(minhas, w, mesIndex === 0);
+      const criterio = criterioDaFatura(minhas, w, mesIndex === 0, ciclo);
       // Soma ASSINADA (lib/valor-fatura.ts): compra soma, estorno/crédito
       // ABATE, pagamento de fatura é neutro. Antes filtrava só `tipo==='Gasto'`
       // e o crédito era descartado — a fatura ficava maior que a do banco.

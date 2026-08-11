@@ -88,7 +88,7 @@ export default function ResumoCards({
         const minhas = txsMes.filter(t => mesmaCarteira(t, w));
         // Critério UMA vez por fatura — decidir por transação somava a fatura
         // vinculada junto com o ciclo novo.
-        const criterio = criterioDaFatura(minhas, w, true);
+        const criterio = criterioDaFatura(minhas, w, true, ciclo);
         // Soma ASSINADA (lib/valor-fatura.ts): estorno/crédito ABATE a fatura.
         const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
           ? -(w.saldo as number)

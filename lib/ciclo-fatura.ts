@@ -205,12 +205,25 @@ export function criterioDaFatura(
   txs: any[],
   cartao: any,
   ehFaturaAtual: boolean,
+  /** Ciclo da fatura exibida — usado pra descartar `of_bill_atual` VELHO. */
+  ciclo?: Ciclo,
 ): 'bill' | 'ciclo' {
   const alvo = ehFaturaAtual ? cartao?.of_bill_atual : null;
   if (!alvo) return 'ciclo';
-  const doCartao = (txs || []).filter((t) => t?.of_bill_id);
-  if (!doCartao.length) return 'ciclo';
-  return doCartao.some((t) => t.of_bill_id === alvo) ? 'bill' : 'ciclo';
+  const doAlvo = (txs || []).filter((t) => t?.of_bill_id === alvo);
+  if (!doAlvo.length) return 'ciclo';
+
+  // ⚠️ `of_bill_atual` pode estar preso numa fatura JÁ VENCIDA: o sync só
+  // gravava esse campo quando tinha valor, então uma vez preenchido ele nunca
+  // era limpo. Agrupar por uma fatura morta ESCONDE tudo que veio depois do
+  // fechamento dela — caso real: fatura fechada em 08/08 listando lançamentos
+  // só até 31/07, porque foi até aí que o emissor vinculou.
+  //
+  // Guarda: se nenhum lançamento daquela fatura cai dentro do ciclo exibido,
+  // ela não é a fatura deste ciclo — volta pro período, que nunca esconde nada.
+  if (ciclo && !doAlvo.some((t) => dentroDoCiclo(t?.data, ciclo))) return 'ciclo';
+
+  return 'bill';
 }
 
 /** Rótulo humano da fatura: "Agosto de 2026". */

@@ -98,6 +98,12 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // atual (o modal mostrava o total de outro ciclo, mudando a cada abertura).
     let cancelado = false;
     setLoading(true);
+    // ⚠️ ZERA a lista ao trocar de fatura. Sem isto, os lançamentos da fatura
+    // ANTERIOR continuavam no estado enquanto a nova carregava — e como o valor
+    // exibido é calculado a partir deles, aparecia por um instante o total do
+    // ciclo errado (medido: R$ 3.190,81 piscando onde o correto era R$ 287,27).
+    // Número de dinheiro que pisca alto e depois cai é pior que um spinner.
+    setTxs([]);
     const mesesDoCiclo = Array.from(new Set([ciclo.ini.slice(0, 7), ciclo.fim.slice(0, 7)]));
     const buscas: Promise<any>[] = mesesDoCiclo.map((m) => api.transacoes.listar(phone, { mes: m, limit: 500 }));
     // Compra PARCELADA é lançada com a data da COMPRA, então pode estar meses
@@ -124,7 +130,7 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
             (t.carteira_nome || '').trim().toLowerCase() === nomeCartao);
         // Critério UMA vez por fatura (ver criterioDaFatura): por transação,
         // misturava a fatura vinculada com as compras do ciclo novo.
-        const criterio = criterioDaFatura(minhas, cartao, offsetMes === 0);
+        const criterio = criterioDaFatura(minhas, cartao, offsetMes === 0, ciclo);
         // Inclui os CRÉDITOS (estorno/cashback) do ciclo, não só os Gasto: eles
         // abatem a fatura e o usuário precisa vê-los na lista pra bater com o
         // extrato do banco. Quem decide o sinal é `somarFatura`.
