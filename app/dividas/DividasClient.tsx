@@ -90,6 +90,22 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
     }
   }
 
+  /** Mostra/esconde a parcela desta dívida no card "Previstos do mês" da aba
+   *  Transações (migration 115). NÃO mexe na dívida em si — é só se ela entra
+   *  ou não na PREVISÃO de gastos do mês. Otimista, com reversão: se a 115
+   *  ainda não rodou, o PUT falha e o estado volta. */
+  async function togglePrevistos(d: any) {
+    const novo = d.nos_previstos === false;   // estava fora → passa a mostrar
+    setDividas(prev => prev.map(x => x.id === d.id ? { ...x, nos_previstos: novo } : x));
+    try {
+      await api.dividas.editar(d.id, { nos_previstos: novo });
+      flash(novo ? '✅ Agora conta nos previstos do mês.' : '👁 Não conta mais nos previstos.');
+    } catch (e: any) {
+      setDividas(prev => prev.map(x => x.id === d.id ? { ...x, nos_previstos: !novo } : x));
+      alert(e.message);
+    }
+  }
+
   async function toggleLembreteDivida(d: any) {
     if (!phone) return;
     const novo = !d.lembretes_ativos;
@@ -242,6 +258,7 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
                 onEditar={() => { setEdicao(d); setNovaOpen(true); }}
                 onExcluir={() => setConfirmDel(d)}
                 onToggleLembrete={() => toggleLembreteDivida(d)}
+                onTogglePrevistos={() => togglePrevistos(d)}
               />
             ))}
           </div>
@@ -338,9 +355,10 @@ interface DividaCardProps {
   onEditar:  () => void;
   onExcluir: () => void;
   onToggleLembrete: () => void;
+  onTogglePrevistos: () => void;
 }
 
-function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onToggleLembrete }: DividaCardProps) {
+function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onToggleLembrete, onTogglePrevistos }: DividaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const tipo = TIPO_INFO[divida.tipo] || TIPO_INFO.outro;
   const status = STATUS_INFO[divida.status] || STATUS_INFO.ativa;
@@ -432,6 +450,16 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
                     <button onClick={() => { setMenuOpen(false); onToggleLembrete(); }}
                             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors">
                       {divida.lembretes_ativos !== false ? <><BellOff size={12} /> Silenciar lembretes</> : <><Bell size={12} /> Ativar lembretes</>}
+                    </button>
+                    {/* Volta (ou tira) a parcela do card "Previstos do mês" da
+                        aba Transações — migration 115. É o caminho de volta pra
+                        quem tirou a dívida de lá: sem isso, tirar seria uma
+                        porta sem maçaneta do outro lado. */}
+                    <button onClick={() => { setMenuOpen(false); onTogglePrevistos(); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors">
+                      {divida.nos_previstos === false
+                        ? <><Eye size={12} /> Mostrar nos previstos</>
+                        : <><EyeOff size={12} /> Não contar nos previstos</>}
                     </button>
                     <button onClick={() => { setMenuOpen(false); onEditar(); }}
                             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors">

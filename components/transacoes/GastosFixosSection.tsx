@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
-  Bell, ChevronDown, Link2,
+  Bell, ChevronDown, Link2, EyeOff,
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
 import { mutate as mutateGlobal } from 'swr';
@@ -62,6 +62,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // 'novo' = form de criação aberto; um item = editando ESSE item; null = fechado.
   const [formTarget, setFormTarget] = useState<'novo' | Recorrencia | null>(null);
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
+  const [dividas, setDividas]     = useState<any[]>([]);
+  const [tirando, setTirando]     = useState<string | null>(null); // dívida saindo da previsão
 
   // Seção recolhida — a lista é longa e fica no TOPO da aba de transações;
   // quem já configurou os fixos quer passar por ela, não relê toda visita.
@@ -99,6 +101,26 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     }
   }, [phone]);
 
+  /** Dívidas que entram na PREVISÃO do mês.
+   *
+   *  A parcela de um financiamento é gasto previsto igual à luz — o card só
+   *  olhava `recorrencias`, então quem tem dívida via um total menor que a
+   *  realidade. Aqui elas entram como leitura: dá pra tirar do card, mas não
+   *  pra criar (dívida precisa de nº de parcelas, credor, juros… que não cabem
+   *  no formulário de conta fixa).
+   *
+   *  Filtro: ativa (nem quitada nem sem parcela) e não removida da previsão
+   *  (`nos_previstos`, migration 115). `!== false` e não `=== true` porque
+   *  antes da migration a coluna não vem — e o certo é MOSTRAR. */
+  const carregarDividas = useCallback(async () => {
+    if (!phone) return;
+    try {
+      const r = await api.dividas.listar(phone);
+      setDividas((r?.dividas || []).filter((d: any) =>
+        d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false));
+    } catch { setDividas([]); }
+  }, [phone]);
+
   const carregarSugestoes = useCallback(async () => {
     try { const r = await api.recorrencias.sugestoes(); setSugestoes(r.sugestoes || []); }
     catch { setSugestoes([]); }
@@ -113,8 +135,23 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     } catch { setSugCats({}); }
   }, []);
 
-  useEffect(() => { carregar(); carregarSugestoes(); carregarSugCats(); },
-    [carregar, carregarSugestoes, carregarSugCats]);
+  useEffect(() => { carregar(); carregarSugestoes(); carregarSugCats(); carregarDividas(); },
+    [carregar, carregarSugestoes, carregarSugCats, carregarDividas]);
+
+  /** Tira a dívida da PREVISÃO (não apaga a dívida). Otimista: some da lista na
+   *  hora e volta se o servidor recusar — se a migration 115 não rodou, o PUT
+   *  falha e a linha reaparece, que é o comportamento honesto. */
+  async function tirarDosPrevistos(d: any) {
+    setTirando(d.id);
+    const backup = dividas;
+    setDividas((prev) => prev.filter((x) => x.id !== d.id));
+    try {
+      await api.dividas.editar(d.id, { nos_previstos: false });
+    } catch {
+      setDividas(backup);
+    }
+    setTirando(null);
+  }
 
   /** Aceita a categoria sugerida pra UMA conta fixa. Otimista, e some da lista
    *  de sugestões na hora — o backend ainda propaga a categoria pro lançamento
@@ -165,7 +202,11 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const gastosVar     = useMemo(() => itens.filter((i) => i.tipo === 'Gasto'       &&  i.valor_variavel), [itens]);
   const receitasFixas = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento' && !i.valor_variavel), [itens]);
   const receitasVar   = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento' &&  i.valor_variavel), [itens]);
-  const totalGastos   = useMemo(() => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0), [itens]);
+  // Uma parcela por dívida por mês — é assim que a dívida pesa no mês.
+  const totalDividas  = useMemo(() => dividas.reduce((s, d) => s + (Number(d.valor_parcela) || 0), 0), [dividas]);
+  const totalGastos   = useMemo(
+    () => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0) + totalDividas,
+    [itens, totalDividas]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
 
   const grupos = useMemo(() => ([
@@ -219,10 +260,10 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           <div className="min-w-0">
             <h3 className="font-semibold text-foreground leading-tight flex items-center gap-2">
               Previstos do mês
-              {!carregando && itens.length > 0 && (
+              {!carregando && itens.length + dividas.length > 0 && (
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
                       style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}>
-                  {itens.length}
+                  {itens.length + dividas.length}
                 </span>
               )}
             </h3>
@@ -340,7 +381,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         <div className="flex items-center gap-2 text-sm text-muted-foreground p-6">
           <Loader2 size={16} className="animate-spin" /> Carregando…
         </div>
-      ) : itens.length === 0 ? (
+      ) : itens.length === 0 && dividas.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center gap-2 px-6 py-10">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'hsl(var(--bg-muted))' }}>
             <Calendar size={20} className="text-muted-foreground" />
@@ -386,6 +427,35 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </ul>
             </div>
           ))}
+
+          {/* ── DÍVIDAS ────────────────────────────────────────────────────
+              A parcela do mês de cada dívida ativa. Só aparece se existir
+              dívida — quem não tem nem sabe que o bloco existe.
+
+              É LEITURA: não dá pra criar dívida por aqui (precisa de nº de
+              parcelas, credor, juros… que não cabem no form de conta fixa) nem
+              de mudar o modo de lançamento. A única ação é TIRAR da previsão,
+              que não apaga nada — a dívida segue inteira na aba Dívidas. */}
+          {dividas.length > 0 && (
+            <div>
+              <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${grupos.length > 0 ? 'border-t border-border/50' : ''}`}>
+                Dívidas
+                <span className="inline-flex items-center gap-1 normal-case tracking-normal font-medium text-muted-foreground/70">
+                  <CircleDashed size={11} /> parcela deste mês
+                </span>
+              </p>
+              <ul className="divide-y divide-border/50">
+                {dividas.map((d, idx) => (
+                  <LinhaDivida key={d.id} divida={d} idx={idx}
+                    saindo={tirando === d.id} onTirar={() => tirarDosPrevistos(d)} />
+                ))}
+              </ul>
+              <p className="px-4 sm:px-6 pb-4 pt-2 text-[11px] leading-snug text-muted-foreground">
+                Gerencie as dívidas na aba <a href="/dividas" className="font-medium underline underline-offset-2 hover:text-foreground">Dívidas</a>.
+                Tirar daqui não apaga a dívida — é só pra ela não contar na previsão.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -897,5 +967,77 @@ function AddForm({
         </button>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Linha de uma DÍVIDA no card de previstos.
+//
+// Mesmo desenho de 3 faixas da Linha de recorrência (título+valor / meta /
+// ação), pra as duas listas não parecerem componentes de telas diferentes.
+// A diferença é o que ela NÃO tem: sem editar, sem modo de lançamento, sem
+// excluir. A única ação é sair da previsão.
+// ─────────────────────────────────────────────────────────────
+function LinhaDivida({
+  divida, idx, saindo, onTirar,
+}: { divida: any; idx: number; saindo: boolean; onTirar: () => void }) {
+  const parcelas = Number(divida.parcelas_total) || 0;
+  const pagas    = Number(divida.parcelas_pagas) || 0;
+  const restantes = Math.max(0, parcelas - pagas);
+  const tema = getCategoriaTheme(divida.titulo);
+
+  return (
+    <li
+      className="group transition-colors hover:bg-muted/30 animate-fade-in"
+      style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
+    >
+      <div className="px-4 sm:px-6 py-3">
+        <div className="flex items-start gap-3">
+          <CategoriaIcon nome={divida.titulo} icone="💳" size={38}
+            bg="#ef444418" color="#ef4444" rounded="rounded-xl" />
+
+          <div className="flex-1 min-w-0">
+            {/* 1. Título + valor da parcela */}
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium text-foreground truncate min-w-0">{divida.titulo}</p>
+              <p className="flex-shrink-0 text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
+                <ArrowDownRight size={13} />{fmt(divida.valor_parcela)}
+              </p>
+            </div>
+
+            {/* 2. Quando vence, quanto falta e pra quem */}
+            <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground flex-wrap">
+              {divida.dia_vencimento && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+                  <Calendar size={10} /> dia {divida.dia_vencimento}
+                </span>
+              )}
+              {parcelas > 0 && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+                  {restantes} de {parcelas} restantes
+                </span>
+              )}
+              {divida.credor && <span className="truncate max-w-[55%]">· {divida.credor}</span>}
+            </div>
+
+            {/* 3. Única ação: sair da previsão (NÃO apaga a dívida) */}
+            <div className="flex items-center justify-end mt-2">
+              <button
+                type="button"
+                onClick={onTirar}
+                disabled={saindo}
+                aria-label={`Não contar ${divida.titulo} nos previstos do mês`}
+                className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[11px] font-semibold
+                           text-muted-foreground hover:text-foreground hover:bg-muted transition-colors
+                           disabled:opacity-50"
+              >
+                {saindo ? <Loader2 size={12} className="animate-spin" /> : <EyeOff size={12} />}
+                Não contar aqui
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }
