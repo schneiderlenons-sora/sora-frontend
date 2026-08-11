@@ -16,6 +16,7 @@ import {
   competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, labelCompetencia,
   type Ciclo,
 } from '@/lib/ciclo-fatura';
+import { offsetFaturaEmCurso } from '@/lib/fatura-em-curso';
 import { somarFatura } from '@/lib/valor-fatura';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
@@ -120,13 +121,19 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     (t.carteira_nome || '').trim().toLowerCase() === (w.nome || '').trim().toLowerCase();
 
   // Ciclo da fatura exibida, por cartão. `mesIndex` navega FATURAS (não meses):
-  // 0 = a atual (próxima a vencer), -1 = a anterior. Cada cartão tem o seu ciclo
-  // (dependem de dia_fechamento), então a competência varia de cartão pra cartão.
+  // 0 = a EM CURSO, -1 = a anterior. Cada cartão tem o seu ciclo (dependem de
+  // dia_fechamento), então a competência varia de cartão pra cartão.
+  //
+  // ⚠️ `offsetFaturaEmCurso` desloca o zero: no cartão de Open Finance, depois
+  // do fechamento a "próxima a vencer" já não é a fatura aberta no banco — e o
+  // valor que o card mostra vem do banco. Sem o deslocamento, o card exibia o
+  // total da fatura nova com o período e o vencimento da velha.
   const cicloPorCartao = useMemo(() => {
     const acc: Record<string, ReturnType<typeof cicloPorCompetencia>> = {};
     wallets.forEach(w => {
       const atual = competenciaAtual(w);
-      const comp = mesIndex === 0 ? atual : competenciaVizinha(w, atual, mesIndex);
+      const passo = mesIndex + offsetFaturaEmCurso(w);
+      const comp = passo === 0 ? atual : competenciaVizinha(w, atual, passo);
       acc[w.id] = cicloPorCompetencia(w, comp);
     });
     return acc;
@@ -595,9 +602,12 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartao.id, restante, ehMesAtual]);
 
-  // Próximo vencimento — helper compartilhado com o modal de detalhes (fonte
-  // única; antes cada tela calculava o seu e davam meses diferentes).
-  const vencimentoLabel = labelVencimento(diaVencimento);
+  // Vencimento da fatura EXIBIDA (`ciclo.venc`), não "o próximo dia N no
+  // calendário": as duas se separam depois do fechamento, e o card acabava
+  // dizendo "vence 13 de ago" embaixo do valor da fatura de setembro.
+  const vencimentoLabel = ciclo?.venc
+    ? `${ciclo.venc.slice(8, 10)} de ${MES_ABREV[Number(ciclo.venc.slice(5, 7)) - 1].toLowerCase()}`
+    : labelVencimento(diaVencimento);
 
   return (
     <>

@@ -7,6 +7,7 @@ import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
 import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFatura, criterioDaFatura, hojeSP } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
+import { offsetFaturaEmCurso } from '@/lib/fatura-em-curso';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 
@@ -19,6 +20,13 @@ const fmt = (v: number) =>
 
 // (reconhecimento de marca agora vem do sistema oficial em IconeMarca/marcaDe —
 //  removido o mapa local de iniciais que mostrava "S"/"N"/"iF" em vez do logo.)
+
+/** Competência por onde o modal abre — ver `offsetFaturaEmCurso`. */
+function competenciaDeAbertura(cartao: any): string {
+  const atual = competenciaAtual(cartao);
+  const off = offsetFaturaEmCurso(cartao);
+  return off === 0 ? atual : competenciaVizinha(cartao, atual, off);
+}
 
 interface Props {
   phone: string;
@@ -33,15 +41,19 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
   // calendário: partir do mês errado fazia o modal buscar as transações de DOIS
   // ciclos diferentes ao abrir, e a resposta que chegasse por último ganhava —
   // era por isso que fechar e abrir de novo mostrava valores diferentes.
-  const [mesRef, setMesRef] = useState(() => competenciaAtual(cartao));
+  const [mesRef, setMesRef] = useState(() => competenciaDeAbertura(cartao));
   const [txs,     setTxs]      = useState<any[]>([]);
   const [loading, setLoading]  = useState(false);
   const [verTudo, setVerTudo]  = useState(false);
   const [antecipando, setAntecipando] = useState(false);
   const [contas, setContas] = useState<any[]>([]);
   const [escolhendoConta, setEscolhendoConta] = useState(false);
-  // Quão à frente/atrás do mês atual está a fatura exibida (0 = atual)
-  const [offsetMes, setOffsetMes] = useState(0);
+  // Quão à frente/atrás está a fatura exibida (0 = a de `competenciaAtual`).
+  const [offsetMes, setOffsetMes] = useState(() => offsetFaturaEmCurso(cartao));
+  // A fatura EM CURSO — a que o banco considera aberta. É ela que recebe o valor
+  // do sync, o rótulo "atual" e o vínculo com `of_bill_atual`. Nem sempre é o
+  // offset 0: entre fechamento e vencimento o banco já virou pra seguinte.
+  const ehFaturaEmCurso = offsetMes === offsetFaturaEmCurso(cartao);
 
   const meta = loadCartaoMeta(cartao.id);
   const logo = bancoLogo(cartao.nome);
@@ -54,16 +66,12 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offsetMes, cartao?.id, cartao?.dia_fechamento, cartao?.dia_vencimento]);
 
-  // ── Fatura já paga → abre na SEGUINTE ────────────────────────────────────
-  // Queixa real: o cliente pagou a fatura dia 09, ela tinha fechado dia 08, e o
-  // modal continuava parado nela — "atual" é a próxima a VENCER, e ela vence
-  // dia 13 mesmo já quitada. Enquanto isso as compras do ciclo novo (que é o
-  // que ele queria ver) ficavam escondidas atrás de um clique.
-  //
-  // ⚠️ Isto é decisão de TELA, não de aritmética: `competenciaAtual` (com eval
-  // de 1313 casos) fica intocada — só mudamos de qual fatura o modal ABRE.
-  // Só pula com o ciclo FECHADO: fatura em curso, mesmo paga adiantada, ainda
-  // recebe compra e é nela que o usuário está mexendo.
+  // ── Cartão MANUAL: fatura já paga → abre na seguinte ─────────────────────
+  // No cartão de Open Finance quem decide é o banco (`offsetFaturaEmCurso`).
+  // No manual não há valor do banco, então o critério é o pagamento: fatura
+  // FECHADA e quitada não é mais o que o usuário quer ver — as compras do ciclo
+  // novo ficavam escondidas atrás de um clique. Fatura fechada e NÃO paga
+  // continua na frente de propósito: some-la seria esconder dívida.
   const [pulouParaSeguinte, setPulouParaSeguinte] = useState(false);
   // Parcelas que o BANCO já sabe que vão cair nesta fatura e que a Sora não tem
   // como transação (Mercado Pago manda parcela sem o marcador "N/M", então a 2ª
@@ -148,7 +156,7 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // atrás do ciclo e nem seria carregada pela busca por mês. Quando o banco
     // diz qual fatura está aberta, buscamos também por ela. Best-effort: se a
     // migration 101 ainda não rodou, essa busca falha e as outras seguem.
-    const faturaAberta = offsetMes === 0 ? cartao?.of_bill_atual : null;
+    const faturaAberta = ehFaturaEmCurso ? cartao?.of_bill_atual : null;
     if (faturaAberta) {
       buscas.push(
         api.transacoes.listar(phone, { bill_id: faturaAberta, limit: 500 }).catch(() => null),
@@ -168,12 +176,17 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
             (t.carteira_nome || '').trim().toLowerCase() === nomeCartao);
         // Critério UMA vez por fatura (ver criterioDaFatura): por transação,
         // misturava a fatura vinculada com as compras do ciclo novo.
-        const criterio = criterioDaFatura(minhas, cartao, offsetMes === 0, ciclo);
+        const criterio = criterioDaFatura(minhas, cartao, ehFaturaEmCurso, ciclo);
         // Inclui os CRÉDITOS (estorno/cashback) do ciclo, não só os Gasto: eles
         // abatem a fatura e o usuário precisa vê-los na lista pra bater com o
         // extrato do banco. Quem decide o sinal é `somarFatura`.
         const doCartao = minhas.filter(
-          (t: any) => pertenceAFatura(t, cartao, ciclo, offsetMes === 0, criterio));
+          (t: any) => pertenceAFatura(t, cartao, ciclo, ehFaturaEmCurso, criterio));
+        // ⚠️ ORDENA POR DATA. As buscas são por MÊS e chegam concatenadas, então
+        // sem isto a lista saía "todo o mês de julho, depois todo o de agosto" —
+        // e como só os 8 primeiros aparecem antes de "Mostrar mais", a fatura
+        // parecia parar em 31 de julho. Foi lido como lançamento faltando.
+        doCartao.sort((a: any, b: any) => String(b.data).localeCompare(String(a.data)));
         setTxs(doCartao);
       })
       .catch(() => { if (!cancelado) setTxs([]); })
@@ -199,11 +212,16 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
     // ⚠️ Saldo ZERO não é "fatura zerada" — é o banco ainda não ter publicado o
     // total do ciclo em aberto (o Mercado Pago manda 0/null o mês inteiro). Só
     // saldo NEGATIVO é valor do banco; sem ele, soma as transações do ciclo.
-    const doBanco = offsetMes === 0 && cartao?.of_conta_id && typeof cartao?.saldo === 'number' && cartao.saldo < 0;
-    // `totalPrevisto` só é ≠ 0 em fatura FUTURA: na fatura em curso a compra já
-    // chegou pelo extrato e somar as duas fontes contaria em dobro.
-    return (doBanco ? -(cartao.saldo as number) : somaMes) + totalPrevisto;
-  }, [offsetMes, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
+    // ⚠️ `offsetDeAbertura`, não `0`: o saldo do sync é da fatura que o BANCO
+    // considera aberta, que depois do fechamento já é a seguinte. Comparar com
+    // 0 fazia o valor do banco aparecer em cima dos lançamentos da fatura velha.
+    const doBanco = ehFaturaEmCurso
+      && cartao?.of_conta_id && typeof cartao?.saldo === 'number' && cartao.saldo < 0;
+    // O total do banco JÁ inclui as parcelas previstas (é ele quem as conhece) —
+    // somar de novo contaria em dobro. Elas seguem listadas: são justamente o
+    // que explica a distância entre os lançamentos e o total do banco.
+    return doBanco ? -(cartao.saldo as number) : somaMes + totalPrevisto;
+  }, [ehFaturaEmCurso, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
   const pagoFlag = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';
@@ -334,12 +352,15 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
             )}
             <div className="min-w-0">
               <h2 className="text-base font-bold text-foreground truncate">{cartao.nome}</h2>
-              {/* Vencimento pelo helper compartilhado (mesmo mês da lista) e com o
-                  dia do BANCO como fonte primária, caindo pro localStorage. */}
-              {(cartao.dia_vencimento ?? meta.diaVencimento) ? (
+              {/* Vencimento da fatura EXIBIDA (`ciclo.venc`), não o "próximo dia
+                  N no calendário": depois que a fatura pula pra seguinte, o
+                  cabeçalho dizia "vence 13 de ago" numa fatura de setembro. */}
+              {(ciclo?.venc || cartao.dia_vencimento || meta.diaVencimento) ? (
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                   <Calendar size={11} />
-                  Vence em {labelVencimento(cartao.dia_vencimento ?? meta.diaVencimento)}
+                  Vence em {ciclo?.venc
+                    ? `${ciclo.venc.slice(8, 10)} de ${MES_ABREV[Number(ciclo.venc.slice(5, 7)) - 1]}`
+                    : labelVencimento(cartao.dia_vencimento ?? meta.diaVencimento)}
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground mt-0.5">Sem data de vencimento</p>
@@ -361,7 +382,13 @@ export default function DetalhesCartaoModal({ phone, cartao, onClose, onRefresh,
               <ChevronLeft size={16} className="text-muted-foreground" />
             </button>
             <span className="text-sm font-semibold text-foreground capitalize">
-              {mesNome} {ano}{offsetMes === 0 ? ' · atual' : offsetMes > 0 ? ' · futura' : ''}
+              {/* "atual" é a fatura de ABERTURA — no cartão de Open Finance, a
+                  que o banco considera aberta (que depois do fechamento já é a
+                  seguinte). Marcar a de julho como "atual" era metade da
+                  confusão de "por que estou vendo a fatura velha?". */}
+              {mesNome} {ano}{ehFaturaEmCurso
+                ? ' · atual'
+                : offsetMes > offsetFaturaEmCurso(cartao) ? ' · futura' : ''}
             </span>
             <button onClick={() => setOffsetMes(o => Math.min(12, o + 1))}
                     disabled={offsetMes >= 12}
