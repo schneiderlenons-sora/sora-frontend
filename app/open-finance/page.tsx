@@ -382,17 +382,35 @@ export default function OpenFinancePage() {
               <p className="text-xs text-muted-foreground">
                 <b className="text-foreground tabular">{conexoes.length}</b> de{' '}
                 <b className="text-foreground tabular">{limiteConexoes}</b>{' '}
-                {limiteConexoes === 1 ? 'conexão' : 'conexões'} do plano {PLANO_LABEL[plano]}
-                {noLimite && (plano === 'basico'
-                  // Básico tem pra onde subir; no Premium o caminho é a conexão
-                  // avulsa (+R$5/mês), que ainda não está à venda — então aqui
-                  // a gente avisa em vez de mandar pra uma página sem saída.
+                {/* ⚠️ "do plano {label}" é ENGANOSO pro vitalício: pra ele o limite
+                    não é franquia de plano nenhuma, é só o que ele contratou avulso
+                    (franquia = 0). Dizer "do plano Premium" faz o número da tela
+                    parecer arbitrário — daí "paguei uma conexão e só libera 1?". */}
+                {limiteConexoes === 1 ? 'conexão' : 'conexões'}{' '}
+                {perfil?.vitalicio ? 'contratadas' : `do plano ${PLANO_LABEL[plano]}`}
+                {noLimite && !perfil?.vitalicio && (plano === 'basico'
+                  // Básico tem pra onde subir; no Premium ainda não existe venda
+                  // avulsa pra assinante normal (só pro vitalício, logo abaixo) —
+                  // então aqui a gente avisa em vez de mandar pra ação sem efeito.
                   ? <> · <a href="/planos" className="font-semibold underline underline-offset-2" style={{ color: BRAND }}>
                       fazer upgrade
                     </a></>
                   : <> · conexões extras a R$ {PRECO_CONEXAO_EXTRA}/mês em breve</>
                 )}
               </p>
+            )}
+
+            {/* ⚠️ BUG REAL (relato de cliente vitalício, ago/2026): ele contratou
+                a 1ª conexão avulsa (ContratarConexao, abaixo) e ela SOME da tela
+                assim que ele tem ≥1 paga — `liberado` vira true e ele cai neste
+                ramo, que só tinha o texto morto "em breve" acima. O backend
+                (POST /api/stripe/conexao-of) já suporta aumentar a quantidade da
+                MESMA assinatura com proration — só faltava o botão pra chamá-lo
+                de novo depois da primeira compra. Só aparece no limite: TEM
+                banco pra conectar → conecta; só oferece comprar mais quando
+                bate no teto do que já pagou. */}
+            {!carregando && noLimite && perfil?.vitalicio && (
+              <ContratarConexao atual={perfil?.of_conexoes_pagas || 0} />
             )}
 
             {/* Ação principal */}
@@ -650,11 +668,20 @@ export default function OpenFinancePage() {
 // O anual aparece porque a taxa do cartão come ~12% de uma cobrança de R$ 6 —
 // no anual cai pra ~1%. Quem escolher mensal não perde nada; quem escolher
 // anual paga menos e a gente recebe melhor.
-// ─────────────────────────────────────────────────────────────────────────────
-function ContratarConexao() {
+//
+// `atual` = quantas conexões pagas ele JÁ tem (0 na primeira contratação).
+// ⚠️ O POST manda a quantidade TOTAL da assinatura, não um incremento — a rota
+// (`/api/stripe/conexao-of`) faz `subscriptionItems.update({ quantity: qtd })`.
+// Reenviar sempre `1` (como era) fazia a 2ª tentativa "atualizar" a assinatura
+// existente DE VOLTA pra 1, sem abrir checkout e sem aumentar nada — é por isso
+// que o cliente vitalício que já tinha 1 conexão paga não conseguia comprar a
+// 2ª: este componente nem aparecia mais depois da 1ª compra (`liberado` vira
+// true), e quando reaparece agora tem de mandar `atual + 1`, não `1`.
+function ContratarConexao({ atual = 0 }: { atual?: number }) {
   const [intervalo, setIntervalo] = useState<'mensal' | 'anual'>('mensal');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const proximaQtd = atual + 1;
 
   async function contratar() {
     if (enviando) return;
@@ -663,7 +690,7 @@ function ContratarConexao() {
       const r = await fetch('/api/stripe/conexao-of', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantidade: 1, intervalo }),
+        body: JSON.stringify({ quantidade: proximaQtd, intervalo }),
       });
       const d = await r.json().catch(() => ({}));
       if (d?.url) { window.location.href = d.url; return; }
@@ -702,15 +729,15 @@ function ContratarConexao() {
         className="w-full inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg disabled:opacity-60 transition-all active:scale-[0.99]"
         style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
         {enviando ? <Loader2 size={16} className="animate-spin" /> : <Landmark size={16} />}
-        {enviando ? 'Abrindo…' : 'Conectar meu banco'}
+        {enviando ? 'Abrindo…' : atual > 0 ? 'Contratar mais uma conexão' : 'Conectar meu banco'}
       </button>
 
       {erro && <p role="alert" className="text-xs text-red-500">{erro}</p>}
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Cobrado por banco conectado. Dá pra cancelar quando quiser — o banco fica
-        conectado até o fim do período que você já pagou. Seu acesso vitalício ao
-        resto da Sora continua igual, sem mensalidade.
+        {atual > 0
+          ? <>Você já paga por <b className="text-foreground">{atual}</b> {atual === 1 ? 'conexão' : 'conexões'}. Isto adiciona mais uma na mesma cobrança — o valor sobe proporcional ao que falta pra fechar o mês.</>
+          : 'Cobrado por banco conectado. Dá pra cancelar quando quiser — o banco fica conectado até o fim do período que você já pagou. Seu acesso vitalício ao resto da Sora continua igual, sem mensalidade.'}
       </p>
     </div>
   );

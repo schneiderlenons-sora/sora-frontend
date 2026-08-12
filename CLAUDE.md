@@ -616,6 +616,26 @@ dívidas diferentes** do usuário. Travado em `npm run eval:divida-duplicada`.
 > antes**: neste caso a dívida acusada era `origem: 'manual'`, criada 8 dias
 > **antes** de a conexão OF existir. O sync estava correto.
 
+## Open Finance: conexão avulsa do vitalício (ago/2026) — 2ª compra travada
+
+Cliente vitalício pagou a 1ª conexão de banco (R$6/mês avulso, `/api/stripe/
+conexao-of`) e depois não conseguia comprar a 2ª — a tela só mostrava "conexões
+extras... em breve", texto morto sem botão.
+
+Causa: `<ContratarConexao />` (o componente com o botão de compra de verdade)
+só era renderizado dentro do ramo **"sem acesso"** (`!liberado`, quando
+`of_conexoes_pagas === 0`). Assim que ele tinha 1 conexão paga, `liberado` virava
+`true` e ele caía no ramo normal — que nunca oferecia comprar mais uma. O
+backend (`POST /api/stripe/conexao-of`, que já aumenta a quantidade da MESMA
+assinatura com proration) sempre funcionou; faltava só o botão reaparecer no
+limite (`app/open-finance/page.tsx`, quando `noLimite && perfil?.vitalicio`).
+
+⚠️ **A quantidade enviada é o TOTAL da assinatura, não um incremento**
+(`subscriptionItems.update({ quantity: qtd })`). `ContratarConexao` manda sempre
+`1` fixo — reenviar isso na 2ª compra teria "atualizado" a assinatura de volta
+pra 1 em vez de somar. Precisa de `atual + 1` (prop `atual`, vindo de
+`perfil.of_conexoes_pagas`).
+
 ## Open Finance (Polp) — teste fechado, fatura do cartão
 
 Integração **funcionando** com banco real (Nubank + Mercado Pago). Allowlist nos
