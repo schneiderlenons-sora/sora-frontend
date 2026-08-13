@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
-import { limiteConexoesOf, PLANO_LABEL, PRECO_CONEXAO_EXTRA } from '@/lib/plans';
+import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import {
@@ -344,7 +344,7 @@ export default function OpenFinancePage() {
               </div>
 
               {perfil?.vitalicio ? (
-                <ContratarConexao />
+                <ContratarConexao primeiraCompra />
               ) : (
                 <a href="/planos"
                    className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99]"
@@ -388,29 +388,34 @@ export default function OpenFinancePage() {
                     parecer arbitrário — daí "paguei uma conexão e só libera 1?". */}
                 {limiteConexoes === 1 ? 'conexão' : 'conexões'}{' '}
                 {perfil?.vitalicio ? 'contratadas' : `do plano ${PLANO_LABEL[plano]}`}
-                {noLimite && !perfil?.vitalicio && (plano === 'basico'
-                  // Básico tem pra onde subir; no Premium ainda não existe venda
-                  // avulsa pra assinante normal (só pro vitalício, logo abaixo) —
-                  // então aqui a gente avisa em vez de mandar pra ação sem efeito.
-                  ? <> · <a href="/planos" className="font-semibold underline underline-offset-2" style={{ color: BRAND }}>
-                      fazer upgrade
-                    </a></>
-                  : <> · conexões extras a R$ {PRECO_CONEXAO_EXTRA}/mês em breve</>
-                )}
               </p>
             )}
 
-            {/* ⚠️ BUG REAL (relato de cliente vitalício, ago/2026): ele contratou
-                a 1ª conexão avulsa (ContratarConexao, abaixo) e ela SOME da tela
-                assim que ele tem ≥1 paga — `liberado` vira true e ele cai neste
-                ramo, que só tinha o texto morto "em breve" acima. O backend
-                (POST /api/stripe/conexao-of) já suporta aumentar a quantidade da
-                MESMA assinatura com proration — só faltava o botão pra chamá-lo
-                de novo depois da primeira compra. Só aparece no limite: TEM
-                banco pra conectar → conecta; só oferece comprar mais quando
-                bate no teto do que já pagou. */}
-            {!carregando && noLimite && perfil?.vitalicio && (
-              <ContratarConexao atual={perfil?.of_conexoes_pagas || 0} />
+            {/* Duas saídas quando bate o limite — QUALQUER plano compra a
+                extra por R$6/mês (`ContratarConexao`, não é exclusivo do
+                vitalício: só a UI escondia o botão dos assinantes depois da
+                1ª compra — bug real de cliente, ago/2026). Básico ganha AINDA
+                uma 2ª opção lado a lado: Premium já dá 3 de graça, que sai mais
+                barato do que pagar avulso uma por uma se ele for conectar mais
+                de uma. As duas opções ficam visíveis juntas — nunca escondendo
+                uma atrás da outra. */}
+            {!carregando && noLimite && (
+              <div className="space-y-2">
+                {!perfil?.vitalicio && plano === 'basico' && (
+                  <div className="rounded-2xl border border-border bg-muted/40 p-3 flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Vai conectar mais de um banco? O <b className="text-foreground">Premium</b> já
+                      vem com <b className="text-foreground">3 conexões grátis</b>.
+                    </p>
+                    <a href="/planos"
+                       className="flex-shrink-0 inline-flex items-center h-9 px-3 rounded-xl text-xs font-bold text-white"
+                       style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}>
+                      Ver Premium
+                    </a>
+                  </div>
+                )}
+                <ContratarConexao atual={perfil?.of_conexoes_pagas || 0} />
+              </div>
             )}
 
             {/* Ação principal */}
@@ -660,24 +665,33 @@ export default function OpenFinancePage() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Contratar conexão avulsa — o caminho do VITALÍCIO.
+// Contratar conexão avulsa — qualquer plano compra, quando bate no limite.
 //
-// Ele não tem franquia (pagou uma vez; a conexão custa todo mês). Aqui ele
-// assina por banco conectado, numa assinatura separada da do plano.
+// Cada plano tem uma franquia grátis (Básico 1 · Premium/Black 3 · vitalício
+// 0, porque ele não paga mensalidade nenhuma). Além dela — pra QUALQUER plano,
+// não só o vitalício — dá pra somar quantas conexões quiser, uma por uma, cada
+// uma numa assinatura própria (separada da do plano).
 //
 // O anual aparece porque a taxa do cartão come ~12% de uma cobrança de R$ 6 —
 // no anual cai pra ~1%. Quem escolher mensal não perde nada; quem escolher
 // anual paga menos e a gente recebe melhor.
 //
-// `atual` = quantas conexões pagas ele JÁ tem (0 na primeira contratação).
+// `atual` = quantas conexões PAGAS ele já tem (0 se ainda não comprou nenhuma —
+// vale tanto pro vitalício na 1ª compra quanto pro assinante que só usou a
+// franquia grátis até agora e está comprando a 1ª extra).
+// `primeiraCompra` = está no painel de boas-vindas do vitalício (zero conexões
+// de qualquer tipo) — só aí faz sentido o texto "seu acesso vitalício continua
+// sem mensalidade". Fora dali (`noLimite` de qualquer plano) o usuário já tem
+// pelo menos uma conexão (grátis ou paga) e só está somando mais uma.
+//
 // ⚠️ O POST manda a quantidade TOTAL da assinatura, não um incremento — a rota
 // (`/api/stripe/conexao-of`) faz `subscriptionItems.update({ quantity: qtd })`.
-// Reenviar sempre `1` (como era) fazia a 2ª tentativa "atualizar" a assinatura
-// existente DE VOLTA pra 1, sem abrir checkout e sem aumentar nada — é por isso
-// que o cliente vitalício que já tinha 1 conexão paga não conseguia comprar a
-// 2ª: este componente nem aparecia mais depois da 1ª compra (`liberado` vira
-// true), e quando reaparece agora tem de mandar `atual + 1`, não `1`.
-function ContratarConexao({ atual = 0 }: { atual?: number }) {
+// Reenviar sempre `1` fazia a 2ª tentativa "atualizar" a assinatura existente
+// DE VOLTA pra 1, sem aumentar nada — é por isso que o cliente vitalício que já
+// tinha 1 conexão paga não conseguia comprar a 2ª: o componente nem aparecia
+// mais depois da 1ª compra (`liberado` vira true), e ao reaparecer tem de
+// mandar `atual + 1`, não `1`.
+function ContratarConexao({ atual = 0, primeiraCompra = false }: { atual?: number; primeiraCompra?: boolean }) {
   const [intervalo, setIntervalo] = useState<'mensal' | 'anual'>('mensal');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
@@ -729,15 +743,17 @@ function ContratarConexao({ atual = 0 }: { atual?: number }) {
         className="w-full inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg disabled:opacity-60 transition-all active:scale-[0.99]"
         style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
         {enviando ? <Loader2 size={16} className="animate-spin" /> : <Landmark size={16} />}
-        {enviando ? 'Abrindo…' : atual > 0 ? 'Contratar mais uma conexão' : 'Conectar meu banco'}
+        {enviando ? 'Abrindo…' : primeiraCompra ? 'Conectar meu banco' : 'Contratar mais uma conexão'}
       </button>
 
       {erro && <p role="alert" className="text-xs text-red-500">{erro}</p>}
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        {atual > 0
-          ? <>Você já paga por <b className="text-foreground">{atual}</b> {atual === 1 ? 'conexão' : 'conexões'}. Isto adiciona mais uma na mesma cobrança — o valor sobe proporcional ao que falta pra fechar o mês.</>
-          : 'Cobrado por banco conectado. Dá pra cancelar quando quiser — o banco fica conectado até o fim do período que você já pagou. Seu acesso vitalício ao resto da Sora continua igual, sem mensalidade.'}
+        {primeiraCompra
+          ? 'Cobrado por banco conectado. Dá pra cancelar quando quiser — o banco fica conectado até o fim do período que você já pagou. Seu acesso vitalício ao resto da Sora continua igual, sem mensalidade.'
+          : atual > 0
+            ? <>Você já paga por <b className="text-foreground">{atual}</b> {atual === 1 ? 'conexão extra' : 'conexões extras'}. Isto soma mais uma na mesma cobrança — o valor sobe proporcional ao que falta pra fechar o mês.</>
+            : 'Isto soma mais um banco além dos que já vêm de graça no seu plano, numa cobrança à parte da assinatura. Cancela quando quiser.'}
       </p>
     </div>
   );

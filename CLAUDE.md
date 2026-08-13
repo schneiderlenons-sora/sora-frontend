@@ -616,25 +616,37 @@ dívidas diferentes** do usuário. Travado em `npm run eval:divida-duplicada`.
 > antes**: neste caso a dívida acusada era `origem: 'manual'`, criada 8 dias
 > **antes** de a conexão OF existir. O sync estava correto.
 
-## Open Finance: conexão avulsa do vitalício (ago/2026) — 2ª compra travada
+## Open Finance: franquia por plano + conexão avulsa pra QUALQUER plano (ago/2026)
 
-Cliente vitalício pagou a 1ª conexão de banco (R$6/mês avulso, `/api/stripe/
-conexao-of`) e depois não conseguia comprar a 2ª — a tela só mostrava "conexões
-extras... em breve", texto morto sem botão.
+**Franquia grátis** (`LIMITES.conexoes_of` em `lib/plans.ts`): **Básico 1 ·
+Premium/Black 3 · vitalício 0** (ele não paga mensalidade nenhuma, então não
+ganha franquia — cada conexão custa mensalidade nossa no agregador). Já estava
+certo no código; o que faltava era a COMPRA da conexão extra.
 
-Causa: `<ContratarConexao />` (o componente com o botão de compra de verdade)
-só era renderizado dentro do ramo **"sem acesso"** (`!liberado`, quando
-`of_conexoes_pagas === 0`). Assim que ele tinha 1 conexão paga, `liberado` virava
-`true` e ele caía no ramo normal — que nunca oferecia comprar mais uma. O
-backend (`POST /api/stripe/conexao-of`, que já aumenta a quantidade da MESMA
-assinatura com proration) sempre funcionou; faltava só o botão reaparecer no
-limite (`app/open-finance/page.tsx`, quando `noLimite && perfil?.vitalicio`).
+**Não existe teto.** Além da franquia, QUALQUER plano — não só o vitalício —
+compra quantas conexões extras quiser, uma a uma, R$6/mês (ou R$60/ano) cada,
+numa assinatura separada da do plano (`/api/stripe/conexao-of`,
+`subscriptionItems.update({ quantity: qtd })` com proration). O preço mora só
+no texto de `ContratarConexao` (`app/open-finance/page.tsx`) — não existe
+constante central pra não ter dois lugares pra desalinhar.
 
-⚠️ **A quantidade enviada é o TOTAL da assinatura, não um incremento**
-(`subscriptionItems.update({ quantity: qtd })`). `ContratarConexao` manda sempre
-`1` fixo — reenviar isso na 2ª compra teria "atualizado" a assinatura de volta
-pra 1 em vez de somar. Precisa de `atual + 1` (prop `atual`, vindo de
-`perfil.of_conexoes_pagas`).
+**Bug real corrigido:** cliente vitalício pagou a 1ª conexão e não conseguia
+comprar a 2ª — a tela só mostrava um texto morto, sem botão. Causa:
+`<ContratarConexao/>` só renderizava no painel de boas-vindas (`!liberado`,
+zero conexões). Assim que ele tinha 1 paga, `liberado` virava `true` e ele caía
+no ramo normal, que nunca oferecia comprar mais uma — nem pro vitalício nem pro
+assinante Básico/Premium que batesse no teto da franquia. O backend sempre
+funcionou; faltava o botão aparecer sempre que `noLimite`, pra qualquer plano.
+
+⚠️ **A quantidade enviada é o TOTAL da assinatura, não um incremento.**
+`ContratarConexao` manda `atual + 1` (prop `atual` = `of_conexoes_pagas`) —
+reenviar sempre `1` fixo (como era) faria a 2ª compra "atualizar" a assinatura
+de volta pra 1 em vez de somar.
+
+**Básico no limite** mostra as DUAS saídas juntas, nunca uma escondendo a
+outra: banner "Premium já vem com 3 grátis" + o card de comprar avulso —
+porque conectar 2+ bancos costuma sair mais barato no upgrade do que pagando
+avulso um a um, mas a escolha é do usuário.
 
 ## Open Finance (Polp) — teste fechado, fatura do cartão
 

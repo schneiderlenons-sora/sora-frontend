@@ -83,8 +83,10 @@ export const LIMITES = {
   conexoes_of: { inativo: 0, basico: 1, kit: 0, premium: 3, black: 3 },
 } as const satisfies Record<string, Record<Plano, number>>;
 
-/** Preço da conexão de Open Finance além do limite do plano (ainda não cobrado). */
-export const PRECO_CONEXAO_EXTRA = 5;
+// Preço da conexão extra de Open Finance: R$6/mês ou R$60/ano, cobrado de
+// verdade via Stripe (add-on separado do plano — `/api/stripe/conexao-of`).
+// O valor mora só no texto de `ContratarConexao` (app/open-finance/page.tsx);
+// não há constante aqui pra não ter dois lugares pra desalinhar o preço.
 
 export type Recurso = keyof typeof LIMITES;
 
