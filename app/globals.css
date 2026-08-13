@@ -380,32 +380,73 @@ body { background-color: hsl(var(--bg)); }
       0 2px 20px hsl(0 0% 0% / .75);
   }
 
-  /* ── Insight hero card: igual sistema de elevação dos demais .card ── */
-  .insight-hero {
-    background-color: #FAFAFA;
-    background-image: linear-gradient(135deg, #FAFAFA 0%, #F4F4F5 50%, #EDEDEF 100%);
-    border: 1px solid hsl(var(--border));
-    box-shadow:
-      0 1px 0 hsl(0 0% 100% / .8) inset,
-      0 1px 3px hsl(220 25% 10% / .06),
-      0 1px 2px hsl(220 25% 10% / .04);
-    transition: all 200ms var(--ease);
+  /* ── Insight hero card: igual sistema de elevação dos demais .card ──
+     ⚠️ SÓ A PARTIR DE 768px. No mobile o card-pai deixou de existir: o texto
+     do insight fica solto na página e os 4 mini-cards ganham a largura toda
+     (dentro do pai eles ficavam com ~142px e o rótulo "Saldo em contas" saía
+     cortado). Sem media query aqui, o fundo/borda do pai voltariam a
+     desenhar a moldura no celular. */
+  @media (min-width: 768px) {
+    .insight-hero {
+      background-color: #FAFAFA;
+      background-image: linear-gradient(135deg, #FAFAFA 0%, #F4F4F5 50%, #EDEDEF 100%);
+      border: 1px solid hsl(var(--border));
+      box-shadow:
+        0 1px 0 hsl(0 0% 100% / .8) inset,
+        0 1px 3px hsl(220 25% 10% / .06),
+        0 1px 2px hsl(220 25% 10% / .04);
+      transition: all 200ms var(--ease);
+    }
+    .dark .insight-hero {
+      background-color: #08080A !important;
+      background-image:
+        linear-gradient(
+          135deg,
+          #0E0E11 0%,
+          #08080A 45%,
+          #08080A 70%,
+          #030305 100%
+        ) !important;
+      border: 1px solid hsl(240 6% 14%) !important;
+      box-shadow:
+        0 1px 0 hsl(0 0% 100% / .04) inset,
+        0 1px 3px hsl(0 0% 0% / .5),
+        0 1px 2px hsl(0 0% 0% / .3) !important;
+    }
   }
-  .dark .insight-hero {
-    background-color: #08080A !important;
-    background-image:
-      linear-gradient(
-        135deg,
-        #0E0E11 0%,
-        #08080A 45%,
-        #08080A 70%,
-        #030305 100%
-      ) !important;
-    border: 1px solid hsl(240 6% 14%) !important;
-    box-shadow:
-      0 1px 0 hsl(0 0% 100% / .04) inset,
-      0 1px 3px hsl(0 0% 0% / .5),
-      0 1px 2px hsl(0 0% 0% / .3) !important;
+
+  /* ── Dashboard mobile: cards translúcidos sobre o fundo fixo ────────────
+     O vídeo do topo agora é `fixed` (HeroVideoBg) e o conteúdo rola por cima.
+     Pra a imagem aparecer ATRÁS dos cards eles precisam abrir mão da opacidade
+     total — com blur, senão o vídeo passa nítido por baixo do texto e nada
+     fica legível.
+
+     ⚠️ ESCOPADO em `.dash-glass` (só o dashboard) e em `max-width: 767px`.
+     `backdrop-filter` cria containing block pra `position: fixed` descendente:
+     aplicar isso em TODO `.card` do app faria qualquer modal não-portado ficar
+     preso dentro do card (é o bug registrado em
+     `feedback-modal-portal-backdrop-blur`). Escopar limita o raio a esta tela,
+     onde os modais já saem por portal.
+
+     ⚠️ `.dark` aqui é o seletor certo pros DOIS temas escuros — o tema black
+     também usa a classe `.dark` (ver Sidebar: `isDark = isTemaBlack`). */
+  @media (max-width: 767px) {
+    .dash-glass .card,
+    .dash-glass .card-hover {
+      background: hsl(var(--bg-card) / .62);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-color: hsl(var(--border) / .7);
+    }
+    /* No escuro o card precisa ficar MENOS transparente: o fundo do painel já
+       é quase preto, então o mesmo alfa do claro deixaria o texto sobre a
+       parte vívida do vídeo com contraste insuficiente. */
+    .dark .dash-glass .card,
+    .dark .dash-glass .card-hover {
+      background: hsl(var(--bg-card) / .72) !important;
+      background-image: none !important;
+      border-color: hsl(0 0% 100% / .09) !important;
+    }
   }
 
   /* ── Cards no modo escuro: base #09090B + gradiente sutil para elevação ── */

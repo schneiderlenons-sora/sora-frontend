@@ -296,7 +296,10 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           arquivo já traz o gradiente que funde com o tema. */}
       <HeroVideoBg />
 
-      <div className="max-w-7xl mx-auto pb-28 space-y-5 relative z-[1]">
+      {/* `dash-glass`: liga os cards translúcidos do mobile (globals.css). Fica
+          no wrapper pra o efeito valer nesta tela e em nenhuma outra — ver o
+          porquê no comentário do CSS (backdrop-filter × modal fixed). */}
+      <div className="dash-glass max-w-7xl mx-auto pb-28 space-y-5 relative z-[1]">
 
         {/* ── Cabeçalho sobre o vídeo (só mobile) ──────────────
             O espaçador deixa a parte vívida do vídeo à mostra; a saudação cai
@@ -315,19 +318,28 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
         <div className="grid lg:grid-cols-5 gap-5">
 
           {/* ── AI Insight Card ──────────────────────────────── */}
+          {/* ⚠️ No MOBILE não há card-pai: `p-0` + sem `rounded`/`overflow`, e o
+              `.insight-hero` (fundo/borda/sombra) só existe de 768px pra cima
+              — ver globals.css. O texto do insight fica solto sobre o fundo e
+              os 4 mini-cards passam a ter a largura inteira da página, que é o
+              que faz os rótulos caberem sem cortar. Desktop: inalterado. */}
           <div
-            className="insight-hero lg:col-span-3 relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in"
+            className="insight-hero lg:col-span-3 relative md:overflow-hidden md:rounded-3xl p-0 md:p-6 lg:p-8 animate-fade-in"
           >
 
-            {/* Halos decorativos apenas no light mode (toque verde da Sora) */}
-            <div className="dark:hidden absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none opacity-30"
+            {/* Halos decorativos apenas no light mode (toque verde da Sora).
+                `hidden md:block`: sem card-pai no mobile eles não teriam mais
+                moldura pra ficar dentro — `overflow-hidden` só existe do md
+                pra cima, então vazariam por cima do resto da página. */}
+            <div className="hidden md:block dark:md:hidden absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none opacity-30"
                  style={{ background: `radial-gradient(circle, ${BRAND} 0%, transparent 70%)` }} />
-            <div className="dark:hidden absolute bottom-0 right-0 w-48 h-48 rounded-full pointer-events-none opacity-20"
+            <div className="hidden md:block dark:md:hidden absolute bottom-0 right-0 w-48 h-48 rounded-full pointer-events-none opacity-20"
                  style={{ background: `radial-gradient(circle, ${BRAND2} 0%, transparent 70%)` }} />
 
-            <div className="relative space-y-5">
-              {/* Header — apenas data */}
-              <div className="flex items-center justify-end">
+            <div className="relative space-y-4 md:space-y-5">
+              {/* Header — apenas data. Some no mobile: sem card-pai ela ficaria
+                  solta no canto, sem nada a que pertencer. */}
+              <div className="hidden md:flex items-center justify-end">
                 <span className="text-muted-foreground text-xs">
                   {hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
                 </span>

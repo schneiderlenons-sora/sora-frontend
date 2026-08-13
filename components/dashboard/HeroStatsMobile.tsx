@@ -309,12 +309,16 @@ function CardBase({
       onClick={onToggle}
       aria-expanded={aberto}
       aria-label={`${aria}. Toque para ${aberto ? 'recolher' : 'ver detalhes'}`}
-      className={`relative min-w-0 text-center rounded-2xl backdrop-blur-sm border transition-all active:scale-[0.98] ${
+      // ⚠️ No escuro o fundo é PRETO translúcido, não branco a 5%: com o vídeo
+      // agora fixo, o card sobe por cima da parte vívida da imagem ao rolar, e
+      // um véu branco de 5% deixava texto branco sobre imagem clara —
+      // ilegível. Preto + blur devolve o contraste em qualquer frame.
+      className={`relative min-w-0 text-center rounded-2xl backdrop-blur-md border transition-all active:scale-[0.98] ${
         compacto ? 'p-3' : 'p-3.5'
       } ${
         aberto
-          ? 'bg-white/90 dark:bg-white/10 border-[#61D17B]/60 ring-1 ring-[#61D17B]/40'
-          : 'bg-white/60 dark:bg-white/5 border-border/40 dark:border-white/10'
+          ? 'bg-white/90 dark:bg-black/70 border-[#61D17B]/60 ring-1 ring-[#61D17B]/40'
+          : 'bg-white/72 dark:bg-black/55 border-border/40 dark:border-white/10'
       } ${className}`}
     >
       {/* ⚠️ Chevron ABSOLUTO no canto, fora do fluxo. Quando ele participava da
@@ -326,9 +330,14 @@ function CardBase({
         className={`absolute top-2.5 right-2.5 text-muted-foreground/60 transition-transform ${aberto ? 'rotate-90' : ''}`}
       />
       {topo}
-      {/* `px-4` SIMÉTRICO: abre folga pro chevron sem tirar o texto do centro.
-          Padding só à direita resolveria a colisão mas deslocaria a frase. */}
-      <span className="block px-4 text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium leading-tight truncate mb-1">
+      {/* Folga pro chevron SÓ nos cards sem `topo`. Nos altos, o bloco visual
+          (ícones/gráfico, h-8) já empurra o rótulo pra baixo da altura do
+          chevron — não há colisão, e reservar espaço ali era o que fazia
+          "Saldo em contas" sair cortado. Quando precisa, o padding é
+          SIMÉTRICO: só à direita resolveria a colisão mas tiraria do centro. */}
+      <span className={`block text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium leading-tight truncate mb-1 ${
+        topo ? '' : 'px-4'
+      }`}>
         {label}
       </span>
       {children}
@@ -339,7 +348,7 @@ function CardBase({
 // ── Painel de detalhe (full-width dentro do grid) ────────────────────────
 function Painel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`col-span-2 rounded-2xl p-4 backdrop-blur-sm bg-white/70 dark:bg-white/5 border border-border/40 dark:border-white/10 animate-fade-in ${className}`}>
+    <div className={`col-span-2 rounded-2xl p-4 backdrop-blur-md bg-white/72 dark:bg-black/55 border border-border/40 dark:border-white/10 animate-fade-in ${className}`}>
       {children}
     </div>
   );

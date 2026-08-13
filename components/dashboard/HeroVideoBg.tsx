@@ -78,33 +78,72 @@ export default function HeroVideoBg() {
   const src = isDark ? SRC.black : SRC.claro;
 
   return (
-    <div
-      aria-hidden
-      className="md:hidden absolute inset-x-0 top-0 overflow-hidden pointer-events-none select-none"
-      // `inset-x-0 / top-0` já encosta nas bordas: o bloco que contém um
-      // elemento absoluto é o PADDING BOX do <main> (que é o ancestral
-      // `relative`), então o px-4/pt do main NÃO deslocam o vídeo.
-      style={{
-        height: `calc(env(safe-area-inset-top, 0px) + 0.75rem + ${ALTURA_VIDEO})`,
-        zIndex: 0,
-      }}
-    >
-      {/* key=src remonta (e reinicia do zero) ao trocar de tema com o vídeo
-          já rodando. Sem `loop`: congela no último frame por conta própria.
-          Com prefers-reduced-motion fica no primeiro frame, como uma foto. */}
-      <video
-        key={src}
-        ref={videoRef}
-        className="w-full h-full"
-        style={{ objectFit: 'cover', objectPosition: '50% 100%' }}
-        autoPlay={!reduceMotion}
-        muted
-        playsInline
-        preload="auto"
-        tabIndex={-1}
+    <>
+      {/* ⚠️ `fixed`, não `absolute`: o fundo fica PARADO e o conteúdo rola por
+          cima dele (os cards são semitransparentes — ver `.dash-glass .card`
+          no globals.css). Como `absolute`, ele subia junto com a rolagem e
+          sumia depois dos primeiros 400px.
+          Funciona mesmo dentro do <main overflow-y-auto>: `fixed` se ancora na
+          viewport e escapa do scroll — desde que nenhum ancestral tenha
+          transform/filter/backdrop-filter (nenhum tem; ver DashboardLayout). */}
+      <div
+        aria-hidden
+        className="md:hidden fixed inset-x-0 top-0 overflow-hidden pointer-events-none select-none"
+        style={{
+          height: `calc(env(safe-area-inset-top, 0px) + 0.75rem + ${ALTURA_VIDEO})`,
+          zIndex: 0,
+        }}
       >
-        <source src={src} type="video/webm" />
-      </video>
-    </div>
+        {/* key=src remonta (e reinicia do zero) ao trocar de tema com o vídeo
+            já rodando. Sem `loop`: congela no último frame por conta própria.
+            Com prefers-reduced-motion fica no primeiro frame, como uma foto. */}
+        <video
+          key={src}
+          ref={videoRef}
+          className="w-full h-full"
+          style={{ objectFit: 'cover', objectPosition: '50% 100%' }}
+          autoPlay={!reduceMotion}
+          muted
+          playsInline
+          preload="auto"
+          tabIndex={-1}
+        >
+          <source src={src} type="video/webm" />
+        </video>
+
+        {/* ── Costura com o fundo do painel (SÓ NO ESCURO) ───────────────
+            Os arquivos .webm trazem um gradiente próprio que fecha certo no
+            tema CLARO — o usuário confirmou que ali está ótimo, então lá não
+            entra máscara nenhuma (uma segunda camada só lavaria a imagem, que
+            foi o motivo do "SEM VÉU" original).
+            No ESCURO o preto do vídeo e o preto do painel não são o mesmo
+            preto, e ficava uma linha nítida no encontro. Esta faixa fecha o
+            último terço na cor REAL do fundo (`--bg`), fazendo o encontro
+            deixar de existir. É máscara de BORDA: começa transparente e só
+            fecha no fim, então a parte vívida continua intocada. */}
+        {isDark && (
+          <div
+            className="absolute inset-x-0 bottom-0 h-1/3"
+            style={{
+              background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--bg) / .55) 55%, hsl(var(--bg)) 100%)',
+            }}
+          />
+        )}
+      </div>
+
+      {/* ── Scrim do topo ─────────────────────────────────────────────────
+          Fixo acima do conteúdo (z-2 > z-1 dos cards): é nele que os cards
+          "somem" ao rolar pra cima, em vez de encostarem na borda da tela
+          cortados no meio. Curto e só na faixa da status bar. */}
+      <div
+        aria-hidden
+        className="md:hidden fixed inset-x-0 top-0 pointer-events-none"
+        style={{
+          height: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)',
+          zIndex: 2,
+          background: 'linear-gradient(to bottom, hsl(var(--bg)) 0%, hsl(var(--bg) / .75) 45%, transparent 100%)',
+        }}
+      />
+    </>
   );
 }
