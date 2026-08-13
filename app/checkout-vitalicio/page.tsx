@@ -2,8 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Script from 'next/script';
 import { useAuth } from '@/contexts/AuthContext';
-import MercadoPagoBrick from '@/components/checkout/MercadoPagoBrick';
+import MercadoPagoBrick, { MP_SDK_ID, MP_SDK_SRC } from '@/components/checkout/MercadoPagoBrick';
 import AuthHero from '@/components/auth/AuthHero';
 import { aplicarCupomVitalicio, pctCupom } from '@/lib/cupons';
 import { trackAddToCart, trackInitiateCheckout } from '@/lib/analytics';
@@ -109,6 +110,14 @@ function CheckoutContent() {
 
   return (
     <div className="min-h-dvh flex flex-col lg:flex-row bg-white dark:bg-zinc-950">
+      {/* SDK do Mercado Pago carregado JÁ NA PÁGINA, não só quando o Brick monta.
+          Além de o formulário aparecer mais rápido, é o SDK que gera o
+          `MP_DEVICE_SESSION_ID` (fingerprint) — e o antifraude do MP pesa muito
+          esse sinal. Quanto mais cedo carrega, mais dado ele coleta antes do
+          submit; carregando tarde dava pra pagar sem fingerprint nenhum e a
+          compra voltava como cc_rejected_high_risk. */}
+      <Script id={MP_SDK_ID} src={MP_SDK_SRC} strategy="afterInteractive" />
+
       <AuthHero pagamento="Mercado Pago" />
 
       <div className="relative flex-1 flex items-center justify-center
@@ -190,7 +199,7 @@ function CheckoutContent() {
           ) : (
             <>
               <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-                <MercadoPagoBrick amount={amountFinal} tier={tier} cupom={cupom} onApproved={onApproved} />
+                <MercadoPagoBrick amount={amountFinal} tier={tier} cupom={cupom} email={user?.email} onApproved={onApproved} />
               </div>
               <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck size={13} /> Pagamento seguro via Mercado Pago · acesso imediato

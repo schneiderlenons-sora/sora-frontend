@@ -12,6 +12,43 @@ export const dynamic = 'force-dynamic';
 const FALHOU = new Set(['rejected', 'cancelled', 'charged_back', 'refunded']);
 
 /**
+ * Endereço do comprador no formato que o `/v1/payments` espera.
+ *
+ * O Mercado Pago pede `payer.address` como boa prática: quanto mais dado do
+ * pagador, melhor o antifraude pontua e mais compra é aprovada. Só que o
+ * Payment Brick **não coleta endereço no cartão** (o formData de cartão traz
+ * apenas email + identification) — ele só vem em boleto. Então aceitamos as
+ * duas origens e mandamos o que houver.
+ *
+ * Sem CEP não vale a pena mandar: endereço solto sem `zip_code` não ajuda o
+ * antifraude e ainda arrisca erro de validação.
+ */
+function montarEndereco(...fontes: unknown[]): Record<string, string> | undefined {
+  for (const fonte of fontes) {
+    if (!fonte || typeof fonte !== 'object') continue;
+    const a = fonte as Record<string, unknown>;
+    // Aceita snake_case (API/boleto) e camelCase (padrão dos Bricks).
+    const cep = String(a.zip_code ?? a.zipCode ?? '').replace(/\D/g, '');
+    if (cep.length < 8) continue;
+    const txt = (...vs: unknown[]) => {
+      const v = vs.find((x) => x != null && String(x).trim() !== '');
+      return v == null ? undefined : String(v).trim();
+    };
+    const end: Record<string, string> = { zip_code: cep };
+    const campos: Record<string, string | undefined> = {
+      street_name:   txt(a.street_name, a.streetName),
+      street_number: txt(a.street_number, a.streetNumber),
+      neighborhood:  txt(a.neighborhood),
+      city:          txt(a.city),
+      federal_unit:  txt(a.federal_unit, a.federalUnit),
+    };
+    for (const [k, v] of Object.entries(campos)) if (v) end[k] = v;
+    return end;
+  }
+  return undefined;
+}
+
+/**
  * Marca que a venda do vitalício falhou, pra ela aparecer no painel admin
  * ("Pagamento falhou") e no cron de recuperação.
  *
@@ -55,7 +92,14 @@ export async function POST(req: NextRequest) {
       issuer_id?: string;
       payment_method_id?: string;
       installments?: number;
-      payer?: { email?: string; identification?: { type?: string; number?: string } };
+      payer?: {
+        email?: string;
+        identification?: { type?: string; number?: string };
+        first_name?: string;
+        last_name?: string;
+        // Só vem preenchido em boleto — no cartão o Brick não coleta endereço.
+        address?: Record<string, unknown>;
+      };
       tier?: string;
       cupom?: string;
       deviceId?: string;   // window.MP_DEVICE_SESSION_ID (fingerprint p/ o antifraude)
@@ -117,6 +161,13 @@ export async function POST(req: NextRequest) {
     // `additional_info` (itens + dados do pagador) é usado PESADO pelo antifraude
     // do MP pra pontuar o risco. Quanto mais completo, maior a chance de aprovar.
     const telefone = String((user.user_metadata as Record<string, unknown>)?.phone || user.phone || '').replace(/\D/g, '');
+
+    // Endereço do comprador: o que o Brick mandou (boleto) ou o que já temos no
+    // cadastro. Quando não há nenhum dos dois, sai `undefined` e o campo nem é
+    // enviado — o MP trata endereço como opcional.
+    const meta = (user.user_metadata || {}) as Record<string, unknown>;
+    const endereco = montarEndereco(form.payer?.address, meta.address, meta.endereco);
+
     const additional_info: Record<string, unknown> = {
       items: [{
         id: cfg.plano,
@@ -129,6 +180,10 @@ export async function POST(req: NextRequest) {
       payer: {
         ...payerNome,
         ...(telefone ? { phone: { number: telefone } } : {}),
+        ...(endereco ? { address: endereco } : {}),
+        // Há quanto tempo a conta existe — o antifraude usa isso pra separar
+        // cliente de verdade de cadastro criado na hora pra fraudar.
+        ...(user.created_at ? { registration_date: user.created_at } : {}),
       },
     };
 
@@ -145,7 +200,13 @@ export async function POST(req: NextRequest) {
         installments: form.installments || 1,
         payment_method_id: form.payment_method_id,
         issuer_id: form.issuer_id,
-        payer: { email: form.payer?.email || user.email, identification: form.payer?.identification, ...payerNome },
+        payer: {
+          email: form.payer?.email || user.email,
+          identification: form.payer?.identification,
+          ...payerNome,
+          ...(telefone ? { phone: { number: telefone } } : {}),
+          ...(endereco ? { address: endereco } : {}),
+        },
         additional_info,
         external_reference: user.id,
         metadata: { supabase_user_id: user.id, vitalicio: true, plano: cfg.plano, cupom: codigo, desconto_pct: pct, ...fbMeta, ...ttMeta },

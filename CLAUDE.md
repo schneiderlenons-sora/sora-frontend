@@ -120,11 +120,48 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `app/checkout-vitalicio/page.tsx` | Checkout (design à esquerda + Payment Brick à direita). `?tier=kit\|completa\|upgrade&cupom=&rec=1` |
 | `app/api/mercadopago/process/route.ts` | Cria o pagamento no MP (valor+plano SEMPRE pelo tier no server). Cartão aprovado → `ativarVitalicio` na hora; Pix → 'pending' + QR |
 | `app/api/mercadopago/webhook/route.ts` | Confirma pagamento (fonte da verdade) → `ativarVitalicio` + evento **Purchase** (CAPI, com fbp/fbc/ip/ua guardados no metadata do /process) |
-| `lib/mercadopago.ts` | `tierConfig()` (valor+plano+título por tier), `mpCreatePayment`, `mpGetPayment` |
+| `lib/mercadopago.ts` | `tierConfig()` (valor+plano+título por tier), `mpCreatePayment`, `mpGetPayment` — **via SDK oficial `mercadopago`** (ver "Qualidade da integração" abaixo) |
 | `lib/vitalicio.ts` | `ativarVitalicio(userId, plano)` |
 | `lib/cupons.ts` | Cupons: **SORA10/15/25** (%) + **SORA100** (100% off → libera grátis sem passar no MP). `aplicarCupomVitalicio()` recalcula SEMPRE no server |
 
 - **Env (Vercel):** `MP_ACCESS_TOKEN`, `NEXT_PUBLIC_MP_PUBLIC_KEY` (chaves de PRODUÇÃO). Migration `sql/064_vitalicio_intent.sql` (coluna `vitalicio_intent` p/ recuperação levar de volta pro tier certo).
+
+### Qualidade da integração do Mercado Pago (ago/2026)
+
+O painel do MP dá uma **nota de 0 a 100** pra integração (mínimo exigido 73). Ela
+caiu pra **77** e junto veio um pagamento recusado. A nota é medida
+automaticamente pelo MP em cima das SUAS chamadas de API — os itens que faltavam
+somavam exatamente 23 (8 + 10 + 5).
+
+- **SDK do backend (5 pts) — era o furo real.** `lib/mercadopago.ts` chamava a
+  `api.mercadopago.com` com `fetch` cru ("REST direto, sem SDK"). O MP só
+  reconhece o item quando a chamada sai com a assinatura do **SDK oficial**
+  (`npm i mercadopago`). Trocado sem mudar UM campo do payload: mesmas funções,
+  mesmas assinaturas.
+  - ⚠️ **`idempotencyKey` é POR CHAMADA (`requestOptions`), nunca global.** No
+    `MercadoPagoConfig.options` ela viraria a mesma chave em toda requisição e o
+    MP recusaria a 2ª tentativa do cliente como duplicada.
+  - O device id continua indo: o SDK expõe `meliSessionId` no `requestOptions`,
+    que ele manda como header `X-Meli-Session-Id` (antes era header na mão).
+  - De brinde: retry com backoff em 429/5xx protegido pela idempotency key.
+- **Device id (`MP_DEVICE_SESSION_ID`) — o que causava a recusa.** O SDK JS V2
+  gera o fingerprint sozinho, mas ele era carregado **só quando o Brick
+  montava** — dava pra submeter antes de existir e a compra voltava
+  `cc_rejected_high_risk`. Agora o SDK entra pela página (`next/script`,
+  `afterInteractive`) e o `onSubmit` **espera até 4s** pelo fingerprint antes de
+  enviar (se não vier, envia mesmo assim — melhor tentar do que travar a venda).
+- **`payer.address` (boas práticas, não pontua).** O Payment Brick **não coleta
+  endereço no cartão** — o `formData` de cartão só traz `email` +
+  `identification`; endereço só vem em boleto. Então o endereço é enviado quando
+  existe (boleto ou cadastro) e omitido quando não. Pra garantir em toda compra
+  seria preciso um campo de CEP no checkout — **não feito de propósito** (atrito
+  em página de conversão). Junto foi o `additional_info.payer.registration_date`
+  (idade da conta), que já tínhamos de graça e o antifraude usa.
+- ⚠️ **Os itens "SDK do frontend" (10) e "Secure Fields/PCI" (8) são falso-positivo
+  conhecido com Bricks** — o Payment Brick **é** SDK V2 e **já usa** Secure Fields.
+  Está reportado e sem solução no [sdk-react#89](https://github.com/mercadopago/sdk-react/discussions/89);
+  a saída oficial do MP é abrir ticket com os IDs de pagamento. Nenhuma mudança
+  de código resolve isso — não gastar tempo "consertando" o que já está certo.
 
 **Landings de venda:**
 - **`/oferta`** (`app/oferta/page.tsx`) — landing do vitalício (Hero + pricing dos tiers). Pixel/CAPI: InitiateCheckout.
