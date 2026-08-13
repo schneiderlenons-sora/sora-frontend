@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 // As medidas vivem em lib/dashboard-hero.ts (módulo sem 'use client'), porque
 // o loading.tsx é Server Component e precisa reservar a mesma altura.
@@ -56,6 +56,11 @@ export default function HeroVideoBg() {
   const mobile = useMediaQuery('(max-width: 767px)');
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const videoRef = useRef<HTMLVideoElement>(null);
+  const ancoraRef = useRef<HTMLDivElement>(null);
+  // Scrim do topo só entra DEPOIS que a rolagem começa (pedido do usuário: de
+  // cara, parado no topo, ele escurecia a imagem sem motivo — não há conteúdo
+  // passando por baixo ainda).
+  const [rolou, setRolou] = useState(false);
 
   // Troca de app/aba do SISTEMA e volta → reinicia a animação. (Navegar dentro
   // do site já remonta o componente, que reinicia sozinho.)
@@ -71,6 +76,21 @@ export default function HeroVideoBg() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [mobile, reduceMotion]);
+
+  // ⚠️ Quem rola NÃO é a window: é o <main> (`overflow-y-auto` no
+  // DashboardLayout). Ouvir `window` aqui nunca dispararia. Chego nele por
+  // `closest('main')` a partir de uma âncora no próprio componente — os divs
+  // são `fixed`, mas isso só afeta o LAYOUT; na árvore do DOM eles seguem
+  // dentro do main.
+  useEffect(() => {
+    if (!mobile) return;
+    const scroller = ancoraRef.current?.closest('main');
+    if (!scroller) return;
+    const onScroll = () => setRolou(scroller.scrollTop > 12);
+    onScroll();                                     // estado inicial correto
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, [mobile]);
 
   if (!mobile) return null;
 
@@ -134,14 +154,19 @@ export default function HeroVideoBg() {
       {/* ── Scrim do topo ─────────────────────────────────────────────────
           Fixo acima do conteúdo (z-2 > z-1 dos cards): é nele que os cards
           "somem" ao rolar pra cima, em vez de encostarem na borda da tela
-          cortados no meio. Curto e só na faixa da status bar. */}
+          cortados no meio.
+          ⚠️ `opacity` amarrada ao scroll: parado no topo ele não existe (não há
+          nada passando por baixo pra cobrir, e escurecia a imagem à toa).
+          Transição só na opacidade — barata, não causa reflow. */}
       <div
+        ref={ancoraRef}
         aria-hidden
-        className="md:hidden fixed inset-x-0 top-0 pointer-events-none"
+        className="md:hidden fixed inset-x-0 top-0 pointer-events-none transition-opacity duration-300"
         style={{
-          height: 'calc(env(safe-area-inset-top, 0px) + 1.5rem)',
+          height: 'calc(env(safe-area-inset-top, 0px) + 4rem)',
           zIndex: 2,
-          background: 'linear-gradient(to bottom, hsl(var(--bg)) 0%, hsl(var(--bg) / .75) 45%, transparent 100%)',
+          opacity: rolou ? 1 : 0,
+          background: 'linear-gradient(to bottom, hsl(var(--bg)) 0%, hsl(var(--bg) / .82) 40%, hsl(var(--bg) / .4) 72%, transparent 100%)',
         }}
       />
     </>

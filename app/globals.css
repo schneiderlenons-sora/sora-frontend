@@ -366,18 +366,19 @@ body { background-color: hsl(var(--bg)); }
   }
 
   /* ── Título sobre o vídeo de fundo do dashboard (só mobile) ──
-     O texto fica em cima de um frame de vídeo, que muda. A sombra garante
-     leitura em qualquer frame sem precisar de véu por cima do vídeo (o véu
-     lavaria a imagem — ver components/dashboard/HeroVideoBg.tsx). */
+     A sombra existia pra garantir leitura em qualquer frame do vídeo, mas o
+     halo dela desenhava uma MARCAÇÃO visível em volta das letras (queixa do
+     usuário) — o brilho de 18–20px acumulava num borrão retangular atrás da
+     frase.
+     Trocada por um `drop-shadow` curto e de baixa opacidade: separa o texto do
+     fundo sem desenhar contorno. Não removi de vez porque o vídeo muda de
+     frame e há trechos claros embaixo da saudação; sem NADA, a frase some em
+     alguns frames. */
   .hero-video-title {
-    text-shadow:
-      0 0 2px hsl(0 0% 100% / .95),
-      0 1px 18px hsl(0 0% 100% / .85);
+    filter: drop-shadow(0 1px 2px hsl(0 0% 100% / .5));
   }
   .dark .hero-video-title {
-    text-shadow:
-      0 0 3px hsl(0 0% 0% / .85),
-      0 2px 20px hsl(0 0% 0% / .75);
+    filter: drop-shadow(0 1px 3px hsl(0 0% 0% / .55));
   }
 
   /* ── Insight hero card: igual sistema de elevação dos demais .card ──
@@ -433,19 +434,22 @@ body { background-color: hsl(var(--bg)); }
   @media (max-width: 767px) {
     .dash-glass .card,
     .dash-glass .card-hover {
-      background: hsl(var(--bg-card) / .62);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-color: hsl(var(--border) / .7);
+      background: hsl(var(--bg-card) / .45);
+      /* O blur SUBIU junto com a transparência: são um par. Quanto menos alfa
+         o card tem, mais o vídeo aparece por baixo do texto — o blur é o que
+         mantém a leitura sem precisar de opacidade. */
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border-color: hsl(var(--border) / .55);
     }
-    /* No escuro o card precisa ficar MENOS transparente: o fundo do painel já
+    /* No escuro o card fica um pouco MENOS transparente: o fundo do painel já
        é quase preto, então o mesmo alfa do claro deixaria o texto sobre a
        parte vívida do vídeo com contraste insuficiente. */
     .dark .dash-glass .card,
     .dark .dash-glass .card-hover {
-      background: hsl(var(--bg-card) / .72) !important;
+      background: hsl(var(--bg-card) / .55) !important;
       background-image: none !important;
-      border-color: hsl(0 0% 100% / .09) !important;
+      border-color: hsl(0 0% 100% / .08) !important;
     }
   }
 

@@ -313,12 +313,17 @@ function CardBase({
       // agora fixo, o card sobe por cima da parte vívida da imagem ao rolar, e
       // um véu branco de 5% deixava texto branco sobre imagem clara —
       // ilegível. Preto + blur devolve o contraste em qualquer frame.
-      className={`relative min-w-0 text-center rounded-2xl backdrop-blur-md border transition-all active:scale-[0.98] ${
+      // ⚠️ No escuro o fundo é PRETO translúcido, não branco a 5%: com o vídeo
+      // agora fixo, o card sobe por cima da parte vívida da imagem ao rolar, e
+      // um véu branco de 5% deixava texto branco sobre imagem clara —
+      // ilegível. Preto + blur devolve o contraste em qualquer frame.
+      // O `backdrop-blur-lg` é o que segura a leitura com alfa baixo.
+      className={`relative min-w-0 text-center rounded-2xl backdrop-blur-lg border transition-all active:scale-[0.98] ${
         compacto ? 'p-3' : 'p-3.5'
       } ${
         aberto
-          ? 'bg-white/90 dark:bg-black/70 border-[#61D17B]/60 ring-1 ring-[#61D17B]/40'
-          : 'bg-white/72 dark:bg-black/55 border-border/40 dark:border-white/10'
+          ? 'bg-white/85 dark:bg-black/60 border-[#61D17B]/60 ring-1 ring-[#61D17B]/40'
+          : 'bg-white/55 dark:bg-black/40 border-border/30 dark:border-white/10'
       } ${className}`}
     >
       {/* ⚠️ Chevron ABSOLUTO no canto, fora do fluxo. Quando ele participava da
@@ -348,7 +353,7 @@ function CardBase({
 // ── Painel de detalhe (full-width dentro do grid) ────────────────────────
 function Painel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`col-span-2 rounded-2xl p-4 backdrop-blur-md bg-white/72 dark:bg-black/55 border border-border/40 dark:border-white/10 animate-fade-in ${className}`}>
+    <div className={`col-span-2 rounded-2xl p-4 backdrop-blur-lg bg-white/55 dark:bg-black/40 border border-border/30 dark:border-white/10 animate-fade-in ${className}`}>
       {children}
     </div>
   );
