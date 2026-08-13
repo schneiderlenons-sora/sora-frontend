@@ -580,14 +580,23 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             toggle de tema aqui — o tema virou um círculo fixo no canto
             superior direito, em toda tela (ThemeToggle.tsx). Os dois eram os
             mais difíceis de achar (Agentes enterrado no meio da lista Geral,
-            Drive dentro do grupo Grow); viraram atalho de propósito. */}
+            Drive dentro do grupo Grow); viraram atalho de propósito.
+            ⚠️ SÓ estes 4 (+Comandos/Config abaixo) ficam mais escuros no
+            tema BLACK — quase a cor do próprio fundo da sidebar, porque
+            bg-white/10 "acendia" demais em cima do preto. Instalar/Sair
+            (mais abaixo) continuam no bg-white/10 de sempre, nos dois temas:
+            só os 4 atalhos do topo tinham a queixa de "chamativo demais". */}
         <div className="grid grid-cols-2 gap-1.5">
           <Link href="/agentes" onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
+              isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
+            }`}>
             <Sparkles size={16} /> Agentes
           </Link>
           <Link href="/grow/dados" onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
+              isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
+            }`}>
             <FolderLock size={16} /> Drive
           </Link>
         </div>
@@ -595,11 +604,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         {/* Fixos: Comandos (ex-Central da Sora) + Configurações */}
         <div className="grid grid-cols-2 gap-1.5">
           <Link href="/central-sora" onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
+              isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
+            }`}>
             <MessageCircle size={16} /> Comandos
           </Link>
           <Link href="/configuracoes" onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
+              isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
+            }`}>
             <Settings size={16} /> Config.
           </Link>
         </div>
