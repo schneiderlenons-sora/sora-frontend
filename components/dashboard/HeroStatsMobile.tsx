@@ -109,7 +109,7 @@ export default function HeroStatsMobile({
           /* Ícones das contas — no máximo 4 + "+N", senão estoura a largura.
              `-space-x-2` sobrepõe como pilha de cartões (padrão do referencial).
              Altura fixa h-8 reservada mesmo sem conta → sem pulo de layout. */
-          <span className="flex items-center -space-x-2 mb-2.5 h-8">
+          <span className="flex items-center justify-center -space-x-2 mb-2.5 h-8">
             {contas.slice(0, 4).map((c) => (
               <span key={c.nome} className="rounded-full ring-2 ring-card overflow-hidden flex-shrink-0">
                 {marcaDe(c.nome) ? (
@@ -228,7 +228,10 @@ export default function HeroStatsMobile({
         aria={`Comparado ao mês anterior: ${gastosAnt ? `${varGastos}%` : 'sem dados'}`}
         className="order-4"
       >
-        <span className={`block text-[17px] font-bold tabular tracking-tight leading-none truncate ${
+        {/* 14px (não 19px como os cards altos): stat secundário. A hierarquia
+            fica 19 → 14 → 10, e "Facebook Ads" no card ao lado só cabe inteiro
+            nesse tamanho — os dois iguais pra a linha não ficar desalinhada. */}
+        <span className={`block text-[14px] font-bold tabular tracking-tight leading-none truncate ${
           !gastosAnt ? 'text-muted-foreground'
             : varGastos > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'
         }`}>
@@ -245,7 +248,7 @@ export default function HeroStatsMobile({
         aria={`Maior gasto: ${maiorCat ? parseCategoria(maiorCat.categoria).nome : 'nenhum'}`}
         className="order-5"
       >
-        <span className="block text-[17px] font-bold text-foreground tracking-tight leading-none truncate">
+        <span className="block text-[14px] font-bold text-foreground tracking-tight leading-none truncate">
           {maiorCat ? parseCategoria(maiorCat.categoria).nome : '—'}
         </span>
       </CardBase>
@@ -306,7 +309,7 @@ function CardBase({
       onClick={onToggle}
       aria-expanded={aberto}
       aria-label={`${aria}. Toque para ${aberto ? 'recolher' : 'ver detalhes'}`}
-      className={`min-w-0 text-left rounded-2xl backdrop-blur-sm border transition-all active:scale-[0.98] ${
+      className={`relative min-w-0 text-center rounded-2xl backdrop-blur-sm border transition-all active:scale-[0.98] ${
         compacto ? 'p-3' : 'p-3.5'
       } ${
         aberto
@@ -314,27 +317,20 @@ function CardBase({
           : 'bg-white/60 dark:bg-white/5 border-border/40 dark:border-white/10'
       } ${className}`}
     >
-      {/* Com `topo` (cards altos): visual na 1ª linha e chevron no canto, como
-          na referência. Sem `topo` (cards finos): chevron volta pra linha do
-          rótulo — numa linha só, senão sobraria uma faixa vazia no card baixo. */}
-      {topo ? (
-        <>
-          <span className="flex items-start justify-between gap-1">
-            <span className="min-w-0 flex-1">{topo}</span>
-            <ChevronRight size={13} className={`flex-shrink-0 text-muted-foreground/60 transition-transform ${aberto ? 'rotate-90' : ''}`} />
-          </span>
-          <span className="block text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium leading-tight truncate mb-1">
-            {label}
-          </span>
-        </>
-      ) : (
-        <span className="flex items-center gap-1 mb-1.5">
-          <span className="min-w-0 text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium leading-tight truncate">
-            {label}
-          </span>
-          <ChevronRight size={11} className={`flex-shrink-0 text-muted-foreground/60 transition-transform ${aberto ? 'rotate-90' : ''}`} />
-        </span>
-      )}
+      {/* ⚠️ Chevron ABSOLUTO no canto, fora do fluxo. Quando ele participava da
+          linha, o conteúdo centralizava no espaço que SOBRAVA dele — ficava
+          sempre alguns pixels à esquerda do centro real do card. */}
+      <ChevronRight
+        size={13}
+        aria-hidden
+        className={`absolute top-2.5 right-2.5 text-muted-foreground/60 transition-transform ${aberto ? 'rotate-90' : ''}`}
+      />
+      {topo}
+      {/* `px-4` SIMÉTRICO: abre folga pro chevron sem tirar o texto do centro.
+          Padding só à direita resolveria a colisão mas deslocaria a frase. */}
+      <span className="block px-4 text-muted-foreground/70 dark:text-muted-foreground text-[10px] uppercase tracking-wider font-medium leading-tight truncate mb-1">
+        {label}
+      </span>
       {children}
     </button>
   );
