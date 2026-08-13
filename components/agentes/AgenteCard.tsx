@@ -112,17 +112,23 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
               playsInline
               preload="metadata"
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500
+              // ⚠️ `z-0` EXPLÍCITO. No iOS o <video> vira camada de GPU própria
+              // e passa a pintar POR CIMA de irmãos absolutos que não declaram
+              // z-index — mesmo vindo antes no DOM. Era o que engolia o nome do
+              // agente, o véu e os selos no celular (no desktop aparecia
+              // normalmente, por isso passou batido).
+              className="absolute inset-0 z-0 h-full w-full object-cover transition-transform duration-500
                          group-hover:scale-[1.04]"
             />
           )}
           {/* Véu só no terço de baixo: dá contraste pro nome sem cobrir o
-              personagem (os vídeos são 1:1 e o bicho ocupa o quadro todo). */}
-          <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
+              personagem (os vídeos são 1:1 e o bicho ocupa o quadro todo).
+              `z-10`: tem de ficar acima da camada do vídeo (ver acima). */}
+          <div className="absolute inset-x-0 bottom-0 z-10 h-[55%] bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
 
           {/* Selo de estado — ícone + texto, nunca só cor (acessibilidade) */}
           <span
-            className={`absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full px-2 py-1
+            className={`absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 rounded-full px-2 py-1
                         text-[10px] font-semibold backdrop-blur-md ${
                           ativo ? 'text-white' : 'bg-black/55 text-white/80'
                         }`}
@@ -133,7 +139,7 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
           </span>
 
           {agente.emBreve && (
-            <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full
+            <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 rounded-full
                              bg-black/55 px-2 py-1 text-[10px] font-semibold text-white/85 backdrop-blur-md">
               <Sparkles size={11} /> Em breve
             </span>
@@ -143,13 +149,13 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
               descrição/contagem NÃO ficam aqui dentro (ver fora do card, mais
               abaixo): espremer as três linhas nos 190px de largura junto do
               vídeo era o que ficava ilegível. */}
-          <div className="absolute inset-x-0 bottom-0 p-2.5 sm:hidden">
+          <div className="absolute inset-x-0 bottom-0 z-10 p-2.5 sm:hidden">
             <p className="text-[15px] font-bold leading-tight text-white drop-shadow-md">{agente.nome}</p>
           </div>
 
           {/* DESKTOP (sm+): sobreposição completa — ali sobra espaço e a capa
               maior aguenta as três linhas sem competir com o personagem. */}
-          <div className="absolute inset-x-0 bottom-0 hidden p-3 sm:block">
+          <div className="absolute inset-x-0 bottom-0 z-10 hidden p-3 sm:block">
             <p className="text-[15px] font-bold leading-tight text-white drop-shadow-sm">{agente.nome}</p>
             <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{agente.tagline}</p>
             {!agente.emBreve && (

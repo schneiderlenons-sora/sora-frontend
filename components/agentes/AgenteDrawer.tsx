@@ -83,13 +83,16 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
               poster={agente.poster}
               muted playsInline autoPlay
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-cover"
+              // `z-0` explícito — mesma razão do AgenteCard: no iOS o vídeo
+              // vira camada de GPU e cobre irmãos absolutos sem z-index. Aqui
+              // isso chegava a engolir o BOTÃO DE FECHAR do drawer.
+              className="absolute inset-0 z-0 h-full w-full object-cover"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--bg-card))] via-transparent to-transparent" />
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-[hsl(var(--bg-card))] via-transparent to-transparent" />
 
           {/* Puxador do bottom-sheet (só mobile) */}
-          <div className="absolute inset-x-0 top-2 flex justify-center sm:hidden">
+          <div className="absolute inset-x-0 top-2 z-10 flex justify-center sm:hidden">
             <span className="h-1 w-10 rounded-full bg-white/50" />
           </div>
 
@@ -98,7 +101,7 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-black/50
+            className="absolute right-3 top-3 z-10 grid h-11 w-11 place-items-center rounded-full bg-black/50
                        text-white backdrop-blur-md transition-colors hover:bg-black/70
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
