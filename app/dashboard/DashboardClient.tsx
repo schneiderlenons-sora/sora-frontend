@@ -11,6 +11,7 @@ import HeroVideoBg from '@/components/dashboard/HeroVideoBg';
 import { ALTURA_ESPACADOR } from '@/lib/dashboard-hero';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ResumoCards from '@/components/dashboard/ResumoCards';
+import HeroStatsMobile from '@/components/dashboard/HeroStatsMobile';
 import GrowResumo from '@/components/dashboard/GrowResumo';
 import GrowHabitosCard from '@/components/dashboard/GrowHabitosCard';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -170,9 +171,15 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const revalidar = useCallback(() => { revalidarDados(); }, [revalidarDados]);
 
   // ── Métricas (memoizadas — só recalculam quando os dados mudam) ──
-  const saldoTotal  = useMemo(
-    () => wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo||0), 0),
+  // Contas bancárias = tudo que NÃO é cartão. Cartão tem saldo negativo (é
+  // fatura, dívida) e somar junto daria um "saldo em contas" menor que o real.
+  const contasBancarias = useMemo(
+    () => wallets.filter(w => w.tipo !== 'Crédito'),
     [wallets]
+  );
+  const saldoTotal  = useMemo(
+    () => contasBancarias.reduce((s, w) => s + (w.saldo||0), 0),
+    [contasBancarias]
   );
   const varReceitas = useMemo(() => pct(resumo?.receitas||0, resumoAnt?.receitas||0), [resumo, resumoAnt]);
   const varGastos   = useMemo(() => pct(resumo?.gastos||0,   resumoAnt?.gastos||0),   [resumo, resumoAnt]);
@@ -393,7 +400,10 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                 ];
                 const aberto = chips.find((c) => c.key === statExpandido);
                 return (
-                  <div>
+                  // `hidden md:block`: no mobile quem manda é o HeroStatsMobile
+                  // (2 por linha, com saldo e gráfico). Estes 3 chips seguem no
+                  // desktop, onde a largura sobra e eles não truncam.
+                  <div className="hidden md:block">
                     <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                       {chips.map((c) => {
                         const on = statExpandido === c.key;
@@ -443,10 +453,29 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                 );
               })()}
 
-              {/* CTA — Nova transação (só com permissão de escrita) */}
+              {/* Stats do hero no MOBILE — 2 por linha (saldo/gastos em cima,
+                  frases curtas embaixo). Fora do bloco acima porque o layout é
+                  outro, não uma variação responsiva dos mesmos 3 chips. */}
+              <HeroStatsMobile
+                contas={contasBancarias}
+                saldoTotal={saldoTotal}
+                gastosMes={resumo?.gastos || 0}
+                dadosDiarios={dadosDiarios}
+                monthName={monthName}
+                monthNameAnt={monthNameAnt}
+                varGastos={varGastos}
+                gastosAnt={resumoAnt?.gastos || 0}
+                maiorCat={maiorCat || null}
+                totalGastos={totalGastos}
+              />
+
+              {/* CTA — Nova transação (só com permissão de escrita).
+                  ⚠️ `hidden md:flex`: no mobile o botão "+" do BottomNav já
+                  abre o mesmo modal — dois CTAs pra mesma ação na primeira
+                  dobra é ruído, e o espaço foi pros stats acima. */}
               <PermissaoGuard>
                 <button onClick={() => setModalOpen(true)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] w-fit shadow-glow-sm"
+                        className="hidden md:flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] w-fit shadow-glow-sm"
                         style={{ background: `linear-gradient(135deg, ${BRAND}, ${BRAND2})` }}>
                   <Plus size={16} className="text-white" />
                   Nova transação
