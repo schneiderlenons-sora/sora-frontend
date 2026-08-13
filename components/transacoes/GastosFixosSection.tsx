@@ -209,12 +209,18 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     [itens, totalDividas]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
 
-  const grupos = useMemo(() => ([
-    { key: 'gf', label: 'Gastos fixos',       hint: '',                      itens: gastosFixos   },
-    { key: 'gv', label: 'Gastos variáveis',   hint: 'você confirma no dia',  itens: gastosVar     },
+  // Despesas e receitas separadas (não um `grupos` só): dívida é DESPESA e
+  // precisa ficar entre "Gastos variáveis" e "Receitas fixas" — antes ela
+  // vinha depois de tudo, inclusive das receitas, porque o bloco de dívidas
+  // era renderizado fora do laço, sempre por último (queixa real do usuário).
+  const gruposDespesas = useMemo(() => ([
+    { key: 'gf', label: 'Gastos fixos',       hint: '',                      itens: gastosFixos },
+    { key: 'gv', label: 'Gastos variáveis',   hint: 'você confirma no dia',  itens: gastosVar   },
+  ].filter((g) => g.itens.length > 0)), [gastosFixos, gastosVar]);
+  const gruposReceitas = useMemo(() => ([
     { key: 'rf', label: 'Receitas fixas',     hint: '',                      itens: receitasFixas },
     { key: 'rv', label: 'Receitas variáveis', hint: 'você confirma no dia',  itens: receitasVar   },
-  ].filter((g) => g.itens.length > 0)), [gastosFixos, gastosVar, receitasFixas, receitasVar]);
+  ].filter((g) => g.itens.length > 0)), [receitasFixas, receitasVar]);
 
   async function cancelar(id: string) {
     if (!phone) return;
@@ -403,7 +409,11 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         </div>
       ) : (
         <div>
-          {grupos.map((g, gi) => (
+          {/* ── DESPESAS: fixas → variáveis → dívidas → total ─────────────
+              Nessa ordem de propósito (dívida é DESPESA — antes ela vinha
+              depois até das receitas, porque o bloco era renderizado fora do
+              laço, sempre por último; queixa real do usuário). */}
+          {gruposDespesas.map((g, gi) => (
             <div key={g.key}>
               <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${gi > 0 ? 'border-t border-border/50' : ''}`}>
                 {g.label}
@@ -438,7 +448,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               que não apaga nada — a dívida segue inteira na aba Dívidas. */}
           {dividas.length > 0 && (
             <div>
-              <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${grupos.length > 0 ? 'border-t border-border/50' : ''}`}>
+              <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${gruposDespesas.length > 0 ? 'border-t border-border/50' : ''}`}>
                 Dívidas
                 <span className="inline-flex items-center gap-1 normal-case tracking-normal font-medium text-muted-foreground/70">
                   <CircleDashed size={11} /> parcela deste mês
@@ -456,6 +466,52 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </p>
             </div>
           )}
+
+          {/* ── TOTAL PREVISTO (despesas) ──────────────────────────────────
+              Soma gastos fixos + variáveis + dívidas — mesmo `totalGastos`
+              que já alimenta o resumo do cabeçalho do card, então não existe
+              risco de os dois números divergirem. Só aparece quando há
+              alguma despesa prevista (senão seria "Total: R$ 0,00" solto). */}
+          {totalGastos > 0 && (
+            <div className="px-4 sm:px-6 py-3 border-t border-border/50 flex items-center justify-between gap-3"
+                 style={{ background: 'hsl(var(--bg-muted) / 0.4)' }}>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                Total previsto
+              </p>
+              <p className="text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
+                <ArrowDownRight size={13} />
+                {temVariavel ? '≈ ' : ''}{fmt(totalGastos)}
+              </p>
+            </div>
+          )}
+
+          {/* ── RECEITAS: fixas → variáveis ──────────────────────────────── */}
+          {gruposReceitas.map((g, gi) => (
+            <div key={g.key}>
+              <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${
+                gi > 0 || gruposDespesas.length > 0 || dividas.length > 0 ? 'border-t border-border/50' : ''
+              }`}>
+                {g.label}
+                {g.hint && (
+                  <span className="inline-flex items-center gap-1 normal-case tracking-normal font-medium text-muted-foreground/70">
+                    <CircleDashed size={11} /> {g.hint}
+                  </span>
+                )}
+              </p>
+              <ul className="divide-y divide-border/50">
+                {g.itens.map((item, idx) => (
+                  <Linha key={item.id} item={item} idx={idx}
+                    confirmando={confirmando} removendo={removendo}
+                    onPedir={setConfirm} onCancelar={cancelar}
+                    onEditar={() => setFormTarget(item)}
+                    onModo={mudarModo}
+                    sugCat={sugCats[item.id]}
+                    onAceitarCat={aceitarCategoria}
+                    onIgnorarCat={ignorarCategoria} />
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
 
