@@ -84,8 +84,14 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
                    focus-visible:ring-offset-background"
         style={{ ['--tw-ring-color' as string]: agente.cor }}
       >
-        {/* Capa 1:1 (proporção dos vídeos). Reserva o espaço e evita CLS. */}
-        <div className="relative aspect-square w-full overflow-hidden bg-muted">
+        {/* Capa 1:1 (proporção dos vídeos). Reserva o espaço e evita CLS.
+            ⚠️ `isolate`: força um stacking context PRÓPRIO nesta caixa. Sem
+            ele, o <video> (que o iOS promove a camada de GPU) era comparado
+            com os overlays lá no contexto do card inteiro — que tem
+            `overflow-hidden` + `rounded-2xl`, combinação em que o WebKit
+            deixa a camada do vídeo escapar do recorte e pintar por cima.
+            Era o que engolia o véu e o nome do agente. */}
+        <div className="relative isolate aspect-square w-full overflow-hidden bg-muted">
           {/* Fundo de identidade — fica SOB o vídeo. Enquanto os arquivos do
               agente não existem (ou falham), é isto que aparece: gradiente na cor
               dele + inicial. Preview sem asset fica intencional, não quebrado. */}
@@ -123,8 +129,11 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
           )}
           {/* Véu só no terço de baixo: dá contraste pro nome sem cobrir o
               personagem (os vídeos são 1:1 e o bicho ocupa o quadro todo).
-              `z-10`: tem de ficar acima da camada do vídeo (ver acima). */}
-          <div className="absolute inset-x-0 bottom-0 z-10 h-[55%] bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
+              `z-10` + `transform-gpu`: z-index sozinho não basta contra uma
+              camada de GPU no iOS — o overlay precisa virar camada TAMBÉM
+              (translate3d) pra o compositor conseguir ordená-lo acima do
+              vídeo. É o par que resolve; um sem o outro não. */}
+          <div className="absolute inset-x-0 bottom-0 z-10 h-[55%] transform-gpu bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
 
           {/* Selo de estado — ícone + texto, nunca só cor (acessibilidade) */}
           <span
@@ -149,13 +158,13 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
               descrição/contagem NÃO ficam aqui dentro (ver fora do card, mais
               abaixo): espremer as três linhas nos 190px de largura junto do
               vídeo era o que ficava ilegível. */}
-          <div className="absolute inset-x-0 bottom-0 z-10 p-2.5 sm:hidden">
+          <div className="absolute inset-x-0 bottom-0 z-10 transform-gpu p-2.5 sm:hidden">
             <p className="text-[15px] font-bold leading-tight text-white drop-shadow-md">{agente.nome}</p>
           </div>
 
           {/* DESKTOP (sm+): sobreposição completa — ali sobra espaço e a capa
               maior aguenta as três linhas sem competir com o personagem. */}
-          <div className="absolute inset-x-0 bottom-0 z-10 hidden p-3 sm:block">
+          <div className="absolute inset-x-0 bottom-0 z-10 transform-gpu hidden p-3 sm:block">
             <p className="text-[15px] font-bold leading-tight text-white drop-shadow-sm">{agente.nome}</p>
             <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{agente.tagline}</p>
             {!agente.emBreve && (
