@@ -559,16 +559,63 @@ migration **116**.
 - Travado em `npm run eval:parcelas-previstas` e `npm run eval:pagamento-fatura`.
 
 **3. Quem decide o VALOR exibido: `services/faturaVista.js`** — fonte única das
-duas rotas de fatura (`/fatura/status` e `/faturas`), que antes decidiam cada uma
-a sua e faziam as duas telas divergirem no mesmo cartão. Três regras, nesta ordem:
-- **Cartão OF na fatura ATUAL → valor do BANCO** (`saldo = −fatura`, alimentado
-  pelo `simulated_bill_total_amount`). ⚠️ Ele já vem **líquido de pagamentos** —
-  descontar `pago` de novo zera fatura que ainda está de pé. Foi somando as
-  transações do ciclo que a tela mostrou **R$ 3.190,81** onde o banco dizia
-  R$ 560,68.
-- **Fatura FUTURA → soma do ciclo + parcelas previstas** (o emissor não publica
-  fatura que não fechou). Medido: 282,27 + 276,51 = **558,78**, igual ao app.
-- **Cartão manual → `fatura − pago`**, como sempre.
+duas rotas de fatura (`/fatura/status` e `/faturas`) e do feed da agenda, que
+antes decidiam cada uma a sua e faziam as telas divergirem no mesmo cartão.
+Ordem de prioridade, do mais confiável pro menos:
+1. **Fatura PUBLICADA pelo banco** (`of_faturas`, migration 118) — a verdade.
+   `bill_total_amount − payments[]`, o número que o cliente vê no app do banco.
+2. **SIMULADA** (`simulated_bill_total_amount`, chega em `wallets.saldo`) —
+   pro ciclo que o emissor ainda não publicou. ⚠️ Já vem **líquido de
+   pagamentos** (não descontar `pago` de novo).
+3. **Soma do ciclo + parcelas previstas** (migration 116) — fallback pra fatura
+   que ninguém publicou nem simulou. Medido: 282,27 + 276,51 = **558,78**.
+4. **Cartão manual → `fatura − pago`**, como sempre.
+
+## Open Finance: fidelidade da fatura ao banco (ago/2026) — leitura dos docs
+
+Releitura completa dos docs da Celcoin (`polp.com.br/docs/celcoin`, renderizados
+por JS — use browser) depois de um cliente relatar **app R$ 1.035,55 × banco
+R$ 1.788,00** no Nubank. Três achados, todos com correção medida na base:
+
+⚠️ **`simulated_bill_total_amount` NÃO é "a fatura atual".** O doc define:
+"soma dos débitos **sem fatura** no ciclo atual (após o último
+`bill_closing_date`, até +31 dias)". Ou seja, é o ciclo **seguinte ao da última
+fatura PUBLICADA** — que só coincide com a atual quando o emissor publica em
+dia. O Mercado Pago nunca publica a fatura em aberto, então lá o simulado é uma
+fatura que **já fechou**: pendurá-lo na competência atual mostrava o valor de
+uma fatura em cima dos lançamentos de outra (R$ 560,68 de agosto exibido como
+setembro). `faturasBanco.competenciaDoSimulado()` resolve isso.
+
+⚠️ **As faturas publicadas eram DESCARTADAS.** O emissor manda `due_date`,
+`bill_closing_date`, `bill_total_amount` e `payments[]` a cada sync; a Sora
+guardava só o ID da aberta e **reconstruía** o valor somando transações.
+Reconstruir falha de três jeitos já vistos em produção: transação faltando,
+carteira duplicada contando em dobro, e parcela sem "N/M" sumindo. Agora tudo é
+persistido em `of_faturas` (118) e o valor vem pronto do banco.
+
+⚠️ **"Pagamento recebido" (Nubank) ABATIA a fatura.** É como o Nubank descreve o
+pagamento — sem "fatura" nem "cartão". O `ehPagamentoFaturaDescricao` exige as
+duas palavras juntas **de propósito** (numa CONTA, "pagamento pix" não pode
+virar transferência), então a linha caía em crédito de ajuste → Reembolso → e
+abatia. Medido: R$ 2.293,71 de abatimento indevido levaram a soma do ciclo a
+**−R$ 2.256,09**; na base inteira eram **5 linhas, R$ 4.694,21**. O fix é
+**escopado ao cartão** (`normalizeTxCartao`): crédito num cartão com essa
+descrição só pode ser quitação — cartão não recebe salário. Migration **119**
+corrige o histórico (o sync nunca reescreve linha existente).
+Estorno e "Crédito de parcelamento de compra" **continuam abatendo** — são
+consumo que voltou, não quitação. Travado em `eval:pagamento-fatura` §4B.
+
+Campos estruturados que o sync já prefere (e devem continuar vindo antes de
+qualquer parse de descrição): `charge_identificator`/`charge_number` (parcela
+N/M) e `category_ref = LOAN_PAYMENTS_CREDIT_CARD_PAYMENT`. ⚠️ O regex antigo
+`credit\s*card\s*payment` **não** casava com esse enum — o separador é
+UNDERSCORE, não espaço; agora há comparação direta.
+
+> **Pendente conhecido:** carteira DUPLICADA ao reconectar o banco. Medido: 2
+> grupos, 4 carteiras. O consent novo traz `of_conta_id` novo pro mesmo cartão
+> físico, `upsertWallet` não reconhece, cria outra e o nome ganha " (OF)" —
+> transações entram nas duas. Precisa de fix próprio (merge por
+> `payment_methods.identification_number` + nome), com medição à parte.
 
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
@@ -994,9 +1041,12 @@ sql/109_comissao_encargos.sql    — fase 5: comissao_pct/encargos no funcionár
 sql/114_wallet_datas_manuais.sql — flag `datas_manuais` em wallets: fechamento/vencimento corrigidos à mão param de ser sobrescritos pelo sync do Open Finance (a API do MP publica 12/17 e o app mostra 8/14).
 sql/115_divida_nos_previstos.sql — flag `nos_previstos` em dividas: excluir a dívida do card "Previstos do mês" sem apagá-la da aba Dívidas (reversível lá).
 sql/116_of_parcelas_previstas.sql — tabela `of_parcelas_previstas`: parcelas a vencer que o BANCO conhece e a Sora não (MP manda parcela sem "N/M"). É PROJEÇÃO — reescrita a cada sync, nunca vira transação.
+sql/117_recorrencia_lembrete_dia.sql — coluna `ultimo_lembrete_dia` em recorrencias: modo "só avisa" não cria transação, então não havia dedup e o lembrete saía 3× (8h/9h/10h).
+sql/118_of_faturas.sql          — tabela `of_faturas`: as faturas PUBLICADAS pelo banco (total, pago, fechamento, vencimento). Fim da reconstrução do valor por soma de transações — é a base da fidelidade ao app do banco.
+sql/119_pagamento_recebido_cartao.sql — reclassifica "Pagamento recebido" em cartão OF (Nubank) de Reembolso → Fatura. Sem isso o pagamento ABATE a fatura e ela sai menor que a do banco (medido: 5 linhas, R$ 4.694,21).
 ```
 
-> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115 e 116**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
+> **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
 > **Já rodadas:** 074 (mrr_excluir/assinatura_cancelada), 083 (marcas), 084→087 (categorias v3), **090+091+092 (Negócios 2.0)**. **089 (índices) NÃO foi rodada — é opcional** (ganho só em escala).
 > **Drive Inteligente:** NÃO tem migration própria — reusa 041 (tabelas) + 042 (bucket). Se o Drive não guardar arquivo, quase sempre é o **bucket 042 que não rodou**.
 
