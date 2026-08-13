@@ -21,9 +21,14 @@ import type { Agente } from '@/lib/agentes';
 //   foto. É requisito de acessibilidade, não enfeite.
 // · Agente sem vídeo ainda (Jacques, Aurora) cai no gradiente com a inicial —
 //   estado desenhado de propósito, não falha.
-// · O card inteiro é UM botão (abre o detalhe). O interruptor NÃO fica aqui
-//   dentro: botão dentro de botão é HTML inválido e o clique dispara os dois
-//   (o mesmo bug que já aconteceu no /admin com button dentro de label).
+// · O CARD (borda arredondada) é só a capa: vídeo + nome sobreposto embaixo,
+//   igual desktop. É UM botão — o interruptor NÃO fica aqui dentro: botão
+//   dentro de botão é HTML inválido e o clique dispara os dois (o mesmo bug
+//   que já aconteceu no /admin com button dentro de label).
+// · MOBILE: descrição/contagem ficam FORA do card (abaixo, sem a borda), não
+//   mais empilhadas dentro dele — só o nome mora dentro, sobre o vídeo, como
+//   no desktop. Motivo: nome+descrição+contagem espremidos dentro dos 190px
+//   de largura tornavam tudo ilegível junto (queixa real).
 // =============================================================================
 
 interface Props {
@@ -62,100 +67,109 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
   }, []);
 
   return (
-    <button
-      type="button"
-      onClick={onAbrir}
-      aria-label={`${agente.nome} — ${agente.tagline}. ${ativo ? 'Ativo' : 'Pausado'}. Toque para ver os avisos.`}
-      className="group relative w-[190px] sm:w-[210px] flex-shrink-0 snap-start text-left rounded-2xl overflow-hidden
-                 border border-border/50 transition-transform duration-200 active:scale-[0.98]
-                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-                 focus-visible:ring-offset-background animate-[slide-up_500ms_ease-out_both]"
-      style={{ animationDelay: `${delay}ms`, ['--tw-ring-color' as string]: agente.cor }}
+    // Wrapper NÃO-interativo: só carrega a largura/snap/animação de entrada da
+    // faixa. O botão de verdade é só a capa (vídeo+nome), logo abaixo — mobile
+    // ganha a descrição/contagem FORA dela, no fluxo normal deste wrapper.
+    <div
+      className="w-[190px] sm:w-[210px] flex-shrink-0 snap-start animate-[slide-up_500ms_ease-out_both]"
+      style={{ animationDelay: `${delay}ms` }}
     >
-      {/* Capa 1:1 (proporção dos vídeos). Reserva o espaço e evita CLS. */}
-      <div className="relative aspect-square w-full overflow-hidden bg-muted">
-        {/* Fundo de identidade — fica SOB o vídeo. Enquanto os arquivos do
-            agente não existem (ou falham), é isto que aparece: gradiente na cor
-            dele + inicial. Preview sem asset fica intencional, não quebrado. */}
-        <div
-          className="absolute inset-0 grid place-items-center"
-          style={{ background: `linear-gradient(150deg, ${agente.cor} 0%, color-mix(in srgb, ${agente.cor} 35%, #0b1220) 100%)` }}
-        >
-          <span className="text-5xl font-black text-white/25 select-none">{agente.nome.charAt(0)}</span>
-        </div>
-        {/* Sem `loop`: toca uma vez e congela no último frame.
-            Só monta o <video> se o arquivo existe — evita 404 pros agentes
-            que ainda não têm animação. */}
-        {agente.video && (
-          <video
-            ref={ref}
-            src={agente.video}
-            // `poster` + `preload="metadata"` matam o card vazio: o JPEG de
-            // ~14 KB pinta na hora e o vídeo assume por cima. Como o poster é o
-            // PRIMEIRO frame do próprio vídeo, a troca não tem salto.
-            // `preload="none"` (o que estava aqui) só ia buscar o arquivo no
-            // play, então o card ficava no gradiente até o .webm inteiro chegar.
-            poster={agente.poster}
-            muted
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500
-                       group-hover:scale-[1.04]"
-          />
-        )}
-        {/* Véu só no terço de baixo: dá contraste pro nome sem cobrir o
-            personagem (os vídeos são 1:1 e o bicho ocupa o quadro todo). */}
-        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
-
-        {/* Selo de estado — ícone + texto, nunca só cor (acessibilidade) */}
-        <span
-          className={`absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full px-2 py-1
-                      text-[10px] font-semibold backdrop-blur-md ${
-                        ativo ? 'text-white' : 'bg-black/55 text-white/80'
-                      }`}
-          style={ativo ? { background: `color-mix(in srgb, ${agente.cor} 85%, black)` } : undefined}
-        >
-          {ativo ? <Check size={11} strokeWidth={3} /> : <Pause size={11} strokeWidth={3} />}
-          {ativo ? 'Ativo' : 'Pausado'}
-        </span>
-
-        {agente.emBreve && (
-          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full
-                           bg-black/55 px-2 py-1 text-[10px] font-semibold text-white/85 backdrop-blur-md">
-            <Sparkles size={11} /> Em breve
-          </span>
-        )}
-
-        {/* MOBILE: só o NOME sobre a capa. Empilhar nome + descrição + contagem
-            em cima de um quadrado de 190px espremia tudo contra a arte e nada
-            ficava legível — era a queixa. O resto desce pra fora do vídeo. */}
-        <div className="absolute inset-x-0 bottom-0 p-2.5 sm:hidden">
-          <p className="text-[15px] font-bold leading-tight text-white drop-shadow-md">{agente.nome}</p>
-        </div>
-
-        {/* DESKTOP (sm+): sobreposição completa — ali sobra espaço e a capa
-            maior aguenta as três linhas sem competir com o personagem. */}
-        <div className="absolute inset-x-0 bottom-0 hidden p-3 sm:block">
-          <p className="text-[15px] font-bold leading-tight text-white drop-shadow-sm">{agente.nome}</p>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{agente.tagline}</p>
-          {!agente.emBreve && (
-            <p className="mt-1.5 text-[10px] font-medium tabular text-white/60">
-              {ligados} de {total} avisos · {agente.cadencia}
-            </p>
+      <button
+        type="button"
+        onClick={onAbrir}
+        aria-label={`${agente.nome} — ${agente.tagline}. ${ativo ? 'Ativo' : 'Pausado'}. Toque para ver os avisos.`}
+        className="group relative block w-full text-left rounded-2xl overflow-hidden
+                   border border-border/50 transition-transform duration-200 active:scale-[0.98]
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+                   focus-visible:ring-offset-background"
+        style={{ ['--tw-ring-color' as string]: agente.cor }}
+      >
+        {/* Capa 1:1 (proporção dos vídeos). Reserva o espaço e evita CLS. */}
+        <div className="relative aspect-square w-full overflow-hidden bg-muted">
+          {/* Fundo de identidade — fica SOB o vídeo. Enquanto os arquivos do
+              agente não existem (ou falham), é isto que aparece: gradiente na cor
+              dele + inicial. Preview sem asset fica intencional, não quebrado. */}
+          <div
+            className="absolute inset-0 grid place-items-center"
+            style={{ background: `linear-gradient(150deg, ${agente.cor} 0%, color-mix(in srgb, ${agente.cor} 35%, #0b1220) 100%)` }}
+          >
+            <span className="text-5xl font-black text-white/25 select-none">{agente.nome.charAt(0)}</span>
+          </div>
+          {/* Sem `loop`: toca uma vez e congela no último frame.
+              Só monta o <video> se o arquivo existe — evita 404 pros agentes
+              que ainda não têm animação. */}
+          {agente.video && (
+            <video
+              ref={ref}
+              src={agente.video}
+              // `poster` + `preload="metadata"` matam o card vazio: o JPEG de
+              // ~14 KB pinta na hora e o vídeo assume por cima. Como o poster é o
+              // PRIMEIRO frame do próprio vídeo, a troca não tem salto.
+              // `preload="none"` (o que estava aqui) só ia buscar o arquivo no
+              // play, então o card ficava no gradiente até o .webm inteiro chegar.
+              poster={agente.poster}
+              muted
+              playsInline
+              preload="metadata"
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500
+                         group-hover:scale-[1.04]"
+            />
           )}
+          {/* Véu só no terço de baixo: dá contraste pro nome sem cobrir o
+              personagem (os vídeos são 1:1 e o bicho ocupa o quadro todo). */}
+          <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/92 via-black/55 to-transparent" />
+
+          {/* Selo de estado — ícone + texto, nunca só cor (acessibilidade) */}
+          <span
+            className={`absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full px-2 py-1
+                        text-[10px] font-semibold backdrop-blur-md ${
+                          ativo ? 'text-white' : 'bg-black/55 text-white/80'
+                        }`}
+            style={ativo ? { background: `color-mix(in srgb, ${agente.cor} 85%, black)` } : undefined}
+          >
+            {ativo ? <Check size={11} strokeWidth={3} /> : <Pause size={11} strokeWidth={3} />}
+            {ativo ? 'Ativo' : 'Pausado'}
+          </span>
+
+          {agente.emBreve && (
+            <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full
+                             bg-black/55 px-2 py-1 text-[10px] font-semibold text-white/85 backdrop-blur-md">
+              <Sparkles size={11} /> Em breve
+            </span>
+          )}
+
+          {/* MOBILE: só o NOME sobre a capa, igual desktop — a diferença é que
+              descrição/contagem NÃO ficam aqui dentro (ver fora do card, mais
+              abaixo): espremer as três linhas nos 190px de largura junto do
+              vídeo era o que ficava ilegível. */}
+          <div className="absolute inset-x-0 bottom-0 p-2.5 sm:hidden">
+            <p className="text-[15px] font-bold leading-tight text-white drop-shadow-md">{agente.nome}</p>
+          </div>
+
+          {/* DESKTOP (sm+): sobreposição completa — ali sobra espaço e a capa
+              maior aguenta as três linhas sem competir com o personagem. */}
+          <div className="absolute inset-x-0 bottom-0 hidden p-3 sm:block">
+            <p className="text-[15px] font-bold leading-tight text-white drop-shadow-sm">{agente.nome}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-white/75">{agente.tagline}</p>
+            {!agente.emBreve && (
+              <p className="mt-1.5 text-[10px] font-medium tabular text-white/60">
+                {ligados} de {total} avisos · {agente.cadencia}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Barra de cor do agente — dá identidade sem depender do vídeo */}
-      <div
-        className="h-1 w-full transition-opacity duration-200"
-        style={{ background: agente.cor, opacity: ativo || agente.emBreve ? 1 : 0.3 }}
-      />
+        {/* Barra de cor do agente — dá identidade sem depender do vídeo */}
+        <div
+          className="h-1 w-full transition-opacity duration-200"
+          style={{ background: agente.cor, opacity: ativo || agente.emBreve ? 1 : 0.3 }}
+        />
+      </button>
 
-      {/* MOBILE: descrição, contagem e cadência ABAIXO do vídeo, em fluxo
-          normal — legíveis sobre o fundo do card em vez de sobre a arte. */}
-      <div className="p-3 sm:hidden">
+      {/* MOBILE: descrição, contagem e cadência FORA do card (sem borda, fora
+          do botão) — legíveis no fluxo da página, só o nome mora dentro. */}
+      <div className="px-0.5 pt-2 sm:hidden">
         <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">{agente.tagline}</p>
         {!agente.emBreve && (
           <p className="mt-1.5 text-[11px] font-medium tabular text-muted-foreground/80">
@@ -163,6 +177,6 @@ export default function AgenteCard({ agente, ativo, ligados, total, onAbrir, del
           </p>
         )}
       </div>
-    </button>
+    </div>
   );
 }

@@ -826,6 +826,13 @@ A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Me
 - **Dispatch com `await`.** Handlers no switch do webhook.js precisam de `await` — sem isso, erro do handler vira unhandled rejection e some sem log/resposta.
 - **Categoria do template:** cupom/oferta → Marketing; template 100% variável (`{{1}}`) tende a Marketing. Utilidade = aviso específico/transacional (texto fixo + variáveis).
 - **Cache do iOS:** número migrado some pra quem tinha o chat antigo ("não está mais no WhatsApp"); link `wa.me/<num>?text=Oi` abre chat novo e contorna.
+- ⚠️ **A Meta cacheia URL de imagem de cabeçalho que deu 404.** O `sora.png` do
+  agente Sora (`src/agentes/index.js`) ficou 404 por um tempo (arquivo sem
+  commit no frontend) — corrigido o 404, a Meta continuou recusando o envio
+  pra essa MESMA URL. Fix: `capaVersao` no catálogo anexa `?v=N` só nesse
+  agente, forçando a Meta a tratar como URL nova. Se um agente novo tiver o
+  mesmo sintoma (imagem responde 200 mas o template continua sendo recusado),
+  é isso — sobe o `capaVersao`.
 
 > Detalhes completos + IDs na memória `project-migracao-whatsapp-cloud`.
 
