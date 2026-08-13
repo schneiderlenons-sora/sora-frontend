@@ -129,7 +129,7 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 **Landings de venda:**
 - **`/oferta`** (`app/oferta/page.tsx`) — landing do vitalício (Hero + pricing dos tiers). Pixel/CAPI: InitiateCheckout.
 - **`/kit`** (`app/kit/page.tsx` + `components/landing/KitOferta.tsx`) — landing dedicada do **Kit**, **tema escuro forçado** (`dark` no `<main>` + `@variant dark` no globals), nav sem toggle de tema, cabeçalho preto. Tem **card flutuante de cupom** `components/landing/CupomFlutuante.tsx` (SORA10, dismissível, copiar). Onboarding do Kit esconde "vincular WhatsApp" e "ver o que sei fazer" (Kit não tem zap).
-- Ambas usam o `Footer` (com a info legal/CNPJ) e `lib/planos-display.ts` pros dados dos planos.
+- Ambas usam o `Footer` e `lib/planos-display.ts` pros dados dos planos.
 
 > Recuperação de pagamento falho: memória `project-recuperacao-pagamento-falho` (crons OFF por padrão — `RECUPERACAO_ATIVA`). CHECK constraint de `users.plano`: todo plano novo (ex. 'kit') precisa entrar no `users_plano_check` via migration senão a ativação falha calada — memória `project-plano-check-constraint`.
 
@@ -300,7 +300,7 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Landing "Corpo em Dia"** (`components/landing/SaudeShowcase.tsx`): carrossel de 6 imagens 9:16 (3-up desktop / 1-up mobile, bordas redondas + sombra), imagens em `public/landing/corpo/1.png…6.png`, destaque do macros por foto.
 
 ### Atualizações jul/2026 (além da migração WhatsApp abaixo)
-- **Info legal da empresa no rodapé** (`components/landing/Footer.tsx`): razão social ENOTAS DESENVOLVIMENTO DE SOFTWARES LTDA, CNPJ 14.422.279/0001-06, endereço (Belo Horizonte/MG), `contato@forsora.com` e telefone `(71) 92748-1735`. Aparece em forsora.com/oferta/kit. (Necessário pra verificação de negócio na Meta.)
+- **Info legal da empresa no rodapé — REMOVIDA (ago/2026).** Existia razão social/CNPJ/endereço/contato no `Footer.tsx` (jul/2026, pra verificação de negócio na Meta); a pedido do usuário, todas as menções a CNPJ e à razão social foram tiradas das landings e do painel. Se a Meta voltar a exigir, reavaliar.
 - **Seção Open Finance nas landings** (`components/landing/OpenFinance.tsx`): seção de marketing "Não quer nem digitar? Conecte seu banco" (carrossel de bancos + garantias + selo "Autorizado pelo BACEN"). Renderizada na **principal (`/`), `/oferta` e `/kit`** (na kit, dentro do bloco `.dark`, logo após o `FinancasChat`/"Controle Financeiro"), além da `/financas`. Foi removida em jul/2026 e **reintroduzida a pedido** do usuário (decisão consciente de manter o selo BACEN). Obs.: o "BACEN · Open Finance" do hero/rodapé/FAQ segue removido — só a **seção** voltou.
 - **Extrato de conta bancária** (`components/contas/DetalhesContaModal.tsx`): clicar na caixa "Saldo atual" do card em `/contas-bancarias` abre um modal com saldo, navegação por mês, entradas/saídas/saldo-do-mês, saídas por categoria e movimentações (+entrada verde / −saída vermelha). Espelha o `DetalhesCartaoModal` mas mostra os DOIS fluxos (débito sai da conta). Casa transações por `carteira_nome`.
 - **Excluir conta com transações** (`components/contas/ExcluirContaModal.tsx` + backend `DELETE /wallets/:id`): antes deixava transações órfãs; agora, se a conta tem lançamentos, o backend responde 409 e o painel pergunta **mover pra outra conta** ou **excluir junto** (usado em contas-bancarias E cartao-de-credito). Ver memória `project-carteira-fantasma`.
