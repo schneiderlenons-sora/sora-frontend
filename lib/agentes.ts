@@ -59,16 +59,18 @@ export interface Agente {
    * `video` ausente = ainda não temos a animação: o card cai no gradiente com a
    * inicial do agente, que é um estado desenhado de propósito (não é falha).
    *
-   * São DOIS arquivos de imagem, com finalidades diferentes:
+   * Só `<id>-thumb.jpg` (320px, ~14 KB) entra aqui como `poster` do vídeo.
+   * Existe porque no mobile o card ficava VAZIO até o .webm baixar (queixa
+   * real). O poster aparece na hora e o vídeo entra por cima sem salto — é o
+   * PRIMEIRO frame do próprio vídeo, então a troca é invisível.
    *
-   * · `<id>-thumb.jpg` (320px, ~14 KB) → `poster` do vídeo. Existe porque no
-   *   mobile o card ficava VAZIO até o .webm baixar (queixa real). O poster
-   *   aparece na hora e o vídeo entra por cima sem salto — é o PRIMEIRO frame
-   *   do próprio vídeo, então a troca é invisível.
-   *
-   * · `<id>.png` (640px) → cabeçalho do template do WhatsApp. NÃO entra aqui:
-   *   o backend monta aquela URL sozinho (`src/agentes/index.js`), e usar um
-   *   PNG de ~500 KB como poster desperdiçaria banda no painel.
+   * A CAPA DO WHATSAPP não entra aqui — é `public/agentes/whatsapp/<id>.png`,
+   * **1200×630** (o formato que a Meta espera pra cabeçalho de template; usar
+   * outra proporção faz ela cortar/recusar a imagem). Pasta SEPARADA da arte
+   * acima de propósito — são finalidades e dimensões diferentes, e o backend
+   * monta aquela URL sozinho (`src/agentes/index.js`), sem passar por aqui.
+   * ⚠️ `public/agentes/<id>.png` (640×640, sem pasta) é resquício da versão
+   * antiga — nada mais referencia esses arquivos.
    */
   poster?: string;
   video?: string;
