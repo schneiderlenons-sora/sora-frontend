@@ -86,13 +86,13 @@ export default function Step10Comandos() {
         })}
       </div>
 
-      {/* Lembrete: revisitar na Central da Sora */}
+      {/* Lembrete: revisitar na aba Comandos (ex-Central da Sora) */}
       <div className="mt-6 p-4 rounded-2xl border border-primary/20 flex items-start gap-3"
            style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${BRAND} 7%, transparent), transparent)` }}>
         <Sparkles size={18} style={{ color: BRAND }} className="mt-0.5 flex-shrink-0" />
         <p className="text-xs text-foreground leading-relaxed">
           Não precisa decorar! Você reencontra <strong>todos</strong> esses comandos — com mais exemplos e detalhes —
-          a qualquer hora na aba <strong>Central da Sora</strong> do painel. E lembre: pode mandar também por
+          a qualquer hora na aba <strong>Comandos</strong> do painel. E lembre: pode mandar também por
           <strong> áudio, foto ou PDF</strong>. 🐳
         </p>
       </div>

@@ -42,7 +42,7 @@ export default function CentralSoraPage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 mb-4">
               <Sparkles size={11} style={{ color: BRAND }} />
               <span className="text-[10px] font-bold tracking-[0.25em] uppercase" style={{ color: BRAND }}>
-                Central da Sora
+                Comandos da Sora
               </span>
             </div>
 

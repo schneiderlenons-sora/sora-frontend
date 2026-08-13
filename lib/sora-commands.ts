@@ -1,6 +1,6 @@
 // =============================================================================
 // Catálogo central de comandos que a Sora entende no WhatsApp.
-// Fonte única da verdade — usado tanto pela Central da Sora (UI) quanto
+// Fonte única da verdade — usado tanto pela aba Comandos (ex-Central da Sora, UI) quanto
 // (futuramente) pelo HELP_TEXT do backend (auto-geração).
 //
 // Importante: a Sora interpreta linguagem natural via IA. Os "exemplos"

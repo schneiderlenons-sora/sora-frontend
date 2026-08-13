@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, BarChart2, Landmark, CreditCard,
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
-  Sun, Moon, Flag, Download, Receipt, Briefcase,
+  Flag, Download, Receipt, Briefcase,
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
   MessageCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
@@ -69,21 +69,20 @@ const NAV_GROW: NavItem[] = [
   { href: '/grow/viagens',    label: 'Viagens',    icon: Plane,         gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard, gate: 'grow_colecoes', badge: 'Premium' },
   { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen,      gate: 'grow_colecoes', badge: 'Premium' },
-  { href: '/grow/dados',      label: 'Drive',      icon: FolderLock },
+  // Drive virou atalho fixo no rodapé (junto de Agentes) — mais fácil de
+  // achar do que enterrado dentro do grupo Grow. Ver o bloco fixo mais abaixo.
   { href: '/grow/configuracoes', label: 'Compartilhamento', icon: Users },
 ];
 
 // ── Geral (app-wide, sempre visível) ────────────────────────────────
 const NAV_GERAL: NavItem[] = [
   { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
-  // Os Agentes substituíram a Central de Avisos (mesmas preferências, agora com
-  // rosto e voz). `/avisos` continua existindo como REDIRECT — há link salvo e
-  // atalho de celular apontando pra lá.
-  { href: '/agentes',       label: 'Agentes',         icon: Sparkles },
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
   { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
-  // Central da Sora e Configurações ficam FIXAS no rodapé (não rolam com a lista).
+  // Agentes, Drive, Comandos e Configurações ficam FIXOS no rodapé (não rolam
+  // com a lista) — Agentes/Drive viraram atalho pra facilitar achar (antes
+  // enterrados aqui dentro / dentro do grupo Grow).
 ];
 
 // ── Sora Labs (painel separado) — âncoras pras fileiras do /labs ─────
@@ -154,7 +153,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       NAV_DASHBOARD.href,
       ...NAV_FINANCE.map((i) => i.href),
       ...NAV_GROW.map((i) => i.href),
-      '/wrapped', '/central-sora', '/planos', '/configuracoes',
+      '/wrapped', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
     ];
     const warm = () => {
       rotas.forEach((r) => router.prefetch(r));
@@ -209,12 +208,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     router.push(href);
   }
 
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  // Só LÊ o tema (pra colorir o fundo da sidebar) — quem CONTROLA é o
+  // ThemeToggle (círculo fixo no canto superior direito, em toda tela), que
+  // também é o dono da migração 'dark' → 'black'.
+  const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-
-  // Tema "escuro" foi removido — quem tinha 'dark' salvo migra pra 'black'.
-  useEffect(() => { if (mounted && theme === 'dark') setTheme('black'); }, [mounted, theme, setTheme]);
 
   // Trava o scroll do conteúdo atrás enquanto o drawer está aberto (mobile).
   // Sem isso, arrastar na sidebar acaba rolando a página de baixo.
@@ -250,11 +249,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const isTemaBlack = efetivo === 'black';
   const isDark      = isTemaBlack; // black usa as variáveis .dark
 
-  function ciclarTema() {
-    setTheme(efetivo === 'light' ? 'black' : 'light');
-  }
-  const proxLabel = efetivo === 'light' ? 'Tema black' : 'Tema claro';
-  const ProxIcon  = efetivo === 'light' ? Moon : Sun;
   const { abrir: abrirInstall } = usePwa();
 
   const plano = perfil?.plano || 'inativo';
@@ -582,28 +576,33 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       </nav>
 
       <div className="px-3 pt-3 border-t border-white/20 space-y-1.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-        {/* Fixos: Central da Sora + Configurações (não rolam com a lista) */}
+        {/* Atalhos: Agentes + Drive (não rolam com a lista). Substituíram o
+            toggle de tema aqui — o tema virou um círculo fixo no canto
+            superior direito, em toda tela (ThemeToggle.tsx). Os dois eram os
+            mais difíceis de achar (Agentes enterrado no meio da lista Geral,
+            Drive dentro do grupo Grow); viraram atalho de propósito. */}
+        <div className="grid grid-cols-2 gap-1.5">
+          <Link href="/agentes" onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            <Sparkles size={16} /> Agentes
+          </Link>
+          <Link href="/grow/dados" onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
+            <FolderLock size={16} /> Drive
+          </Link>
+        </div>
+
+        {/* Fixos: Comandos (ex-Central da Sora) + Configurações */}
         <div className="grid grid-cols-2 gap-1.5">
           <Link href="/central-sora" onClick={() => setOpen(false)}
             className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
-            <MessageCircle size={16} /> Central
+            <MessageCircle size={16} /> Comandos
           </Link>
           <Link href="/configuracoes" onClick={() => setOpen(false)}
             className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
             <Settings size={16} /> Config.
           </Link>
         </div>
-
-        {/* Tema */}
-        <button onClick={ciclarTema} className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all">
-          <ProxIcon size={18} />
-          <span>{proxLabel}</span>
-          <span className="ml-auto flex items-center gap-0.5">
-            {(['light','black'] as const).map(t => (
-              <span key={t} className={`block w-1.5 h-1.5 rounded-full transition-all ${efetivo === t ? 'bg-white opacity-100' : 'bg-white opacity-25'}`} />
-            ))}
-          </span>
-        </button>
 
         {/* Perfil */}
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm">

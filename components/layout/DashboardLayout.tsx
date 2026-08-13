@@ -52,8 +52,11 @@ function PapelBadge({ papel }: { papel: 'admin' | 'escrita' | 'leitura' }) {
     leitura: { icon: Eye,    label: 'Modo leitura', bg: 'bg-zinc-100 dark:bg-zinc-900/60',     fg: 'text-zinc-600 dark:text-zinc-300'     },
   }[papel];
   const Icon = cfg.icon;
+  // right-16 (não right-4): deixa espaço pro círculo de tema, que agora é FIXO
+  // no canto superior direito em toda tela (ver ThemeToggle.tsx) — os dois
+  // colidiam quando o badge aparecia (grupo compartilhado, não-Pessoal).
   return (
-    <div className={`hidden md:inline-flex absolute top-4 right-4 z-10 items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${cfg.bg} ${cfg.fg}`}>
+    <div className={`hidden md:inline-flex absolute top-4 right-16 z-10 items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${cfg.bg} ${cfg.fg}`}>
       <Icon size={11} />
       {cfg.label}
     </div>
