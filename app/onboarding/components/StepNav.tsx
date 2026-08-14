@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { querOpenFinance, limparIntencaoOF } from '@/lib/of-intent';
 import { useOnboarding, TOTAL_STEPS } from '../OnboardingContext';
 
 const BRAND = 'hsl(var(--primary))';
@@ -31,6 +33,7 @@ export default function StepNav({
   semVoltar,
 }: Props) {
   const { state, prev, next, skip, finalizar, salvando } = useOnboarding();
+  const { user } = useAuth();
   const ehUltimo = state.step >= TOTAL_STEPS;
   // Guard contra duplo-clique: onAntesAvancar (ex.: salvar receita) não pode
   // rodar duas vezes — senão duplica o que foi inserido.
@@ -43,8 +46,14 @@ export default function StepNav({
       if (onAntesAvancar) await onAntesAvancar();
       if (ehUltimo) {
         await finalizar();
+        // Quem escolheu conectar o banco no step 5 vai DIRETO pra lá — foi o
+        // que a tela prometeu ("eu te levo pra aba Open Finance"). Largar essa
+        // pessoa no dashboard vazio quebraria a promessa e ela teria que
+        // caçar a aba sozinha.
+        const paraOF = querOpenFinance(user?.id);
+        limparIntencaoOF();                    // dica de navegação, morre aqui
         // O OnboardingRedirect detecta onboarding_completed=true e libera.
-        window.location.href = '/dashboard';
+        window.location.href = paraOF ? '/open-finance?onboarding=1' : '/dashboard';
       } else {
         await next();
       }

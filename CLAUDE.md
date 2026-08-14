@@ -178,6 +178,33 @@ somavam exatamente 23 (8 + 10 + 5).
 
 **Steps:** Boas-vindas/nome → Perfil de uso → Objetivo → Categorias → Contas (com conta padrão ⭐) → Gastos fixos → Receitas fixas → Meta → WhatsApp tour.
 
+### Step 5: "conectar o banco" × "cadastrar à mão" (ago/2026)
+
+O onboarding não mencionava Open Finance em lugar nenhum — quem ia conectar o
+banco cadastrava tudo à mão primeiro e depois via o banco trazer as **mesmas**
+contas e cartões, duplicado. Agora o step 5 abre com a escolha.
+
+- ⚠️ **A opção só aparece pra quem TEM Open Finance** (`podeVerOpenFinance`):
+  é da assinatura recorrente (Básico 1 conexão, Premium 3). **Vitalício e
+  sem-plano não têm** — oferecer a eles seria mandá-los pra uma aba que pede
+  pagamento no meio do onboarding. Sem OF, a tela é **idêntica** à de antes.
+- Escolhendo conectar, contas **e** cartões (que vivem na MESMA tela, não em
+  steps separados) somem e dão lugar a um painel que **explica** o que vai
+  acontecer. ⚠️ Não é formulário desabilitado: botão cinza lê como "quebrou".
+  Regras `read-only-distinction` + `empty-nav-state` da skill `ui-ux-pro-max`.
+- A volta atrás fica **sempre visível** ("prefiro cadastrar à mão") — a escolha
+  não pode virar armadilha.
+- Quem já tinha cadastrado à mão **não perde nada**: o painel avisa que as
+  linhas continuam lá e que o Watson ajuda a limpar repetidos depois.
+- **Sem migration:** a escolha vive em `lib/of-intent.ts` (localStorage por
+  `userId`, TTL 7 dias). É dica de NAVEGAÇÃO que morre no fim do wizard, não
+  dado do usuário. Confere o `userId` pra PC compartilhado não herdar a escolha.
+- No fim do wizard o `StepNav` manda pra **`/open-finance?onboarding=1`** em vez
+  do dashboard — foi o que a tela prometeu.
+- Estado derivado (`escolha ?? querOpenFinance(...)`), **não** `useEffect` +
+  setState: com efeito, o primeiro render saía "manual" e piscava pra
+  "Open Finance" quando o auth chegava.
+
 **Guard:** `components/auth/OnboardingRedirect.tsx` — redireciona pra `/onboarding` se `perfil.onboarding_completed === false`.
 
 **Colunas Supabase (`users`):** `onboarding_completed`, `onboarding_step`, `perfil_uso`, `objetivo_principal`, `wallet_padrao_id`, `welcomed_at`.
