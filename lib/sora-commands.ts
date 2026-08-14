@@ -598,9 +598,9 @@ export const COMANDOS: Comando[] = [
   {
     id: 'grow-tarefa-natural',
     titulo: 'Criar tarefa falando 🎤',
-    exemplo: 'lembra de comprar as passagens',
-    descricao: 'Manda em áudio ou texto o que precisa fazer, em linguagem natural. A Sora transcreve, cria a tarefa e já categoriza (Viagem, Compras, Trabalho, Saúde…).',
-    variantes: ['tenho que enviar o relatório pro cliente', 'não esquecer de pagar o boleto', 'preciso ligar pro dentista'],
+    exemplo: 'anote que eu tenho que terminar a edição do vídeo',
+    descricao: 'Manda em áudio ou texto o que precisa fazer, em linguagem natural. A Sora transcreve, guarda **só o essencial** (tira o "anote que eu tenho que…" e o "anota pra mim" do fim) e já categoriza (Viagem, Compras, Trabalho, Saúde…). Pra encadear outra, é só dizer "anota também que…".',
+    variantes: ['tenho que enviar o relatório pro cliente', 'preciso terminar o trabalho, anota pra mim', 'anota também que tenho que revisar o contrato', 'não esquecer de pagar o boleto', 'preciso ligar pro dentista'],
     categoria: 'sora-grow',
     feature: 'sora_grow',
     destaque: true,
