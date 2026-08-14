@@ -608,6 +608,56 @@ Ordem de prioridade, do mais confiável pro menos:
    que ninguém publicou nem simulou. Medido: 282,27 + 276,51 = **558,78**.
 4. **Cartão manual → `fatura − pago`**, como sempre.
 
+## Caixinhas (saldos reservados) na aba Investimentos (ago/2026)
+
+A Polp publicou `GET /accounts/{account}/reserved-balances` — é como as
+**"Caixinhas" do Nubank** chegam pelo Open Finance. Antes disso `of_caixinhas`
+(tabela da 069) só era escrita pelo trilho **Pluggy legado**: no trilho Celcoin,
+que é o que roda hoje, ela tinha **0 linhas com 14 conexões ativas**.
+
+⚠️ **Era dinheiro invisível, não enfeite.** A doc de `GET /accounts/{id}` diz
+que `balance.available_amount` "não inclui cheque especial, investimentos
+automáticos nem **reservas de saldo**". Quem tinha R$ 5.000 em caixinhas não os
+via em lugar nenhum do painel. Pelo mesmo motivo, somar a caixinha à parte
+**não duplica** nada.
+
+- **Aritmética:** `normalizeCaixinha` em `polpCelcoinSync.js`, travada em
+  `npm run eval:caixinhas`. Migration **120** (colunas de remuneração).
+- ⚠️ **`available_amount` é um ARRAY**, não um valor — cada item é
+  `{ amount, currency, remuneration? }`. Ler `.amount` direto devolve
+  `undefined` e a caixinha entra **zerada**. Somamos todos os itens.
+- ⚠️ **A chave é `reserved_identification`** (UUID do Open Finance), não o `id`
+  — que a doc chama de "identificador **interno** da reserva".
+- `amount` é **string com 2 a 4 casas** ("1000.0400") → `cent()` no fim da soma.
+- **Só chamar quando `balance.has_reserved_balance === true`** (a doc manda).
+  Lista vazia é resposta válida ("tem o produto, não tem reserva") — e aí a
+  reconciliação apaga o que sobrou de um sync anterior. **A reconciliação só
+  roda quando a leitura DEU CERTO**: reconciliar em cima de falha de rede
+  apagaria todas as caixinhas do cliente.
+- **Não conflita com investimento:** a doc diz que o endpoint "não inclui
+  reservas atreladas a investimentos do CPF/CNPJ" — essas vêm pelas APIs de
+  Investimentos.
+- **Painel:** aba **Caixinhas** em `/investimentos` (só aparece quando existem)
+  + card de atalho no Resumo. Total **separado** do investido — caixinha não tem
+  aporte nem rentabilidade, então misturar sujaria a rentabilidade da carteira.
+
+### Auditoria dos investimentos do OF (mesma leva)
+
+- ⚠️ **`product` aninhado é LEGADO e pode vir `null`.** A doc (versão atual):
+  "Campos de `product` passam a existir na **raiz**". O código lia **só o
+  legado** — quando ele vinha null o investimento perdia ticker, nome, ISIN e
+  datas de uma vez, e em renda variável um FII virava "Ações" (a classificação
+  depende do ticker). `produtoDe()` agora lê **raiz primeiro, legado como
+  fallback**; travado no `eval:celcoin` §12B.
+- ⚠️ **Limite conhecido, sem solução na origem:** a Celcoin **não manda tipo de
+  ativo** em renda variável (só `ticker` e `isin_code`). FII × ETF × ação sai de
+  heurística "final 11 → FII", o que classifica **ETF como FII** (BOVA11,
+  IVVB11) e direito de subscrição (final 12) como ação. Não inventar lista de
+  ETFs conhecidos — envelhece mal.
+- As 5 famílias **são** consultadas (`FAMILIAS_INVESTIMENTO`). Na base real só
+  apareceu `variable_income` (10 posições) — nenhum CDB/fundo/Tesouro; sem
+  acesso à API não dá pra saber se é ausência real ou dado não sincronizado.
+
 ## Open Finance: fidelidade da fatura ao banco (ago/2026) — leitura dos docs
 
 Releitura completa dos docs da Celcoin (`polp.com.br/docs/celcoin`, renderizados
@@ -1081,6 +1131,7 @@ sql/116_of_parcelas_previstas.sql — tabela `of_parcelas_previstas`: parcelas a
 sql/117_recorrencia_lembrete_dia.sql — coluna `ultimo_lembrete_dia` em recorrencias: modo "só avisa" não cria transação, então não havia dedup e o lembrete saía 3× (8h/9h/10h).
 sql/118_of_faturas.sql          — tabela `of_faturas`: as faturas PUBLICADAS pelo banco (total, pago, fechamento, vencimento). Fim da reconstrução do valor por soma de transações — é a base da fidelidade ao app do banco.
 sql/119_pagamento_recebido_cartao.sql — reclassifica "Pagamento recebido" em cartão OF (Nubank) de Reembolso → Fatura. Sem isso o pagamento ABATE a fatura e ela sai menor que a do banco (medido: 5 linhas, R$ 4.694,21).
+sql/120_caixinhas_celcoin.sql   — colunas de remuneração em `of_caixinhas` (indexador, taxa, periodicidade) + `of_conta_id`. Sem ela as Caixinhas do Nubank aparecem sem o "rende X% do CDI" (o upsert é tolerante); a tabela em si já vem da 069.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

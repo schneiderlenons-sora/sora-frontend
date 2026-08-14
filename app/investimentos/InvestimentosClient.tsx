@@ -10,6 +10,7 @@ import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoMo
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
+  PiggyBank, Landmark, ChevronRight,
 } from 'lucide-react';
 // recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
 // inicial. Skeleton com a mesma altura do container (evita CLS).
@@ -42,7 +43,7 @@ const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtPct = (v: number) => `${v >= 0 ? '+' : ''}${(v || 0).toFixed(2)}%`;
 
-type Tab = 'resumo' | 'carteira' | 'reserva' | 'simulador' | 'aportes';
+type Tab = 'resumo' | 'carteira' | 'caixinhas' | 'reserva' | 'simulador' | 'aportes';
 
 export default function InvestimentosClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const { phone: authPhone, podeUsar } = useAuth();
@@ -60,12 +61,20 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
   const { data: aportesData, mutate: mAp }   = useApi(ativo ? `inv:aportes:${phone}` : null,    () => api.investimentos.aportes.listar(phone), { fallbackData: initialData?.aportes });
   const { data: patData,     mutate: mPat }  = useApi(ativo ? `inv:patrimonio:${phone}` : null, () => api.investimentos.patrimonio(phone), { fallbackData: initialData?.patrimonio });
   const { data: resData,     mutate: mRes }  = useApi(ativo ? `inv:reserva:${phone}` : null,    () => api.investimentos.reserva(phone), { fallbackData: initialData?.reserva });
+  const { data: caixData,    mutate: mCaix } = useApi(ativo ? `inv:caixinhas:${phone}` : null,  () => api.investimentos.caixinhas(phone), { fallbackData: initialData?.caixinhas });
 
   const invs: any[]       = (invsData as any) ?? [];
   const aportes: any[]    = (aportesData as any) ?? [];
   const patrimonio: any[] = (patData as any) ?? [];
   const reserva: any      = (resData as any) ?? { valorAtual: 0, gastoMedioMensal: 0, mesesObjetivo: 6, valorObjetivo: 0, percentual: 0, mesesCobertos: 0 };
-  const carregar = useCallback(() => Promise.all([mInvs(), mAp(), mPat(), mRes()]), [mInvs, mAp, mPat, mRes]);
+  // Caixinhas do Open Finance. Esse dinheiro NÃO está no saldo da conta (a
+  // Celcoin exclui reservas do `available_amount`), então ele vive num total
+  // próprio — nunca somado ao investido, que tem aporte e rentabilidade.
+  const caixinhas: any[]    = ((caixData as any)?.caixinhas) ?? [];
+  const totalCaixinhas: number = ((caixData as any)?.total) ?? 0;
+  const temCaixinhas = caixinhas.length > 0;
+
+  const carregar = useCallback(() => Promise.all([mInvs(), mAp(), mPat(), mRes(), mCaix()]), [mInvs, mAp, mPat, mRes, mCaix]);
 
   async function handleAtualizar() {
     if (!phone || atualizando) return;
@@ -165,6 +174,9 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
           {([
             { v: 'resumo',    l: 'Resumo',     icon: BarChart3 },
             { v: 'carteira',  l: 'Carteira',   icon: Briefcase },
+            // Só aparece pra quem tem caixinha no banco conectado — aba vazia
+            // pra todo mundo seria ruído permanente na navegação.
+            ...(temCaixinhas ? [{ v: 'caixinhas', l: 'Caixinhas', icon: PiggyBank }] : []),
             { v: 'reserva',   l: 'Reserva',    icon: Shield },
             { v: 'simulador', l: 'Simulador',  icon: Calculator },
             { v: 'aportes',   l: 'Aportes',    icon: Coins },
@@ -187,7 +199,14 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
         {/* TAB: RESUMO */}
         {tab === 'resumo' && (
-          <TabResumo totais={totais} distribuicao={distribuicao} patrimonio={patrimonio} />
+          <TabResumo totais={totais} distribuicao={distribuicao} patrimonio={patrimonio}
+                     totalCaixinhas={totalCaixinhas} qtdCaixinhas={caixinhas.length}
+                     onVerCaixinhas={() => setTab('caixinhas')} />
+        )}
+
+        {/* TAB: CAIXINHAS */}
+        {tab === 'caixinhas' && (
+          <TabCaixinhas caixinhas={caixinhas} total={totalCaixinhas} />
         )}
 
         {/* TAB: CARTEIRA */}
@@ -300,7 +319,7 @@ function PaywallPremium() {
 // ─────────────────────────────────────────────────────────────
 // TAB RESUMO
 // ─────────────────────────────────────────────────────────────
-function TabResumo({ totais, distribuicao, patrimonio }: any) {
+function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, onVerCaixinhas }: any) {
   const [periodo, setPeriodo] = useState<'7' | '30' | '90' | '365' | 'all'>('30');
   // Tema escuro = 'black' (classe .dark). No claro o hero fica branco como os
   // demais cards; no escuro mantém o visual atual.
@@ -321,6 +340,28 @@ function TabResumo({ totais, distribuicao, patrimonio }: any) {
 
   return (
     <div className="space-y-5 animate-fade-in" style={{ animationDelay: '120ms' }}>
+      {/* Caixinhas do banco — atalho pra aba. Fica ACIMA do hero de propósito:
+          é dinheiro que o painel nunca mostrou (o banco o tira do saldo da
+          conta), então precisa ser encontrado. Só aparece quando existe. */}
+      {qtdCaixinhas > 0 && (
+        <button type="button" onClick={onVerCaixinhas}
+                className="w-full card rounded-2xl p-4 flex items-center gap-4 text-left transition-all hover:border-primary/40 active:scale-[0.995]"
+                style={{ minHeight: 44 }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+               style={{ background: `color-mix(in srgb, ${CAIXA_COR} 14%, transparent)` }}>
+            <PiggyBank size={19} style={{ color: CAIXA_COR }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Guardado em caixinhas</p>
+            <p className="text-xl font-bold text-foreground tabular leading-tight">{fmt(totalCaixinhas)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {qtdCaixinhas === 1 ? '1 reserva no banco' : `${qtdCaixinhas} reservas no banco`} · fora do saldo da conta
+            </p>
+          </div>
+          <ChevronRight size={18} className="text-muted-foreground shrink-0" />
+        </button>
+      )}
+
       {/* Hero total */}
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-border/60"
            style={{ background: fundoHero }}>
@@ -542,6 +583,91 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
 // ─────────────────────────────────────────────────────────────
 // TAB RESERVA DE EMERGÊNCIA
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// CAIXINHAS / COFRINHOS (Open Finance)
+// ─────────────────────────────────────────────────────────────
+const CAIXA_COR = '#10b981';
+
+/** "100% do CDI" / "15% a.a." a partir do que o banco informou. */
+function textoRendimento(c: any): string | null {
+  if (c.indexador && c.indexador_pct != null) {
+    const per = c.periodicidade ? ` · ${String(c.periodicidade).toLowerCase()}` : '';
+    return `${Number(c.indexador_pct).toFixed(2).replace(/\.?0+$/, '')}% do ${c.indexador}${per}`;
+  }
+  if (c.taxa_pre != null) return `${Number(c.taxa_pre).toFixed(2).replace(/\.?0+$/, '')}% pré-fixado`;
+  if (c.indexador) return String(c.indexador);
+  return null;
+}
+
+function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number }) {
+  return (
+    <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
+
+      {/* Total guardado */}
+      <div className="card rounded-3xl p-6 sm:p-7 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none"
+             style={{ background: `radial-gradient(circle at top right, ${CAIXA_COR}24 0%, transparent 70%)` }} />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-1.5">
+            <PiggyBank size={15} style={{ color: CAIXA_COR }} />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              Guardado em caixinhas
+            </span>
+          </div>
+          <p className="text-3xl sm:text-4xl font-bold text-foreground tabular tracking-tight">{fmt(total)}</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xl leading-relaxed">
+            {caixinhas.length === 1 ? '1 reserva' : `${caixinhas.length} reservas`} no seu banco.
+            {' '}Esse dinheiro <strong className="text-foreground">não entra no saldo da conta</strong> —
+            o banco o separa, e por isso ele aparece aqui.
+          </p>
+        </div>
+      </div>
+
+      {/* Lista */}
+      <div className="card rounded-2xl divide-y divide-border">
+        {caixinhas.map((c, i) => {
+          const rend = textoRendimento(c);
+          const fatia = total > 0 ? ((c.saldo || 0) / total) * 100 : 0;
+          return (
+            <div key={c.id || i}
+                 className="p-4 sm:p-5 flex items-center gap-4 animate-[slide-up_500ms_ease-out_both]"
+                 style={{ animationDelay: `${i * 40}ms` }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                   style={{ background: `color-mix(in srgb, ${CAIXA_COR} 14%, transparent)` }}>
+                <PiggyBank size={18} style={{ color: CAIXA_COR }} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground truncate">{c.nome}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  {rend ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: CAIXA_COR }}>
+                      <TrendingUp size={11} /> {rend}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Sem rendimento informado</span>
+                  )}
+                  <span className="text-xs text-muted-foreground tabular">{fatia.toFixed(0)}% do guardado</span>
+                </div>
+              </div>
+
+              <p className="font-bold text-foreground tabular shrink-0">{fmt(c.saldo || 0)}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-muted-foreground flex items-start gap-1.5 px-1">
+        <Landmark size={13} className="shrink-0 mt-0.5" />
+        <span>
+          Dados lidos direto do seu banco pelo Open Finance. Caixinhas ligadas a investimentos
+          do seu CPF aparecem na aba <strong className="text-foreground">Carteira</strong>, não aqui.
+        </span>
+      </p>
+    </div>
+  );
+}
+
 function TabReserva({ reserva, invs, onChangeMeses }: any) {
   const pct = reserva.percentual || 0;
   const status =

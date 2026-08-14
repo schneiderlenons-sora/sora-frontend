@@ -438,6 +438,9 @@ export const api = {
         `/api/investimentos/cotacao?ticker=${encodeURIComponent(ticker)}&tipo=${tipo}`),
     atualizarPrecos: (phone: string) =>
       req<{ atualizados: number; total: number }>(`/api/investimentos/atualizar-precos/${phone}`, { method: 'POST' }),
+    /** Caixinhas/cofrinhos do Open Finance (saldos reservados — fora do saldo da conta). */
+    caixinhas: (phone: string) =>
+      req<{ caixinhas: any[]; total: number }>(`/api/investimentos/caixinhas/${phone}`),
     reserva: (phone: string) =>
       req<any>(`/api/investimentos/reserva/${phone}`),
     atualizarReserva: (phone: string, body: { meses_objetivo: number }) =>
