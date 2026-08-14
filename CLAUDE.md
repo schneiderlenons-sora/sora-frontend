@@ -635,6 +635,35 @@ Ordem de prioridade, do mais confiável pro menos:
    que ninguém publicou nem simulou. Medido: 282,27 + 276,51 = **558,78**.
 4. **Cartão manual → `fatura − pago`**, como sempre.
 
+## Investimento não salvava — CHECK de `tipo` + erro engolido (ago/2026)
+
+Relato de cliente premium: *"tentei incluir valores nos investimentos, porém
+não está salvando e atualizando"* — patrimônio R$ 0,00 com a conta saudável
+(626 transações, 2 conexões OF ativas). **Nada a ver com Open Finance.**
+
+- **Causa raiz:** a constraint `investimentos_tipo_check` rejeitava **5 dos 13
+  tipos** que o modal oferece. Medido inserindo um de cada: passam Ações, FIIs,
+  ETFs, Cripto, Tesouro Direto, Previdência, Imóveis e Caixa; **falham CDB,
+  Renda Fixa, Fundos, Reserva e Negócio**. Prova de que nunca funcionou: a base
+  inteira só tem 5 tipos distintos em 36 investimentos. Migration **121**.
+- ⚠️ **Por que ninguém viu:** a rota fazia `const { data } = await
+  ...insert()` e respondia `res.json(data)` — **sem ler o `error`**. Falha =
+  `data` null = **200 OK com null**, e o painel fechava o modal achando que
+  salvou. Corrigido no POST e no PUT (que tinha o mesmo defeito).
+- ⚠️ **ISSO TAMBÉM EXPLICA O OPEN FINANCE:** `tipoInvestimento` classifica renda
+  fixa bancária como **CDB**, crédito privado como **Renda Fixa** e fundos como
+  **Fundos** — os três barrados. O "só apareceu renda variável na base" que eu
+  havia registrado como *"pode ser ausência real de dado"* **não era**: era a
+  constraint recusando o insert.
+- **Bônus:** o modal já mandava `is_reserva_emergencia`, `taxa_anual`,
+  `data_vencimento`, `indexador` e `percentual_indexador`, e a rota
+  **descartava os 5**. Agora são gravados (o primeiro é o que faz o tipo
+  "Reserva" contar na aba de reserva de emergência).
+- **Mesma família do `users_plano_check`** (memória
+  `project-plano-check-constraint`): valor novo na aplicação tem de entrar no
+  CHECK, senão a gravação falha calada. A lista da 121 espelha `TIPOS` em
+  `NovoInvestimentoModal.tsx` — mexeu num, mexa no outro.
+
 ## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
 
 Relato de cliente: *"bancos do Open Finance ficam com o nome 'Banco' e não
@@ -1227,6 +1256,7 @@ sql/117_recorrencia_lembrete_dia.sql — coluna `ultimo_lembrete_dia` em recorre
 sql/118_of_faturas.sql          — tabela `of_faturas`: as faturas PUBLICADAS pelo banco (total, pago, fechamento, vencimento). Fim da reconstrução do valor por soma de transações — é a base da fidelidade ao app do banco.
 sql/119_pagamento_recebido_cartao.sql — reclassifica "Pagamento recebido" em cartão OF (Nubank) de Reembolso → Fatura. Sem isso o pagamento ABATE a fatura e ela sai menor que a do banco (medido: 5 linhas, R$ 4.694,21).
 sql/120_caixinhas_celcoin.sql   — colunas de remuneração em `of_caixinhas` (indexador, taxa, periodicidade) + `of_conta_id`. Sem ela as Caixinhas do Nubank aparecem sem o "rende X% do CDI" (o upsert é tolerante); a tabela em si já vem da 069.
+sql/121_investimentos_tipo_check.sql — CHECK de `investimentos.tipo` aceitando os 13 tipos do painel. **OBRIGATÓRIA**: sem ela, CDB, Renda Fixa, Fundos, Reserva e Negócio NÃO salvam (nem à mão nem pelo Open Finance).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
