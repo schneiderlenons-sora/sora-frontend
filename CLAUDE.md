@@ -122,7 +122,7 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | `app/api/mercadopago/webhook/route.ts` | Confirma pagamento (fonte da verdade) → `ativarVitalicio` + evento **Purchase** (CAPI, com fbp/fbc/ip/ua guardados no metadata do /process) |
 | `lib/mercadopago.ts` | `tierConfig()` (valor+plano+título por tier), `mpCreatePayment`, `mpGetPayment` — **via SDK oficial `mercadopago`** (ver "Qualidade da integração" abaixo) |
 | `lib/vitalicio.ts` | `ativarVitalicio(userId, plano)` |
-| `lib/cupons.ts` | Cupons: **SORA10/15/25** (%) + **SORA100** (100% off → libera grátis sem passar no MP). `aplicarCupomVitalicio()` recalcula SEMPRE no server |
+| `lib/cupons.ts` | Cupons: **SORA10/15/20/25/35** (%) + **SORA100** (100% off → libera grátis sem passar no MP). `aplicarCupomVitalicio()` recalcula SEMPRE no server. ⚠️ **É o catálogo inteiro** — código fora dele vale 0% e o checkout cobra CHEIO dizendo "cupom inválido" (foi o caso do SORA20, divulgado sem cadastrar). Cupom novo entra aqui ANTES de ser anunciado; pro **Stripe** (mensal/anual) é preciso criar o code no painel do Stripe também |
 
 - **Env (Vercel):** `MP_ACCESS_TOKEN`, `NEXT_PUBLIC_MP_PUBLIC_KEY` (chaves de PRODUÇÃO). Migration `sql/064_vitalicio_intent.sql` (coluna `vitalicio_intent` p/ recuperação levar de volta pro tier certo).
 

@@ -9,9 +9,14 @@
 // código; o cliente nunca define o desconto. Cupom inválido = 0% (cobra cheio).
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ⚠️ ESTE É O CATÁLOGO INTEIRO. Código que não está aqui vale 0% e o checkout
+// cobra CHEIO, dizendo "cupom inválido" — foi o que aconteceu com o SORA20, que
+// era divulgado mas nunca tinha sido cadastrado. Divulgou cupom novo? Cadastre
+// aqui ANTES de anunciar.
 export const CUPONS_VITALICIO: Record<string, number> = {
   SORA10: 10,
   SORA15: 15,
+  SORA20: 20,
   SORA25: 25,
   SORA35: 35, // cortesia (transtorno com recusa de pagamento — jul/2026)
   SORA100: 100,
