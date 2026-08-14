@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Clock, Lock, MessageSquareQuote } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
+import WatsonDuplicadas from './WatsonDuplicadas';
 import type { Agente, AvisoAgente } from '@/lib/agentes';
 
 // =============================================================================
@@ -21,12 +22,13 @@ import type { Agente, AvisoAgente } from '@/lib/agentes';
 interface Props {
   agente: Agente;
   prefs: Record<string, any>;
+  phone?: string;
   onToggle: (chave: string, valor: boolean) => void;
   onHorario: (chave: string, valor: string) => void;
   onClose: () => void;
 }
 
-export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClose }: Props) {
+export default function AgenteDrawer({ agente, prefs, phone, onToggle, onHorario, onClose }: Props) {
   const [montado, setMontado] = useState(false);
   const fecharRef = useRef<HTMLButtonElement>(null);
 
@@ -119,6 +121,13 @@ export default function AgenteDrawer({ agente, prefs, onToggle, onHorario, onClo
               <span><span className="font-semibold text-foreground">Como ele fala:</span> {agente.voz}</span>
             </p>
           </header>
+
+          {/* Ação sob demanda. Hoje só o Watson tem — o drawer era 100% leitura
+              (toggles de aviso), e "esperar o agente falar" não servia pra quem
+              quer conferir a fatura AGORA. */}
+          {agente.id === 'detetive-watson' && !agente.emBreve && phone && (
+            <WatsonDuplicadas phone={phone} />
+          )}
 
           <section className="space-y-2.5">
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">

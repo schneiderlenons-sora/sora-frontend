@@ -239,6 +239,23 @@ export const api = {
       const q = new URLSearchParams(params as any).toString();
       return req<{ transacoes: any[]; total: number }>(`/api/transacoes/${phone}${q ? `?${q}` : ''}`);
     },
+    /**
+     * Análise do Detetive Watson. `cartao` (wallet id) recorta pela FATURA
+     * ATUAL daquele cartão; sem ele, os últimos `dias`.
+     * `grupos` = duplicata com prova · `suspeitas` = só coincidência.
+     */
+    duplicadas: (phone: string, opts?: { cartao?: string; dias?: number }) => {
+      const p = new URLSearchParams();
+      if (opts?.cartao) p.set('cartao', opts.cartao);
+      if (opts?.dias) p.set('dias', String(opts.dias));
+      const q = p.toString();
+      return req<{
+        total: number;
+        grupos: { motivo: string; explicacao: string; transacoes: any[] }[];
+        suspeitas: { motivo: string; explicacao: string; transacoes: any[] }[];
+        escopo: any;
+      }>(`/api/transacoes/duplicadas/${phone}${q ? `?${q}` : ''}`);
+    },
     resumo: (phone: string, mes?: string, opts?: { criado_por_me?: boolean; criado_por?: string }) => {
       const params = new URLSearchParams();
       if (mes) params.set('mes', mes);

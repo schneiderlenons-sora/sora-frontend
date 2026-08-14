@@ -793,6 +793,14 @@ export const COMANDOS: Comando[] = [
     categoria: 'analises',
   },
   {
+    id: 'duplicadas-watson',
+    titulo: 'Procurar lançamentos repetidos',
+    exemplo: 'tem alguma duplicada?',
+    descricao: 'O Detetive Watson examina seus lançamentos e mostra os que entraram duas vezes — com a prova. Depois é só responder o número pra ele apagar a cópia (ele confirma antes). Diga "na fatura" pra ele olhar só a fatura atual do cartão.',
+    variantes: ['tem lançamento repetido?', 'watson', 'verifica duplicadas na fatura', 'tem compra em dobro?'],
+    categoria: 'analises',
+  },
+  {
     id: 'suporte',
     titulo: 'Falar com o suporte',
     exemplo: 'quero falar com o suporte',

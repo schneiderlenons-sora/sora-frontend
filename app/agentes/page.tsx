@@ -6,6 +6,7 @@ import GrowHero from '@/components/grow/GrowHero';
 import AgenteCard from '@/components/agentes/AgenteCard';
 import AgenteDrawer from '@/components/agentes/AgenteDrawer';
 import Switch from '@/components/ui/Switch';
+import { useAuth } from '@/contexts/AuthContext';
 import { api, type AvisosPrefs } from '@/lib/api';
 import { AGENTES, agenteAtivo, contagemAtivos, type Agente } from '@/lib/agentes';
 import {
@@ -22,6 +23,7 @@ const DEFAULTS: AvisosPrefs = {
 };
 
 export default function AgentesPage() {
+  const { phone } = useAuth();
   const [prefs, setPrefs] = useState<AvisosPrefs | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [aberto, setAberto] = useState<Agente | null>(null);
@@ -138,6 +140,7 @@ export default function AgentesPage() {
         <AgenteDrawer
           agente={aberto}
           prefs={prefs as Record<string, any>}
+          phone={phone || undefined}
           onToggle={(chave, valor) => patch(chave, valor)}
           onHorario={(chave, valor) => patch(chave, valor)}
           onClose={() => setAberto(null)}

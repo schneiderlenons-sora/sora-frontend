@@ -608,6 +608,39 @@ Ordem de prioridade, do mais confiável pro menos:
    que ninguém publicou nem simulou. Medido: 282,27 + 276,51 = **558,78**.
 4. **Cartão manual → `fatura − pago`**, como sempre.
 
+## Detetive Watson interativo — painel + WhatsApp (ago/2026)
+
+O motor de detecção (`services/duplicadas.js`) já existia e era testado, e a
+rota `GET /api/transacoes/duplicadas/:phone` também — **mas o painel nunca a
+chamava**. O agente só sabia falar sozinho depois do sync; não dava pra pedir.
+
+- **Duas listas, NUNCA misturadas.** `analisar()` devolve `confirmadas` (o que
+  ele **afirma**, com prova: mesmo milissegundo ou manual×banco) e `suspeitas`
+  (o que ele **pergunta**: mesmo valor + descrição em ≤1 dia). ⚠️ A regra das
+  suspeitas é a que, medida na base (4.357 gastos), acusa **27 pares em que a
+  maioria é legítima** — por isso ela tem visual próprio, texto de dúvida,
+  **nunca vem pré-selecionada e NUNCA entra no aviso proativo do WhatsApp**.
+  Agente que grita lobo o usuário desliga. O eval trava que uma transação não
+  aparece nas duas listas.
+- **Escopo por FATURA ATUAL** (`?cartao=<wallet_id>`): usa `cicloFatura` — não
+  filtra por mês, porque o ciclo cruza meses (mesma regra do resto do painel).
+  Cartão sem `dia_fechamento` cai nos últimos N dias.
+- **Painel** (`components/agentes/WatsonDuplicadas.tsx`, dentro do
+  `AgenteDrawer`): exclusão **otimista com "Desfazer" por 10s** — some da tela
+  na hora e só vai pro servidor depois. ⚠️ Se o drawer fechar com exclusão
+  pendente, ela **acontece mesmo assim**: o usuário mandou apagar, sair da tela
+  não é desfazer.
+- **WhatsApp** (`handlers/duplicadas.js`, local-first, roda antes do FAQ):
+  lista numerada → "apaga a 2" → **confirmação nomeando valor e data** → exclui.
+  ⚠️ Nunca em um passo só: no zap não existe desfazer. Aceita *trocar* pra
+  manter a outra cópia. **Relê do banco antes de apagar** — entre a listagem e a
+  resposta o usuário pode ter resolvido pelo painel, e agir sobre contexto velho
+  apagaria a transação errada. Só as **confirmadas** entram no zap.
+- Gatilho estreito e travado em eval: *"paguei duas vezes o aluguel"* é relato,
+  **não** vira investigação.
+- Pendentes novos: `escolher_duplicada` e `confirmar_exclusao_dup`. **Sem
+  migration** (reusa `transacoes_pendentes`). `npm run eval:duplicadas`.
+
 ## Caixinhas (saldos reservados) na aba Investimentos (ago/2026)
 
 A Polp publicou `GET /accounts/{account}/reserved-balances` — é como as
