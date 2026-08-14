@@ -2,8 +2,10 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Rotas que não precisam de login
-const ROTAS_PUBLICAS = ['/', '/login', '/signup', '/recuperar-senha'];
+// Rotas que não precisam de login.
+// ⚠️ `/redefinir-senha` é onde o link do e-mail cai. Ela NÃO pode virar rota
+// protegida: quem chega ali está justamente sem conseguir entrar.
+const ROTAS_PUBLICAS = ['/', '/login', '/signup', '/recuperar-senha', '/redefinir-senha'];
 
 // Rotas protegidas (precisam de login)
 const ROTAS_PROTEGIDAS = [
