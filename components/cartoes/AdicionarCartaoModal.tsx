@@ -191,7 +191,13 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
       };
       if (ediMode) walletPayload.id = cartaoExistente.id;
 
-      const saved: any = await api.wallets.salvar(walletPayload);
+      // ⚠️ EDIÇÃO por PUT (id). O POST faz upsert pela chave `grupo_id,nome` e
+      // IGNORA o `id` do payload: renomear por lá criava um cartão novo e
+      // deixava o antigo com o nome velho (o relato "salvo mas continua Banco").
+      // O PUT renomeia e leva o `carteira_nome` das transações junto.
+      const saved: any = ediMode
+        ? await api.wallets.editar(cartaoExistente.id, walletPayload)
+        : await api.wallets.salvar(walletPayload);
       const walletId = saved?.id || saved?.wallet?.id || cartaoExistente?.id;
 
       if (walletId) {

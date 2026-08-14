@@ -200,7 +200,14 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
     console.log('[contas] salvar wallet — payload:', payload);
 
     try {
-      const resp = await api.wallets.salvar(payload);
+      // ⚠️ EDIÇÃO vai por PUT (id), não pelo POST. O POST faz upsert pela chave
+      // `grupo_id,nome`: com um nome novo ele não acha nada pra atualizar e
+      // CRIA outra conta, deixando a antiga com o nome velho. Era o relato
+      // "edito, salvo, mas permanece o nome Banco". O PUT renomeia e arrasta o
+      // `carteira_nome` das transações junto.
+      const resp = editando
+        ? await api.wallets.editar(editando.id, payload)
+        : await api.wallets.salvar(payload);
       console.log('[contas] salvar wallet — resposta:', resp);
       setSucesso(true);
       await carregar();

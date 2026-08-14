@@ -635,6 +635,41 @@ Ordem de prioridade, do mais confiável pro menos:
    que ninguém publicou nem simulou. Medido: 282,27 + 276,51 = **558,78**.
 4. **Cartão manual → `fatura − pago`**, como sempre.
 
+## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
+
+Relato de cliente: *"bancos do Open Finance ficam com o nome 'Banco' e não
+consigo renomeá-los. Edito, salvo, mas permanece 'Banco'."* **Era bug nosso, e
+não tinha nada a ver com o Open Finance.**
+
+- **Causa:** não existia `PUT`. O salvar era só
+  `POST /api/wallets` com `upsert(onConflict: 'grupo_id,nome')` — a chave é o
+  **NOME**. Mandar um nome novo não achava nada pra atualizar e **criava outra
+  carteira**, deixando a antiga intacta. Valia pra QUALQUER carteira (contas e
+  cartões), não só as do OF. O modal de cartão até mandava `id` no payload — o
+  POST ignorava.
+- ⚠️ **RENOMEAR TEM DE CASCATEAR.** Transação não aponta pra wallet por id: ela
+  guarda **`carteira_nome` (texto)**. Renomear só a wallet transforma o
+  histórico em conta-fantasma. Medido: as 4 carteiras chamadas "Banco" tinham
+  **779 transações**. As únicas duas tabelas que ligam por nome são
+  `transacoes.carteira_nome` e `recorrencias.carteira` (`dividas`/`metas` não
+  têm a coluna).
+- **Ordem importa:** renomeia a **wallet primeiro** (é onde o unique pode
+  estourar, e falhar ali não deixa rastro), só depois as 700+ transações. Se a
+  cascata falhar, **desfaz o rename** em vez de deixar histórico órfão.
+- ⚠️ `%` e `_` são curingas no `ilike` — escapados, senão renomear "Banco_1"
+  arrastaria as transações de "Banco11".
+- **409 `nome_duplicado`** quando o nome já existe no grupo: além de quebrar o
+  unique, fundiria duas contas na visão das transações (que casam por nome).
+- ✅ **Seguro pro Open Finance:** o sync casa por `of_conta_id`, nunca por nome,
+  e `upsertWallet` **não grava `nome`** em carteira existente (devolve
+  `ja.nome`) — os lançamentos novos já entram com o nome escolhido. Renomear
+  não desliga nem duplica a conexão.
+- **Raiz do "Banco":** `brand_name` vem vazio em parte das contas. Agora
+  `normalizeConta(acc, instituicao)` usa a instituição do consentimento como 2º
+  recurso; "Banco" só sobra quando nem isso existe. Travado no
+  `eval:celcoin` §6B. Carteiras JÁ criadas seguem com o nome antigo (o sync não
+  reescreve nome) — o usuário renomeia à mão, que agora funciona.
+
 ## Detetive Watson interativo — painel + WhatsApp (ago/2026)
 
 O motor de detecção (`services/duplicadas.js`) já existia e era testado, e a

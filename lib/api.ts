@@ -294,6 +294,16 @@ export const api = {
       req<any[]>(`/api/wallets/${phone}`),
     salvar: (body: any) =>
       req('/api/wallets', { method: 'POST', body: JSON.stringify(body) }),
+    /**
+     * Edita a conta POR ID — é o único caminho que RENOMEIA de verdade.
+     *
+     * ⚠️ `salvar` (POST) faz upsert por NOME: mandar um nome novo lá cria outra
+     * conta e deixa a antiga intacta. O PUT renomeia e leva junto o
+     * `carteira_nome` de todas as transações (senão o histórico fica órfão).
+     * 409 `nome_duplicado` = já existe conta com esse nome no grupo.
+     */
+    editar: (id: string, body: any) =>
+      req<any>(`/api/wallets/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     // Exclui a conta. Se tiver transações e nenhuma ação, o backend responde
     // 409 { motivo:'conta_com_transacoes', count } pro painel perguntar.
     deletar: (id: string, opts?: { transacoes?: 'mover' | 'excluir'; destino?: string }) => {
