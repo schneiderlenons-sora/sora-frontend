@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "eval:ciclo": "npx tsx lib/ciclo-fatura.eval.mjs"
+    "eval:ciclo": "npx tsx lib/ciclo-fatura.eval.mjs",
+    "eval:saldo-projetado": "npx tsx lib/saldo-projetado.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

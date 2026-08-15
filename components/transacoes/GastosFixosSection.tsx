@@ -4,12 +4,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
-  Bell, ChevronDown, Link2, EyeOff,
+  Bell, ChevronDown, Link2, EyeOff, TrendingUp, Wallet as WalletIcon,
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
 import { mutate as mutateGlobal } from 'swr';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
+import { calcularSaldoProjetado } from '@/lib/saldo-projetado';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -42,7 +43,9 @@ const MODOS: { id: ModoLancamento; label: string; ajuda: string }[] = [
   { id: 'nao_lancar', label: 'Não lançar', ajuda: 'Não cria nada. Serve só pra você somar seus custos fixos.' },
 ];
 
-type Wallet = { id: string; nome: string; tipo?: string };
+// `saldo` sempre vem (a rota faz `select('*')`) — o tipo é que não declarava,
+// e sem ele o saldo projetado somaria `undefined` e daria sempre zero.
+type Wallet = { id: string; nome: string; tipo?: string; saldo?: number };
 
 type Sugestao = {
   descricao: string; valor: number; dia: number;
@@ -208,6 +211,22 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     () => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0) + totalDividas,
     [itens, totalDividas]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
+
+  // ── SALDO PROJETADO ────────────────────────────────────────────────────
+  // "Com o que ainda vai entrar e sair, como eu termino o mês?" — pedido de
+  // cliente. A aritmética (e o cuidado de não contar duas vezes o que já
+  // venceu) mora em lib/saldo-projetado.ts, com eval próprio.
+  const projecao = useMemo(
+    () => calcularSaldoProjetado(
+      wallets,
+      itens,
+      dividas.map((d) => ({
+        tipo: 'Gasto' as const,
+        valor: Number(d.valor_parcela) || 0,
+        dia_vencimento: Number(d.dia_vencimento) || 0,
+      })),
+    ),
+    [wallets, itens, dividas]);
 
   // Despesas e receitas separadas (não um `grupos` só): dívida é DESPESA e
   // precisa ficar entre "Gastos variáveis" e "Receitas fixas" — antes ela
@@ -512,12 +531,95 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </ul>
             </div>
           ))}
+
+          {/* ── SALDO PROJETADO ───────────────────────────────────────────
+              A conta que o cliente pediu: saldo de hoje + o que ainda entra
+              − o que ainda sai. Fica no FIM do card de propósito — é a
+              conclusão de tudo que está listado acima, não um número solto.
+
+              ⚠️ Só aparece quando há item a projetar. Sem conta prevista, a
+              projeção seria só o saldo atual repetido, que já está no
+              dashboard — repetir número não informa nada. */}
+          {projecao.itens > 0 && (
+            <div className="border-t border-border/50 px-4 sm:px-6 py-4"
+                 style={{ background: 'hsl(var(--bg-muted) / 0.4)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp size={13} className="text-muted-foreground" />
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Se tudo acontecer como previsto
+                </p>
+              </div>
+
+              {/* A conta, aberta — o usuário precisa ver de onde saiu o número,
+                  senão é só mais um total em que ele tem que confiar. */}
+              <dl className="flex flex-col gap-1.5 mb-3">
+                <LinhaConta
+                  icone={<WalletIcon size={12} />}
+                  rotulo="Saldo hoje"
+                  valor={fmt(projecao.saldoHoje)}
+                  dica="soma das contas (cartão não entra)"
+                />
+                {projecao.aReceber > 0 && (
+                  <LinhaConta
+                    icone={<ArrowUpRight size={12} />}
+                    rotulo="Ainda entra"
+                    valor={`+ ${fmt(projecao.aReceber)}`}
+                    cor="text-green-600 dark:text-green-400"
+                  />
+                )}
+                {projecao.aPagar > 0 && (
+                  <LinhaConta
+                    icone={<ArrowDownRight size={12} />}
+                    rotulo="Ainda sai"
+                    valor={`− ${fmt(projecao.aPagar)}`}
+                    cor="text-red-500"
+                  />
+                )}
+              </dl>
+
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-border/50">
+                <p className="text-sm font-semibold text-foreground">
+                  Sobra no fim do mês
+                </p>
+                {/* Ícone + valor: o sinal nunca é comunicado só pela cor. */}
+                <p className={`text-lg font-bold tabular-nums inline-flex items-center gap-1 ${
+                  projecao.projetado >= 0 ? 'text-foreground' : 'text-red-500'
+                }`}>
+                  {projecao.projetado < 0 && <ArrowDownRight size={15} />}
+                  {projecao.aproximado ? '≈ ' : ''}{fmt(projecao.projetado)}
+                </p>
+              </div>
+
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                {projecao.projetado < 0
+                  ? 'Do jeito que está, o mês fecha no vermelho. Dá tempo de ajustar.'
+                  : 'Conta só o que ainda não venceu — o que já passou está dentro do saldo de hoje.'}
+                {projecao.aproximado && ' Tem conta de valor variável, então o número é uma estimativa.'}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       </div>
       )}{/* fim do conteúdo recolhível */}
     </section>
+  );
+}
+
+// Uma linha da conta do saldo projetado (rótulo à esquerda, valor à direita).
+function LinhaConta({ icone, rotulo, valor, dica, cor }: {
+  icone: React.ReactNode; rotulo: string; valor: string; dica?: string; cor?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-[12px] text-muted-foreground inline-flex items-center gap-1.5 min-w-0">
+        <span className="text-muted-foreground/70 shrink-0">{icone}</span>
+        <span className="truncate">{rotulo}</span>
+        {dica && <span className="hidden sm:inline text-[11px] text-muted-foreground/60 truncate">· {dica}</span>}
+      </dt>
+      <dd className={`text-[13px] font-semibold tabular-nums shrink-0 ${cor || 'text-foreground'}`}>{valor}</dd>
+    </div>
   );
 }
 
