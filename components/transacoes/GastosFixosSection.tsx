@@ -33,6 +33,20 @@ type Recorrencia = {
   lembrete?:        boolean;
 };
 
+/** Fatura em aberto de um cartão, como o card de previstos precisa dela.
+ *  Vem de `GET /api/wallets/faturas` — mesma fonte da aba Cartão de crédito. */
+type FaturaPrevista = {
+  cartao_id:      string;
+  nome:           string;
+  /** Fatura − pago. É o que ainda vai sair. */
+  restante:       number;
+  /** Vencimento em ISO (YYYY-MM-DD) — o dia sai daqui. */
+  venc?:          string;
+  of?:            boolean;
+  /** Migration 123. Ausente = conta (o padrão). */
+  nos_previstos?: boolean;
+};
+
 /** `lancar` cria a transação paga · `prever` cria [Previsto] pra reconciliar
  *  com a cobrança do banco · `nao_lancar` não cria nada (só lembra). */
 type ModoLancamento = ModoLancamentoFixo;
@@ -67,6 +81,9 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
   const [dividas, setDividas]     = useState<any[]>([]);
   const [tirando, setTirando]     = useState<string | null>(null); // dívida saindo da previsão
+  // Faturas de cartão: as que CONTAM e as que o usuário tirou (pra poder voltar).
+  const [faturas, setFaturas]     = useState<FaturaPrevista[]>([]);
+  const [mexendoCartao, setMexendoCartao] = useState<string | null>(null);
 
   // Seção recolhida — a lista é longa e fica no TOPO da aba de transações;
   // quem já configurou os fixos quer passar por ela, não relê toda visita.
@@ -124,6 +141,30 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     } catch { setDividas([]); }
   }, [phone]);
 
+  /** Faturas de cartão que entram na PREVISÃO do mês.
+   *
+   *  Pedido de usuário: "por que os valores de cartão de crédito não aparecem
+   *  como previsto no mês? Isso ajudaria na previsão de saldos." Ele tem razão:
+   *  a fatura costuma ser a maior saída previsível e ficava fora justamente do
+   *  card que existe pra prever o mês.
+   *
+   *  `GET /api/wallets/faturas` já devolve tudo pronto (`restante` = fatura −
+   *  pago, `venc`, `quitada`) — a mesma fonte da aba Cartão de crédito, então
+   *  não há risco de os dois números divergirem.
+   *
+   *  ⚠️ Só entra o que AINDA É PREVISÃO: fatura quitada (`restante <= 0`) sai
+   *  sozinha. E `nos_previstos !== false` (migration 123) respeita quem tirou
+   *  da previsão — `!== false` e não `=== true` porque antes da migration a
+   *  coluna não vem, e o certo é MOSTRAR. */
+  const carregarFaturas = useCallback(async () => {
+    if (!phone) return;
+    try {
+      const r = await api.wallets.faturas(phone, 0);
+      const lista = (r?.faturas || []) as FaturaPrevista[];
+      setFaturas(lista.filter((f) => Number(f.restante) > 0.01));
+    } catch { setFaturas([]); }
+  }, [phone]);
+
   const carregarSugestoes = useCallback(async () => {
     try { const r = await api.recorrencias.sugestoes(); setSugestoes(r.sugestoes || []); }
     catch { setSugestoes([]); }
@@ -138,8 +179,27 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     } catch { setSugCats({}); }
   }, []);
 
-  useEffect(() => { carregar(); carregarSugestoes(); carregarSugCats(); carregarDividas(); },
-    [carregar, carregarSugestoes, carregarSugCats, carregarDividas]);
+  useEffect(() => { carregar(); carregarSugestoes(); carregarSugCats(); carregarDividas(); carregarFaturas(); },
+    [carregar, carregarSugestoes, carregarSugCats, carregarDividas, carregarFaturas]);
+
+  /** Tira/coloca a fatura do cartão na previsão (migration 123).
+   *
+   *  Diferente da dívida, aqui dá pra VOLTAR pela própria tela — o usuário
+   *  pediu isso explicitamente. Otimista nos dois sentidos: muda na hora e
+   *  recarrega do servidor se falhar (sem a migration o PUT recusa com
+   *  mensagem, e a lista volta ao que era — comportamento honesto). */
+  async function alternarCartao(cartaoId: string, entrar: boolean) {
+    setMexendoCartao(cartaoId);
+    setFaturas((prev) => prev.map((f) =>
+      f.cartao_id === cartaoId ? { ...f, nos_previstos: entrar } : f));
+    try {
+      await api.wallets.editar(cartaoId, { nos_previstos: entrar });
+    } catch {
+      await carregarFaturas();   // servidor recusou → mostra a verdade
+    } finally {
+      setMexendoCartao(null);
+    }
+  }
 
   /** Tira a dívida da PREVISÃO (não apaga a dívida). Otimista: some da lista na
    *  hora e volta se o servidor recusar — se a migration 115 não rodou, o PUT
@@ -207,10 +267,30 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const receitasVar   = useMemo(() => itens.filter((i) => i.tipo === 'Recebimento' &&  i.valor_variavel), [itens]);
   // Uma parcela por dívida por mês — é assim que a dívida pesa no mês.
   const totalDividas  = useMemo(() => dividas.reduce((s, d) => s + (Number(d.valor_parcela) || 0), 0), [dividas]);
+
+  // Cartões: só os que o usuário deixou entrar na previsão somam.
+  const cartoesNaPrevisao = useMemo(() => faturas.filter((f) => f.nos_previstos !== false), [faturas]);
+  const cartoesDeFora     = useMemo(() => faturas.filter((f) => f.nos_previstos === false), [faturas]);
+  const totalCartoes      = useMemo(
+    () => cartoesNaPrevisao.reduce((s, f) => s + (Number(f.restante) || 0), 0), [cartoesNaPrevisao]);
+
   const totalGastos   = useMemo(
-    () => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0) + totalDividas,
-    [itens, totalDividas]);
+    () => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0)
+      + totalDividas + totalCartoes,
+    [itens, totalDividas, totalCartoes]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
+
+  /** ⚠️ Fatura JÁ CADASTRADA como conta fixa contaria DUAS VEZES.
+   *  O CLAUDE.md orienta cadastrar contas de valor variável — inclusive cartão
+   *  — como recorrência, então a sobreposição é possível. Medido na base: de
+   *  240 recorrências ativas, só 1 é fatura de cartão. Raro, mas quando
+   *  acontece o card AVISA em vez de somar calado. */
+  const cartaoDuplicado = useMemo(() => {
+    if (!cartoesNaPrevisao.length) return null;
+    const re = /\bfatura\b|cart[ãa]o/i;
+    const rec = itens.find((i) => i.tipo === 'Gasto' && re.test(i.descricao || ''));
+    return rec ? rec.descricao : null;
+  }, [itens, cartoesNaPrevisao]);
 
   // ── SALDO PROJETADO ────────────────────────────────────────────────────
   // "Com o que ainda vai entrar e sair, como eu termino o mês?" — pedido de
@@ -220,13 +300,23 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     () => calcularSaldoProjetado(
       wallets,
       itens,
-      dividas.map((d) => ({
-        tipo: 'Gasto' as const,
-        valor: Number(d.valor_parcela) || 0,
-        dia_vencimento: Number(d.dia_vencimento) || 0,
-      })),
+      [
+        ...dividas.map((d) => ({
+          tipo: 'Gasto' as const,
+          valor: Number(d.valor_parcela) || 0,
+          dia_vencimento: Number(d.dia_vencimento) || 0,
+        })),
+        // Fatura do cartão entra como despesa prevista — era o que faltava pra
+        // a projeção fechar. O DIA vem do vencimento (`venc` é ISO), pra a
+        // regra "já venceu × ainda vem" valer igual pro resto.
+        ...cartoesNaPrevisao.map((f) => ({
+          tipo: 'Gasto' as const,
+          valor: Number(f.restante) || 0,
+          dia_vencimento: parseInt(String(f.venc || '').slice(8, 10), 10) || 0,
+        })),
+      ],
     ),
-    [wallets, itens, dividas]);
+    [wallets, itens, dividas, cartoesNaPrevisao]);
 
   // Despesas e receitas separadas (não um `grupos` só): dívida é DESPESA e
   // precisa ficar entre "Gastos variáveis" e "Receitas fixas" — antes ela
@@ -482,6 +572,77 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               <p className="px-4 sm:px-6 pb-4 pt-2 text-[11px] leading-snug text-muted-foreground">
                 Gerencie as dívidas na aba <a href="/dividas" className="font-medium underline underline-offset-2 hover:text-foreground">Dívidas</a>.
                 Tirar daqui não apaga a dívida — é só pra ela não contar na previsão.
+              </p>
+            </div>
+          )}
+
+          {/* ── CARTÕES DE CRÉDITO ─────────────────────────────────────────
+              Pedido de usuário: "por que os valores de cartão não aparecem
+              como previsto no mês?". A fatura é a maior saída previsível de
+              muita gente e ficava fora do card que existe pra prever o mês.
+
+              É LEITURA, como as dívidas: o valor vem da mesma fonte da aba
+              Cartão de crédito (`restante` = fatura − pago), então os dois
+              números nunca divergem. A única ação é tirar/colocar na previsão. */}
+          {faturas.length > 0 && (
+            <div>
+              <p className={`px-4 sm:px-6 pt-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 ${
+                gruposDespesas.length > 0 || dividas.length > 0 ? 'border-t border-border/50' : ''
+              }`}>
+                Cartões de crédito
+                <span className="inline-flex items-center gap-1 normal-case tracking-normal font-medium text-muted-foreground/70">
+                  <CircleDashed size={11} /> fatura em aberto
+                </span>
+              </p>
+
+              {cartaoDuplicado && (
+                <div className="mx-4 sm:mx-6 mt-1.5 mb-1 p-2.5 rounded-xl border text-[11.5px] leading-snug"
+                     style={{ borderColor: 'color-mix(in srgb, #f59e0b 40%, transparent)',
+                              background: 'color-mix(in srgb, #f59e0b 8%, transparent)' }}>
+                  <strong className="text-foreground">Atenção:</strong> você tem a conta fixa
+                  {' '}<strong className="text-foreground">&ldquo;{cartaoDuplicado}&rdquo;</strong> que parece ser
+                  fatura de cartão. Se for a mesma coisa, o valor está contando duas vezes — tire uma das duas
+                  da previsão.
+                </div>
+              )}
+
+              <ul className="divide-y divide-border/50">
+                {cartoesNaPrevisao.map((f, idx) => (
+                  <LinhaCartao key={f.cartao_id} fatura={f} idx={idx}
+                    mexendo={mexendoCartao === f.cartao_id}
+                    onTirar={() => alternarCartao(f.cartao_id, false)} />
+                ))}
+              </ul>
+
+              {/* Os que ele tirou — com a volta, que foi o pedido explícito. */}
+              {cartoesDeFora.length > 0 && (
+                <div className="px-4 sm:px-6 py-3 space-y-2 border-t border-border/50">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                    Fora da previsão
+                  </p>
+                  {cartoesDeFora.map((f) => (
+                    <div key={f.cartao_id} className="flex items-center justify-between gap-3">
+                      <span className="text-[13px] text-muted-foreground truncate">
+                        {f.nome} · <span className="tabular-nums">{fmt(Number(f.restante) || 0)}</span>
+                      </span>
+                      <button
+                        onClick={() => alternarCartao(f.cartao_id, true)}
+                        disabled={mexendoCartao === f.cartao_id}
+                        className="inline-flex items-center gap-1.5 px-3 rounded-lg text-[12px] font-bold shrink-0 disabled:opacity-50 transition-colors"
+                        style={{ background: `color-mix(in srgb, ${BRAND} 12%, transparent)`, color: BRAND, minHeight: 36 }}
+                      >
+                        {mexendoCartao === f.cartao_id ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                        Voltar pra previsão
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="px-4 sm:px-6 pb-4 pt-2 text-[11px] leading-snug text-muted-foreground">
+                Valor da fatura ainda em aberto, igual à aba{' '}
+                <a href="/cartao-de-credito" className="font-medium underline underline-offset-2 hover:text-foreground">Cartão de crédito</a>.
+                Fatura paga sai daqui sozinha.
               </p>
             </div>
           )}
@@ -1136,6 +1297,47 @@ function AddForm({
 // A diferença é o que ela NÃO tem: sem editar, sem modo de lançamento, sem
 // excluir. A única ação é sair da previsão.
 // ─────────────────────────────────────────────────────────────
+// Linha de uma FATURA de cartão no card de previstos.
+// Espelha a LinhaDivida: leitura + a única ação de tirar da previsão.
+function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
+  fatura: { cartao_id: string; nome: string; restante: number; venc?: string; of?: boolean };
+  idx: number;
+  mexendo: boolean;
+  onTirar: () => void;
+}) {
+  const dia = String(fatura.venc || '').slice(8, 10);
+  return (
+    <li className="group flex items-center gap-3 px-4 sm:px-6 py-3 transition-colors hover:bg-muted/30 animate-fade-in"
+        style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: mexendo ? 0.5 : undefined }}>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+           style={{ background: 'color-mix(in srgb, #8b5cf6 13%, transparent)' }}>
+        <WalletIcon size={16} style={{ color: '#8b5cf6' }} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground truncate">{fatura.nome}</p>
+        <p className="text-[11px] text-muted-foreground">
+          Fatura{dia ? ` · vence dia ${dia}` : ''}
+        </p>
+      </div>
+
+      <span className="text-sm font-bold tabular-nums text-foreground shrink-0">
+        {fmt(Number(fatura.restante) || 0)}
+      </span>
+
+      <button
+        onClick={onTirar}
+        disabled={mexendo}
+        title="Não contar esta fatura nos previstos do mês"
+        aria-label={`Tirar a fatura do ${fatura.nome} da previsão`}
+        className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 shrink-0"
+      >
+        {mexendo ? <Loader2 size={14} className="animate-spin" /> : <EyeOff size={14} />}
+      </button>
+    </li>
+  );
+}
+
 function LinhaDivida({
   divida, idx, saindo, onTirar,
 }: { divida: any; idx: number; saindo: boolean; onTirar: () => void }) {
