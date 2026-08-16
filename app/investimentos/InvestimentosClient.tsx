@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useTheme } from 'next-themes';
 import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoModal';
+import MovimentoModal from '@/components/investimentos/MovimentoModal';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
@@ -53,6 +54,8 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
   const [tab, setTab] = useState<Tab>('resumo');
   const [atualizando,  setAtualizando]  = useState(false);
   const [novoOpen,     setNovoOpen]     = useState(false);
+  // Aporte/resgate — o mesmo modal, dois sentidos.
+  const [movimento,    setMovimento]    = useState<{ tipo: 'aporte' | 'resgate'; invId?: string } | null>(null);
   const [feedback,     setFeedback]     = useState('');
 
   // Dados via SWR — revisita instantânea (só busca com acesso ao recurso).
@@ -230,11 +233,26 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
         {tab === 'simulador' && <TabSimulador />}
 
         {/* TAB: APORTES */}
-        {tab === 'aportes' && <TabAportes aportes={aportes} invs={invs} />}
+        {tab === 'aportes' && (
+          <TabAportes aportes={aportes} invs={invs}
+            onAportar={() => setMovimento({ tipo: 'aporte' })}
+            onResgatar={() => setMovimento({ tipo: 'resgate' })} />
+        )}
       </div>
 
       {novoOpen && phone && (
         <NovoInvestimentoModal phone={phone} onClose={() => setNovoOpen(false)} onSuccess={carregar} />
+      )}
+
+      {movimento && phone && (
+        <MovimentoModal
+          tipo={movimento.tipo}
+          phone={phone}
+          investimentos={invs}
+          investimentoId={movimento.invId}
+          onClose={() => setMovimento(null)}
+          onSuccess={carregar}
+        />
       )}
     </>
   );
@@ -894,15 +912,23 @@ function TabSimulador() {
 // ─────────────────────────────────────────────────────────────
 // TAB APORTES
 // ─────────────────────────────────────────────────────────────
-function TabAportes({ aportes, invs }: { aportes: any[]; invs: any[] }) {
+function TabAportes({ aportes, invs, onAportar, onResgatar }: {
+  aportes: any[]; invs: any[];
+  onAportar: () => void; onResgatar: () => void;
+}) {
   const hoje = new Date();
   const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   const anoAtual = String(hoje.getFullYear());
 
-  const totalMes = aportes.filter(a => a.data?.startsWith(mesAtual)).reduce((s, a) => s + (a.valor || 0), 0);
-  const totalAno = aportes.filter(a => a.data?.startsWith(anoAtual)).reduce((s, a) => s + (a.valor || 0), 0);
-  const meses = new Set(aportes.filter(a => a.data?.startsWith(anoAtual)).map(a => a.data.slice(0, 7)));
+  // ⚠️ Resgate é SAÍDA: não pode entrar na soma de "quanto eu aportei".
+  // Antes da migration 122 nada tinha `tipo`, e aí tudo conta como aporte —
+  // que é exatamente o que era antes, então não há regressão.
+  const soAportes = aportes.filter((a) => a.tipo !== 'resgate');
+  const totalMes = soAportes.filter(a => a.data?.startsWith(mesAtual)).reduce((s, a) => s + (a.valor || 0), 0);
+  const totalAno = soAportes.filter(a => a.data?.startsWith(anoAtual)).reduce((s, a) => s + (a.valor || 0), 0);
+  const meses = new Set(soAportes.filter(a => a.data?.startsWith(anoAtual)).map(a => a.data.slice(0, 7)));
   const aporteMedio = meses.size > 0 ? totalAno / meses.size : 0;
+  const temInvs = invs.length > 0;
 
   return (
     <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
@@ -912,14 +938,37 @@ function TabAportes({ aportes, invs }: { aportes: any[]; invs: any[] }) {
         <Stat label="Média mensal"    value={fmt(aporteMedio)} />
       </div>
 
+      {/* Aporte e resgate — as duas ações que o usuário não achava no painel. */}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={onAportar} disabled={!temInvs}
+          className="inline-flex items-center gap-2 px-4 rounded-xl text-sm font-bold text-white shadow-glow-sm disabled:opacity-40 transition active:scale-[0.99]"
+          style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
+          <ArrowUpRight size={16} /> Novo aporte
+        </button>
+        <button onClick={onResgatar} disabled={!temInvs}
+          className="inline-flex items-center gap-2 px-4 rounded-xl text-sm font-bold border border-border text-foreground hover:bg-muted/60 disabled:opacity-40 transition active:scale-[0.99]"
+          style={{ minHeight: 44 }}>
+          <ArrowDownRight size={16} /> Resgatar
+        </button>
+        {!temInvs && (
+          <p className="text-[12px] text-muted-foreground self-center">
+            Cadastre um investimento primeiro.
+          </p>
+        )}
+      </div>
+
       {aportes.length === 0 ? (
         <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
                style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
             <Coins size={26} style={{ color: BRAND }} />
           </div>
-          <p className="text-base font-bold text-foreground">Nenhum aporte ainda</p>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-md">Registre aportes adicionais a investimentos existentes pelo WhatsApp ou pelo painel.</p>
+          <p className="text-base font-bold text-foreground">Nenhuma movimentação ainda</p>
+          <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
+            Use <strong className="text-foreground">Novo aporte</strong> pra adicionar dinheiro a um
+            investimento que já existe, ou <strong className="text-foreground">Resgatar</strong> pra tirar.
+            Também dá pra fazer pelo WhatsApp: <em>&ldquo;comprei 10 PETR4 a 35&rdquo;</em>.
+          </p>
         </div>
       ) : (
         <div className="card rounded-2xl overflow-hidden">
@@ -935,12 +984,27 @@ function TabAportes({ aportes, invs }: { aportes: any[]; invs: any[] }) {
             <tbody className="divide-y divide-border/60">
               {aportes.map((a, i) => {
                 const inv = invs.find(x => x.id === a.investimento_id);
+                // Ícone + sinal, nunca só cor — resgate precisa ser legível em
+                // preto e branco e por quem não distingue verde de laranja.
+                const ehResgate = a.tipo === 'resgate';
                 return (
                   <tr key={a.id || i} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 text-muted-foreground tabular">{new Date(a.data).toLocaleDateString('pt-BR')}</td>
-                    <td className="px-4 py-3 font-semibold text-foreground">{a.investimentos?.nome || inv?.nome || '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.descricao || '—'}</td>
-                    <td className="px-4 py-3 text-right font-bold tabular text-foreground">{fmt(a.valor || 0)}</td>
+                    <td className="px-4 py-3 font-semibold text-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        {ehResgate
+                          ? <ArrowDownRight size={13} className="text-orange-500 shrink-0" aria-hidden="true" />
+                          : <ArrowUpRight size={13} className="text-green-500 shrink-0" aria-hidden="true" />}
+                        {a.investimentos?.nome || inv?.nome || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {ehResgate && <span className="font-semibold text-orange-500">Resgate · </span>}
+                      {a.descricao || '—'}
+                    </td>
+                    <td className={`px-4 py-3 text-right font-bold tabular ${ehResgate ? 'text-orange-500' : 'text-foreground'}`}>
+                      {ehResgate ? '−' : ''}{fmt(a.valor || 0)}
+                    </td>
                   </tr>
                 );
               })}

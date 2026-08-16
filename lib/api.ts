@@ -478,6 +478,14 @@ export const api = {
         req<any[]>(`/api/investimentos/${phone}/aportes`),
       criar: (body: any) =>
         req('/api/investimentos/aportes', { method: 'POST', body: JSON.stringify(body) }),
+      /**
+       * Resgate — tira dinheiro do investimento.
+       * O abatimento no investimento é PROPORCIONAL (aportado cai junto), pra
+       * a rentabilidade não virar prejuízo depois de um saque parcial.
+       * `wallet_id` opcional: credita o valor de volta numa conta.
+       */
+      resgatar: (body: { investimento_id: string; valor: number; descricao?: string; wallet_id?: string }) =>
+        req<any>('/api/investimentos/resgates', { method: 'POST', body: JSON.stringify(body) }),
     },
 
     metas: {
