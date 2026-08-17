@@ -10,7 +10,7 @@ import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/
 import { mutate as mutateGlobal } from 'swr';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
-import { calcularSaldoProjetado } from '@/lib/saldo-projetado';
+import { calcularSaldoProjetado, diaHojeSP } from '@/lib/saldo-projetado';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -322,14 +322,61 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // precisa ficar entre "Gastos variáveis" e "Receitas fixas" — antes ela
   // vinha depois de tudo, inclusive das receitas, porque o bloco de dívidas
   // era renderizado fora do laço, sempre por último (queixa real do usuário).
+  // ── "AINDA VEM" × "JÁ PASSOU" ──────────────────────────────────────────
+  //
+  // Dúvida real de cliente: "cadastrei todas as recorrências, mas meu mês já
+  // está todo pago — não consigo marcar que já foi pago?". Nada estava errado
+  // (o cron só lança NO dia do vencimento, então cadastrar no meio do mês não
+  // cria nada retroativo) — o card é que listava tudo achatado, e o total
+  // parecia dívida em aberto.
+  //
+  // Ordenar por "ainda vem" primeiro e marcar o que já venceu resolve sem
+  // botão nenhum. ⚠️ NENHUM número muda: o "Total previsto" continua sendo o
+  // custo fixo do mês inteiro. O que entra é o subtotal do que FALTA — que é a
+  // pergunta que o cliente estava tentando responder.
+  //
+  // `diaHojeSP` vem de lib/saldo-projetado (já testado, fuso de SP): com
+  // `getDate()` local a virada do dia sairia errada pra quem não está em SP.
+  const hoje = useMemo(() => diaHojeSP(), []);
+  const jaPassou = useCallback(
+    (dia?: number | null) => !!dia && Number(dia) < hoje, [hoje]);
+
+  /** Ainda a vencer primeiro; dentro de cada bloco, por dia. */
+  const ordenar = useCallback((lista: Recorrencia[]) => [...lista].sort((a, b) => {
+    const pa = jaPassou(a.dia_vencimento) ? 1 : 0;
+    const pb = jaPassou(b.dia_vencimento) ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    return (a.dia_vencimento || 0) - (b.dia_vencimento || 0);
+  }), [jaPassou]);
+
+  /** Quanto ainda falta sair — o subtotal que responde "o que eu ainda devo?". */
+  const faltaPagar = useMemo(() => {
+    const recs = itens
+      .filter((i) => i.tipo === 'Gasto' && !jaPassou(i.dia_vencimento))
+      .reduce((s, i) => s + (i.valor || 0), 0);
+    const divs = dividas
+      .filter((d) => !jaPassou(Number(d.dia_vencimento)))
+      .reduce((s, d) => s + (Number(d.valor_parcela) || 0), 0);
+    const carts = cartoesNaPrevisao
+      .filter((f) => !jaPassou(parseInt(String(f.venc || '').slice(8, 10), 10)))
+      .reduce((s, f) => s + (Number(f.restante) || 0), 0);
+    return recs + divs + carts;
+  }, [itens, dividas, cartoesNaPrevisao, jaPassou]);
+
+  /** Sobrou algo já vencido? Só então vale mostrar os dois números. */
+  const temJaPassou = useMemo(
+    () => itens.some((i) => jaPassou(i.dia_vencimento))
+      || dividas.some((d) => jaPassou(Number(d.dia_vencimento))),
+    [itens, dividas, jaPassou]);
+
   const gruposDespesas = useMemo(() => ([
-    { key: 'gf', label: 'Gastos fixos',       hint: '',                      itens: gastosFixos },
-    { key: 'gv', label: 'Gastos variáveis',   hint: 'você confirma no dia',  itens: gastosVar   },
-  ].filter((g) => g.itens.length > 0)), [gastosFixos, gastosVar]);
+    { key: 'gf', label: 'Gastos fixos',       hint: '',                      itens: ordenar(gastosFixos) },
+    { key: 'gv', label: 'Gastos variáveis',   hint: 'você confirma no dia',  itens: ordenar(gastosVar)   },
+  ].filter((g) => g.itens.length > 0)), [gastosFixos, gastosVar, ordenar]);
   const gruposReceitas = useMemo(() => ([
-    { key: 'rf', label: 'Receitas fixas',     hint: '',                      itens: receitasFixas },
-    { key: 'rv', label: 'Receitas variáveis', hint: 'você confirma no dia',  itens: receitasVar   },
-  ].filter((g) => g.itens.length > 0)), [receitasFixas, receitasVar]);
+    { key: 'rf', label: 'Receitas fixas',     hint: '',                      itens: ordenar(receitasFixas) },
+    { key: 'rv', label: 'Receitas variáveis', hint: 'você confirma no dia',  itens: ordenar(receitasVar)   },
+  ].filter((g) => g.itens.length > 0)), [receitasFixas, receitasVar, ordenar]);
 
   async function cancelar(id: string) {
     if (!phone) return;
@@ -541,7 +588,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     onModo={mudarModo}
                     sugCat={sugCats[item.id]}
                     onAceitarCat={aceitarCategoria}
-                    onIgnorarCat={ignorarCategoria} />
+                    onIgnorarCat={ignorarCategoria}
+                    jaPassou={jaPassou(item.dia_vencimento)} />
                 ))}
               </ul>
             </div>
@@ -657,11 +705,25 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                  style={{ background: 'hsl(var(--bg-muted) / 0.4)' }}>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                 Total previsto
+                <span className="block normal-case tracking-normal font-medium text-muted-foreground/70 mt-0.5">
+                  custo fixo do mês inteiro
+                </span>
               </p>
-              <p className="text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
-                <ArrowDownRight size={13} />
-                {temVariavel ? '≈ ' : ''}{fmt(totalGastos)}
-              </p>
+              <div className="text-right">
+                <p className="text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
+                  <ArrowDownRight size={13} />
+                  {temVariavel ? '≈ ' : ''}{fmt(totalGastos)}
+                </p>
+                {/* ⚠️ O número que o cliente estava procurando. Só aparece
+                    quando ALGO já venceu — senão os dois totais seriam iguais
+                    e a linha viraria ruído. O "Total previsto" acima não muda:
+                    ele continua sendo o custo do mês inteiro. */}
+                {temJaPassou && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                    ainda falta sair: <strong className="text-foreground">{temVariavel ? '≈ ' : ''}{fmt(faltaPagar)}</strong>
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -687,7 +749,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     onModo={mudarModo}
                     sugCat={sugCats[item.id]}
                     onAceitarCat={aceitarCategoria}
-                    onIgnorarCat={ignorarCategoria} />
+                    onIgnorarCat={ignorarCategoria}
+                    jaPassou={jaPassou(item.dia_vencimento)} />
                 ))}
               </ul>
             </div>
@@ -789,8 +852,11 @@ function LinhaConta({ icone, rotulo, valor, dica, cor }: {
 // ─────────────────────────────────────────────────────────────
 function Linha({
   item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo,
-  sugCat, onAceitarCat, onIgnorarCat,
+  sugCat, onAceitarCat, onIgnorarCat, jaPassou,
 }: {
+  /** Vencimento já passou neste mês? Só muda a APRESENTAÇÃO — a conta segue
+   *  igual, e o "Total previsto" continua sendo o custo do mês inteiro. */
+  jaPassou?:   boolean;
   item:        Recorrencia;
   idx:         number;
   confirmando: string | null;
@@ -819,7 +885,10 @@ function Linha({
   return (
     <li
       className="group transition-colors hover:bg-muted/30 animate-fade-in"
-      style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
+      // Já vencido fica levemente recuado (0.65) — o suficiente pra o olho ir
+      // primeiro no que falta, sem sumir: a linha continua clicável e editável.
+      style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`,
+               opacity: saindo ? 0.5 : (jaPassou ? 0.65 : undefined) }}
     >
     {/* ── Layout em 3 faixas ────────────────────────────────────────────────
         Antes era UMA linha com 8 elementos disputando espaço (ícone, título,
@@ -862,6 +931,15 @@ function Linha({
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
               <Calendar size={10} /> dia {item.dia_vencimento}
             </span>
+            {/* ⚠️ Ícone + TEXTO, nunca só a cor/opacidade — quem não distingue
+                tons precisa ler que já passou. Responde direto a "meu mês já
+                está todo pago, não consigo marcar?": não precisa marcar nada. */}
+            {jaPassou && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                    style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
+                <Check size={10} /> já passou
+              </span>
+            )}
             {ehVariavel && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
                     style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
