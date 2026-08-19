@@ -602,50 +602,62 @@ compra de abril não é transação nenhuma: só existe em `parcelamentos`.
 > ciclo em curso, que não deixa rastro na projeção gravada (só grava o futuro).
 > Conferir com `/api/admin/of-debug?email=<cliente>&resumo=1`.
 
-## Parcela SEM marcador: o banco manda TODAS na data da COMPRA (ago/2026)
+## ⚠️ DOCS DA CELCOIN SALVOS EM `sora-backend/docs/celcoin/` (ago/2026)
 
-Relato: fatura do Mercado Pago **R$ 1.596,17** no banco × **R$ 1.376,33** na
-Sora. Existe um **segundo jeito** de o emissor mandar parcelamento e ele estava
-sem tratamento nenhum.
+Os **35 docs** da Polp/Celcoin estão versionados em texto no repo. Consultar
+ALI antes de supor qualquer campo — foi supor que custou um dia inteiro de
+correções erradas na fatura de um cliente.
 
-- **Medido:** 8 dos 29 cartões de OF **nunca** recebem
-  `charge_identificator`/`charge_number`. Nesses o banco não deixa de mandar as
-  parcelas — manda **todas de uma vez**, cada uma como transação própria, todas
-  datadas no dia da COMPRA, com centavo diferente numa delas:
+- `docs/celcoin/baixar.js` reatualiza a cópia (`node docs/celcoin/baixar.js`).
+- ⚠️ **O HTML É LEGÍVEL POR `curl`.** O CLAUDE.md dizia que "não lê, use
+  browser" — está errado, o conteúdo vem no HTML servido.
+- Nomes: `credit-cards__installments.txt`, `bills__transactions.txt`, etc.
+
+### O que os docs corrigiram das nossas suposições
+
+| Suposição que estava no código | O que o doc diz |
+|---|---|
+| `/installments` não traz a data da compra | **Traz `purchasedAt`** (não documentado, mas vem no payload) |
+| `paidInstallments` = quantas parcelas vieram | **É o MAIOR `charge_identificator` observado** — com histórico truncado vem 3 com uma ocorrência só |
+| `occurrences` é só contagem | São os **IDs das transações**, ordenados por `charge_identificator` |
+| `available_amount` pode incluir a aplicação | **Não inclui** cheque especial, investimentos automáticos nem reservas |
+| — | `GET /bills/{bill}/transactions` lista as transações **de uma fatura específica** (ainda não usamos) |
+| — | `simulated_bill_total_amount` = "soma dos débitos **sem fatura** no ciclo atual, após o último `bill_closing_date`, até +31 dias" |
+
+## A fatura divergente NÃO era erro de cálculo (ago/2026)
+
+Relato: fatura do Mercado Pago **R$ 1.596,17** no banco × **R$ 1.319,66** na
+Sora, depois de meses de divergências em vários clientes.
+
+Medido com o payload **VIVO** da API (`/api/admin/of-debug`):
 
 ```
-2026-06-20   56,66 · 56,66 · 56,67   CHINOCA        (3 parcelas)
-2026-07-14  140,00 · 139,99          PayU *ADIDAS   (2 parcelas)
-2026-08-03   79,86 ·  79,87          JIM.COM PROSED (2 parcelas)
+descrição      charge   data crua    → data que o sync calcula
+CHINOCA         1/3     2026-06-20     2026-06-20
+CHINOCA         2/3     2026-06-20     2026-07-20   ✓
+CHINOCA         3/3     2026-06-20     2026-08-20   ✓
+PayU *ADI       2/2     2026-07-14     2026-08-13   ✓
+JIM.COM PROSED  2/2     2026-08-03     2026-09-03   ✓
 ```
 
-- A fatura da compra vinha **inflada** e as seguintes **vazias**. O que faltava
-  era exatamente a 2ª do Adidas + a 2ª do Prosed. `redistribuirSemMarcador`
-  realoca cada irmã pro seu ciclo e a fatura passa a dar **1.596,17, ao centavo**.
-- ⚠️ **A ordem do centavo NÃO é chute** — as duas foram medidas contra a fatura
-  publicada: crescente dá 1.596,20 (3 centavos a mais), decrescente dá 1.596,17.
-  O centavo a mais fica na **PRIMEIRA** parcela. (`parcelasPrevistas` documenta
-  o contrário porque lá a parcela é CALCULADA do nominal; aqui os valores já vêm
-  prontos do banco e só a ordem de atribuição importa.)
-- ⚠️ **Só age com 2+ irmãs E com o plano confirmado em `/installments`.** Uma
-  linha sozinha é compra normal (Nubank/Itaú mandam só a 1ª) e quem cobre o
-  futuro é a projeção — agrupar viraria compra à vista em 9x. Sem o plano do
-  banco, dois cafés de R$ 20 no mesmo dia virariam um parcelamento em 2x.
-- ⚠️ **`jaEhTransacao` lia só `parcela_num`/`parcela_total`** (snake_case), mas o
-  sync passa as transações NORMALIZADAS (`parcelaNum`/`parcelaTotal`). A proteção
-  mais cara daquele módulo **nunca funcionou em produção** — cartão com "N/M"
-  podia ter a parcela contada duas vezes. Agora aceita as duas formas.
-- O histórico já importado tem a **DATA** corrigida
-  (`corrigirParcelasRedistribuidas`) — nunca a categoria, que é o que a regra de
-  "o sync nunca reescreve" protege.
-- **Raio medido:** 5 de 28 cartões OF, 8 grupos, 19 linhas candidatas — e só as
-  confirmadas pelo banco são tocadas.
-- Travado em `npm run eval:parcela-sem-marcador`.
+**Tudo certo.** O emissor manda TODAS as parcelas com a data da COMPRA, e
+`normalizeTxCartao` já as desloca pra compra + (N−1) meses usando
+`charge_identificator`/`charge_number`.
 
-> **Doc que fecha o diagnóstico:** `charge_identificator` = número da parcela
-> atual, `charge_number` = total. "Transações com `charge_number` preenchido
-> entram em `/installments`." Quando o emissor não preenche, `/installments`
-> ainda agrupa (via `occurrences[]`) — e é dele que a redistribuição depende.
+- ⚠️ **O QUE FALHAVA: o histórico nunca era reescrito.** Essas linhas já
+  existiam no banco com a data da compra (importadas antes desse cálculo), e
+  `inserirTransacoes` dedupa por `of_tx_id` — a data certa nunca chegava à
+  tabela. A fatura da compra ficava inflada e as seguintes vazias, **para
+  sempre**. `reconciliarParcelas()` fecha isso.
+- ⚠️ É **exceção estreita** à regra "o sync nunca reescreve linha existente":
+  a regra protege a **categoria** corrigida à mão. Aqui só `data`, `pago` e os
+  campos de parcela são tocados.
+- ⚠️ **LIÇÃO DE MEDIÇÃO:** cheguei a construir uma redistribuição por
+  `occurrences` inteira porque medi "8 dos 29 cartões não recebem marcador" —
+  **medido no NOSSO BANCO**, que reflete linhas antigas, não a API. Na API o
+  marcador vem. Medir o sintoma no lugar da origem gerou código de risco pra
+  um problema inexistente (removido).
+- Travado em `npm run eval:reconciliar-parcelas` (payload real do cartão).
 
 ## Fatura: pagamento do banco e parcelas a vencer (ago/2026)
 
