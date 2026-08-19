@@ -37,6 +37,7 @@ type CicloAberto = {
 type CartaoDebug = {
   normalizado?: { nome?: string; extras?: Record<string, unknown> };
   ciclo_aberto?: CicloAberto | null;
+  redistribuicao?: Record<string, unknown> | null;
   conferir?: Record<string, unknown>;
   conferencia?: {
     limite_total?: number | null; limite_usado?: number | null;
@@ -81,6 +82,9 @@ function resumir(diagnostico: Record<string, unknown>[]) {
         // banco cobra e o sync descarta (com o motivo). Sem isto, divergência
         // de fatura só dava pra investigar por eliminação.
         ciclo_aberto: c.ciclo_aberto ?? null,
+        // Responde "a API devolveu plano de parcelamento e o agrupamento casou?"
+        // — sem isto, fatura errada depois do sync vira adivinhação.
+        redistribuicao: c.redistribuicao ?? null,
         fatura_publicada_pelo_banco: conf.bill_total_da_aberta ?? null,
         soma_do_bill_da_aberta: cand.soma_do_bill_da_aberta ?? null,
         limite_total: conf.limite_total ?? null,
