@@ -564,6 +564,44 @@ todo mês.)
 > descartado). **Não mexer sem o payload cru** — é a mesma linha que impede
 > parcela virar despesa em 2027.
 
+## Fatura EM CURSO também tem parcela a vencer (ago/2026)
+
+Relato: fatura atual **R$ 706,08** no app do Itaú × **R$ 218,70** na Sora.
+
+A projeção da migration 116 excluía a **competência atual inteira**, com a
+justificativa de que *"a compra do ciclo em curso já veio pelo extrato"*. A
+justificativa vale pra **COMPRA (parcela 1)**, não pra **PARCELA** — e o Itaú
+também não manda o marcador "N/M", então a parcela 5/9 de R$ 347,52 de uma
+compra de abril não é transação nenhuma: só existe em `parcelamentos`.
+
+- **A prova está na fatura JÁ FECHADA do mesmo cartão:** R$ 2.406,28 de
+  transações + R$ 347,52 da parcela 4/9 = **R$ 2.753,80**, exatamente o total
+  que o banco publicou. O banco cobra a parcela; nós é que não a víamos.
+- ⚠️ **O `simulated_bill_total_amount` TAMBÉM não a inclui** — veio 218,70, que
+  é exatamente a soma das transações do ciclo. Parcela a vencer ainda não é
+  "débito sem fatura", então fica de fora dele. Por isso o ramo **simulada**
+  do `faturaVista` soma as previstas (`fonte: 'simulada+previstas'`).
+- ⚠️ **A parcela 1 NUNCA é projetada na competência da compra** — é ela que
+  chega pelo extrato. É o que impede a contagem em dobro.
+- ⚠️ **No ciclo em curso a dedup é MAIS RÍGIDA**: vale também transação **sem
+  marcador**, desde que caia dentro do ciclo e bata **no centavo**. Em
+  competência futura esse casamento por valor não existe de propósito — lá
+  qualquer compra de valor parecido cancelaria uma parcela real.
+- **`lerPrevistas` virou fonte única** e o `agendaFeed` passou a usá-la: sem
+  isso a agenda mostraria a fatura **sem** as parcelas, divergindo do painel —
+  exatamente o que o `faturaVista` existe pra impedir.
+- **Raio de impacto medido:** 29 cartões de OF, 12 com projeção, **zero** linhas
+  na competência atual hoje → a mudança é **inerte até o sync regravar**. 15
+  cartões estão no ramo simulada e podem ganhar valor.
+- Travado em `eval:parcelas-previstas` (§5 reescrito — cravava a premissa
+  derrubada — e §5B novo) e `eval:fatura-vista` §2B.
+
+> **Pendente medido:** sobram **R$ 139,86** nesse cartão (218,70 + 347,52 =
+> 566,22 × 706,08 do banco). Não dá pra fechar sem o payload cru de
+> `parcelamentos` — a suspeita é um parcelamento cuja ÚLTIMA parcela cai no
+> ciclo em curso, que não deixa rastro na projeção gravada (só grava o futuro).
+> Conferir com `/api/admin/of-debug?email=<cliente>&resumo=1`.
+
 ## Fatura: pagamento do banco e parcelas a vencer (ago/2026)
 
 Duas metades do mesmo relato ("o card do cartão continua completamente bugado").
