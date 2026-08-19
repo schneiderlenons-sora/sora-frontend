@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Landmark, Plus, Trash2, Loader2, CreditCard, Check, X, Wallet,
-  Zap, PencilLine, ShieldCheck, Sparkles,
+  Zap, PencilLine, ShieldCheck, Sparkles, Info,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
-import { podeVerOpenFinance } from '@/lib/open-finance-access';
+import { podeVerOpenFinance, PRECO_CONEXAO_OF } from '@/lib/open-finance-access';
 import { salvarIntencaoOF, querOpenFinance } from '@/lib/of-intent';
 import AdicionarCartaoModal, { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import StepNav from '../components/StepNav';
@@ -23,17 +23,29 @@ const TIPOS_BANCO: TipoBanco[] = ['Corrente', 'Poupança', 'Dinheiro'];
 export default function Step5Contas() {
   const { phone, user, perfil } = useAuth();
 
-  // O Open Finance NÃO é de todo mundo: é da assinatura recorrente (Básico 1
-  // conexão, Premium 3). Vitalício e sem-plano ficam de fora — oferecer a eles
-  // seria mandá-los pra uma aba que pede pagamento no meio do onboarding.
+  // Quem tem Open Finance na FRANQUIA do plano (assinatura recorrente: Básico
+  // 1 conexão, Premium 3) — e o vitalício que já contratou uma avulsa.
   const temOF = podeVerOpenFinance(user?.email, phone, perfil);
+
+  // ⚠️ O VITALÍCIO TAMBÉM PODE CONECTAR — pagando. Ele não tem franquia (não
+  // paga mensalidade nenhuma, e cada conexão custa mensalidade nossa no
+  // agregador), mas a conexão avulsa existe pra qualquer plano. Escondendo a
+  // opção dele, o onboarding inteiro dava a entender que a Sora não conecta
+  // banco — e ele cadastrava tudo à mão sem saber que havia escolha.
+  //
+  // A regra pra OFERECER é diferente da regra pra USAR: aqui basta poder
+  // contratar. Quem decide o acesso continua sendo `temOpenFinance` (lib/plans),
+  // espelhado no backend.
+  const ehVitalicio = !!perfil?.vitalicio;
+  const ofPago = !temOF && ehVitalicio;        // pode conectar, mas é pago
+  const podeEscolherOF = temOF || ehVitalicio;
 
   // `null` = ainda não escolheu NESTA visita → vale o que ficou guardado (o
   // usuário pode ter voltado um passo, e reescolher do zero seria irritante).
   // Derivado em vez de `useEffect` + setState: com efeito, o primeiro render
   // saía "manual" e piscava pra "Open Finance" quando o auth chegava.
   const [escolha, setEscolha] = useState<boolean | null>(null);
-  const viaOF = escolha ?? (temOF && querOpenFinance(user?.id));
+  const viaOF = escolha ?? (podeEscolherOF && querOpenFinance(user?.id));
 
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
@@ -91,7 +103,7 @@ export default function Step5Contas() {
           Suas contas e cartões
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          {temOF
+          {podeEscolherOF
             ? 'Você pode conectar seu banco e deixar a Sora trazer tudo sozinha, ou cadastrar à mão. Dá pra mudar de ideia depois.'
             : 'Cadastre suas contas bancárias e cartões de crédito. É com elas que a Sora organiza suas finanças.'}
         </p>
@@ -100,14 +112,18 @@ export default function Step5Contas() {
       {/* ── COMO VOCÊ QUER COMEÇAR ─────────────────────────────────
           Só aparece pra quem realmente TEM Open Finance. Pra quem não tem,
           a tela segue exatamente como era — zero mudança. */}
-      {temOF && !carregando && (
+      {podeEscolherOF && !carregando && (
         <div className="grid sm:grid-cols-2 gap-2.5 mb-6">
           <OpcaoInicio
             ativa={viaOF} onClick={() => escolher(true)}
             icone={Zap} cor={OF_COR}
             titulo="Conectar meu banco"
-            desc="A Sora traz contas, cartões e lançamentos sozinha, pelo Open Finance."
-            selo="Mais rápido"
+            desc={ofPago
+              ? 'A Sora traz contas, cartões e lançamentos sozinha. A conexão é cobrada à parte do seu acesso vitalício.'
+              : 'A Sora traz contas, cartões e lançamentos sozinha, pelo Open Finance.'}
+            // ⚠️ O selo diz o PREÇO quando é pago. Vender "Mais rápido" e só
+            // revelar a cobrança na aba seguinte seria enganar no onboarding.
+            selo={ofPago ? PRECO_CONEXAO_OF.mensal : 'Mais rápido'}
           />
           <OpcaoInicio
             ativa={!viaOF} onClick={() => escolher(false)}
@@ -125,6 +141,7 @@ export default function Step5Contas() {
       ) : viaOF ? (
         <PainelOpenFinance
           contas={contas.length} cartoes={cartoes.length}
+          pago={ofPago}
           onTrocar={() => escolher(false)}
         />
       ) : (
@@ -318,8 +335,8 @@ function OpcaoInicio({ ativa, onClick, icone: Icone, cor, titulo, desc, selo }: 
 // usuário precisa aqui é entender que não há nada a fazer nesta tela — e por
 // quê. Por isso o bloco EXPLICA em vez de bloquear, e a volta atrás fica
 // sempre visível (a escolha nunca é uma armadilha).
-function PainelOpenFinance({ contas, cartoes, onTrocar }: {
-  contas: number; cartoes: number; onTrocar: () => void;
+function PainelOpenFinance({ contas, cartoes, pago, onTrocar }: {
+  contas: number; cartoes: number; pago?: boolean; onTrocar: () => void;
 }) {
   const jaTem = contas + cartoes > 0;
   return (
@@ -350,6 +367,25 @@ function PainelOpenFinance({ contas, cartoes, onTrocar }: {
             <PassoOF n={2}>Eu te levo direto pra aba <strong className="text-foreground">Open Finance</strong>.</PassoOF>
             <PassoOF n={3}>Você escolhe o banco e autoriza — leva menos de um minuto.</PassoOF>
           </ol>
+
+          {/* ⚠️ A COBRANÇA APARECE AQUI, ANTES do usuário escolher — não na aba
+              seguinte. O vitalício comprou "sem mensalidade"; descobrir uma
+              cobrança depois de já ter optado seria uma surpresa desagradável,
+              e é o motivo de a opção ter ficado escondida dele até agora. Dizer
+              o preço na cara resolve melhor do que esconder. */}
+          {pago && (
+            <p className="mt-4 flex items-start gap-2 text-[11.5px] leading-relaxed rounded-2xl p-3"
+               style={{ border: `1px solid color-mix(in srgb, ${OF_COR} 25%, transparent) !important`,
+                        background: `color-mix(in srgb, ${OF_COR} 8%, transparent)` }}>
+              <Info size={14} className="mt-0.5 flex-shrink-0" style={{ color: OF_COR }} />
+              <span>
+                Conectar o banco custa <strong className="text-foreground">{PRECO_CONEXAO_OF.mensal}</strong> por
+                banco (ou {PRECO_CONEXAO_OF.anual}) — é o que a Sora paga ao agregador todo mês pra manter
+                a conexão viva. <strong className="text-foreground">Seu acesso vitalício continua sem mensalidade</strong>,
+                e você escolhe se quer contratar quando chegar lá. Cancela quando quiser.
+              </span>
+            </p>
+          )}
 
           <p className="mt-4 flex items-start gap-2 text-[11.5px] leading-relaxed text-muted-foreground">
             <ShieldCheck size={14} className="mt-0.5 flex-shrink-0" style={{ color: OF_COR }} />
