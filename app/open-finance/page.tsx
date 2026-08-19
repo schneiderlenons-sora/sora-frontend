@@ -32,7 +32,9 @@ type Conexao = {
   ultima_sync: string | null;
   created_at: string;
 };
-type Inst = { id: number | string; name?: string; institution_name?: string; logo_url?: string; image_url?: string; primary_color?: string };
+type Inst = { id: number | string; name?: string; institution_name?: string; logo_url?: string; image_url?: string; primary_color?: string;
+  // Quais documentos o banco exige. A Polp devolve ["cpf"], ["cpf","cnpj"]…
+  credentials?: string[] };
 
 const nomeInst = (i: Inst) => i.name || i.institution_name || `Banco ${i.id}`;
 const logoInst = (i: Inst) => i.logo_url || i.image_url || null;
@@ -86,6 +88,12 @@ export default function OpenFinancePage() {
   const [busca, setBusca] = useState('');
   const [instSel, setInstSel] = useState<Inst | null>(null);
   const [cpf, setCpf] = useState('');
+  // ⚠️ CONTA PJ. O backend sempre aceitou `cnpj`, mas a tela só tinha campo de
+  // CPF — então não havia como conectar conta empresarial, e o cliente ficava
+  // sem entender o que estava errado. Dos 209 bancos da lista a maioria aceita
+  // os dois (Nubank e PagBank, por exemplo, vêm ["cpf","cnpj"]).
+  const [cnpj, setCnpj] = useState('');
+  const [ehPj, setEhPj] = useState(false);
   const [conectando, setConectando] = useState(false);
   const [debugOut, setDebugOut] = useState('');
   // URL de autorização do banco — mostrada como LINK (window.open é bloqueado no
@@ -201,7 +209,11 @@ export default function OpenFinancePage() {
     try {
       const r = await api.openFinance.conectar({
         institution_id: instSel.id,
-        cpf: cpf.replace(/\D/g, '') || undefined,
+        // ⚠️ Manda só o documento que ESTE banco aceita e que o usuário
+        // escolheu. Enviar CNPJ pra banco que só tem CPF (ou os dois juntos)
+        // faz a Polp recusar o consentimento.
+        cpf:  (!ehPj && cpf.replace(/\D/g, '')) || undefined,
+        cnpj: (ehPj && cnpj.replace(/\D/g, '')) || undefined,
         instituicao_nome: nome,
       });
       // Abre o modal JÁ: se a URL veio no create, mostra o botão; senão o
@@ -610,7 +622,8 @@ export default function OpenFinancePage() {
                   ) : instsFiltradas.length === 0 ? (
                     <p className="py-10 text-center text-sm text-muted-foreground">Nenhum banco encontrado.</p>
                   ) : instsFiltradas.map(i => (
-                    <button key={i.id} onClick={() => setInstSel(i)}
+                    <button key={i.id} /* trocar de banco zera a escolha: o próximo pode não aceitar CNPJ */
+                      onClick={() => { setInstSel(i); setEhPj(false); }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 active:bg-muted/70 text-left transition-colors"
                       style={{ minHeight: 44 }}>
                       <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -635,13 +648,53 @@ export default function OpenFinancePage() {
                   </div>
                   <p className="font-semibold text-foreground">{nomeInst(instSel)}</p>
                 </div>
-                <div>
-                  <label htmlFor="of-cpf" className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                    CPF <span className="font-medium normal-case tracking-normal opacity-70">(se o banco pedir)</span>
-                  </label>
-                  <input id="of-cpf" value={cpf} onChange={e => setCpf(e.target.value)} inputMode="numeric" placeholder="000.000.000-00"
-                    className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm tabular-nums focus:outline-none focus:border-primary" />
-                </div>
+                {/* ⚠️ O BANCO DIZ QUAL DOCUMENTO PEDE. `credentials` vem da Polp
+                    por instituição: ["cpf"], ["cpf","cnpj"]… Mostrar sempre só
+                    CPF deixava conta PJ inconectável — o cliente escolhia o
+                    banco, digitava o CPF e recebia erro sem entender por quê
+                    (relato real). Quando o banco aceita os dois, ele escolhe. */}
+                {(() => {
+                  const creds = instSel?.credentials || [];
+                  const aceitaCnpj = creds.includes('cnpj');
+                  const aceitaCpf = creds.length === 0 || creds.includes('cpf');
+                  return (
+                    <>
+                      {aceitaCnpj && (
+                        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Tipo de conta">
+                          {([[false, 'Pessoa física'], [true, 'Empresa (PJ)']] as const).map(([v, label]) => (
+                            <button key={label} type="button" role="switch" aria-checked={ehPj === v}
+                              onClick={() => setEhPj(v)}
+                              className={`px-3.5 h-9 rounded-lg text-xs font-bold transition-all ${
+                                ehPj === v ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {(!aceitaCnpj || !ehPj) && aceitaCpf && (
+                        <div>
+                          <label htmlFor="of-cpf" className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                            CPF <span className="font-medium normal-case tracking-normal opacity-70">(se o banco pedir)</span>
+                          </label>
+                          <input id="of-cpf" value={cpf} onChange={e => setCpf(e.target.value)} inputMode="numeric" placeholder="000.000.000-00"
+                            className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm tabular-nums focus:outline-none focus:border-primary" />
+                        </div>
+                      )}
+                      {aceitaCnpj && ehPj && (
+                        <div>
+                          <label htmlFor="of-cnpj" className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                            CNPJ da empresa
+                          </label>
+                          <input id="of-cnpj" value={cnpj} onChange={e => setCnpj(e.target.value)} inputMode="numeric" placeholder="00.000.000/0000-00"
+                            className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm tabular-nums focus:outline-none focus:border-primary" />
+                          <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                            Autorize com o acesso de quem responde pela empresa no banco.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Ao continuar, abrimos o ambiente seguro do banco pra você autorizar o acesso. A Sora
                   nunca vê sua senha.
