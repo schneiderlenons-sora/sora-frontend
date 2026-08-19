@@ -26,8 +26,17 @@ type Candidatas = {
   soma_do_ciclo?: { valor: number; periodo: string; vence: string } | null;
 };
 
+type CicloAberto = {
+  periodo?: string;
+  linhas?: unknown[];
+  soma_importadas?: number;
+  descartadas?: number;
+  descartadas_somam?: number;
+};
+
 type CartaoDebug = {
   normalizado?: { nome?: string; extras?: Record<string, unknown> };
+  ciclo_aberto?: CicloAberto | null;
   conferir?: Record<string, unknown>;
   conferencia?: {
     limite_total?: number | null; limite_usado?: number | null;
@@ -68,6 +77,10 @@ function resumir(diagnostico: Record<string, unknown>[]) {
         fatura_no_app_do_banco: '<<< preencher olhando o app',
         // ⭐ é ESTE que o painel mostra quando o banco não publicou a fatura
         fatura_que_o_painel_mostra: cand.soma_do_ciclo ?? null,
+        // Linha a linha do ciclo aberto: é onde aparece a transação que o
+        // banco cobra e o sync descarta (com o motivo). Sem isto, divergência
+        // de fatura só dava pra investigar por eliminação.
+        ciclo_aberto: c.ciclo_aberto ?? null,
         fatura_publicada_pelo_banco: conf.bill_total_da_aberta ?? null,
         soma_do_bill_da_aberta: cand.soma_do_bill_da_aberta ?? null,
         limite_total: conf.limite_total ?? null,

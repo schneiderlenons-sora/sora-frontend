@@ -145,7 +145,7 @@ export default function MovimentoModal({
                         className="w-full px-3.5 rounded-xl bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary"
                         style={{ minHeight: 48 }}>
                   {investimentos.map((i) => (
-                    <option key={i.id} value={i.id}>{i.nome} — {fmt(i.valor_atual)}</option>
+                    <option key={i.id} value={i.id}>{i.nome} — {fmt(i.valor_atual ?? 0)}</option>
                   ))}
                 </select>
                 {!ehAporte && inv && (
