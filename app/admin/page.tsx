@@ -8,7 +8,7 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -26,6 +26,8 @@ type User = {
   // Pagamento recusado pelo gateway: quando (047) e por quê (102).
   recuperacao_pendente_em?: string | null; recuperacao_motivo?: string | null;
   vitalicio_intent?: string | null;
+  // Conexão de banco avulsa (Open Finance) — quantas ele paga e o intervalo.
+  of_conexoes_pagas?: number | null; of_assinatura_intervalo?: string | null;
   created_at: string;
 };
 type Overview = {
@@ -35,6 +37,11 @@ type Overview = {
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
   cancelados?: number; naoConcluido?: number; recuperados?: number;
   anuais?: number; recorrentesMensais?: number;
+  // Open Finance avulso. CONTRATADAS (receita) x CONECTADAS (uso): os dois
+  // divergirem é sinal de cliente pagando por algo que não está usando.
+  ofUsuarios?: number; ofConexoesPagas?: number; ofMensais?: number; ofAnuais?: number;
+  ofMrr?: number; ofReceitaAnual?: number;
+  ofConectados?: number; ofGrupos?: number; ofComProblema?: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
@@ -81,7 +88,7 @@ const MOTIVO_RECUSA: Record<string, string> = {
 };
 const textoMotivo = (m?: string | null) => (m ? MOTIVO_RECUSA[m] || m : null);
 
-function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em' | 'recuperacao_pendente_em' | 'recuperacao_motivo'> }) {
+function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em' | 'recuperacao_pendente_em' | 'recuperacao_motivo' | 'vitalicio_intent' | 'of_conexoes_pagas' | 'of_assinatura_intervalo'> }) {
   const m = metaStatus(u);
   const Icon = m.icon;
   const recuperado = u.plano !== 'inativo' && !!(u.recuperacao_signup_em || u.recuperacao_enviada_em);
@@ -90,6 +97,8 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
   // MRR. É o que o admin quer identificar de relance.
   const recorrente = pago && !u.vitalicio && !u.assinatura_cancelada && !u.mrr_excluir;
   const anual = u.plano_intervalo === 'anual';
+  const ofPagas = Number(u.of_conexoes_pagas) || 0;
+  const ofAnual = u.of_assinatura_intervalo === 'anual';
   return (
     <span className="inline-flex items-center gap-1 flex-wrap justify-end">
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
@@ -108,6 +117,19 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
               style={{ background: 'color-mix(in srgb, #3b82f6 16%, transparent)', color: '#3b82f6' }}
               title="Assinatura ANUAL (pré-paga, paga 1×/ano) — não entra no MRR mensal">
           <CalendarClock size={10} /> Anual
+        </span>
+      )}
+      {/* Conexão de banco avulsa. O número importa: é POR BANCO, então "OF 3"
+          é o triplo da receita de "OF 1". O anual muda a cor porque é pré-pago
+          e fica fora do MRR mensal — mesma convenção do badge de plano. */}
+      {ofPagas > 0 && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: `color-mix(in srgb, ${ofAnual ? '#3b82f6' : '#06b6d4'} 16%, transparent)`,
+                       color: ofAnual ? '#3b82f6' : '#06b6d4' }}
+              title={ofAnual
+                ? `${ofPagas} conexão(ões) de banco · plano ANUAL (R$ 60/ano cada, pré-pago — fora do MRR mensal)`
+                : `${ofPagas} conexão(ões) de banco · R$ 6/mês cada`}>
+          <Landmark size={10} /> OF {ofPagas}{ofAnual ? '/ano' : ''}
         </span>
       )}
       {pago && u.assinatura_cancelada && (
@@ -171,7 +193,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou' | 'open_finance'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
@@ -277,6 +299,20 @@ export default function AdminPage() {
                   : ''} destaque />
           <Stat label="Receita vitalícia" value={ov ? money(ov.receitaVitalicio ?? 0) : '—'}
                 hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''} destaque />
+          {/* Receita das conexões de banco. Fica junto dos outros dois cards de
+              dinheiro (MRR e vitalício) de propósito — é a terceira fonte, e
+              separá-la faria parecer detalhe. Clicar filtra a lista. */}
+          <Stat label="Open Finance" value={ov ? money(ov.ofMrr ?? 0) : '—'}
+                hint={ov
+                  ? `${ov.ofConexoesPagas ?? 0} conexões · ${ov.ofUsuarios ?? 0} clientes${ov.ofAnuais ? ` · ${ov.ofAnuais} anuais (${money(ov.ofReceitaAnual ?? 0)}/ano) fora` : ''}`
+                  : ''}
+                onClick={() => { setTab('users'); setFilter('open_finance'); }} destaque />
+          {/* Uso real, separado da receita: quem PAGA nem sempre é quem está
+              CONECTADO. Conexão fora de 'updated' é banco que parou de
+              atualizar — o cliente sente como "a Sora travou". */}
+          <Stat label="Bancos conectados" value={ov?.ofConectados ?? '—'}
+                alerta={!!ov && (ov.ofComProblema ?? 0) > 0}
+                hint={ov ? `${ov.ofGrupos ?? 0} contas${ov.ofComProblema ? ` · ${ov.ofComProblema} precisam reconectar` : ''}` : ''} />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
           <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.kit ?? 0} Kit · ${ov.black} BK` : ''} />
           <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
@@ -325,7 +361,7 @@ export default function AdminPage() {
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['open_finance', 'Open Finance'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
@@ -451,6 +487,17 @@ export default function AdminPage() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <Info label="Status"><StatusBadge u={sel} /></Info>
                 <Info label="Válido até">{sel.vitalicio ? 'Vitalício ∞' : dataCurta(sel.plano_valido_ate)}</Info>
+                {/* Conexão de banco avulsa: quanto ele paga por MÊS aqui. O
+                    anual mostra o valor anual porque é o que foi cobrado —
+                    dividir por 12 daria um número que não existe em extrato. */}
+                <Info label="Open Finance">
+                  {(Number(sel.of_conexoes_pagas) || 0) > 0
+                    ? `${sel.of_conexoes_pagas} conexão${Number(sel.of_conexoes_pagas) > 1 ? 'ões' : ''} · ${
+                        sel.of_assinatura_intervalo === 'anual'
+                          ? `R$ ${(Number(sel.of_conexoes_pagas) * 60).toFixed(0)}/ano`
+                          : `R$ ${(Number(sel.of_conexoes_pagas) * 6).toFixed(0)}/mês`}`
+                    : 'sem conexão paga'}
+                </Info>
                 <Info label="WhatsApp">{sel.phone || '— sem número'}</Info>
                 <Info label="Onboarding">{sel.onboarding_completed ? 'Concluído' : 'Pendente'}</Info>
                 <Info label="Welcome">{sel.welcomed_at ? 'Enviado' : 'Não enviado'}</Info>

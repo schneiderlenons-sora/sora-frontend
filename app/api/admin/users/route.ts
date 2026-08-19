@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
   const COM_MRR = `${BASE},mrr_excluir,assinatura_cancelada`;
   // Motivo da recusa é a migration 102 — pedido só quando ela já rodou.
   const COM_MOTIVO = `${COM_MRR},recuperacao_motivo`;
+  // Conexão de banco avulsa (Open Finance): quantas ele paga e em que intervalo.
+  // Última camada da degradação — se estas não existirem, o resto continua.
+  const COM_OF = `${COM_MOTIVO},of_conexoes_pagas,of_assinatura_intervalo`;
 
   // `temMrr` = as colunas da 074 (mrr_excluir/assinatura_cancelada) existem.
   // O filtro "recorrentes" depende delas; sem a migration, cai numa versão
@@ -47,6 +50,10 @@ export async function GET(req: NextRequest) {
     }
     // Vitalícios: pagamento único (não recorrem).
     else if (filter === 'vitalicios')    query = query.eq('vitalicio', true);
+    // Open Finance: contratou conexão de banco avulsa (R$ 6/mês por banco).
+    // Não é o mesmo que "usa Open Finance" — o Básico/Premium tem franquia e
+    // não aparece aqui. Este filtro é a RECEITA extra.
+    else if (filter === 'open_finance') query = query.gt('of_conexoes_pagas', 0);
     // Anuais: assinatura anual ATIVA (pré-paga, fora do MRR mensal).
     else if (filter === 'anuais')        query = query.eq('plano_intervalo', 'anual').neq('plano', 'inativo');
     // Recorrentes: pagante ATIVO que não é vitalício e não cancelou — quem
@@ -59,8 +66,9 @@ export async function GET(req: NextRequest) {
     return query;
   };
 
-  // Degrada por migration: 102 (motivo) → 074 (MRR) → base.
-  let { data, error } = await build(COM_MOTIVO, true);
+  // Degrada por migration: OF → 102 (motivo) → 074 (MRR) → base.
+  let { data, error } = await build(COM_OF, true);
+  if (error) ({ data, error } = await build(COM_MOTIVO, true));
   if (error) ({ data, error } = await build(COM_MRR, true));
   if (error) ({ data, error } = await build(BASE, false));
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });

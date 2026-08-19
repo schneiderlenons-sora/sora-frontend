@@ -7,6 +7,9 @@ export const dynamic = 'force-dynamic';
 
 // Preços mensais (estimativa de MRR). Fonte real: lib/stripe.
 const PRECO = { basico: 19.9, premium: 29.9, black: 79.9 } as const;
+// Conexão de banco avulsa (Open Finance). Cobrada POR BANCO conectado, à parte
+// do plano — o vitalício não tem franquia e é quem mais contrata.
+const PRECO_OF = { mensal: 6, anual: 60 } as const;
 
 async function contar(build: (q: any) => any): Promise<number> {
   const { count } = await build(
@@ -142,6 +145,57 @@ export async function GET() {
     mrr = soma;
   } catch { /* migration 074 pode não ter rodado → mantém a estimativa antiga */ }
 
+  // ── OPEN FINANCE ────────────────────────────────────────────────────────
+  //
+  // Duas coisas DIFERENTES, e misturá-las esconde problema:
+  //   · CONTRATADAS (`of_conexoes_pagas`) → é a receita.
+  //   · CONECTADAS  (tabela `of_conexoes`) → é o uso real.
+  // Alguém pode pagar 3 e ter conectado 1 (ou ter uma conexão expirada). Quando
+  // os dois números divergem, é sinal de cliente pagando por algo que não está
+  // usando — vale ligar pra ele antes de virar pedido de reembolso.
+  //
+  // Mesma convenção do MRR do plano: ANUAL é PRÉ-PAGO, então fica FORA do MRR
+  // mensal e é contado à parte.
+  let ofUsuarios = 0, ofConexoesPagas = 0, ofMensais = 0, ofAnuais = 0;
+  let ofMrr = 0, ofReceitaAnual = 0;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('of_conexoes_pagas, of_assinatura_intervalo')
+      .gt('of_conexoes_pagas', 0);
+    if (error) throw error;
+    for (const u of data || []) {
+      const qtd = Number(u.of_conexoes_pagas) || 0;
+      if (qtd <= 0) continue;
+      ofUsuarios++;
+      ofConexoesPagas += qtd;
+      if (u.of_assinatura_intervalo === 'anual') {
+        ofAnuais += qtd;
+        ofReceitaAnual += qtd * PRECO_OF.anual;
+      } else {
+        // intervalo null = mensal (não derruba assinatura legada sem o campo).
+        ofMensais += qtd;
+        ofMrr += qtd * PRECO_OF.mensal;
+      }
+    }
+  } catch { /* colunas of_* podem não existir ainda */ }
+
+  // Uso real: bancos conectados hoje. `status` vem do agregador — só 'updated'
+  // é conexão saudável; expirada/recusada precisa o cliente reconectar, e é aí
+  // que ele acha que "a Sora parou de atualizar".
+  let ofConectados = 0, ofGrupos = 0, ofComProblema = 0;
+  try {
+    const { data, error } = await supabaseAdmin.from('of_conexoes').select('grupo_id, status');
+    if (error) throw error;
+    const grupos = new Set<string>();
+    for (const c of data || []) {
+      ofConectados++;
+      if (c.grupo_id) grupos.add(String(c.grupo_id));
+      if (c.status !== 'updated') ofComProblema++;
+    }
+    ofGrupos = grupos.size;
+  } catch { /* tabela of_conexoes pode não existir */ }
+
   return NextResponse.json({
     mrrExcluidos, cancelados, naoConcluido, recuperados,
     total, inativo, basico, premium, black, kit,
@@ -152,5 +206,10 @@ export async function GET() {
     semPagamento, recEnviadas, recEnviadas2, recRecuperados,
     anuais, recorrentesMensais,
     mrr: Math.round(mrr * 100) / 100,
+    // Open Finance avulso: receita (contratadas) + uso (conectadas).
+    ofUsuarios, ofConexoesPagas, ofMensais, ofAnuais,
+    ofMrr: Math.round(ofMrr * 100) / 100,
+    ofReceitaAnual: Math.round(ofReceitaAnual * 100) / 100,
+    ofConectados, ofGrupos, ofComProblema,
   });
 }
