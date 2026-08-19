@@ -602,6 +602,51 @@ compra de abril não é transação nenhuma: só existe em `parcelamentos`.
 > ciclo em curso, que não deixa rastro na projeção gravada (só grava o futuro).
 > Conferir com `/api/admin/of-debug?email=<cliente>&resumo=1`.
 
+## Parcela SEM marcador: o banco manda TODAS na data da COMPRA (ago/2026)
+
+Relato: fatura do Mercado Pago **R$ 1.596,17** no banco × **R$ 1.376,33** na
+Sora. Existe um **segundo jeito** de o emissor mandar parcelamento e ele estava
+sem tratamento nenhum.
+
+- **Medido:** 8 dos 29 cartões de OF **nunca** recebem
+  `charge_identificator`/`charge_number`. Nesses o banco não deixa de mandar as
+  parcelas — manda **todas de uma vez**, cada uma como transação própria, todas
+  datadas no dia da COMPRA, com centavo diferente numa delas:
+
+```
+2026-06-20   56,66 · 56,66 · 56,67   CHINOCA        (3 parcelas)
+2026-07-14  140,00 · 139,99          PayU *ADIDAS   (2 parcelas)
+2026-08-03   79,86 ·  79,87          JIM.COM PROSED (2 parcelas)
+```
+
+- A fatura da compra vinha **inflada** e as seguintes **vazias**. O que faltava
+  era exatamente a 2ª do Adidas + a 2ª do Prosed. `redistribuirSemMarcador`
+  realoca cada irmã pro seu ciclo e a fatura passa a dar **1.596,17, ao centavo**.
+- ⚠️ **A ordem do centavo NÃO é chute** — as duas foram medidas contra a fatura
+  publicada: crescente dá 1.596,20 (3 centavos a mais), decrescente dá 1.596,17.
+  O centavo a mais fica na **PRIMEIRA** parcela. (`parcelasPrevistas` documenta
+  o contrário porque lá a parcela é CALCULADA do nominal; aqui os valores já vêm
+  prontos do banco e só a ordem de atribuição importa.)
+- ⚠️ **Só age com 2+ irmãs E com o plano confirmado em `/installments`.** Uma
+  linha sozinha é compra normal (Nubank/Itaú mandam só a 1ª) e quem cobre o
+  futuro é a projeção — agrupar viraria compra à vista em 9x. Sem o plano do
+  banco, dois cafés de R$ 20 no mesmo dia virariam um parcelamento em 2x.
+- ⚠️ **`jaEhTransacao` lia só `parcela_num`/`parcela_total`** (snake_case), mas o
+  sync passa as transações NORMALIZADAS (`parcelaNum`/`parcelaTotal`). A proteção
+  mais cara daquele módulo **nunca funcionou em produção** — cartão com "N/M"
+  podia ter a parcela contada duas vezes. Agora aceita as duas formas.
+- O histórico já importado tem a **DATA** corrigida
+  (`corrigirParcelasRedistribuidas`) — nunca a categoria, que é o que a regra de
+  "o sync nunca reescreve" protege.
+- **Raio medido:** 5 de 28 cartões OF, 8 grupos, 19 linhas candidatas — e só as
+  confirmadas pelo banco são tocadas.
+- Travado em `npm run eval:parcela-sem-marcador`.
+
+> **Doc que fecha o diagnóstico:** `charge_identificator` = número da parcela
+> atual, `charge_number` = total. "Transações com `charge_number` preenchido
+> entram em `/installments`." Quando o emissor não preenche, `/installments`
+> ainda agrupa (via `occurrences[]`) — e é dele que a redistribuição depende.
+
 ## Fatura: pagamento do banco e parcelas a vencer (ago/2026)
 
 Duas metades do mesmo relato ("o card do cartão continua completamente bugado").
