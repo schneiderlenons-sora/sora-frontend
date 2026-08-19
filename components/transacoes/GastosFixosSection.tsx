@@ -1186,6 +1186,11 @@ function AddForm({
 
   const [carteira, setCarteira] = useState(editItem?.carteira || opcoesContas[0]?.nome || 'Dinheiro');
 
+  // O QUE FAZER NO DIA — já na criação. Antes só dava pra escolher DEPOIS de
+  // salvar (o seletor da linha), então todo previsto nascia como "Lançar" e
+  // quem queria só somar custo fixo tinha de criar e corrigir em seguida.
+  const [modo, setModo] = useState<ModoLancamento>(editItem?.modo_lancamento || 'lancar');
+
   useEffect(() => { descRef.current?.focus(); }, []);
 
   // Se a conta selecionada deixou de ser válida (ex.: trocou pra receita e
@@ -1217,6 +1222,7 @@ function AddForm({
           valor:          temValor ? valorNum : 0,
           dia_vencimento: diaLimpo,
           carteira:       carteira || 'Dinheiro',
+          modo_lancamento: modo,
         });
         // O backend propaga a categoria nova pro lançamento deste mês; sem
         // invalidar o cache, a lista de transações continuaria com a antiga.
@@ -1230,6 +1236,7 @@ function AddForm({
           dia_vencimento: diaLimpo,
           carteira:       carteira || 'Dinheiro',
           valor_variavel: valorVariavel,
+          modo_lancamento: modo,
           categoria:      categoria || undefined,
         });
       }
@@ -1345,13 +1352,34 @@ function AddForm({
         </select>
       </div>
 
+      {/* O QUE FAZER NO DIA — mesma escolha que a linha já oferece depois de
+          salva, agora disponível desde a criação. Sem isto todo previsto
+          nascia como "Lançar" e quem só queria somar custo fixo precisava
+          criar e corrigir em seguida.
+          Mesmo controle segmentado dos outros eixos (role=group + switch),
+          pra não introduzir um terceiro padrão de seleção no mesmo formulário. */}
+      <div className="mt-2.5">
+        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="O que fazer no dia do vencimento">
+          {MODOS.map((m) => eixo(modo === m.id, m.label, () => setModo(m.id), m.ajuda))}
+        </div>
+      </div>
+
       {/* Helper: explica o comportamento conforme fixo/variável (progressive disclosure) */}
       <p className="text-xs text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
-        {valorVariavel
-          ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
-              Todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> eu te lembro e você confirma o valor real{temValor ? <> (estimei <span className="tabular-nums">{fmt(valorNum)}</span>)</> : ''} — nada é debitado antes disso.</>
-          : <><Repeat size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
-              Lanço automático todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> com esse valor.</>}
+        {/* ⚠️ O texto TEM de acompanhar o modo. Ele dizia "lanço automático"
+            sempre — e depois que o modo virou escolha da criação, isso
+            passaria a mentir pra quem marcasse "Só prever" ou "Não lançar". */}
+        {modo === 'nao_lancar'
+          ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
+              Não lanço nada — entra só na soma dos seus custos fixos do mês.</>
+          : valorVariavel
+            ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+                Todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> eu te lembro e você confirma o valor real{temValor ? <> (estimei <span className="tabular-nums">{fmt(valorNum)}</span>)</> : ''} — nada é debitado antes disso.</>
+            : modo === 'prever'
+              ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+                  Todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> crio como previsto e deixo a cobrança do seu banco confirmar — assim o gasto não conta duas vezes.</>
+              : <><Repeat size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
+                  Lanço automático todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> com esse valor.</>}
       </p>
 
       {erro && <p className="text-xs text-red-500 mt-2" role="alert">{erro}</p>}
