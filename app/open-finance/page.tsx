@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { podeVerOpenFinance, PRECO_CONEXAO_OF } from '@/lib/open-finance-access';
+import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
@@ -720,8 +720,8 @@ function ContratarConexao({ atual = 0, primeiraCompra = false }: { atual?: numbe
     <div className="rounded-2xl border border-border p-4 space-y-3">
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Como pagar">
         {([
-          { v: 'mensal' as const, titulo: PRECO_CONEXAO_OF.mensal, sub: 'por banco conectado' },
-          { v: 'anual'  as const, titulo: PRECO_CONEXAO_OF.anual,  sub: 'dois meses de graça' },
+          { v: 'mensal' as const, titulo: 'R$ 6/mês', sub: 'por banco conectado' },
+          { v: 'anual'  as const, titulo: 'R$ 60/ano', sub: 'dois meses de graça' },
         ]).map((o) => {
           const on = intervalo === o.v;
           return (

@@ -12,23 +12,6 @@
 // =====================================================================
 import { temOpenFinance, type Plano } from './plans';
 
-/**
- * Preço da conexão avulsa — FONTE ÚNICA.
- *
- * Ficava literal só em `ContratarConexao` (app/open-finance/page.tsx), com o
- * comentário de que não havia constante "pra não ter dois lugares pra
- * desalinhar". Passou a ter dois lugares quando o onboarding começou a oferecer
- * a conexão ao vitalício — e aí a constante é justamente o que impede o
- * desalinho. Quem exibe preço lê daqui.
- *
- * O anual existe porque a taxa do cartão come ~12% de uma cobrança de R$ 6; no
- * anual cai pra ~1%.
- */
-export const PRECO_CONEXAO_OF = {
-  mensal: 'R$ 6/mês',
-  anual:  'R$ 60/ano',
-} as const;
-
 const EMAILS = [
   'schneider.lenon.s@gmail.com',
   'schineiderlenon@gmail.com',
