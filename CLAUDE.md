@@ -1257,6 +1257,11 @@ sql/118_of_faturas.sql          — tabela `of_faturas`: as faturas PUBLICADAS p
 sql/119_pagamento_recebido_cartao.sql — reclassifica "Pagamento recebido" em cartão OF (Nubank) de Reembolso → Fatura. Sem isso o pagamento ABATE a fatura e ela sai menor que a do banco (medido: 5 linhas, R$ 4.694,21).
 sql/120_caixinhas_celcoin.sql   — colunas de remuneração em `of_caixinhas` (indexador, taxa, periodicidade) + `of_conta_id`. Sem ela as Caixinhas do Nubank aparecem sem o "rende X% do CDI" (o upsert é tolerante); a tabela em si já vem da 069.
 sql/121_investimentos_tipo_check.sql — CHECK de `investimentos.tipo` aceitando os 13 tipos do painel. **OBRIGATÓRIA**: sem ela, CDB, Renda Fixa, Fundos, Reserva e Negócio NÃO salvam (nem à mão nem pelo Open Finance).
+sql/122_aportes_resgate.sql     — coluna `tipo` (aporte|resgate) em `aportes`. Sem ela o RESGATE de investimento é recusado com instrução (aporte segue funcionando).
+sql/123_cartao_nos_previstos.sql — `wallets.nos_previstos`: tirar/voltar a fatura do card "Previstos do mês". Sem ela a fatura aparece, só o toggle recusa.
+sql/124_debito_automatico_fatura.sql — reclassifica "Débito automático FATURA …" (Itaú) de gasto → pagamento de fatura. Sem ela o histórico segue contando a fatura EM DOBRO (medido: R$ 30.384,92 num cliente).
+sql/125_divida_consorcio.sql    — tipo `consorcio` no CHECK + carta de crédito, contemplação, lance e grupo/cota. **OBRIGATÓRIA** pro tipo Consórcio salvar.
+sql/126_saldo_aplicado.sql      — `wallets.saldo_aplicado`: quanto do saldo está na aplicação automática do banco. O saldo já soma sem ela; a coluna é pra tela explicar "dos quais R$ X aplicados".
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
@@ -1264,3 +1269,54 @@ sql/121_investimentos_tipo_check.sql — CHECK de `investimentos.tipo` aceitando
 > **Drive Inteligente:** NÃO tem migration própria — reusa 041 (tabelas) + 042 (bucket). Se o Drive não guardar arquivo, quase sempre é o **bucket 042 que não rodou**.
 
 > **Atenção (lição aprendida):** colunas novas NÃO podem entrar no `select()` de queries do caminho crítico (ex.: `getUser` em `routes/grow.js`) ANTES da migration rodar — o Supabase erra e a feature inteira quebra ("Usuário não encontrado"). Buscar colunas novas em query separada/tolerante (try/catch ou maybeSingle) e retornar default se faltar. **Sempre mandar o link da migration nova pro usuário** (ele roda à mão no Supabase).
+
+## Saldo da conta soma a APLICAÇÃO AUTOMÁTICA (ago/2026)
+
+Relato: painel **R$ 1,00** × app do Itaú **R$ 2.541,12**. O diagnóstico
+`?foco=saldo` confirmou a causa em vez de deixar no palpite:
+
+```
+available_amount ............... R$     1,00   ← era só isto que entrava
+automatically_invested_amount .. R$ 2.541,17   ← ignorado
+blocked_amount ................. R$     0,00
+```
+
+- A doc da Celcoin diz que `available_amount` **"não inclui cheque especial,
+  investimentos automáticos nem reservas de saldo"**. Itaú (e afins) jogam quase
+  todo o saldo numa aplicação que volta sozinha quando o cliente gasta — é
+  dinheiro **disponível**, e é o que o app do banco soma.
+- ⚠️ **NÃO duplica com a aba Investimentos:** conferido na conta real, as 11
+  posições importadas (CDBs, fundos, Tesouro) **não** incluem a aplicação
+  automática. Ela é produto **DA CONTA** e vem em `balance`, não pela API de
+  investimentos.
+- **`blocked_amount` continua FORA** — bloqueado não é gastável.
+- Migration **126** (`wallets.saldo_aplicado`) guarda a parcela aplicada pra a
+  tela explicar "dos quais R$ X aplicados", em vez de o saldo mudar sozinho.
+- ⚠️ **O eval tinha a suposição errada cravada** (`saldo = available_amount; NÃO
+  somar automatically_invested`). Era a premissa que os dados derrubaram —
+  `eval:celcoin` §6C agora trava o comportamento certo, com os números reais.
+
+## Diagnóstico de saldo — `?foco=saldo`
+
+`/api/admin/of-debug?email=<cliente>&foco=saldo` mostra, por conta,
+`available_amount`, `automatically_invested_amount`, `blocked_amount`,
+`has_reserved_balance` e as somas prontas. Use quando o saldo divergir do app do
+banco. O modo **completo** faz ~40 chamadas e estoura o timeout no par
+Vercel + Render free — daí os focos `cartoes` e `saldo`.
+
+## Tipo CONSÓRCIO em Dívidas (ago/2026)
+
+Pedido: *"onde posso colocar e controlar as cartas de consórcio?"*. Antes só
+dava pra usar "Financiamento", que cobre PAGAR mas ignora o que é próprio do
+consórcio: a **carta de crédito** (dinheiro a RECEBER — é ativo, não só dívida)
+e a **contemplação** (divide a cota em antes e depois). Migration **125** com
+`consorcio_credito`, `consorcio_contemplado(_em)`, `consorcio_lance`,
+`consorcio_grupo`, `consorcio_cota`.
+
+- ⚠️ **Mesma família do `investimentos_tipo_check`**: o `dividas_tipo_check`
+  recusava `'consorcio'`. A 125 recria o CHECK com **todos** os tipos já em uso
+  na base — recriar sem algum quebraria dívida existente.
+- A **taxa de administração** reusa `taxa_juros` (só muda o rótulo na tela):
+  duas colunas pro mesmo número dariam divergência.
+- Os campos só vão no payload quando o tipo É consórcio, então trocar de tipo
+  não deixa carta órfã.
