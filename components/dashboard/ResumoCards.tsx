@@ -66,7 +66,19 @@ export default function ResumoCards({
       .then((r) => {
         if (!vivo) return;
         const acc: Record<string, number> = {};
-        for (const f of r.faturas || []) acc[f.cartao_id] = f.restante;
+        for (const f of r.faturas || []) {
+          // ⚠️ FATURA FECHADA E QUITADA: o número vivo é o da SEGUINTE. Sem
+          // isto o card mostrava R$ 0,00 num cartão com compras novas — e a
+          // aba de cartões, que já pulava sozinha (CartaoClient `pulaUma`),
+          // mostrava outro valor pro MESMO cartão no MESMO dia. Caso real:
+          // EQI BLACK em 19/08, R$ 0,00 aqui e R$ 2.083,92 lá.
+          // `proxima` vem pronta do endpoint em lote, então as duas telas
+          // passam a ler o mesmo campo em vez de cada uma decidir a sua.
+          const f2 = f as typeof f & { fechada?: boolean; quitada?: boolean; proxima?: { restante: number } | null };
+          acc[f.cartao_id] = (f2.fechada && f2.quitada && f2.proxima)
+            ? f2.proxima.restante
+            : f.restante;
+        }
         setRestanteApi(acc);
       })
       .catch(() => { /* mantém o cálculo local */ });
