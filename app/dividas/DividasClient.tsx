@@ -13,7 +13,7 @@ import {
   Plus, Sparkles, Receipt, Pencil, Trash2, ArrowDownRight, CheckCircle2,
   AlertCircle, Loader2, TrendingDown, Calendar, Zap, Eye, EyeOff,
   Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase,
-  GraduationCap, FileText, MoreVertical, Bell, BellOff,
+  GraduationCap, FileText, MoreVertical, Bell, BellOff, Ticket, Trophy,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -21,6 +21,7 @@ const BRAND = 'hsl(var(--primary))';
 const TIPO_INFO: Record<string, { label: string; cor: string; icon: any }> = {
   emprestimo:       { label: 'Empréstimo',      cor: '#3b82f6', icon: Briefcase    },
   financiamento:    { label: 'Financiamento',   cor: '#8b5cf6', icon: Home         },
+  consorcio:        { label: 'Consórcio',       cor: '#0ea5e9', icon: Ticket       },
   crediario:        { label: 'Crediário',       cor: '#f59e0b', icon: ShoppingCart },
   cartao_rotativo:  { label: 'Cartão rotativo', cor: '#ef4444', icon: CreditCard   },
   cheque_especial:  { label: 'Cheque especial', cor: '#f97316', icon: AlertTriangle},
@@ -550,6 +551,36 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
               {ocultar ? '•••' : fmt(divida.valor_parcela || 0)}
             </strong>
           </p>
+        </div>
+      )}
+
+      {/* ── CONSÓRCIO: a carta e a contemplação ──────────────────────────
+          O que o usuário quer saber de relance numa cota: quanto vai
+          receber e se já foi contemplado. Nenhum outro tipo tem isso. */}
+      {divida.tipo === 'consorcio' && (divida.consorcio_credito || divida.consorcio_contemplado || divida.consorcio_grupo) && (
+        <div className="rounded-xl px-3 py-2.5 mb-3 flex items-center gap-3 flex-wrap"
+             style={{ background: 'color-mix(in srgb, #0ea5e9 8%, transparent)' }}>
+          {divida.consorcio_credito > 0 && (
+            <span className="inline-flex flex-col">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Carta de crédito</span>
+              <span className="text-sm font-bold tabular" style={{ color: '#0ea5e9' }}>{fmt(divida.consorcio_credito)}</span>
+            </span>
+          )}
+          {/* Ícone + TEXTO, nunca só cor — a contemplação é a informação mais
+              importante da cota e precisa ser legível sem depender de tom. */}
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold ml-auto"
+                style={{ color: divida.consorcio_contemplado ? '#16a34a' : 'hsl(var(--muted-foreground))' }}>
+            <Trophy size={12} />
+            {divida.consorcio_contemplado ? 'Contemplada' : 'Aguardando contemplação'}
+          </span>
+          {(divida.consorcio_grupo || divida.consorcio_cota) && (
+            <span className="w-full text-[10px] text-muted-foreground tabular">
+              {divida.consorcio_grupo && `Grupo ${divida.consorcio_grupo}`}
+              {divida.consorcio_grupo && divida.consorcio_cota && ' · '}
+              {divida.consorcio_cota && `Cota ${divida.consorcio_cota}`}
+              {divida.consorcio_lance > 0 && ` · Lance ${fmt(divida.consorcio_lance)}`}
+            </span>
+          )}
         </div>
       )}
 

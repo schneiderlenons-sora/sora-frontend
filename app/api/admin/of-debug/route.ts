@@ -115,6 +115,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         erro: 'Informe ?email=<e-mail do cliente> (ou ?consent=<id>).',
         exemplo: '/api/admin/of-debug?email=cliente@exemplo.com',
+        focos: {
+          '(nenhum)': 'completo — tudo, mas ~40 chamadas: pode estourar timeout no Render free',
+          cartoes: 'só o que decide a FATURA (fechamento, vencimento, limite)',
+          saldo: 'só as CONTAS + a decomposição do saldo — use quando o saldo diverge do app do banco',
+        },
+        exemplo_saldo: '/api/admin/of-debug?email=cliente@exemplo.com&foco=saldo',
       }, { status: 400 });
     }
     const { data: u } = await supabaseAdmin

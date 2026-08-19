@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users } from 'lucide-react';
+import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users, Ticket, Trophy } from 'lucide-react';
 import { api } from '@/lib/api';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
@@ -31,6 +31,7 @@ async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> 
 const TIPOS = [
   { v: 'emprestimo',       l: 'Empréstimo',         icon: Briefcase,    cor: '#3b82f6', desc: 'Pessoal, consignado livre, etc.' },
   { v: 'financiamento',    l: 'Financiamento',      icon: Home,         cor: '#8b5cf6', desc: 'Imóvel, veículo, equipamento' },
+  { v: 'consorcio',        l: 'Consórcio',          icon: Ticket,       cor: '#0ea5e9', desc: 'Carta de crédito, com ou sem contemplação' },
   { v: 'crediario',        l: 'Crediário',          icon: ShoppingCart, cor: '#f59e0b', desc: 'Loja de departamento, eletro' },
   { v: 'parcelamento',     l: 'Parcelamento',       icon: Users,        cor: '#10b981', desc: 'Parcelei com alguém, sem cartão' },
   { v: 'cartao_rotativo',  l: 'Cartão rotativo',    icon: CreditCard,   cor: '#ef4444', desc: 'Saldo não pago da fatura' },
@@ -70,6 +71,16 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   const [observacao,      setObservacao]      = useState(edicao?.observacao || '');
   const [imagem,          setImagem]          = useState<string | null>(edicao?.imagem_url || null);
 
+  // ── Consórcio (migration 125) ────────────────────────────────────────────
+  // O que separa consórcio de financiamento: existe uma CARTA (dinheiro a
+  // receber) e uma CONTEMPLAÇÃO que divide a cota em antes e depois.
+  const [ccCredito,     setCcCredito]     = useState<string>(edicao?.consorcio_credito?.toString() || '');
+  const [ccLance,       setCcLance]       = useState<string>(edicao?.consorcio_lance?.toString() || '');
+  const [ccGrupo,       setCcGrupo]       = useState<string>(edicao?.consorcio_grupo || '');
+  const [ccCota,        setCcCota]        = useState<string>(edicao?.consorcio_cota || '');
+  const [ccContemplado, setCcContemplado] = useState<boolean>(!!edicao?.consorcio_contemplado);
+  const [ccContempEm,   setCcContempEm]   = useState<string>(edicao?.consorcio_contemplado_em || '');
+
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
@@ -97,6 +108,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   }, [valorTotalRaw, parcelasTotal]);
 
   const tipoSel = useMemo(() => TIPOS.find(t => t.v === tipo) || TIPOS[0], [tipo]);
+  const ehConsorcio = tipo === 'consorcio';
 
   function fmtBR(raw: string) {
     if (!raw) return '0,00';
@@ -123,6 +135,16 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         data_inicio:    dataInicio || undefined,
         observacao:     observacao.trim() || undefined,
         imagem_url:     imagem || null,
+        // Só manda os campos do consórcio quando o tipo é consórcio — assim
+        // trocar de tipo não deixa carta órfã numa dívida que não é cota.
+        ...(ehConsorcio ? {
+          consorcio_credito:       ccCredito ? parseFloat(ccCredito) : null,
+          consorcio_lance:         ccLance ? parseFloat(ccLance) : null,
+          consorcio_grupo:         ccGrupo.trim() || null,
+          consorcio_cota:          ccCota.trim() || null,
+          consorcio_contemplado:   ccContemplado,
+          consorcio_contemplado_em: ccContemplado ? (ccContempEm || null) : null,
+        } : {}),
       };
       if (ediMode) {
         await api.dividas.editar(edicao.id, { ...payload, phone });
@@ -355,11 +377,97 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
             </div>
           )}
 
+          {/* ── CONSÓRCIO ────────────────────────────────────────────────
+              Só aparece no tipo consórcio. São os campos que financiamento
+              não tem: a CARTA (dinheiro a receber) e a CONTEMPLAÇÃO. */}
+          {ehConsorcio && (
+            <div className="rounded-2xl p-4 space-y-3"
+                 style={{ border: '1px solid color-mix(in srgb, #0ea5e9 32%, transparent) !important',
+                          background: 'color-mix(in srgb, #0ea5e9 6%, transparent)' }}>
+              <div className="flex items-center gap-2">
+                <Ticket size={15} style={{ color: '#0ea5e9' }} />
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#0ea5e9' }}>
+                  Dados da carta
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="cc-credito" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                  Valor da carta de crédito
+                </label>
+                <input id="cc-credito" type="number" step="any" inputMode="decimal"
+                  value={ccCredito} onChange={e => setCcCredito(e.target.value)}
+                  placeholder="Quanto você vai receber" className="input tabular text-right" />
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">
+                  É o crédito que você recebe ao ser contemplado — diferente do total que você paga.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="cc-grupo" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                    Grupo
+                  </label>
+                  <input id="cc-grupo" value={ccGrupo} onChange={e => setCcGrupo(e.target.value)}
+                    placeholder="Ex: 1234" className="input" />
+                </div>
+                <div>
+                  <label htmlFor="cc-cota" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                    Cota
+                  </label>
+                  <input id="cc-cota" value={ccCota} onChange={e => setCcCota(e.target.value)}
+                    placeholder="Ex: 56" className="input" />
+                </div>
+              </div>
+
+              {/* Contemplação — o divisor de águas da cota. Botão inteiro
+                  clicável (não checkbox solto): alvo de toque de 44pt. */}
+              <button type="button" onClick={() => setCcContemplado(v => !v)}
+                aria-pressed={ccContemplado}
+                className="w-full flex items-center gap-3 rounded-xl px-3 text-left transition-colors"
+                style={{ minHeight: 52,
+                         border: `1px solid ${ccContemplado ? '#16a34a' : 'hsl(var(--border))'} !important`,
+                         background: ccContemplado ? 'color-mix(in srgb, #16a34a 10%, transparent)' : 'transparent' }}>
+                <Trophy size={17} style={{ color: ccContemplado ? '#16a34a' : 'hsl(var(--muted-foreground))' }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">
+                    {ccContemplado ? 'Contemplada' : 'Ainda não contemplada'}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground leading-snug">
+                    {ccContemplado ? 'Você já recebeu o crédito' : 'Toque se já foi contemplado'}
+                  </span>
+                </span>
+                {ccContemplado && <Check size={16} style={{ color: '#16a34a' }} />}
+              </button>
+
+              {ccContemplado && (
+                <div className="grid grid-cols-2 gap-3 animate-fade-in">
+                  <div>
+                    <label htmlFor="cc-quando" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                      Contemplada em
+                    </label>
+                    <input id="cc-quando" type="date" value={ccContempEm}
+                      onChange={e => setCcContempEm(e.target.value)} className="input" />
+                  </div>
+                  <div>
+                    <label htmlFor="cc-lance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                      Lance dado
+                    </label>
+                    <input id="cc-lance" type="number" step="any" inputMode="decimal"
+                      value={ccLance} onChange={e => setCcLance(e.target.value)}
+                      placeholder="0,00" className="input tabular text-right" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Juros + indexador + dia vencimento + data início */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                Taxa de juros (% a.m.)
+                {/* No consórcio não há juros: o custo é a taxa de administração. */}
+                {ehConsorcio ? 'Taxa de administração (%)' : 'Taxa de juros (% a.m.)'}
               </label>
               <input
                 type="number"
