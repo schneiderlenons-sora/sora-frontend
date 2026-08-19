@@ -673,6 +673,35 @@ Ordem de prioridade, do mais confiável pro menos:
    que ninguém publicou nem simulou. Medido: 282,27 + 276,51 = **558,78**.
 4. **Cartão manual → `fatura − pago`**, como sempre.
 
+## Pagamento da fatura: CADA BANCO TEM A SUA FRASE (ago/2026)
+
+Continuação direta da migration **119** (Nubank, "Pagamento recebido"). O
+relato era *"o saldo/fatura não bate"*; o diagnóstico mostrou as duas faturas
+de agosto do cliente **integralmente em aberto** (R$ 2.753,80 + R$ 13.123,09)
+mesmo tendo sido pagas por débito automático.
+
+- **Causa:** nenhuma dessas frases contém a palavra "fatura", então
+  `ehPagamentoFaturaDescricao` não casa — de propósito, pra "pagamento pix"
+  numa CONTA não virar transferência. A linha caía em `creditoAjuste` →
+  categoria **Reembolso** → e passava a **ABATER** a fatura. E, por não ter
+  categoria Fatura, nunca chegava em `pagamentos_fatura` (é o filtro de
+  `registrarPagamentosDoOF`), então `pago` ficava 0 pra sempre.
+- **Medido na base** (1.037 créditos em carteira de cartão, 36 como Reembolso):
+  **12 são pagamento de fatura**, e a prova é que o valor **BATE com o total de
+  uma fatura publicada pelo banco** —
+  `PAGAMENTO DEBITO AUTOMATICO` (Itaú) 4x R$ 30.384,92 · `Obrigado pelo
+  pagamento` (Visa Infinite) 3x R$ 2.188,71 · `Pagamento com saldo` (Itaú
+  Click) 3x R$ 917,77 · `PAGAMENTO ON LINE` (Gold) 1x R$ 2.024,90.
+- ⚠️ **A armadilha que define o formato da regra:** `PAGAMENTO CASHBACK TAG`
+  (R$ 5,00 todo mês num cartão da base) tem a palavra "pagamento" e **NÃO é
+  quitação** — é cashback, consumo que voltou, e tem de continuar **abatendo**.
+  Procurar "pagamento" solto subiria a fatura desse cliente R$ 5,00 por mês do
+  nada. Por isso a regra é de **FRASES INTEIRAS**, com o cashback barrado.
+- **Escopo:** só crédito, só com `of_tx_id`, só em carteira tipo Crédito. Em
+  DÉBITO a mesma frase segue sendo gasto. Migration **127** corrige o histórico
+  (o sync nunca reescreve linha existente).
+- Travado em `eval:pagamento-fatura` §4C.
+
 ## Investimento não salvava — CHECK de `tipo` + erro engolido (ago/2026)
 
 Relato de cliente premium: *"tentei incluir valores nos investimentos, porém
@@ -1300,6 +1329,7 @@ sql/123_cartao_nos_previstos.sql — `wallets.nos_previstos`: tirar/voltar a fat
 sql/124_debito_automatico_fatura.sql — reclassifica "Débito automático FATURA …" (Itaú) de gasto → pagamento de fatura. Sem ela o histórico segue contando a fatura EM DOBRO (medido: R$ 30.384,92 num cliente).
 sql/125_divida_consorcio.sql    — tipo `consorcio` no CHECK + carta de crédito, contemplação, lance e grupo/cota. **OBRIGATÓRIA** pro tipo Consórcio salvar.
 sql/126_saldo_aplicado.sql      — `wallets.saldo_aplicado`: quanto do saldo está na aplicação automática do banco. O saldo já soma sem ela; a coluna é pra tela explicar "dos quais R$ X aplicados".
+sql/127_pagamento_fatura_frases.sql — pagamento de fatura descrito com a frase de CADA banco ("PAGAMENTO DEBITO AUTOMATICO", "Obrigado pelo pagamento", "Pagamento com saldo", "PAGAMENTO ON LINE"). Sem ela a fatura JÁ PAGA segue de pé no painel e o crédito ainda ABATE (medido: 11 linhas, R$ 35.516,30).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
