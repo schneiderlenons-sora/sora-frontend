@@ -36,6 +36,16 @@ export type ItemPrevisto = {
   tipo:            'Gasto' | 'Recebimento';
   valor:           number;
   dia_vencimento:  number;
+  /**
+   * Vencimento COMPLETO ('YYYY-MM-DD'), quando existe. Vence o dia solto.
+   *
+   * ⚠️ Recorrência é mensal e o dia basta: "dia 20" é sempre 20 DESTE mês. A
+   * fatura do cartão não — o ciclo cruza meses, então ela pode vencer no mês
+   * que vem. Reduzida ao dia, uma fatura que vence 13/09 virava "13" e, com
+   * hoje = 19, era lida como JÁ VENCIDA: sumia do "ainda sai" e da projeção,
+   * mesmo estando a 25 dias de ser paga (caso real relatado).
+   */
+  venc?:           string;
   valor_variavel?: boolean;
 };
 
@@ -89,7 +99,13 @@ export function calcularSaldoProjetado(
 
   // Sem `dia_vencimento` não dá pra saber se já passou — conta como "ainda vem",
   // que é o lado conservador pra despesa (assume que ainda vai sair).
-  const aindaVem = (i: ItemPrevisto) => !i.dia_vencimento || i.dia_vencimento >= hoje;
+  //
+  // Com `venc` (data inteira) a comparação é por DATA: é o que separa "vence
+  // dia 13 deste mês, já passou" de "vence 13 do mês que vem, ainda vem".
+  const hojeISO = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const aindaVem = (i: ItemPrevisto) => (i.venc
+    ? i.venc >= hojeISO
+    : (!i.dia_vencimento || i.dia_vencimento >= hoje));
 
   const todos = [...(previstos || []), ...(parcelas || [])].filter(aindaVem);
 

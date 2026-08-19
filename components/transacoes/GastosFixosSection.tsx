@@ -313,6 +313,9 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           tipo: 'Gasto' as const,
           valor: Number(f.restante) || 0,
           dia_vencimento: parseInt(String(f.venc || '').slice(8, 10), 10) || 0,
+          // A data inteira manda: sem ela a fatura do mês que vem some da
+          // projeção (ver ItemPrevisto.venc em lib/saldo-projetado.ts).
+          venc: f.venc ? String(f.venc).slice(0, 10) : undefined,
         })),
       ],
     ),
@@ -338,6 +341,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // `diaHojeSP` vem de lib/saldo-projetado (já testado, fuso de SP): com
   // `getDate()` local a virada do dia sairia errada pra quem não está em SP.
   const hoje = useMemo(() => diaHojeSP(), []);
+  // Data inteira pra quem tem vencimento com mês (cartão). Ver o filtro abaixo.
+  const hojeISO = useMemo(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }), []);
   const jaPassou = useCallback(
     (dia?: number | null) => !!dia && Number(dia) < hoje, [hoje]);
 
@@ -358,7 +363,13 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
       .filter((d) => !jaPassou(Number(d.dia_vencimento)))
       .reduce((s, d) => s + (Number(d.valor_parcela) || 0), 0);
     const carts = cartoesNaPrevisao
-      .filter((f) => !jaPassou(parseInt(String(f.venc || '').slice(8, 10), 10)))
+      // ⚠️ CARTÃO SE COMPARA POR DATA INTEIRA, não pelo dia. A recorrência é
+      // mensal (dia 20 é sempre deste mês); a fatura não — o ciclo cruza meses
+      // e ela pode vencer no mês que vem. Reduzida ao dia, uma fatura que vence
+      // 13/09 virava "13" e, com hoje = 19, saía daqui como se já tivesse
+      // vencido: entrava no "Total previsto" e sumia do "ainda falta sair", que
+      // é a incoerência que o cliente viu na tela.
+      .filter((f) => !f.venc || String(f.venc).slice(0, 10) >= hojeISO)
       .reduce((s, f) => s + (Number(f.restante) || 0), 0);
     return recs + divs + carts;
   }, [itens, dividas, cartoesNaPrevisao, jaPassou]);
