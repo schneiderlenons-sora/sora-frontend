@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   // `recuperacao_pendente_em` + `vitalicio_intent` estavam de fora: a marcação de
   // pagamento recusado existia no banco desde a 047, mas nunca chegava na tela —
   // não dava pra ver (nem filtrar) quem tentou comprar e falhou.
-  const BASE = 'id,name,email,phone,plano,plano_intervalo,plano_valido_ate,vitalicio,vitalicio_em,stripe_customer_id,onboarding_completed,welcomed_at,created_at,recuperacao_signup_em,recuperacao_enviada_em,recuperacao_pendente_em,vitalicio_intent';
+  const BASE = 'id,name,email,phone,grupo_ativo,plano,plano_intervalo,plano_valido_ate,vitalicio,vitalicio_em,stripe_customer_id,onboarding_completed,welcomed_at,created_at,recuperacao_signup_em,recuperacao_enviada_em,recuperacao_pendente_em,vitalicio_intent';
   // Colunas da migration 074 (exclusão do MRR) — só somam se já existirem.
   const COM_MRR = `${BASE},mrr_excluir,assinatura_cancelada`;
   // Motivo da recusa é a migration 102 — pedido só quando ela já rodou.
@@ -54,6 +54,10 @@ export async function GET(req: NextRequest) {
     // Não é o mesmo que "usa Open Finance" — o Básico/Premium tem franquia e
     // não aparece aqui. Este filtro é a RECEITA extra.
     else if (filter === 'open_finance') query = query.gt('of_conexoes_pagas', 0);
+    // 'of_conectado' NÃO entra aqui: `of_conexoes` é por GRUPO, não por user,
+    // e o Supabase não filtra por tabela irmã neste select. É aplicado depois
+    // de enriquecer (ver abaixo) — o limite de 300 vale pra busca, e quem tem
+    // banco conectado hoje são 17 grupos, então não há risco de cortar.
     // Anuais: assinatura anual ATIVA (pré-paga, fora do MRR mensal).
     else if (filter === 'anuais')        query = query.eq('plano_intervalo', 'anual').neq('plano', 'inativo');
     // Recorrentes: pagante ATIVO que não é vitalício e não cancelou — quem
@@ -72,5 +76,45 @@ export async function GET(req: NextRequest) {
   if (error) ({ data, error } = await build(COM_MRR, true));
   if (error) ({ data, error } = await build(BASE, false));
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
-  return NextResponse.json({ users: data || [] });
+
+  // ── BANCOS CONECTADOS, por usuário ──────────────────────────────────────
+  //
+  // ⚠️ CONECTAR ≠ PAGAR. Quem tem assinatura recorrente conecta pela FRANQUIA
+  // do plano (Básico 1, Premium 3) e não aparece em `of_conexoes_pagas` —
+  // então, olhando só a receita, metade de quem usa Open Finance ficava
+  // invisível no admin (medido: 9 dos 17 grupos conectados são de franquia).
+  //
+  // O casamento é por `grupo_ativo`, porque a conexão é do GRUPO: na gestão
+  // compartilhada o casal conecta uma vez e os dois enxergam.
+  let lista = (data || []) as any[];
+  try {
+    const grupos = [...new Set(lista.map((u) => u.grupo_ativo).filter(Boolean))];
+    if (grupos.length) {
+      const { data: conexoes } = await supabaseAdmin
+        .from('of_conexoes').select('grupo_id, status, instituicao').in('grupo_id', grupos);
+      const porGrupo: Record<string, { total: number; ok: number; bancos: string[] }> = {};
+      for (const c of conexoes || []) {
+        const g = String(c.grupo_id);
+        porGrupo[g] ||= { total: 0, ok: 0, bancos: [] };
+        porGrupo[g].total++;
+        if (c.status === 'updated') porGrupo[g].ok++;
+        if (c.instituicao) porGrupo[g].bancos.push(String(c.instituicao));
+      }
+      lista = lista.map((u) => {
+        const c = u.grupo_ativo ? porGrupo[String(u.grupo_ativo)] : null;
+        return {
+          ...u,
+          of_conectadas: c?.total || 0,
+          // Fora de 'updated' = o banco parou de atualizar e o cliente precisa
+          // reconectar. Ele sente como "a Sora travou" e não sabe o motivo.
+          of_conectadas_ok: c?.ok || 0,
+          of_bancos: c?.bancos || [],
+        };
+      });
+    }
+  } catch { /* tabela of_conexoes pode não existir — a lista segue sem o dado */ }
+
+  if (filter === 'of_conectado') lista = lista.filter((u) => (u.of_conectadas || 0) > 0);
+
+  return NextResponse.json({ users: lista });
 }

@@ -184,6 +184,7 @@ export async function GET() {
   // é conexão saudável; expirada/recusada precisa o cliente reconectar, e é aí
   // que ele acha que "a Sora parou de atualizar".
   let ofConectados = 0, ofGrupos = 0, ofComProblema = 0;
+  let ofGruposFranquia = 0, ofGruposPagando = 0, ofPagandoSemUsar = 0;
   try {
     const { data, error } = await supabaseAdmin.from('of_conexoes').select('grupo_id, status');
     if (error) throw error;
@@ -194,6 +195,24 @@ export async function GET() {
       if (c.status !== 'updated') ofComProblema++;
     }
     ofGrupos = grupos.size;
+
+    // ⚠️ QUEM CONECTA NÃO É SÓ QUEM PAGA. A assinatura recorrente tem franquia
+    // (Básico 1, Premium 3) e conecta de graça — medido: 9 dos 17 grupos
+    // conectados são de franquia. Olhando só a receita, metade de quem USA
+    // Open Finance ficava invisível no admin.
+    //
+    // E o cruzamento revela o caso caro: quem PAGA e NÃO conectou nada. É
+    // cobrança rodando por um serviço parado — vale ligar antes de virar
+    // pedido de reembolso.
+    const { data: pagantes } = await supabaseAdmin
+      .from('users').select('grupo_ativo, of_conexoes_pagas').gt('of_conexoes_pagas', 0);
+    const gruposPagantes = new Set(
+      (pagantes || []).map((u) => u.grupo_ativo).filter(Boolean).map(String));
+    for (const g of grupos) {
+      if (gruposPagantes.has(g)) ofGruposPagando++;
+      else ofGruposFranquia++;
+    }
+    for (const g of gruposPagantes) if (!grupos.has(g)) ofPagandoSemUsar++;
   } catch { /* tabela of_conexoes pode não existir */ }
 
   return NextResponse.json({
@@ -211,5 +230,6 @@ export async function GET() {
     ofMrr: Math.round(ofMrr * 100) / 100,
     ofReceitaAnual: Math.round(ofReceitaAnual * 100) / 100,
     ofConectados, ofGrupos, ofComProblema,
+    ofGruposFranquia, ofGruposPagando, ofPagandoSemUsar,
   });
 }

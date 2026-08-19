@@ -28,6 +28,9 @@ type User = {
   vitalicio_intent?: string | null;
   // Conexão de banco avulsa (Open Finance) — quantas ele paga e o intervalo.
   of_conexoes_pagas?: number | null; of_assinatura_intervalo?: string | null;
+  // Bancos CONECTADOS (vem do enriquecimento no route, casando por grupo).
+  // Diferente de of_conexoes_pagas: quem tem franquia conecta de graça.
+  of_conectadas?: number; of_conectadas_ok?: number; of_bancos?: string[];
   created_at: string;
 };
 type Overview = {
@@ -42,6 +45,7 @@ type Overview = {
   ofUsuarios?: number; ofConexoesPagas?: number; ofMensais?: number; ofAnuais?: number;
   ofMrr?: number; ofReceitaAnual?: number;
   ofConectados?: number; ofGrupos?: number; ofComProblema?: number;
+  ofGruposFranquia?: number; ofGruposPagando?: number; ofPagandoSemUsar?: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
@@ -88,7 +92,7 @@ const MOTIVO_RECUSA: Record<string, string> = {
 };
 const textoMotivo = (m?: string | null) => (m ? MOTIVO_RECUSA[m] || m : null);
 
-function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em' | 'recuperacao_pendente_em' | 'recuperacao_motivo' | 'vitalicio_intent' | 'of_conexoes_pagas' | 'of_assinatura_intervalo'> }) {
+function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_intervalo' | 'mrr_excluir' | 'assinatura_cancelada' | 'recuperacao_signup_em' | 'recuperacao_enviada_em' | 'recuperacao_pendente_em' | 'recuperacao_motivo' | 'vitalicio_intent' | 'of_conexoes_pagas' | 'of_assinatura_intervalo' | 'of_conectadas' | 'of_conectadas_ok'> }) {
   const m = metaStatus(u);
   const Icon = m.icon;
   const recuperado = u.plano !== 'inativo' && !!(u.recuperacao_signup_em || u.recuperacao_enviada_em);
@@ -99,6 +103,10 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
   const anual = u.plano_intervalo === 'anual';
   const ofPagas = Number(u.of_conexoes_pagas) || 0;
   const ofAnual = u.of_assinatura_intervalo === 'anual';
+  const ofConectadas = Number(u.of_conectadas) || 0;
+  const ofOk = Number(u.of_conectadas_ok) || 0;
+  // Paga e não conectou nada: cobrança rodando por serviço parado.
+  const ofPagaSemUsar = ofPagas > 0 && ofConectadas === 0;
   return (
     <span className="inline-flex items-center gap-1 flex-wrap justify-end">
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
@@ -130,6 +138,27 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
                 ? `${ofPagas} conexão(ões) de banco · plano ANUAL (R$ 60/ano cada, pré-pago — fora do MRR mensal)`
                 : `${ofPagas} conexão(ões) de banco · R$ 6/mês cada`}>
           <Landmark size={10} /> OF {ofPagas}{ofAnual ? '/ano' : ''}
+        </span>
+      )}
+      {/* USO — separado do pagamento de propósito. Quem tem franquia (Básico 1,
+          Premium 3) conecta de graça e não tem badge de receita nenhum; sem
+          este, metade de quem usa Open Finance era invisível na lista.
+          Fica âmbar quando algum banco parou de atualizar: é o cliente que vai
+          abrir chamado dizendo que "a Sora travou". */}
+      {ofConectadas > 0 && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: `color-mix(in srgb, ${ofOk < ofConectadas ? '#f59e0b' : '#06b6d4'} 16%, transparent)`,
+                       color: ofOk < ofConectadas ? '#d97706' : '#06b6d4' }}
+              title={`${ofConectadas} banco(s) conectado(s)${ofOk < ofConectadas ? ` · ${ofConectadas - ofOk} precisa(m) reconectar` : ''}${ofPagas > 0 ? '' : ' · pela franquia do plano (grátis)'}`}>
+          <Landmark size={10} /> {ofConectadas} banco{ofConectadas > 1 ? 's' : ''}{ofOk < ofConectadas ? ' ⚠' : ''}
+        </span>
+      )}
+      {/* Cobrando sem entregar. O admin precisa ver isto sem procurar. */}
+      {ofPagaSemUsar && (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+              style={{ background: 'color-mix(in srgb, #ef4444 16%, transparent)', color: '#ef4444' }}
+              title="Paga conexão de banco e não conectou nenhuma — cobrança rodando por serviço parado">
+          <AlertTriangle size={10} /> paga sem usar
         </span>
       )}
       {pago && u.assinatura_cancelada && (
@@ -193,7 +222,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou' | 'open_finance'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou' | 'open_finance' | 'of_conectado'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
@@ -306,13 +335,14 @@ export default function AdminPage() {
                 hint={ov
                   ? `${ov.ofConexoesPagas ?? 0} conexões · ${ov.ofUsuarios ?? 0} clientes${ov.ofAnuais ? ` · ${ov.ofAnuais} anuais (${money(ov.ofReceitaAnual ?? 0)}/ano) fora` : ''}`
                   : ''}
-                onClick={() => { setTab('users'); setFilter('open_finance'); }} destaque />
+                onClick={() => { setTab('users'); setFilter('open_finance'); }} destaque
+                alerta={!!ov && (ov.ofPagandoSemUsar ?? 0) > 0} />
           {/* Uso real, separado da receita: quem PAGA nem sempre é quem está
               CONECTADO. Conexão fora de 'updated' é banco que parou de
               atualizar — o cliente sente como "a Sora travou". */}
           <Stat label="Bancos conectados" value={ov?.ofConectados ?? '—'}
-                alerta={!!ov && (ov.ofComProblema ?? 0) > 0}
-                hint={ov ? `${ov.ofGrupos ?? 0} contas${ov.ofComProblema ? ` · ${ov.ofComProblema} precisam reconectar` : ''}` : ''} />
+                alerta={!!ov && ((ov.ofComProblema ?? 0) > 0 || (ov.ofPagandoSemUsar ?? 0) > 0)}
+                hint={ov ? `${ov.ofGrupos ?? 0} contas · ${ov.ofGruposFranquia ?? 0} pela franquia · ${ov.ofGruposPagando ?? 0} pagando${ov.ofComProblema ? ` · ${ov.ofComProblema} reconectar` : ''}` : ''} />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
           <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.kit ?? 0} Kit · ${ov.black} BK` : ''} />
           <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
@@ -361,7 +391,7 @@ export default function AdminPage() {
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['open_finance', 'Open Finance'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['of_conectado', 'Conectados'], ['open_finance', 'OF pago'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
