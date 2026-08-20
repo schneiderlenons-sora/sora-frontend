@@ -54,6 +54,20 @@ export async function POST(req: NextRequest) {
       'https://www.forsora.com'
     ).replace('://forsora.com', '://www.forsora.com');
 
+    // ⚠️ DADOS DE MATCH DO FACEBOOK, capturados AQUI (esta rota roda com os
+    // cookies do comprador) e guardados no metadata pro webhook usar no
+    // Purchase. Sem eles o CAPI do webhook só tem o e-mail, e o Facebook não
+    // liga a venda ao clique do anúncio — a compra não aparece no Ads.
+    //
+    // É o mesmo padrão que o checkout do vitalício (MP) já usa há tempos
+    // (app/api/mercadopago/process); a assinatura é que tinha ficado para trás.
+    const fbMeta = {
+      fbp:   req.cookies.get('_fbp')?.value || '',
+      fbc:   req.cookies.get('_fbc')?.value || '',
+      fb_ip: (req.headers.get('x-forwarded-for') || '').split(',')[0].trim(),
+      fb_ua: (req.headers.get('user-agent') || '').slice(0, 256),
+    };
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -61,7 +75,7 @@ export async function POST(req: NextRequest) {
       success_url: `${origin}/planos?success=1`,
       cancel_url:  `${origin}/planos?canceled=1`,
       allow_promotion_codes: true,
-      metadata: { supabase_user_id: user.id, plano, intervalo },
+      metadata: { supabase_user_id: user.id, plano, intervalo, ...fbMeta },
       subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } },
     });
 

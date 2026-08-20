@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANO_LABEL, type Plano } from '@/lib/plans';
-import { trackInitiateCheckout, trackPurchase, trackViewContent, trackAddToCart } from '@/lib/analytics';
+import { trackInitiateCheckout, trackViewContent, trackAddToCart } from '@/lib/analytics';
 import {
   Check, Crown, Sparkles, Loader2, AlertCircle, CheckCircle2,
   CreditCard, Settings, Zap, Infinity as InfinityIcon,
@@ -77,7 +77,17 @@ function PlanosContent() {
   recarregarRef.current = recarregar;
   useEffect(() => {
     if (!success) return;
-    trackPurchase({ name: 'Assinatura Sora', value: 0 });
+    // ⚠️ NÃO dispare Purchase aqui. Já foi (duas vezes) e mal:
+    //   · com `value: 0`, que o Meta recusa ("o campo de valor está ausente")
+    //     e que foi medido em 36% dos Purchase do pixel;
+    //   · sem relação com o Purchase do webhook, que carrega o valor REAL —
+    //     event_id diferente, então o Meta contava a mesma venda duas vezes e
+    //     acusava taxa de desduplicação baixa.
+    //
+    // Quem manda o Purchase é o webhook da Stripe (app/api/stripe/webhook),
+    // com o valor cobrado de verdade, event_id determinístico e os cookies de
+    // match guardados no checkout. Aqui o navegador não sabe quanto foi
+    // cobrado (cupom, proporcional) — chutar é o que criava o valor zero.
     let cancelado = false;
     // Sync IMEDIATO direto do Stripe (não espera o webhook) — ativa na hora.
     (async () => {

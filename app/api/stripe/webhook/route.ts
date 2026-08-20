@@ -156,9 +156,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const contentId = slugify(nomePlano);
   sendCAPIEvent({
     event_name: 'Purchase',
+    // ⚠️ event_id DETERMINÍSTICO. Sem ele o Meta não tem como desduplicar:
+    // se a Stripe reenviar o webhook (ela reenvia em falha), a mesma venda
+    // conta duas vezes e o ROAS sai inflado. `session.id` é único por compra
+    // e igual em toda retentativa — mesma ideia do `mp_${paymentId}` que o
+    // webhook do Mercado Pago já usa.
+    event_id: `stripe_${session.id}`,
     event_source_url: `https://forsora.com/planos?success=1`,
     user_data: {
       em: session.customer_details?.email || undefined,
+      // Cookies do navegador do comprador, guardados no metadata lá no
+      // checkout — é o que liga a venda ao clique do anúncio. Só o e-mail
+      // deixava a qualidade da correspondência baixa.
+      fbp: session.metadata?.fbp || undefined,
+      fbc: session.metadata?.fbc || undefined,
+      client_ip_address: session.metadata?.fb_ip || undefined,
+      client_user_agent: session.metadata?.fb_ua || undefined,
+      external_id: session.metadata?.supabase_user_id || undefined,
     },
     custom_data: {
       value: amount,
