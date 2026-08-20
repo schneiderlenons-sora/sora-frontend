@@ -8,6 +8,7 @@ import Providers from '@/components/providers';
 import InstallPwa from '@/components/pwa/InstallPwa';
 import MetaPixel from '@/components/analytics/MetaPixel';
 import TikTokPixel from '@/components/analytics/TikTokPixel';
+import UtmifyPixel from '@/components/analytics/UtmifyPixel';
 
 // `variable` (e não só className) porque o globals.css referencia a família por
 // var(--font-inter). Antes o CSS pedia 'Inter' pelo NOME, que só existia via
@@ -115,6 +116,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Providers>
             <MetaPixel />
             <TikTokPixel />
+            <UtmifyPixel />
             <InstallPwa>
               {children}
             </InstallPwa>
