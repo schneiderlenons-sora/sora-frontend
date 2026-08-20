@@ -105,6 +105,19 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     return acc;
   }, [faturasData, faturasProx]);
 
+  // Fatura do EMISSOR por cartão+competência — é o que deixa a lista agrupar
+  // como o banco agrupa (ver `pertenceAFatura` modo híbrido). Mesma fonte do
+  // previsto acima, então não custa chamada nova.
+  const billPor = useMemo(() => {
+    const acc: Record<string, string | null> = {};
+    [(faturasData as any)?.faturas, (faturasProx as any)?.faturas].forEach((lista) => {
+      (lista || []).forEach((f: any) => {
+        acc[`${f.cartao_id}|${f.competencia}`] = f.of_bill_id || null;
+      });
+    });
+    return acc;
+  }, [faturasData, faturasProx]);
+
   const wallets: Wallet[] = ((wRaw as Wallet[]) ?? []).filter((w: any) => w.tipo === 'Crédito');
   const txsTodas: any[]   = (tAllData as any)?.transacoes ?? [];
   const loading = wRaw === undefined;
@@ -203,12 +216,13 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       const minhas = txsTodas.filter(t => mesmaCarteira(t, w));
       // Critério decidido UMA vez por fatura. Decidir por transação misturava a
       // fatura vinculada com o ciclo novo e somava as duas.
-      const criterio = criterioDaFatura(minhas, w, ehAtualDoCartao, ciclo);
+      const billId = billPor[`${w.id}|${ciclo?.competencia}`] || null;
+      const criterio = criterioDaFatura(minhas, w, ehAtualDoCartao, ciclo, billId);
       // Soma ASSINADA (lib/valor-fatura.ts): compra soma, estorno/crédito
       // ABATE, pagamento de fatura é neutro. Antes filtrava só `tipo==='Gasto'`
       // e o crédito era descartado — a fatura ficava maior que a do banco.
       const soma = somarFatura(
-        minhas.filter(t => pertenceAFatura(t, w, ciclo, ehAtualDoCartao, criterio)));
+        minhas.filter(t => pertenceAFatura(t, w, ciclo, ehAtualDoCartao, criterio, billId)));
       // Parcelas que só o banco conhece (o MP manda parcela sem o marcador
       // "N/M"): entram na fatura que ainda não fechou, senão ela sai a menos.
       const prev = previstoPor[`${w.id}|${ciclo?.competencia}`] || 0;
@@ -216,7 +230,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsTodas, cicloPorCartao, mesIndex, pulaUma, previstoPor]);
+  }, [wallets, txsTodas, cicloPorCartao, mesIndex, pulaUma, previstoPor, billPor]);
 
   // Restante pós-pagamento por cartão (reportado por cada CardCartao — é ele
   // quem sabe o status real via /fatura/status, migration 096). O header

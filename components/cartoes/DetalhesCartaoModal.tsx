@@ -79,17 +79,20 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
   // Fatura quitada segundo o SERVIDOR (pagamento registrado depois do
   // fechamento — inclusive o que o Open Finance trouxe do extrato).
   const [quitadaServidor, setQuitadaServidor] = useState(false);
+  // Fatura do EMISSOR nesta competência — agrupa a lista como o banco agrupa.
+  const [billDaComp, setBillDaComp] = useState<string | null>(null);
 
   useEffect(() => {
     if (!phone || !cartao?.id || !mesRef) return;
     let cancelado = false;
-    setPrevistas([]); setTotalPrevisto(0); setQuitadaServidor(false);
+    setPrevistas([]); setTotalPrevisto(0); setQuitadaServidor(false); setBillDaComp(null);
     api.wallets.faturaStatus(phone, cartao.id, mesRef)
       .then((st) => {
         if (cancelado || !st) return;
         setPrevistas(st.parcelas_previstas || []);
         setTotalPrevisto(Number(st.total_previsto) || 0);
         setQuitadaServidor(!!st.quitada);
+        setBillDaComp((st as any).of_bill_id || null);
       })
       .catch(() => { /* informativo — nunca impede o modal de abrir */ });
     return () => { cancelado = true; };
@@ -172,12 +175,12 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
             (t.carteira_nome || '').trim().toLowerCase() === nomeCartao);
         // Critério UMA vez por fatura (ver criterioDaFatura): por transação,
         // misturava a fatura vinculada com as compras do ciclo novo.
-        const criterio = criterioDaFatura(minhas, cartao, ehFaturaEmCurso, ciclo);
+        const criterio = criterioDaFatura(minhas, cartao, ehFaturaEmCurso, ciclo, billDaComp);
         // Inclui os CRÉDITOS (estorno/cashback) do ciclo, não só os Gasto: eles
         // abatem a fatura e o usuário precisa vê-los na lista pra bater com o
         // extrato do banco. Quem decide o sinal é `somarFatura`.
         const doCartao = minhas.filter(
-          (t: any) => pertenceAFatura(t, cartao, ciclo, ehFaturaEmCurso, criterio));
+          (t: any) => pertenceAFatura(t, cartao, ciclo, ehFaturaEmCurso, criterio, billDaComp));
         // ⚠️ ORDENA POR DATA. As buscas são por MÊS e chegam concatenadas, então
         // sem isto a lista saía "todo o mês de julho, depois todo o de agosto" —
         // e como só os 8 primeiros aparecem antes de "Mostrar mais", a fatura

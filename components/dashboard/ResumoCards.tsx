@@ -59,6 +59,8 @@ export default function ResumoCards({
   // aparece com o valor local e é corrigido quando isto chega, então não
   // competimos com o LCP.
   const [restanteApi, setRestanteApi] = useState<Record<string, number>>({});
+  // Fatura do emissor por cartão (mesma resposta do restante — sem chamada nova).
+  const [billApi, setBillApi] = useState<Record<string, string | null>>({});
   useEffect(() => {
     if (!phone || !wallets.some(w => w.tipo === 'Crédito')) return;
     let vivo = true;
@@ -79,6 +81,9 @@ export default function ResumoCards({
             ? f2.proxima.restante
             : f.restante;
         }
+        const bills: Record<string, string | null> = {};
+        for (const f of r.faturas || []) bills[f.cartao_id] = (f as any).of_bill_id || null;
+        setBillApi(bills);
         setRestanteApi(acc);
       })
       .catch(() => { /* mantém o cálculo local */ });
@@ -100,17 +105,18 @@ export default function ResumoCards({
         const minhas = txsMes.filter(t => mesmaCarteira(t, w));
         // Critério UMA vez por fatura — decidir por transação somava a fatura
         // vinculada junto com o ciclo novo.
-        const criterio = criterioDaFatura(minhas, w, true, ciclo);
+        const billId = billApi[w.id] || null;
+        const criterio = criterioDaFatura(minhas, w, true, ciclo, billId);
         // Soma ASSINADA (lib/valor-fatura.ts): estorno/crédito ABATE a fatura.
         const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
           ? -(w.saldo as number)
-          : somarFatura(minhas.filter(t => pertenceAFatura(t, w, ciclo, true, criterio)));
+          : somarFatura(minhas.filter(t => pertenceAFatura(t, w, ciclo, true, criterio, billId)));
         const fatura = restanteApi[w.id] ?? local;
         const limite = w.limite || 0;
         return { id: w.id, nome: w.nome, fatura, limite, disponivel: Math.max(limite - fatura, 0) };
       })
       .sort((a, b) => b.fatura - a.fatura);
-  }, [wallets, txsMes, restanteApi]);
+  }, [wallets, txsMes, restanteApi, billApi]);
 
   const cartaoTop = cartoes[0] || null;
 

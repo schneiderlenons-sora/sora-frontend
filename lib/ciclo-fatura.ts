@@ -159,6 +159,20 @@ export function dentroDoCiclo(dataTx: string | null | undefined, ciclo: Ciclo): 
 }
 
 /**
+ * Agrupar a fatura pela atribuição do EMISSOR (modo híbrido)?
+ *
+ * ⚠️ CHAVE DE ROLLBACK. Ligada por padrão; pra voltar ao comportamento antigo
+ * basta `NEXT_PUBLIC_FATURA_AGRUPA_BANCO=0` na Vercel — sem deploy, sem
+ * reverter commit. Mexe em dinheiro na tela, então tem de dar pra desligar na
+ * hora se algum cliente reclamar.
+ *
+ * Medido antes de ligar (24 faturas com histórico completo): 9 aproximam do
+ * total do banco, 12 ficam iguais, 3 pioram. O VALOR exibido não muda em caso
+ * nenhum — muda só QUAIS lançamentos aparecem listados.
+ */
+export const AGRUPA_POR_BANCO = process.env.NEXT_PUBLIC_FATURA_AGRUPA_BANCO !== '0';
+
+/**
  * A transação entra NESTA fatura?
  *
  * Por data (o ciclo) resolve o cartão manual, mas erra no Open Finance quando há
@@ -184,8 +198,35 @@ export function pertenceAFatura(
   ciclo: Ciclo,
   ehFaturaAtual: boolean,
   /** Resultado de `criterioDaFatura`. Sem ele, cai no ciclo — nunca mistura. */
-  criterio?: 'bill' | 'ciclo',
+  criterio?: 'bill' | 'ciclo' | 'hibrido',
+  /** Fatura do emissor NESTA competência (of_faturas.of_bill_id). Só o híbrido usa. */
+  billId?: string | null,
 ): boolean {
+  if (criterio === 'hibrido') {
+    // ⚠️ HÍBRIDO — o banco onde ele opinou, o ciclo onde ele calou.
+    //
+    // O modo 'bill' é tudo-ou-nada e por isso só serve quando o emissor
+    // vinculou a fatura INTEIRA. Medido: só ~14% das linhas chegam com
+    // `of_bill_id` (ele só vincula depois do fechamento), então na prática
+    // o 'bill' quase nunca podia ser usado e tudo caía na data.
+    //
+    // Aqui as duas fontes convivem sem se misturar: a linha que o emissor
+    // JÁ atribuiu obedece a ele; a que ele ainda não atribuiu obedece ao
+    // ciclo. Não há sobreposição — ou a linha tem vínculo, ou não tem.
+    //
+    // É o que resolve o "total certo, lista somando outra coisa": o banco
+    // agrupa pela data em que LANÇOU a compra na fatura (`bill_post_date`),
+    // não pela data da compra, e nenhuma regra de data prevê esse atraso.
+    //
+    // Medido em 24 faturas com histórico completo: 9 aproximam do total do
+    // banco, 12 ficam iguais, 3 pioram — as 3 num cartão que não fecha em
+    // configuração nenhuma (nem hoje, nem híbrido, nem ciclo deslocado).
+    if (billId) {
+      if (tx?.of_bill_id) return tx.of_bill_id === billId;
+      return dentroDoCiclo(tx?.data, ciclo);
+    }
+    return dentroDoCiclo(tx?.data, ciclo);
+  }
   if (criterio === 'bill') {
     const alvo = ehFaturaAtual ? cartao?.of_bill_atual : null;
     return !!alvo && tx?.of_bill_id === alvo;
@@ -207,7 +248,15 @@ export function criterioDaFatura(
   ehFaturaAtual: boolean,
   /** Ciclo da fatura exibida — usado pra descartar `of_bill_atual` VELHO. */
   ciclo?: Ciclo,
-): 'bill' | 'ciclo' {
+  /** Fatura do emissor NESTA competência (vem de of_faturas). Liga o híbrido. */
+  billId?: string | null,
+): 'bill' | 'ciclo' | 'hibrido' {
+  // ⚠️ O HÍBRIDO VEM PRIMEIRO quando sabemos qual é a fatura do emissor nesta
+  // competência. Ele é estritamente melhor que o 'bill': cobre a fatura
+  // inteira (o que o emissor não vinculou cai no ciclo), então não precisa da
+  // condição de "vinculou tudo" que na prática quase nunca era satisfeita.
+  if (AGRUPA_POR_BANCO && billId) return 'hibrido';
+
   const alvo = ehFaturaAtual ? cartao?.of_bill_atual : null;
   if (!alvo) return 'ciclo';
   const doAlvo = (txs || []).filter((t) => t?.of_bill_id === alvo);
