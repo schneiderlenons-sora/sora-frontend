@@ -293,29 +293,39 @@ function StatCard({
         </div>
       </div>
 
-      {topo && <div className="mb-3">{topo}</div>}
+      {/* Corpo do card. No DESKTOP ele ocupa a sobra entre o cabeçalho e o
+          "Detalhes" e centraliza o conteúdo nos dois eixos — os cards da
+          fileira têm alturas diferentes (dois com visual em cima, dois sem) e
+          o grid estica todos, então valor e badge flutuavam em alturas
+          diferentes e a linha parecia desalinhada.
+          No MOBILE nada muda: sem `justify-center`, o `mt-auto` do rodapé
+          segue empurrando o badge pra base, como antes.
+          ⚠️ Centralizo por `text-center`, NÃO por `items-center`: o
+          `ValorAuto` mede a largura do container (`100cqi`) pra decidir o
+          tamanho da fonte — encolhido a fit-content, a conta viraria circular
+          e o valor sairia menor do que precisa. Por isso todo filho continua
+          full-width. */}
+      <div className="flex-1 flex flex-col min-w-0 lg:justify-center lg:text-center">
+        {topo && <div className="mb-3 w-full">{topo}</div>}
 
-      {/* ValorAuto no lugar de `truncate`: o valor encolhe só o necessário e
-          aparece INTEIRO, em vez de virar "R$ 2.5…" no card estreito. */}
-      <ValorAuto max="1.5rem" className="font-bold tracking-tight leading-tight"
-                 style={{ color: valueColor || 'hsl(var(--fg))' }}>
-        {value}
-      </ValorAuto>
+        {/* ValorAuto no lugar de `truncate`: o valor encolhe só o necessário e
+            aparece INTEIRO, em vez de virar "R$ 2.5…" no card estreito. */}
+        <ValorAuto max="1.5rem" className="font-bold tracking-tight leading-tight"
+                   style={{ color: valueColor || 'hsl(var(--fg))' }}>
+          {value}
+        </ValorAuto>
 
-      {barraSlot}
+        {barraSlot}
 
-      {typeof barra === 'number' && (
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
-          <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${barra}%`, background: barraCor }} />
+        {typeof barra === 'number' && (
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mt-2">
+            <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${barra}%`, background: barraCor }} />
+          </div>
+        )}
+
+        <div className="w-full mt-auto lg:mt-2.5 pt-1.5 min-h-[20px]">
+          {badge || (sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>)}
         </div>
-      )}
-
-      {/* ⚠️ `mt-auto`: os cards da fileira têm alturas diferentes (dois com
-          visual em cima, dois sem) e o grid estica todos. Sem isto o rodapé de
-          cada um flutuava numa altura diferente e a linha parecia desalinhada;
-          com ele, badge e botão "Detalhes" encostam na base em todos. */}
-      <div className="mt-auto pt-1.5 min-h-[20px]">
-        {badge || (sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>)}
       </div>
 
       {onToggle && (
