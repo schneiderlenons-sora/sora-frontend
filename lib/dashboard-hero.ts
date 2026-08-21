@@ -28,3 +28,38 @@ export const ALTURA_VIDEO = 'clamp(300px, 44vh, 400px)';
 /** Altura do espaçador que empurra a saudação (e o card) pra baixo, até o fim
  *  do gradiente do vídeo. */
 export const ALTURA_ESPACADOR = 'clamp(230px, 35vh, 320px)';
+
+// ── Desktop (≥768px) ────────────────────────────────────────────────────────
+//
+// O arquivo do desktop é 2690×770 (≈3,4935:1) — uma faixa panorâmica, não um
+// quadrado como os do mobile. Por isso a altura NÃO é um clamp de `vh`: ela sai
+// da PROPORÇÃO da largura útil (viewport − a sidebar de 16rem). É o que resolve
+// o tablet: com altura fixa, a 768px a faixa ficaria muito mais alta que a
+// proporção e o `cover` comeria ~57% da largura — sobrava o meio (céu e mar),
+// sem a casa nem a baleia.
+
+/**
+ * Altura da faixa do desktop, entre um piso e um teto.
+ *
+ * ⚠️ NÃO usar `aspect-ratio` no elemento. Com um `min-height` junto, a caixa
+ * cresce em LARGURA pra manter a proporção — medido: virou 698px num espaço de
+ * 564 e vazava pra fora da tela. Altura calculada não tem esse efeito.
+ *
+ * · piso 200px — abaixo disso (tablet estreito) a faixa vira uma tira fina
+ *   demais pra o gradiente ter onde fechar. Aí o `cover` corta ~19% da
+ *   LARGURA, e é por isso que o desktop ancora em `0% 100%` (à esquerda): o
+ *   corte sai pelo lado direito e a casa, as palmeiras e a costa ficam
+ *   inteiras.
+ * · teto 420px — acima disso (ultrawide) o corte vira VERTICAL, e o `100%` do
+ *   eixo Y come o CÉU, preservando horizonte e água — que é justamente onde o
+ *   gradiente precisa encontrar o fundo do painel.
+ *
+ * Entre ~954px e ~1724px de viewport não há corte nenhum: a cena inteira cabe.
+ */
+export const ALTURA_VIDEO_DESKTOP = 'clamp(200px, calc((100vw - 16rem) / 3.4935), 420px)';
+
+/** Espaçador do desktop. O divisor é maior que a razão de propósito: o card do
+ *  hero encosta nos últimos ~20px da faixa (o rabo do gradiente) em vez de
+ *  começar depois dela — mesma costura do mobile. Já conta o `md:pt-6` do
+ *  <main> e o `space-y-5` do wrapper. */
+export const ALTURA_ESPACADOR_DESKTOP = 'clamp(150px, calc((100vw - 16rem) / 4.3), 360px)';

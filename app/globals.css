@@ -416,41 +416,54 @@ body { background-color: hsl(var(--bg)); }
     }
   }
 
-  /* ── Dashboard mobile: cards translúcidos sobre o fundo fixo ────────────
+  /* ── Dashboard: cards translúcidos sobre o fundo fixo ──────────────────
      O vídeo do topo agora é `fixed` (HeroVideoBg) e o conteúdo rola por cima.
      Pra a imagem aparecer ATRÁS dos cards eles precisam abrir mão da opacidade
      total — com blur, senão o vídeo passa nítido por baixo do texto e nada
      fica legível.
 
-     ⚠️ ESCOPADO em `.dash-glass` (só o dashboard) e em `max-width: 767px`.
+     ⚠️ ESCOPADO em `.dash-glass` — só o dashboard, em QUALQUER largura
+     (o desktop ganhou a própria faixa de vídeo, ver HeroVideoBg).
      `backdrop-filter` cria containing block pra `position: fixed` descendente:
      aplicar isso em TODO `.card` do app faria qualquer modal não-portado ficar
      preso dentro do card (é o bug registrado em
      `feedback-modal-portal-backdrop-blur`). Escopar limita o raio a esta tela,
-     onde os modais já saem por portal.
+     onde os modais já saem por portal. Tirar o limite de largura NÃO muda
+     esse raio: é o mesmo conjunto de componentes, só que agora também acima
+     de 768px — e o NovaTransacaoModal (o único desta tela) é irmão do
+     `.dash-glass`, não descendente.
 
      ⚠️ `.dark` aqui é o seletor certo pros DOIS temas escuros — o tema black
      também usa a classe `.dark` (ver Sidebar: `isDark = isTemaBlack`). */
-  @media (max-width: 767px) {
-    .dash-glass .card,
-    .dash-glass .card-hover {
-      background: hsl(var(--bg-card) / .45);
-      /* O blur SUBIU junto com a transparência: são um par. Quanto menos alfa
-         o card tem, mais o vídeo aparece por baixo do texto — o blur é o que
-         mantém a leitura sem precisar de opacidade. */
-      backdrop-filter: blur(18px) saturate(140%);
-      -webkit-backdrop-filter: blur(18px) saturate(140%);
-      border-color: hsl(var(--border) / .55);
-    }
-    /* No escuro o card fica um pouco MENOS transparente: o fundo do painel já
-       é quase preto, então o mesmo alfa do claro deixaria o texto sobre a
-       parte vívida do vídeo com contraste insuficiente. */
-    .dark .dash-glass .card,
-    .dark .dash-glass .card-hover {
-      background: hsl(var(--bg-card) / .55) !important;
-      background-image: none !important;
-      border-color: hsl(0 0% 100% / .08) !important;
-    }
+  .dash-glass .card,
+  .dash-glass .card-hover,
+  /* ⚠️ O hero NÃO é `.card` — tem classe própria (`.insight-hero`), e por isso
+     ficou de fora enquanto o efeito era só do mobile: lá ele nem desenha
+     moldura (a regra dele começa em 768px). No desktop ele é o card mais
+     largo da tela, bem em cima da faixa de vídeo — deixá-lo opaco era um
+     retângulo sólido tapando justamente o meio da imagem.
+     `background-image: none` é obrigatório: a regra dele pinta um gradiente
+     ALÉM da cor de fundo, e sem zerar isso o gradiente seguiria por cima do
+     vídeo mesmo com a cor já translúcida. */
+  .dash-glass .insight-hero {
+    background: hsl(var(--bg-card) / .45);
+    background-image: none;
+    /* O blur SUBIU junto com a transparência: são um par. Quanto menos alfa
+       o card tem, mais o vídeo aparece por baixo do texto — o blur é o que
+       mantém a leitura sem precisar de opacidade. */
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-color: hsl(var(--border) / .55);
+  }
+  /* No escuro o card fica um pouco MENOS transparente: o fundo do painel já
+     é quase preto, então o mesmo alfa do claro deixaria o texto sobre a
+     parte vívida do vídeo com contraste insuficiente. */
+  .dark .dash-glass .card,
+  .dark .dash-glass .card-hover,
+  .dark .dash-glass .insight-hero {
+    background: hsl(var(--bg-card) / .55) !important;
+    background-image: none !important;
+    border-color: hsl(0 0% 100% / .08) !important;
   }
 
   /* ── Cards no modo escuro: base #09090B + gradiente sutil para elevação ── */

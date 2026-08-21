@@ -4,32 +4,38 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 // As medidas vivem em lib/dashboard-hero.ts (módulo sem 'use client'), porque
 // o loading.tsx é Server Component e precisa reservar a mesma altura.
-import { ALTURA_VIDEO } from '@/lib/dashboard-hero';
+import { ALTURA_VIDEO, ALTURA_VIDEO_DESKTOP } from '@/lib/dashboard-hero';
 
 // =============================================================================
-// Vídeo de FUNDO do dashboard — SÓ MOBILE (<768px, o mesmo breakpoint do shell:
-// sidebar aparece em `md`, BottomNav some em `md`).
+// Vídeo de FUNDO do dashboard — MOBILE e DESKTOP, com arquivos diferentes.
 //
-// Referência: dashboard do Pierre (print do usuário). O vídeo NÃO é do card —
-// é o fundo da tela inteira: encosta no topo (por baixo da safe-area) e nas
-// duas laterais, com o conteúdo começando mais abaixo, já dentro do gradiente
-// do PRÓPRIO vídeo.
+// Referência: dashboard do Pierre. O vídeo NÃO é do card — é o fundo da área
+// de conteúdo: encosta no topo e nas laterais, com o conteúdo começando mais
+// abaixo, já dentro do gradiente.
 //
-// ⚠️ SEM VÉU / SEM OVERLAY. Os dois arquivos já trazem o gradiente que funde
-// com o tema (um por tema). Qualquer camada por cima aqui deixa a imagem
-// lavada — foi exatamente o que o usuário rejeitou na 1ª versão.
+// ── A DIFERENÇA ENTRE OS DOIS ────────────────────────────────────────────
+// MOBILE: dois arquivos 800×800, um por tema, e cada um JÁ TRAZ o gradiente
+//   que funde com o fundo. Por isso lá quase não há overlay — no claro
+//   nenhum, no escuro só uma faixa de costura (os pretos não batem).
+//   ⚠️ SEM VÉU por cima da parte vívida: foi o que o usuário rejeitou na 1ª
+//   versão, deixa a imagem lavada.
+// DESKTOP: um arquivo só, 2690×770, panorâmico e SEM gradiente embutido
+//   (medido: opaco de ponta a ponta, sunset laranja em cima, mar azul
+//   embaixo). Então aqui o gradiente é NOSSO, desenhado em `hsl(var(--bg))` —
+//   ou seja, ele acompanha o tema sozinho, sem precisar de dois arquivos.
 //
-// `object-position: 50% 100%` ancora o vídeo pela BASE: assim o gradiente que
-// vem dentro do arquivo cai sempre exatamente na borda de baixo da faixa, que
-// é onde ele precisa encontrar o fundo do painel. Se ancorasse pelo centro, o
-// corte comeria justamente o gradiente e apareceria uma costura.
+// Os dois ancoram pela BASE (eixo Y em `100%`). No mobile é onde o gradiente
+// do arquivo cai; no desktop é o que garante que, quando o teto de altura
+// corta a faixa, quem se perde é o CÉU e não o horizonte/água — justamente
+// onde o nosso gradiente encontra o fundo do painel.
 //
 // Comportamento: toca UMA vez e congela no último frame (nativo do <video>
-// sem `loop`). Reinicia quando a página remonta (voltou de outra aba do site)
-// ou quando a aba do navegador volta a ficar visível.
+// sem `loop`). Reinicia quando a página remonta ou quando a aba volta a ficar
+// visível.
 //
-// PESO: os .webm ficam em public/dashboard/. A tag <video> NUNCA é montada em
-// ≥768px — no desktop o navegador nem chega a pedir o arquivo.
+// PESO: os arquivos ficam em public/dashboard/. Cada <video> só é montado na
+// faixa de largura dele — o celular NUNCA pede o arquivo de 1,8 MB do desktop,
+// e o desktop não pede os do mobile.
 // =============================================================================
 
 /** Assina uma media query via useSyncExternalStore — sem setState em efeito e
@@ -49,11 +55,13 @@ function useMediaQuery(query: string): boolean {
 const SRC = {
   claro: '/dashboard/baleia-animada-claro.webm',
   black: '/dashboard/baleia-animada-black.webm',
+  desktop: '/dashboard/baleia-animada-desktop.webm',
 };
 
 export default function HeroVideoBg() {
   const { resolvedTheme } = useTheme();
   const mobile = useMediaQuery('(max-width: 767px)');
+  const desktop = useMediaQuery('(min-width: 768px)');
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const videoRef = useRef<HTMLVideoElement>(null);
   const ancoraRef = useRef<HTMLDivElement>(null);
@@ -62,10 +70,12 @@ export default function HeroVideoBg() {
   // passando por baixo ainda).
   const [rolou, setRolou] = useState(false);
 
+  const ativo = mobile || desktop;
+
   // Troca de app/aba do SISTEMA e volta → reinicia a animação. (Navegar dentro
   // do site já remonta o componente, que reinicia sozinho.)
   useEffect(() => {
-    if (!mobile || reduceMotion) return;
+    if (!ativo || reduceMotion) return;
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       const v = videoRef.current;
@@ -75,7 +85,7 @@ export default function HeroVideoBg() {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [mobile, reduceMotion]);
+  }, [ativo, reduceMotion]);
 
   // ⚠️ Quem rola NÃO é a window: é o <main> (`overflow-y-auto` no
   // DashboardLayout). Ouvir `window` aqui nunca dispararia. Chego nele por
@@ -83,19 +93,19 @@ export default function HeroVideoBg() {
   // são `fixed`, mas isso só afeta o LAYOUT; na árvore do DOM eles seguem
   // dentro do main.
   useEffect(() => {
-    if (!mobile) return;
+    if (!ativo) return;
     const scroller = ancoraRef.current?.closest('main');
     if (!scroller) return;
     const onScroll = () => setRolou(scroller.scrollTop > 12);
     onScroll();                                     // estado inicial correto
     scroller.addEventListener('scroll', onScroll, { passive: true });
     return () => scroller.removeEventListener('scroll', onScroll);
-  }, [mobile]);
+  }, [ativo]);
 
-  if (!mobile) return null;
+  if (!ativo) return null;
 
   const isDark = resolvedTheme === 'black' || resolvedTheme === 'dark';
-  const src = isDark ? SRC.black : SRC.claro;
+  const src = desktop ? SRC.desktop : (isDark ? SRC.black : SRC.claro);
 
   return (
     <>
@@ -105,12 +115,21 @@ export default function HeroVideoBg() {
           sumia depois dos primeiros 400px.
           Funciona mesmo dentro do <main overflow-y-auto>: `fixed` se ancora na
           viewport e escapa do scroll — desde que nenhum ancestral tenha
-          transform/filter/backdrop-filter (nenhum tem; ver DashboardLayout). */}
+          transform/filter/backdrop-filter (nenhum tem; ver DashboardLayout).
+          ⚠️ `md:left-64` = a largura da sidebar (`w-64` no Sidebar.tsx). Sem
+          isso a faixa passaria POR BAIXO dela: `fixed` se ancora na viewport,
+          não no <main>. */}
       <div
         aria-hidden
-        className="md:hidden fixed inset-x-0 top-0 overflow-hidden pointer-events-none select-none"
+        className="fixed inset-x-0 top-0 md:left-64 overflow-hidden pointer-events-none select-none"
         style={{
-          height: `calc(env(safe-area-inset-top, 0px) + 0.75rem + ${ALTURA_VIDEO})`,
+          // Altura pela PROPORÇÃO do arquivo no desktop (ver
+          // lib/dashboard-hero.ts): é o que faz a cena aparecer inteira do
+          // tablet ao ultrawide, em vez de o `cover` comer as laterais numa
+          // tela estreita.
+          height: desktop
+            ? ALTURA_VIDEO_DESKTOP
+            : `calc(env(safe-area-inset-top, 0px) + 0.75rem + ${ALTURA_VIDEO})`,
           zIndex: 0,
         }}
       >
@@ -121,7 +140,11 @@ export default function HeroVideoBg() {
           key={src}
           ref={videoRef}
           className="w-full h-full"
-          style={{ objectFit: 'cover', objectPosition: '50% 100%' }}
+          // Os dois ancoram pela BASE (`100%` no eixo Y). No X eles divergem: o
+          // mobile é quadrado e centraliza; o desktop ancora à ESQUERDA porque
+          // o único corte horizontal que ele sofre é no tablet, e lá o que
+          // precisa sobrar é a casa + a costa (o lado direito é só mar aberto).
+          style={{ objectFit: 'cover', objectPosition: desktop ? '0% 100%' : '50% 100%' }}
           autoPlay={!reduceMotion}
           muted
           playsInline
@@ -131,24 +154,36 @@ export default function HeroVideoBg() {
           <source src={src} type="video/webm" />
         </video>
 
-        {/* ── Costura com o fundo do painel (SÓ NO ESCURO) ───────────────
-            Os arquivos .webm trazem um gradiente próprio que fecha certo no
-            tema CLARO — o usuário confirmou que ali está ótimo, então lá não
-            entra máscara nenhuma (uma segunda camada só lavaria a imagem, que
-            foi o motivo do "SEM VÉU" original).
-            No ESCURO o preto do vídeo e o preto do painel não são o mesmo
-            preto, e ficava uma linha nítida no encontro. Esta faixa fecha o
-            último terço na cor REAL do fundo (`--bg`), fazendo o encontro
-            deixar de existir. É máscara de BORDA: começa transparente e só
-            fecha no fim, então a parte vívida continua intocada. */}
-        {isDark && (
+        {/* ── Costura com o fundo do painel ──────────────────────────────
+            MOBILE, tema claro: NADA. O arquivo já fecha certo — uma segunda
+              camada só lavaria a imagem (o "SEM VÉU" original).
+            MOBILE, tema escuro: o preto do vídeo e o preto do painel não são
+              o mesmo preto, e ficava uma linha nítida no encontro.
+            DESKTOP, os dois temas: o arquivo é panorâmico e NÃO traz gradiente
+              nenhum — o mar azul bateria direto no fundo do painel. Aqui a
+              faixa é obrigatória, e é mais longa (3/5 contra 1/3) porque no
+              tema claro a distância entre o azul do mar e o fundo quase branco
+              é grande demais pra fechar em pouco espaço.
+            Nos dois casos a cor é `hsl(var(--bg))` — a MESMA variável do fundo
+            do painel, então o encontro some sozinho em qualquer tema, sem
+            precisar de um arquivo por tema. */}
+        {desktop ? (
+          <div
+            className="absolute inset-x-0 bottom-0 h-3/5"
+            style={{
+              background:
+                'linear-gradient(to bottom, transparent 0%, hsl(var(--bg) / .25) 30%,'
+                + ' hsl(var(--bg) / .68) 60%, hsl(var(--bg) / .93) 84%, hsl(var(--bg)) 100%)',
+            }}
+          />
+        ) : isDark ? (
           <div
             className="absolute inset-x-0 bottom-0 h-1/3"
             style={{
               background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--bg) / .55) 55%, hsl(var(--bg)) 100%)',
             }}
           />
-        )}
+        ) : null}
       </div>
 
       {/* ── Scrim do topo ─────────────────────────────────────────────────
@@ -161,7 +196,7 @@ export default function HeroVideoBg() {
       <div
         ref={ancoraRef}
         aria-hidden
-        className="md:hidden fixed inset-x-0 top-0 pointer-events-none transition-opacity duration-300"
+        className="fixed inset-x-0 top-0 md:left-64 pointer-events-none transition-opacity duration-300"
         style={{
           height: 'calc(env(safe-area-inset-top, 0px) + 4rem)',
           zIndex: 2,

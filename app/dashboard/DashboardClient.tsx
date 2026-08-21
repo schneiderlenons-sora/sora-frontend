@@ -8,7 +8,7 @@ import { useVisivel } from '@/lib/useVisivel';
 import { useAuth } from '@/contexts/AuthContext';
 import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
 import HeroVideoBg from '@/components/dashboard/HeroVideoBg';
-import { ALTURA_ESPACADOR } from '@/lib/dashboard-hero';
+import { ALTURA_ESPACADOR, ALTURA_ESPACADOR_DESKTOP } from '@/lib/dashboard-hero';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ResumoCards from '@/components/dashboard/ResumoCards';
 import HeroStatsMobile from '@/components/dashboard/HeroStatsMobile';
@@ -317,6 +317,12 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
             {saudacaoCurta}
           </h1>
         </div>
+
+        {/* Mesmo espaçador, versão desktop. Aqui não há saudação solta — ela
+            vive DENTRO do card do hero —, então o espaçador é calibrado pra o
+            card encostar no rabo do gradiente da faixa, não pra sobrar espaço
+            entre os dois (ver ALTURA_ESPACADOR_DESKTOP). */}
+        <div aria-hidden className="hidden md:block" style={{ height: ALTURA_ESPACADOR_DESKTOP }} />
 
         {/* ══════════════════════════════════════════════════════
             HERO ROW — Insight + Hábitos de hoje (Grow)
