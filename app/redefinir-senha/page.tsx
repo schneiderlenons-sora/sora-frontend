@@ -12,18 +12,34 @@ const MIN = 6;
 // =============================================================================
 // "Esqueci a senha" — passo 2: gravar a senha nova.
 //
-// É onde o link do e-mail cai. O Supabase entrega a sessão de recuperação de
-// duas formas conforme o projeto:
-//   · PKCE  → `?code=...` na query, que precisa de exchangeCodeForSession
-//   · legado→ `#access_token=...&type=recovery` no HASH, que o client já troca
-//             sozinho ao carregar (evento PASSWORD_RECOVERY)
-// Tratamos as DUAS, senão o link funciona num projeto e falha no outro.
+// É onde o link do e-mail cai.
 //
-// ⚠️ Sem sessão válida, `updateUser` falharia com uma mensagem técnica. Por
-// isso a página começa verificando e, se não houver, explica o que fazer em
-// vez de deixar a pessoa digitar uma senha que não seria salva.
+// ⚠️⚠️ NUNCA CHAMAR `exchangeCodeForSession` AQUI. O código do link é de USO
+// ÚNICO e o client JÁ O TROCA SOZINHO ao inicializar.
+//
+// Foi exatamente esse o bug: `createBrowserClient` (@supabase/ssr) força
+// `flowType: 'pkce'` e liga `detectSessionInUrl` por padrão no navegador. Com
+// isso o GoTrueClient lê o `?code=` da URL, chama `_exchangeCodeForSession`
+// por conta própria e APAGA o `code` da URL em seguida. A página fazia a mesma
+// troca de novo, na mão — a segunda chamada batia num código já queimado, o
+// catch marcava "inválido" e a tela dizia LINK EXPIRADO com a sessão já
+// criada. Dava pra reproduzir clicando no link em menos de um minuto.
+//
+// O que fazer no lugar: esperar a sessão aparecer. `getSession()` aguarda a
+// inicialização do client internamente, e o `onAuthStateChange` cobre o caso
+// de o evento chegar antes.
+//
+// ── OS DOIS MOTIVOS REAIS DE FALHA (e por que são telas diferentes) ─────────
+// · EXPIRADO/USADO → o Supabase redireciona pra cá com `error`/`error_code` na
+//   URL. Também é o que acontece quando um antivírus ou o scanner de link do
+//   provedor de e-mail abre o link antes do usuário e queima o token.
+// · OUTRO NAVEGADOR → o PKCE guarda um `code_verifier` no navegador que PEDIU
+//   a troca. Pedir no computador e abrir o e-mail no celular deixa o `code` na
+//   URL sem o verifier, e a troca falha SEM erro na URL. Chamar isso de
+//   "expirado" mandava a pessoa pedir link novo em looping, porque o link
+//   novo falharia igual.
 // =============================================================================
-type Estado = 'verificando' | 'pronto' | 'invalido' | 'salvo';
+type Estado = 'verificando' | 'pronto' | 'expirado' | 'outro-navegador' | 'salvo';
 
 export default function RedefinirSenhaPage() {
   const [estado, setEstado] = useState<Estado>('verificando');
@@ -35,29 +51,49 @@ export default function RedefinirSenhaPage() {
 
   useEffect(() => {
     let vivo = true;
+    let resolvido = false;
+    const concluir = (e: Estado) => {
+      if (!vivo || resolvido) return;
+      resolvido = true;
+      setEstado(e);
+    };
 
-    // O evento cobre o fluxo por HASH (o client troca o token sozinho).
-    const { data: sub } = supabase.auth.onAuthStateChange((evt) => {
-      if (!vivo) return;
-      if (evt === 'PASSWORD_RECOVERY' || evt === 'SIGNED_IN') setEstado('pronto');
+    // ⚠️ LIDO DE FORMA SÍNCRONA, antes de qualquer await. O client apaga o
+    // `code` da URL assim que troca com sucesso — se eu lesse depois, não
+    // saberia mais que o link trazia um code, e é justamente isso que separa
+    // "expirou" de "abriu em outro navegador".
+    const url  = new URL(window.location.href);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const tinhaCode  = !!url.searchParams.get('code');
+    const tinhaToken = !!hash.get('access_token');
+    const erroNaUrl  = url.searchParams.get('error_code') || url.searchParams.get('error')
+                    || hash.get('error_code') || hash.get('error');
+
+    // Cobre o caso do evento chegar antes da nossa leitura.
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, session) => {
+      if (session && (evt === 'PASSWORD_RECOVERY' || evt === 'SIGNED_IN' || evt === 'INITIAL_SESSION')) {
+        concluir('pronto');
+      }
     });
 
     (async () => {
-      try {
-        const code = new URLSearchParams(window.location.search).get('code');
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (!vivo) return;
-          setEstado(error ? 'invalido' : 'pronto');
-          return;
-        }
-        // Sem `code`: ou o hash já virou sessão, ou o link é inválido/expirado.
+      // O Supabase diz o motivo na própria URL quando o token não vale mais.
+      if (erroNaUrl) { concluir('expirado'); return; }
+
+      // Só faz sentido esperar se o link trouxe alguma credencial. Numa visita
+      // direta a /redefinir-senha, uma checagem basta — não deixar a pessoa
+      // olhando um spinner por 3s à toa.
+      const tentativas = (tinhaCode || tinhaToken) ? 12 : 1;
+      for (let i = 0; i < tentativas && vivo && !resolvido; i++) {
         const { data } = await supabase.auth.getSession();
         if (!vivo) return;
-        setEstado(data?.session ? 'pronto' : 'invalido');
-      } catch {
-        if (vivo) setEstado('invalido');
+        if (data?.session) { concluir('pronto'); return; }
+        if (i < tentativas - 1) await new Promise((r) => setTimeout(r, 250));
       }
+
+      // Chegou code, não deu erro na URL e mesmo assim não virou sessão: falta
+      // o `code_verifier` do PKCE, que vive no navegador que PEDIU o link.
+      concluir(tinhaCode ? 'outro-navegador' : 'expirado');
     })();
 
     return () => { vivo = false; sub?.subscription?.unsubscribe?.(); };
@@ -97,7 +133,7 @@ export default function RedefinirSenhaPage() {
             </div>
           )}
 
-          {estado === 'invalido' && (
+          {estado === 'expirado' && (
             <div className="space-y-5">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-amber-500/12">
                 <AlertTriangle size={26} className="text-amber-500" />
@@ -112,6 +148,39 @@ export default function RedefinirSenhaPage() {
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl font-bold text-white transition active:scale-[0.99]"
                 style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 48 }}>
                 Pedir um link novo <ArrowRight size={17} />
+              </Link>
+            </div>
+          )}
+
+          {/* ⚠️ TELA PRÓPRIA, não um "link expirado" genérico. Aqui o link está
+              VÁLIDO — só foi aberto num navegador diferente do que pediu a
+              troca (o PKCE guarda o `code_verifier` em quem pediu). Chamar
+              isso de expirado mandava a pessoa pedir link novo em looping,
+              porque o link novo falharia exatamente igual. */}
+          {estado === 'outro-navegador' && (
+            <div className="space-y-5">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-amber-500/12">
+                <AlertTriangle size={26} className="text-amber-500" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                  Abra no mesmo navegador
+                </h1>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Por segurança, esse link só funciona no navegador em que você pediu a troca de
+                  senha. Se você pediu no computador e abriu o e-mail no celular — ou o link abriu
+                  dentro do app de e-mail — é isso que aconteceu.
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Copie o link e cole no navegador onde você pediu, ou peça um link novo{' '}
+                  <strong className="text-foreground">aqui neste aparelho</strong> e abra o e-mail
+                  por aqui mesmo.
+                </p>
+              </div>
+              <Link href="/recuperar-senha"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl font-bold text-white transition active:scale-[0.99]"
+                style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 48 }}>
+                Pedir um link aqui <ArrowRight size={17} />
               </Link>
             </div>
           )}
