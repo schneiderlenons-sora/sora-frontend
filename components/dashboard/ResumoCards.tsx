@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ehPagamentoFatura } from '@/lib/categorizar';
 import {
   Wallet, TrendingUp, TrendingDown, CreditCard, ChevronDown,
   ArrowUpRight, ArrowDownRight,
@@ -11,6 +10,28 @@ import ValorAuto from '@/components/ui/ValorAuto';
 import { api } from '@/lib/api';
 import { competenciaAtual, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
+import {
+  fatiasDeContas, saldoPorContaDe, gastoPorContaDe, acumuladoDe,
+  IconesContas, BarraContas, Sparkline,
+} from '@/components/dashboard/stat-visuais';
+
+// =============================================================================
+// Os stat cards abaixo do card de hábitos.
+//
+// ⚠️ DESKTOP E MOBILE MOSTRAM CONJUNTOS DIFERENTES — de propósito:
+//
+//   mobile  → Receitas · Cartões          (Saldo e Gastos já estão no HERO,
+//                                          em `HeroStatsMobile`, com ícones,
+//                                          barra e gráfico)
+//   desktop → Saldo em contas · Receitas · Gastos do mês · Cartões
+//
+// O desktop não tem o `HeroStatsMobile` (ele é `md:hidden`), então é aqui que
+// os cards ricos aparecem — e são os MESMOS visuais, vindos de
+// `stat-visuais.tsx`. Repetir Saldo/Gastos no mobile daria dois cards para o
+// mesmo número na mesma tela, que foi exatamente o que esta mudança tirou.
+// Por isso os dois são `hidden lg:flex`, não componentes separados: um só
+// lugar decide o que cada stat mostra.
+// =============================================================================
 
 const BRAND = 'hsl(var(--primary))';
 const fmt = (v: number) =>
@@ -37,6 +58,7 @@ type Aberto = 'saldo' | 'gastos' | 'cartoes' | null;
 
 export default function ResumoCards({
   wallets, txsMes, resumo, saldoTotal, varReceitas, varGastos, phone,
+  dadosDiarios = [], monthName = '',
 }: {
   wallets: any[];
   txsMes: any[];
@@ -45,6 +67,9 @@ export default function ResumoCards({
   varReceitas: number;
   varGastos: number;
   phone?: string;
+  /** Gasto por dia do mês — vira o mini gráfico do card "Gastos do mês". */
+  dadosDiarios?: { dia: string; valor: number }[];
+  monthName?: string;
 }) {
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
@@ -120,23 +145,17 @@ export default function ResumoCards({
 
   const cartaoTop = cartoes[0] || null;
 
-  // Saldo por conta (maior primeiro).
-  const saldoPorConta = useMemo(
-    () => contas.map(w => ({ nome: w.nome, saldo: w.saldo || 0 })).sort((a, b) => b.saldo - a.saldo),
+  // Contas: composição da barra (só positivas) e a lista completa do detalhe
+  // (com as zeradas e as negativas — esconder conta no vermelho é esconder
+  // justamente o que o usuário precisa ver).
+  const listaContas = useMemo(
+    () => contas.map(w => ({ nome: w.nome, saldo: w.saldo || 0 })),
     [contas],
   );
-
-  // Gasto por conta no mês (exclui transferência/pagamento de fatura — igual ao total).
-  const gastoPorConta = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of txsMes) {
-      if (t.tipo !== 'Gasto') continue;
-      if (t.transferencia || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências') continue;
-      const k = t.carteira_nome || 'Sem conta';
-      map.set(k, (map.get(k) || 0) + (t.valor || 0));
-    }
-    return [...map.entries()].map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
-  }, [txsMes]);
+  const fatias = useMemo(() => fatiasDeContas(listaContas), [listaContas]);
+  const saldoPorConta = useMemo(() => saldoPorContaDe(listaContas), [listaContas]);
+  const gastoPorConta = useMemo(() => gastoPorContaDe(txsMes), [txsMes]);
+  const acumulado = useMemo(() => acumuladoDe(dadosDiarios), [dadosDiarios]);
 
   // Conteúdo do painel de detalhe (um por vez).
   const painelContent = (
@@ -183,39 +202,48 @@ export default function ResumoCards({
     </>
   );
 
+  const nContas = listaContas.length;
+
   return (
     // O painel de detalhe vive DENTRO do grid como item full-width (col-span).
-    // Via `order`, no mobile ele cai logo depois da LINHA do card tocado (Saldo
-    // está na 1ª linha → painel entra entre as linhas); no desktop (fileira única
-    // de 4) o `lg:order-last` mantém ele sempre abaixo de todos. Assim o usuário
-    // vê a expansão colada no card, não perdida embaixo dos outros.
+    // Via `order` ele cai logo depois da LINHA do card tocado: no mobile só
+    // sobram 2 cards (uma linha), então `order-3`; no desktop a fileira é única
+    // de 4 e o `lg:order-last` mantém ele sempre abaixo de todos.
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Saldo Total (expansível) — 1ª linha, col 1 */}
+      {/* ── Saldo em contas — SÓ DESKTOP (no mobile vive no hero) ──
+          Ícones das contas em cima + barra de composição, igual ao mobile. */}
       <StatCard
-        className="order-1"
-        label="Saldo Total" value={fmt(saldoTotal)} valueColor={BRAND}
+        className="hidden lg:flex lg:order-1"
+        label="Saldo em contas" value={fmt(saldoTotal)} valueColor={BRAND}
         icon={Wallet} iconColor={BRAND}
-        sub={`${contas.length} conta${contas.length === 1 ? '' : 's'}`}
+        topo={<IconesContas contas={listaContas} />}
+        barraSlot={<BarraContas fatias={fatias} className="mt-2.5" />}
+        sub={nContas === 0 ? 'Nenhuma conta ainda' : `${nContas} conta${nContas === 1 ? '' : 's'}`}
         aberto={aberto === 'saldo'} onToggle={() => toggle('saldo')} delay={0}
       />
-      {/* Receitas (simples) — 1ª linha, col 2 */}
+
+      {/* ── Receitas (simples) — nas duas telas ── */}
       <StatCard
-        className="order-2"
+        className="order-1 lg:order-2"
         label="Receitas" value={fmt(resumo?.receitas || 0)}
         icon={TrendingUp} iconColor={BRAND}
         badge={<VarBadge val={varReceitas} />} delay={50}
       />
-      {/* Gastos (expansível) — 2ª linha, col 1 */}
+
+      {/* ── Gastos do mês — SÓ DESKTOP (no mobile vive no hero) ──
+          Mini gráfico do acumulado em cima, igual ao mobile. */}
       <StatCard
-        className="order-4"
-        label="Gastos" value={fmt(resumo?.gastos || 0)} valueColor="#ef4444"
+        className="hidden lg:flex lg:order-3"
+        label="Gastos do mês" value={fmt(resumo?.gastos || 0)} valueColor="#ef4444"
         icon={TrendingDown} iconColor="#ef4444"
+        topo={<span className="block h-8"><Sparkline valores={acumulado} /></span>}
         badge={<VarBadge val={varGastos} invert />}
         aberto={aberto === 'gastos'} onToggle={() => toggle('gastos')} delay={100}
       />
-      {/* Cartões (expansível) — 2ª linha, col 2 */}
+
+      {/* ── Cartões — nas duas telas ── */}
       <StatCard
-        className="order-5"
+        className="order-2 lg:order-4"
         label="Cartões"
         value={cartaoTop ? fmt(cartaoTop.fatura) : 'R$ 0,00'}
         valueColor="#7c3aed"
@@ -228,12 +256,9 @@ export default function ResumoCards({
         delay={150}
       />
 
-      {/* Painel de detalhe — full-width. order-3 (após a 1ª linha) quando é o
-          Saldo; order-6 (após a 2ª linha) pros demais. Desktop: sempre por último. */}
+      {/* Painel de detalhe — full-width, sempre depois da linha dos cards. */}
       {aberto && (
-        <div className={`col-span-2 lg:col-span-4 card rounded-2xl p-4 sm:p-5 animate-fade-in ${
-          aberto === 'saldo' ? 'order-3 lg:order-last' : 'order-6 lg:order-last'
-        }`}>
+        <div className="col-span-2 lg:col-span-4 card rounded-2xl p-4 sm:p-5 animate-fade-in order-3 lg:order-last">
           {painelContent}
         </div>
       )}
@@ -244,12 +269,17 @@ export default function ResumoCards({
 // ── Card de estatística (compacto, com expand opcional) ──
 function StatCard({
   label, value, valueColor, icon: Icon, iconColor, sub, badge, barra, barraCor,
-  aberto, onToggle, delay = 0, className = '',
+  topo, barraSlot, aberto, onToggle, delay = 0, className = '',
 }: {
   label: string; value: string; valueColor?: string;
   icon: any; iconColor: string;
   sub?: string; badge?: React.ReactNode;
   barra?: number | null; barraCor?: string;
+  /** Visual acima do valor (ícones das contas, mini gráfico). Altura fixa →
+   *  sem CLS quando o dado chega. */
+  topo?: React.ReactNode;
+  /** Barra composta (várias fatias) — quando uma barra de % simples não serve. */
+  barraSlot?: React.ReactNode;
   aberto?: boolean; onToggle?: () => void; delay?: number; className?: string;
 }) {
   return (
@@ -263,6 +293,8 @@ function StatCard({
         </div>
       </div>
 
+      {topo && <div className="mb-3">{topo}</div>}
+
       {/* ValorAuto no lugar de `truncate`: o valor encolhe só o necessário e
           aparece INTEIRO, em vez de virar "R$ 2.5…" no card estreito. */}
       <ValorAuto max="1.5rem" className="font-bold tracking-tight leading-tight"
@@ -270,13 +302,19 @@ function StatCard({
         {value}
       </ValorAuto>
 
+      {barraSlot}
+
       {typeof barra === 'number' && (
         <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
           <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${barra}%`, background: barraCor }} />
         </div>
       )}
 
-      <div className="mt-1.5 min-h-[20px]">
+      {/* ⚠️ `mt-auto`: os cards da fileira têm alturas diferentes (dois com
+          visual em cima, dois sem) e o grid estica todos. Sem isto o rodapé de
+          cada um flutuava numa altura diferente e a linha parecia desalinhada;
+          com ele, badge e botão "Detalhes" encostam na base em todos. */}
+      <div className="mt-auto pt-1.5 min-h-[20px]">
         {badge || (sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>)}
       </div>
 

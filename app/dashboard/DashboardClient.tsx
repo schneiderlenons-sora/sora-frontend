@@ -12,6 +12,7 @@ import { ALTURA_ESPACADOR } from '@/lib/dashboard-hero';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ResumoCards from '@/components/dashboard/ResumoCards';
 import HeroStatsMobile from '@/components/dashboard/HeroStatsMobile';
+import { gastoPorContaDe } from '@/components/dashboard/stat-visuais';
 import GrowResumo from '@/components/dashboard/GrowResumo';
 import GrowHabitosCard from '@/components/dashboard/GrowHabitosCard';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -193,6 +194,11 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     // Exclui pagamento de fatura/transferência (não é consumo) — consistente com o total.
     () => computeDailyAmount(txsMes.filter(t => !t.transferencia && !ehPagamentoFatura(t.categoria) && t.categoria !== 'Transferências'), today),
     [txsMes, today]);
+
+  // Gasto do mês por conta — o detalhe que os cards "Gastos do mês" abrem: no
+  // hero (mobile) e no ResumoCards (desktop). Calculado UMA vez aqui pra as
+  // duas telas lerem exatamente a mesma lista.
+  const gastoPorConta = useMemo(() => gastoPorContaDe(txsMes), [txsMes]);
 
   // Categorias com percentual + cor real (customizada pelo usuário > catálogo > hash)
   const totalGastos = resumo?.gastos || 0;
@@ -473,6 +479,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                 saldoTotal={saldoTotal}
                 gastosMes={resumo?.gastos || 0}
                 dadosDiarios={dadosDiarios}
+                gastoPorConta={gastoPorConta}
                 monthName={monthName}
                 monthNameAnt={monthNameAnt}
                 varGastos={varGastos}
@@ -519,6 +526,8 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           varReceitas={varReceitas}
           varGastos={varGastos}
           phone={phone}
+          dadosDiarios={dadosDiarios}
+          monthName={monthName}
         />
 
         {/* ══════════════════════════════════════════════════════
