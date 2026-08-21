@@ -1,0 +1,158 @@
+<!--
+  =============================================================================
+  Template do e-mail "Redefinir senha" — colar no Supabase.
+
+  ONDE: Dashboard → Authentication → Emails → template "Reset Password".
+        Assunto sugerido:  Redefinir sua senha da Sora
+
+  ⚠️ Este arquivo é a FONTE. O painel do Supabase não versiona nada: se alguém
+  editar por lá e ninguém trouxer a mudança pra cá, o próximo que colar este
+  arquivo apaga a edição. Mexeu no painel, atualize aqui.
+
+  ── REGRAS DE E-MAIL QUE PARECEM EXAGERO E NÃO SÃO ──────────────────────────
+  · TABELAS e estilo INLINE. Gmail remove <style> do <head>, e flex/grid não
+    existem no Outlook (que renderiza com o motor do Word).
+  · SEM IMAGEM no cabeçalho de propósito. Outlook e boa parte dos clientes
+    bloqueiam imagem por padrão — um logo em <img> vira retângulo vazio no
+    primeiro contato, justo no e-mail em que a pessoa precisa confiar. O
+    wordmark é texto. (Se um dia quiser a imagem, use URL absoluta https e
+    deixe o texto como alt.)
+  · O botão tem o padding no <td>, NÃO no <a>: o Outlook ignora padding em
+    elemento inline e o botão sairia colado no texto.
+  · O link cru aparece embaixo. Cliente corporativo às vezes não deixa clicar.
+
+  ── COR ─────────────────────────────────────────────────────────────────────
+  ⚠️ O verde da marca (#61D17B) com texto branco dá 1,92:1 — ilegível. O botão
+  usa #268046, o mesmo verde mais fundo, que dá 4,93:1. Medido, não chutado.
+
+  ── VARIÁVEIS DISPONÍVEIS (Go template, do Supabase) ────────────────────────
+  {{ .ConfirmationURL }}  link pronto (é o que usamos)
+  {{ .Token }}            código de 6 dígitos
+  {{ .TokenHash }}        hash do token, pra montar link próprio
+  {{ .SiteURL }}          Site URL do projeto
+  {{ .Email }}            e-mail de destino
+  {{ .RedirectTo }}       o redirectTo pedido pelo app
+  =============================================================================
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background-color:#F4F4F5;margin:0;padding:0;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+
+      <!-- Preheader: a linha de prévia na caixa de entrada, antes de abrir.
+           Sem isso o cliente mostra o começo do HTML, que fica feio. Os
+           &nbsp;&zwnj; empurram o resto do corpo pra fora da prévia. -->
+      <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F4F4F5;">
+        Seu link para criar uma senha nova. Ele vale por 1 hora.
+        &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+      </div>
+
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+             style="width:100%;max-width:600px;background-color:#FFFFFF;border-radius:16px;
+                    border:1px solid #E4E4E7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+        <!-- Cabeçalho -->
+        <tr>
+          <td style="padding:32px 40px 0 40px;">
+            <span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:#268046;">Sora</span>
+          </td>
+        </tr>
+
+        <!-- Corpo -->
+        <tr>
+          <td style="padding:24px 40px 0 40px;">
+            <h1 style="margin:0 0 12px 0;font-size:24px;line-height:1.3;font-weight:700;
+                       letter-spacing:-0.02em;color:#18181B;">
+              Vamos criar uma senha nova
+            </h1>
+            <p style="margin:0 0 8px 0;font-size:15px;line-height:1.6;color:#3F3F46;">
+              Recebi um pedido para redefinir a senha da sua conta na Sora. É só clicar no botão
+              abaixo e escolher a nova.
+            </p>
+            <p style="margin:0;font-size:15px;line-height:1.6;color:#3F3F46;">
+              O link vale por <strong style="color:#18181B;">1 hora</strong>.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Botão. O padding vive no <td> porque o Outlook ignora padding no <a>. -->
+        <tr>
+          <td style="padding:28px 40px 0 40px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" bgcolor="#268046" style="border-radius:12px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;
+                            color:#FFFFFF;text-decoration:none;border-radius:12px;">
+                    Criar senha nova
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- ⚠️ AVISO QUE EVITA CHAMADO DE SUPORTE. O fluxo é PKCE: a chave que
+             completa a troca (`code_verifier`) fica guardada no navegador que
+             PEDIU o link. Pedir no computador e abrir o e-mail no celular faz
+             o link falhar mesmo estando válido — foi um bug real de suporte.
+             Dizer isso aqui é mais barato que explicar depois. -->
+        <tr>
+          <td style="padding:20px 40px 0 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background-color:#F4F4F5;border-radius:12px;">
+              <tr>
+                <td style="padding:14px 16px;font-size:13px;line-height:1.55;color:#52525B;">
+                  Abra o link no <strong style="color:#18181B;">mesmo aparelho e navegador</strong>
+                  em que você pediu a troca. É uma proteção contra links interceptados — no
+                  aparelho errado ele não funciona, mesmo dentro da hora.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Link cru: cliente corporativo às vezes não deixa clicar em botão. -->
+        <tr>
+          <td style="padding:20px 40px 0 40px;">
+            <p style="margin:0 0 6px 0;font-size:13px;line-height:1.5;color:#71717A;">
+              O botão não funcionou? Copie e cole este endereço:
+            </p>
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#268046;word-break:break-all;">
+              {{ .ConfirmationURL }}
+            </p>
+          </td>
+        </tr>
+
+        <!-- Segurança -->
+        <tr>
+          <td style="padding:24px 40px 0 40px;">
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#71717A;">
+              Não foi você que pediu? Pode ignorar este e-mail — sua senha continua a mesma e
+              ninguém consegue entrar sem este link.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Rodapé -->
+        <tr>
+          <td style="padding:28px 40px 32px 40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="border-top:1px solid #E4E4E7;padding-top:20px;">
+                  <p style="margin:0 0 4px 0;font-size:13px;line-height:1.5;color:#3F3F46;">
+                    <strong>Sora</strong> — sua vida financeira organizada pelo WhatsApp
+                  </p>
+                  <p style="margin:0;font-size:12px;line-height:1.5;color:#A1A1AA;">
+                    <a href="https://www.forsora.com" style="color:#71717A;text-decoration:none;">forsora.com</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

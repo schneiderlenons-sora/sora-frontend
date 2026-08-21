@@ -1314,6 +1314,27 @@ SORA_CAPA_URL (capa 1200x630 da Sora; default ${APP_URL}/sora-capa.png)
 
 ---
 
+## E-mails de auth (Supabase) — `docs/emails/`
+
+Único e-mail de auth em uso é o de **redefinir senha** (confirmação no cadastro
+está desligada). Template em PT + instruções de SMTP próprio em
+`docs/emails/` — **é a fonte versionada**; o painel do Supabase não guarda
+histórico, então quem editar por lá tem de trazer a mudança pro arquivo.
+
+- ⚠️ O SMTP embutido do Supabase é de desenvolvimento e limita a ~2–4 envios/h
+  **em silêncio**. "Pedi e não chegou nada" → suspeitar disso primeiro.
+- ⚠️ **NUNCA chamar `exchangeCodeForSession` na `/redefinir-senha`.**
+  `createBrowserClient` força PKCE e liga `detectSessionInUrl`: o client já
+  troca o `?code=` sozinho na init e o código é de USO ÚNICO. A segunda troca
+  falhava e a tela dizia "link expirado" com a sessão criada. Só esperar a
+  sessão (`getSession()` aguarda a init internamente).
+- ⚠️ PKCE guarda o `code_verifier` no navegador que PEDIU o link → abrir o
+  e-mail em outro aparelho falha **sem** erro na URL. É tela própria ("abra no
+  mesmo navegador"), não "expirado" — senão a pessoa pede link novo em looping.
+- Conferir em *Authentication → URL Configuration* que `forsora.com/**` **e**
+  `www.forsora.com/**` estão nas Redirect URLs (host diferente = cookie do
+  verifier não acompanha).
+
 ## Deployment
 
 - **Frontend:** Vercel — auto-deploy a cada push no branch `master` do GitHub
