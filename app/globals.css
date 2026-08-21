@@ -434,18 +434,13 @@ body { background-color: hsl(var(--bg)); }
      `.dash-glass`, não descendente.
 
      ⚠️ `.dark` aqui é o seletor certo pros DOIS temas escuros — o tema black
-     também usa a classe `.dark` (ver Sidebar: `isDark = isTemaBlack`). */
-  /* ⚠️ O hero NÃO é `.card` — tem classe própria (`.insight-hero`), e por isso
-     ficou de fora enquanto o efeito era só do mobile: lá ele nem desenha
-     moldura (a regra dele começa em 768px). No desktop ele é o card mais
-     largo da tela, bem em cima da faixa de vídeo — deixá-lo opaco era um
-     retângulo sólido tapando justamente o meio da imagem.
-     `background-image: none` é obrigatório: a regra dele pinta um gradiente
-     ALÉM da cor de fundo, e sem zerar isso o gradiente seguiria por cima do
-     vídeo mesmo com a cor já translúcida. */
+     também usa a classe `.dark` (ver Sidebar: `isDark = isTemaBlack`).
+
+     ⚠️ O card do HERO não entra aqui — tem classe própria (`.insight-hero`) e
+     regra SEPARADA, mais abaixo, presa a `min-width: 768px`. Não junte os
+     seletores: no celular ele não desenha nada de propósito. */
   .dash-glass .card,
-  .dash-glass .card-hover,
-  .dash-glass .insight-hero {
+  .dash-glass .card-hover {
     background: hsl(var(--bg-card) / .45);
     background-image: none;
     /* O blur SUBIU junto com a transparência: são um par. Quanto menos alfa
@@ -456,29 +451,50 @@ body { background-color: hsl(var(--bg)); }
     border-color: hsl(var(--border) / .55);
   }
 
-  /* ⚠️ O HERO É MAIS OPACO — e SÓ NO TEMA CLARO (o escuro vem logo abaixo,
-     com !important, e volta pra .55).
-     No desktop não há espaçador (decisão do usuário): este card nasce em cima
-     da parte VÍVIDA da imagem, o céu laranja forte. Com a .45 dos demais, o
-     verde da marca no título e o cinza do insight caíam pra perto de 2:1 e o
-     texto sumia — foi a queixa. No escuro o mesmo alfa funciona porque o que
-     passa por baixo já é a metade escura da cena.
-     Subir o alfa é o lever que resolve sem mexer em cor nenhuma de texto:
-     a imagem continua aparecendo através dele, só que atrás de um vidro mais
-     leitoso. Se ficar leitoso demais, é este número que se mexe. */
-  .dash-glass .insight-hero {
-    background: hsl(var(--bg-card) / .82);
-  }
-
   /* No escuro o card fica um pouco MENOS transparente: o fundo do painel já
      é quase preto, então o mesmo alfa do claro deixaria o texto sobre a
      parte vívida do vídeo com contraste insuficiente. */
   .dark .dash-glass .card,
-  .dark .dash-glass .card-hover,
-  .dark .dash-glass .insight-hero {
+  .dark .dash-glass .card-hover {
     background: hsl(var(--bg-card) / .55) !important;
     background-image: none !important;
     border-color: hsl(0 0% 100% / .08) !important;
+  }
+
+  /* ── O hero de vidro: SÓ A PARTIR DE 768px ─────────────────────────────
+     ⚠️ ESTA MEDIA QUERY NÃO É OPCIONAL — tirá-la QUEBRA O CELULAR, e já
+     quebrou uma vez.
+     No mobile o `.insight-hero` não desenha NADA de propósito: o card-pai
+     deixou de existir ali (a regra original dele também começa em 768px), o
+     texto do insight fica solto sobre o vídeo e os 4 mini-cards ganham a
+     largura toda. Dar fundo a ele no celular ressuscita a moldura do pai —
+     na prática, um retângulo claro atrás do texto e dos mini-cards, lavando
+     a metade de baixo do vídeo.
+     No DESKTOP é o contrário: ele é o card mais largo da tela, nasce em cima
+     da parte vívida da imagem (não há espaçador) e opaco viraria um bloco
+     sólido tapando o meio da cena.
+     `background-image: none` é obrigatório: a regra dele pinta um gradiente
+     ALÉM da cor de fundo, e sem zerar isso o gradiente seguiria por cima do
+     vídeo mesmo com a cor já translúcida. */
+  @media (min-width: 768px) {
+    .dash-glass .insight-hero {
+      /* MAIS OPACO que os demais cards (.45), e só no tema claro — o escuro
+         vem logo abaixo e volta pra .55. Sobre o céu laranja forte, a .45 o
+         verde da marca no título e o cinza do insight caíam pra perto de 2:1
+         e o texto sumia. No escuro o mesmo alfa funciona porque o que passa
+         por baixo já é a metade escura da cena.
+         Se ficar leitoso demais, é este número que se mexe. */
+      background: hsl(var(--bg-card) / .82);
+      background-image: none;
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border-color: hsl(var(--border) / .55);
+    }
+    .dark .dash-glass .insight-hero {
+      background: hsl(var(--bg-card) / .55) !important;
+      background-image: none !important;
+      border-color: hsl(0 0% 100% / .08) !important;
+    }
   }
 
   /* ── Cards no modo escuro: base #09090B + gradiente sutil para elevação ── */
