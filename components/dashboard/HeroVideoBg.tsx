@@ -69,6 +69,8 @@ export default function HeroVideoBg() {
   // cara, parado no topo, ele escurecia a imagem sem motivo — não há conteúdo
   // passando por baixo ainda).
   const [rolou, setRolou] = useState(false);
+  // Largura da barra de rolagem do <main>. Ver o efeito de scroll abaixo.
+  const [barra, setBarra] = useState(0);
 
   const ativo = mobile || desktop;
 
@@ -99,7 +101,23 @@ export default function HeroVideoBg() {
     const onScroll = () => setRolou(scroller.scrollTop > 12);
     onScroll();                                     // estado inicial correto
     scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => scroller.removeEventListener('scroll', onScroll);
+
+    // ⚠️ QUEM ROLA É O <main>, MAS AS CAMADAS SÃO `fixed` — logo elas se
+    // ancoram na VIEWPORT e `right: 0` cai em cima da barra de rolagem do
+    // main, escondendo a barra inteira (o usuário perdia a referência de onde
+    // estava na página). Não dá pra resolver só com CSS: a largura da barra
+    // varia por SO e por navegador, e em barra "overlay" (mobile, macOS) ela é
+    // ZERO — descontar um valor fixo deixaria uma tira do fundo aparecendo.
+    // Então é medida: largura de fora menos largura de dentro.
+    const medir = () => setBarra(Math.max(0, scroller.clientWidth ? scroller.getBoundingClientRect().width - scroller.clientWidth : 0));
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(scroller);
+
+    return () => {
+      scroller.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+    };
   }, [ativo]);
 
   if (!ativo) return null;
@@ -123,6 +141,9 @@ export default function HeroVideoBg() {
         aria-hidden
         className="fixed inset-x-0 top-0 md:left-64 overflow-hidden pointer-events-none select-none"
         style={{
+          // Recuo da barra de rolagem do <main> — sem ele a faixa cobre a
+          // barra inteira (ver o efeito que mede `barra`).
+          right: barra,
           // Altura pela PROPORÇÃO do arquivo no desktop (ver
           // lib/dashboard-hero.ts): é o que faz a cena aparecer inteira do
           // tablet ao ultrawide, em vez de o `cover` comer as laterais numa
@@ -198,6 +219,7 @@ export default function HeroVideoBg() {
         aria-hidden
         className="fixed inset-x-0 top-0 md:left-64 pointer-events-none transition-opacity duration-300"
         style={{
+          right: barra,
           height: 'calc(env(safe-area-inset-top, 0px) + 4rem)',
           zIndex: 2,
           opacity: rolou ? 1 : 0,

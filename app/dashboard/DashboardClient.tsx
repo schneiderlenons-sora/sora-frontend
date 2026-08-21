@@ -8,7 +8,7 @@ import { useVisivel } from '@/lib/useVisivel';
 import { useAuth } from '@/contexts/AuthContext';
 import KitUpsellBanner from '@/components/kit/KitUpsellBanner';
 import HeroVideoBg from '@/components/dashboard/HeroVideoBg';
-import { ALTURA_ESPACADOR, ALTURA_ESPACADOR_DESKTOP } from '@/lib/dashboard-hero';
+import { ALTURA_ESPACADOR } from '@/lib/dashboard-hero';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ResumoCards from '@/components/dashboard/ResumoCards';
 import HeroStatsMobile from '@/components/dashboard/HeroStatsMobile';
@@ -318,12 +318,14 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           </h1>
         </div>
 
-        {/* Mesmo espaçador, versão desktop. Aqui não há saudação solta — ela
-            vive DENTRO do card do hero —, então o espaçador é calibrado pra o
-            card encostar no rabo do gradiente da faixa, não pra sobrar espaço
-            entre os dois (ver ALTURA_ESPACADOR_DESKTOP). */}
-        <div aria-hidden className="hidden md:block" style={{ height: ALTURA_ESPACADOR_DESKTOP }} />
-
+        {/* ⚠️ NO DESKTOP NÃO HÁ ESPAÇADOR — decisão do usuário, com a tela na
+            frente. Cheguei a pôr um (espelhando o mobile, onde a saudação fica
+            solta sobre a imagem antes do card começar) e ele empurrava o hero
+            pra baixo da faixa. O que ele quer é o oposto: o card no topo, em
+            cima da parte vívida, com a imagem aparecendo ATRAVÉS dele.
+            É o que torna a legibilidade do texto no tema claro um problema
+            real, e não um detalhe — ver `.dash-glass .insight-hero` no
+            globals.css. */}
         {/* ══════════════════════════════════════════════════════
             HERO ROW — Insight + Hábitos de hoje (Grow)
         ══════════════════════════════════════════════════════ */}
