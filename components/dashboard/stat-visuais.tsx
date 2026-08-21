@@ -19,9 +19,29 @@ import { ehPagamentoFatura } from '@/lib/categorizar';
 // de button é HTML inválido — o browser reordena o DOM e quebra o card.
 // =============================================================================
 
-// Rampa das contas na barra de proporção. Tons 500/600: são os únicos que
-// mantêm contraste nos DOIS temas (os 400 somem no claro, os 700 no escuro).
-export const CORES_CONTA = ['#65A30D', '#22C55E', '#14B8A6', '#0EA5E9', '#8B5CF6', '#F59E0B'];
+// Rampa das contas na barra de proporção.
+//
+// ⚠️ A ORDEM É O QUE IMPORTA, não a lista. A rampa antiga começava com
+// lime-600 e green-500 — dois verdes quase iguais — e como quase todo mundo
+// tem 2 ou 3 contas, era exatamente aí que a barra ficava ilegível: as fatias
+// mais comuns eram as indistinguíveis. Agora os três primeiros são de famílias
+// de matiz bem separadas (lima 80° → hortelã 175° → tangerina 21°), então o
+// caso comum já sai diferenciado.
+//
+// O "cítrico" é mantido nas posições que aparecem de verdade (lima, hortelã,
+// tangerina); da 4ª em diante — conta rara — vale mais a separação do que a
+// paleta.
+//
+// Tons 600: são os que mantêm contraste nos DOIS temas. Os 500 quentes
+// (amber/orange-500) ficam abaixo de 3:1 sobre card claro e a fatia some.
+export const CORES_CONTA = [
+  '#65A30D', // lima       · lime-600
+  '#0D9488', // hortelã    · teal-600
+  '#EA580C', // tangerina  · orange-600
+  '#7C3AED', // uva        · violet-600
+  '#E11D48', // toranja    · rose-600
+  '#CA8A04', // limão      · yellow-600
+];
 
 export type Conta = { nome: string; saldo: number };
 export type Fatia = { nome: string; saldo: number; pct: number; cor: string };
@@ -113,6 +133,17 @@ export function IconesContas({ contas, size = 28 }: { contas: Conta[]; size?: nu
 }
 
 // ── Barra de proporção do saldo ──────────────────────────────────────────
+//
+// Cada conta é uma PÍLULA SEPARADA, não uma fatia de uma barra contínua: com
+// as fatias coladas, a leitura dependia só da troca de cor e a barra virava um
+// borrão num card estreito. Separadas, cada conta se lê sozinha — e o
+// arredondamento total em todas as pontas (não só nas extremidades) é o que dá
+// o aspecto limpo.
+//
+// O gradiente + glow suave são os mesmos das barras dos relatórios
+// (`RelatoriosClient`), pra a linguagem visual de "proporção" ser uma só no
+// painel inteiro.
+//
 // ⚠️ `role="img"` + aria-label: a composição não pode existir só na cor (regra
 // de acessibilidade) — o leitor de tela recebe a lista.
 export function BarraContas({ fatias, className = '' }: { fatias: Fatia[]; className?: string }) {
@@ -124,12 +155,29 @@ export function BarraContas({ fatias, className = '' }: { fatias: Fatia[]; class
           ? `Composição do saldo: ${fatias.map((f) => `${f.nome} ${Math.round(f.pct)}%`).join(', ')}`
           : 'Sem saldo positivo para compor a barra'
       }
-      className={`h-1.5 w-full rounded-full bg-muted overflow-hidden flex gap-px ${className}`}
+      // Sem trilho de fundo: com pílulas separadas ele apareceria nos vãos e
+      // reintroduziria a barra contínua que estamos justamente tirando.
+      // ⚠️ Mais alta SÓ no desktop (`lg:`): a versão do hero é `md:hidden`, ou
+      // seja nunca chega ao lg — então o mesmo componente serve às duas telas
+      // sem prop de tamanho.
+      className={`h-1.5 lg:h-2.5 w-full flex gap-1 ${className}`}
     >
       {fatias.length ? (
         fatias.map((f) => (
-          <span key={f.nome} className="h-full first:rounded-l-full last:rounded-r-full"
-                style={{ width: `${f.pct}%`, background: f.cor }} />
+          <span
+            key={f.nome}
+            // ⚠️ `min-w` + shrink padrão do flex: uma conta com 0,4% do saldo
+            // viraria uma pílula de meio pixel — invisível, e com o vão do lado
+            // parecendo defeito. O piso dá corpo à fatia mínima; o estouro que
+            // ele causa (junto com os vãos) é absorvido pelas fatias grandes,
+            // que encolhem proporcionalmente.
+            className="h-full rounded-full min-w-[6px] transition-[width] duration-700"
+            style={{
+              width: `${f.pct}%`,
+              background: `linear-gradient(90deg, ${f.cor}, color-mix(in srgb, ${f.cor} 82%, transparent))`,
+              boxShadow: `0 0 10px color-mix(in srgb, ${f.cor} 22%, transparent)`,
+            }}
+          />
         ))
       ) : (
         <span className="h-full w-full rounded-full bg-muted-foreground/15" />
