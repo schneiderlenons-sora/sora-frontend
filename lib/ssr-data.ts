@@ -31,11 +31,20 @@ function ehTransferencia(r: any): boolean {
 // sora-backend/src/services/arquivadas.js. Filtrar por coluna que não existe
 // faz o Supabase falhar o SELECT INTEIRO: a lista sumiria da tela enquanto a
 // migration não rodasse. Enquanto a coluna não existir, o filtro é no-op.
+// ⚠️ O "NÃO" TEM VALIDADE, O "SIM" NÃO. Cachear o negativo pra sempre foi um
+// bug real no backend: o processo subiu ANTES da migration, sondou, guardou
+// "não existe" e nunca mais perguntou — a transação era arquivada no banco e
+// voltava a aparecer na tela. Coluna não some, então o "sim" pode ser eterno;
+// o "não" é reconferido a cada minuto e o recurso liga sozinho.
+const TTL_ARQ_NEGATIVO = 60 * 1000;
 let _arqOk: boolean | null = null;
+let _arqEm = 0;
 async function arquivadasOk(): Promise<boolean> {
-  if (_arqOk !== null) return _arqOk;
+  if (_arqOk === true) return true;
+  if (_arqOk === false && Date.now() - _arqEm < TTL_ARQ_NEGATIVO) return false;
   const { error } = await supabaseAdmin.from('transacoes').select('arquivada_por').limit(1);
   _arqOk = !error;
+  _arqEm = Date.now();
   return _arqOk;
 }
 // Porte fiel de services/resumoTransacoes.calcularResumo.
