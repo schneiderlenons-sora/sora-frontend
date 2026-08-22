@@ -235,6 +235,32 @@ const REGRAS: Regra[] = [
 ];
 
 // Retorna o nome da categoria/subcategoria sugerida, ou null se nada casar.
+// Categorias que só fazem sentido como ENTRADA → o par de saída.
+const SO_RECEITA: Record<string, string> = { PIX: 'Pix enviado' };
+
+/**
+ * Corrige a categoria pela DIREÇÃO do lançamento.
+ *
+ * O motor de palavras-chave olha só a descrição, e "Pix enviado" e "Pix
+ * recebido" casam na mesma regra → os dois caíam em `PIX`, que na taxonomia é
+ * categoria de RECEITA. Um Pix que SAI ficava com categoria de entrada.
+ *
+ * O dinheiro nunca sumiu: Transações e Relatórios somam por `tipo`, então a
+ * saída sempre contou como despesa. Quem escondia era a aba CATEGORIAS, que
+ * lista as categorias de despesa e não achava `PIX` entre elas. Medido: 1.106
+ * lançamentos de Gasto com essa categoria na base, e `PIX` é de receita nos
+ * 141 grupos — não era caso isolado.
+ *
+ * ⚠️ O DESTINO PRECISA EXISTIR NA TAXONOMIA. O campo `categoria` é texto
+ * livre, e um nome que não é categoria cadastrada some da aba do mesmo jeito —
+ * seria trocar um bug pelo outro. `Pix enviado` é criada pela migration 132 em
+ * todos os grupos, pendurada em Financeiro.
+ */
+export function ajustarPorDirecao(categoria: string | null, ehGasto?: boolean): string | null {
+  if (!ehGasto || !categoria) return categoria;
+  return SO_RECEITA[categoria] || categoria;
+}
+
 export function categorizarDescricao(descricao: string): string | null {
   const t = normalizar(descricao);
   if (!t) return null;
