@@ -258,6 +258,27 @@ export default function OpenFinancePage() {
     finally { setSincronizando(''); }
   }
 
+  // Traz a conexão feita em outro grupo seu (ex.: o pessoal) pra este.
+  // ⚠️ Move DADO — carteiras e transações mudam de grupo. Por isso confirma
+  // antes e diz quantas contas vêm junto.
+  async function trazer(id: string, nome: string | null) {
+    const aviso = `Trazer ${nome || 'este banco'} pra este grupo?\n\n`
+      + 'As contas, o histórico de transações e as faturas vêm junto. '
+      + 'Quem estiver neste grupo passa a ver esses dados.';
+    if (!confirm(aviso)) return;
+    setSincronizando(id); setErro('');
+    try {
+      const r = await api.openFinance.mover(id);
+      await carregar();
+      const n = r.contas ?? 0;
+      setFlash(r.jaEstava
+        ? 'Esse banco já estava neste grupo.'
+        : `Pronto! ${n} cont${n === 1 ? 'a veio' : 'as vieram'} pra este grupo.`);
+      setTimeout(() => setFlash(''), 7000);
+    } catch (e: any) { setErro(e.message || 'Não consegui trazer o banco pra cá.'); }
+    finally { setSincronizando(''); }
+  }
+
   // Abre o modal na hora; quem busca a URL é o polling (feedback imediato em vez
   // de o botão ficar "morto" esperando a resposta).
   function autorizar(id: string, nome: string | null) {
@@ -499,11 +520,25 @@ export default function OpenFinancePage() {
                           {/* ⚠️ Sem este aviso a conexão apareceria listada e as contas dela não,
                               o que confunde tanto quanto ela sumir. Diz ONDE ela vive e evita a
                               reconexão — que geraria consentimento e cobrança em dobro. */}
+                          {/* ⚠️ Aviso + saída na MESMA linha de raciocínio. Só dizer
+                              "está em outro grupo" deixaria a pessoa com um problema e
+                              nenhuma ação — e a ação que ela inventaria é reconectar,
+                              que é um segundo consentimento cobrado pelo mesmo banco. */}
                           {c.outro_grupo && (
-                            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                              Conectado no grupo <strong className="text-foreground">{c.grupo_nome || 'outro'}</strong>.
-                              {' '}As contas e transações deste banco ficam lá — troque de grupo pra vê-las.
-                            </p>
+                            <div className="mt-1.5">
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                Conectado no grupo <strong className="text-foreground">{c.grupo_nome || 'outro'}</strong>.
+                                {' '}As contas e transações deste banco ficam lá.
+                              </p>
+                              <button
+                                onClick={() => trazer(c.external_id, c.instituicao)}
+                                disabled={sincronizando === c.external_id}
+                                className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                                style={{ color: BRAND, background: `color-mix(in srgb, ${BRAND} 12%, transparent)` }}
+                              >
+                                {sincronizando === c.external_id ? 'Trazendo…' : 'Trazer pra este grupo'}
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
