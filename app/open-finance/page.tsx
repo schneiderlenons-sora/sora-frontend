@@ -987,15 +987,18 @@ function ObservacoesOpenFinance() {
       ),
     },
     {
-      Icon: Clock,
+      Icon: Sparkles,
       cor: '#a855f7',
-      titulo: 'A fatura em aberto é uma estimativa até fechar',
+      titulo: 'O nome que vem do banco pode ser estranho',
       corpo: (
         <>
-          O banco só <b>publica</b> a fatura depois que ela fecha. Até lá, o que existe é uma
-          prévia, e ela pode diferir em alguns reais do que o aplicativo mostra — normalmente
-          por causa de parcelas que o banco ainda não lançou. Quando a fatura fecha, o valor
-          passa a vir pronto do banco e bate exatamente.
+          Cada banco manda o nome do jeito dele. O Nubank, por exemplo, envia o cartão como{' '}
+          <b>gold</b> ou <b>platinum</b> — que é o nome do produto, não do banco. Outros mandam
+          só <b>Banco</b>.
+          {' '}Você pode renomear como preferir na edição da conta ou do cartão, e o histórico
+          acompanha. Vale usar um nome que <b>comece com o banco</b> (ex.:{' '}
+          <b>Nubank Crédito</b>): é assim que a Sora reconhece a instituição e passa a mostrar a{' '}
+          <b>logo oficial</b> dela nas transações, nos cards e aqui nesta tela.
         </>
       ),
     },
