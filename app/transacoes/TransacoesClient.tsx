@@ -447,7 +447,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                  style={{ background: `radial-gradient(circle at 80% 20%, ${BRAND} 0%, transparent 60%)` }} />
             <div className="relative">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold">Saldo</p>
+                {/* ⚠️ "Saldo em contas", não "Saldo". São coisas diferentes e o
+                    rótulo curto confundia: aqui é quanto EXISTE nas contas hoje,
+                    enquanto o "Saldo do mês" dos Relatórios é receitas − despesas
+                    do período. Um cliente comparou os dois e achou que o painel
+                    estava divergindo de si mesmo. Mesmo nome usado no dashboard. */}
+                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold">Saldo em contas</p>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `color-mix(in srgb, ${BRAND} 19%, transparent)` }}>
                   <Wallet size={13} style={{ color: BRAND }} />
                 </div>
