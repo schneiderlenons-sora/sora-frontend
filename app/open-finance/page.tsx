@@ -16,6 +16,7 @@ import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
+import IconeMarca from '@/components/ui/IconeMarca';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
   Clock, ShieldCheck, Search, ExternalLink, X,
@@ -313,7 +314,11 @@ export default function OpenFinancePage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto px-4 pb-24 space-y-6">
+      {/* ⚠️ MESMO CONTAINER DAS OUTRAS ABAS (referência: /contas-bancarias).
+          Era `max-w-3xl px-4`: estreito demais, o conteúdo ficava muito mais
+          longe da sidebar que nas vizinhas, e o `px-4` ainda somava por cima
+          do padding que o <main> do DashboardLayout já aplica. */}
+      <div className="max-w-7xl mx-auto pb-20 space-y-6">
         {/* Hero */}
         <div className="space-y-3 pt-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl"
@@ -523,8 +528,17 @@ export default function OpenFinancePage() {
                     // que vazava por baixo deles. Desktop (sm+) segue inline.
                     <li key={c.external_id} className="rounded-2xl border border-border bg-card p-4 sm:flex sm:items-center sm:gap-3">
                       <div className="flex items-start gap-3 sm:flex-1 sm:min-w-0">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'hsl(var(--bg-muted))' }}>
-                          <Landmark size={18} className="text-muted-foreground" />
+                        {/* Logo oficial do banco — o mesmo acervo de public/brands
+                            que a lista de transações usa. `IconeMarca` casa por
+                            NOME ("Mercado Pago" → mercado-pago) e cai no ícone
+                            genérico quando não conhece o banco. */}
+                        <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'hsl(var(--bg-muted))' }}>
+                          <IconeMarca
+                            nome={c.instituicao || ''}
+                            size={40}
+                            className="w-full h-full"
+                            fallback={<Landmark size={18} className="text-muted-foreground" />}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">{c.instituicao || 'Banco'}</p>
@@ -626,6 +640,13 @@ export default function OpenFinancePage() {
                 <pre className="text-[10px] leading-relaxed text-foreground/80 overflow-auto max-h-80 whitespace-pre-wrap break-words">{debugOut}</pre>
               </div>
             )}
+
+            {/* ── O QUE ESPERAR DO OPEN FINANCE ──────────────────────────
+                Cada item aqui saiu de um chamado real de suporte. Não é texto
+                de marketing: é o que evita a pessoa achar que o painel está
+                errado quando o comportamento é do BANCO. Ver o componente
+                no fim do arquivo. */}
+            <ObservacoesOpenFinance />
 
             {/* Segurança */}
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -899,5 +920,128 @@ function ContratarConexao({ atual = 0, primeiraCompra = false }: { atual?: numbe
             : 'Isto soma mais um banco além dos que já vêm de graça no seu plano, numa cobrança à parte da assinatura. Cancela quando quiser.'}
       </p>
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Observações sobre o Open Finance
+//
+// ⚠️ CADA ITEM SAIU DE UM CHAMADO REAL. A ordem é por frequência de dúvida:
+// segurança primeiro (é o que trava a decisão de conectar), depois os três
+// comportamentos do BANCO que fazem o painel parecer errado sem estar.
+//
+// Escrito em tom de expectativa, não de desculpa: dizer "o banco não manda o
+// limite" antes de a pessoa descobrir sozinha é a diferença entre um ajuste de
+// 10 segundos e um chamado de "meu cartão está bugado".
+// ═══════════════════════════════════════════════════════════════════════════
+function ObservacoesOpenFinance() {
+  const itens = [
+    {
+      Icon: ShieldCheck,
+      cor: '#10b981',
+      titulo: 'Por que é seguro',
+      corpo: (
+        <>
+          Você autoriza <b>dentro do ambiente do seu banco</b> — a Sora nunca vê sua senha,
+          nem seu token, nem tem como movimentar dinheiro. O acesso é <b>somente leitura</b>:
+          lemos saldos, extrato, faturas e posições de investimento, e só. Não existe função de
+          pagamento ou transferência nesta integração.
+          {' '}Você revoga quando quiser, aqui ou no app do seu banco, e o acesso encerra na hora.
+        </>
+      ),
+    },
+    {
+      Icon: Search,
+      cor: '#0ea5e9',
+      titulo: 'Alguns bancos mandam a mesma compra duas vezes',
+      corpo: (
+        <>
+          Acontece, e não é erro seu nem nosso — é o banco reenviando o lançamento.
+          Se um valor no painel não bater com o do aplicativo, chame o{' '}
+          <b>Detetive Watson</b> na aba Agentes: ele varre o período e mostra as
+          duplicadas com a prova de por que são duplicadas, pra você apagar em um
+          clique. Se mesmo assim a conta não fechar,{' '}
+          <a href="/reportar-bug" className="underline underline-offset-2 hover:text-foreground">
+            nos avise em Relatar um problema
+          </a>{' '}
+          — a gente investiga com os dados do seu banco.
+        </>
+      ),
+    },
+    {
+      Icon: Wrench,
+      cor: '#f59e0b',
+      titulo: 'Limite e fechamento do cartão você preenche',
+      corpo: (
+        <>
+          O Open Finance <b>não envia o limite total</b> do cartão, e vários bancos também não
+          enviam o <b>dia de fechamento</b>. Sem isso a barra de limite fica vazia e a fatura
+          pode ser calculada pelo mês-calendário em vez do ciclo real.
+          {' '}É rápido de resolver: abra o cartão em{' '}
+          <a href="/cartao-de-credito" className="underline underline-offset-2 hover:text-foreground">
+            Cartão de crédito
+          </a>{' '}
+          e preencha os dois na edição. Depois disso a Sora usa o ciclo certo — e o que você
+          digitou não é sobrescrito pela sincronização.
+        </>
+      ),
+    },
+    {
+      Icon: Clock,
+      cor: '#a855f7',
+      titulo: 'A fatura em aberto é uma estimativa até fechar',
+      corpo: (
+        <>
+          O banco só <b>publica</b> a fatura depois que ela fecha. Até lá, o que existe é uma
+          prévia, e ela pode diferir em alguns reais do que o aplicativo mostra — normalmente
+          por causa de parcelas que o banco ainda não lançou. Quando a fatura fecha, o valor
+          passa a vir pronto do banco e bate exatamente.
+        </>
+      ),
+    },
+    {
+      Icon: FileUp,
+      cor: '#64748b',
+      titulo: 'O histórico começa na data da conexão',
+      corpo: (
+        <>
+          Ao conectar, o banco envia uma janela de meses para trás — não a sua vida inteira.
+          Por isso faturas antigas podem aparecer com menos lançamentos do que tiveram de
+          verdade. Isso se resolve sozinho com o tempo, e não afeta o mês corrente.
+          {' '}Se quiser trazer o passado completo, dá para{' '}
+          <a href="/transacoes" className="underline underline-offset-2 hover:text-foreground">
+            importar o extrato (OFX)
+          </a>{' '}
+          do seu banco.
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <section aria-labelledby="of-obs" className="pt-2">
+      <h2 id="of-obs" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+        O que esperar do Open Finance
+      </h2>
+      {/* Duas colunas no desktop: são 5 blocos de texto e uma coluna só viraria
+          uma parede. No mobile empilha. */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {itens.map(({ Icon, cor, titulo, corpo }) => (
+          <div key={titulo} className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              {/* Ícone + rótulo: a distinção nunca vive só na cor. */}
+              <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: `color-mix(in srgb, ${cor} 12%, transparent)` }}>
+                <Icon size={15} style={{ color: cor }} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1">{titulo}</p>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">{corpo}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
