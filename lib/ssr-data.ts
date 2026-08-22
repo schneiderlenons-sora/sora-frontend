@@ -38,12 +38,6 @@ async function arquivadasOk(): Promise<boolean> {
   _arqOk = !error;
   return _arqOk;
 }
-/** Esconde as arquivadas. É a MESMA regra do backend — o SSR é porte fiel,
- *  e divergir aqui faria o número pular na tela ao revalidar. */
-async function semArquivadas<T>(q: T): Promise<T> {
-  return (await arquivadasOk()) ? ((q as any).is('arquivada_por', null) as T) : q;
-}
-
 // Porte fiel de services/resumoTransacoes.calcularResumo.
 export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: string) {
   let q = supabaseAdmin.from('transacoes')
@@ -51,7 +45,10 @@ export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: s
     .eq('grupo_id', grupoId)
     .gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
   if (criadoPorId) q = q.eq('criado_por', criadoPorId);
-  q = await semArquivadas(q);
+  // ⚠️ Checa a flag ANTES de tocar na query. `await` no query builder do
+  // Supabase EXECUTA a consulta (ele é thenable), então `q = await …` trocaria
+  // o builder pelo resultado — funciona por acidente e quebra o tipo.
+  if (await arquivadasOk()) q = q.is('arquivada_por', null);
   const { data: rows } = await q;
 
   let receitas = 0, gastos = 0;
@@ -111,12 +108,16 @@ export async function transacoesDireto(
   grupoId: string,
   { mes, tipo, limit, ate }: { mes?: string; tipo?: string; limit: number; ate?: string },
 ) {
-  const aplicar = (query: any) => {
+  // `async` porque a sonda da coluna é assíncrona. Quem chama já usa `await`, e
+  // o builder do Supabase é thenable — então o `await` do call site resolve a
+  // Promise E executa a consulta, devolvendo o resultado, que é o esperado ali.
+  const aplicar = async (query: any) => {
     let q = query.eq('grupo_id', grupoId).order('data', { ascending: false }).range(0, Number(limit) - 1);
     if (mes)  q = q.gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
     if (ate)  q = q.lte('data', ate);
     if (tipo) q = q.eq('tipo', tipo);
-    return semArquivadas(q);
+    if (await arquivadasOk()) q = q.is('arquivada_por', null);
+    return q;
   };
 
   let { data, count, error } = await aplicar(

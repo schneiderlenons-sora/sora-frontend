@@ -190,9 +190,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   }, [txs]);
 
   // ── Ações ──────────────────────────────────────────────────
-  async function handleDeletar(tx: any) {
-    const id = typeof tx === 'string' ? tx : tx?.id;
-    const ehParcela = tx && typeof tx !== 'string' && !!tx.parcela_grupo && (tx.parcela_total || 0) > 1;
+
   // Esconder / trazer de volta. Otimista: some da lista na hora, porque o
   // efeito é visual e reverter é barato (o item volta se a chamada falhar).
   async function handleArquivar(tx: any, arquivar: boolean) {
@@ -212,6 +210,9 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     }
   }
 
+  async function handleDeletar(tx: any) {
+    const id = typeof tx === 'string' ? tx : tx?.id;
+    const ehParcela = tx && typeof tx !== 'string' && !!tx.parcela_grupo && (tx.parcela_total || 0) > 1;
     let excluirTodas = false;
     if (ehParcela) {
       if (!confirm(`Excluir a parcela ${tx.parcela_num}/${tx.parcela_total}?`)) return;
