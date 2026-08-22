@@ -215,11 +215,13 @@ export const api = {
     autorizar: (externalId: string) =>
       req<{ urlToAuthenticate?: string | null; status?: string | null }>(
         `/api/open-finance/conexoes/${externalId}/autorizar`),
-    /** Traz a conexão (e as contas/transações dela) pro grupo ATIVO. Só o dono
-     *  do consentimento pode — ver o comentário da rota no backend. */
-    mover: (externalId: string) =>
+    /** Move a conexão (e as contas/transações dela) pra outro grupo SEU. Sem
+     *  `grupo_id`, vai pro grupo ativo. É MOVIMENTO, não cópia — sai da origem.
+     *  Só o dono do consentimento pode; ver o comentário da rota no backend. */
+    mover: (externalId: string, grupo_id?: string) =>
       req<{ ok: boolean; contas?: number; jaEstava?: boolean; aviso?: string }>(
-        `/api/open-finance/conexoes/${externalId}/mover`, { method: 'POST' }),
+        `/api/open-finance/conexoes/${externalId}/mover`,
+        { method: 'POST', body: JSON.stringify(grupo_id ? { grupo_id } : {}) }),
     desconectar: (externalId: string) =>
       req<{ ok: boolean }>(`/api/open-finance/conexoes/${externalId}`, { method: 'DELETE' }),
     /** Diagnóstico (temporário): resposta crua da Polp pra ajustar o mapeamento. */

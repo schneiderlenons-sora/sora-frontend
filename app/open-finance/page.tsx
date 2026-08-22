@@ -123,6 +123,19 @@ export default function OpenFinancePage() {
     finally { setCarregando(false); }
   }, []);
 
+  // Grupos do usuário — pra o seletor "mover para". Só serve pra quem tem mais
+  // de um; falha em silêncio porque é acessório, não pode derrubar a tela.
+  const [grupos, setGrupos] = useState<{ id: string; nome: string }[]>([]);
+  useEffect(() => {
+    if (!phone) return;
+    api.grupos.listar(phone)
+      .then((gs: any[]) => setGrupos(
+        (gs || []).map((g) => ({ id: g.grupo_id || g.grupos?.id, nome: g.grupos?.nome || 'Grupo' }))
+          .filter((g) => g.id),
+      ))
+      .catch(() => { /* acessório */ });
+  }, [phone]);
+
   // Bancos: uma requisição só, compartilhada entre o prefetch e o clique.
   const instsReq = useRef<Promise<unknown> | null>(null);
   const carregarInsts = useCallback((mostrarErro: boolean) => {
@@ -261,21 +274,27 @@ export default function OpenFinancePage() {
   // Traz a conexão feita em outro grupo seu (ex.: o pessoal) pra este.
   // ⚠️ Move DADO — carteiras e transações mudam de grupo. Por isso confirma
   // antes e diz quantas contas vêm junto.
-  async function trazer(id: string, nome: string | null) {
-    const aviso = `Trazer ${nome || 'este banco'} pra este grupo?\n\n`
-      + 'As contas, o histórico de transações e as faturas vêm junto. '
-      + 'Quem estiver neste grupo passa a ver esses dados.';
+  async function trazer(id: string, nome: string | null, destinoId?: string, destinoNome?: string) {
+    // ⚠️ O AVISO DIZ QUE É MUDANÇA, NÃO CÓPIA. Foi a primeira dúvida de quem
+    // usou: "vai ficar nos dois, né?". Não vai — as contas e o histórico SAEM
+    // do grupo de origem. Deixar isso implícito é deixar o usuário mover 300
+    // transações achando que está duplicando.
+    const aviso = `Mover ${nome || 'este banco'} para "${destinoNome || 'este grupo'}"?\n\n`
+      + 'As contas, o histórico de transações e as faturas vão JUNTO — '
+      + 'elas deixam de aparecer no grupo de origem.\n\n'
+      + 'Não é cópia: o banco passa a existir em um grupo só. '
+      + 'Você pode trazer de volta depois, sem autorizar de novo no banco.';
     if (!confirm(aviso)) return;
     setSincronizando(id); setErro('');
     try {
-      const r = await api.openFinance.mover(id);
+      const r = await api.openFinance.mover(id, destinoId);
       await carregar();
       const n = r.contas ?? 0;
       setFlash(r.jaEstava
-        ? 'Esse banco já estava neste grupo.'
-        : `Pronto! ${n} cont${n === 1 ? 'a veio' : 'as vieram'} pra este grupo.`);
+        ? 'Esse banco já estava nesse grupo.'
+        : `Pronto! ${n} cont${n === 1 ? 'a foi movida' : 'as foram movidas'} para "${destinoNome || 'este grupo'}".`);
       setTimeout(() => setFlash(''), 7000);
-    } catch (e: any) { setErro(e.message || 'Não consegui trazer o banco pra cá.'); }
+    } catch (e: any) { setErro(e.message || 'Não consegui mover o banco.'); }
     finally { setSincronizando(''); }
   }
 
@@ -531,13 +550,34 @@ export default function OpenFinancePage() {
                                 {' '}As contas e transações deste banco ficam lá.
                               </p>
                               <button
-                                onClick={() => trazer(c.external_id, c.instituicao)}
+                                onClick={() => trazer(c.external_id, c.instituicao, undefined, 'este grupo')}
                                 disabled={sincronizando === c.external_id}
                                 className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-50"
                                 style={{ color: BRAND, background: `color-mix(in srgb, ${BRAND} 12%, transparent)` }}
                               >
-                                {sincronizando === c.external_id ? 'Trazendo…' : 'Trazer pra este grupo'}
+                                {sincronizando === c.external_id ? 'Movendo…' : 'Trazer pra este grupo'}
                               </button>
+                            </div>
+                          )}
+
+                          {/* ⚠️ A VOLTA. Sem isto, devolver o banco pro grupo pessoal exigia
+                              trocar de grupo antes e achar o botão lá — o usuário testaria a
+                              mudança e ficaria sem saída óbvia. Só aparece pra quem TEM outro
+                              grupo; conta única não vê ruído nenhum. */}
+                          {!c.outro_grupo && grupos.filter((g) => g.id !== perfil?.grupo_ativo?.id).length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] text-muted-foreground">Mover para:</span>
+                              {grupos.filter((g) => g.id !== perfil?.grupo_ativo?.id).map((g) => (
+                                <button
+                                  key={g.id}
+                                  onClick={() => trazer(c.external_id, c.instituicao, g.id, g.nome)}
+                                  disabled={sincronizando === c.external_id}
+                                  className="text-[11px] font-semibold rounded-lg px-2 py-1 border transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+                                  style={{ border: '1px solid hsl(var(--border))' }}
+                                >
+                                  {sincronizando === c.external_id ? '…' : g.nome}
+                                </button>
+                              ))}
                             </div>
                           )}
                         </div>
