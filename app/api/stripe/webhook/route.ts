@@ -148,7 +148,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   // CAPI: Purchase server-side (mais confiável que o pixel client-side)
+  //
+  // ⚠️ `amount_total` pode vir 0 (cupom de 100%) ou nulo. Antes isso virava
+  // `value: 0`, e o Meta trata zero como VALOR AUSENTE — foi o que fez ele
+  // acusar 20% dos Purchase como de baixa qualidade e parar de calcular ROAS.
+  // O plano é ativado do mesmo jeito; o que não acontece é o evento de venda,
+  // porque venda de R$ 0 não gera receita pra atribuir. A guarda em
+  // `sendCAPIEvent` barra de qualquer forma — aqui é só pra não montar o
+  // evento à toa e pra o log dizer o motivo.
   const amount = session.amount_total ? session.amount_total / 100 : 0;
+  if (amount <= 0) {
+    console.warn(`[stripe/webhook] Purchase não enviado: amount_total=${session.amount_total} `
+      + `(cupom de 100%?). Plano ativado normalmente. session=${session.id}`);
+  }
   const nomePlano = `Plano ${plano} ${intervalo}`;
   // content_id — sem ele o TikTok acusa "Crítica: ID do conteúdo ausente" em
   // 100% dos eventos (a Sora vende plano, não SKU de catálogo; um slug

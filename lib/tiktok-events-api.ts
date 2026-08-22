@@ -54,10 +54,29 @@ export type TikTokEvent = {
  * Silencioso em caso de erro (não quebra o fluxo da aplicação) — mesmo
  * contrato do sendCAPIEvents (Meta).
  */
+// Espelho da guarda do Meta (lib/facebook-capi.ts). O TikTok tem a mesma
+// exigência de valor positivo em evento de compra, e os dois recebem o MESMO
+// Purchase do webhook da Stripe — se um barra e o outro não, o defeito só
+// muda de painel.
+const EXIGEM_VALOR_TT = new Set(['CompletePayment', 'Subscribe', 'StartTrial']);
+
 export async function sendTikTokEvents(events: TikTokEvent[]): Promise<{ success: boolean; error?: string }> {
   if (!PIXEL_ID || !ACCESS_TOKEN) {
     return { success: false, error: 'TIKTOK_ACCESS_TOKEN ou NEXT_PUBLIC_TIKTOK_PIXEL_ID ausente' };
   }
+
+  const validos = events.filter((evt) => {
+    if (!EXIGEM_VALOR_TT.has(evt.event)) return true;
+    // ⚠️ `custom_data` na NOSSA interface; vira `properties` só no payload que
+    // sai (ver o map abaixo). Ler `properties` aqui descartaria TODO evento de
+    // compra, porque o campo ainda não existe nesta etapa.
+    const v = Number(evt.custom_data?.value);
+    if (Number.isFinite(v) && v > 0) return true;
+    console.warn(`[tiktok] ${evt.event} descartado: value inválido.`);
+    return false;
+  });
+  if (!validos.length) return { success: true };
+  events = validos;
 
   const payload = {
     event_source: 'web',
