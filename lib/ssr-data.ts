@@ -27,6 +27,23 @@ function ehTransferencia(r: any): boolean {
   return r.transferencia === true || ehPagamentoFatura(r.categoria) || r.categoria === 'Transferências';
 }
 
+// ⚠️ ARQUIVADAS (migration 131) — sonda com cache, espelhando
+// sora-backend/src/services/arquivadas.js. Filtrar por coluna que não existe
+// faz o Supabase falhar o SELECT INTEIRO: a lista sumiria da tela enquanto a
+// migration não rodasse. Enquanto a coluna não existir, o filtro é no-op.
+let _arqOk: boolean | null = null;
+async function arquivadasOk(): Promise<boolean> {
+  if (_arqOk !== null) return _arqOk;
+  const { error } = await supabaseAdmin.from('transacoes').select('arquivada_por').limit(1);
+  _arqOk = !error;
+  return _arqOk;
+}
+/** Esconde as arquivadas. É a MESMA regra do backend — o SSR é porte fiel,
+ *  e divergir aqui faria o número pular na tela ao revalidar. */
+async function semArquivadas<T>(q: T): Promise<T> {
+  return (await arquivadasOk()) ? ((q as any).is('arquivada_por', null) as T) : q;
+}
+
 // Porte fiel de services/resumoTransacoes.calcularResumo.
 export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: string) {
   let q = supabaseAdmin.from('transacoes')
@@ -34,6 +51,7 @@ export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: s
     .eq('grupo_id', grupoId)
     .gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
   if (criadoPorId) q = q.eq('criado_por', criadoPorId);
+  q = await semArquivadas(q);
   const { data: rows } = await q;
 
   let receitas = 0, gastos = 0;
@@ -98,7 +116,7 @@ export async function transacoesDireto(
     if (mes)  q = q.gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
     if (ate)  q = q.lte('data', ate);
     if (tipo) q = q.eq('tipo', tipo);
-    return q;
+    return semArquivadas(q);
   };
 
   let { data, count, error } = await aplicar(

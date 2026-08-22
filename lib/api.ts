@@ -242,10 +242,18 @@ export const api = {
   transacoes: {
     // `bill_id` busca pela FATURA do emissor (Open Finance) em vez de por mês —
     // é o único jeito de trazer a parcela cujo lançamento tem a data da compra.
-    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por?: string; criado_por_me?: boolean; criado_por_phone?: string; ate?: string; bill_id?: string }) => {
+    listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por?: string; criado_por_me?: boolean; criado_por_phone?: string; ate?: string; bill_id?: string; arquivadas?: 1 }) => {
       const q = new URLSearchParams(params as any).toString();
       return req<{ transacoes: any[]; total: number }>(`/api/transacoes/${phone}${q ? `?${q}` : ''}`);
     },
+    /** Esconde (ou traz de volta) uma transação. NÃO é exclusão: a linha fica
+     *  no banco e some só da VISÃO — apagar seria inútil em conta de Open
+     *  Finance, o próximo sync traria de volta. Some pros dois membros e
+     *  reaparece na aba Arquivadas de quem escondeu. */
+    arquivar: (id: string, arquivar = true) =>
+      req<{ ok: boolean; arquivada: boolean }>(`/api/transacoes/${id}/arquivar`, {
+        method: 'PATCH', body: JSON.stringify({ arquivar }),
+      }),
     /**
      * Análise do Detetive Watson. `cartao` (wallet id) recorta pela FATURA
      * ATUAL daquele cartão; sem ele, os últimos `dias`.

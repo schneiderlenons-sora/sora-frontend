@@ -96,7 +96,17 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // ── Dados via SWR: cache em memória → revisitar a tela ou trocar de mês é
   // instantâneo (mostra o último dado e revalida em silêncio). keepPreviousData
   // evita piscar pra vazio ao navegar entre meses.
-  const { data: txData, mutate: mTx } = useApi(phone ? `tx:list:${phone}:${mesRef}` : null,    () => api.transacoes.listar(phone, { mes: mesRef, limit: 500 }), { fallbackData: initialData?.tx });
+  // Aba "Arquivadas" (migration 131). ⚠️ Entra na CHAVE do SWR, senão as duas
+  // visões compartilhariam o mesmo cache e a lista normal apareceria com as
+  // arquivadas dentro (ou o contrário) até revalidar.
+  const [verArquivadas, setVerArquivadas] = useState(false);
+  const { data: txData, mutate: mTx } = useApi(
+    phone ? `tx:list:${phone}:${mesRef}:${verArquivadas ? 'arq' : 'nrm'}` : null,
+    () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, ...(verArquivadas ? { arquivadas: 1 as const } : {}) }),
+    // ⚠️ O fallback do SSR é da lista NORMAL — servi-lo na aba de arquivadas
+    // mostraria transações visíveis como se estivessem escondidas.
+    { fallbackData: verArquivadas ? undefined : initialData?.tx },
+  );
   const { data: wData,  mutate: mW }  = useApi(phone ? `tx:wallets:${phone}` : null,            () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
   const { data: rData,  mutate: mR }  = useApi(phone ? `tx:resumo:${phone}:${mesRef}` : null,   () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
 
@@ -183,6 +193,25 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   async function handleDeletar(tx: any) {
     const id = typeof tx === 'string' ? tx : tx?.id;
     const ehParcela = tx && typeof tx !== 'string' && !!tx.parcela_grupo && (tx.parcela_total || 0) > 1;
+  // Esconder / trazer de volta. Otimista: some da lista na hora, porque o
+  // efeito é visual e reverter é barato (o item volta se a chamada falhar).
+  async function handleArquivar(tx: any, arquivar: boolean) {
+    try {
+      await mTx(async () => { await api.transacoes.arquivar(tx.id, arquivar); return undefined; }, {
+        optimisticData: (atual: any) => ({
+          ...atual,
+          transacoes: (atual?.transacoes || []).filter((t: any) => t.id !== tx.id),
+          total: Math.max(0, (atual?.total || 1) - 1),
+        }),
+        rollbackOnError: true, populateCache: false, revalidate: true,
+      });
+      mR(); // o resumo do mês também deixa de contar a transação
+      setRowMenuOpen(null);
+    } catch (e: any) {
+      alert(e?.message || 'Não consegui ocultar a transação.');
+    }
+  }
+
     let excluirTodas = false;
     if (ehParcela) {
       if (!confirm(`Excluir a parcela ${tx.parcela_num}/${tx.parcela_total}?`)) return;
@@ -589,6 +618,21 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               </select>
             )}
 
+            {/* Aba "Arquivadas". ⚠️ Fica SEMPRE visível, mesmo com zero
+                arquivadas — se só aparecesse quando há alguma, quem escondeu um
+                lançamento não teria como achá-lo de volta (a lista normal já
+                não o mostra). Vazio nessa aba é resposta, não ausência. */}
+            <button
+              onClick={() => setVerArquivadas(v => !v)}
+              aria-pressed={verArquivadas}
+              className={`px-3 py-2 text-xs gap-1.5 rounded-xl inline-flex items-center transition-colors ${
+                verArquivadas ? 'bg-muted text-foreground font-semibold' : 'btn-ghost text-muted-foreground'
+              }`}
+            >
+              {verArquivadas ? <Eye size={13} /> : <EyeOff size={13} />}
+              {verArquivadas ? 'Ver normais' : 'Arquivadas'}
+            </button>
+
             {temFiltro && (
               <button
                 onClick={limparFiltros}
@@ -692,6 +736,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         onCloseMenu={() => setRowMenuOpen(null)}
                         onDeletar={() => handleDeletar(tx)}
                         onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
+                        arquivada={!!tx.arquivada_por}
+                        onArquivar={() => handleArquivar(tx, !tx.arquivada_por)}
                       />
                     ))}
                   </div>
@@ -825,7 +871,7 @@ function StatCard({
 
 function TransactionRow({
   tx, index, ocultar, compartilhado, selecionado, onToggleSelect,
-  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar,
+  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, arquivada, onArquivar,
 }: any) {
   const isTransfer = tx.transferencia === true || tx.tipo === 'Transferência';
   const isGasto = tx.tipo === 'Gasto';
@@ -966,6 +1012,8 @@ function TransactionRow({
           onCloseMenu={onCloseMenu}
           onDeletar={onDeletar}
           onEditar={onEditar}
+          arquivada={arquivada}
+          onArquivar={onArquivar}
         />
       </div>
 
@@ -978,12 +1026,14 @@ function TransactionRow({
 // MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
 // overflow-x-auto da linha (que cria clipping em ambos os eixos).
 // ─────────────────────────────────────────────────────────────
-function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar }: {
+function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, arquivada, onArquivar }: {
   menuOpen: boolean;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onDeletar: () => void;
   onEditar: () => void;
+  arquivada?: boolean;
+  onArquivar?: () => void;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
@@ -1019,6 +1069,18 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar }:
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
               <Edit2 size={14} className="text-muted-foreground" /> Editar
             </button>
+            {/* ⚠️ Ocultar ≠ Excluir, e por isso fica ACIMA e sem cor de perigo.
+                A linha continua no banco: em conta de Open Finance apagar não
+                adianta, o próximo sync traz de volta. Some pros dois membros do
+                grupo e reaparece na aba "Arquivadas" de quem escondeu. */}
+            {onArquivar && (
+              <button onClick={onArquivar}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+                {arquivada
+                  ? <><Eye size={14} className="text-muted-foreground" /> Mostrar</>
+                  : <><EyeOff size={14} className="text-muted-foreground" /> Ocultar</>}
+              </button>
+            )}
             <button
               onClick={onDeletar}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-sm text-red-500 transition-colors"
