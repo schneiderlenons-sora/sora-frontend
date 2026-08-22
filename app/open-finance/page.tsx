@@ -31,6 +31,12 @@ type Conexao = {
   ultimo_erro: string | null;
   ultima_sync: string | null;
   created_at: string;
+  /** A conexão vive em OUTRO grupo seu (ex.: feita no pessoal, você está no
+   *  compartilhado). O consentimento é da PESSOA, então ela aparece aqui de
+   *  qualquer jeito — senão o caminho natural seria reconectar, e isso é um
+   *  segundo consentimento cobrado pelo mesmo banco. */
+  outro_grupo?: boolean;
+  grupo_nome?: string | null;
 };
 type Inst = { id: number | string; name?: string; institution_name?: string; logo_url?: string; image_url?: string; primary_color?: string;
   // Quais documentos o banco exige. A Polp devolve ["cpf"], ["cpf","cnpj"]…
@@ -490,6 +496,15 @@ export default function OpenFinancePage() {
                             {c.ultima_sync && <span className="text-muted-foreground whitespace-nowrap">· {quando(c.ultima_sync)}</span>}
                           </div>
                           {c.ultimo_erro && <p className="text-[11px] text-red-500 line-clamp-2 mt-0.5">{c.ultimo_erro}</p>}
+                          {/* ⚠️ Sem este aviso a conexão apareceria listada e as contas dela não,
+                              o que confunde tanto quanto ela sumir. Diz ONDE ela vive e evita a
+                              reconexão — que geraria consentimento e cobrança em dobro. */}
+                          {c.outro_grupo && (
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                              Conectado no grupo <strong className="text-foreground">{c.grupo_nome || 'outro'}</strong>.
+                              {' '}As contas e transações deste banco ficam lá — troque de grupo pra vê-las.
+                            </p>
+                          )}
                         </div>
                       </div>
 
