@@ -147,10 +147,24 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const saldoPrevisto = (resumo?.receitas || 0) - (resumo?.gastos || 0) + saldoBanco;
 
   // ── Dados para gráficos ────────────────────────────────────
-  // Pizza por categoria (top 7) — cor customizada do usuário > catálogo > hash
-  const dadosPie = useMemo(() => {
-    const cats = (resumo?.por_categoria || []).slice(0, 7);
-    return cats.map((c: any) => {
+
+  // ⚠️ O RESTO VIRA UMA FATIA "OUTRAS" — NÃO PODE SUMIR.
+  //
+  // BUG QUE ISTO CORRIGE: o donut mostrava só as 7 maiores e o miolo dizia
+  // "TOTAL" com a soma DELAS. Medido numa conta real: card de despesas
+  // R$ 3.645,84 e donut "TOTAL R$ 3.113,51" — R$ 532,33 em 10 categorias
+  // sumiam sem aviso, e as porcentagens saíam infladas (Facebook Ads aparecia
+  // com 44% quando era 37,6% do gasto do mês).
+  //
+  // 7 fatias continua sendo o limite de LEITURA (mais que isso vira confete),
+  // mas o que passa disso é agrupado, não descartado. Cinza neutro de
+  // propósito: "Outras" não é uma categoria, é um resto — não deve competir
+  // por atenção com as reais.
+  const TOPO = 7;
+  const comOutras = useCallback((lista: { categoria: string; total: number }[]) => {
+    const topo = lista.slice(0, TOPO);
+    const resto = lista.slice(TOPO);
+    const fatias = topo.map((c) => {
       const theme = getCategoriaTheme(c.categoria || '', categorias);
       return {
         name:  nomeCategoria(c.categoria || ''),
@@ -159,7 +173,22 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
         emoji: theme.emoji,
       };
     });
-  }, [resumo, categorias]);
+    if (resto.length) {
+      fatias.push({
+        name:  `Outras (${resto.length})`,
+        value: resto.reduce((s, c) => s + (c.total || 0), 0),
+        color: '#71717A',
+        emoji: '•',
+      });
+    }
+    return fatias;
+  }, [categorias]);
+
+  // Pizza por categoria — cor customizada do usuário > catálogo > hash
+  const dadosPie = useMemo(
+    () => comOutras((resumo?.por_categoria || []) as { categoria: string; total: number }[]),
+    [resumo, comOutras],
+  );
 
   // Pizza receitas — usa o agregado do SERVIDOR (mesma fonte/regra do total de
   // receitas), igual ao gráfico de despesas. Antes filtrava os `txs` no cliente,
@@ -178,14 +207,12 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
           });
           return Object.entries(grupos).map(([cat, val]) => ({ cat, val }));
         })();
-    return base
-      .sort((a, b) => b.val - a.val)
-      .slice(0, 7)
-      .map(({ cat, val }) => {
-        const theme = getCategoriaTheme(cat, categorias);
-        return { name: nomeCategoria(cat), value: val, color: citrico(theme.color), emoji: theme.emoji };
-      });
-  }, [resumo, txs, categorias]);
+    // Mesma regra do donut de despesas: o que passa das 7 vira "Outras", nunca
+    // some — senão o TOTAL do miolo mente sobre a receita do mês.
+    return comOutras(
+      base.sort((a, b) => b.val - a.val).map(({ cat, val }) => ({ categoria: cat, total: val })),
+    );
+  }, [resumo, txs, comOutras]);
 
   // Receitas x Despesas — frequência por dia/mês
   const dadosFrequencia = useMemo(() => {
