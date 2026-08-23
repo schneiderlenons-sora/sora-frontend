@@ -20,8 +20,23 @@ import { EmpresaProvider } from '@/components/negocios/EmpresaContext';
 
 export default function NegociosLayout({ children }: { children: React.ReactNode }) {
   return (
-    <DashboardLayout>
-      <EmpresaProvider>
+    // ⚠️ O PROVIDER FICA POR FORA DO `DashboardLayout`, NÃO POR DENTRO.
+    //
+    // BUG QUE ISTO CORRIGE: a Sidebar é renderizada PELO `DashboardLayout`, e
+    // é ela que desenha o seletor de empresa ("Nova empresa", trocar de
+    // empresa, editar). Com o provider por dentro, a Sidebar ficava FORA dele:
+    // `useEmpresa()` não achava o contexto, caía no fallback — que devolve
+    // `empresas: []` de propósito, pra não derrubar a tela — e o seletor
+    // simplesmente não renderizava, porque ele só aparece com
+    // `empresas.length > 0`.
+    //
+    // Nada quebrava, nada dava erro: o usuário só não tinha como criar a
+    // segunda empresa nem trocar de negócio. Foi assim que passou batido.
+    //
+    // `EmpresaProvider` depende de `useAuth()`, que vem do root layout
+    // (components/providers.tsx), então subir um nível é seguro.
+    <EmpresaProvider>
+      <DashboardLayout>
         {/* CONTAINER PADRÃO DO PAINEL — largura e respiro iguais em TODA tela.
             Fica aqui, e não em cada página, porque quando cada uma declarava o
             próprio `max-w-*` elas divergiam de fato: o Fluxo de caixa abria em
@@ -32,7 +47,7 @@ export default function NegociosLayout({ children }: { children: React.ReactNode
         <div className="max-w-7xl mx-auto w-full">
           {children}
         </div>
-      </EmpresaProvider>
-    </DashboardLayout>
+      </DashboardLayout>
+    </EmpresaProvider>
   );
 }
