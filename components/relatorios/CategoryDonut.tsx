@@ -45,22 +45,37 @@ export default function CategoryDonut({
   height = 196,
   innerRadius = 56,
   outerRadius = 82,
+  compacto = false,
 }: {
   data: DonutSlice[];
   showList?: boolean;
-  height?: number;
-  innerRadius?: number;
-  outerRadius?: number;
+  // ⚠️ Aceita PORCENTAGEM ('62%'), não só pixel. É o que deixa o donut crescer
+  // junto com o container em vez de exigir um raio por breakpoint: em
+  // /categorias ele ocupa quase a largura da tela no mobile e ~240px no
+  // desktop, com os MESMOS valores.
+  height?: number | string;
+  innerRadius?: number | string;
+  outerRadius?: number | string;
+  // Texto do centro menor. Com o donut grande, o total em `text-lg` competia
+  // com o valor do topo do card; encolher devolve o protagonismo ao gráfico.
+  compacto?: boolean;
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
+
+  // Raio da fatia em DESTAQUE: um pouco maior que o normal. Precisa saber lidar
+  // com os dois formatos — em pixel soma 9; em porcentagem soma 4 pontos, senão
+  // `'90%' + 9` viraria a string `'90%9'` e o realce sumia.
+  const raioDestaque = typeof outerRadius === 'string'
+    ? `${Math.min(100, (parseFloat(outerRadius) || 0) + 4)}%`
+    : outerRadius + 9;
   const [active, setActive] = useState<number | null>(null);
   const reduce = useReduce();
   const sel = active !== null ? data[active] : null;
 
   return (
     <>
-      <div className="relative">
-        <ResponsiveContainer width="100%" height={height}>
+      <div className="relative h-full">
+        <ResponsiveContainer width="100%" height={height as never}>
           <PieChart>
             {/* Base — todas as fatias; as não-selecionadas escurecem */}
             <Pie
@@ -87,7 +102,7 @@ export default function CategoryDonut({
               <Pie
                 data={data}
                 cx="50%" cy="50%"
-                innerRadius={innerRadius} outerRadius={outerRadius + 9}
+                innerRadius={innerRadius} outerRadius={raioDestaque}
                 dataKey="value"
                 paddingAngle={3}
                 cornerRadius={4}
@@ -115,8 +130,8 @@ export default function CategoryDonut({
             </div>
           ) : (
             <div className="flex flex-col items-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total</p>
-              <p className="text-lg font-bold text-foreground tabular">{fmt(total)}</p>
+              <p className={`${compacto ? 'text-[9px]' : 'text-[10px]'} text-muted-foreground uppercase tracking-wider font-bold`}>Total</p>
+              <p className={`${compacto ? 'text-[15px]' : 'text-lg'} font-bold text-foreground tabular`}>{fmt(total)}</p>
             </div>
           )}
         </div>

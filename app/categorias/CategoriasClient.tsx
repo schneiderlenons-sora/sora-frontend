@@ -13,7 +13,7 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
-  Calendar, Filter, RefreshCw, ServerOff, Store,
+  Calendar, Filter, RefreshCw, ServerOff, Store, MoreVertical,
 } from 'lucide-react';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 
@@ -396,13 +396,21 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
               </p>
             </div>
 
-            {/* Donut interativo (mesmo dos Relatórios): passar/tocar destaca a fatia */}
-            <div className="w-[200px] flex-shrink-0">
+            {/* Donut interativo (mesmo dos Relatórios): passar/tocar destaca a fatia.
+                ⚠️ `aspect-square` + `height="100%"` + raio em PORCENTAGEM: o
+                gráfico escala com o container em vez de precisar de um raio por
+                breakpoint. No mobile ele ocupa quase a largura da tela (é o
+                conteúdo principal do card); no desktop divide a linha com o
+                total e a navegação de mês, então fica em 240px. */}
+            <div className="w-full max-w-[330px] mx-auto aspect-square flex-shrink-0 lg:w-[240px] lg:max-w-none">
               {dadosPie.length > 0 ? (
-                <CategoryDonut data={dadosPie} showList={false} height={190} innerRadius={54} outerRadius={78} />
+                <CategoryDonut
+                  data={dadosPie} showList={false} compacto
+                  height="100%" innerRadius="62%" outerRadius="90%"
+                />
               ) : (
-                <div className="w-44 h-44 mx-auto rounded-full border-[14px] border-muted/40 flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground text-center px-4">Sem gastos</span>
+                <div className="w-full h-full rounded-full border-[14px] border-muted/40 flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground text-center px-6">Sem gastos neste mês</span>
                 </div>
               )}
             </div>
@@ -710,6 +718,29 @@ function CategoriaRow({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [pickerOpen]);
 
+  // ── Menu de ações (mobile) ────────────────────────────────────────────────
+  // ⚠️ Editar + subcategoria + excluir são 3 alvos de 44pt = ~130px. Numa tela
+  // de 375 isso não cabe junto com ícone, nome, valor e porcentagem — era por
+  // isso que a linha vivia num `overflow-x-auto` e o usuário tinha de arrastar
+  // pro lado pra ver o que existia. Regra `overflow-menu`: ação que não cabe
+  // vai pro "mais", nunca espremida. No desktop sobra espaço e os três seguem
+  // visíveis.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') setMenuOpen(false); }
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [menuOpen]);
+
   // % em relação ao total OU ao limite (preferimos limite se houver)
   const pctTotal = totalMes > 0 ? Math.min((gastoTotal / totalMes) * 100, 100) : 0;
   const pctLimite = limite?.limite_mensal
@@ -719,17 +750,23 @@ function CategoriaRow({
 
   return (
     <div className="animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
-      {/* Linha principal — scroll horizontal no mobile pra mostrar tudo */}
+      {/* ⚠️ SEM SCROLL HORIZONTAL. Antes a linha vivia num `overflow-x-auto`
+          com `min-w-[520px]`: no celular metade da informação ficava fora da
+          tela e só aparecia arrastando pro lado — inclusive os botões de ação,
+          que a pessoa nem sabia que existiam. Agora tudo cabe em 375px, com a
+          barra de progresso ocupando a largura inteira LOGO ABAIXO da linha em
+          vez de disputar espaço com ela. */}
       <div className="hover:bg-muted/30 transition-colors group">
-        <div className="overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-3 min-w-[520px] lg:min-w-0 px-3 sm:px-5 py-3">
+        <div className="px-3 sm:px-5 py-2.5">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Chevron */}
           <button
             onClick={toggleExpand}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
+            className="p-1 -ml-1 rounded-lg hover:bg-muted transition-colors flex-shrink-0"
             disabled={filhos.length === 0}
             style={{ opacity: filhos.length === 0 ? 0.2 : 1 }}
             title={expandida ? 'Recolher' : 'Expandir'}
+            aria-expanded={expandida}
           >
             {expandida
               ? <ChevronUp size={14} className="text-muted-foreground" />
@@ -749,7 +786,7 @@ function CategoriaRow({
                 icone={pai.icone}
                 bg={corBg}
                 color={cor}
-                size={40}
+                size={36}
               />
             </button>
 
@@ -786,103 +823,121 @@ function CategoriaRow({
             )}
           </div>
 
-          {/* Nome + subcategorias count */}
+          {/* Nome + valor. Duas linhas empilhadas: é o que libera a largura
+              que os 3 botões de ação ocupavam e faz tudo caber em 375px. */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-foreground truncate">{pai.nome}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[13px] sm:text-sm font-semibold text-foreground truncate">{pai.nome}</p>
               {filhos.length > 0 && (
-                <span className="text-[10px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full">
-                  {filhos.length} sub
+                <span className="text-[9px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-px rounded-full flex-shrink-0">
+                  {filhos.length}
                 </span>
               )}
             </div>
-          </div>
-
-          {/* Valor + barra (visível em TODOS os tamanhos) */}
-          <div className="flex flex-col items-end gap-1 min-w-0 sm:min-w-[200px]">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-foreground tabular">
-                {ocultar ? '•••••' : fmt(gastoTotal)}
-              </p>
-              {/* Limite inline (mobile) */}
+            {/* "gasto | limite" — o par diz sozinho se estourou, sem depender
+                da COR da barra (regra color-not-only). Sem limite, vira um
+                atalho pra definir um. */}
+            <div className="flex items-center gap-1 mt-0.5 text-[11px] leading-tight tabular">
+              <span className="text-muted-foreground">{ocultar ? '•••••' : fmt(gastoTotal)}</span>
               {limite?.limite_mensal ? (
-                <button
-                  onClick={onDefinirLimite}
-                  className="text-[10px] font-bold tabular md:hidden"
-                  style={{ color: corPctLimite(pctLimite) }}
-                >
-                  {pctLimite}%
-                </button>
+                <>
+                  <span className="text-muted-foreground/40">|</span>
+                  <button
+                    onClick={onDefinirLimite}
+                    className="font-bold hover:underline"
+                    style={{ color: pctLimite > 100 ? corPctLimite(pctLimite) : undefined }}
+                    title="Editar limite"
+                  >
+                    {ocultar ? '•••••' : fmt(limite.limite_mensal)}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={onDefinirLimite}
-                  className="md:hidden p-1"
+                  className="inline-flex items-center gap-0.5 text-muted-foreground/70 hover:text-foreground transition-colors"
                   title="Definir limite"
                 >
-                  <Target size={12} className="text-muted-foreground" />
+                  <Target size={10} /> limite
                 </button>
               )}
             </div>
-            <div className="w-20 sm:w-32 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${limite?.limite_mensal ? Math.min(pctLimite, 100) : pctTotal}%`,
-                  background: corBarra,
-                }}
-              />
-            </div>
           </div>
 
-          {/* Limite detalhado (desktop) */}
-          <div className="hidden md:block min-w-[140px] text-right">
-            {limite?.limite_mensal ? (
-              <button
-                onClick={onDefinirLimite}
-                className="text-xs font-medium hover:underline tabular"
-                style={{ color: corPctLimite(pctLimite) }}
-              >
-                {ocultar
-                  ? '•••'
-                  : `${fmt(gastoTotal).replace('R$', '').trim()} / ${fmt(limite.limite_mensal).replace('R$', '').trim()}`}
-                <span className="ml-1 font-bold">({pctLimite}%)</span>
-              </button>
-            ) : (
-              <button
-                onClick={onDefinirLimite}
-                className="text-[11px] font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
-              >
-                <Target size={11} /> Definir limite
-              </button>
-            )}
-          </div>
+          {/* Participação no total — o mesmo número do donut. */}
+          <span className="text-[13px] sm:text-sm font-bold text-foreground tabular flex-shrink-0 tracking-tight">
+            {pctTotal}%
+          </span>
 
-          {/* Ações — visível em mobile (sem hover) */}
-          <div className="flex items-center gap-1 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
-            <button
-              onClick={onEditar}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              title="Editar"
-            >
+          {/* Ações: no desktop os três botões; no mobile um "mais". */}
+          <div className="hidden lg:flex items-center gap-1 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
+            <button onClick={onEditar} className="p-2 rounded-lg hover:bg-muted transition-colors" title="Editar" aria-label={`Editar ${pai.nome}`}>
               <Pencil size={14} className="text-muted-foreground" />
             </button>
-            <button
-              onClick={onAddSub}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              title="Adicionar subcategoria"
-            >
+            <button onClick={onAddSub} className="p-2 rounded-lg hover:bg-muted transition-colors" title="Adicionar subcategoria" aria-label={`Adicionar subcategoria em ${pai.nome}`}>
               <FolderPlus size={14} className="text-muted-foreground" />
             </button>
-            <button
-              onClick={onExcluir}
-              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-              title="Excluir"
-            >
+            <button onClick={onExcluir} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors" title="Excluir" aria-label={`Excluir ${pai.nome}`}>
               <Trash2 size={14} className="text-muted-foreground hover:text-red-500" />
             </button>
           </div>
-        </div> {/* fecha inner row (min-w-[520px]) */}
-        </div> {/* fecha scroll container */}
+
+          <div className="relative lg:hidden flex-shrink-0" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(v => !v)}
+              className="p-2 -mr-1 rounded-lg hover:bg-muted active:bg-muted transition-colors"
+              aria-label={`Ações de ${pai.nome}`}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+            >
+              <MoreVertical size={16} className="text-muted-foreground" />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute z-30 top-full right-0 mt-1 py-1 min-w-[184px] rounded-2xl bg-card shadow-2xl border border-border animate-fade-in"
+                onClick={e => e.stopPropagation()}
+              >
+                <button role="menuitem" onClick={() => { setMenuOpen(false); onEditar(); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-foreground hover:bg-muted transition-colors text-left">
+                  <Pencil size={14} className="text-muted-foreground" /> Editar categoria
+                </button>
+                <button role="menuitem" onClick={() => { setMenuOpen(false); onDefinirLimite(); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-foreground hover:bg-muted transition-colors text-left">
+                  <Target size={14} className="text-muted-foreground" /> {limite?.limite_mensal ? 'Editar limite' : 'Definir limite'}
+                </button>
+                <button role="menuitem" onClick={() => { setMenuOpen(false); onAddSub(); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-foreground hover:bg-muted transition-colors text-left">
+                  <FolderPlus size={14} className="text-muted-foreground" /> Nova subcategoria
+                </button>
+                <div className="h-px bg-border my-1" />
+                <button role="menuitem" onClick={() => { setMenuOpen(false); onExcluir(); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left">
+                  <Trash2 size={14} /> Excluir
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Barra: largura INTEIRA, embaixo. Fora da linha ela para de disputar
+            espaço com nome e valor — era o que forçava o scroll horizontal. */}
+        <div
+          className="w-full h-1.5 rounded-full bg-muted overflow-hidden mt-2"
+          role="progressbar"
+          aria-valuenow={limite?.limite_mensal ? Math.min(pctLimite, 100) : pctTotal}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={limite?.limite_mensal ? `${pctLimite}% do limite de ${pai.nome}` : `${pctTotal}% do total`}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${limite?.limite_mensal ? Math.min(pctLimite, 100) : pctTotal}%`,
+              background: corBarra,
+            }}
+          />
+        </div>
+        </div> {/* fecha o bloco da linha */}
       </div>
 
       {/* Subcategorias */}
