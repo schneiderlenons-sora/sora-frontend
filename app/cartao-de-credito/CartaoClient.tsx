@@ -762,18 +762,17 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
           </p>
         )}
 
-        {/* ⚠️ Fatura em ABERTO no Open Finance é aproximada: o banco só publica
-            o total quando ela fecha, e as parcelas que entram nela chegam com a
-            data da COMPRA — a soma daqui não as vê. Quando o limite usado que o
-            banco informa é maior que a soma, é exatamente essa diferença. Dizer
-            isso é melhor que exibir um número redondo que não bate com o app. */}
-        {!ehManual && ehMesAtual && usadoBanco != null && usadoBanco > restante + 0.01 && (
-          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-            Parcial: soma as compras deste ciclo. O banco informa{' '}
-            <span className="font-semibold text-foreground tabular">{fmt(usadoBanco)}</span> de limite
-            usado — a diferença são parcelas que ele ainda não lançou nesta fatura.
-          </p>
-        )}
+        {/* ⚠️ AQUI HAVIA UM AVISO DE "valor parcial" — REMOVIDO em ago/2026.
+            Ele existia porque a fatura em aberto do Open Finance era estimada
+            pela soma das compras do ciclo, e essa soma não enxergava as parcelas
+            (a Celcoin manda toda parcela com a data da COMPRA). O aviso dizia
+            que a diferença pro limite usado eram parcelas ainda não lançadas.
+
+            Deixou de ser verdade: com o `unbilled_amount` (breaking change da
+            Celcoin de 24/08/2026) a fatura passou a sair da REGRA DE OURO,
+            `used_amount − unbilled_amount`, e bate no centavo com o app do
+            banco. Não há mais "parcial" a explicar — e manter o aviso ao lado
+            de um número correto só faz o usuário duvidar dele. */}
 
         {/* Banner de rollover aguardando confirmação */}
         {ehManual && status?.rollover && (
