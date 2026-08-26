@@ -37,6 +37,19 @@ const GraficoGastos = dynamic(() => import('@/components/dashboard/GraficoGastos
   ),
 });
 
+// Donut de categorias do card "Principais gastos" — SÓ NO MOBILE.
+// ⚠️ Mesmo tratamento do GraficoGastos, pela mesma razão: é recharts. Entra por
+// `next/dynamic` + `ssr:false` e, no uso, atrás do `useVisivel` — ele nasce
+// bem abaixo da dobra. O skeleton é REDONDO e do mesmo tamanho do gráfico,
+// senão a chegada do dado empurra o card inteiro (CLS).
+const DonutCategorias = dynamic(() => import('@/components/relatorios/CategoryDonut'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full aspect-square max-w-[340px] mx-auto rounded-full bg-muted/40 animate-pulse"
+         role="status" aria-label="Carregando gráfico de categorias" />
+  ),
+});
+
 // ── Constantes ────────────────────────────────────────────────
 const BRAND  = 'hsl(var(--primary))';
 const BRAND2 = '#3dd68c';
@@ -160,6 +173,13 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // e CPU justamente na janela que decide a métrica.
   const pronto = !!data;
   const { ref: graficoRef, visivel: graficoVisivel } = useVisivel<HTMLDivElement>(pronto);
+  // ⚠️ Gate PRÓPRIO pro donut das categorias, não o mesmo do gráfico de cima.
+  // Eles ficam longe um do outro na rolagem do mobile; um gate só faria o donut
+  // baixar recharts quando o gráfico do topo aparecesse — ou seja, na dobra,
+  // que é justamente a janela que o CLAUDE.md manda proteger.
+  // `pronto` como `ativo` é obrigatório: enquanto a página é skeleton ela é
+  // curta, tudo "parece" visível e o gate abriria sozinho.
+  const { ref: donutRef, visivel: donutVisivel } = useVisivel<HTMLDivElement>(pronto);
 
   const resumo:    any   = data?.resumo    ?? { receitas: 0, gastos: 0, por_categoria: [] };
   const resumoAnt: any   = data?.resumoAnt ?? { receitas: 0, gastos: 0, por_categoria: [] };
@@ -561,6 +581,40 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                 Ver todas <ChevronRight size={12} />
               </a>
             </div>
+
+            {/* ── Donut das categorias — SÓ NO MOBILE ──────────────────────
+                No desktop este card divide a tela com o gráfico de barras/área
+                logo ao lado; dois gráficos do mesmo dado lado a lado seria
+                repetição. No mobile eles ficam distantes na rolagem, e aqui o
+                donut responde de relance o que a lista abaixo responde em
+                detalhe. Tocar uma fatia mostra categoria, valor e porcentagem
+                no centro — o mesmo comportamento da aba Categorias. */}
+            {catsComPct.length > 0 && (
+              <div ref={donutRef} className="lg:hidden -mx-2 mb-5">
+                <div className="w-full aspect-square max-w-[340px] mx-auto">
+                  {donutVisivel ? (
+                    <DonutCategorias
+                      data={catsComPct.map((c: any) => ({
+                        name:  nomeCategoria(c.categoria),
+                        value: c.total,
+                        color: c.color,
+                        emoji: c.emoji,
+                      }))}
+                      showList={false}
+                      espacado
+                      valorGrande
+                      legendaCentro="gastos esse mês"
+                      height="100%"
+                      innerRadius="74%"
+                      outerRadius="96%"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-muted/40 animate-pulse"
+                         role="status" aria-label="Carregando gráfico de categorias" />
+                  )}
+                </div>
+              </div>
+            )}
 
             {catsComPct.length > 0 ? (
               <div className="space-y-3.5">

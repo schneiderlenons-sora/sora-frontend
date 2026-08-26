@@ -46,6 +46,9 @@ export default function CategoryDonut({
   innerRadius = 56,
   outerRadius = 82,
   compacto = false,
+  espacado = false,
+  legendaCentro,
+  valorGrande = false,
 }: {
   data: DonutSlice[];
   showList?: boolean;
@@ -59,6 +62,14 @@ export default function CategoryDonut({
   // Texto do centro menor. Com o donut grande, o total em `text-lg` competia
   // com o valor do topo do card; encolher devolve o protagonismo ao gráfico.
   compacto?: boolean;
+  // Fatias separadas e com as pontas totalmente arredondadas, em vez do anel
+  // quase contínuo. Cada categoria vira um traço solto — lê-se como uma lista
+  // em círculo, não como uma pizza. Usado no card do dashboard.
+  espacado?: boolean;
+  // Troca o rótulo "TOTAL" (acima, minúsculo) por uma legenda ABAIXO do valor.
+  legendaCentro?: string;
+  // Valor do centro como protagonista do card.
+  valorGrande?: boolean;
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
 
@@ -83,8 +94,8 @@ export default function CategoryDonut({
               cx="50%" cy="50%"
               innerRadius={innerRadius} outerRadius={outerRadius}
               dataKey="value"
-              paddingAngle={3}
-              cornerRadius={4}
+              paddingAngle={espacado ? 7 : 3}
+              cornerRadius={espacado ? 999 : 4}
               strokeWidth={0}
               isAnimationActive={!reduce}
               onMouseEnter={(d: any, i: any) => { const k = idxDaFatia(d, i); if (k != null) setActive(k); }}
@@ -104,8 +115,8 @@ export default function CategoryDonut({
                 cx="50%" cy="50%"
                 innerRadius={innerRadius} outerRadius={raioDestaque}
                 dataKey="value"
-                paddingAngle={3}
-                cornerRadius={4}
+                paddingAngle={espacado ? 7 : 3}
+                cornerRadius={espacado ? 999 : 4}
                 strokeWidth={0}
                 isAnimationActive={false}
               >
@@ -123,10 +134,18 @@ export default function CategoryDonut({
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-8 text-center">
           {sel ? (
             <div key={active} className="flex flex-col items-center animate-fade-in">
-              {sel.emoji && <span className="text-lg leading-none mb-0.5">{sel.emoji}</span>}
-              <p className="text-[11px] font-semibold text-foreground truncate max-w-[104px]">{sel.name}</p>
-              <p className="text-[15px] font-bold tabular leading-tight" style={{ color: sel.color }}>{fmt(sel.value)}</p>
-              <p className="text-[10px] text-muted-foreground tabular">{total ? ((sel.value / total) * 100).toFixed(0) : 0}% do total</p>
+              {sel.emoji && <span className={`${valorGrande ? 'text-2xl' : 'text-lg'} leading-none mb-1`}>{sel.emoji}</span>}
+              <p className={`${valorGrande ? 'text-sm max-w-[150px]' : 'text-[11px] max-w-[104px]'} font-semibold text-foreground truncate`}>{sel.name}</p>
+              <p className={`${valorGrande ? 'text-xl' : 'text-[15px]'} font-bold tabular leading-tight`} style={{ color: sel.color }}>{fmt(sel.value)}</p>
+              <p className={`${valorGrande ? 'text-xs' : 'text-[10px]'} text-muted-foreground tabular`}>{total ? ((sel.value / total) * 100).toFixed(0) : 0}% do total</p>
+            </div>
+          ) : legendaCentro ? (
+            /* Valor primeiro, legenda embaixo — a leitura natural de "quanto"
+               antes de "do quê". Só quando a legenda é passada; sem ela, segue
+               o rótulo TOTAL acima, como Relatórios e Categorias já usam. */
+            <div className="flex flex-col items-center">
+              <p className={`${valorGrande ? 'text-2xl' : 'text-lg'} font-bold text-foreground tabular leading-none`}>{fmt(total)}</p>
+              <p className="text-xs text-muted-foreground mt-1.5">{legendaCentro}</p>
             </div>
           ) : (
             <div className="flex flex-col items-center">
