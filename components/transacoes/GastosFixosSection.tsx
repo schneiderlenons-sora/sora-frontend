@@ -628,10 +628,9 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     saindo={tirando === d.id} onTirar={() => tirarDosPrevistos(d)} />
                 ))}
               </ul>
-              <p className="px-4 sm:px-6 pb-4 pt-2 text-[11px] leading-snug text-muted-foreground">
-                Gerencie as dívidas na aba <a href="/dividas" className="font-medium underline underline-offset-2 hover:text-foreground">Dívidas</a>.
-                Tirar daqui não apaga a dívida — é só pra ela não contar na previsão.
-              </p>
+              {/* REMOVIDO A PEDIDO (ago/2026): o parágrafo "Gerencie as dívidas
+                  na aba Dívidas...". O caminho pra aba agora está nos próprios
+                  ícones de editar/excluir de cada linha, que levam pra lá. */}
             </div>
           )}
 
@@ -927,120 +926,122 @@ function Linha({
         </div>
 
         <div className="flex-1 min-w-0">
-          {/* 1. Nome + símbolo do modo + valor + ações.
-              ⚠️ AS AÇÕES SUBIRAM PRA CÁ. Elas ocupavam uma FAIXA INTEIRA no
-              rodapé da linha só pra dois botões; ao lado do valor, aquela faixa
-              some quando o painel está fechado — que é o estado normal. Cada
-              previsto passou de 3 blocos verticais pra 2. */}
-          <div className="flex items-start gap-1.5">
-            <p className="min-w-0 truncate text-[12.5px] sm:text-sm font-medium text-foreground">{item.descricao}</p>
+          {/* ─── FAIXA 1: nome + símbolo · valor ──────────────────────────
+              ⚠️ `items-center`, NÃO `items-start`. O símbolo é um <button> com
+              padding próprio e o nome é um <p> com line-height — encostados no
+              topo eles nunca alinham, que era o "símbolo fora da linha do nome"
+              e o "nome fora da linha do valor". Centralizados, os três ficam no
+              mesmo eixo independente da altura de cada um.
 
-            {/* ⚠️ SÍMBOLO SEM CAIXA, DEPOIS DO NOME. Só a cor separa os três
-                modos, então ele NÃO pode ser a única pista: o `aria-label` diz o
-                modo por extenso e o `title` mostra no hover. Ícone sozinho não é
-                rótulo (regra `aria-labels`). */}
-            <button
-              type="button"
-              onClick={() => setAberto((v) => !v)}
-              aria-expanded={aberto}
-              aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
-              title={`${modoInfo.label} — toque para mudar`}
-              className={`flex-shrink-0 mt-0.5 -m-1.5 p-1.5 box-content rounded-md transition-colors active:scale-90 ${
-                modo === 'nao_lancar'
-                  ? 'text-muted-foreground/70 hover:text-muted-foreground'
-                  : modo === 'prever'
-                    ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700'
-                    : 'text-primary hover:text-primary/80'
-              }`}
-            >
-              {modo === 'nao_lancar' ? <CircleDashed size={13} /> : modo === 'prever' ? <Link2 size={13} /> : <Bell size={13} />}
-            </button>
-
-            <div className="flex-1" />
-
-            <div className="flex-shrink-0 text-right">
-              {semEstimativa ? (
-                <p className="text-[12.5px] sm:text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
-                  <CircleDashed size={11} /> a definir
-                </p>
-              ) : (
-                <p className={`text-[12.5px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
-                  {ehGasto ? <ArrowDownRight size={11} /> : <ArrowUpRight size={11} />}
-                  {ehVariavel ? '~' : ''}{fmt(item.valor)}
-                </p>
-              )}
+              O nome e o símbolo andam JUNTOS num grupo `min-w-0`: assim o
+              truncate morde só o nome e o símbolo nunca é empurrado pra fora. */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <p className="min-w-0 truncate text-[12.5px] sm:text-sm font-medium text-foreground leading-none">
+                {item.descricao}
+              </p>
+              {/* Símbolo sem caixa. Só a cor separa os três modos, e cor não
+                  basta: `aria-label` diz o modo por extenso e `title` mostra no
+                  hover. `-m-2 p-2` cresce a área tocável sem crescer o glifo. */}
+              <button
+                type="button"
+                onClick={() => setAberto((v) => !v)}
+                aria-expanded={aberto}
+                aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
+                title={`${modoInfo.label} — toque para mudar`}
+                className={`flex-shrink-0 -m-2 p-2 rounded-md leading-none transition-colors active:scale-90 ${
+                  modo === 'nao_lancar'
+                    ? 'text-muted-foreground/70 hover:text-muted-foreground'
+                    : modo === 'prever'
+                      ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700'
+                      : 'text-primary hover:text-primary/80'
+                }`}
+              >
+                {modo === 'nao_lancar' ? <CircleDashed size={13} /> : modo === 'prever' ? <Link2 size={13} /> : <Bell size={13} />}
+              </button>
             </div>
 
-            {/* Ações logo depois do valor. No desktop seguem aparecendo só no
-                hover da linha; no mobile, sempre (não existe hover). */}
-            {emConfirm ? (
-              <div className="flex items-center gap-1 flex-shrink-0 -my-1">
-                <button
-                  onClick={() => onCancelar(item.id)}
-                  disabled={saindo}
-                  className="h-7 px-2 rounded-lg bg-red-500 text-white text-[11px] font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
-                  aria-label={`Confirmar cancelamento de ${item.descricao}`}
-                >
-                  {saindo ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Cancelar
-                </button>
-                <button
-                  onClick={() => onPedir(null)}
-                  className="h-7 w-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground flex items-center justify-center transition-colors"
-                  aria-label="Voltar"
-                >
-                  <X size={13} />
-                </button>
-              </div>
+            {semEstimativa ? (
+              <p className="flex-shrink-0 text-[12.5px] sm:text-sm font-semibold tabular-nums inline-flex items-center gap-1 leading-none text-muted-foreground">
+                <CircleDashed size={11} /> a definir
+              </p>
             ) : (
-              <div className="flex items-center gap-0.5 flex-shrink-0 -my-1 -mr-1 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
-                <button
-                  onClick={onEditar}
-                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center text-muted-foreground
-                             hover:text-foreground hover:bg-muted transition-colors"
-                  aria-label={`Editar ${item.descricao}`}
-                  title="Editar"
-                >
-                  <Pencil size={13} />
-                </button>
-                <button
-                  onClick={() => onPedir(item.id)}
-                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center text-muted-foreground
-                             hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                  aria-label={`Cancelar ${item.descricao}`}
-                  title="Cancelar"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
+              <p className={`flex-shrink-0 text-[12.5px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 leading-none ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
+                {ehGasto ? <ArrowDownRight size={11} /> : <ArrowUpRight size={11} />}
+                {ehVariavel ? '~' : ''}{fmt(item.valor)}
+              </p>
             )}
           </div>
 
-          {/* 2. Metadados — agora com a largura toda, o nome da conta cabe */}
-          <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
-            <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
-              <Calendar size={9} /> dia {item.dia_vencimento}
-            </span>
-            {/* ⚠️ Ícone + TEXTO, nunca só a cor/opacidade — quem não distingue
-                tons precisa ler que já passou. Responde direto a "meu mês já
-                está todo pago, não consigo marcar?": não precisa marcar nada. */}
-            {jaPassou && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
-                    aria-label="já passou" title="já passou"
-                    style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
-                {/* ⚠️ O texto some SÓ no mobile (`hidden sm:inline`), nunca do
-                    DOM: o `aria-label` do span mantém "já passou" pra leitor de
-                    tela, e no desktop o rótulo continua escrito. Ícone sozinho
-                    sem nome acessível seria cor+forma sem significado. */}
-                <Check size={9} /> <span className="hidden sm:inline">já passou</span>
+          {/* ─── FAIXA 2: dia · conta ······ editar · excluir ─────────────────
+              As ações vivem AQUI, na escala dos metadados, e não na faixa do
+              valor: ao lado de um número em vermelho e negrito, dois ícones de
+              14px disputavam a atenção com o que a pessoa veio ler. Aqui elas
+              ficam à mão e em segundo plano, que é o peso certo pra "editar". */}
+          <div className="flex items-center gap-1 sm:gap-1.5 mt-1 text-[10px] sm:text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 flex-1 flex-wrap">
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+                <Calendar size={9} /> dia {item.dia_vencimento}
               </span>
+              {/* ⚠️ Ícone + TEXTO no desktop, nunca só a cor — quem não distingue
+                  tons precisa ler que já passou. No mobile fica só o ✓, mas o
+                  `aria-label` mantém o nome acessível. */}
+              {jaPassou && (
+                <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
+                      aria-label="já passou" title="já passou"
+                      style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
+                  <Check size={9} /> <span className="hidden sm:inline">já passou</span>
+                </span>
+              )}
+              {ehVariavel && (
+                <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
+                      style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
+                  <CircleDashed size={9} /> estimado
+                </span>
+              )}
+              {item.carteira && <span className="truncate">· {item.carteira}</span>}
+            </div>
+
+            {emConfirm ? (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => onCancelar(item.id)}
+                  disabled={saindo}
+                  className="h-6 px-2 rounded-md bg-red-500 text-white text-[10px] font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
+                  aria-label={`Confirmar cancelamento de ${item.descricao}`}
+                >
+                  {saindo ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Cancelar
+                </button>
+                <button
+                  onClick={() => onPedir(null)}
+                  className="h-6 w-6 rounded-md bg-muted/60 hover:bg-muted text-muted-foreground flex items-center justify-center transition-colors"
+                  aria-label="Voltar"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              /* ⚠️ `-my-2 py-2` devolve os 40px de alvo tocável que o ícone de
+                 12px não tem sozinho. O botão parece pequeno; a área não é. */
+              <div className="flex items-center gap-0.5 flex-shrink-0 -my-2 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
+                <button
+                  onClick={onEditar}
+                  className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label={`Editar ${item.descricao}`}
+                  title="Editar"
+                >
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => onPedir(item.id)}
+                  className="p-2 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  aria-label={`Cancelar ${item.descricao}`}
+                  title="Cancelar"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             )}
-            {ehVariavel && (
-              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
-                    style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
-                <CircleDashed size={9} /> estimado
-              </span>
-            )}
-            {item.carteira && <span className="truncate max-w-[60%]">· {item.carteira}</span>}
           </div>
 
           {/* 3. Pílula com o rótulo por extenso — SÓ com o painel aberto.
@@ -1499,9 +1500,14 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
   );
 }
 
+// ⚠️ `onTirar` segue na assinatura de propósito. O botão "Não contar aqui" saiu
+// da TELA a pedido, mas `tirarDosPrevistos` continua sendo o único caminho pra
+// excluir uma dívida da previsão SEM apagá-la — arrancar o prop junto obrigaria
+// a reescrever o fluxo caso o botão volte.
 function LinhaDivida({
   divida, idx, saindo, onTirar,
-}: { divida: any; idx: number; saindo: boolean; onTirar: () => void }) {
+}: { divida: any; idx: number; saindo: boolean; onTirar?: () => void }) {
+  void onTirar;
   const parcelas = Number(divida.parcelas_total) || 0;
   const pagas    = Number(divida.parcelas_pagas) || 0;
   const restantes = Math.max(0, parcelas - pagas);
@@ -1526,8 +1532,10 @@ function LinhaDivida({
               </p>
             </div>
 
-            {/* 2. Quando vence, quanto falta e pra quem */}
-            <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
+            {/* 2. Quando vence, quanto falta, pra quem — e as ações, na MESMA
+                escala dos metadados (igual às linhas de gasto fixo). */}
+            <div className="flex items-center gap-1 sm:gap-1.5 mt-1 text-[10px] sm:text-xs text-muted-foreground">
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 flex-1 flex-wrap">
               {divida.dia_vencimento && (
                 <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
                   <Calendar size={9} /> dia {divida.dia_vencimento}
@@ -1538,23 +1546,34 @@ function LinhaDivida({
                   {restantes} de {parcelas} restantes
                 </span>
               )}
-              {divida.credor && <span className="truncate max-w-[55%]">· {divida.credor}</span>}
-            </div>
+                {divida.credor && <span className="truncate">· {divida.credor}</span>}
+              </div>
 
-            {/* 3. Única ação: sair da previsão (NÃO apaga a dívida) */}
-            <div className="flex items-center justify-end mt-2">
-              <button
-                type="button"
-                onClick={onTirar}
-                disabled={saindo}
-                aria-label={`Não contar ${divida.titulo} nos previstos do mês`}
-                className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[11px] font-semibold
-                           text-muted-foreground hover:text-foreground hover:bg-muted transition-colors
-                           disabled:opacity-50"
-              >
-                {saindo ? <Loader2 size={12} className="animate-spin" /> : <EyeOff size={12} />}
-                Não contar aqui
-              </button>
+              {/* ⚠️ DÍVIDA NÃO SE EDITA NEM SE APAGA AQUI. Estes dois ícones
+                  LEVAM pra aba Dívidas, que é a dona do registro — apagar por
+                  aqui seria destruir parcelas, histórico de pagamento e foto a
+                  partir de um card de previsão, que existe só pra somar o mês.
+                  Por isso são <a>, não <button>: o alvo é uma NAVEGAÇÃO, e
+                  precisa se comportar como link (abrir em nova aba, mostrar o
+                  destino na barra de status). O `title` diz pra onde vai. */}
+              <div className="flex items-center gap-0.5 flex-shrink-0 -my-2 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
+                <a
+                  href="/dividas"
+                  className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label={`Editar ${divida.titulo} na aba Dívidas`}
+                  title="Editar na aba Dívidas"
+                >
+                  <Pencil size={12} />
+                </a>
+                <a
+                  href="/dividas"
+                  className="p-2 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  aria-label={`Excluir ${divida.titulo} na aba Dívidas`}
+                  title="Excluir na aba Dívidas"
+                >
+                  <Trash2 size={12} />
+                </a>
+              </div>
             </div>
           </div>
         </div>
