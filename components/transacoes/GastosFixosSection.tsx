@@ -928,8 +928,35 @@ function Linha({
 
         <div className="flex-1 min-w-0">
           {/* 1. Título + valor */}
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-[13px] sm:text-sm font-medium text-foreground truncate min-w-0">{item.descricao}</p>
+          <div className="flex items-start gap-2">
+            {/* ⚠️ O MODO VIRA UM SÍMBOLO ANTES DO NOME. Antes era uma pílula
+                com rótulo ("Lançar", "Não lançar", "Prever") ocupando uma faixa
+                inteira da linha — em 375px ela era o elemento mais pesado da
+                tela, competindo com o valor.
+
+                O rótulo só some da LINHA, não do produto: o símbolo abre o
+                painel com os três modos escritos por extenso e a explicação de
+                cada um. Quem só passa o olho vê o estado; quem quer trocar,
+                toca. `aria-label` carrega o rótulo inteiro pra quem usa leitor
+                de tela — ícone sozinho não é rótulo. */}
+            <button
+              type="button"
+              onClick={() => setAberto((v) => !v)}
+              aria-expanded={aberto}
+              aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
+              title={`${modoInfo.label} — toque para mudar`}
+              className={`flex-shrink-0 mt-px w-5 h-5 -m-1 p-1 box-content rounded-md flex items-center justify-center
+                          transition-colors active:scale-90 ${
+                modo === 'nao_lancar'
+                  ? 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                  : modo === 'prever'
+                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25'
+                    : 'bg-primary/15 text-primary hover:bg-primary/25'
+              }`}
+            >
+              {modo === 'nao_lancar' ? <CircleDashed size={12} /> : modo === 'prever' ? <Link2 size={12} /> : <Check size={12} />}
+            </button>
+            <p className="flex-1 text-[13px] sm:text-sm font-medium text-foreground truncate min-w-0">{item.descricao}</p>
             <div className="flex-shrink-0 text-right">
               {semEstimativa ? (
                 <p className="text-[13px] sm:text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
@@ -954,8 +981,13 @@ function Linha({
                 está todo pago, não consigo marcar?": não precisa marcar nada. */}
             {jaPassou && (
               <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
+                    aria-label="já passou" title="já passou"
                     style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
-                <Check size={9} /> já passou
+                {/* ⚠️ O texto some SÓ no mobile (`hidden sm:inline`), nunca do
+                    DOM: o `aria-label` do span mantém "já passou" pra leitor de
+                    tela, e no desktop o rótulo continua escrito. Ícone sozinho
+                    sem nome acessível seria cor+forma sem significado. */}
+                <Check size={9} /> <span className="hidden sm:inline">já passou</span>
               </span>
             )}
             {ehVariavel && (
@@ -969,18 +1001,20 @@ function Linha({
 
           {/* 3. Controles: modo à esquerda, ações à direita */}
           <div className="flex items-center justify-between gap-2 mt-1.5 sm:mt-2">
-            {/* Chip do modo — abre os controles. `whitespace-nowrap` impede o
-                "Não / lançar" em duas linhas que aparecia no mobile.
+            {/* Pílula com o rótulo por extenso — SÓ quando o painel está
+                aberto. Fechado, quem mostra o estado é o símbolo antes do nome.
+                Mantida aqui (e não só no painel) porque é ela que fecha de
+                volta, com o mesmo alvo que abriu.
 
                 ⚠️ ALVO DE TOQUE PRESERVADO. A pílula ficou visualmente menor no
                 mobile (h-8), mas `-my-1 py-1 box-content` devolve a área tocável
                 de 40px — encolher o retângulo clicável junto seria trocar
                 bagunça por erro de toque, que é pior. */}
-            <button
+            {aberto && <button
               type="button"
               onClick={() => setAberto((v) => !v)}
               aria-expanded={aberto}
-              aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
+              aria-label={`Fechar opções de lançamento de ${item.descricao}`}
               className={`inline-flex items-center gap-1 pl-2 pr-1.5 sm:pl-2.5 sm:pr-2 h-8 sm:h-9
                           -my-1 py-1 sm:my-0 sm:py-0 box-content sm:box-border
                           rounded-lg text-[10px] sm:text-[11px] font-semibold
@@ -996,7 +1030,10 @@ function Linha({
               {modoInfo.label}
               {querLembrete && <Bell size={10} className="opacity-70" />}
               <ChevronDown size={12} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
-            </button>
+            </button>}
+            {/* Sem a pílula, a faixa precisa de um vão à esquerda pra as ações
+                não colarem no meio da linha. */}
+            {!aberto && <span aria-hidden className="flex-1" />}
 
       {emConfirm ? (
         <div className="flex items-center gap-1 flex-shrink-0">
