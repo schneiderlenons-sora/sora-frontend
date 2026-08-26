@@ -235,6 +235,27 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     });
   }, [resumo, categorias, totalGastos]);
 
+  // ⚠️ O DONUT PRECISA DO MÊS INTEIRO, A LISTA NÃO. `catsComPct` é top 7 de
+  // propósito — o card se chama "Principais gastos". Mas o centro do donut diz
+  // "gastos esse mês", e ele soma o que está DESENHADO: com 7 fatias ele
+  // exibiria menos do que a pessoa gastou, sem nada na tela explicando a
+  // diferença. Mesmo defeito que apareceu na aba Categorias.
+  //
+  // A fatia "Outras" fecha os 100%. Cinza neutro porque não é uma categoria, é
+  // o resíduo — cor de marca ali competiria com as reais.
+  const dadosDonut = useMemo(() => {
+    const fatias = catsComPct.map((c: any) => ({
+      name:  nomeCategoria(c.categoria),
+      value: c.total,
+      color: c.color,
+      emoji: c.emoji,
+    }));
+    const resto = totalGastos - fatias.reduce((s, f) => s + (f.value || 0), 0);
+    // Centavos de arredondamento não viram fatia: só entra o que se lê na tela.
+    if (resto > 0.5) fatias.push({ name: 'Outras', value: resto, color: '#94a3b8', emoji: '📊' });
+    return fatias;
+  }, [catsComPct, totalGastos]);
+
 
   // Insight personalizado
   const insight = temDados && maiorCat
@@ -594,12 +615,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                 <div className="w-full aspect-square max-w-[340px] mx-auto">
                   {donutVisivel ? (
                     <DonutCategorias
-                      data={catsComPct.map((c: any) => ({
-                        name:  nomeCategoria(c.categoria),
-                        value: c.total,
-                        color: c.color,
-                        emoji: c.emoji,
-                      }))}
+                      data={dadosDonut}
                       showList={false}
                       espacado
                       valorGrande

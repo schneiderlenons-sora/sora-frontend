@@ -254,16 +254,31 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
 
   // Dados do donut chart (top 8) — sempre de DESPESA (o donut fica ao lado do
   // header "gasto em <mês>", que é um resumo fixo, não filtrado pela aba).
+  // ⚠️ O DONUT MOSTRA AS 8 MAIORES, MAS O CENTRO DIZ "TOTAL" — e ele soma o que
+  // está DESENHADO. Sem a fatia de resto, o total do gráfico saía menor que o
+  // valor grande do card (medido: R$ 3.686,88 no donut contra R$ 3.773,58 no
+  // card, os R$ 86,70 das categorias que ficaram de fora). Dois números
+  // diferentes pro mesmo mês, um do lado do outro.
+  //
+  // A fatia "Outras" fecha os 100%: o total volta a bater, as porcentagens
+  // passam a ser sobre o gasto real, e o que sobrou deixa de sumir da tela.
   const dadosPie = useMemo(() => {
-    return arvoreDespesa
+    const ordenadas = arvoreDespesa
       .filter(x => x.gastoTotal > 0)
-      .sort((a, b) => b.gastoTotal - a.gastoTotal)
-      .slice(0, 8)
-      .map(x => ({
-        name: x.pai.nome,
-        value: x.gastoTotal,
-        color: citrico(normalizaCor((x.pai as any).cor, x.pai.nome).fg),
-      }));
+      .sort((a, b) => b.gastoTotal - a.gastoTotal);
+
+    const principais = ordenadas.slice(0, 8).map(x => ({
+      name: x.pai.nome,
+      value: x.gastoTotal,
+      color: citrico(normalizaCor((x.pai as any).cor, x.pai.nome).fg),
+    }));
+
+    const resto = ordenadas.slice(8).reduce((s, x) => s + x.gastoTotal, 0);
+    // Cinza neutro de propósito: "Outras" não é uma categoria, é o resíduo —
+    // dar cor de marca a ela competiria com as que a pessoa realmente tem.
+    if (resto > 0) principais.push({ name: 'Outras', value: resto, color: '#94a3b8' });
+
+    return principais;
   }, [arvoreDespesa]);
 
   function toggleExpand(id: string) {
