@@ -857,16 +857,11 @@ function CategoriaRow({
                   className="inline-flex items-center gap-0.5 text-muted-foreground/70 hover:text-foreground transition-colors"
                   title="Definir limite"
                 >
-                  <Target size={10} /> limite
+                  <Target size={10} /> definir limite
                 </button>
               )}
             </div>
           </div>
-
-          {/* Participação no total — o mesmo número do donut. */}
-          <span className="text-[13px] sm:text-sm font-bold text-foreground tabular flex-shrink-0 tracking-tight">
-            {pctTotal}%
-          </span>
 
           {/* Ações: no desktop os três botões; no mobile um "mais". */}
           <div className="hidden lg:flex items-center gap-1 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
@@ -921,13 +916,18 @@ function CategoriaRow({
 
         {/* Barra: largura INTEIRA, embaixo. Fora da linha ela para de disputar
             espaço com nome e valor — era o que forçava o scroll horizontal. */}
+        {/* ⚠️ Os aria-* vão ARREDONDADOS. `pctTotal` é fração crua
+            (92.72051394344003) — na largura da barra dá no mesmo, mas o leitor
+            de tela ANUNCIA o número, e ninguém quer ouvir catorze casas. */}
         <div
           className="w-full h-1.5 rounded-full bg-muted overflow-hidden mt-2"
           role="progressbar"
-          aria-valuenow={limite?.limite_mensal ? Math.min(pctLimite, 100) : pctTotal}
+          aria-valuenow={Math.round(limite?.limite_mensal ? Math.min(pctLimite, 100) : pctTotal)}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={limite?.limite_mensal ? `${pctLimite}% do limite de ${pai.nome}` : `${pctTotal}% do total`}
+          aria-label={limite?.limite_mensal
+            ? `${Math.round(pctLimite)}% do limite de ${pai.nome}`
+            : `${Math.round(pctTotal)}% do total gasto no mês`}
         >
           <div
             className="h-full rounded-full transition-all duration-700"
