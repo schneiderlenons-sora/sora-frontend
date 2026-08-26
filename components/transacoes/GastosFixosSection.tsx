@@ -926,39 +926,34 @@ function Linha({
         </div>
 
         <div className="flex-1 min-w-0">
-          {/* ─── FAIXA 1: nome + símbolo · valor ──────────────────────────
-              ⚠️ `items-center`, NÃO `items-start`. O símbolo é um <button> com
-              padding próprio e o nome é um <p> com line-height — encostados no
-              topo eles nunca alinham, que era o "símbolo fora da linha do nome"
-              e o "nome fora da linha do valor". Centralizados, os três ficam no
-              mesmo eixo independente da altura de cada um.
+          {/* ─── FAIXA 1: nome · "já passou" ······ valor ────────────────
+              ⚠️ `items-center`, NÃO `items-start`: o chip tem padding próprio e
+              o nome tem line-height; encostados no topo eles nunca alinham — foi
+              a causa do desalinhamento que aparecia só em alguns itens.
 
-              O nome e o símbolo andam JUNTOS num grupo `min-w-0`: assim o
-              truncate morde só o nome e o símbolo nunca é empurrado pra fora. */}
-          <div className="flex items-center gap-2">
+              O SÍMBOLO DO MODO SAIU DAQUI a pedido: lançar/prever/não lançar só
+              aparecem na edição. O estado deixa de ser visível de relance, o que
+              é uma troca consciente por uma linha mais limpa.
+
+              No lugar dele entrou o "já passou", que responde a pergunta que a
+              pessoa realmente faz ao correr o olho pela lista: isso ainda vem ou
+              já foi? Fica menor que o nome de propósito — é qualificador, não
+              título. */}
+          <div className="flex items-center gap-1.5">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <p className="min-w-0 truncate text-[12.5px] sm:text-sm font-medium text-foreground leading-none">
                 {item.descricao}
               </p>
-              {/* Símbolo sem caixa. Só a cor separa os três modos, e cor não
-                  basta: `aria-label` diz o modo por extenso e `title` mostra no
-                  hover. `-m-2 p-2` cresce a área tocável sem crescer o glifo. */}
-              <button
-                type="button"
-                onClick={() => setAberto((v) => !v)}
-                aria-expanded={aberto}
-                aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
-                title={`${modoInfo.label} — toque para mudar`}
-                className={`flex-shrink-0 -m-2 p-2 rounded-md leading-none transition-colors active:scale-90 ${
-                  modo === 'nao_lancar'
-                    ? 'text-muted-foreground/70 hover:text-muted-foreground'
-                    : modo === 'prever'
-                      ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700'
-                      : 'text-primary hover:text-primary/80'
-                }`}
-              >
-                {modo === 'nao_lancar' ? <CircleDashed size={13} /> : modo === 'prever' ? <Link2 size={13} /> : <Bell size={13} />}
-              </button>
+              {/* Ícone + TEXTO no desktop, nunca só a cor — quem não distingue
+                  tons precisa LER que já passou. No mobile fica só o ✓, com
+                  `aria-label` mantendo o nome acessível. */}
+              {jaPassou && (
+                <span className="flex-shrink-0 inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px rounded-md text-[9px] sm:text-[10px] font-medium leading-none"
+                      aria-label="já passou" title="já passou"
+                      style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
+                  <Check size={9} /> <span className="hidden sm:inline">já passou</span>
+                </span>
+              )}
             </div>
 
             {semEstimativa ? (
@@ -983,22 +978,10 @@ function Linha({
               <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
                 <Calendar size={9} /> dia {item.dia_vencimento}
               </span>
-              {/* ⚠️ Ícone + TEXTO no desktop, nunca só a cor — quem não distingue
-                  tons precisa ler que já passou. No mobile fica só o ✓, mas o
-                  `aria-label` mantém o nome acessível. */}
-              {jaPassou && (
-                <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
-                      aria-label="já passou" title="já passou"
-                      style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
-                  <Check size={9} /> <span className="hidden sm:inline">já passou</span>
-                </span>
-              )}
-              {ehVariavel && (
-                <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
-                      style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
-                  <CircleDashed size={9} /> estimado
-                </span>
-              )}
+              {/* "estimado" REMOVIDO a pedido. O "~" na frente do valor já
+                  marca que é estimativa, e o cabeçalho da seção diz "você
+                  confirma no dia" — o chip repetia a mesma informação uma
+                  terceira vez. */}
               {item.carteira && <span className="truncate">· {item.carteira}</span>}
             </div>
 
@@ -1030,7 +1013,7 @@ function Linha({
                   aria-label={`Editar ${item.descricao}`}
                   title="Editar"
                 >
-                  <Pencil size={12} />
+                  <Pencil className="w-[11px] h-[11px] sm:w-3 sm:h-3" />
                 </button>
                 <button
                   onClick={() => onPedir(item.id)}
@@ -1038,7 +1021,7 @@ function Linha({
                   aria-label={`Cancelar ${item.descricao}`}
                   title="Cancelar"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 className="w-[11px] h-[11px] sm:w-3 sm:h-3" />
                 </button>
               </div>
             )}
@@ -1314,7 +1297,7 @@ function AddForm({
     <div className="p-4 sm:p-6 bg-muted/20 border-b border-border/60 animate-fade-in">
       {editando && (
         <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-          <Pencil size={12} /> Editando {tipo === 'Gasto' ? 'gasto' : 'receita'} {valorVariavel ? 'variável' : 'fixo'}
+          <Pencil className="w-[11px] h-[11px] sm:w-3 sm:h-3" /> Editando {tipo === 'Gasto' ? 'gasto' : 'receita'} {valorVariavel ? 'variável' : 'fixo'}
         </p>
       )}
       {/* Dois eixos: tipo (gasto/receita) × valor (fixo/variável) — travados ao
@@ -1469,33 +1452,45 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
 }) {
   const dia = String(fatura.venc || '').slice(8, 10);
   return (
-    <li className="group flex items-center gap-3 px-4 sm:px-6 py-3 transition-colors hover:bg-muted/30 animate-fade-in"
+    <li className="group flex items-center gap-2.5 sm:gap-3 px-3 sm:px-6 py-2.5 sm:py-3 transition-colors hover:bg-muted/30 animate-fade-in"
         style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: mexendo ? 0.5 : undefined }}>
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+      {/* ⚠️ MESMA ESCALA DAS OUTRAS LINHAS. Esta usava ícone de 36px, nome em
+          `text-sm font-semibold` e valor em `text-sm` — enquanto gasto fixo e
+          dívida usam 32px e `text-[12.5px] font-medium`. Lado a lado no mesmo
+          card, o cartão parecia de outra tela. */}
+      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0"
            style={{ background: 'color-mix(in srgb, #8b5cf6 13%, transparent)' }}>
-        <WalletIcon size={16} style={{ color: '#8b5cf6' }} />
+        <WalletIcon size={15} style={{ color: '#8b5cf6' }} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground truncate">{fatura.nome}</p>
-        <p className="text-[11px] text-muted-foreground">
-          Fatura{dia ? ` · vence dia ${dia}` : ''}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="min-w-0 truncate text-[12.5px] sm:text-sm font-medium text-foreground leading-none">
+            {fatura.nome}
+          </p>
+          <span className="flex-shrink-0 text-[12.5px] sm:text-sm font-bold tabular-nums text-foreground ml-auto leading-none">
+            {fmt(Number(fatura.restante) || 0)}
+          </span>
+        </div>
+
+        {/* A ação vive na MESMA linha de "Fatura · vence dia 10" e no tamanho
+            dela — igual às linhas de gasto fixo. `-my-2 p-2` devolve os 40px de
+            alvo tocável que um ícone de 11px não tem sozinho. */}
+        <div className="flex items-center gap-1.5 mt-1 text-[10px] sm:text-xs text-muted-foreground">
+          <span className="flex-1 min-w-0 truncate">Fatura{dia ? ` · vence dia ${dia}` : ''}</span>
+          <button
+            onClick={onTirar}
+            disabled={mexendo}
+            title="Não contar esta fatura nos previstos do mês"
+            aria-label={`Tirar a fatura do ${fatura.nome} da previsão`}
+            className="flex-shrink-0 -my-2 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 disabled:opacity-50"
+          >
+            {mexendo
+              ? <Loader2 className="w-[11px] h-[11px] sm:w-3 sm:h-3 animate-spin" />
+              : <EyeOff className="w-[11px] h-[11px] sm:w-3 sm:h-3" />}
+          </button>
+        </div>
       </div>
-
-      <span className="text-sm font-bold tabular-nums text-foreground shrink-0">
-        {fmt(Number(fatura.restante) || 0)}
-      </span>
-
-      <button
-        onClick={onTirar}
-        disabled={mexendo}
-        title="Não contar esta fatura nos previstos do mês"
-        aria-label={`Tirar a fatura do ${fatura.nome} da previsão`}
-        className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 shrink-0"
-      >
-        {mexendo ? <Loader2 size={14} className="animate-spin" /> : <EyeOff size={14} />}
-      </button>
     </li>
   );
 }
@@ -1543,7 +1538,7 @@ function LinhaDivida({
               )}
               {parcelas > 0 && (
                 <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
-                  {restantes} de {parcelas} restantes
+                  {restantes}/{parcelas}
                 </span>
               )}
                 {divida.credor && <span className="truncate">· {divida.credor}</span>}
@@ -1563,7 +1558,7 @@ function LinhaDivida({
                   aria-label={`Editar ${divida.titulo} na aba Dívidas`}
                   title="Editar na aba Dívidas"
                 >
-                  <Pencil size={12} />
+                  <Pencil className="w-[11px] h-[11px] sm:w-3 sm:h-3" />
                 </a>
                 <a
                   href="/dividas"
@@ -1571,7 +1566,7 @@ function LinhaDivida({
                   aria-label={`Excluir ${divida.titulo} na aba Dívidas`}
                   title="Excluir na aba Dívidas"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 className="w-[11px] h-[11px] sm:w-3 sm:h-3" />
                 </a>
               </div>
             </div>
