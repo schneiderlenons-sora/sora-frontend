@@ -721,8 +721,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                 </span>
               </p>
               <div className="text-right">
-                <p className="text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
-                  <ArrowDownRight size={13} />
+                <p className="text-[13px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
+                  <ArrowDownRight size={12} />
                   {temVariavel ? '≈ ' : ''}{fmt(totalGastos)}
                 </p>
                 {/* ⚠️ O número que o cliente estava procurando. Só aparece
@@ -915,22 +915,29 @@ function Linha({
 
         Vale nos dois tamanhos de tela de propósito: manter dois layouts
         diferentes é o tipo de coisa que volta a desalinhar na próxima mexida. */}
-    <div className="px-4 sm:px-6 py-3">
-      <div className="flex items-start gap-3">
-        <CategoriaIcon nome={item.descricao} icone={emoji} size={38} bg={tema.bg} color={tema.color} rounded="rounded-xl" />
+    <div className="px-3 sm:px-6 py-2.5 sm:py-3">
+      <div className="flex items-start gap-2.5 sm:gap-3">
+        {/* ⚠️ O ícone encolhe SÓ no mobile via `scale`, não por prop: o
+            `CategoriaIcon` recebe um número e não aceita breakpoint. A caixa
+            externa acompanha (w-[32px]) pra não sobrar buraco ao lado. */}
+        <div className="w-[32px] sm:w-[38px] flex-shrink-0">
+          <div className="scale-[0.842] sm:scale-100 origin-top-left">
+            <CategoriaIcon nome={item.descricao} icone={emoji} size={38} bg={tema.bg} color={tema.color} rounded="rounded-xl" />
+          </div>
+        </div>
 
         <div className="flex-1 min-w-0">
           {/* 1. Título + valor */}
           <div className="flex items-start justify-between gap-3">
-            <p className="text-sm font-medium text-foreground truncate min-w-0">{item.descricao}</p>
+            <p className="text-[13px] sm:text-sm font-medium text-foreground truncate min-w-0">{item.descricao}</p>
             <div className="flex-shrink-0 text-right">
               {semEstimativa ? (
-                <p className="text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
-                  <CircleDashed size={13} /> a definir
+                <p className="text-[13px] sm:text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
+                  <CircleDashed size={12} /> a definir
                 </p>
               ) : (
-                <p className={`text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
-                  {ehGasto ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
+                <p className={`text-[13px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {ehGasto ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
                   {ehVariavel ? '~' : ''}{fmt(item.valor)}
                 </p>
               )}
@@ -938,38 +945,45 @@ function Linha({
           </div>
 
           {/* 2. Metadados — agora com a largura toda, o nome da conta cabe */}
-          <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground flex-wrap">
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
-              <Calendar size={10} /> dia {item.dia_vencimento}
+          <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
+            <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+              <Calendar size={9} /> dia {item.dia_vencimento}
             </span>
             {/* ⚠️ Ícone + TEXTO, nunca só a cor/opacidade — quem não distingue
                 tons precisa ler que já passou. Responde direto a "meu mês já
                 está todo pago, não consigo marcar?": não precisa marcar nada. */}
             {jaPassou && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
                     style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
-                <Check size={10} /> já passou
+                <Check size={9} /> já passou
               </span>
             )}
             {ehVariavel && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium"
+              <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md font-medium"
                     style={{ background: 'color-mix(in srgb, #f59e0b 14%, transparent)', color: '#b45309' }}>
-                <CircleDashed size={10} /> estimado
+                <CircleDashed size={9} /> estimado
               </span>
             )}
             {item.carteira && <span className="truncate max-w-[60%]">· {item.carteira}</span>}
           </div>
 
           {/* 3. Controles: modo à esquerda, ações à direita */}
-          <div className="flex items-center justify-between gap-2 mt-2">
+          <div className="flex items-center justify-between gap-2 mt-1.5 sm:mt-2">
             {/* Chip do modo — abre os controles. `whitespace-nowrap` impede o
-                "Não / lançar" em duas linhas que aparecia no mobile. */}
+                "Não / lançar" em duas linhas que aparecia no mobile.
+
+                ⚠️ ALVO DE TOQUE PRESERVADO. A pílula ficou visualmente menor no
+                mobile (h-8), mas `-my-1 py-1 box-content` devolve a área tocável
+                de 40px — encolher o retângulo clicável junto seria trocar
+                bagunça por erro de toque, que é pior. */}
             <button
               type="button"
               onClick={() => setAberto((v) => !v)}
               aria-expanded={aberto}
               aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
-              className={`inline-flex items-center gap-1 pl-2.5 pr-2 h-9 rounded-lg text-[11px] font-semibold
+              className={`inline-flex items-center gap-1 pl-2 pr-1.5 sm:pl-2.5 sm:pr-2 h-8 sm:h-9
+                          -my-1 py-1 sm:my-0 sm:py-0 box-content sm:box-border
+                          rounded-lg text-[10px] sm:text-[11px] font-semibold
                           whitespace-nowrap flex-shrink-0 transition-colors active:scale-[0.98] ${
                 modo === 'nao_lancar'
                   ? 'bg-muted/70 text-muted-foreground hover:bg-muted'
@@ -978,7 +992,7 @@ function Linha({
                     : 'bg-primary/12 text-primary hover:bg-primary/20'
               }`}
             >
-              {modo === 'nao_lancar' ? <CircleDashed size={11} /> : modo === 'prever' ? <Link2 size={11} /> : <Check size={11} />}
+              {modo === 'nao_lancar' ? <CircleDashed size={10} /> : modo === 'prever' ? <Link2 size={10} /> : <Check size={10} />}
               {modoInfo.label}
               {querLembrete && <Bell size={10} className="opacity-70" />}
               <ChevronDown size={12} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
@@ -1006,7 +1020,7 @@ function Linha({
         <div className="flex items-center gap-0.5 flex-shrink-0 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
           <button
             onClick={onEditar}
-            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground
                        hover:text-foreground hover:bg-muted transition-colors"
             aria-label={`Editar ${item.descricao}`}
             title="Editar"
@@ -1015,7 +1029,7 @@ function Linha({
           </button>
           <button
             onClick={() => onPedir(item.id)}
-            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground
                        hover:text-red-500 hover:bg-red-500/10 transition-colors"
             aria-label={`Cancelar ${item.descricao}`}
             title="Cancelar"
@@ -1054,7 +1068,7 @@ function Linha({
           <button
             type="button"
             onClick={() => onIgnorarCat(sugCat.id)}
-            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground
                        hover:bg-muted transition-colors"
             aria-label={`Ignorar sugestão para ${item.descricao}`}
           >
@@ -1447,7 +1461,7 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
         disabled={mexendo}
         title="Não contar esta fatura nos previstos do mês"
         aria-label={`Tirar a fatura do ${fatura.nome} da previsão`}
-        className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 shrink-0"
+        className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 shrink-0"
       >
         {mexendo ? <Loader2 size={14} className="animate-spin" /> : <EyeOff size={14} />}
       </button>
@@ -1476,21 +1490,21 @@ function LinhaDivida({
           <div className="flex-1 min-w-0">
             {/* 1. Título + valor da parcela */}
             <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-medium text-foreground truncate min-w-0">{divida.titulo}</p>
-              <p className="flex-shrink-0 text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
-                <ArrowDownRight size={13} />{fmt(divida.valor_parcela)}
+              <p className="text-[13px] sm:text-sm font-medium text-foreground truncate min-w-0">{divida.titulo}</p>
+              <p className="flex-shrink-0 text-[13px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
+                <ArrowDownRight size={12} />{fmt(divida.valor_parcela)}
               </p>
             </div>
 
             {/* 2. Quando vence, quanto falta e pra quem */}
-            <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
               {divida.dia_vencimento && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
-                  <Calendar size={10} /> dia {divida.dia_vencimento}
+                <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+                  <Calendar size={9} /> dia {divida.dia_vencimento}
                 </span>
               )}
               {parcelas > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
+                <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px sm:py-0.5 rounded-md bg-muted/60 font-medium tabular-nums">
                   {restantes} de {parcelas} restantes
                 </span>
               )}
