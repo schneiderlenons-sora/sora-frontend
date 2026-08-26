@@ -7,6 +7,8 @@ import { Gift, Check, Copy, X } from 'lucide-react';
 const BRAND = '#61ce70';
 const CUPOM = 'SORA10';
 const KEY = 'cupom-sora10-dismiss';
+/** Quanto tempo na página antes de o card ter permissão de aparecer. */
+const ESPERA_MS = 7000;
 
 // Card flutuante oferecendo 10% OFF (cupom SORA10). Fixo no rodapé, acompanha o
 // rolamento; fecha no X (some pela sessão) e copia o cupom. Theme-aware: tema
@@ -19,13 +21,29 @@ export default function CupomFlutuante() {
   useEffect(() => {
     // Não reaparece se o usuário já fechou nesta sessão.
     try { if (sessionStorage.getItem(KEY) === '1') return; } catch { /* noop */ }
-    // Só aparece depois de rolar um pouco (não cobre o hero de cara).
-    const onScroll = () => {
-      if (window.scrollY > 500) { setVisivel(true); window.removeEventListener('scroll', onScroll); }
+
+    // Duas condições, nesta ordem: primeiro o TEMPO, depois o rolar.
+    //
+    // ⚠️ O tempo existe porque o card cobre a faixa de baixo da tela no
+    // celular. Aparecer nos primeiros segundos interrompe justamente a leitura
+    // que faz a pessoa querer o cupom — e quem fecha, fecha pela sessão
+    // inteira. 7s é o suficiente pra ela já ter começado a ler.
+    //
+    // O rolar continua valendo depois disso: quem parou no hero ainda não viu
+    // nada que justifique um desconto.
+    let onScroll: (() => void) | null = null;
+    const t = setTimeout(() => {
+      onScroll = () => {
+        if (window.scrollY > 500) { setVisivel(true); window.removeEventListener('scroll', onScroll!); }
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll(); // quem já rolou não espera um segundo movimento
+    }, ESPERA_MS);
+
+    return () => {
+      clearTimeout(t);
+      if (onScroll) window.removeEventListener('scroll', onScroll);
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const fechar = () => {

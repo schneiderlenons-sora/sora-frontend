@@ -49,12 +49,17 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
         }`}
       >
         <nav className="max-w-7xl mx-auto px-5 sm:px-8 h-16 lg:h-20 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
+          {/* Logo
+              ⚠️ `shrink-0` nos DOIS lados (aqui e nas ações). Sem isso o flex
+              encolhia os blocos abaixo do tamanho mínimo quando a soma passava
+              da largura do celular, e o seletor de idioma ficava POR CIMA da
+              palavra "Sora". O `min-[360px]` esconde o texto (o ícone já é a
+              marca) nas telas onde nem assim caberia. */}
+          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
             <img src="/sora-icon.png" alt="Sora"
                  width={32} height={32}
                  className="w-8 h-8 rounded-lg shadow-sm group-hover:rotate-3 transition-transform" />
-            <span className="font-bold text-lg tracking-tight">Sora</span>
+            <span className="hidden min-[360px]:inline font-bold text-lg tracking-tight">Sora</span>
           </Link>
 
           {/* Links desktop */}
@@ -70,7 +75,7 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
           </ul>
 
           {/* Ações */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Seletor de idioma (PT/ES) */}
             <LanguageSwitcher />
 
@@ -100,7 +105,7 @@ export default function LandingNav({ hideThemeToggle = false }: { hideThemeToggl
 
             {/* Primary CTA */}
             <Link href={user ? '/dashboard' : '#pricing'}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white shadow-[0_2px_10px_-2px_rgba(97,206,112,0.5)] rounded-lg transition-all hover:shadow-[0_4px_20px_-4px_rgba(97,206,112,0.6)] hover:-translate-y-[1px]"
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-sm font-bold text-white whitespace-nowrap shadow-[0_2px_10px_-2px_rgba(97,206,112,0.5)] rounded-lg transition-all hover:shadow-[0_4px_20px_-4px_rgba(97,206,112,0.6)] hover:-translate-y-[1px]"
                   style={{ background: 'linear-gradient(135deg, #61ce70 0%, #4DAE61 100%)' }}>
               {user ? t('abrirSora') : t('comecar')} <ArrowRight size={13} />
             </Link>

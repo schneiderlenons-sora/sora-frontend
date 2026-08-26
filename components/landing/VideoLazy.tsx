@@ -40,7 +40,6 @@ export default function VideoLazy({
   const { ref, visivel } = useVisivel<HTMLDivElement>(true, '400px');
   const [semMovimento, setSemMovimento] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [pausado, setPausado] = useState(false);
 
   // ── Segurar/passar o mouse PAUSA ──────────────────────────────────────────
   // O vídeo roda em loop e é rápido; sem uma forma de parar, quem quer ler a
@@ -52,14 +51,12 @@ export default function VideoLazy({
   const pausar = () => {
     if (semMovimento) return;
     videoRef.current?.pause();
-    setPausado(true);
   };
   const retomar = () => {
     if (semMovimento) return;
     // `play()` devolve uma promise que REJEITA se o elemento sair da tela ou o
     // navegador bloquear — engolir evita erro no console em algo decorativo.
     videoRef.current?.play().catch(() => {});
-    setPausado(false);
   };
 
   useEffect(() => {
@@ -74,50 +71,42 @@ export default function VideoLazy({
     <div
       ref={ref}
       style={{ aspectRatio: aspecto }}
+      // ⚠️ `select-none` + `-webkit-touch-callout` NÃO são enfeite: segurar o
+      // dedo pra pausar disparava a seleção de texto do iOS — a lupa aparecia e
+      // o parágrafo acima do vídeo saía todo marcado de azul. Como aqui não há
+      // nada pra selecionar nem pra copiar, desligar é o certo. `manipulation`
+      // tira o duplo-toque-pra-zoom (o toque aqui é pra pausar) sem afetar o
+      // rolar da página.
       className={`relative w-full overflow-hidden rounded-2xl border border-zinc-200/60 dark:border-white/10
-                  bg-zinc-100 dark:bg-[#0d0d0d]
+                  bg-zinc-100 dark:bg-[#0d0d0d] select-none [touch-action:manipulation]
+                  [-webkit-touch-callout:none] [-webkit-user-select:none]
                   shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)] dark:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.85)]
                   ${className}`}
     >
       {visivel ? (
-        <>
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
-            src={src}
-            autoPlay={!semMovimento}
-            loop
-            muted
-            playsInline
-            preload="none"
-            controls={semMovimento}
-            disablePictureInPicture
-            controlsList="nodownload nofullscreen noremoteplayback"
-            aria-label={titulo}
-            onPointerEnter={pausar}
-            onPointerLeave={retomar}
-            onPointerDown={pausar}
-            onPointerUp={retomar}
-            onPointerCancel={retomar}
-          />
-          {/* Selo de pausa — sem ele o vídeo parado é indistinguível de um
-              vídeo travado, que é exatamente a queixa que originou a troca do
-              arquivo. `pointer-events-none` pra não interceptar o dedo. */}
-          {pausado && (
-            <span
-              aria-hidden
-              className="pointer-events-none absolute top-3 right-3 flex items-center gap-1.5
-                         rounded-full bg-black/55 backdrop-blur px-2.5 py-1 text-[10px] font-semibold
-                         uppercase tracking-wider text-white animate-fade-in"
-            >
-              <span className="flex gap-[2px]">
-                <span className="block w-[3px] h-2.5 bg-white rounded-[1px]" />
-                <span className="block w-[3px] h-2.5 bg-white rounded-[1px]" />
-              </span>
-              pausado
-            </span>
-          )}
-        </>
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          src={src}
+          autoPlay={!semMovimento}
+          loop
+          muted
+          playsInline
+          preload="none"
+          controls={semMovimento}
+          disablePictureInPicture
+          controlsList="nodownload nofullscreen noremoteplayback"
+          aria-label={titulo}
+          draggable={false}
+          // Segurar no iOS abre o menu "Salvar vídeo" e leva junto a seleção;
+          // o toque aqui só serve pra pausar.
+          onContextMenu={(e) => e.preventDefault()}
+          onPointerEnter={pausar}
+          onPointerLeave={retomar}
+          onPointerDown={pausar}
+          onPointerUp={retomar}
+          onPointerCancel={retomar}
+        />
       ) : (
         // Placeholder do MESMO tamanho: o bloco já ocupa o espaço final, então
         // a troca pelo vídeo não move nada na página.

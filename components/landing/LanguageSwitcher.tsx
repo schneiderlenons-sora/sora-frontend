@@ -46,9 +46,11 @@ export default function LanguageSwitcher() {
         aria-label="Trocar idioma / Cambiar idioma"
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-sm font-semibold text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
+        className="inline-flex items-center gap-1.5 h-9 px-2 sm:px-2.5 rounded-lg text-sm font-semibold text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
       >
-        <Globe size={15} />
+        {/* No celular só a bandeira: o globo é redundante ao lado dela e os
+            ~20px que ele ocupa eram parte do que fazia o cabeçalho estourar. */}
+        <Globe size={15} className="hidden sm:block" />
         <span className="text-base leading-none">{atual.bandeira}</span>
       </button>
 
