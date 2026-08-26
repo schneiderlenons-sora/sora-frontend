@@ -32,6 +32,20 @@ function useReduce() {
   return r;
 }
 
+/**
+ * Raio das pontas no modo `espacado`.
+ *
+ * ⚠️ VALOR FINITO, NUNCA 999. O recharts arredonda a ponta só quando o raio
+ * cabe na geometria da fatia; pedindo um raio absurdo ele desiste e desenha o
+ * setor CRU — e o resultado é uma fatia quadrada no meio de um anel redondo.
+ * Aconteceu com uma categoria pequena no dashboard: todas as outras saíam
+ * arredondadas e só aquela virava um losango.
+ *
+ * 14px arredonda por completo a espessura que o card usa (74%→96% de um anel
+ * de ~150px de raio ≈ 33px) e continua cabendo nas fatias mais estreitas.
+ */
+const RAIO_PONTA = 14;
+
 // Índice da fatia do evento do Recharts (a posição do arg mudou entre versões).
 function idxDaFatia(d: any, i: any): number | null {
   if (typeof i === 'number') return i;
@@ -95,7 +109,7 @@ export default function CategoryDonut({
               innerRadius={innerRadius} outerRadius={outerRadius}
               dataKey="value"
               paddingAngle={espacado ? 7 : 3}
-              cornerRadius={espacado ? 999 : 4}
+              cornerRadius={espacado ? RAIO_PONTA : 4}
               strokeWidth={0}
               isAnimationActive={!reduce}
               onMouseEnter={(d: any, i: any) => { const k = idxDaFatia(d, i); if (k != null) setActive(k); }}
@@ -116,7 +130,7 @@ export default function CategoryDonut({
                 innerRadius={innerRadius} outerRadius={raioDestaque}
                 dataKey="value"
                 paddingAngle={espacado ? 7 : 3}
-                cornerRadius={espacado ? 999 : 4}
+                cornerRadius={espacado ? RAIO_PONTA : 4}
                 strokeWidth={0}
                 isAnimationActive={false}
               >
