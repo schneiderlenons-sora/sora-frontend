@@ -713,11 +713,11 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           {totalGastos > 0 && (
             <div className="px-4 sm:px-6 py-3 border-t border-border/50 flex items-center justify-between gap-3"
                  style={{ background: 'hsl(var(--bg-muted) / 0.4)' }}>
+              {/* Subtítulo "custo fixo do mês inteiro" REMOVIDO a pedido: o
+                  contraste com o "ainda falta sair" ao lado já diz que um é o
+                  mês todo e o outro é o que resta. */}
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                 Total previsto
-                <span className="block normal-case tracking-normal font-medium text-muted-foreground/70 mt-0.5">
-                  custo fixo do mês inteiro
-                </span>
               </p>
               <div className="text-right">
                 <p className="text-[13px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
@@ -948,10 +948,17 @@ function Linha({
                   tons precisa LER que já passou. No mobile fica só o ✓, com
                   `aria-label` mantendo o nome acessível. */}
               {jaPassou && (
-                <span className="flex-shrink-0 inline-flex items-center gap-0.5 sm:gap-1 px-1.5 py-px rounded-md text-[9px] sm:text-[10px] font-medium leading-none"
-                      aria-label="já passou" title="já passou"
-                      style={{ background: 'color-mix(in srgb, #10b981 13%, transparent)', color: '#047857' }}>
-                  <Check size={9} /> <span className="hidden sm:inline">já passou</span>
+                /* ⚠️ SEM CAIXA NO MOBILE: so o ✓ verde. A pilula existia pra
+                   segurar o texto "ja passou"; sem o texto ela virava moldura de
+                   um icone de 9px, que so somava ruido numa linha ja apertada.
+                   No desktop, onde o texto aparece, a caixa volta (`sm:`).
+                   O nome acessivel fica no aria-label nos dois casos — icone
+                   sozinho nao e rotulo. */
+                <span className="flex-shrink-0 inline-flex items-center gap-0.5 sm:gap-1 rounded-md leading-none
+                                 text-[9px] sm:text-[10px] font-medium text-emerald-600 dark:text-emerald-400
+                                 sm:px-1.5 sm:py-px sm:bg-emerald-500/[0.13] sm:text-emerald-700 sm:dark:text-emerald-400"
+                      aria-label="já passou" title="já passou">
+                  <Check size={11} className="sm:w-[9px] sm:h-[9px]" /> <span className="hidden sm:inline">já passou</span>
                 </span>
               )}
             </div>
@@ -1458,9 +1465,17 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
           `text-sm font-semibold` e valor em `text-sm` — enquanto gasto fixo e
           dívida usam 32px e `text-[12.5px] font-medium`. Lado a lado no mesmo
           card, o cartão parecia de outra tela. */}
-      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0"
-           style={{ background: 'color-mix(in srgb, #8b5cf6 13%, transparent)' }}>
-        <WalletIcon size={15} style={{ color: '#8b5cf6' }} />
+      {/* ⚠️ ICONE OFICIAL DO BANCO, nao a carteira generica. `CategoriaIcon`
+          casa o nome da carteira com o catalogo de marcas (`marcaDe`), entao
+          "Nubank Ultravioleta" acha /brands/nubank.png. Era a mesma logica que
+          as outras linhas ja usavam — so esta ficou com o icone roxo padrao,
+          e por isso o cartao nao parecia do mesmo banco que a conta logo acima.
+          Sem marca conhecida, o proprio CategoriaIcon cai no emoji de carteira. */}
+      <div className="w-[32px] sm:w-[38px] flex-shrink-0">
+        <div className="scale-[0.842] sm:scale-100 origin-top-left">
+          <CategoriaIcon nome={fatura.nome} icone="💳" size={38}
+            bg="color-mix(in srgb, #8b5cf6 13%, transparent)" color="#8b5cf6" rounded="rounded-xl" />
+        </div>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -1513,15 +1528,22 @@ function LinhaDivida({
       className="group transition-colors hover:bg-muted/30 animate-fade-in"
       style={{ animationDelay: `${Math.min(idx * 40, 240)}ms`, opacity: saindo ? 0.5 : undefined }}
     >
-      <div className="px-4 sm:px-6 py-3">
-        <div className="flex items-start gap-3">
-          <CategoriaIcon nome={divida.titulo} icone="💳" size={38}
-            bg="#ef444418" color="#ef4444" rounded="rounded-xl" />
+      <div className="px-3 sm:px-6 py-2.5 sm:py-3">
+        <div className="flex items-start gap-2.5 sm:gap-3">
+          {/* ⚠️ MESMO WRAPPER DE ESCALA DAS OUTRAS LINHAS. Esta ficou pra tras
+              na compactacao e seguia com o icone cheio (38px), o que a fazia
+              parecer maior que gasto fixo e cartao no mesmo card. */}
+          <div className="w-[32px] sm:w-[38px] flex-shrink-0">
+            <div className="scale-[0.842] sm:scale-100 origin-top-left">
+              <CategoriaIcon nome={divida.titulo} icone="💳" size={38}
+                bg="#ef444418" color="#ef4444" rounded="rounded-xl" />
+            </div>
+          </div>
 
           <div className="flex-1 min-w-0">
             {/* 1. Título + valor da parcela */}
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-[13px] sm:text-sm font-medium text-foreground truncate min-w-0">{divida.titulo}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="flex-1 min-w-0 truncate text-[12.5px] sm:text-sm font-medium text-foreground leading-none">{divida.titulo}</p>
               <p className="flex-shrink-0 text-[13px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 text-red-500">
                 <ArrowDownRight size={12} />{fmt(divida.valor_parcela)}
               </p>
