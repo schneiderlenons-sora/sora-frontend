@@ -19,7 +19,7 @@
 // parado no primeiro quadro, com controles, em vez de um loop automático.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useVisivel } from '@/lib/useVisivel';
 
 export default function VideoLazy({
@@ -39,6 +39,28 @@ export default function VideoLazy({
   // dos gráficos do painel — pode observar desde a montagem.
   const { ref, visivel } = useVisivel<HTMLDivElement>(true, '400px');
   const [semMovimento, setSemMovimento] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [pausado, setPausado] = useState(false);
+
+  // ── Segurar/passar o mouse PAUSA ──────────────────────────────────────────
+  // O vídeo roda em loop e é rápido; sem uma forma de parar, quem quer ler a
+  // tela precisa esperar dar a volta. `pointer*` cobre mouse e toque com o
+  // mesmo par de eventos, então não há caminho duplicado pra manter.
+  //
+  // ⚠️ Não faz nada com `prefers-reduced-motion`: ali o vídeo já nasce parado e
+  // com controles nativos — mexer no play/pause brigaria com o próprio usuário.
+  const pausar = () => {
+    if (semMovimento) return;
+    videoRef.current?.pause();
+    setPausado(true);
+  };
+  const retomar = () => {
+    if (semMovimento) return;
+    // `play()` devolve uma promise que REJEITA se o elemento sair da tela ou o
+    // navegador bloquear — engolir evita erro no console em algo decorativo.
+    videoRef.current?.play().catch(() => {});
+    setPausado(false);
+  };
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -58,19 +80,44 @@ export default function VideoLazy({
                   ${className}`}
     >
       {visivel ? (
-        <video
-          className="absolute inset-0 w-full h-full object-cover"
-          src={src}
-          autoPlay={!semMovimento}
-          loop
-          muted
-          playsInline
-          preload="none"
-          controls={semMovimento}
-          disablePictureInPicture
-          controlsList="nodownload nofullscreen noremoteplayback"
-          aria-label={titulo}
-        />
+        <>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            src={src}
+            autoPlay={!semMovimento}
+            loop
+            muted
+            playsInline
+            preload="none"
+            controls={semMovimento}
+            disablePictureInPicture
+            controlsList="nodownload nofullscreen noremoteplayback"
+            aria-label={titulo}
+            onPointerEnter={pausar}
+            onPointerLeave={retomar}
+            onPointerDown={pausar}
+            onPointerUp={retomar}
+            onPointerCancel={retomar}
+          />
+          {/* Selo de pausa — sem ele o vídeo parado é indistinguível de um
+              vídeo travado, que é exatamente a queixa que originou a troca do
+              arquivo. `pointer-events-none` pra não interceptar o dedo. */}
+          {pausado && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute top-3 right-3 flex items-center gap-1.5
+                         rounded-full bg-black/55 backdrop-blur px-2.5 py-1 text-[10px] font-semibold
+                         uppercase tracking-wider text-white animate-fade-in"
+            >
+              <span className="flex gap-[2px]">
+                <span className="block w-[3px] h-2.5 bg-white rounded-[1px]" />
+                <span className="block w-[3px] h-2.5 bg-white rounded-[1px]" />
+              </span>
+              pausado
+            </span>
+          )}
+        </>
       ) : (
         // Placeholder do MESMO tamanho: o bloco já ocupa o espaço final, então
         // a troca pelo vídeo não move nada na página.

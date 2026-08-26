@@ -84,9 +84,13 @@ export default function Showcase() {
               />
             </div>
 
-            <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
-              {s.sub}
-            </p>
+            {/* Seção sem subtítulo não deixa buraco: um <p> vazio ainda ocupa
+                uma linha de altura e o espaçamento sai maior que nas outras. */}
+            {s.sub && (
+              <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
+                {s.sub}
+              </p>
+            )}
 
             {/* Bloco extra da seção, quando existe. Fica DENTRO dela (mesma
                 borda, mesmo glow) porque é continuação do mesmo assunto — uma

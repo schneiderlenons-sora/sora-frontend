@@ -272,7 +272,7 @@
         "eyebrow": "Clareza total",
         "titulo": "A Sora detalha exatamente para onde seu dinheiro está indo",
         "alt": "Painel da Sora detalhando os gastos por categoria",
-        "sub": "E ainda te mostra onde dá pra economizar da melhor forma."
+        "sub": ""
       },
       {
         "eyebrow": "Em conjunto",
@@ -710,7 +710,8 @@
   "cta": {
     "comecarAgora": "Começar agora",
     "queroWrapped": "Quero meu Wrapped também 🐳",
-    "queroParticipar": "Quero fazer parte"
+    "queroParticipar": "Quero fazer parte",
+    "verPlanos": "Quero começar a organizar"
   },
   "ctaFinal": {
     "badge": "A vida que você quer",
@@ -733,8 +734,5 @@
     "titulo": "Uma equipe cuidando da sua vida, cada um com uma função",
     "desc": "Eles observam o que você registra, encontram padrões e avisam no WhatsApp quando algo merece a sua atenção — antes de virar problema.",
     "altAgente": "Ilustração do agente {nome}"
-  },
-  "ctaPlanos": {
-    "verPlanos": "Ver planos e preços"
   }
 }
