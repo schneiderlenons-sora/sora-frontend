@@ -282,7 +282,21 @@ export function getCategoriaTheme(
   };
 }
 
-// Extrai apenas o nome sem emoji
+// Extrai apenas o nome sem emoji.
+//
+// ⚠️ `Extended_Pictographic` + os invisíveis, NUNCA `\p{Emoji}`: a classe
+// `Emoji` inclui os DÍGITOS 0-9 (eles têm Emoji=Yes por causa dos teclados
+// numéricos). Com ela, a categoria "99" — o app de corrida, que existe na
+// taxonomia — virava string vazia e caía no fallback "Sem categoria",
+// passando a casar com TODA transação sem categoria. Medido na base: 2 nomes
+// afetados ("99" e "13º salário").
+//
+// U+FE0F/U+200D/U+20E3 são os invisíveis que sobram depois de tirar o
+// pictograma (o ↩ de "↩️" sai, o seletor de variação fica) e que `trim()` não
+// remove por não serem espaço. Conferido: esta classe limpa os 129 ícones da
+// taxonomia. Mesma regra do `limpaCat` do backend.
 export function nomeCategoria(categoria: string): string {
-  return (categoria || '').replace(/\p{Emoji}/gu, '').trim() || 'Sem categoria';
+  return (categoria || '')
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, '')
+    .trim() || 'Sem categoria';
 }

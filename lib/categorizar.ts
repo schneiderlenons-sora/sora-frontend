@@ -43,6 +43,15 @@ type Regra = { cat: string; kws: string[] };
 // Taxonomia v3 (ver sora-backend/sql/084_categorias_v3.sql).
 // ⚠️ Mantido em sincronia com sora-backend/src/services/categorizar.js (REGRAS).
 const REGRAS: Regra[] = [
+  // ── PREFIXO DE ADQUIRENTE — antes de TUDO ────────────────────────────────
+  // `IFD*` é o descritor que o iFood carimba na fatura ("IFD*NOME DA LOJA").
+  // Sinal ESTRUTURAL (quem cobrou foi o iFood), vale mais que qualquer palavra
+  // achada no nome do restaurante. Fica no TOPO porque senão o nome da LOJA é
+  // que decide — e porque 'ted ' (Transferências) casa por substring, o que
+  // faria "IFD*UNITED FOODS" virar transferência.
+  // Razão completa e os números: sora-backend/src/services/categorizar.js.
+  { cat: 'iFood',          kws: ['ifd'] },
+
   // ── Encomendas / Compras (marcas) ──
   // "amazon prime" é streaming, não marketplace → checa ANTES de 'amazon'.
   { cat: 'Prime Video',    kws: ['amazon prime', 'prime video', 'primevideo'] },
@@ -53,7 +62,10 @@ const REGRAS: Regra[] = [
   { cat: 'TikTok Shop',    kws: ['tiktok shop', 'tiktok', 'tik tok'] },
   { cat: 'Shein',          kws: ['shein'] },
   { cat: 'Nike',           kws: ['nike'] },
-  { cat: 'Adidas',         kws: ['adidas'] },
+  // 'payu adi': o PayU é gateway de muita loja ('payu' sozinho não diz nada),
+  // mas o campo do adquirente corta em 22 caracteres e a Adidas chega
+  // truncada ("PayU        *ADI"). As duas palavras JUNTAS é o que a separa.
+  { cat: 'Adidas',         kws: ['adidas', 'payu adi'] },
   { cat: 'Encomendas',     kws: ['magazine luiza', 'magalu', 'americanas', 'casas bahia', 'submarino', 'kabum', 'pichau', 'terabyte', 'temu', 'wish', 'enjoei', 'pontofrio', 'ponto frio', 'fastshop', 'fast shop', 'shopify'] },
 
   // ── Assinatura da Sora (EC*SORA no extrato) — antes do genérico ──

@@ -7,6 +7,7 @@ import { useApi } from '@/lib/useApi';
 import EditarLimiteGeralModal from '@/components/limites/EditarLimiteGeralModal';
 import LimiteCategoriaModal from '@/components/limites/LimiteCategoriaModal';
 import { nomeCategoria } from '@/lib/categorias';
+import { gastoComFilhas, indexarGastos, chaveCategoria } from '@/lib/limite-categoria';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Eye, EyeOff, Pencil, Trash2, Target, Bell, BellOff,
@@ -104,17 +105,18 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
 
   const valorAlertaGeral = metaMensal * (geralAlertaPct / 100);
 
-  // Mapa de gasto por nome de categoria (normalizado sem emoji)
-  const gastoPorNome = useMemo(() => {
-    const m = new Map<string, number>();
-    (resumo?.por_categoria || []).forEach((c: any) => {
-      m.set(nomeCategoria(c.categoria).toLowerCase(), c.total || 0);
-    });
-    return m;
-  }, [resumo]);
+  // Gasto do mês indexado por categoria (mesma fonte da aba Categorias).
+  const gastoPorNome = useMemo(() => indexarGastos(resumo?.por_categoria), [resumo]);
 
+  // ⚠️ SOMA AS FILHAS. A taxonomia tem dois níveis e quase todo gasto cai numa
+  // SUBcategoria, então a busca pelo nome exato devolvia zero pro pai: medido
+  // nesta tela, R$ 466,77 de R$ 3.797,48 — 88% do mês invisível, com
+  // "Empreendimento R$ 0,00" ao lado de R$ 1.768,39 em Facebook Ads.
+  // Pior: o backend SEMPRE somou as filhas, então o alerta do WhatsApp
+  // disparava por um total que esta tela jurava não existir.
+  // A regra vive em lib/limite-categoria.ts e tem eval contra o backend.
   function gastoCategoria(nome: string): number {
-    return gastoPorNome.get(nomeCategoria(nome).toLowerCase()) || 0;
+    return gastoComFilhas(nome, categorias, gastoPorNome);
   }
 
   // Lista de gastos por categoria (para a seção "mini barras")
@@ -124,11 +126,12 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
       .map(c => {
         const g = gastoCategoria(c.nome);
         const temLimite = limites.some(l =>
-          nomeCategoria(l.categoria).toLowerCase() === nomeCategoria(c.nome).toLowerCase()
+          chaveCategoria(l.categoria) === chaveCategoria(c.nome)
         );
         return { cat: c, gasto: g, temLimite };
       })
       .sort((a, b) => b.gasto - a.gasto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categorias, gastoPorNome, limites]);
 
   const maiorGasto = gastosPorCategoriaLista[0]?.gasto || 1;
