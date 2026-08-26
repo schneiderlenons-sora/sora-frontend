@@ -76,13 +76,16 @@ export default function GestaoCompartilhadaExtra() {
           delas. O tema escuro só troca a arte no desktop — a de celular já
           serve os dois. */}
       <div className="mt-10">
-        <div className="sm:hidden mx-auto w-full max-w-[420px]">
+        {/* `-mx-5` cancela o padding da seção: no celular esta arte vai de
+            borda a borda. É a única do bloco que ganha isso — as outras têm
+            texto dentro e encostar na borda apertaria a leitura. */}
+        <div className="sm:hidden -mx-5 w-[calc(100%+2.5rem)]">
           <Image
             src={`${DIR}/gestao-compartilhada-4.webp`}
             alt={t('altPermissoes')}
             width={1203}
             height={1307}
-            sizes="90vw"
+            sizes="100vw"
             className="w-full h-auto"
           />
         </div>

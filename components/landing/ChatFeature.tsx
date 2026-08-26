@@ -83,8 +83,12 @@ export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, ba
 
       <div className="relative max-w-7xl mx-auto px-5 sm:px-8 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
-        {/* ESQUERDA — conteúdo */}
-        <div>
+        {/* ESQUERDA — conteúdo.
+            Centralizado SÓ no mobile: ali a coluna vira uma faixa única e o
+            texto encostado à esquerda destoava do resto da página, que é toda
+            centrada. No desktop a coluna volta a alinhar à esquerda, senão
+            perde o eixo contra o card da direita. */}
+        <div className="text-center lg:text-left">
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold text-white shadow-sm"
                 style={{ background: `linear-gradient(135deg, ${accent} 0%, ${accentTo} 100%)` }}>
             <BadgeIcon size={16} /> {badgeText}
@@ -94,14 +98,16 @@ export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, ba
             {heading}
           </h2>
 
-          <p className="mt-5 text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-md">
+          {/* `max-w-md` sozinho encosta o bloco à esquerda mesmo com
+              text-center — o mx-auto é o que centraliza a CAIXA. */}
+          <p className="mt-5 text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-md mx-auto lg:mx-0">
             {paragraph}
           </p>
 
           <ul className="mt-8 space-y-3">
             {items.map((t, i) => (
               <li key={t}
-                  className="flex items-center gap-3 w-fit pl-2 pr-5 py-2 rounded-full bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.08] animate-[slide-up_500ms_ease-out_both]"
+                  className="flex items-center gap-3 w-fit mx-auto lg:mx-0 text-left pl-2 pr-5 py-2 rounded-full bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.08] animate-[slide-up_500ms_ease-out_both]"
                   style={{ animationDelay: `${i * 90}ms` }}>
                 <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: `linear-gradient(135deg, ${accent} 0%, ${accentTo} 100%)` }}>

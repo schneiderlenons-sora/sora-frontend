@@ -17,6 +17,20 @@
 //
 // Respeita `prefers-reduced-motion`: quem pediu menos animação recebe o vídeo
 // parado no primeiro quadro, com controles, em vez de um loop automático.
+//
+// ⚠️ TRAVADO E COM ZOOM depois de rolar até o fim da página e voltar (bug real,
+// no iPhone). São DUAS causas, uma correção pra cada:
+//
+//   1. `autoplay` dispara UMA vez. O iOS pausa o vídeo que sai da tela e não o
+//      retoma sozinho — daí "travado". Por isso o observer abaixo dá play na
+//      VOLTA, não só na primeira aparição.
+//   2. Longe da tela o iOS DESCARTA o recurso de mídia: `videoWidth/Height`
+//      voltam a 0 e o elemento cai no intrínseco padrão de um <video>, que é
+//      300×150. Medido: `object-cover` de 300×150 dentro do nosso 300×533
+//      amplia o último quadro pintado em **3,55×** — exatamente o zoom do
+//      print. `object-contain` dá 1,00× nesse mesmo cenário e é IDÊNTICO ao
+//      cover no caso normal, porque o container tem a proporção do vídeo (os
+//      dois arquivos são 1080×1920 = 9/16). Nada a perder, o desastre a menos.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react';
@@ -59,6 +73,29 @@ export default function VideoLazy({
     videoRef.current?.play().catch(() => {});
   };
 
+  // ── Volta a tocar ao reaparecer ───────────────────────────────────────────
+  // Este observer é SEPARADO do `useVisivel`, que é de uso único (só decide
+  // quando o `src` entra). Este vive enquanto o vídeo existir, justamente
+  // porque o problema é a SEGUNDA passada pela tela.
+  useEffect(() => {
+    if (!visivel || semMovimento) return;
+    const el = videoRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) { el.pause(); return; }
+        // `readyState === 0` = o iOS jogou o recurso fora. Sem o `load()` o
+        // play() volta sem metadados — e é aí que o object-fit amplia.
+        if (el.readyState === 0) el.load();
+        el.play().catch(() => {});
+      },
+      { threshold: 0.1 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visivel, semMovimento]);
+
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     const on = () => setSemMovimento(mq.matches);
@@ -86,13 +123,15 @@ export default function VideoLazy({
       {visivel ? (
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
           src={src}
           autoPlay={!semMovimento}
           loop
           muted
           playsInline
-          preload="none"
+          // `metadata` e não `none`: são poucos KB de cabeçalho e é o que
+          // garante a proporção real conhecida já no primeiro quadro.
+          preload="metadata"
           controls={semMovimento}
           disablePictureInPicture
           controlsList="nodownload nofullscreen noremoteplayback"
