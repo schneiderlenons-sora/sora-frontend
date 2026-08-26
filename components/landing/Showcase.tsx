@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import VideoLazy from '@/components/landing/VideoLazy';
 import CtaPlanos from '@/components/landing/CtaPlanos';
+import GestaoCompartilhadaExtra from '@/components/landing/GestaoCompartilhadaExtra';
 
 // Seções de destaque (título + imagem + subtítulo) logo após o Open Finance.
 // Imagens em public/landing/ — versões separadas pra tema claro e escuro
@@ -38,7 +39,7 @@ export default function Showcase() {
         </div>
       </div>
     ),
-    null,
+    <GestaoCompartilhadaExtra key="compartilhada" />,
   ];
 
   const SECOES = SECAO_IMG.map((s, i) => ({ ...s, ...txt[i], extra: EXTRAS[i] }));

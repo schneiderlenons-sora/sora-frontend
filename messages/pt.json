@@ -284,6 +284,14 @@
     "categorias": {
       "frase": "Crie categorias e subcategorias, defina limites e transforme sua relação com o dinheiro.",
       "alt": "Aba de categorias da Sora: criar categorias, subcategorias e definir limites"
+    },
+    "compartilhada": {
+      "titulo": "Veja quem está gastando o que",
+      "desc1": "Atribua cada despesa a uma pessoa da família, como você, seu marido, seus filhos ou qualquer outro responsável pelo gasto.",
+      "desc2": "Cada pessoa alimenta a mesma conta e você mantém visibilidade total sobre tudo e gerencia permissões.",
+      "altGastos": "Família no sofá com cada despesa ligada a quem gastou: escola, academia, ração e salão",
+      "altPessoas": "Quanto cada pessoa da família gastou no mês, com foto e valor",
+      "altPermissoes": "Pessoas conectadas à mesma conta, cada uma com a sua permissão: lançar despesas, ver saldos ou somente leitura"
     }
   },
   "mobileShowcase": {

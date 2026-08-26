@@ -280,6 +280,14 @@
     "categorias": {
       "frase": "Crea categorías y subcategorías, define límites y transforma tu relación con el dinero.",
       "alt": "Pestaña de categorías de Sora: crear categorías, subcategorías y definir límites"
+    },
+    "compartilhada": {
+      "titulo": "Mira quién está gastando qué",
+      "desc1": "Asigna cada gasto a una persona de la familia: tú, tu pareja, tus hijos o cualquier otro responsable del gasto.",
+      "desc2": "Cada persona alimenta la misma cuenta y tú mantienes visibilidad total sobre todo y gestionas los permisos.",
+      "altGastos": "Familia en el sofá con cada gasto ligado a quien lo hizo: colegio, gimnasio, comida del perro y peluquería",
+      "altPessoas": "Cuánto gastó cada persona de la familia en el mes, con foto e importe",
+      "altPermissoes": "Personas conectadas a la misma cuenta, cada una con su permiso: registrar gastos, ver saldos o solo lectura"
     }
   },
   "mobileShowcase": {
