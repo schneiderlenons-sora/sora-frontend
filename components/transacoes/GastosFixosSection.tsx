@@ -698,11 +698,11 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                 </div>
               )}
 
-              <p className="px-4 sm:px-6 pb-4 pt-2 text-[11px] leading-snug text-muted-foreground">
-                Valor da fatura ainda em aberto, igual à aba{' '}
-                <a href="/cartao-de-credito" className="font-medium underline underline-offset-2 hover:text-foreground">Cartão de crédito</a>.
-                Fatura paga sai daqui sozinha.
-              </p>
+              {/* REMOVIDO A PEDIDO (ago/2026): o parágrafo "Valor da fatura ainda
+                  em aberto, igual à aba Cartão de crédito. Fatura paga sai daqui
+                  sozinha." Ocupava três linhas num card já denso, e o previsto de
+                  cartão já se identifica pelo nome + pelo chip "fatura em aberto"
+                  logo acima. */}
             </div>
           )}
 
@@ -927,48 +927,92 @@ function Linha({
         </div>
 
         <div className="flex-1 min-w-0">
-          {/* 1. Título + valor */}
-          <div className="flex items-start gap-2">
-            {/* ⚠️ O MODO VIRA UM SÍMBOLO ANTES DO NOME. Antes era uma pílula
-                com rótulo ("Lançar", "Não lançar", "Prever") ocupando uma faixa
-                inteira da linha — em 375px ela era o elemento mais pesado da
-                tela, competindo com o valor.
+          {/* 1. Nome + símbolo do modo + valor + ações.
+              ⚠️ AS AÇÕES SUBIRAM PRA CÁ. Elas ocupavam uma FAIXA INTEIRA no
+              rodapé da linha só pra dois botões; ao lado do valor, aquela faixa
+              some quando o painel está fechado — que é o estado normal. Cada
+              previsto passou de 3 blocos verticais pra 2. */}
+          <div className="flex items-start gap-1.5">
+            <p className="min-w-0 truncate text-[12.5px] sm:text-sm font-medium text-foreground">{item.descricao}</p>
 
-                O rótulo só some da LINHA, não do produto: o símbolo abre o
-                painel com os três modos escritos por extenso e a explicação de
-                cada um. Quem só passa o olho vê o estado; quem quer trocar,
-                toca. `aria-label` carrega o rótulo inteiro pra quem usa leitor
-                de tela — ícone sozinho não é rótulo. */}
+            {/* ⚠️ SÍMBOLO SEM CAIXA, DEPOIS DO NOME. Só a cor separa os três
+                modos, então ele NÃO pode ser a única pista: o `aria-label` diz o
+                modo por extenso e o `title` mostra no hover. Ícone sozinho não é
+                rótulo (regra `aria-labels`). */}
             <button
               type="button"
               onClick={() => setAberto((v) => !v)}
               aria-expanded={aberto}
               aria-label={`Lançamento de ${item.descricao}: ${modoInfo.label}. Toque para mudar.`}
               title={`${modoInfo.label} — toque para mudar`}
-              className={`flex-shrink-0 mt-px w-5 h-5 -m-1 p-1 box-content rounded-md flex items-center justify-center
-                          transition-colors active:scale-90 ${
+              className={`flex-shrink-0 mt-0.5 -m-1.5 p-1.5 box-content rounded-md transition-colors active:scale-90 ${
                 modo === 'nao_lancar'
-                  ? 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                  ? 'text-muted-foreground/70 hover:text-muted-foreground'
                   : modo === 'prever'
-                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25'
-                    : 'bg-primary/15 text-primary hover:bg-primary/25'
+                    ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700'
+                    : 'text-primary hover:text-primary/80'
               }`}
             >
-              {modo === 'nao_lancar' ? <CircleDashed size={12} /> : modo === 'prever' ? <Link2 size={12} /> : <Check size={12} />}
+              {modo === 'nao_lancar' ? <CircleDashed size={13} /> : modo === 'prever' ? <Link2 size={13} /> : <Bell size={13} />}
             </button>
-            <p className="flex-1 text-[13px] sm:text-sm font-medium text-foreground truncate min-w-0">{item.descricao}</p>
+
+            <div className="flex-1" />
+
             <div className="flex-shrink-0 text-right">
               {semEstimativa ? (
-                <p className="text-[13px] sm:text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
-                  <CircleDashed size={12} /> a definir
+                <p className="text-[12.5px] sm:text-sm font-semibold tabular-nums inline-flex items-center gap-1 text-muted-foreground">
+                  <CircleDashed size={11} /> a definir
                 </p>
               ) : (
-                <p className={`text-[13px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
-                  {ehGasto ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
+                <p className={`text-[12.5px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {ehGasto ? <ArrowDownRight size={11} /> : <ArrowUpRight size={11} />}
                   {ehVariavel ? '~' : ''}{fmt(item.valor)}
                 </p>
               )}
             </div>
+
+            {/* Ações logo depois do valor. No desktop seguem aparecendo só no
+                hover da linha; no mobile, sempre (não existe hover). */}
+            {emConfirm ? (
+              <div className="flex items-center gap-1 flex-shrink-0 -my-1">
+                <button
+                  onClick={() => onCancelar(item.id)}
+                  disabled={saindo}
+                  className="h-7 px-2 rounded-lg bg-red-500 text-white text-[11px] font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
+                  aria-label={`Confirmar cancelamento de ${item.descricao}`}
+                >
+                  {saindo ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Cancelar
+                </button>
+                <button
+                  onClick={() => onPedir(null)}
+                  className="h-7 w-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground flex items-center justify-center transition-colors"
+                  aria-label="Voltar"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-0.5 flex-shrink-0 -my-1 -mr-1 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
+                <button
+                  onClick={onEditar}
+                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center text-muted-foreground
+                             hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label={`Editar ${item.descricao}`}
+                  title="Editar"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => onPedir(item.id)}
+                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center text-muted-foreground
+                             hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  aria-label={`Cancelar ${item.descricao}`}
+                  title="Cancelar"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 2. Metadados — agora com a largura toda, o nome da conta cabe */}
@@ -999,24 +1043,17 @@ function Linha({
             {item.carteira && <span className="truncate max-w-[60%]">· {item.carteira}</span>}
           </div>
 
-          {/* 3. Controles: modo à esquerda, ações à direita */}
-          <div className="flex items-center justify-between gap-2 mt-1.5 sm:mt-2">
-            {/* Pílula com o rótulo por extenso — SÓ quando o painel está
-                aberto. Fechado, quem mostra o estado é o símbolo antes do nome.
-                Mantida aqui (e não só no painel) porque é ela que fecha de
-                volta, com o mesmo alvo que abriu.
-
-                ⚠️ ALVO DE TOQUE PRESERVADO. A pílula ficou visualmente menor no
-                mobile (h-8), mas `-my-1 py-1 box-content` devolve a área tocável
-                de 40px — encolher o retângulo clicável junto seria trocar
-                bagunça por erro de toque, que é pior. */}
-            {aberto && <button
+          {/* 3. Pílula com o rótulo por extenso — SÓ com o painel aberto.
+              Fechado, quem mostra o estado é o símbolo lá em cima, e esta faixa
+              inteira deixa de existir. */}
+          {aberto && (
+          <div className="flex items-center gap-2 mt-1.5 sm:mt-2">
+            <button
               type="button"
               onClick={() => setAberto((v) => !v)}
               aria-expanded={aberto}
               aria-label={`Fechar opções de lançamento de ${item.descricao}`}
               className={`inline-flex items-center gap-1 pl-2 pr-1.5 sm:pl-2.5 sm:pr-2 h-8 sm:h-9
-                          -my-1 py-1 sm:my-0 sm:py-0 box-content sm:box-border
                           rounded-lg text-[10px] sm:text-[11px] font-semibold
                           whitespace-nowrap flex-shrink-0 transition-colors active:scale-[0.98] ${
                 modo === 'nao_lancar'
@@ -1026,56 +1063,12 @@ function Linha({
                     : 'bg-primary/12 text-primary hover:bg-primary/20'
               }`}
             >
-              {modo === 'nao_lancar' ? <CircleDashed size={10} /> : modo === 'prever' ? <Link2 size={10} /> : <Check size={10} />}
+              {modo === 'nao_lancar' ? <CircleDashed size={10} /> : modo === 'prever' ? <Link2 size={10} /> : <Bell size={10} />}
               {modoInfo.label}
-              {querLembrete && <Bell size={10} className="opacity-70" />}
-              <ChevronDown size={12} className={`transition-transform ${aberto ? 'rotate-180' : ''}`} />
-            </button>}
-            {/* Sem a pílula, a faixa precisa de um vão à esquerda pra as ações
-                não colarem no meio da linha. */}
-            {!aberto && <span aria-hidden className="flex-1" />}
-
-      {emConfirm ? (
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => onCancelar(item.id)}
-            disabled={saindo}
-            className="h-9 px-2.5 rounded-lg bg-red-500 text-white text-xs font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
-            aria-label={`Confirmar cancelamento de ${item.descricao}`}
-          >
-            {saindo ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Cancelar
-          </button>
-          <button
-            onClick={() => onPedir(null)}
-            className="h-9 w-9 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground flex items-center justify-center transition-colors"
-            aria-label="Voltar"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-0.5 flex-shrink-0 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100">
-          <button
-            onClick={onEditar}
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground
-                       hover:text-foreground hover:bg-muted transition-colors"
-            aria-label={`Editar ${item.descricao}`}
-            title="Editar"
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            onClick={() => onPedir(item.id)}
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center text-muted-foreground
-                       hover:text-red-500 hover:bg-red-500/10 transition-colors"
-            aria-label={`Cancelar ${item.descricao}`}
-            title="Cancelar"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      )}
-          </div>{/* fim faixa 3: controles */}
+              <ChevronDown size={12} className="rotate-180" />
+            </button>
+          </div>
+          )}
         </div>{/* fim coluna de conteúdo */}
       </div>{/* fim linha ícone + conteúdo */}
     </div>
