@@ -8,8 +8,8 @@ import IPhoneFrame from './IPhoneFrame';
 // Coloque os 2 prints (tela do celular, proporção ~9:19.5) em:
 //   public/landing/celular/1.png  e  public/landing/celular/2.png
 const PRINTS = [
-  { id: 1, img: '/landing/celular/1.jpeg', alt: 'App da Sora no celular — tela 1' },
-  { id: 2, img: '/landing/celular/2.jpeg', alt: 'App da Sora no celular — tela 2' },
+  { id: 1, img: '/landing/celular/1.png', alt: 'App da Sora no celular — tela 1' },
+  { id: 2, img: '/landing/celular/2.png', alt: 'App da Sora no celular — tela 2' },
 ];
 
 export default function MobileShowcase() {

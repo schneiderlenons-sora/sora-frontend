@@ -62,6 +62,7 @@
         "desc": "Ten el control total de tu vida financiera con transacciones automáticas, cuentas, tarjetas, deudas, metas e inversiones. Todo por WhatsApp o desde el panel.",
         "items": [
           "Registros por audio, imagen o texto",
+          "Conexión Open Finance — el banco registra solo",
           "Gestión compartida",
           "Límites por categoría + alertas inteligentes",
           "Inversiones con cálculo automático de aportes",
@@ -78,18 +79,23 @@
           "Salud: consultas, medicinas, entrenamientos, peso",
           "Estudios: cursos, exámenes, sesiones cronometradas",
           "Tareas y bienestar conectados a tu calendario",
+          "Recordatorios de compromisos",
           "Wrapped mensual para compartir"
         ]
       },
       {
         "badge": "Sora Negocios",
         "titulo": "Negocio bajo control.",
-        "desc": "Para emprendedores digitales. Estado de resultados en tiempo real, integraciones Hotmart/Stripe/Kiwify e insights de la IA.",
+        "desc": "Para quien vende online o tiene tienda física. Caja, inventario, equipo y estado de resultados — cada empresa con su propia pestaña, y Sora se adapta al tipo de negocio.",
         "items": [
-          "Estado de resultados detallado con desglose por plataforma",
-          "Webhook en tiempo real — Hotmart, Kiwify, Stripe, Eduzz",
-          "Pronóstico de ingresos a 3 meses + insights de la IA",
-          "Wrapped mensual para compartir"
+          "Múltiples empresas — digital, física o híbrida",
+          "Ventas, clientes y productos con margen por artículo",
+          "Inventario con costo promedio y control de compras",
+          "Flujo de caja, cuentas por pagar y por cobrar",
+          "Equipo: nómina, comisión por venta y cargas sociales",
+          "Estado de resultados con costo de ventas y punto de equilibrio",
+          "Integraciones Hotmart, Kiwify, Stripe y Eduzz",
+          "Venta por WhatsApp: \"vendí 3 pasteles por 90 a doña María\""
         ],
         "plan": "Plan Premium"
       }
@@ -100,9 +106,18 @@
     "tituloL1": "3 pasos.",
     "tituloL2": "Sin complicaciones.",
     "passos": [
-      { "titulo": "Crea tu cuenta", "desc": "Correo, contraseña y un nombre. En 30 segundos ya estás dentro." },
-      { "titulo": "Conecta el WhatsApp", "desc": "Vinculas tu número en una sola pantalla. Sora ya te habla por WhatsApp." },
-      { "titulo": "Conversa normal", "desc": "Manda texto, audio o foto. Sora interpreta y organiza todo en el panel." }
+      {
+        "titulo": "Crea tu cuenta",
+        "desc": "Correo, contraseña y un nombre. En 30 segundos ya estás dentro."
+      },
+      {
+        "titulo": "Conecta el WhatsApp",
+        "desc": "Vinculas tu número en una sola pantalla. Sora ya te habla por WhatsApp."
+      },
+      {
+        "titulo": "Conversa normal",
+        "desc": "Manda texto, audio o foto. Sora interpreta y organiza todo en el panel."
+      }
     ]
   },
   "faq": {
@@ -110,13 +125,34 @@
     "tituloL1": "Preguntas",
     "tituloL2": "frecuentes.",
     "perguntas": [
-      { "q": "¿El WhatsApp de Sora es seguro?", "a": "Sí. Cada cuenta se vincula a un número único, y Sora solo te responde a ti. Tus mensajes no se comparten con nadie y están protegidos por el cifrado del propio WhatsApp. La IA procesa solo lo necesario para entender y responder." },
-      { "q": "¿Necesito instalar alguna app?", "a": "No. Sora funciona en tu WhatsApp (que ya tienes) y en un panel web al que entras desde el navegador. Tiene versión PWA — si quieres, puedes \"instalar\" el panel como si fuera una app, sin pasar por la App Store." },
-      { "q": "¿Cómo registro mis gastos?", "a": "Le escribes o le mandas un audio a Sora por WhatsApp: \"gasté 200 en el súper\" y ella lo interpreta, lo categoriza y lo registra en la cuenta correcta. También lees fotos de tickets y notas." },
-      { "q": "¿Hay garantía? ¿Y si no me gusta?", "a": "Hay garantía de 7 días. Si te suscribes y no te convence, te devolvemos el 100% en un plazo de 7 días — solo lo pides por soporte, sin preguntas y sin trámites." },
-      { "q": "¿Cómo cancelo? ¿Pierdo mis datos?", "a": "Cancelas directo desde el panel con 1 clic — sin llamadas, sin correos. Tus datos quedan disponibles 30 días para que los exportes (CSV/OFX). Después se eliminan de forma permanente, conforme a las leyes de protección de datos." },
-      { "q": "¿Funciona para emprendedores digitales?", "a": "Sí, justo para eso existe el Plan Premium. Conecta Hotmart, Kiwify, Eduzz, Stripe por webhook y captura cada venta en tiempo real. Sora arma tu estado de resultados, calcula impuestos, hace pronósticos y genera insights automáticos." },
-      { "q": "¿Puedo compartir la cuenta con familia o socio?", "a": "Sí — a partir del plan Premium. La gestión compartida permite que pareja, familia o socio tengan acceso al mismo panel financiero, con transacciones y metas en conjunto. Cada quien con su propio inicio de sesión." }
+      {
+        "q": "¿El WhatsApp de Sora es seguro?",
+        "a": "Sí. Cada cuenta se vincula a un número único, y Sora solo te responde a ti. Tus mensajes no se comparten con nadie y están protegidos por el cifrado del propio WhatsApp. La IA procesa solo lo necesario para entender y responder."
+      },
+      {
+        "q": "¿Necesito instalar alguna app?",
+        "a": "No. Sora funciona en tu WhatsApp (que ya tienes) y en un panel web al que entras desde el navegador. Tiene versión PWA — si quieres, puedes \"instalar\" el panel como si fuera una app, sin pasar por la App Store."
+      },
+      {
+        "q": "¿Cómo registro mis gastos?",
+        "a": "Le escribes o le mandas un audio a Sora por WhatsApp: \"gasté 200 en el súper\" y ella lo interpreta, lo categoriza y lo registra en la cuenta correcta. También lees fotos de tickets y notas."
+      },
+      {
+        "q": "¿Hay garantía? ¿Y si no me gusta?",
+        "a": "Hay garantía de 7 días. Si te suscribes y no te convence, te devolvemos el 100% en un plazo de 7 días — solo lo pides por soporte, sin preguntas y sin trámites."
+      },
+      {
+        "q": "¿Cómo cancelo? ¿Pierdo mis datos?",
+        "a": "Cancelas directo desde el panel con 1 clic — sin llamadas, sin correos. Tus datos quedan disponibles 30 días para que los exportes (CSV/OFX). Después se eliminan de forma permanente, conforme a las leyes de protección de datos."
+      },
+      {
+        "q": "¿Funciona para emprendedores digitales?",
+        "a": "Sí, justo para eso existe el Plan Premium. Conecta Hotmart, Kiwify, Eduzz, Stripe por webhook y captura cada venta en tiempo real. Sora arma tu estado de resultados, calcula impuestos, hace pronósticos y genera insights automáticos."
+      },
+      {
+        "q": "¿Puedo compartir la cuenta con familia o socio?",
+        "a": "Sí — a partir del plan Premium. La gestión compartida permite que pareja, familia o socio tengan acceso al mismo panel financiero, con transacciones y metas en conjunto. Cada quien con su propio inicio de sesión."
+      }
     ]
   },
   "pricing": {
@@ -190,10 +226,40 @@
     "compliance": "Datos protegidos · ISO 27001",
     "feitoNoBrasil": "Hecho en Brasil 🇧🇷",
     "colunas": [
-      { "titulo": "Producto", "links": ["Funciones", "Demo en WhatsApp", "Planes"] },
-      { "titulo": "Empresa", "links": ["Nosotros", "Blog", "Empleo", "Prensa"] },
-      { "titulo": "Soporte", "links": ["Centro de ayuda", "WhatsApp", "Estado del sistema", "Contacto"] },
-      { "titulo": "Legal", "links": ["Términos de uso", "Privacidad", "Protección de datos"] }
+      {
+        "titulo": "Producto",
+        "links": [
+          "Funciones",
+          "Demo en WhatsApp",
+          "Planes"
+        ]
+      },
+      {
+        "titulo": "Empresa",
+        "links": [
+          "Nosotros",
+          "Blog",
+          "Empleo",
+          "Prensa"
+        ]
+      },
+      {
+        "titulo": "Soporte",
+        "links": [
+          "Centro de ayuda",
+          "WhatsApp",
+          "Estado del sistema",
+          "Contacto"
+        ]
+      },
+      {
+        "titulo": "Legal",
+        "links": [
+          "Términos de uso",
+          "Privacidad",
+          "Protección de datos"
+        ]
+      }
     ]
   },
   "showcase": {
@@ -210,7 +276,11 @@
         "alt": "Gestión financiera compartida entre pareja o familia",
         "sub": "Organiza tu vida y tus finanzas en pareja o familia, cada quien con su propio acceso."
       }
-    ]
+    ],
+    "categorias": {
+      "frase": "Crea categorías y subcategorías, define límites y transforma tu relación con el dinero.",
+      "alt": "Pestaña de categorías de Sora: crear categorías, subcategorías y definir límites"
+    }
   },
   "mobileShowcase": {
     "eyebrow": "En tu bolsillo",
@@ -235,10 +305,22 @@
     "seloAutorizado": "Conexión bancaria autorizada",
     "seloLgpd": "100% privado y seguro",
     "garantias": [
-      { "titulo": "Conexión oficial", "desc": "Conexión oficial vía Open Finance." },
-      { "titulo": "Cifrado de punta a punta", "desc": "Tus credenciales nunca pasan por Sora." },
-      { "titulo": "Revocas cuando quieras", "desc": "Puedes desconectar el acceso en cualquier momento." },
-      { "titulo": "Actualización en tiempo real", "desc": "Saldo y movimientos sincronizados automáticamente." }
+      {
+        "titulo": "Conexión oficial",
+        "desc": "Conexión oficial vía Open Finance."
+      },
+      {
+        "titulo": "Cifrado de punta a punta",
+        "desc": "Tus credenciales nunca pasan por Sora."
+      },
+      {
+        "titulo": "Revocas cuando quieras",
+        "desc": "Puedes desconectar el acceso en cualquier momento."
+      },
+      {
+        "titulo": "Actualización en tiempo real",
+        "desc": "Saldo y movimientos sincronizados automáticamente."
+      }
     ]
   },
   "wrappedShowcase": {
@@ -248,7 +330,12 @@
     "sub": "Como el Spotify Wrapped — pero de tu dinero y de tu evolución.",
     "emBreve": "Wrapped próximamente",
     "imgAlt": "Ejemplo del Sora Wrapped",
-    "chips": ["Mensual y anual", "Finanzas", "Sora Grow", "Listo para tu story"],
+    "chips": [
+      "Mensual y anual",
+      "Finanzas",
+      "Sora Grow",
+      "Listo para tu story"
+    ],
     "descricao": "Cada mes — y cada fin de año — Sora transforma tus datos en un resumen animado y hermoso: tu <b>mayor villano de gastos</b>, cuánto ahorraste, tu <b>racha de entrenamientos</b>, tus hábitos campeones. Del modo que dan ganas de presumirle a todo el mundo — en un toque."
   },
   "financasChat": {
@@ -327,17 +414,44 @@
     "sub": "Mira a quiénes ya viven en automático con Sora.",
     "verDepoimento": "Ver testimonio de {nome}",
     "metricas": [
-      { "valor": "12k+", "label": "Usuarios activos" },
-      { "valor": "$18M", "label": "Movidos por mes" },
-      { "valor": "+2M", "label": "Registros automáticos" },
-      { "valor": "4.9/5", "label": "Calificación de usuarios" }
+      {
+        "valor": "12k+",
+        "label": "Usuarios activos"
+      },
+      {
+        "valor": "$18M",
+        "label": "Movidos por mes"
+      },
+      {
+        "valor": "+2M",
+        "label": "Registros automáticos"
+      },
+      {
+        "valor": "4.9/5",
+        "label": "Calificación de usuarios"
+      }
     ],
     "depoimentos": [
-      { "role": "Influencer y Empresaria", "quote": "¡Amo lo práctico! Mando un audio y Sora organiza mis gastos y mi agenda. Justo como lo necesito para con todo." },
-      { "role": "Cantante", "quote": "¡Pruébenla! Solo hablo y ella anota todo. Nunca más olvidé un pago ni un compromiso de la familia." },
-      { "role": "Cantante", "quote": "Con el ajetreo de los shows nunca me detenía a ver a dónde se iba el dinero. Ahora solo mando un audio y Sora organiza todo — cuentas, agenda y recordatorios. ¡Así de simple!" },
-      { "role": "Influencer", "quote": "¡Gente, súper fácil! Solo mando un mensaje y está todo organizado — gastos, recordatorios, todo. ¡Me volví fan en la primera semana!" },
-      { "role": "Creador de contenido", "quote": "¡Qué cosa tan útil! Yo hablo y ella lo hace. Organiza documentos, recuerda todo… es como tener un asistente de verdad." }
+      {
+        "role": "Influencer y Empresaria",
+        "quote": "¡Amo lo práctico! Mando un audio y Sora organiza mis gastos y mi agenda. Justo como lo necesito para con todo."
+      },
+      {
+        "role": "Cantante",
+        "quote": "¡Pruébenla! Solo hablo y ella anota todo. Nunca más olvidé un pago ni un compromiso de la familia."
+      },
+      {
+        "role": "Cantante",
+        "quote": "Con el ajetreo de los shows nunca me detenía a ver a dónde se iba el dinero. Ahora solo mando un audio y Sora organiza todo — cuentas, agenda y recordatorios. ¡Así de simple!"
+      },
+      {
+        "role": "Influencer",
+        "quote": "¡Gente, súper fácil! Solo mando un mensaje y está todo organizado — gastos, recordatorios, todo. ¡Me volví fan en la primera semana!"
+      },
+      {
+        "role": "Creador de contenido",
+        "quote": "¡Qué cosa tan útil! Yo hablo y ella lo hace. Organiza documentos, recuerda todo… es como tener un asistente de verdad."
+      }
     ]
   },
   "agendaShowcase": {
@@ -352,7 +466,15 @@
     "mesAno": "Julio 2026",
     "viaWhatsApp": "por WhatsApp",
     "audioLegenda": "agenda mi dentista mañana a las 9",
-    "diasSemana": ["D", "L", "M", "M", "J", "V", "S"],
+    "diasSemana": [
+      "D",
+      "L",
+      "M",
+      "M",
+      "J",
+      "V",
+      "S"
+    ],
     "amanhaData": "Mañana · 10 Jul",
     "dentista": "Dentista",
     "dentistaHora": "9:00 · recordatorio 1h antes",
@@ -382,12 +504,21 @@
     },
     "cardHabitos": {
       "total": "Total: 12/15 hoy",
-      "nomes": ["Gym", "Leer 30min", "Agua 2L", "Sin celular 1h"],
+      "nomes": [
+        "Gym",
+        "Leer 30min",
+        "Agua 2L",
+        "Sin celular 1h"
+      ],
       "dias": "{n} días"
     },
     "cardMacros": {
       "titulo": "Desayuno",
-      "itens": ["2 huevos", "Pan a la plancha", "Café con leche"],
+      "itens": [
+        "2 huevos",
+        "Pan a la plancha",
+        "Café con leche"
+      ],
       "rodape": "Hoy: 415 / 2,000 kcal · 👍 24g de proteína"
     }
   },
@@ -396,7 +527,15 @@
     "tituloL1": "Personalizado",
     "tituloL2": "por ti.",
     "subtitulo": "Tu panel, con tu estilo. Elige el tema que va contigo y Sora se pinta entera al instante — del dashboard a las gráficas. Porque organizar la vida es mucho mejor cuando la app se siente <b>tuya</b>.",
-    "cores": ["Verde Sora", "Azul", "Morado", "Rosa", "Rojo", "Naranja", "Black"],
+    "cores": [
+      "Verde Sora",
+      "Azul",
+      "Morado",
+      "Rosa",
+      "Rojo",
+      "Naranja",
+      "Black"
+    ],
     "corAnterior": "Color anterior",
     "proximaCor": "Siguiente color",
     "ampliarTema": "Ampliar tema {nome}",
@@ -423,16 +562,29 @@
       "Encuentra cualquier archivo solo describiéndolo"
     ],
     "features": [
-      { "t": "Envía por WhatsApp", "d": "Manda cualquier archivo en el chat y pide que lo guarde. Sin app, sin inicio de sesión, sin complicaciones." },
-      { "t": "Organización automática", "d": "La IA entiende el contenido y lo organiza en las carpetas correctas. Nunca más pierdes un documento." },
-      { "t": "Búsqueda por significado", "d": "“Encuentra mi foto en la nieve”. La IA analiza el contenido real de los archivos y encuentra lo que necesitas." }
+      {
+        "t": "Envía por WhatsApp",
+        "d": "Manda cualquier archivo en el chat y pide que lo guarde. Sin app, sin inicio de sesión, sin complicaciones."
+      },
+      {
+        "t": "Organización automática",
+        "d": "La IA entiende el contenido y lo organiza en las carpetas correctas. Nunca más pierdes un documento."
+      },
+      {
+        "t": "Búsqueda por significado",
+        "d": "“Encuentra mi foto en la nieve”. La IA analiza el contenido real de los archivos y encuentra lo que necesitas."
+      }
     ],
     "arquivoNome": "comprobante_mecanico.pdf",
     "salvarPedido": "Guarda esto en la carpeta de comprobantes 👆",
     "salvarResposta": "¡Listo! Lo guardé en la carpeta 📁 <b>Comprobantes / Vehículos</b>. ✅",
     "meuDrive": "Mi Drive",
     "pastas": "CARPETAS",
-    "pastasChips": ["Comprob…", "Contratos", "Fotos"],
+    "pastasChips": [
+      "Comprob…",
+      "Contratos",
+      "Fotos"
+    ],
     "recentes": "RECIENTES",
     "arquivoLocalAgora": "Comprobantes / Vehículos · Ahora",
     "novo": "NUEVO",
@@ -470,7 +622,11 @@
     "btnNovoProjeto": "+ Nuevo Proyecto",
     "proj1Nome": "Mudanza de Depa",
     "proj2Nome": "Tesis de la Uni",
-    "prios": ["Baja / Normal", "Alta Prioridad", "Urgente"],
+    "prios": [
+      "Baja / Normal",
+      "Alta Prioridad",
+      "Urgente"
+    ],
     "tarefaTranscAnim": "Necesito escribir la conclusión de mi tesis antes del 30 de noviembre",
     "tarefasTituloL1": "Divide tus proyectos en tareas",
     "tarefasTituloL2": "y define qué va primero.",
@@ -515,11 +671,36 @@
     "fraseFinalL1": "Otros softwares venden solo la herramienta.",
     "fraseFinalL2": "Sora entrega la herramienta y el conocimiento.",
     "cursos": [
-      { "titulo": "Domina tu vida financiera", "tag": "Curso · Finanzas", "duracao": "12 clases · 2h", "desc": "De cero al control: organiza cuentas, arma tu fondo de emergencia y sal de números rojos de una vez." },
-      { "titulo": "La tarjeta de crédito a tu favor", "tag": "Curso · Crédito", "duracao": "8 clases · 1h20", "desc": "Usa el límite, puntos y cashback como palanca. Nunca más pagues intereses de más." },
-      { "titulo": "Reto: 10kg en 30 días", "tag": "Reto · Salud", "duracao": "30 días · menú", "desc": "Plan de comidas día a día, entrenamientos cortos y checkpoints. Baja de peso con salud." },
-      { "titulo": "Organización anti-procrastinación", "tag": "Curso · Productividad", "duracao": "6 clases · 45min", "desc": "Sistema de rutina y enfoque para quien siempre lo deja para después. Empieza pequeño, mantén grande." },
-      { "titulo": "Contenido nuevo cada mes", "tag": "Próximamente", "duracao": "Actualizaciones mensuales", "desc": "Toda suscripción activa recibe cursos, retos y tips nuevos sin costo extra." }
+      {
+        "titulo": "Domina tu vida financiera",
+        "tag": "Curso · Finanzas",
+        "duracao": "12 clases · 2h",
+        "desc": "De cero al control: organiza cuentas, arma tu fondo de emergencia y sal de números rojos de una vez."
+      },
+      {
+        "titulo": "La tarjeta de crédito a tu favor",
+        "tag": "Curso · Crédito",
+        "duracao": "8 clases · 1h20",
+        "desc": "Usa el límite, puntos y cashback como palanca. Nunca más pagues intereses de más."
+      },
+      {
+        "titulo": "Reto: 10kg en 30 días",
+        "tag": "Reto · Salud",
+        "duracao": "30 días · menú",
+        "desc": "Plan de comidas día a día, entrenamientos cortos y checkpoints. Baja de peso con salud."
+      },
+      {
+        "titulo": "Organización anti-procrastinación",
+        "tag": "Curso · Productividad",
+        "duracao": "6 clases · 45min",
+        "desc": "Sistema de rutina y enfoque para quien siempre lo deja para después. Empieza pequeño, mantén grande."
+      },
+      {
+        "titulo": "Contenido nuevo cada mes",
+        "tag": "Próximamente",
+        "duracao": "Actualizaciones mensuales",
+        "desc": "Toda suscripción activa recibe cursos, retos y tips nuevos sin costo extra."
+      }
     ]
   },
   "cta": {
@@ -536,5 +717,20 @@
     "botaoPainel": "Abrir mi panel",
     "verPlanos": "Ver planes",
     "rodape": "Sin tarjeta para empezar. Cancela con 1 clic."
+  },
+  "previstos": {
+    "eyebrow": "Previstos del mes",
+    "titulo": "También puedes organizar deudas, gastos e ingresos — fijos o variables",
+    "desc": "Entiende el peso real de cada gasto en tu presupuesto. Sora proyecta automáticamente cuánto vas a gastar y cuánto te va a sobrar a fin de mes, a partir de tu propia vida financiera.",
+    "alt": "Pestaña de previstos de Sora: gastos fijos, variables, deudas y tarjetas del mes"
+  },
+  "agentes": {
+    "eyebrow": "Sora Agentes",
+    "titulo": "Un equipo cuidando de tu vida, cada uno con una función",
+    "desc": "Observan lo que registras, encuentran patrones y te avisan por WhatsApp cuando algo merece tu atención — antes de que se vuelva un problema.",
+    "altAgente": "Ilustración del agente {nome}"
+  },
+  "ctaPlanos": {
+    "verPlanos": "Ver planes y precios"
   }
 }

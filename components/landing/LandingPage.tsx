@@ -3,7 +3,6 @@ import CupomFlutuante  from '@/components/landing/CupomFlutuante';
 import Hero            from '@/components/landing/Hero';
 import Problema        from '@/components/landing/Problema';
 import Solucao         from '@/components/landing/Solucao';
-import ComoFunciona    from '@/components/landing/ComoFunciona';
 import FinancasChat    from '@/components/landing/FinancasChat';
 import AgendaChat      from '@/components/landing/AgendaChat';
 import HabitosSaude    from '@/components/landing/HabitosSaude';
@@ -11,6 +10,8 @@ import Showcase        from '@/components/landing/Showcase';
 import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase    from '@/components/landing/DriveShowcase';
 import OpenFinance     from '@/components/landing/OpenFinance';
+import PrevistosShowcase from '@/components/landing/PrevistosShowcase';
+import AgentesShowcase   from '@/components/landing/AgentesShowcase';
 import WrappedShowcase from '@/components/landing/WrappedShowcase';
 import Personalizacao  from '@/components/landing/Personalizacao';
 import MobileShowcase   from '@/components/landing/MobileShowcase';
@@ -38,11 +39,12 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
       <Hero />
       <Problema />
       <Solucao />
-      <ComoFunciona />
       <FinancasChat />
       <OpenFinance />
+      <PrevistosShowcase />
       <AgendaChat />
       <HabitosSaude />
+      <AgentesShowcase />
       <CtaPlanos fraseKey="comecarAgora" />
       {/* Seções com imagens/descrição (Clareza total → Wrapped) ANTES de Recursos */}
       <Showcase />

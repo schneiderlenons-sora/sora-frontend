@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import VideoLazy from '@/components/landing/VideoLazy';
+import CtaPlanos from '@/components/landing/CtaPlanos';
 
 // Seções de destaque (título + imagem + subtítulo) logo após o Open Finance.
 // Imagens em public/landing/ — versões separadas pra tema claro e escuro
@@ -13,7 +15,33 @@ const SECAO_IMG = [
 export default function Showcase() {
   const t = useTranslations('showcase');
   const txt = t.raw('secoes') as { eyebrow: string; titulo: string; alt: string; sub: string }[];
-  const SECOES = SECAO_IMG.map((s, i) => ({ ...s, ...txt[i] }));
+
+  // Conteúdo extra por seção, alinhado por ÍNDICE com `SECAO_IMG`.
+  // [0] Clareza total · [1] Gestão compartilhada.
+  const EXTRAS: (React.ReactNode | null)[] = [
+    (
+      <div key="categorias" className="mt-14">
+        <p className="text-lg lg:text-xl font-semibold tracking-[-0.02em] max-w-2xl mx-auto">
+          {t('categorias.frase')}
+        </p>
+        {/* Vídeo de tela de celular (9/16) — container estreito, senão ele
+            domina a seção e empurra o CTA pra fora da vista. */}
+        <div className="mt-8 mx-auto w-full max-w-[300px] sm:max-w-[340px]">
+          <VideoLazy
+            src="/landing/categorias/categorias.webm"
+            aspecto="9 / 16"
+            titulo={t('categorias.alt')}
+          />
+        </div>
+        <div className="mt-10">
+          <CtaPlanos fraseKey="verPlanos" />
+        </div>
+      </div>
+    ),
+    null,
+  ];
+
+  const SECOES = SECAO_IMG.map((s, i) => ({ ...s, ...txt[i], extra: EXTRAS[i] }));
   return (
     <>
       {SECOES.map((s) => (
@@ -59,6 +87,12 @@ export default function Showcase() {
             <p className="text-base lg:text-lg text-zinc-600 dark:text-white/60 leading-relaxed max-w-2xl mx-auto">
               {s.sub}
             </p>
+
+            {/* Bloco extra da seção, quando existe. Fica DENTRO dela (mesma
+                borda, mesmo glow) porque é continuação do mesmo assunto — uma
+                seção nova ali quebraria o encadeamento e faria a página parecer
+                mais longa do que é. */}
+            {s.extra}
           </div>
         </section>
       ))}
