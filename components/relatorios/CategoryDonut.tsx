@@ -99,7 +99,16 @@ export default function CategoryDonut({
 
   return (
     <>
-      <div className="relative h-full">
+      {/* ⚠️ `h-full` SÓ quando a altura vem em PORCENTAGEM.
+          Com `height="100%"` (categorias, dashboard) o container é quem manda
+          na altura, e sem `h-full` o donut colapsa. Mas com altura em PIXEL
+          (relatórios 196, chat/quiz 188) o `h-full` fixo QUEBRA a tela: os
+          cards de gráfico vivem num `grid`, e item de grid estica por padrão
+          (`align-items: stretch`), então o card tem altura definida — o
+          `h-full` fazia o donut ocupar o card INTEIRO e a lista de categorias,
+          que é irmã dele, era empurrada pra fora, pintando por cima do card de
+          baixo. Foi exatamente o que apareceu na aba Relatórios. */}
+      <div className={`relative ${typeof height === 'string' ? 'h-full' : ''}`}>
         <ResponsiveContainer width="100%" height={height as never}>
           <PieChart>
             {/* Base — todas as fatias; as não-selecionadas escurecem */}
