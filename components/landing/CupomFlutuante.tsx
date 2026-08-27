@@ -7,7 +7,12 @@ import { Gift, Check, Copy, X } from 'lucide-react';
 const BRAND = '#61ce70';
 const CUPOM = 'SORA10';
 const KEY = 'cupom-sora10-dismiss';
-/** Quanto tempo na página antes de o card ter permissão de aparecer. */
+
+/** Seções de planos/preços — o card só aparece quando uma delas chega à tela.
+ *  `#pricing` é a landing principal e a /oferta; `#ofertas`, a /kit. */
+const ALVOS = '#pricing, #ofertas';
+
+/** Só usado quando a página NÃO tem seção de preços (fallback). */
 const ESPERA_MS = 7000;
 
 // Card flutuante oferecendo 10% OFF (cupom SORA10). Fixo no rodapé, acompanha o
@@ -22,28 +27,33 @@ export default function CupomFlutuante() {
     // Não reaparece se o usuário já fechou nesta sessão.
     try { if (sessionStorage.getItem(KEY) === '1') return; } catch { /* noop */ }
 
-    // Duas condições, nesta ordem: primeiro o TEMPO, depois o rolar.
+    // ⚠️ O GATILHO É CHEGAR NOS PLANOS, não o tempo de página.
     //
-    // ⚠️ O tempo existe porque o card cobre a faixa de baixo da tela no
-    // celular. Aparecer nos primeiros segundos interrompe justamente a leitura
-    // que faz a pessoa querer o cupom — e quem fecha, fecha pela sessão
-    // inteira. 7s é o suficiente pra ela já ter começado a ler.
+    // Antes era "7s + rolou 500px", o que fazia o card cobrir a faixa de baixo
+    // da tela no meio da leitura — e quem fecha, fecha pela sessão inteira: o
+    // cupom morria antes de a pessoa ver um preço. Amarrado à seção de preços
+    // ele chega no único momento em que um desconto significa alguma coisa.
     //
-    // O rolar continua valendo depois disso: quem parou no hero ainda não viu
-    // nada que justifique um desconto.
-    let onScroll: (() => void) | null = null;
-    const t = setTimeout(() => {
-      onScroll = () => {
-        if (window.scrollY > 500) { setVisivel(true); window.removeEventListener('scroll', onScroll!); }
-      };
-      window.addEventListener('scroll', onScroll, { passive: true });
-      onScroll(); // quem já rolou não espera um segundo movimento
-    }, ESPERA_MS);
+    // Aparece UMA vez e FICA. Sumir ao rolar de volta deixaria o card piscando
+    // a cada vaivém — e o botão de copiar precisa continuar alcançável depois
+    // que a pessoa desce pro checkout.
+    const alvo = document.querySelector(ALVOS);
 
-    return () => {
-      clearTimeout(t);
-      if (onScroll) window.removeEventListener('scroll', onScroll);
-    };
+    // Página sem seção de preços (nenhuma hoje, mas nada garante amanhã) cai
+    // no comportamento antigo em vez de nunca mostrar o cupom.
+    if (!alvo || typeof IntersectionObserver === 'undefined') {
+      const t = setTimeout(() => setVisivel(true), ESPERA_MS);
+      return () => clearTimeout(t);
+    }
+
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisivel(true); io.disconnect(); } },
+      // rootMargin negativo embaixo: dispara quando a seção realmente entrou
+      // na tela, não quando encostou o primeiro pixel na dobra.
+      { threshold: 0, rootMargin: '0px 0px -15% 0px' },
+    );
+    io.observe(alvo);
+    return () => io.disconnect();
   }, []);
 
   const fechar = () => {

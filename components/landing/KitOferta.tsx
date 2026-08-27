@@ -128,7 +128,7 @@ export default function KitOferta() {
           padrão desta página pra componentes theme-aware (ver Personalizacao,
           MobileShowcase e SoraLabs logo abaixo). */}
       <div className="dark">
-        <DashboardRelatorios ctaHref="#ofertas" />
+        <DashboardRelatorios />
         <ControleCartoes />
       </div>
 

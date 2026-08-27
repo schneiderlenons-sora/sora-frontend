@@ -104,10 +104,20 @@ export default function ChatFeature({ accent, accentTo, badgeIcon: BadgeIcon, ba
             {paragraph}
           </p>
 
+          {/* ⚠️ As pílulas precisam de `justify-center` + `text-center` no
+              mobile, não só do `mx-auto`. Elas são `w-fit`: quando a frase CABE,
+              a pílula encolhe e o `mx-auto` já centraliza. Mas frase longa —
+              "Consulte qualquer gasto pelo WhatsApp" passa dos ~335px úteis de
+              um iPhone — QUEBRA A LINHA, e aí a pílula vira largura cheia: o
+              `mx-auto` não centraliza mais nada e o `text-left` encosta o
+              conteúdo à esquerda, ao lado das pílulas curtas que seguem no
+              meio. Era esse desalinho intercalado que aparecia na tela.
+              No desktop tudo volta a alinhar à esquerda, contra o card de
+              conversa da direita. */}
           <ul className="mt-8 space-y-3">
             {items.map((t, i) => (
               <li key={t}
-                  className="flex items-center gap-3 w-fit mx-auto lg:mx-0 text-left pl-2 pr-5 py-2 rounded-full bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.08] animate-[slide-up_500ms_ease-out_both]"
+                  className="flex items-center justify-center lg:justify-start gap-3 w-fit mx-auto lg:mx-0 text-center lg:text-left pl-2 pr-5 py-2 rounded-full bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.08] animate-[slide-up_500ms_ease-out_both]"
                   style={{ animationDelay: `${i * 90}ms` }}>
                 <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: `linear-gradient(135deg, ${accent} 0%, ${accentTo} 100%)` }}>

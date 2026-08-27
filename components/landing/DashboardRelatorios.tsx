@@ -14,7 +14,7 @@
 // claro/escuro.
 // ═════════════════════════════════════════════════════════════════════════
 
-import { Check, ArrowRight } from 'lucide-react';
+import { Check } from 'lucide-react';
 import VideoLazy from '@/components/landing/VideoLazy';
 
 const BRAND = '#61ce70';
@@ -25,7 +25,7 @@ const ITENS = [
   'Exportação de dados em PDF',
 ];
 
-export default function DashboardRelatorios({ ctaHref = '#pricing' }: { ctaHref?: string }) {
+export default function DashboardRelatorios() {
   return (
     <section className="py-16 lg:py-20 px-5 border-t border-zinc-200/50 dark:border-white/5">
       <div className="max-w-7xl mx-auto grid lg:grid-cols-5 gap-8 lg:gap-12 items-center">
@@ -53,11 +53,11 @@ export default function DashboardRelatorios({ ctaHref = '#pricing' }: { ctaHref?
             ))}
           </ul>
 
-          <a href={ctaHref}
-             className="mt-8 inline-flex items-center gap-2 px-7 py-4 rounded-2xl font-black text-black text-lg active:scale-[0.98] transition"
-             style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)`, boxShadow: `0 12px 40px -10px ${BRAND}99` }}>
-            Começar agora <ArrowRight size={18} />
-          </a>
+          {/* ⚠️ SEM BOTÃO AQUI. Havia um "Começar agora" nesta coluna, mas o
+              CTA da dupla passou a ficar embaixo da seção de cartões, que vem
+              logo depois: dois botões a uma rolagem de distância competem
+              entre si e o de baixo — que fecha o assunto inteiro — perde
+              força. */}
         </div>
 
         {/* ⚠️ `VideoLazy` E NÃO UM <video> SOLTO. Este arquivo tem 2,5 MB — um

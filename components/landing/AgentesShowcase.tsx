@@ -12,12 +12,41 @@
 // aqui sozinho, sem ninguém lembrar de atualizar a landing.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { AGENTES } from '@/lib/agentes';
 
 export default function AgentesShowcase() {
   const t = useTranslations('agentes');
+
+  // ⚠️ AS ARTES FORA DA TELA PRECISAM SER BUSCADAS ANTES DO DEDO CHEGAR NELAS.
+  //
+  // `next/image` é lazy por padrão, e lazy olha a VIEWPORT: num carrossel
+  // horizontal os cards da direita estão fora dela, então o download só
+  // começava quando o card já estava entrando na tela — o usuário arrastava e
+  // via o retângulo cinza por um instante antes da arte aparecer.
+  //
+  // A correção NÃO é `priority`/`eager` fixo: são 8 PNGs e isso os colocaria
+  // na fila do carregamento inicial, competindo com o LCP de uma seção que
+  // está lá embaixo na página (regra de performance do CLAUDE.md).
+  //
+  // Em vez disso, o observer avisa quando a seção se APROXIMA (600px antes) e
+  // só então as imagens viram `eager`: no load da página nada é baixado, e
+  // quando a pessoa chega para arrastar as 8 já estão em cache.
+  const listaRef = useRef<HTMLUListElement>(null);
+  const [perto, setPerto] = useState(false);
+
+  useEffect(() => {
+    const el = listaRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setPerto(true); return; }
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setPerto(true); io.disconnect(); } },
+      { rootMargin: '600px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   return (
     <section className="relative py-24 lg:py-32 border-t border-zinc-200/50 dark:border-white/[0.04]">
@@ -46,6 +75,7 @@ export default function AgentesShowcase() {
             termina certinho na margem parece uma lista completa e ninguém rola.
             `scrollbar-none` esconde a barra sem tirar o scroll. */}
         <ul
+          ref={listaRef}
           className="mt-12 flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory
                      px-5 sm:px-8 lg:px-0 lg:justify-start lg:max-w-6xl lg:mx-auto
                      [scroll-padding-inline:1.25rem]"
@@ -71,6 +101,7 @@ export default function AgentesShowcase() {
                     width={520}
                     height={520}
                     sizes="(max-width: 640px) 230px, 260px"
+                    loading={perto ? 'eager' : 'lazy'}
                     className="w-full h-full object-cover"
                   />
                   {/* Fio na cor do agente: liga a arte ao mesmo código de cor

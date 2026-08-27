@@ -48,6 +48,9 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
           wrapper `.dark`), pra não existirem duas cópias do markup. */}
       <DashboardRelatorios />
       <ControleCartoes />
+      {/* Um CTA fecha a dupla, em vez de um botão dentro de cada seção: duas
+          chamadas a uma rolagem de distância competem entre si. */}
+      <CtaPlanos fraseKey="verPlanos" />
       <FinancasChat />
       <OpenFinance />
       <PrevistosShowcase />

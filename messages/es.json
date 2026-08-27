@@ -63,6 +63,7 @@
         "items": [
           "Registros por audio, imagen o texto",
           "Conexión Open Finance — el banco registra solo",
+          "Informes inteligentes, metas, planificación anual",
           "Gestión compartida",
           "Límites por categoría + alertas inteligentes",
           "Inversiones con cálculo automático de aportes",
@@ -77,8 +78,11 @@
         "items": [
           "Hábitos con racha + heatmap estilo GitHub",
           "Salud: consultas, medicinas, entrenamientos, peso",
+          "Dieta: cálculo automático de macros por texto o foto",
           "Estudios: cursos, exámenes, sesiones cronometradas",
           "Tareas y bienestar conectados a tu calendario",
+          "Casa: control de despensa, lista de compras inteligente, recetas",
+          "Notas, archivos y documentos protegidos con contraseña",
           "Recordatorios de compromisos",
           "Wrapped mensual para compartir"
         ]
@@ -96,8 +100,7 @@
           "Estado de resultados con costo de ventas y punto de equilibrio",
           "Integraciones Hotmart, Kiwify, Stripe y Eduzz",
           "Venta por WhatsApp: \"vendí 3 pasteles por 90 a doña María\""
-        ],
-        "plan": "Plan Premium"
+        ]
       }
     ]
   },

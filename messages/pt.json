@@ -63,6 +63,7 @@
         "items": [
           "Lançamentos por áudio, imagem ou texto",
           "Conexão Open Finance — o banco lança sozinho",
+          "Relatórios inteligentes, metas, planejamento anual",
           "Gestão Compartilhada",
           "Limites por categoria + alertas inteligentes",
           "Investimentos com cálculo automático de aportes",
@@ -77,8 +78,11 @@
         "items": [
           "Hábitos com streak + heatmap GitHub-style",
           "Saúde: consultas, remédios, treinos, peso",
+          "Dieta: cálculo automático de macros por texto ou foto",
           "Estudos: cursos, provas, sessões cronometradas",
           "Tarefas e bem-estar conectados ao seu calendário",
+          "Casa: controle de despensa, lista de compras inteligente, receitas",
+          "Notas, arquivos e documentos protegidos com senha",
           "Lembretes de compromissos",
           "Wrapped mensal compartilhável"
         ]
@@ -96,8 +100,7 @@
           "DRE gerencial com CMV e ponto de equilíbrio",
           "Integrações Hotmart, Kiwify, Stripe e Eduzz",
           "Venda pelo WhatsApp: \"vendi 3 bolos por 90 pra dona Maria\""
-        ],
-        "plan": "Plano Premium"
+        ]
       }
     ]
   },
