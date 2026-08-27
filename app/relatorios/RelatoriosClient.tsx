@@ -48,6 +48,29 @@ const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 
 type Tab    = 'graficos' | 'pendentes' | 'fluxo' | 'planejamento';
 
+/** Hoje em fuso LOCAL. `toISOString()` é UTC e depois das 21h no Brasil já
+ *  devolve o dia seguinte — uma conta que vence hoje apareceria como atrasada. */
+const hojeISO = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+
+/** Situação de um lançamento pendente. Atraso NUNCA é só a cor: vem escrito. */
+function situacaoPendente(iso: string) {
+  const dia = String(iso || '').slice(0, 10);
+  const hoje = hojeISO();
+  if (!dia) return null;
+  const d = Math.round(
+    (new Date(dia + 'T12:00:00').getTime() - new Date(hoje + 'T12:00:00').getTime()) / 86400000,
+  );
+  if (d < -1) return { txt: `atrasado há ${Math.abs(d)} dias`, cor: '#ef4444', alerta: true };
+  if (d === -1) return { txt: 'atrasado 1 dia',                cor: '#ef4444', alerta: true };
+  if (d === 0)  return { txt: 'vence hoje',                    cor: '#f97316', alerta: true };
+  if (d === 1)  return { txt: 'vence amanhã',                  cor: '#eab308', alerta: false };
+  if (d <= 7)   return { txt: `em ${d} dias`,                  cor: '#eab308', alerta: false };
+  return { txt: `em ${d} dias`, cor: 'hsl(var(--muted-foreground))', alerta: false };
+}
+
 /** Conta que só acontece em alguns meses do ano (IPVA, IPTU, Natal). */
 type ContaSazonal = { id: string; nome: string; valor: number; mes: number };
 
@@ -265,9 +288,47 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   })();
 
   // ── Pendentes ──────────────────────────────────────────────
-  const pendentes = useMemo(() => txs.filter(t => !t.pago), [txs]);
+  //
+  // ⚠️ ORDENA POR DATA CRESCENTE, o contrário da lista de transações. Ali o
+  // mais recente vem primeiro porque é o que acabou de acontecer; aqui o que
+  // importa é o mais ANTIGO — ele é o mais atrasado, o que já devia ter sido
+  // pago. Com a ordem herdada (mais novo no topo), a conta vencida há duas
+  // semanas ficava no fim da lista.
+  const pendentes = useMemo(
+    () => txs.filter(t => !t.pago)
+      .slice()
+      .sort((a, b) => String(a.data || '').localeCompare(String(b.data || ''))),
+    [txs],
+  );
   const recebPendentes = pendentes.filter(t => t.tipo === 'Recebimento');
   const gastoPendentes = pendentes.filter(t => t.tipo === 'Gasto');
+  // Quantos já passaram da data — é o número que decide se a tela é um alerta
+  // ou só uma lista.
+  const atrasados = useMemo(
+    () => pendentes.filter(t => String(t.data || '').slice(0, 10) < hojeISO()).length,
+    [pendentes],
+  );
+
+  /** Dar baixa direto da lista. Otimista: a linha some na hora e a chamada vai
+   *  em segundo plano — reverter é barato (ela volta se falhar) e esperar o
+   *  servidor pra ver o item sair da lista deixa o clique com cara de travado. */
+  const darBaixa = useCallback(async (tx: any) => {
+    try {
+      await mT(
+        async () => { await api.transacoes.editar(tx.id, { pago: true }); return undefined; },
+        {
+          optimisticData: (cur: any) => ({
+            ...(cur || {}),
+            transacoes: (cur?.transacoes || []).map((x: any) => x.id === tx.id ? { ...x, pago: true } : x),
+          }),
+          rollbackOnError: true, populateCache: false, revalidate: false,
+        },
+      );
+      // O resumo do mês não muda com isto (pendente já conta no total), mas o
+      // saldo previsto e os cards de conta sim — revalida em silêncio.
+      mR();
+    } catch (e: any) { alert(e?.message || 'Não consegui dar baixa.'); }
+  }, [mT, mR]);
   const totalReceber = recebPendentes.reduce((s, t) => s + (t.valor || 0), 0);
   const totalPagar   = gastoPendentes.reduce((s, t) => s + (t.valor || 0), 0);
   const saldoPrevisto = (resumo?.receitas || 0) - (resumo?.gastos || 0) + saldoBanco;
@@ -994,6 +1055,26 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
         {tab === 'pendentes' && (
           <div className="space-y-5 animate-fade-in">
 
+            {/* Atraso primeiro. Sem esta faixa o dado existia — na data de cada
+                linha — mas ninguém o encontrava: era preciso comparar 12 datas
+                com o calendário mental pra descobrir que 3 já venceram. */}
+            {atrasados > 0 && (
+              <div className="rounded-2xl p-4 flex items-start gap-3"
+                   style={{ background: 'color-mix(in srgb, #ef4444 10%, transparent)',
+                            border: '1px solid color-mix(in srgb, #ef4444 30%, transparent)' }}>
+                <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground">
+                    {atrasados === 1 ? '1 lançamento já passou da data' : `${atrasados} lançamentos já passaram da data`}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Estão no topo das listas abaixo. Se já foram pagos, use o{' '}
+                    <CheckCircle2 size={11} className="inline align-text-bottom" /> pra dar baixa.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* 3 cards horizontais maiores */}
             <div className="grid lg:grid-cols-3 gap-4">
 
@@ -1066,6 +1147,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                 items={recebPendentes}
                 empty="Nenhuma receita pendente"
                 compartilhado={compartilhado}
+                onBaixar={darBaixa}
                 positive
               />
               <PendentesList
@@ -1076,6 +1158,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                 items={gastoPendentes}
                 empty="Nenhuma despesa pendente"
                 compartilhado={compartilhado}
+                onBaixar={darBaixa}
               />
             </div>
           </div>
@@ -1813,7 +1896,7 @@ function ChartLegend({ items }: { items: { label: string; color: string; dashed?
 }
 
 function PendentesList({
-  title, subtitle, badgeText, badgeColor, items, empty, positive, compartilhado,
+  title, subtitle, badgeText, badgeColor, items, empty, positive, compartilhado, onBaixar,
 }: {
   title:      string;
   subtitle:   string;
@@ -1823,6 +1906,7 @@ function PendentesList({
   empty:      string;
   positive?:  boolean;
   compartilhado?: boolean;
+  onBaixar?:  (tx: any) => void;
 }) {
   const badgeBg = badgeColor === 'green'
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
@@ -1870,10 +1954,25 @@ function PendentesList({
                   <p className="text-sm font-medium text-foreground truncate">
                     {tx.observacao || nomeCategoria(tx.categoria)}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-muted-foreground tabular">
                       {new Date(tx.data).toLocaleDateString('pt-BR')}
                     </span>
+                    {/* ⚠️ O ATRASO ERA INVISÍVEL. A linha mostrava só a data
+                        crua, em cinza: uma conta vencida há duas semanas ficava
+                        idêntica a uma que vence mês que vem. Ícone + texto,
+                        nunca só a cor. */}
+                    {(() => {
+                      const s = situacaoPendente(tx.data);
+                      if (!s) return null;
+                      return (
+                        <span className="text-[10px] font-bold inline-flex items-center gap-1"
+                              style={{ color: s.cor }}>
+                          {s.alerta && <AlertTriangle size={9} />}
+                          {s.txt}
+                        </span>
+                      );
+                    })()}
                     <span className="text-muted-foreground/40">·</span>
                     <span className="text-[10px] font-medium" style={{ color: theme.color }}>
                       {nomeCategoria(tx.categoria)}
@@ -1889,11 +1988,25 @@ function PendentesList({
                     )}
                   </div>
                 </div>
-                <p className={`text-sm font-bold tabular ${
+                <p className={`text-sm font-bold tabular flex-shrink-0 ${
                   positive ? 'text-green-600 dark:text-green-400' : 'text-red-500'
                 }`}>
                   {positive ? '+' : '−'}{fmt(tx.valor)}
                 </p>
+                {/* A ação que faltava: a tela listava o que está pendente e não
+                    deixava resolver — pra dar baixa era preciso ir até
+                    Transações, achar a linha e editar. */}
+                {onBaixar && (
+                  <button
+                    onClick={() => onBaixar(tx)}
+                    aria-label={`Marcar "${tx.observacao || nomeCategoria(tx.categoria)}" como ${positive ? 'recebido' : 'pago'}`}
+                    title={positive ? 'Marcar como recebido' : 'Marcar como pago'}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl flex-shrink-0
+                               text-muted-foreground hover:text-green-600 hover:bg-green-500/10 transition-colors active:scale-90"
+                  >
+                    <CheckCircle2 size={16} />
+                  </button>
+                )}
               </div>
             );
           })}

@@ -9,6 +9,31 @@ import type { Funcionario } from '@/lib/funcionarios';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+/**
+ * Query string a partir de um objeto, DESCARTANDO chave sem valor.
+ *
+ * ⚠️ `new URLSearchParams({ criado_por: undefined })` NÃO pula a chave: ela
+ * vira a STRING `"undefined"`. E aí o backend, que testa `if (criado_por)`,
+ * recebe algo truthy e filtra por isso.
+ *
+ * Bug real: a aba Relatórios manda `criado_por: undefined` quando o filtro de
+ * membro está em "todos" — que é o padrão. Virava
+ * `?criado_por=undefined`, o Postgres respondia
+ * `invalid input syntax for type uuid: "undefined"` e a rota devolvia ZERO
+ * transações. Resultado na tela: "Lançamentos pendentes" sempre vazio, e o
+ * gráfico de frequência diária idem, para TODO usuário que não escolheu um
+ * membro. Medido: 141 transações no mês viravam 0.
+ */
+function qs(params?: Record<string, unknown> | null): string {
+  if (!params) return '';
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue;
+    p.set(k, String(v));
+  }
+  return p.toString();
+}
+
 // Faz chamadas ao backend com tratamento de erro centralizado.
 // Autentica com o JWT da sessão do Supabase (Authorization: Bearer) — o
 // backend valida e amarra o request ao próprio usuário.
@@ -243,7 +268,7 @@ export const api = {
     // `bill_id` busca pela FATURA do emissor (Open Finance) em vez de por mês —
     // é o único jeito de trazer a parcela cujo lançamento tem a data da compra.
     listar: (phone: string, params?: { mes?: string; tipo?: string; categoria?: string; limit?: number; offset?: number; criado_por?: string; criado_por_me?: boolean; criado_por_phone?: string; ate?: string; bill_id?: string; arquivadas?: 1 }) => {
-      const q = new URLSearchParams(params as any).toString();
+      const q = qs(params);
       return req<{ transacoes: any[]; total: number }>(`/api/transacoes/${phone}${q ? `?${q}` : ''}`);
     },
     /** Esconde (ou traz de volta) uma transação. NÃO é exclusão: a linha fica
@@ -1228,7 +1253,8 @@ export const api = {
     },
     eventos: {
       listar: (phone: string, params?: { limit?: number; offset?: number; tipo?: string; plataforma?: string; periodo?: string }) => {
-        const q = new URLSearchParams(params as any).toString();
+        // Mesmo `qs` do resto: chave sem valor não pode virar "undefined".
+        const q = qs(params as any);
         return req<{ eventos: any[]; total: number }>(`/api/negocios/eventos/${phone}${q ? `?${q}` : ''}`);
       },
     },
