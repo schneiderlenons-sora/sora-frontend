@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import BaleiaHumor, { humorPorFinancas } from '@/components/relatorios/BaleiaHumor';
@@ -17,6 +17,7 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, RefreshCw,
   CheckCircle2, ClipboardList, Activity, Layers, Users,
   Target, AlertTriangle, Check as CheckIcon, Gauge,
+  CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock,
 } from 'lucide-react';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
@@ -26,6 +27,7 @@ const GraficoFrequencia   = dynamic(() => import('./Graficos').then(m => m.Grafi
 const GraficoFluxo        = dynamic(() => import('./Graficos').then(m => m.GraficoFluxo),        { ssr: false, loading: skel(340) });
 const GraficoComparativo  = dynamic(() => import('./Graficos').then(m => m.GraficoComparativo),  { ssr: false, loading: skel(260) });
 const DonutVazio          = dynamic(() => import('./Graficos').then(m => m.DonutVazio),          { ssr: false, loading: skel(180) });
+const GraficoPlanejamento = dynamic(() => import('./Graficos').then(m => m.GraficoPlanejamento),  { ssr: false, loading: skel(330) });
 
 const BRAND       = 'hsl(var(--primary))';
 const RED         = '#ef4444';
@@ -44,7 +46,16 @@ const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-type Tab    = 'graficos' | 'pendentes' | 'fluxo';
+type Tab    = 'graficos' | 'pendentes' | 'fluxo' | 'planejamento';
+
+/** Conta que só acontece em alguns meses do ano (IPVA, IPTU, Natal). */
+type ContaSazonal = { id: string; nome: string; valor: number; mes: number };
+
+// Atalhos do lançamento sazonal — os que quase todo mundo tem, no mês certo.
+const SAZONAIS_SUGERIDAS = [
+  { nome: 'IPVA', mes: 0 }, { nome: 'IPTU', mes: 1 }, { nome: 'Material escolar', mes: 1 },
+  { nome: 'Seguro do carro', mes: 5 }, { nome: 'Férias', mes: 11 }, { nome: 'Natal', mes: 11 },
+];
 
 // ─────────────────────────────────────────────────────────────
 // TOOLTIP PERSONALIZADO
@@ -105,6 +116,33 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     phone ? `rel:limites:${phone}:${mesRef}` : null,
     () => api.limites.listar(phone, mesRef),
   );
+
+  /* ── Contas sazonais do planejamento ───────────────────────────────────
+     O único pedaço do plano que a pessoa digita: IPVA, IPTU, Natal. O
+     histórico não tem como saber que janeiro tem IPVA se o app só existe
+     desde maio.
+
+     ⚠️ MESMA CHAVE da página /planejamento, e o resto do objeto é preservado
+     ao salvar — as duas telas coexistem e quem já lançou o IPVA por lá não
+     perde nada aqui. Ainda é localStorage (por aparelho); levar pro banco
+     precisa de migration e fica pra uma próxima. */
+  const [sazonais, setSazonais] = useState<ContaSazonal[]>([]);
+  const chavePlano = `sora_planejamento_${(perfil as any)?.id || 'anon'}_${ano}`;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(chavePlano);
+      setSazonais(raw ? (JSON.parse(raw).contas ?? []) : []);
+    } catch { setSazonais([]); }
+  }, [chavePlano]);
+
+  const salvarSazonais = useCallback((novas: ContaSazonal[]) => {
+    setSazonais(novas);
+    try {
+      const raw = localStorage.getItem(chavePlano);
+      const atual = raw ? JSON.parse(raw) : {};
+      localStorage.setItem(chavePlano, JSON.stringify({ ...atual, contas: novas }));
+    } catch { /* modo privado / quota */ }
+  }, [chavePlano]);
 
   const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
   const resumoAnt: any    = (rAntData as any) ?? { receitas: 0, gastos: 0, por_categoria: [] };
@@ -272,6 +310,114 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const anualCarregando = tab === 'fluxo' && anualData === undefined;
 
   /* ══════════════════════════════════════════════════════════════════════
+     PLANEJAMENTO ANUAL QUE SE PREENCHE SOZINHO
+     ══════════════════════════════════════════════════════════════════════
+
+     Cada mês do ano está num de três estados, e o estado sai do CALENDÁRIO —
+     ninguém precisa "fechar" nada à mão. Quando setembro vira outubro, setembro
+     deixa de ser estimativa e passa a entrar na média que estima novembro. O
+     plano se corrige sozinho, que é o ponto:
+
+       realizado  mês passado    → número REAL do banco, imutável
+       em curso   mês atual      → o que já saiu + projeção até o fim do mês
+       previsto   mês futuro     → estimativa
+
+     ⚠️ A ESTIMATIVA DO MÊS FUTURO É `max(média, já lançado) + sazonais`, e cada
+     pedaço tem um porquê:
+
+     · `já lançado` é o que JÁ EXISTE no banco com data naquele mês — parcela de
+       compra, recorrência materializada. O endpoint anual traz isso porque
+       varre o ano inteiro, sem cortar em "hoje". Ignorá-lo faria a Sora prever
+       um outubro tranquilo quando já há três parcelas marcadas ali.
+     · `média` cobre o que ainda nem existe: o mercado, a gasolina, o padrão.
+     · `max` e não soma: a média dos meses fechados JÁ CONTÉM as parcelas e
+       recorrências daqueles meses. Somar as duas contaria o hábito duas vezes.
+     · `sazonais` são somadas de verdade porque são one-offs que a média não
+       viu — IPVA em janeiro não aconteceu em maio, junho nem julho. É o único
+       pedaço que a pessoa digita, porque é o único que o histórico não sabe. */
+  const plano = useMemo(() => {
+    const meses = anualData?.meses;
+    if (!meses) return null;
+
+    const ehAnoAtual = ano === hoje.getFullYear();
+    const mesHoje = hoje.getMonth();
+    const ultimoFechado = ano < hoje.getFullYear() ? 11 : mesHoje - 1;
+
+    const estadoDe = (i: number): 'realizado' | 'emCurso' | 'previsto' =>
+      ano < hoje.getFullYear() ? 'realizado'
+      : ano > hoje.getFullYear() ? 'previsto'
+      : i < mesHoje ? 'realizado' : i === mesHoje ? 'emCurso' : 'previsto';
+
+    // Base = mês passado, fechado e com movimento — mesma regra do "Ritmo do
+    // mês".
+    //
+    // ⚠️ CADA SÉRIE TEM O PRÓPRIO DIVISOR. Um divisor comum ("meses com
+    // qualquer movimento") deixa entrar mês que teve receita e ZERO despesa:
+    // ele soma nada na despesa e mesmo assim aumenta o denominador. Medido
+    // nesta conta — fevereiro, março e abril têm R$ 0,17, R$ 0,24 e R$ 0,10 de
+    // rendimento e nenhuma despesa; com divisor comum a média de despesa caía
+    // de R$ 1.155,78 pra R$ 577,89, exatamente metade, e o plano previa um ano
+    // barato que não existe.
+    const baseRec = meses.filter((m, i) => i <= ultimoFechado && m.receitas > 0);
+    const baseDes = meses.filter((m, i) => i <= ultimoFechado && m.gastos > 0);
+    const mediaRec = baseRec.length ? baseRec.reduce((s, m) => s + m.receitas, 0) / baseRec.length : 0;
+    const mediaDes = baseDes.length ? baseDes.reduce((s, m) => s + m.gastos, 0) / baseDes.length : 0;
+    const fechados = baseDes.length >= baseRec.length ? baseDes : baseRec;
+
+    // Projeção do mês em curso — mesma aritmética do card de ritmo.
+    const diaHoje = hoje.getDate();
+    const diasNoMes = new Date(ano, mesHoje + 1, 0).getDate();
+    const fator = diaHoje >= 3 ? diasNoMes / diaHoje : null;
+
+    const extras: number[] = Array(12).fill(0);
+    for (const c of sazonais) extras[c.mes] = (extras[c.mes] || 0) + (c.valor || 0);
+
+    let acumulado = 0;
+    const linhas = meses.map((m, i) => {
+      const estado = estadoDe(i);
+      let receita = m.receitas;
+      let despesa = m.gastos;
+
+      if (estado === 'emCurso' && fator) {
+        receita = m.receitas * fator;
+        despesa = m.gastos * fator;
+      } else if (estado === 'previsto') {
+        receita = Math.max(mediaRec, m.receitas);
+        despesa = Math.max(mediaDes, m.gastos) + extras[i];
+      }
+
+      const saldo = receita - despesa;
+      acumulado += saldo;
+      return {
+        i, name: MESES_CURTO[i], estado,
+        Receitas: receita, Despesas: despesa,
+        saldo, acumulado,
+        jaLancado: m.gastos,          // o que o banco já conhece daquele mês
+        sazonais: estado === 'previsto' ? extras[i] : 0,
+        // Duas séries pra linha do acumulado quebrar no "hoje". O ponto de
+        // fronteira entra nas DUAS, senão fica um buraco entre elas.
+        AcumuladoReal: estado === 'realizado' || estado === 'emCurso' ? acumulado : null,
+        AcumuladoPrev: estado === 'previsto' || estado === 'emCurso' ? acumulado : null,
+      };
+    });
+
+    const totalRec = linhas.reduce((s, l) => s + l.Receitas, 0);
+    const totalDes = linhas.reduce((s, l) => s + l.Despesas, 0);
+    // Mês mais apertado = menor acumulado. É a pergunta que o planejamento
+    // existe pra responder: "quando o caixa aperta?".
+    const pior = linhas.reduce((p, l) => (l.acumulado < p.acumulado ? l : p), linhas[0]);
+    const primeiroNegativo = linhas.find(l => l.acumulado < 0) || null;
+
+    return {
+      linhas, totalRec, totalDes, saldoAno: totalRec - totalDes, pior, primeiroNegativo,
+      mediaRec, mediaDes, mesesNaBase: fechados.length,
+      mesesRec: baseRec.length, mesesDes: baseDes.length,
+      mesAtualIx: ehAnoAtual ? mesHoje : null,
+      temHistorico: fechados.length > 0,
+    };
+  }, [anualData, ano, hoje, sazonais]);
+
+  /* ══════════════════════════════════════════════════════════════════════
      CATEGORIA × LIMITE
      ══════════════════════════════════════════════════════════════════════ */
   //
@@ -410,6 +556,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
             { v: 'graficos',  l: 'Gráficos',              icon: BarChart3   },
             { v: 'pendentes', l: 'Lançamentos pendentes', icon: ClipboardList },
             { v: 'fluxo',     l: 'Fluxo de caixa',        icon: Activity    },
+            { v: 'planejamento', l: 'Planejamento anual', icon: CalendarRange },
           ] as { v: Tab; l: string; icon: any }[]).map(({ v, l, icon: Icon }) => (
             <button
               key={v}
@@ -891,6 +1038,49 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
             </ChartCard>
           </div>
         )}
+
+        {/* ═══════════════════════════════════════════════════════
+            TAB: PLANEJAMENTO ANUAL
+        ═══════════════════════════════════════════════════════ */}
+        {tab === 'planejamento' && (
+          <div className="space-y-5 animate-fade-in">
+            {!plano ? (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[0, 1, 2, 3].map(i => <div key={i} className="h-[92px] rounded-2xl bg-muted/40 animate-pulse" />)}
+                </div>
+                <div className="h-[330px] rounded-2xl bg-muted/40 animate-pulse"
+                     role="status" aria-label="Montando o planejamento do ano" />
+              </div>
+            ) : !plano.temHistorico ? (
+              <SemHistorico ano={ano} />
+            ) : (
+              <>
+                <ResumoPlano plano={plano} ano={ano} />
+
+                <ChartCard
+                  title={`Planejamento de ${ano}`}
+                  subtitle="Barra sólida é o que já aconteceu · hachurada é estimativa"
+                  icon={<CalendarRange size={14} className="text-indigo-500" />}
+                  badgeColor="blue"
+                  fullWidth
+                >
+                  <GraficoPlanejamento data={plano.linhas} mesAtual={plano.mesAtualIx} />
+                  <LegendaPlano />
+                  <ComoFoiCalculado {...plano} />
+                </ChartCard>
+
+                <TabelaPlano linhas={plano.linhas} />
+
+                <ContasSazonais
+                  contas={sazonais}
+                  onSalvar={salvarSazonais}
+                  linhas={plano.linhas}
+                />
+              </>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
@@ -945,6 +1135,221 @@ function PremiumStatCard({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PLANEJAMENTO ANUAL — peças da tela
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function SemHistorico({ ano }: { ano: number }) {
+  return (
+    <div className="card rounded-2xl p-10 text-center">
+      <CalendarRange size={28} className="mx-auto text-muted-foreground/50 mb-3" />
+      <p className="text-sm font-semibold text-foreground">Ainda não dá pra planejar {ano}.</p>
+      <p className="text-xs text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
+        O planejamento se monta a partir dos seus meses já fechados, e {ano} ainda não tem nenhum.
+        Depois do primeiro mês completo os números aparecem aqui sozinhos — você não precisa
+        digitar nada.
+      </p>
+    </div>
+  );
+}
+
+function ResumoPlano({ plano, ano }: any) {
+  const { totalRec, totalDes, saldoAno, pior, primeiroNegativo } = plano;
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <PremiumStatCard label={`Receitas em ${ano}`} value={totalRec} icon={TrendingUp} hue={142} positive delay={0} />
+      <PremiumStatCard label={`Despesas em ${ano}`} value={totalDes} icon={TrendingDown} hue={0} negative delay={60} />
+      <PremiumStatCard label="Sobra no ano" value={saldoAno} icon={PiggyBank}
+                       hue={saldoAno >= 0 ? 134 : 0} accent delay={120} />
+      {/* ⚠️ "Pior acumulado", NÃO "caixa fica negativo". O acumulado aqui é o
+          resultado do ANO somado mês a mês, começando do zero em janeiro — não
+          é o saldo da sua conta. Dizer "caixa negativo" faria a pessoa achar
+          que vai ficar sem dinheiro no banco, quando pode ter reserva de
+          sobra. */}
+      <PremiumStatCard
+        label="Pior acumulado do ano"
+        value={pior?.acumulado || 0}
+        sub={`${pior?.name}${primeiroNegativo ? ` · fica negativo em ${primeiroNegativo.name}` : ''}`}
+        icon={AlertTriangle} hue={(pior?.acumulado || 0) < 0 ? 0 : 28} delay={180}
+      />
+    </div>
+  );
+}
+
+function LegendaPlano() {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-4 pt-3 border-t border-border/50">
+      {[
+        { l: 'Receitas', cor: BRAND },
+        { l: 'Despesas', cor: RED },
+      ].map(x => (
+        <span key={x.l} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: x.cor }} /> {x.l}
+        </span>
+      ))}
+      <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        {/* A amostra da hachura, no mesmo desenho do gráfico — legenda que
+            descreve o padrão em palavras exige tradução mental. */}
+        <span className="w-2.5 h-2.5 rounded-sm border border-border"
+              style={{ backgroundImage: `repeating-linear-gradient(45deg, ${BRAND} 0 2px, transparent 2px 4px)` }} />
+        Estimativa
+      </span>
+      <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className="w-4 h-0 border-t-2 border-dashed" style={{ borderColor: BLUE }} /> Acumulado
+      </span>
+    </div>
+  );
+}
+
+/** O plano se explicando. Estimativa sem memória de cálculo vira palpite. */
+function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
+  return (
+    <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
+      <Sparkles size={11} className="flex-shrink-0 mt-0.5" />
+      <span>
+        Os meses futuros usam a sua média de <strong className="text-foreground tabular">{fmt(mediaDes)}</strong> de
+        despesa ({mesesDes} {mesesDes === 1 ? 'mês' : 'meses'}) e{' '}
+        <strong className="text-foreground tabular">{fmt(mediaRec)}</strong> de receita
+        ({mesesRec} {mesesRec === 1 ? 'mês' : 'meses'}) — ou o que já estiver lançado no mês, quando
+        for maior. Cada mês que fecha entra na média e corrige os seguintes, sem você mexer em nada.
+      </span>
+    </p>
+  );
+}
+
+function TabelaPlano({ linhas }: any) {
+  return (
+    <div className="card rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-border/60">
+        <h3 className="font-semibold text-foreground">Mês a mês</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">Fechado, em curso ou previsto</p>
+      </div>
+      {/* Scroll horizontal contido no card, como a lista de transações. */}
+      <div className="overflow-x-auto scrollbar-none">
+        <div style={{ minWidth: 560 }}>
+          <div className="grid gap-3 px-4 py-2.5 border-b border-border/60 bg-muted/30"
+               style={{ gridTemplateColumns: '78px 1fr 1fr 1fr 1fr' }}>
+            {['Mês', 'Receitas', 'Despesas', 'Saldo', 'Acum. no ano'].map((h, i) => (
+              <span key={h} className={`text-[10px] uppercase tracking-wider text-muted-foreground font-bold ${i > 0 ? 'text-right' : ''}`}>{h}</span>
+            ))}
+          </div>
+          <div className="divide-y divide-border/40">
+            {linhas.map((l: any) => (
+              <div key={l.i} className="grid gap-3 px-4 py-2.5 items-center"
+                   style={{ gridTemplateColumns: '78px 1fr 1fr 1fr 1fr' }}>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-sm font-semibold text-foreground">{l.name}</span>
+                  {/* Ícone + rótulo no title: o estado não pode depender só do
+                      tom da linha. */}
+                  {l.estado === 'realizado'
+                    ? <Lock size={10} className="text-muted-foreground/70 flex-shrink-0" aria-label="Mês fechado" />
+                    : <Sparkles size={10} className="text-indigo-500 flex-shrink-0"
+                                aria-label={l.estado === 'emCurso' ? 'Mês em curso, projetado' : 'Estimativa'} />}
+                </div>
+                <span className="text-xs tabular text-right text-emerald-600 dark:text-emerald-400">{fmt(l.Receitas)}</span>
+                <span className="text-xs tabular text-right text-red-500 dark:text-red-400">{fmt(l.Despesas)}</span>
+                <span className={`text-xs tabular text-right font-semibold ${l.saldo >= 0 ? 'text-foreground' : 'text-red-500'}`}>{fmt(l.saldo)}</span>
+                <span className={`text-xs tabular text-right font-bold ${l.acumulado >= 0 ? 'text-foreground' : 'text-red-500'}`}>{fmt(l.acumulado)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContasSazonais({ contas, onSalvar, linhas }: any) {
+  const [nome, setNome]   = useState('');
+  const [valor, setValor] = useState('');
+  const [mes, setMes]     = useState(0);
+
+  const add = () => {
+    const v = parseFloat(String(valor).replace(',', '.'));
+    if (!nome.trim() || !Number.isFinite(v) || v <= 0) return;
+    onSalvar([...contas, { id: Math.random().toString(36).slice(2), nome: nome.trim(), valor: v, mes }]);
+    setNome(''); setValor('');
+  };
+  const del = (id: string) => onSalvar(contas.filter((c: any) => c.id !== id));
+  // Lançar sazonal num mês que já fechou não muda nada — o mês fechado usa o
+  // número real. Dizer isso evita a pessoa achar que a conta "sumiu".
+  const mesJaFechado = linhas[mes]?.estado === 'realizado';
+
+  return (
+    <div className="card rounded-2xl p-5">
+      <div className="flex items-center gap-2">
+        <Target size={15} className="text-amber-500" />
+        <h3 className="font-semibold text-foreground">Contas que só caem em alguns meses</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-xl leading-relaxed">
+        IPVA, IPTU, seguro, Natal. A média não enxerga isso — se o app só conhece maio a julho,
+        ele não tem como saber que janeiro tem IPVA. Lance aqui e o mês previsto já soma.
+      </p>
+
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {SAZONAIS_SUGERIDAS.map(s => (
+          <button key={s.nome} type="button"
+                  onClick={() => { setNome(s.nome); setMes(s.mes); }}
+                  className="text-xs px-3 h-9 rounded-full border border-border bg-muted/20 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+            + {s.nome}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex-1 min-w-[140px]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Nome</span>
+          <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: IPVA" className="input" />
+        </label>
+        <label className="w-32">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Valor</span>
+          <input inputMode="decimal" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" className="input tabular" />
+        </label>
+        <label className="w-28">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Mês</span>
+          <select value={mes} onChange={e => setMes(Number(e.target.value))} className="input">
+            {MESES_CURTO.map((m, i) => <option key={m} value={i}>{m}</option>)}
+          </select>
+        </label>
+        <button onClick={add} disabled={!nome.trim() || !valor}
+                className="inline-flex items-center gap-1.5 px-4 h-11 rounded-xl bg-primary text-white text-sm font-bold disabled:opacity-50">
+          <Plus size={15} /> Lançar
+        </button>
+      </div>
+
+      {mesJaFechado && (
+        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+          <AlertTriangle size={11} /> {MESES[mes]} já fechou — o valor real dele manda, então lançar aqui não muda o gráfico.
+        </p>
+      )}
+
+      {contas.length > 0 && (
+        <ul className="mt-5 space-y-2">
+          {[...contas].sort((a: any, b: any) => a.mes - b.mes).map((c: any) => (
+            <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-[10px] font-bold uppercase text-primary w-8 flex-shrink-0">{MESES_CURTO[c.mes]}</span>
+                <span className="text-sm text-foreground truncate">{c.nome}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-sm font-semibold tabular text-foreground">{fmt(c.valor)}</span>
+                <button onClick={() => del(c.id)} aria-label={`Remover ${c.nome}`}
+                        className="w-11 h-11 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="text-[11px] text-muted-foreground mt-4">
+        Salvo neste aparelho. Sincronizar entre dispositivos ainda está por fazer.
+      </p>
     </div>
   );
 }

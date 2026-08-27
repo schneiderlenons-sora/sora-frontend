@@ -7,6 +7,7 @@
 
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
+  ComposedChart, Line, ReferenceLine,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
@@ -104,6 +105,108 @@ export function GraficoComparativo({ data }: { data: any[] }) {
         <Bar dataKey="Receitas" fill={BRAND} radius={[6, 6, 0, 0]} maxBarSize={28} />
         <Bar dataKey="Despesas" fill={RED}   radius={[6, 6, 0, 0]} maxBarSize={28} />
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PLANEJAMENTO ANUAL
+
+   O gráfico tem UM trabalho acima de todos: deixar claro o que é FATO e o que
+   é ESTIMATIVA. Um ano inteiro desenhado com o mesmo traço convida a pessoa a
+   confiar no mês de dezembro tanto quanto no de março — e foi assim que esta
+   aba já mostrou uma senoide como se fosse histórico.
+
+   ⚠️ A distinção é HACHURA, não opacidade nem cor. Barra "mais clarinha" some
+   em tela clara, no dark e pra quem enxerga cores de outro jeito. A hachura
+   sobrevive aos três, é reconhecível em preto e branco, e some junto com o
+   dado quando ele vira real — o que faz o gráfico *contar a passagem do tempo*.
+   ═══════════════════════════════════════════════════════════════════════ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function TooltipPlano({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const p0 = payload[0]?.payload || {};
+  const rotulo = p0.estado === 'realizado' ? 'Fechado'
+    : p0.estado === 'emCurso' ? 'Em curso — projeção' : 'Previsto';
+  return (
+    <div className="glass rounded-xl px-3.5 py-2.5 shadow-lg text-sm min-w-[190px] border border-border/60">
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <p className="font-semibold text-foreground text-[11px] uppercase tracking-wider">{label}</p>
+        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+              style={{ background: p0.estado === 'realizado' ? 'hsl(var(--bg-muted))' : 'color-mix(in srgb, #6366f1 18%, transparent)',
+                       color: p0.estado === 'realizado' ? 'hsl(var(--fg-muted))' : '#6366f1' }}>
+          {rotulo}
+        </span>
+      </div>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      {payload.filter((p: any) => p.value != null).map((p: any, i: number) => (
+        <div key={i} className="flex items-center justify-between gap-4 mt-1">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+            <span className="text-muted-foreground text-xs">{p.name}</span>
+          </div>
+          <span className="font-semibold text-foreground text-xs tabular">{fmt(p.value)}</span>
+        </div>
+      ))}
+      {p0.sazonais > 0 && (
+        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 pt-1.5 border-t border-border/50">
+          inclui {fmt(p0.sazonais)} de conta sazonal
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function GraficoPlanejamento({ data, mesAtual }: { data: any[]; mesAtual: number | null }) {
+  return (
+    <ResponsiveContainer width="100%" height={330}>
+      <ComposedChart data={data} barGap={3} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+        <defs>
+          {/* Hachura diagonal — o "isto ainda não aconteceu" do gráfico. */}
+          <pattern id="hachRec" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <rect width="6" height="6" fill={BRAND} fillOpacity={0.18} />
+            <line x1="0" y1="0" x2="0" y2="6" stroke={BRAND} strokeWidth="3" strokeOpacity={0.75} />
+          </pattern>
+          <pattern id="hachDes" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <rect width="6" height="6" fill={RED} fillOpacity={0.18} />
+            <line x1="0" y1="0" x2="0" y2="6" stroke={RED} strokeWidth="3" strokeOpacity={0.75} />
+          </pattern>
+        </defs>
+
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
+               tickFormatter={fmtCompact} width={52} />
+        <Tooltip content={<TooltipPlano />} cursor={{ fill: 'hsl(var(--bg-muted) / 0.3)' }} />
+
+        {/* "Você está aqui". Sem esta marca, saber onde o fato vira estimativa
+            exige comparar hachuras — a linha responde de relance. */}
+        {mesAtual !== null && (
+          <ReferenceLine x={data[mesAtual]?.name} stroke="hsl(var(--fg-muted))" strokeDasharray="4 4"
+                         label={{ value: 'hoje', position: 'top', fontSize: 10, fill: 'hsl(var(--fg-muted))' }} />
+        )}
+        {/* Zero explícito: sem ele, saldo negativo parece só "uma barra menor". */}
+        <ReferenceLine y={0} stroke="hsl(var(--border))" />
+
+        <Bar dataKey="Receitas" radius={[5, 5, 0, 0]} maxBarSize={26}>
+          {data.map((d, i) => (
+            <Cell key={i} fill={d.estado === 'realizado' ? BRAND : 'url(#hachRec)'} />
+          ))}
+        </Bar>
+        <Bar dataKey="Despesas" radius={[5, 5, 0, 0]} maxBarSize={26}>
+          {data.map((d, i) => (
+            <Cell key={i} fill={d.estado === 'realizado' ? RED : 'url(#hachDes)'} />
+          ))}
+        </Bar>
+
+        {/* Acumulado em DUAS linhas: a cheia só cobre o que já fechou, a
+            tracejada continua dali. Uma linha só, contínua, apagaria a
+            fronteira que o resto do gráfico faz questão de mostrar. */}
+        <Line type="monotone" dataKey="AcumuladoReal" name="Acumulado" stroke={BLUE} strokeWidth={2.5}
+              dot={false} activeDot={{ r: 5, fill: BLUE, strokeWidth: 2, stroke: 'white' }} connectNulls />
+        <Line type="monotone" dataKey="AcumuladoPrev" name="Acumulado previsto" stroke={BLUE} strokeWidth={2.5}
+              strokeDasharray="6 4" dot={false} activeDot={{ r: 5, fill: BLUE, strokeWidth: 2, stroke: 'white' }} connectNulls />
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
