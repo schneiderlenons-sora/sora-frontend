@@ -664,7 +664,15 @@ export const api = {
         const qs = q.toString();
         return req<any[]>(`/api/grow/tarefas/${phone}${qs ? `?${qs}` : ''}`);
       },
-      criar: (body: { phone: string; titulo: string; descricao?: string; prioridade?: string; data_vencimento?: string | null; projeto_id?: string | null; tags?: string[]; status_kanban?: string }) =>
+      criar: (body: {
+        phone: string; titulo: string; descricao?: string; prioridade?: string;
+        data_vencimento?: string | null; projeto_id?: string | null;
+        tags?: string[]; status_kanban?: string;
+        // Existiam na tabela e no POST desde sempre, mas fora deste tipo —
+        // só o WhatsApp gravava. O painel passou a mandar os três.
+        categoria?: string | null; recorrente?: boolean;
+        frequencia_recorrencia?: string | null;
+      }) =>
         req<any>('/api/grow/tarefas', { method: 'POST', body: JSON.stringify(body) }),
       editar: (id: string, body: any) =>
         req<any>(`/api/grow/tarefas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

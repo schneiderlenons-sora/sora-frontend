@@ -12,7 +12,7 @@ import {
   MapPin, ChevronLeft, ChevronRight, List, CalendarRange, CalendarX,
   User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag, ArrowUpRight,
   Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
-  ArrowLeftRight, TrendingUp, TrendingDown,
+  ArrowLeftRight, TrendingUp, TrendingDown, ListChecks,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -38,9 +38,10 @@ const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
 };
 
 // ─── Famílias de origem (pro filtro + legenda do agregador) ─────────
-type FamKey = 'compromisso' | 'saude' | 'financas' | 'casa' | 'transacao';
+type FamKey = 'compromisso' | 'tarefa' | 'saude' | 'financas' | 'casa' | 'transacao';
 const FAMILIAS: Record<FamKey, { label: string; cor: string; icon: any }> = {
   compromisso: { label: 'Compromissos', cor: 'hsl(var(--primary))', icon: CalendarDays },
+  tarefa:      { label: 'Tarefas',      cor: '#7c3aed', icon: ListChecks },
   saude:       { label: 'Saúde',        cor: '#0d9488', icon: Stethoscope },
   financas:    { label: 'Finanças',     cor: '#16a34a', icon: Wallet },
   casa:        { label: 'Casa',         cor: '#d97706', icon: HomeIcon },
@@ -48,6 +49,7 @@ const FAMILIAS: Record<FamKey, { label: string; cor: string; icon: any }> = {
 };
 function familiaDe(source: string): FamKey {
   if (source === 'compromisso') return 'compromisso';
+  if (source === 'tarefa') return 'tarefa';
   if (source === 'consulta') return 'saude';
   if (source === 'manutencao') return 'casa';
   if (source === 'transacao') return 'transacao';
@@ -57,6 +59,7 @@ function familiaDe(source: string): FamKey {
 const ICONE_SOURCE: Record<string, any> = {
   compromisso: CalendarDays, consulta: Stethoscope, recorrencia: Receipt,
   divida: Receipt, fatura: CreditCard, fechamento: CreditCard, manutencao: Wrench,
+  tarefa: ListChecks,       // tarefa do Grow com prazo (sempre privada)
   conta_negocio: Briefcase, // contas a pagar da empresa (aba Negócios)
   folha: User,              // salário de funcionário no dia do pagamento
 };
