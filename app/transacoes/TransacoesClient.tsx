@@ -162,6 +162,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     txsFiltradas.filter(t => !t.pago).reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas]);
 
+  // ⚠️ O QUE `receitasTotal`/`despesasTotal` DEIXAM DE FORA.
+  // Os dois excluem transferência (pagamento de fatura, Pix entre contas
+  // próprias) — e com razão: contar o pagamento da fatura como despesa conta em
+  // DOBRO, porque cada compra dela já foi somada uma a uma.
+  //
+  // Só que a linha de totais fica logo ABAIXO das linhas, e a pessoa vai
+  // conferir somando o que vê. Se essas transações aparecem na lista e somem do
+  // total sem explicação, o rodapé vira aquele "número mágico" que não bate com
+  // a tela. Por isso elas ganham bloco PRÓPRIO: receitas + despesas +
+  // transferências cobrem TODAS as linhas filtradas, nada evapora.
+  const transferenciasTotal = useMemo(() =>
+    txsFiltradas.filter(t => ehTransferencia(t)).reduce((s, t) => s + (t.valor || 0), 0),
+    [txsFiltradas, ehTransferencia]);
+
   const saldoTotal = useMemo(() =>
     wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo || 0), 0),
     [wallets]);
@@ -749,6 +763,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   </div>
                 </div>
               </div>
+
+              {/* ⚠️ FORA do `overflow-x-auto` de propósito. Dentro dele o
+                  rodapé herdaria o `min-width: 880px` e, no celular, o total
+                  ficaria escondido à direita — justamente o número que a
+                  pessoa filtrou pra ver. Aqui ele ocupa a largura do card e
+                  está sempre visível. */}
+              <LinhaTotais
+                mostrar={!!temFiltro}
+                qtd={txsFiltradas.length}
+                receitas={receitasTotal}
+                despesas={despesasTotal}
+                transferencias={transferenciasTotal}
+                ocultar={ocultar}
+              />
             </>
           )}
         </div>
@@ -1116,6 +1144,84 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, a
         document.body
       )}
     </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RODAPÉ DE TOTAIS DO FILTRO
+
+   Aparece SÓ com filtro ativo (qualquer coluna ou a busca). Sem filtro a lista
+   é o mês inteiro e os quatro cards do topo já dão esses números — repetir ali
+   embaixo seria ruído. Com filtro, esse total não existe em lugar nenhum e a
+   alternativa é somar linha por linha na mão.
+
+   ⚠️ RECEITA E DESPESA NUNCA VIRAM UM NÚMERO SÓ. Um total líquido de uma lista
+   com os dois esconde o tamanho de cada lado: R$ 100 de saldo pode ser
+   "100 − 0" ou "10.100 − 10.000", e são situações opostas.
+   ═══════════════════════════════════════════════════════════════════════ */
+function LinhaTotais({
+  mostrar, qtd, receitas, despesas, transferencias, ocultar,
+}: {
+  mostrar: boolean; qtd: number;
+  receitas: number; despesas: number; transferencias: number; ocultar: boolean;
+}) {
+  if (!mostrar) return null;
+
+  type Bloco = { rotulo: string; valor: number; cor: string; Icone: any; forte?: boolean };
+  const blocos: Bloco[] = [];
+
+  if (receitas > 0) blocos.push({ rotulo: 'Receitas', valor: receitas, cor: 'hsl(142 71% 40%)', Icone: ArrowUpRight });
+  if (despesas > 0) blocos.push({ rotulo: 'Despesas', valor: despesas, cor: 'hsl(0 72% 51%)',  Icone: ArrowDownRight });
+  // Rótulo explica por que estão à parte — sem isso pareceria uma terceira
+  // categoria inventada, e não "o que não é consumo nem ganho".
+  if (transferencias > 0) blocos.push({ rotulo: 'Transferências', valor: transferencias, cor: 'hsl(var(--muted-foreground))', Icone: ArrowLeftRight });
+  // Saldo só quando há os DOIS lados: com um lado só ele repetiria o número
+  // anterior trocando o sinal.
+  if (receitas > 0 && despesas > 0) {
+    blocos.push({
+      rotulo: 'Saldo', valor: receitas - despesas, forte: true,
+      cor: receitas - despesas >= 0 ? 'hsl(142 71% 40%)' : 'hsl(0 72% 51%)',
+      Icone: receitas - despesas >= 0 ? ArrowUpRight : ArrowDownRight,
+    });
+  }
+  // Filtro que só pega lançamentos de valor zero: melhor dizer "R$ 0,00" do que
+  // mostrar um rodapé vazio, que lê como falha de carregamento.
+  if (!blocos.length) blocos.push({ rotulo: 'Total', valor: 0, cor: 'hsl(var(--muted-foreground))', Icone: Filter });
+
+  return (
+    <div className="border-t-2 border-border/60 bg-muted/25 px-4 sm:px-5 py-3.5
+                    flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Filter size={13} className="text-muted-foreground flex-shrink-0" />
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+          Total filtrado
+        </span>
+        <span className="text-[11px] text-muted-foreground/70 tabular">
+          · {qtd} {qtd === 1 ? 'lançamento' : 'lançamentos'}
+        </span>
+      </div>
+
+      {/* Empilha no celular e alinha à direita no desktop, onde fica embaixo da
+          coluna Valor. */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 sm:justify-end">
+        {blocos.map(({ rotulo, valor, cor, Icone, forte }) => (
+          <div key={rotulo} className="flex items-center gap-1.5">
+            {/* Ícone + rótulo: a cor sozinha não pode carregar o significado
+                (o vermelho/verde some pra quem não distingue as duas). */}
+            <Icone size={13} style={{ color: cor }} className="flex-shrink-0" />
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              {rotulo}
+            </span>
+            <span
+              className={`tabular whitespace-nowrap ${forte ? 'text-base font-bold' : 'text-sm font-semibold'}`}
+              style={{ color: cor }}
+            >
+              {ocultar ? '••••' : fmt(valor)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
