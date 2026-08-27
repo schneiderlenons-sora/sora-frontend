@@ -17,7 +17,7 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, RefreshCw,
   CheckCircle2, ClipboardList, Activity, Layers, Users,
   Target, AlertTriangle, Check as CheckIcon, Gauge,
-  CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock,
+  CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock, Wand2, Pencil,
 } from 'lucide-react';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
@@ -50,6 +50,9 @@ type Tab    = 'graficos' | 'pendentes' | 'fluxo' | 'planejamento';
 
 /** Conta que só acontece em alguns meses do ano (IPVA, IPTU, Natal). */
 type ContaSazonal = { id: string; nome: string; valor: number; mes: number };
+
+/** Ajuste manual por mês. Só guarda o que foi mexido — o resto segue automático. */
+type Ajustes = Record<number, { receita?: number; despesa?: number }>;
 
 // Atalhos do lançamento sazonal — os que quase todo mundo tem, no mês certo.
 const SAZONAIS_SUGERIDAS = [
@@ -127,22 +130,72 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
      perde nada aqui. Ainda é localStorage (por aparelho); levar pro banco
      precisa de migration e fica pra uma próxima. */
   const [sazonais, setSazonais] = useState<ContaSazonal[]>([]);
+  // Ajustes manuais por mês: { 9: { receita: 8000 } }. Guardar SÓ o que foi
+  // mexido (e não os 12 meses) é o que permite o valor automático continuar
+  // valendo — e continuar mudando — em tudo que a pessoa não tocou.
+  const [ajustes, setAjustes] = useState<Ajustes>({});
   const chavePlano = `sora_planejamento_${(perfil as any)?.id || 'anon'}_${ano}`;
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(chavePlano);
-      setSazonais(raw ? (JSON.parse(raw).contas ?? []) : []);
-    } catch { setSazonais([]); }
+      const obj = raw ? JSON.parse(raw) : {};
+      setSazonais(obj.contas ?? []);
+      setAjustes(obj.ajustes ?? {});
+    } catch { setSazonais([]); setAjustes({}); }
+  }, [chavePlano]);
+
+  /** Grava preservando o resto do objeto — a página /planejamento antiga usa a
+   *  MESMA chave e guarda `meses` ali. */
+  const gravarPlano = useCallback((patch: { contas?: ContaSazonal[]; ajustes?: Ajustes }) => {
+    try {
+      const raw = localStorage.getItem(chavePlano);
+      const atual = raw ? JSON.parse(raw) : {};
+      localStorage.setItem(chavePlano, JSON.stringify({ ...atual, ...patch }));
+    } catch { /* modo privado / quota */ }
   }, [chavePlano]);
 
   const salvarSazonais = useCallback((novas: ContaSazonal[]) => {
     setSazonais(novas);
-    try {
-      const raw = localStorage.getItem(chavePlano);
-      const atual = raw ? JSON.parse(raw) : {};
-      localStorage.setItem(chavePlano, JSON.stringify({ ...atual, contas: novas }));
-    } catch { /* modo privado / quota */ }
-  }, [chavePlano]);
+    gravarPlano({ contas: novas });
+  }, [gravarPlano]);
+
+  /** `valor === null` remove o ajuste e o mês volta ao automático. */
+  const ajustarMes = useCallback((mesIx: number, campo: 'receita' | 'despesa', valor: number | null) => {
+    setAjustes(prev => {
+      const doMes = { ...(prev[mesIx] || {}) };
+      if (valor === null) delete doMes[campo];
+      else doMes[campo] = valor;
+      const novo = { ...prev };
+      // Mês sem nenhum campo ajustado sai do objeto — assim `qtdAjustes` conta
+      // o que a pessoa realmente mexeu, e não chaves vazias esquecidas.
+      if (Object.keys(doMes).length === 0) delete novo[mesIx];
+      else novo[mesIx] = doMes;
+      gravarPlano({ ajustes: novo });
+      return novo;
+    });
+  }, [gravarPlano]);
+
+  /** Preenchimento rápido: aplica uma média manual em TODO mês ainda aberto. */
+  const preencherAberto = useCallback((rec: number | null, des: number | null, linhas: any[]) => {
+    setAjustes(prev => {
+      const novo = { ...prev };
+      for (const l of linhas) {
+        if (!l.editavel) continue;      // fechado não recebe
+        const doMes = { ...(novo[l.i] || {}) };
+        if (rec !== null) doMes.receita = rec;
+        if (des !== null) doMes.despesa = des;
+        if (Object.keys(doMes).length) novo[l.i] = doMes;
+      }
+      gravarPlano({ ajustes: novo });
+      return novo;
+    });
+  }, [gravarPlano]);
+
+  const limparAjustes = useCallback(() => {
+    setAjustes({});
+    gravarPlano({ ajustes: {} });
+  }, [gravarPlano]);
 
   const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
   const resumoAnt: any    = (rAntData as any) ?? { receitas: 0, gastos: 0, por_categoria: [] };
@@ -375,22 +428,38 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     let acumulado = 0;
     const linhas = meses.map((m, i) => {
       const estado = estadoDe(i);
-      let receita = m.receitas;
-      let despesa = m.gastos;
 
+      // 1) O valor AUTOMÁTICO — o que a Sora estima sozinha.
+      let autoRec = m.receitas;
+      let autoDes = m.gastos;
       if (estado === 'emCurso' && fator) {
-        receita = m.receitas * fator;
-        despesa = m.gastos * fator;
+        autoRec = m.receitas * fator;
+        autoDes = m.gastos * fator;
       } else if (estado === 'previsto') {
-        receita = Math.max(mediaRec, m.receitas);
-        despesa = Math.max(mediaDes, m.gastos) + extras[i];
+        autoRec = Math.max(mediaRec, m.receitas);
+        autoDes = Math.max(mediaDes, m.gastos) + extras[i];
       }
+
+      // 2) O AJUSTE MANUAL por cima, quando existe.
+      //
+      // ⚠️ MÊS FECHADO NÃO ACEITA AJUSTE, e isso é decisão, não esquecimento:
+      // ali o número é o que de fato aconteceu. Deixar editar transformaria o
+      // histórico — a base da média — em ficção, e o plano passaria a estimar
+      // o futuro a partir de um passado inventado. Quem quer corrigir um mês
+      // fechado corrige a transação, que é onde o erro está.
+      const aj = estado === 'realizado' ? undefined : ajustes[i];
+      const receita = aj?.receita != null ? aj.receita : autoRec;
+      const despesa = aj?.despesa != null ? aj.despesa : autoDes;
 
       const saldo = receita - despesa;
       acumulado += saldo;
       return {
-        i, name: MESES_CURTO[i], estado,
+        i, name: MESES_CURTO[i], nomeLongo: MESES[i], estado,
         Receitas: receita, Despesas: despesa,
+        autoRec, autoDes,
+        manualRec: aj?.receita != null,
+        manualDes: aj?.despesa != null,
+        editavel: estado !== 'realizado',
         saldo, acumulado,
         jaLancado: m.gastos,          // o que o banco já conhece daquele mês
         sazonais: estado === 'previsto' ? extras[i] : 0,
@@ -412,6 +481,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
       linhas, totalRec, totalDes, saldoAno: totalRec - totalDes, pior, primeiroNegativo,
       mediaRec, mediaDes, mesesNaBase: fechados.length,
       mesesRec: baseRec.length, mesesDes: baseDes.length,
+      qtdAjustes: linhas.filter(l => l.manualRec || l.manualDes).length,
       mesAtualIx: ehAnoAtual ? mesHoje : null,
       temHistorico: fechados.length > 0,
     };
@@ -1070,7 +1140,13 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                   <ComoFoiCalculado {...plano} />
                 </ChartCard>
 
-                <TabelaPlano linhas={plano.linhas} />
+                <PreenchimentoRapido
+                  plano={plano}
+                  onAplicar={(r: number | null, d: number | null) => preencherAberto(r, d, plano.linhas)}
+                  onLimpar={limparAjustes}
+                />
+
+                <GradeMeses linhas={plano.linhas} onAjustar={ajustarMes} />
 
                 <ContasSazonais
                   contas={sazonais}
@@ -1221,44 +1297,204 @@ function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
   );
 }
 
-function TabelaPlano({ linhas }: any) {
+/* ── Preenchimento rápido ────────────────────────────────────────────────
+   ⚠️ Só mexe em mês ABERTO. A versão antiga preenchia os 12 e passava por
+   cima do que de fato aconteceu; aqui os fechados são fato e ficam de fora. */
+function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
+  const [rec, setRec] = useState('');
+  const [des, setDes] = useState('');
+  const abertos = plano.linhas.filter((l: any) => l.editavel).length;
+  const num = (s: string) => {
+    const v = parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+    return Number.isFinite(v) ? v : null;
+  };
+
   return (
-    <div className="card rounded-2xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-border/60">
-        <h3 className="font-semibold text-foreground">Mês a mês</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Fechado, em curso ou previsto</p>
+    <div className="card rounded-2xl p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+        <div className="flex items-center gap-2">
+          <Wand2 size={15} className="text-primary" />
+          <h3 className="font-semibold text-foreground">Preenchimento rápido</h3>
+        </div>
+        {plano.qtdAjustes > 0 && (
+          <button onClick={onLimpar}
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 h-11 px-3 rounded-lg hover:bg-muted transition-colors">
+            <RefreshCw size={12} /> Voltar tudo ao automático ({plano.qtdAjustes})
+          </button>
+        )}
       </div>
-      {/* Scroll horizontal contido no card, como a lista de transações. */}
-      <div className="overflow-x-auto scrollbar-none">
-        <div style={{ minWidth: 560 }}>
-          <div className="grid gap-3 px-4 py-2.5 border-b border-border/60 bg-muted/30"
-               style={{ gridTemplateColumns: '78px 1fr 1fr 1fr 1fr' }}>
-            {['Mês', 'Receitas', 'Despesas', 'Saldo', 'Acum. no ano'].map((h, i) => (
-              <span key={h} className={`text-[10px] uppercase tracking-wider text-muted-foreground font-bold ${i > 0 ? 'text-right' : ''}`}>{h}</span>
-            ))}
-          </div>
-          <div className="divide-y divide-border/40">
-            {linhas.map((l: any) => (
-              <div key={l.i} className="grid gap-3 px-4 py-2.5 items-center"
-                   style={{ gridTemplateColumns: '78px 1fr 1fr 1fr 1fr' }}>
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-sm font-semibold text-foreground">{l.name}</span>
-                  {/* Ícone + rótulo no title: o estado não pode depender só do
-                      tom da linha. */}
-                  {l.estado === 'realizado'
-                    ? <Lock size={10} className="text-muted-foreground/70 flex-shrink-0" aria-label="Mês fechado" />
-                    : <Sparkles size={10} className="text-indigo-500 flex-shrink-0"
-                                aria-label={l.estado === 'emCurso' ? 'Mês em curso, projetado' : 'Estimativa'} />}
-                </div>
-                <span className="text-xs tabular text-right text-emerald-600 dark:text-emerald-400">{fmt(l.Receitas)}</span>
-                <span className="text-xs tabular text-right text-red-500 dark:text-red-400">{fmt(l.Despesas)}</span>
-                <span className={`text-xs tabular text-right font-semibold ${l.saldo >= 0 ? 'text-foreground' : 'text-red-500'}`}>{fmt(l.saldo)}</span>
-                <span className={`text-xs tabular text-right font-bold ${l.acumulado >= 0 ? 'text-foreground' : 'text-red-500'}`}>{fmt(l.acumulado)}</span>
-              </div>
-            ))}
-          </div>
+      <p className="text-xs text-muted-foreground mb-4 max-w-xl leading-relaxed">
+        Sabe que vai ganhar ou gastar diferente do que a Sora estimou? Defina uma média sua para os{' '}
+        <strong className="text-foreground">{abertos}</strong> {abertos === 1 ? 'mês ainda aberto' : 'meses ainda abertos'}.
+        Os meses fechados não mudam — neles vale o que realmente aconteceu.
+      </p>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex-1 min-w-[130px]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Receita por mês</span>
+          <input inputMode="decimal" value={rec} onChange={e => setRec(e.target.value)}
+                 placeholder={fmt(plano.mediaRec)} className="input tabular" />
+        </label>
+        <label className="flex-1 min-w-[130px]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Despesa por mês</span>
+          <input inputMode="decimal" value={des} onChange={e => setDes(e.target.value)}
+                 placeholder={fmt(plano.mediaDes)} className="input tabular" />
+        </label>
+        <button
+          onClick={() => { onAplicar(num(rec), num(des)); setRec(''); setDes(''); }}
+          disabled={num(rec) === null && num(des) === null}
+          className="inline-flex items-center gap-1.5 px-4 h-11 rounded-xl bg-primary text-white text-sm font-bold disabled:opacity-50">
+          <Wand2 size={14} /> Aplicar
+        </button>
+      </div>
+      {/* O placeholder mostra a média automática: assim dá pra ver do que se
+          está discordando antes de digitar. */}
+      <p className="text-[11px] text-muted-foreground mt-2">
+        Em branco = mantém o automático. Deixe só um dos dois preenchido pra ajustar apenas ele.
+      </p>
+    </div>
+  );
+}
+
+/* ── Grade dos 12 meses, editável ────────────────────────────────────── */
+function GradeMeses({ linhas, onAjustar }: any) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-3 px-1">
+        <div>
+          <h3 className="font-semibold text-foreground">Mês a mês</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Toque num valor previsto pra mudar. Mês fechado mostra o que realmente aconteceu.
+          </p>
         </div>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {linhas.map((l: any) => <CardMes key={l.i} l={l} onAjustar={onAjustar} />)}
+      </div>
+    </div>
+  );
+}
+
+function CardMes({ l, onAjustar }: any) {
+  const manual = l.manualRec || l.manualDes;
+  const borda = !l.editavel ? 'hsl(var(--border) / 0.6)'
+    : manual ? 'color-mix(in srgb, #6366f1 45%, transparent)'
+    : 'hsl(var(--border))';
+
+  return (
+    <div className="rounded-2xl border bg-card p-4 animate-[slide-up_400ms_ease-out_both]"
+         style={{ borderColor: borda, animationDelay: `${l.i * 25}ms` }}>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-bold text-foreground">{l.name}</span>
+          <SeloEstado l={l} manual={manual} />
+        </div>
+        <span className={`text-sm font-bold tabular flex-shrink-0 ${l.saldo >= 0 ? 'text-primary' : 'text-red-500'}`}>
+          {fmt(l.saldo)}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <CampoMes rotulo="Receita" valor={l.Receitas} auto={l.autoRec} manual={l.manualRec}
+                  editavel={l.editavel} mes={l.nomeLongo}
+                  onMudar={(v: number | null) => onAjustar(l.i, 'receita', v)} />
+        <CampoMes rotulo="Despesa" valor={l.Despesas} auto={l.autoDes} manual={l.manualDes}
+                  editavel={l.editavel} mes={l.nomeLongo}
+                  onMudar={(v: number | null) => onAjustar(l.i, 'despesa', v)} />
+      </div>
+
+      {l.sazonais > 0 && (
+        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+          <Target size={9} /> inclui {fmt(l.sazonais)} de conta sazonal
+        </p>
+      )}
+      {/* Só aparece quando o banco já conhece algo daquele mês futuro — é a
+          informação que explica uma previsão acima da média. */}
+      {l.estado === 'previsto' && l.jaLancado > 0 && (
+        <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+          <Lock size={9} /> {fmt(l.jaLancado)} já lançado (parcelas, recorrências)
+        </p>
+      )}
+
+      <div className="mt-2.5 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px]">
+        <span className="text-muted-foreground">Acumulado no ano</span>
+        <span className={`tabular font-semibold ${l.acumulado >= 0 ? 'text-foreground' : 'text-red-500'}`}>
+          {fmt(l.acumulado)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SeloEstado({ l, manual }: any) {
+  // Ícone + palavra: o estado do mês nunca depende só de cor.
+  const cfg = manual
+    ? { Icone: Pencil, txt: 'manual',  cor: '#6366f1' }
+    : l.estado === 'realizado' ? { Icone: Lock, txt: 'fechado', cor: 'hsl(var(--fg-muted))' }
+    : l.estado === 'emCurso'   ? { Icone: Gauge, txt: 'em curso', cor: '#f59e0b' }
+    : { Icone: Sparkles, txt: 'previsto', cor: '#6366f1' };
+  return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+          style={{ color: cfg.cor, background: `color-mix(in srgb, ${cfg.cor} 12%, transparent)` }}>
+      <cfg.Icone size={9} /> {cfg.txt}
+    </span>
+  );
+}
+
+function CampoMes({ rotulo, valor, auto, manual, editavel, mes, onMudar }: any) {
+  const [txt, setTxt] = useState('');
+  const [focado, setFocado] = useState(false);
+
+  const confirmar = () => {
+    setFocado(false);
+    const t = txt.trim();
+    if (t === '') { setTxt(''); return; }               // saiu sem mexer
+    const v = parseFloat(t.replace(/\./g, '').replace(',', '.'));
+    onMudar(Number.isFinite(v) && v >= 0 ? v : null);
+    setTxt('');
+  };
+
+  // ⚠️ MÊS FECHADO É READ-ONLY, NÃO DISABLED. `disabled` diz "não pode agora,
+  // talvez depois" e some do leitor de tela; aqui o valor é definitivo e
+  // continua sendo informação. Por isso vira texto com cadeado e um `title`
+  // que explica, em vez de um input apagado.
+  if (!editavel) {
+    return (
+      <div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">{rotulo}</span>
+        <p className="px-3 py-2 rounded-lg bg-muted/40 text-sm tabular text-foreground flex items-center gap-1.5"
+           title={`${mes} já fechou — este é o valor real dos seus lançamentos`}>
+          <Lock size={10} className="text-muted-foreground flex-shrink-0" aria-hidden />
+          {fmt(valor)}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center justify-between gap-1">
+        {rotulo}
+        {manual && (
+          <button type="button" onClick={() => onMudar(null)}
+                  title={`Voltar ${rotulo.toLowerCase()} de ${mes} ao valor automático (${fmt(auto)})`}
+                  aria-label={`Voltar ${rotulo.toLowerCase()} de ${mes} ao automático`}
+                  className="normal-case tracking-normal text-[10px] font-semibold text-indigo-500 hover:underline -my-2 py-2 px-1">
+            desfazer
+          </button>
+        )}
+      </span>
+      <input
+        inputMode="decimal"
+        value={focado ? txt : fmt(valor)}
+        onFocus={(e) => { setFocado(true); setTxt(String(valor.toFixed(2)).replace('.', ',')); requestAnimationFrame(() => e.target.select()); }}
+        onChange={(e) => setTxt(e.target.value)}
+        onBlur={confirmar}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setTxt(''); setFocado(false); } }}
+        aria-label={`${rotulo} de ${mes}`}
+        className="input tabular text-sm"
+        style={{ minHeight: 44, borderColor: manual ? 'color-mix(in srgb, #6366f1 50%, transparent)' : undefined }}
+      />
     </div>
   );
 }

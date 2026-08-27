@@ -126,18 +126,30 @@ export function GraficoComparativo({ data }: { data: any[] }) {
 function TooltipPlano({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   const p0 = payload[0]?.payload || {};
-  const rotulo = p0.estado === 'realizado' ? 'Fechado'
+  const manual = p0.manualRec || p0.manualDes;
+  const rotulo = manual ? 'Ajustado por você'
+    : p0.estado === 'realizado' ? 'Fechado'
     : p0.estado === 'emCurso' ? 'Em curso — projeção' : 'Previsto';
+  const neutro = p0.estado === 'realizado' && !manual;
   return (
     <div className="glass rounded-xl px-3.5 py-2.5 shadow-lg text-sm min-w-[190px] border border-border/60">
       <div className="flex items-center justify-between gap-3 mb-1.5">
         <p className="font-semibold text-foreground text-[11px] uppercase tracking-wider">{label}</p>
         <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-              style={{ background: p0.estado === 'realizado' ? 'hsl(var(--bg-muted))' : 'color-mix(in srgb, #6366f1 18%, transparent)',
-                       color: p0.estado === 'realizado' ? 'hsl(var(--fg-muted))' : '#6366f1' }}>
+              style={{ background: neutro ? 'hsl(var(--bg-muted))' : 'color-mix(in srgb, #6366f1 18%, transparent)',
+                       color: neutro ? 'hsl(var(--fg-muted))' : '#6366f1' }}>
           {rotulo}
         </span>
       </div>
+      {/* Quando a pessoa mexeu, mostra do que ela discordou — sem isso não há
+          como lembrar qual era a estimativa original. */}
+      {manual && (
+        <p className="text-[10px] text-muted-foreground mb-1.5 pb-1.5 border-b border-border/50">
+          a Sora estimava {p0.manualRec ? `${fmt(p0.autoRec)} de receita` : ''}
+          {p0.manualRec && p0.manualDes ? ' e ' : ''}
+          {p0.manualDes ? `${fmt(p0.autoDes)} de despesa` : ''}
+        </p>
+      )}
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {payload.filter((p: any) => p.value != null).map((p: any, i: number) => (
         <div key={i} className="flex items-center justify-between gap-4 mt-1">
