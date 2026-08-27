@@ -986,17 +986,25 @@ function TransactionRow({
           revelar o resto. `break-words` é a rede pra um nome de palavra única
           gigante. `min-w-0` é o que autoriza o item do grid a encolher até a
           trilha. */}
-      {/* `items-center` no WRAPPER (as células do grid são `stretch`, cada uma
-          centra o próprio conteúdo) e `items-start` DENTRO do chip, pro ponto
-          casar com a primeira linha. */}
+      {/* ⚠️ O CHIP É `inline` + `box-decoration-clone`, NÃO um flex.
+          Como flex ele virava uma caixa só e, com o texto quebrando em duas
+          linhas, essa caixa assumia a largura INTEIRA da coluna (130px)
+          enquanto a linha mais larga do texto usava ~110px — a "box bem maior
+          que a frase". Não é ajuste de padding: shrink-to-fit no CSS sempre
+          usa o espaço disponível quando o conteúdo não cabe, então caixa
+          única NUNCA encolhe até o texto já quebrado.
+          Sendo `inline`, o fundo é pintado por FRAGMENTO de linha, e o
+          `box-decoration-clone` dá cantos e padding completos a cada um. Cada
+          linha fica do tamanho exato do seu texto — e nome curto continua
+          sendo uma pílula só, idêntica ao que era.
+          `leading-[1.8]` reserva 21,6px por linha contra ~20,4px de fundo: sem
+          essa folga os fundos de linhas vizinhas se sobrepõem. */}
       <div className="flex items-center min-w-0">
         <span
-          className="inline-flex items-start gap-1.5 px-2.5 py-1 rounded-2xl text-xs font-medium leading-tight text-left max-w-full break-words"
+          className="text-xs font-medium leading-[1.8] px-2.5 py-[3px] rounded-2xl box-decoration-clone break-words"
           style={{ background: theme.bg, color: theme.color }}
         >
-          {/* mt-1 alinha o ponto com a PRIMEIRA linha; com `items-center` ele
-              ficaria no meio vertical do chip de duas linhas, entre as duas. */}
-          <span className="w-1.5 h-1.5 mt-1 rounded-full flex-shrink-0" style={{ background: theme.color }} />
+          <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full" style={{ background: theme.color }} />
           {nome}
         </span>
       </div>
