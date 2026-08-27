@@ -169,6 +169,34 @@ function TooltipPlano({ active, payload, label }: any) {
   );
 }
 
+/**
+ * Selo "hoje" da ReferenceLine — pílula com fundo, desenhada DENTRO da área do
+ * gráfico.
+ *
+ * ⚠️ `position="top"` (o padrão do <Label> do recharts) desenha o texto ACIMA
+ * do topo do plot — fora da área que o SVG efetivamente pinta. Com o
+ * `margin.top` de poucos pixels que este gráfico usa, a metade de cima da
+ * palavra "hoje" ficava cortada pela borda do SVG (o corte real do print).
+ * Aumentar a margem só empurraria o problema pra outro valor de altura de
+ * tela; desenhar o selo alguns pixels ABAIXO do topo, por dentro da área
+ * plotada, resolve pra qualquer tamanho.
+ */
+function LabelHoje({ viewBox }: any) {
+  if (!viewBox) return null;
+  const cx = viewBox.x;
+  const y = viewBox.y + 14;
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <rect x={cx - 21} y={y - 10} width={42} height={17} rx={8.5}
+            fill="hsl(var(--bg-card))" stroke="hsl(var(--border))" />
+      <text x={cx} y={y + 1.5} textAnchor="middle" dominantBaseline="middle"
+            fontSize={9} fontWeight={700} fill="hsl(var(--fg-muted))">
+        hoje
+      </text>
+    </g>
+  );
+}
+
 export function GraficoPlanejamento({ data, mesAtual }: { data: any[]; mesAtual: number | null }) {
   return (
     <ResponsiveContainer width="100%" height={330}>
@@ -195,7 +223,7 @@ export function GraficoPlanejamento({ data, mesAtual }: { data: any[]; mesAtual:
             exige comparar hachuras — a linha responde de relance. */}
         {mesAtual !== null && (
           <ReferenceLine x={data[mesAtual]?.name} stroke="hsl(var(--fg-muted))" strokeDasharray="4 4"
-                         label={{ value: 'hoje', position: 'top', fontSize: 10, fill: 'hsl(var(--fg-muted))' }} />
+                         label={<LabelHoje />} />
         )}
         {/* Zero explícito: sem ele, saldo negativo parece só "uma barra menor". */}
         <ReferenceLine y={0} stroke="hsl(var(--border))" />
