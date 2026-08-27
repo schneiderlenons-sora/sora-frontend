@@ -279,6 +279,17 @@ export const api = {
       const q = params.toString();
       return req<any>(`/api/transacoes/${phone}/resumo${q ? `?${q}` : ''}`);
     },
+    /** Os 12 meses do ano, com a MESMA regra do resumo mensal (fonte única no
+     *  backend). Alimenta a aba Fluxo de caixa, que antes desenhava os meses a
+     *  partir de uma senoide sobre o mês atual. */
+    anual: (phone: string, ano: number, opts?: { criado_por?: string }) => {
+      const params = new URLSearchParams({ ano: String(ano) });
+      if (opts?.criado_por) params.set('criado_por', opts.criado_por);
+      return req<{
+        ano: number; receitas: number; gastos: number;
+        meses: { mes: number; receitas: number; gastos: number; saldo: number }[];
+      }>(`/api/transacoes/${phone}/anual?${params.toString()}`);
+    },
     criar: (body: any) =>
       req('/api/transacoes', { method: 'POST', body: JSON.stringify(body) }),
     // Compra parcelada no cartão: valor_parcela × num_parcelas (uma tx por mês).

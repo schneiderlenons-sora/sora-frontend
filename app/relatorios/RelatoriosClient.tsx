@@ -44,7 +44,6 @@ const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 type Tab    = 'graficos' | 'pendentes' | 'fluxo';
-type Periodo = 'hoje' | '7d' | 'mes' | 'ano';
 
 // ─────────────────────────────────────────────────────────────
 // TOOLTIP PERSONALIZADO
@@ -61,7 +60,6 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const hoje = new Date();
 
   const [tab,      setTab]      = useState<Tab>('graficos');
-  const [periodo,  setPeriodo]  = useState<Periodo>('mes');
   const [ano,      setAno]      = useState(hoje.getFullYear());
   const [mes,      setMes]      = useState(hoje.getMonth());
 
@@ -93,6 +91,13 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     useApi(compartilhado && grupoId ? `rel:membros:${grupoId}` : null, () => api.grupos.membros(grupoId!));
   const membros: any[] = Array.isArray(membrosData) ? membrosData : [];
 
+  // Os 12 meses REAIS do ano. Só busca quando a aba Fluxo está aberta — é uma
+  // varredura do ano inteiro e não faz sentido pagar por ela em Gráficos.
+  const { data: anualData } = useApi(
+    phone && tab === 'fluxo' ? `rel:anual:${phone}:${ano}:${membroFiltro}` : null,
+    () => api.transacoes.anual(phone, ano, { criado_por: criadoPorParam }),
+  );
+
   const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
   const resumoAnt: any    = (rAntData as any) ?? { receitas: 0, gastos: 0, por_categoria: [] };
   const txs: any[]        = (tData as any)?.transacoes ?? [];
@@ -108,11 +113,6 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     setMes(nm); setAno(na);
   }
 
-  function aplicarPeriodo(p: Periodo) {
-    setPeriodo(p);
-    if (p === 'mes') { setMes(hoje.getMonth()); setAno(hoje.getFullYear()); }
-    if (p === 'ano') { setMes(0); setAno(hoje.getFullYear()); }
-  }
 
   // ── Métricas derivadas ─────────────────────────────────────
   const saldo       = (resumo?.receitas || 0) - (resumo?.gastos || 0);
@@ -236,20 +236,32 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   }, [txs, ano, mes]);
 
   // Fluxo de caixa — 12 meses (com base no atual)
+  // ⚠️ DADO REAL, VINDO DO BANCO — não invente mês.
+  //
+  // Isto aqui era uma SENOIDE: `0.6 + Math.sin((i + ano) * 0.7) * 0.3` aplicada
+  // ao valor do mês atual, com o comentário "simulação suave". Os 12 meses do
+  // gráfico não tinham relação nenhuma com o histórico da pessoa, e os cards
+  // diziam "Receitas no ano" mostrando `mês × 12 × 0,6`. Medido numa conta
+  // real: exibia R$ 29.501,86 de despesa no ano onde o verdadeiro é
+  // R$ 7.644,67 — quase 4× pra cima. Numa tela de dinheiro isso não é
+  // enfeite de placeholder, é número errado que a pessoa usa pra decidir.
+  //
+  // Agora vem de `GET /api/transacoes/:phone/anual`, que roda a MESMA regra do
+  // resumo mensal (fonte única no backend) — conferido: agosto do anual bate ao
+  // centavo com o card do mês.
   const dadosFluxo = useMemo(() => {
+    const meses = anualData?.meses;
     return Array.from({ length: 12 }, (_, i) => {
-      // simulação suave baseada em valores reais do mês atual
-      const fator = 0.6 + Math.sin((i + ano) * 0.7) * 0.3;
-      const rec = (resumo?.receitas || 0) * fator;
-      const gas = (resumo?.gastos || 0) * fator;
+      const m = meses?.[i];
       return {
         name: MESES_CURTO[i],
-        Receitas: rec,
-        Despesas: gas,
-        Saldo: rec - gas,
+        Receitas: m?.receitas || 0,
+        Despesas: m?.gastos || 0,
+        Saldo: m?.saldo || 0,
       };
     });
-  }, [resumo, ano]);
+  }, [anualData]);
+  const anualCarregando = tab === 'fluxo' && anualData === undefined;
 
   return (
     <>
@@ -337,25 +349,37 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
             </button>
           </div>
 
-          {/* Chips de período rápido */}
-          {([
-            { v: 'hoje', l: 'Hoje'      },
-            { v: '7d',   l: '7 dias'    },
-            { v: 'mes',  l: 'Este mês'  },
-            { v: 'ano',  l: 'Este ano'  },
-          ] as { v: Periodo; l: string }[]).map(({ v, l }) => (
-            <button
-              key={v}
-              onClick={() => aplicarPeriodo(v)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                periodo === v
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-glow-sm'
-                  : 'bg-muted/40 text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {l}
+          {/* Seletor de ANO — a navegação de mês sozinha exigia 12 cliques
+              pra trocar de ano. */}
+          <div className="flex items-center bg-muted/40 rounded-xl px-1 py-1">
+            <button onClick={() => setAno(a => a - 1)} aria-label="Ano anterior"
+                    className="p-1.5 rounded-lg hover:bg-card transition-colors">
+              <ChevronLeft size={14} className="text-muted-foreground" />
             </button>
-          ))}
+            <span className="text-sm font-semibold text-foreground px-2 tabular">{ano}</span>
+            <button onClick={() => setAno(a => a + 1)} aria-label="Próximo ano"
+                    className="p-1.5 rounded-lg hover:bg-card transition-colors">
+              <ChevronRight size={14} className="text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* ⚠️ AQUI HAVIA 4 CHIPS MORTOS: "Hoje", "7 dias", "Este mês" e
+              "Este ano" acendiam e NÃO filtravam nada — o estado `periodo` só
+              era lido no `className` do próprio botão. A tela inteira é
+              mensal (resumo e lista vêm por `mesRef`), então "Hoje" e "7 dias"
+              não tinham como funcionar sem refazer a busca, e "Este ano" só
+              pulava pra janeiro. Controle que finge filtrar é pior que
+              controle nenhum: a pessoa lê o número achando que é de hoje.
+              No lugar ficou o que de fato funciona — e o botão de voltar só
+              aparece quando você NÃO está no mês atual. */}
+          {(mes !== hoje.getMonth() || ano !== hoje.getFullYear()) && (
+            <button
+              onClick={() => { setMes(hoje.getMonth()); setAno(hoje.getFullYear()); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors inline-flex items-center gap-1.5"
+            >
+              <Calendar size={12} /> Voltar pra hoje
+            </button>
+          )}
 
           {/* Filtro por membro — só em gestão compartilhada com 2+ membros */}
           {compartilhado && membros.length > 1 && (
@@ -673,17 +697,19 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 
             {/* Big stat cards */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Rótulo com o ANO explícito: "Receitas no ano" sozinho, com o
+                  seletor de mês logo acima, dava pra ler como "no mês". */}
               <PremiumStatCard
-                label="Receitas no ano"
-                value={(resumo?.receitas || 0) * 12 * 0.6}
+                label={`Receitas em ${ano}`}
+                value={anualData?.receitas || 0}
                 icon={TrendingUp}
                 hue={142}
                 positive
                 delay={0}
               />
               <PremiumStatCard
-                label="Despesas no ano"
-                value={(resumo?.gastos || 0) * 12 * 0.6}
+                label={`Despesas em ${ano}`}
+                value={anualData?.gastos || 0}
                 icon={TrendingDown}
                 hue={0}
                 negative
@@ -707,12 +733,23 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
               badgeColor="blue"
               fullWidth
             >
-              <GraficoFluxo data={dadosFluxo} />
-              <ChartLegend items={[
-                { label: 'Receitas', color: BRAND },
-                { label: 'Despesas', color: RED },
-                { label: 'Saldo',    color: BLUE, dashed: true },
-              ]} />
+              {/* ⚠️ Skeleton de altura IGUAL à do gráfico. Antes o dado era
+                  fabricado e sempre existia; agora ele vem da rede, e um
+                  bloco de altura diferente daria salto de layout quando
+                  chegasse. */}
+              {anualCarregando ? (
+                <div className="h-[340px] rounded-xl bg-muted/40 animate-pulse"
+                     role="status" aria-label="Carregando o fluxo do ano" />
+              ) : (
+                <>
+                  <GraficoFluxo data={dadosFluxo} />
+                  <ChartLegend items={[
+                    { label: 'Receitas', color: BRAND },
+                    { label: 'Despesas', color: RED },
+                    { label: 'Saldo',    color: BLUE, dashed: true },
+                  ]} />
+                </>
+              )}
             </ChartCard>
 
             {/* Resumo mensal em barras */}
@@ -723,7 +760,10 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
               badgeColor="green"
               fullWidth
             >
-              <GraficoComparativo data={dadosFluxo} />
+              {anualCarregando
+                ? <div className="h-[260px] rounded-xl bg-muted/40 animate-pulse"
+                       role="status" aria-label="Carregando o comparativo mensal" />
+                : <GraficoComparativo data={dadosFluxo} />}
             </ChartCard>
           </div>
         )}
