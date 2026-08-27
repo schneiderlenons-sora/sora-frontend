@@ -46,7 +46,13 @@ export function GraficoPatrimonio({ data }: { data: any[] }) {
         <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
           tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
         <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }} />
-        <Area type="monotone" dataKey="patrimonio_total" stroke={BRAND} fill="url(#gPat)" strokeWidth={2.5} dot={false} />
+        {/* `valor` = o investido, mapeado no cliente (migration 140). Antes era
+            `patrimonio_total`, que soma o saldo das contas e contradizia o card
+            "Patrimônio total" logo acima do gráfico.
+            `dot` visível: com 2 ou 3 pontos (quem acabou de conectar o banco),
+            uma linha sem marcador parece um traço solto em vez de uma série. */}
+        <Area type="monotone" dataKey="valor" name="Investido" stroke={BRAND} fill="url(#gPat)"
+              strokeWidth={2.5} dot={{ r: 2.5, fill: BRAND, strokeWidth: 0 }} />
       </AreaChart>
     </ResponsiveContainer>
   );

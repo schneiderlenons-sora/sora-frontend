@@ -17,8 +17,10 @@ import {
 // recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
 // inicial. Skeleton com a mesma altura do container (evita CLS).
 const skel = () => <div className="w-full h-full rounded-xl bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />;
-const GraficoDistribuicao = dynamic(() => import('./Graficos').then(m => m.GraficoDistribuicao), { ssr: false, loading: skel });
 const GraficoPatrimonio   = dynamic(() => import('./Graficos').then(m => m.GraficoPatrimonio),   { ssr: false, loading: skel });
+// O MESMO donut da aba Categorias — fatia que destaca ao toque, leitura no
+// centro, `prefers-reduced-motion` respeitado. Um conserto lá vale aqui.
+const DonutClasses        = dynamic(() => import('@/components/relatorios/CategoryDonut'),        { ssr: false, loading: skel });
 const GraficoSimulacao    = dynamic(() => import('./Graficos').then(m => m.GraficoSimulacao),    { ssr: false, loading: skel });
 
 const BRAND = 'hsl(var(--primary))';
@@ -52,6 +54,16 @@ const CORES_TIPO: Record<string, string> = {
   'Caixa':           '#64748b',
 };
 function corTipo(t: string): string { return CORES_TIPO[t] || '#64748b'; }
+
+// Emoji por tipo — o donut compartilhado mostra um no centro quando a fatia é
+// selecionada, e sem isso toda classe apareceria com o mesmo símbolo genérico.
+const EMOJI_TIPO: Record<string, string> = {
+  'Ações': '📈', 'FIIs': '🏢', 'ETFs': '🌐', 'Cripto': '₿',
+  'Tesouro Direto': '💵', 'CDB': '🏦', 'RDB': '🐷', 'LCI': '🏘️', 'LCA': '🌾',
+  'LC': '🧾', 'Poupança': '🐖', 'Debênture': '📜', 'CRI': '🏗️', 'CRA': '🚜',
+  'COE': '🎛️', 'Renda Fixa': '📄', 'Fundos': '🧺', 'Previdência': '🏖️',
+  'Reserva': '🛡️', 'Imóveis': '🏠', 'Negócio': '🏪', 'Caixa': '💰',
+};
 
 /* ═════════════════════════════════════════════════════════════════════════
    CLASSES DE ATIVO
@@ -452,14 +464,22 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
   const fundoHero = isDark
     ? 'linear-gradient(135deg, #0a0a0a 0%, #18181b 50%, #0a0a0a 100%)'
     : 'linear-gradient(135deg, hsl(var(--bg-card)) 0%, hsl(var(--bg-subtle)) 100%)';
-  const strokePie = isDark ? '#0a0a0a' : '#ffffff';
 
   const patFiltrado = useMemo(() => {
     if (!patrimonio?.length) return [];
-    if (periodo === 'all') return patrimonio;
+    // ⚠️ DESENHA `investido`, NÃO `patrimonio_total` (migration 140). O gráfico
+    // fica logo abaixo do card "Patrimônio total", que soma SÓ investimentos —
+    // plotar aqui a soma com o saldo das contas faria o número grande dizer uma
+    // coisa e a linha embaixo dele, outra.
+    // Ponto sem `investido` (as ~90 linhas gravadas antes da 140) é DESCARTADO,
+    // não zerado: um zero ali leria como "a carteira zerou naquele dia".
+    const base = patrimonio
+      .filter((p: any) => p.investido != null)
+      .map((p: any) => ({ ...p, valor: Number(p.investido) }));
+    if (periodo === 'all') return base;
     const dias = parseInt(periodo, 10);
     const corte = Date.now() - dias * 24 * 60 * 60 * 1000;
-    return patrimonio.filter((p: any) => new Date(p.data).getTime() >= corte);
+    return base.filter((p: any) => new Date(p.data).getTime() >= corte);
   }, [patrimonio, periodo]);
 
   return (
@@ -509,10 +529,26 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
               <DarkStat label="Proventos"    value={fmt(Math.max(totais.dividendos, proventos))} />
             </div>
           </div>
+          {/* ⚠️ O MESMO DONUT DA ABA CATEGORIAS (`CategoryDonut`), não um
+              gráfico próprio. Aqui havia um `<Pie>` cru: sem destaque de fatia,
+              sem leitura no centro e com um tooltip que chegou a mostrar "0" no
+              lugar do nome. Reaproveitar o componente traz de graça o toque que
+              expande a fatia com as outras escurecendo, o valor e a % no meio,
+              e o respeito a `prefers-reduced-motion` — e, mais importante,
+              qualquer conserto num lugar vale nos dois. */}
           <div className="lg:col-span-2">
-            <div className="w-full aspect-square max-w-[240px] mx-auto">
+            <div className="w-full aspect-square max-w-[260px] mx-auto">
               {distribuicao.length > 0 ? (
-                <GraficoDistribuicao data={distribuicao} strokePie={strokePie} isDark={isDark} />
+                <DonutClasses
+                  data={distribuicao.map((d: any) => ({
+                    name: d.tipo, value: d.valor, color: d.color, emoji: EMOJI_TIPO[d.tipo] || '📊',
+                  }))}
+                  showList={false}
+                  espacado
+                  valorGrande
+                  legendaCentro="investido"
+                  height="100%" innerRadius="72%" outerRadius="95%"
+                />
               ) : (
                 <div className="w-full h-full rounded-full border-[14px] border-border flex items-center justify-center">
                   <span className="text-xs text-muted-foreground">Sem dados</span>
@@ -581,8 +617,20 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
           {patFiltrado.length > 1 ? (
             <GraficoPatrimonio data={patFiltrado} />
           ) : (
-            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-              Histórico será gerado conforme você adicionar investimentos.
+            /* ⚠️ O TEXTO ANTIGO ERA FALSO: dizia "histórico será gerado
+               conforme você adicionar investimentos", como se dependesse de
+               cadastrar mais coisa. Não depende — o histórico é uma FOTO por
+               dia. Quem já tem a carteira cheia continuava lendo que precisava
+               adicionar algo, e nada acontecia. */
+            <div className="h-full flex flex-col items-center justify-center text-center px-6 gap-1.5">
+              <TrendingUp size={22} className="text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-foreground">
+                {patFiltrado.length === 1 ? 'Primeiro ponto registrado' : 'Acompanhando a partir de agora'}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                A Sora fotografa sua carteira uma vez por dia. Em alguns dias esta linha mostra a
+                evolução — não precisa fazer nada.
+              </p>
             </div>
           )}
         </div>
