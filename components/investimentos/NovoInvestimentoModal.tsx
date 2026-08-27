@@ -11,8 +11,20 @@ const TIPOS = [
   { v: 'ETFs',            emoji: '🌐', desc: 'Fundos de índice',             autoTicker: true },
   { v: 'Cripto',          emoji: '₿',  desc: 'Bitcoin, Ethereum, etc.',      autoCripto: true },
   { v: 'Tesouro Direto',  emoji: '💵', desc: 'Selic, IPCA+, Prefixado' },
-  { v: 'CDB',             emoji: '🏦', desc: 'CDB, CDI, LCI, LCA' },
-  { v: 'Renda Fixa',      emoji: '📜', desc: 'Debêntures, CRI, CRA' },
+  // ⚠️ CDB e RDB são coisas diferentes e os bancos digitais usam MUITO o RDB —
+  // toda caixinha do Nubank é um RDB. Enquanto os dois viravam "CDB" a carteira
+  // não tinha como mostrar o que a pessoa de fato tem.
+  { v: 'CDB',             emoji: '🏦', desc: 'Certificado de depósito bancário' },
+  { v: 'RDB',             emoji: '🐷', desc: 'Recibo de depósito (caixinhas)' },
+  { v: 'LCI',             emoji: '🏘️', desc: 'Letra de crédito imobiliário' },
+  { v: 'LCA',             emoji: '🌾', desc: 'Letra de crédito do agronegócio' },
+  { v: 'LC',              emoji: '🧾', desc: 'Letra de câmbio' },
+  { v: 'Debênture',       emoji: '📜', desc: 'Dívida de empresa' },
+  { v: 'CRI',             emoji: '🏗️', desc: 'Recebível imobiliário' },
+  { v: 'CRA',             emoji: '🚜', desc: 'Recebível do agronegócio' },
+  { v: 'COE',             emoji: '🎛️', desc: 'Certificado estruturado' },
+  { v: 'Poupança',        emoji: '🐖', desc: 'Caderneta de poupança' },
+  { v: 'Renda Fixa',      emoji: '📄', desc: 'Outro papel de renda fixa' },
   { v: 'Fundos',          emoji: '🧺', desc: 'Fundos de investimento' },
   { v: 'Previdência',     emoji: '🏖️', desc: 'PGBL, VGBL' },
   { v: 'Reserva',         emoji: '🛡️', desc: 'Liquidez diária', isReserva: true },

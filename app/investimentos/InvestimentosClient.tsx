@@ -11,7 +11,8 @@ import MovimentoModal from '@/components/investimentos/MovimentoModal';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
-  PiggyBank, Landmark, ChevronRight,
+  PiggyBank, Landmark, ChevronRight, ChevronDown, CalendarClock, Percent,
+  Archive, Layers,
 } from 'lucide-react';
 // recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
 // inicial. Skeleton com a mesma altura do container (evita CLS).
@@ -39,6 +40,60 @@ const CORES_TIPO: Record<string, string> = {
   'Caixa':           '#64748b',
 };
 function corTipo(t: string): string { return CORES_TIPO[t] || '#64748b'; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CLASSES DE ATIVO
+
+   O `tipo` é granular demais pra organizar a carteira e granular de menos pra
+   descrever a posição. A CLASSE agrupa por aquilo que muda a LEITURA da linha:
+   renda fixa se lê por indexador e vencimento, renda variável por quantidade e
+   cotação. Misturar as duas numa tabela só foi o que produziu a tela onde um
+   RDB aparecia como "190.000 unidades a R$ 0,01".
+   ═════════════════════════════════════════════════════════════════════════ */
+type Classe = 'fixa' | 'variavel' | 'fundos' | 'caixa';
+const CLASSES: { k: Classe; label: string; desc: string; cor: string; Icone: any }[] = [
+  { k: 'fixa',     label: 'Renda fixa',     desc: 'Rende por prazo e indexador', cor: '#ec4899', Icone: Landmark },
+  { k: 'variavel', label: 'Renda variável', desc: 'Oscila com o mercado',        cor: '#3b82f6', Icone: TrendingUp },
+  { k: 'fundos',   label: 'Fundos',         desc: 'Cotas de fundos',             cor: '#6366f1', Icone: Layers },
+  { k: 'caixa',    label: 'Caixa e reserva', desc: 'Liquidez imediata',          cor: '#10b981', Icone: PiggyBank },
+];
+const CLASSE_DE: Record<string, Classe> = {
+  'Ações': 'variavel', 'FIIs': 'variavel', 'ETFs': 'variavel', 'Cripto': 'variavel',
+  'Tesouro Direto': 'fixa', 'CDB': 'fixa', 'RDB': 'fixa', 'LCI': 'fixa', 'LCA': 'fixa',
+  'LC': 'fixa', 'Debênture': 'fixa', 'CRI': 'fixa', 'CRA': 'fixa', 'Renda Fixa': 'fixa',
+  'Poupança': 'caixa', 'Fundos': 'fundos', 'Previdência': 'fundos',
+  'Reserva': 'caixa', 'Caixa': 'caixa',
+  'Imóveis': 'variavel', 'Negócio': 'variavel',
+};
+const classeDe = (tipo: string): Classe => CLASSE_DE[tipo] || 'fixa';
+const infoClasse = (k: Classe) => CLASSES.find(c => c.k === k)!;
+
+/** "100% do CDI", "IPCA + 5,5%" — o que de fato descreve um papel de renda fixa. */
+function textoIndexador(i: any): string | null {
+  const idx = i.indexador;
+  const pct = i.percentual_indexador;
+  const taxa = i.taxa_anual;
+  if (idx && pct) return `${Number(pct).toLocaleString('pt-BR')}% do ${idx}`;
+  if (idx && taxa) return `${idx} + ${Number(taxa).toLocaleString('pt-BR')}%`;
+  if (idx) return String(idx);
+  if (taxa) return `${Number(taxa).toLocaleString('pt-BR')}% a.a.`;
+  return null;
+}
+
+/** Vencimento com a distância em linguagem de gente. */
+function textoVencimento(iso?: string | null): { txt: string; perto: boolean } | null {
+  if (!iso) return null;
+  const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+  if (isNaN(d.getTime())) return null;
+  const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+  const dias = Math.round((d.getTime() - hoje.getTime()) / 86400000);
+  const data = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+  if (dias < 0)   return { txt: `venceu em ${data}`, perto: true };
+  if (dias === 0) return { txt: 'vence hoje', perto: true };
+  if (dias <= 30) return { txt: `vence em ${dias} dia${dias > 1 ? 's' : ''}`, perto: true };
+  if (dias <= 365) return { txt: `vence em ${data}`, perto: false };
+  return { txt: `vence em ${data} · ${Math.floor(dias / 365)} ano${dias >= 730 ? 's' : ''}`, perto: false };
+}
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
@@ -108,13 +163,23 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
     const lucro       = atual - aportado;
     const rent        = aportado > 0 ? (lucro / aportado) * 100 : 0;
 
-    // Maior ganho/perda
+    // Maior ganho/perda.
+    //
+    // ⚠️ SÓ ENTRA POSIÇÃO VIVA. O Open Finance devolve o produto inteiro, com
+    // as aplicações já resgatadas valendo R$ 0,00 — nesta conta, 18 de 22. Como
+    // todas têm rentabilidade 0, o "maior ganho" e a "maior perda" apontavam
+    // sempre pra uma delas, e a tela exibia "Maior perda: RDB +0,00%", que não
+    // é perda nenhuma. Sem posição viva, os cards ficam vazios em vez de
+    // inventar um vencedor.
+    const comPosicao = invs.filter(i => (i.valor_atual || 0) > 0.005 && (i.valor_aportado || 0) > 0);
     let maiorG: any = null, maiorP: any = null;
-    invs.forEach(i => {
-      const r = (i.rentabilidade || 0) * 100;
-      if (!maiorG || r > (maiorG.rentabilidade || 0) * 100) maiorG = i;
-      if (!maiorP || r < (maiorP.rentabilidade || 0) * 100) maiorP = i;
+    comPosicao.forEach(i => {
+      const r = i.rentabilidade || 0;
+      if (!maiorG || r > (maiorG.rentabilidade || 0)) maiorG = i;
+      if (!maiorP || r < (maiorP.rentabilidade || 0)) maiorP = i;
     });
+    // Um ativo só não é "o maior ganho E a maior perda" ao mesmo tempo.
+    if (comPosicao.length < 2) maiorP = null;
 
     // Variação ponderada do dia (peso pelo valor_atual)
     const varDia = atual > 0
@@ -430,8 +495,12 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
       {/* 4 cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat label="Rentabilidade total" value={fmtPct(totais.rent)} color={totais.rent >= 0 ? '#22c55e' : '#ef4444'} />
-        <Stat label="Maior ganho"    value={totais.maiorG?.nome || '—'} sub={fmtPct((totais.maiorG?.rentabilidade || 0) * 100)} subColor="#22c55e" />
-        <Stat label="Maior perda"    value={totais.maiorP?.nome || '—'} sub={fmtPct((totais.maiorP?.rentabilidade || 0) * 100)} subColor="#ef4444" />
+        {/* Sem posição viva o card mostra "—" e nenhum subtítulo, em vez de
+            "+0,00%" numa aplicação resgatada. */}
+        <Stat label="Maior ganho" value={totais.maiorG?.nome || '—'}
+              sub={totais.maiorG ? fmtPct((totais.maiorG.rentabilidade || 0) * 100) : undefined} subColor="#22c55e" />
+        <Stat label="Maior perda" value={totais.maiorP?.nome || '—'}
+              sub={totais.maiorP ? fmtPct((totais.maiorP.rentabilidade || 0) * 100) : undefined} subColor="#ef4444" />
         <Stat label="Dividendos do mês" value={fmt(totais.dividendos)} />
       </div>
 
@@ -472,134 +541,331 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
 // TAB CARTEIRA
 // ─────────────────────────────────────────────────────────────
 function TabCarteira({ invs, onDelete, onAdd }: any) {
-  const [busca,  setBusca]  = useState('');
-  const [tipo,   setTipo]   = useState('todos');
-  const [ordem,  setOrdem]  = useState<'valor' | 'rent' | 'div'>('valor');
+  const [busca, setBusca] = useState('');
+  const [classe, setClasse] = useState<'todas' | Classe>('todas');
+  const [ordem, setOrdem] = useState<'valor' | 'rent' | 'venc'>('valor');
+  const [verResgatados, setVerResgatados] = useState(false);
+  const [aberto, setAberto] = useState<Record<string, boolean>>({});
 
-  const tipos = Array.from(new Set(invs.map((i: any) => i.tipo)));
+  /* ⚠️ POSIÇÃO ZERADA É PAPEL RESGATADO, e some por padrão.
+     O Open Finance devolve o histórico inteiro do produto, não só o que está
+     vivo: nesta conta chegaram 22 RDBs e 18 deles valem R$ 0,00 — dinheiro que
+     já saiu. Listados junto, enterravam as 4 posições reais e faziam a carteira
+     parecer quebrada. Continuam alcançáveis num clique, com a contagem à
+     mostra, porque escondê-los sem dizer seria pior. */
+  const { vivos, resgatados } = useMemo(() => {
+    const v: any[] = [], r: any[] = [];
+    for (const i of invs) ((i.valor_atual || 0) > 0.005 ? v : r).push(i);
+    return { vivos: v, resgatados: r };
+  }, [invs]);
 
-  const filtrados = useMemo(() => {
-    let lista = [...invs];
-    const q = busca.toLowerCase();
-    if (q) lista = lista.filter(i => (i.nome || '').toLowerCase().includes(q) || (i.ticker || '').toLowerCase().includes(q));
-    if (tipo !== 'todos') lista = lista.filter(i => i.tipo === tipo);
+  const base = verResgatados ? invs : vivos;
+
+  /* ⚠️ POSIÇÕES IDÊNTICAS VIRAM UMA LINHA SÓ.
+     Cada aporte numa caixinha do Nubank cria um RDB próprio, com vencimento
+     dois anos à frente — por isso 22 papéis com o mesmo nome, o mesmo 100% do
+     CDI e datas espalhadas. Mostrar 22 linhas iguais não informa nada; o que
+     a pessoa quer saber é "tenho R$ 2.642,80 em RDB a 100% do CDI". A lista
+     das aplicações continua ali, a um clique. */
+  const grupos = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const filtrados = base.filter((i: any) => {
+      const okBusca = !q || (i.nome || '').toLowerCase().includes(q) || (i.ticker || '').toLowerCase().includes(q);
+      const okClasse = classe === 'todas' || classeDe(i.tipo) === classe;
+      return okBusca && okClasse;
+    });
+
+    const mapa = new Map<string, any>();
+    for (const i of filtrados) {
+      // Renda variável NUNCA agrupa: ali cada posição tem preço médio e
+      // quantidade próprios, e fundir duas linhas apagaria os dois.
+      const cl = classeDe(i.tipo);
+      const chave = cl === 'variavel'
+        ? `u:${i.id}`
+        : `${i.tipo}|${i.nome}|${i.indexador || ''}|${i.percentual_indexador || ''}|${i.taxa_anual || ''}`;
+      const g = mapa.get(chave) || {
+        chave, classe: cl, tipo: i.tipo, nome: i.nome, ticker: i.ticker,
+        indexador: i.indexador, percentual_indexador: i.percentual_indexador,
+        taxa_anual: i.taxa_anual, itens: [] as any[],
+        valor: 0, aportado: 0, quantidade: 0, dividendos: 0,
+      };
+      g.itens.push(i);
+      g.valor += i.valor_atual || 0;
+      g.aportado += i.valor_aportado || 0;
+      g.quantidade += i.quantidade || 0;
+      g.dividendos += i.dividendos_acumulados || 0;
+      mapa.set(chave, g);
+    }
+
+    const lista = Array.from(mapa.values()).map(g => ({
+      ...g,
+      // ⚠️ Rentabilidade do GRUPO é recalculada do total, não é média das
+      // partes: média simples daria o mesmo peso a um papel de R$ 1.900 e a um
+      // de R$ 34, e o número não bateria com o lucro exibido.
+      rent: g.aportado > 0 ? (g.valor - g.aportado) / g.aportado : 0,
+      vencimentos: g.itens.map((x: any) => x.data_vencimento).filter(Boolean).sort(),
+      variacaoDia: g.itens[0]?.variacao_dia || 0,
+    }));
+
     lista.sort((a, b) => {
-      if (ordem === 'valor') return (b.valor_atual || 0) - (a.valor_atual || 0);
-      if (ordem === 'rent')  return (b.rentabilidade || 0) - (a.rentabilidade || 0);
-      return (b.dividendos_acumulados || 0) - (a.dividendos_acumulados || 0);
+      if (ordem === 'rent') return b.rent - a.rent;
+      if (ordem === 'venc') return String(a.vencimentos[0] || '9999').localeCompare(String(b.vencimentos[0] || '9999'));
+      return b.valor - a.valor;
     });
     return lista;
-  }, [invs, busca, tipo, ordem]);
+  }, [base, busca, classe, ordem]);
+
+  const total = grupos.reduce((s, g) => s + g.valor, 0);
+
+  // Só oferece classe que a pessoa realmente tem — filtro com opção vazia
+  // devolve "nenhum resultado" e parece defeito.
+  const classesEmUso = useMemo(() => {
+    const usadas = new Set(base.map((i: any) => classeDe(i.tipo)));
+    return CLASSES.filter(c => usadas.has(c.k));
+  }, [base]);
+
+  const porClasse = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    for (const g of grupos) (m[g.classe] = m[g.classe] || []).push(g);
+    return m;
+  }, [grupos]);
 
   return (
     <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
+      {/* ── Controles ────────────────────────────────────────────────── */}
       <div className="card rounded-2xl p-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input value={busca} onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar por nome ou ticker..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 focus:bg-card text-sm outline-none" />
+            placeholder="Buscar por nome ou ticker…"
+            aria-label="Buscar investimento"
+            className="w-full pl-9 pr-3 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 focus:bg-card text-sm outline-none"
+            style={{ minHeight: 44 }} />
         </div>
-        <select value={tipo} onChange={e => setTipo(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 text-sm font-medium outline-none cursor-pointer">
-          <option value="todos">Todos os tipos</option>
-          {tipos.map((t: any) => <option key={String(t)} value={String(t)}>{String(t)}</option>)}
-        </select>
+        {classesEmUso.length > 1 && (
+          <select value={classe} onChange={e => setClasse(e.target.value as any)}
+            aria-label="Filtrar por classe de ativo"
+            className="px-3 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 text-sm font-medium outline-none cursor-pointer"
+            style={{ minHeight: 44 }}>
+            <option value="todas">Todas as classes</option>
+            {classesEmUso.map(c => <option key={c.k} value={c.k}>{c.label}</option>)}
+          </select>
+        )}
         <select value={ordem} onChange={e => setOrdem(e.target.value as any)}
-          className="px-3 py-2 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 text-sm font-medium outline-none cursor-pointer">
+          aria-label="Ordenar carteira"
+          className="px-3 rounded-xl bg-muted/40 border border-transparent focus:border-primary/40 text-sm font-medium outline-none cursor-pointer"
+          style={{ minHeight: 44 }}>
           <option value="valor">Maior valor</option>
           <option value="rent">Maior rentabilidade</option>
-          <option value="div">Maior dividendo</option>
+          <option value="venc">Vence primeiro</option>
         </select>
       </div>
 
-      {filtrados.length === 0 ? (
+      {/* ── Resgatados: contagem sempre visível ──────────────────────── */}
+      {resgatados.length > 0 && (
+        <button onClick={() => setVerResgatados(v => !v)}
+          aria-pressed={verResgatados}
+          className="w-full flex items-center gap-2.5 px-4 rounded-xl bg-muted/30 hover:bg-muted/50 border border-border/60 text-left transition-colors"
+          style={{ minHeight: 44 }}>
+          <Archive size={14} className="text-muted-foreground flex-shrink-0" />
+          <span className="text-xs text-muted-foreground flex-1">
+            <strong className="text-foreground tabular">{resgatados.length}</strong>{' '}
+            {resgatados.length === 1 ? 'aplicação já resgatada' : 'aplicações já resgatadas'} (R$ 0,00)
+          </span>
+          <span className="text-xs font-semibold text-primary">{verResgatados ? 'ocultar' : 'mostrar'}</span>
+        </button>
+      )}
+
+      {grupos.length === 0 ? (
         <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-glow-sm"
                style={{ background: `color-mix(in srgb, ${BRAND} 13%, transparent)` }}>
             <Briefcase size={26} style={{ color: BRAND }} />
           </div>
-          <p className="text-base font-bold text-foreground">Nenhum investimento</p>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-md">Adicione seu primeiro ativo para acompanhar valores em tempo real.</p>
-          <button onClick={onAdd} className="btn btn-primary px-4 py-2 text-sm gap-2 mt-5 shadow-glow-sm">
-            <Plus size={14} /> Adicionar primeiro investimento
-          </button>
+          <p className="text-base font-bold text-foreground">
+            {busca || classe !== 'todas' ? 'Nada com esse filtro' : 'Nenhum investimento'}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
+            {busca || classe !== 'todas'
+              ? 'Tente outro termo ou outra classe.'
+              : 'Adicione seu primeiro ativo ou conecte o banco pelo Open Finance.'}
+          </p>
+          {!busca && classe === 'todas' && (
+            <button onClick={onAdd} className="btn btn-primary px-4 py-2 text-sm gap-2 mt-5 shadow-glow-sm">
+              <Plus size={14} /> Adicionar primeiro investimento
+            </button>
+          )}
         </div>
       ) : (
-        <div className="card rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-muted/20">
-                <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <th className="text-left px-4 py-3 font-bold">Ativo</th>
-                  <th className="text-left px-2 py-3 font-bold">Tipo</th>
-                  <th className="text-right px-2 py-3 font-bold">Qtd</th>
-                  <th className="text-right px-2 py-3 font-bold">Preço méd.</th>
-                  <th className="text-right px-2 py-3 font-bold">Atual</th>
-                  <th className="text-right px-2 py-3 font-bold">Valor</th>
-                  <th className="text-right px-2 py-3 font-bold">Rent.</th>
-                  <th className="text-right px-2 py-3 font-bold">Div.</th>
-                  <th className="px-2 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filtrados.map((i: any, idx: number) => {
-                  const rent  = (i.rentabilidade || 0) * 100;
-                  const vDia  = i.variacao_dia || 0;
-                  return (
-                    <tr key={i.id} className="hover:bg-muted/30 transition-colors animate-fade-in" style={{ animationDelay: `${idx * 20}ms` }}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-[11px] flex-shrink-0"
-                               style={{ background: corTipo(i.tipo) }}>
-                            {(i.ticker || i.nome || '?').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-foreground truncate max-w-[180px]">{i.nome}</p>
-                            {i.ticker && <p className="text-[10px] text-muted-foreground tabular">{i.ticker}</p>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-2 py-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                              style={{ background: `${corTipo(i.tipo)}22`, color: corTipo(i.tipo) }}>
-                          {i.tipo}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-right tabular text-foreground">{(i.quantidade || 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 })}</td>
-                      <td className="px-2 py-3 text-right tabular text-muted-foreground">{fmt(i.preco_unitario || 0)}</td>
-                      <td className="px-2 py-3 text-right">
-                        <div className="tabular text-foreground">{i.quantidade ? fmt((i.valor_atual || 0) / i.quantidade) : '—'}</div>
-                        <div className={`text-[10px] font-semibold tabular ${vDia >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {fmtPct(vDia)}
-                        </div>
-                      </td>
-                      <td className="px-2 py-3 text-right tabular font-bold text-foreground">{fmt(i.valor_atual || 0)}</td>
-                      <td className="px-2 py-3 text-right">
-                        <span className={`tabular font-bold ${rent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {fmtPct(rent)}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-right tabular text-muted-foreground">{fmt(i.dividendos_acumulados || 0)}</td>
-                      <td className="px-2 py-3 text-right">
-                        <button onClick={() => onDelete(i.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors" title="Excluir">
-                          <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        /* ── Uma seção por CLASSE ──────────────────────────────────── */
+        CLASSES.filter(c => porClasse[c.k]?.length).map((c, ci) => {
+          const doGrupo = porClasse[c.k];
+          const somaClasse = doGrupo.reduce((s: number, g: any) => s + g.valor, 0);
+          const pct = total > 0 ? (somaClasse / total) * 100 : 0;
+          return (
+            <section key={c.k} className="animate-[slide-up_450ms_ease-out_both]" style={{ animationDelay: `${ci * 60}ms` }}>
+              <div className="flex items-center justify-between gap-3 mb-2 px-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: `color-mix(in srgb, ${c.cor} 15%, transparent)` }}>
+                    <c.Icone size={14} style={{ color: c.cor }} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-foreground leading-tight">{c.label}</h3>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{c.desc}</p>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold tabular text-foreground">{fmt(somaClasse)}</p>
+                  <p className="text-[10px] text-muted-foreground tabular">{pct.toFixed(0)}% da carteira</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {doGrupo.map((g: any) => (
+                  <CardPosicao key={g.chave} g={g} cor={c.cor}
+                               expandido={!!aberto[g.chave]}
+                               onExpandir={() => setAberto(a => ({ ...a, [g.chave]: !a[g.chave] }))}
+                               onDelete={onDelete} />
+                ))}
+              </div>
+            </section>
+          );
+        })
       )}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// TAB RESERVA DE EMERGÊNCIA
+/* ── Card de uma posição (ou de um grupo de aplicações iguais) ───────── */
+function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
+  const varios = g.itens.length > 1;
+  const idx = textoIndexador(g);
+  const rentPct = g.rent * 100;
+  const lucro = g.valor - g.aportado;
+  const vencPrimeiro = textoVencimento(g.vencimentos[0]);
+  const vencUltimo = textoVencimento(g.vencimentos[g.vencimentos.length - 1]);
+  const zerado = g.valor <= 0.005;
+
+  return (
+    <div className="card rounded-2xl overflow-hidden" style={{ opacity: zerado ? 0.6 : 1 }}>
+      <div className="flex items-center gap-3 p-3.5">
+        <span className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-[11px] flex-shrink-0"
+              style={{ background: cor }} aria-hidden>
+          {(g.ticker || g.nome || '?').charAt(0).toUpperCase()}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-semibold text-foreground truncate">{g.ticker || g.nome}</p>
+            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                  style={{ background: `color-mix(in srgb, ${cor} 15%, transparent)`, color: cor }}>
+              {g.tipo}
+            </span>
+            {varios && (
+              <span className="text-[10px] text-muted-foreground tabular">
+                · {g.itens.length} aplicações
+              </span>
+            )}
+          </div>
+
+          {/* ⚠️ A SUBLINHA MUDA COM A CLASSE. Renda fixa não tem "quantidade de
+              cotas" que signifique algo — o sync deriva qtd = valor / R$ 0,01 e
+              a tela antiga exibia "190.000 unidades a R$ 0,01", que não é
+              informação. O que descreve o papel é indexador e vencimento. */}
+          <div className="flex items-center gap-x-2.5 gap-y-0.5 flex-wrap mt-0.5">
+            {g.classe === 'variavel' ? (
+              <>
+                <span className="text-[11px] text-muted-foreground tabular">
+                  {(g.quantidade || 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} un.
+                </span>
+                {g.aportado > 0 && g.quantidade > 0 && (
+                  <span className="text-[11px] text-muted-foreground tabular">
+                    PM {fmt(g.aportado / g.quantidade)}
+                  </span>
+                )}
+                {!!g.variacaoDia && (
+                  <span className={`text-[11px] font-semibold tabular ${g.variacaoDia >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                    {fmtPct(g.variacaoDia)} hoje
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                {idx && (
+                  <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
+                    <Percent size={9} /> {idx}
+                  </span>
+                )}
+                {vencPrimeiro && (
+                  <span className={`text-[11px] inline-flex items-center gap-1 ${vencPrimeiro.perto ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground'}`}>
+                    <CalendarClock size={9} />
+                    {/* Com várias aplicações, uma data só mentiria — mostra a
+                        janela inteira. */}
+                    {varios && g.vencimentos.length > 1 && vencUltimo && vencPrimeiro.txt !== vencUltimo.txt
+                      ? `vence entre ${String(g.vencimentos[0]).slice(0, 7).split('-').reverse().join('/')} e ${String(g.vencimentos[g.vencimentos.length - 1]).slice(0, 7).split('-').reverse().join('/')}`
+                      : vencPrimeiro.txt}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="text-right flex-shrink-0">
+          <p className="font-bold tabular text-foreground">{fmt(g.valor)}</p>
+          {g.aportado > 0 && !zerado && (
+            <p className={`text-[11px] font-semibold tabular ${lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+              {fmtPct(rentPct)} · {lucro >= 0 ? '+' : ''}{fmt(lucro)}
+            </p>
+          )}
+        </div>
+
+        {varios ? (
+          <button onClick={onExpandir} aria-expanded={expandido}
+                  aria-label={`${expandido ? 'Ocultar' : 'Ver'} as ${g.itens.length} aplicações de ${g.nome}`}
+                  className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-muted flex-shrink-0 transition-colors">
+            <ChevronDown size={15} className={`text-muted-foreground transition-transform ${expandido ? 'rotate-180' : ''}`} />
+          </button>
+        ) : (
+          <button onClick={() => onDelete(g.itens[0].id)} aria-label={`Excluir ${g.nome}`}
+                  className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-500/10 flex-shrink-0 transition-colors">
+            <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
+          </button>
+        )}
+      </div>
+
+      {/* Aplicações individuais do grupo */}
+      {varios && expandido && (
+        <ul className="border-t border-border/60 divide-y divide-border/40 bg-muted/20">
+          {[...g.itens].sort((a: any, b: any) => (b.valor_atual || 0) - (a.valor_atual || 0)).map((i: any) => {
+            const v = textoVencimento(i.data_vencimento);
+            const iZerado = (i.valor_atual || 0) <= 0.005;
+            return (
+              <li key={i.id} className="flex items-center gap-3 pl-14 pr-2 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs ${iZerado ? 'text-muted-foreground' : 'text-foreground'}`}>
+                    {v ? v.txt : 'sem vencimento informado'}
+                    {iZerado && <span className="ml-1.5 text-[10px] uppercase tracking-wider font-bold text-muted-foreground">resgatado</span>}
+                  </p>
+                  {textoIndexador(i) && textoIndexador(i) !== textoIndexador(g) && (
+                    <p className="text-[10px] text-muted-foreground">{textoIndexador(i)}</p>
+                  )}
+                </div>
+                <span className="text-xs tabular font-semibold text-foreground flex-shrink-0">{fmt(i.valor_atual || 0)}</span>
+                <button onClick={() => onDelete(i.id)} aria-label="Excluir aplicação"
+                        className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-500/10 flex-shrink-0 transition-colors">
+                  <Trash2 size={12} className="text-muted-foreground hover:text-red-500" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────
 // CAIXINHAS / COFRINHOS (Open Finance)
