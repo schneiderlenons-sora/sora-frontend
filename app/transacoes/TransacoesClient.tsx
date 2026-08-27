@@ -944,13 +944,31 @@ function TransactionRow({
         )}
       </div>
 
-      {/* Categoria */}
-      <div className="flex items-center">
+      {/* Categoria
+          ⚠️ O CHIP QUEBRA EM DUAS LINHAS — não é `whitespace-nowrap`.
+          A coluna tem 130px fixos e nome longo não cabe: "Transferência
+          recebida" pede ~177px e, como item de grid nasce com
+          `min-width:auto`, ele não encolhia — o texto pintava POR CIMA da
+          coluna Conta (o banco ficava ilegível atrás da categoria).
+          Não são casos isolados: "Manutenção do veículo", "Marketing e
+          Publicidade", "Empréstimo recebido" e "Restituição de IR" estouram
+          igual. Por isso a correção é da coluna, não de um nome.
+          Deixei quebrar em vez de truncar com "…": a categoria é o que
+          identifica a linha, e reticências no mobile não têm hover pra
+          revelar o resto. `break-words` é a rede pra um nome de palavra única
+          gigante. `min-w-0` é o que autoriza o item do grid a encolher até a
+          trilha. */}
+      {/* `items-center` no WRAPPER (as células do grid são `stretch`, cada uma
+          centra o próprio conteúdo) e `items-start` DENTRO do chip, pro ponto
+          casar com a primeira linha. */}
+      <div className="flex items-center min-w-0">
         <span
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap"
+          className="inline-flex items-start gap-1.5 px-2.5 py-1 rounded-2xl text-xs font-medium leading-tight text-left max-w-full break-words"
           style={{ background: theme.bg, color: theme.color }}
         >
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: theme.color }} />
+          {/* mt-1 alinha o ponto com a PRIMEIRA linha; com `items-center` ele
+              ficaria no meio vertical do chip de duas linhas, entre as duas. */}
+          <span className="w-1.5 h-1.5 mt-1 rounded-full flex-shrink-0" style={{ background: theme.color }} />
           {nome}
         </span>
       </div>
