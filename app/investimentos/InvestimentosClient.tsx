@@ -129,12 +129,41 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
   const ativo = phone && temAcesso;
   const { data: invsData,    mutate: mInvs } = useApi(ativo ? `inv:lista:${phone}` : null,      () => api.investimentos.listar(phone), { fallbackData: initialData?.invs });
   const { data: aportesData, mutate: mAp }   = useApi(ativo ? `inv:aportes:${phone}` : null,    () => api.investimentos.aportes.listar(phone), { fallbackData: initialData?.aportes });
+  // Movimentações que o BANCO reporta (migration 139): aportes, resgates,
+  // dividendos, JCP, come-cotas. Convivem com os aportes lançados à mão.
+  const { data: movData } = useApi(ativo ? `inv:movimentos:${phone}` : null, () => api.investimentos.movimentos(phone));
   const { data: patData,     mutate: mPat }  = useApi(ativo ? `inv:patrimonio:${phone}` : null, () => api.investimentos.patrimonio(phone), { fallbackData: initialData?.patrimonio });
   const { data: resData,     mutate: mRes }  = useApi(ativo ? `inv:reserva:${phone}` : null,    () => api.investimentos.reserva(phone), { fallbackData: initialData?.reserva });
   const { data: caixData,    mutate: mCaix } = useApi(ativo ? `inv:caixinhas:${phone}` : null,  () => api.investimentos.caixinhas(phone), { fallbackData: initialData?.caixinhas });
 
   const invs: any[]       = (invsData as any) ?? [];
-  const aportes: any[]    = (aportesData as any) ?? [];
+  const aportesManuais: any[] = (aportesData as any) ?? [];
+
+  /* Aportes lançados à mão + movimentações do banco, numa lista só.
+     ⚠️ `neutro` FICA DE FORA: transferência de custódia é o papel mudando de
+     corretora, dinheiro nenhum se move — listá-la como movimentação faria a
+     pessoa procurar um depósito que nunca existiu. */
+  const movimentos: any[] = useMemo(() => {
+    const doBanco = ((movData as any)?.movimentos ?? [])
+      .filter((m: any) => m.classe !== 'neutro')
+      .map((m: any) => ({
+        id: `of-${m.id}`, data: m.data, valor: Number(m.valor) || 0,
+        investimento_id: m.investimento_id,
+        // A classe do banco vira o `tipo` que a tela já entende, e as duas
+        // classes novas (provento/imposto) passam adiante como estão.
+        tipo: m.classe === 'aporte' ? 'aporte' : m.classe,
+        operacao: m.operacao, origem: 'of',
+        nomeInv: m.investimentos?.ticker || m.investimentos?.nome || null,
+        ir: Number(m.ir) || 0,
+      }));
+    const manuais = aportesManuais.map((a: any) => ({ ...a, origem: 'manual' }));
+    return [...doBanco, ...manuais]
+      .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+  }, [movData, aportesManuais]);
+
+  // Proventos recebidos (dividendos, JCP, aluguéis, juros) — o card
+  // "Dividendos" mostrava R$ 0,00 porque essa fonte nunca era lida.
+  const totalProventos = (movData as any)?.totais?.provento || 0;
   const patrimonio: any[] = (patData as any) ?? [];
   const reserva: any      = (resData as any) ?? { valorAtual: 0, gastoMedioMensal: 0, mesesObjetivo: 6, valorObjetivo: 0, percentual: 0, mesesCobertos: 0 };
   // Caixinhas do Open Finance. Esse dinheiro NÃO está no saldo da conta (a
@@ -280,7 +309,7 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
         {/* TAB: RESUMO */}
         {tab === 'resumo' && (
           <TabResumo totais={totais} distribuicao={distribuicao} patrimonio={patrimonio}
-                     totalCaixinhas={totalCaixinhas} qtdCaixinhas={caixinhas.length}
+                     totalCaixinhas={totalCaixinhas} qtdCaixinhas={caixinhas.length} proventos={totalProventos}
                      onVerCaixinhas={() => setTab('caixinhas')} />
         )}
 
@@ -311,7 +340,7 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
         {/* TAB: APORTES */}
         {tab === 'aportes' && (
-          <TabAportes aportes={aportes} invs={invs}
+          <TabAportes aportes={movimentos} invs={invs}
             onAportar={() => setMovimento({ tipo: 'aporte' })}
             onResgatar={() => setMovimento({ tipo: 'resgate' })} />
         )}
@@ -414,7 +443,7 @@ function PaywallPremium() {
 // ─────────────────────────────────────────────────────────────
 // TAB RESUMO
 // ─────────────────────────────────────────────────────────────
-function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, onVerCaixinhas }: any) {
+function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, proventos = 0, onVerCaixinhas }: any) {
   const [periodo, setPeriodo] = useState<'7' | '30' | '90' | '365' | 'all'>('30');
   // Tema escuro = 'black' (classe .dark). No claro o hero fica branco como os
   // demais cards; no escuro mantém o visual atual.
@@ -477,7 +506,7 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
             <div className="grid grid-cols-3 gap-3 mt-6">
               <DarkStat label="Aportado"     value={fmt(totais.aportado)} />
               <DarkStat label="Lucro/Prej."   value={fmt(totais.lucro)} color={totais.lucro >= 0 ? '#22c55e' : '#ef4444'} />
-              <DarkStat label="Dividendos"   value={fmt(totais.dividendos)} />
+              <DarkStat label="Proventos"    value={fmt(Math.max(totais.dividendos, proventos))} />
             </div>
           </div>
           <div className="lg:col-span-2">
@@ -525,7 +554,8 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
                   subColor={negativo ? '#ef4444' : '#22c55e'} />
           );
         })()}
-        <Stat label="Dividendos do mês" value={fmt(totais.dividendos)} />
+        <Stat label="Proventos recebidos" value={fmt(Math.max(totais.dividendos, proventos))}
+              sub={proventos > 0 ? "dividendos, JCP e juros do banco" : undefined} subColor="#22c55e" />
       </div>
 
       {/* Evolução */}
@@ -1257,6 +1287,21 @@ function TabSimulador() {
 // ─────────────────────────────────────────────────────────────
 // TAB APORTES
 // ─────────────────────────────────────────────────────────────
+/**
+ * Como cada movimentação se apresenta.
+ *
+ * ⚠️ PROVENTO NÃO LEVA SINAL DE MENOS. Dividendo, JCP e aluguel são dinheiro
+ * ENTRANDO no bolso — a posição não diminui. Já resgate e come-cotas tiram, e
+ * por isso vêm com "−". Confundir os dois faria a pessoa ler um dividendo
+ * recebido como perda.
+ */
+function estiloMovimento(tipo?: string) {
+  if (tipo === 'resgate')  return { Icone: ArrowDownRight, cor: '#f97316', rotulo: 'Resgate',  sinal: '−' };
+  if (tipo === 'provento') return { Icone: Coins,          cor: '#22c55e', rotulo: 'Provento', sinal: '+' };
+  if (tipo === 'imposto')  return { Icone: Landmark,       cor: '#ef4444', rotulo: 'Imposto',  sinal: '−' };
+  return { Icone: ArrowUpRight, cor: 'hsl(var(--fg))', rotulo: 'Aporte', sinal: '' };
+}
+
 function TabAportes({ aportes, invs, onAportar, onResgatar }: {
   aportes: any[]; invs: any[];
   onAportar: () => void; onResgatar: () => void;
@@ -1265,22 +1310,33 @@ function TabAportes({ aportes, invs, onAportar, onResgatar }: {
   const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   const anoAtual = String(hoje.getFullYear());
 
-  // ⚠️ Resgate é SAÍDA: não pode entrar na soma de "quanto eu aportei".
+  // ⚠️ SÓ APORTE ENTRA NA SOMA DE "QUANTO EU APORTEI".
+  // Resgate é saída; provento (dividendo, JCP, aluguel, juros) é dinheiro que
+  // SAIU do ativo pro bolso; come-cotas é imposto. Nenhum dos três é aporte —
+  // somá-los aqui infla o "aportado no ano" e, pior, faria cada dividendo
+  // recebido parecer dinheiro novo colocado.
   // Antes da migration 122 nada tinha `tipo`, e aí tudo conta como aporte —
   // que é exatamente o que era antes, então não há regressão.
-  const soAportes = aportes.filter((a) => a.tipo !== 'resgate');
+  const soAportes = aportes.filter((a) => !a.tipo || a.tipo === 'aporte');
   const totalMes = soAportes.filter(a => a.data?.startsWith(mesAtual)).reduce((s, a) => s + (a.valor || 0), 0);
   const totalAno = soAportes.filter(a => a.data?.startsWith(anoAtual)).reduce((s, a) => s + (a.valor || 0), 0);
   const meses = new Set(soAportes.filter(a => a.data?.startsWith(anoAtual)).map(a => a.data.slice(0, 7)));
   const aporteMedio = meses.size > 0 ? totalAno / meses.size : 0;
+  const proventosAno = aportes
+    .filter(a => a.tipo === 'provento' && a.data?.startsWith(anoAtual))
+    .reduce((s, a) => s + (a.valor || 0), 0);
   const temInvs = invs.length > 0;
 
   return (
     <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Aportado no mês" value={fmt(totalMes)} />
         <Stat label="Aportado no ano" value={fmt(totalAno)} />
         <Stat label="Média mensal"    value={fmt(aporteMedio)} />
+        {/* Proventos ficam num card SEPARADO, nunca somados ao aporte: é
+            dinheiro que o ativo te pagou, não dinheiro que você colocou. */}
+        <Stat label="Proventos no ano" value={fmt(proventosAno)} subColor="#22c55e"
+              sub={proventosAno > 0 ? 'dividendos, JCP e juros' : undefined} />
       </div>
 
       {/* Aporte e resgate — as duas ações que o usuário não achava no painel. */}
@@ -1329,26 +1385,41 @@ function TabAportes({ aportes, invs, onAportar, onResgatar }: {
             <tbody className="divide-y divide-border/60">
               {aportes.map((a, i) => {
                 const inv = invs.find(x => x.id === a.investimento_id);
-                // Ícone + sinal, nunca só cor — resgate precisa ser legível em
-                // preto e branco e por quem não distingue verde de laranja.
-                const ehResgate = a.tipo === 'resgate';
+                const m = estiloMovimento(a.tipo);
                 return (
                   <tr key={a.id || i} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 text-muted-foreground tabular">{new Date(a.data).toLocaleDateString('pt-BR')}</td>
                     <td className="px-4 py-3 font-semibold text-foreground">
+                      {/* Ícone + rótulo, nunca só cor — a linha precisa ser
+                          legível em preto e branco e por quem não distingue
+                          verde de laranja. */}
                       <span className="inline-flex items-center gap-1.5">
-                        {ehResgate
-                          ? <ArrowDownRight size={13} className="text-orange-500 shrink-0" aria-hidden="true" />
-                          : <ArrowUpRight size={13} className="text-green-500 shrink-0" aria-hidden="true" />}
-                        {a.investimentos?.nome || inv?.nome || '—'}
+                        <m.Icone size={13} className="shrink-0" style={{ color: m.cor }} aria-hidden="true" />
+                        {a.nomeInv || a.investimentos?.nome || inv?.nome || '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {ehResgate && <span className="font-semibold text-orange-500">Resgate · </span>}
-                      {a.descricao || '—'}
+                      <span className="font-semibold" style={{ color: m.cor }}>{m.rotulo}</span>
+                      {/* O que o BANCO chamou a movimentação — "DIVIDENDOS",
+                          "COME_COTAS". Explica a linha melhor que qualquer
+                          rótulo nosso, e some quando é lançamento à mão. */}
+                      {a.operacao && a.operacao !== 'OUTROS' && (
+                        <span className="text-[10px] uppercase tracking-wider ml-1.5 opacity-70">
+                          {String(a.operacao).replace(/_/g, ' ').toLowerCase()}
+                        </span>
+                      )}
+                      {a.descricao && <> · {a.descricao}</>}
+                      {/* De onde veio: sem isto, aporte do banco e aporte
+                          digitado ficam indistinguíveis, e a pessoa não sabe
+                          qual pode corrigir. */}
+                      {a.origem === 'of' && (
+                        <span className="text-[9px] uppercase tracking-wider ml-1.5 px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          banco
+                        </span>
+                      )}
                     </td>
-                    <td className={`px-4 py-3 text-right font-bold tabular ${ehResgate ? 'text-orange-500' : 'text-foreground'}`}>
-                      {ehResgate ? '−' : ''}{fmt(a.valor || 0)}
+                    <td className="px-4 py-3 text-right font-bold tabular" style={{ color: m.cor }}>
+                      {m.sinal}{fmt(a.valor || 0)}
                     </td>
                   </tr>
                 );

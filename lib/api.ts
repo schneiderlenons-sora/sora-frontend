@@ -499,6 +499,11 @@ export const api = {
     atualizarReserva: (phone: string, body: { meses_objetivo: number }) =>
       req(`/api/investimentos/reserva/${phone}`, { method: 'POST', body: JSON.stringify(body) }),
 
+    /** Aportes, resgates e proventos que o BANCO reporta (migration 139).
+     *  Vem do Open Finance, ao lado dos aportes lançados à mão. */
+    movimentos: (phone: string, limite = 300) =>
+      req<{ movimentos: any[]; totais: { aporte: number; resgate: number; provento: number; imposto: number } | null; pendente?: boolean }>(
+        `/api/investimentos/${phone}/movimentos?limite=${limite}`),
     aportes: {
       listar: (phone: string) =>
         req<any[]>(`/api/investimentos/${phone}/aportes`),
