@@ -198,7 +198,25 @@ function CheckoutContent() {
             </div>
           ) : (
             <>
-              <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+              {/* ⚠️ LARGURA É REQUISITO DO BRICK, NÃO ESTÉTICA.
+                  O Payment Brick precisa de ~320px pros campos seguros de
+                  cartão (número, validade, CVV são iframes com largura mínima
+                  própria). Abaixo disso ele não reflui: os campos passam da
+                  caixa e são CORTADOS — o cliente não conseguia preencher o
+                  CPF e não tinha como pagar.
+
+                  Medido no que a página dava antes (outer px-6 + p-4 + borda):
+                    iPhone SE/8   293px      Galaxy S    278px
+                    iPhone 14     308px      Pro Max     348px  ← só este passava
+                  Ou seja, quase todo celular. Desktop e Pro Max funcionavam,
+                  o resto não — e é por isso que o problema não aparecia em
+                  teste rápido.
+
+                  `-mx-6` cancela EXATAMENTE o `px-6` do container (o pai é o
+                  próprio conteúdo no mobile, então não vaza pra página) e o
+                  padding cai pra `p-2`. Resultado: 342–412px, com folga.
+                  `sm:mx-0` devolve o cartão normal a partir de 640px. */}
+              <div className="-mx-6 sm:mx-0 rounded-2xl border border-border bg-card p-2 sm:p-5">
                 <MercadoPagoBrick amount={amountFinal} tier={tier} cupom={cupom} email={user?.email} onApproved={onApproved} />
               </div>
               <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
