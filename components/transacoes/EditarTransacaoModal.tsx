@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Loader2, Check, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
+import SeletorCategoria, { type CatItem } from '@/components/transacoes/SeletorCategoria';
 
 type Wallet = { id: string; nome: string; tipo?: string };
 
@@ -31,7 +32,11 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   const [data,       setData]       = useState<string>((tx.data || '').slice(0, 10));
   const [pago,       setPago]       = useState<boolean>(tx.pago !== false);
 
-  const [cats,     setCats]     = useState<string[]>(tx.categoria ? [tx.categoria] : []);
+  // ⚠️ Guarda a CATEGORIA INTEIRA, não só o nome. O seletor precisa de `tipo`
+  // (pra separar despesa de receita) e de `parent_id` (pra agrupar por
+  // categoria-pai) — jogar fora esses campos aqui era o que obrigava o
+  // <select> a listar tudo achatado e em ordem alfabética.
+  const [cats,     setCats]     = useState<CatItem[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erro,     setErro]     = useState('');
   // "Vale pra todas": vira regra do estabelecimento — reclassifica as antigas e
@@ -44,12 +49,9 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   // Carrega o catálogo de categorias do grupo pro seletor.
   useEffect(() => {
     api.categorias.listar(phone)
-      .then((cs: any[]) => {
-        const nomes = (cs || []).map(c => c.nome).filter(Boolean);
-        setCats(Array.from(new Set([tx.categoria, ...nomes].filter(Boolean))));
-      })
-      .catch(() => { /* mantém ao menos a atual */ });
-  }, [phone, tx.categoria]);
+      .then((cs: any[]) => setCats((cs || []).filter(c => c?.nome)))
+      .catch(() => { /* sem catálogo o seletor ainda mostra a categoria atual */ });
+  }, [phone]);
 
   async function salvar() {
     if (salvando) return;
@@ -116,12 +118,14 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
 
           {/* Categoria (destaque) */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Categoria</label>
-            <select value={categoria} onChange={e => setCategoria(e.target.value)} className="input w-full">
-              {!cats.includes(categoria) && categoria && <option value={categoria}>{nomeCategoria(categoria)}</option>}
-              {cats.map(c => <option key={c} value={c}>{nomeCategoria(c)}</option>)}
-              {!cats.includes('Outros') && <option value="Outros">Outros</option>}
-            </select>
+            <label htmlFor="cat-sel" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Categoria</label>
+            <SeletorCategoria
+              id="cat-sel"
+              valor={categoria}
+              onChange={setCategoria}
+              cats={cats}
+              tipoLancamento={tipo}
+            />
 
             {/* Só aparece quando a categoria mudou de verdade — oferecer isso
                 sem mudança nenhuma seria ruído. Vira regra do estabelecimento:
