@@ -30,6 +30,18 @@ const CORES_TIPO: Record<string, string> = {
   'Cripto':          '#f59e0b',
   'Tesouro Direto':  '#22c55e',
   'CDB':             '#ec4899',
+  // ⚠️ Tipo NOVO precisa de cor aqui também (migration 137). Sem isso ele cai
+  // no cinza do fallback — foi o que deixou o donut de um RDB de R$ 2.642,80
+  // com cara de "categoria desconhecida".
+  'RDB':             '#f472b6',
+  'LCI':             '#d946ef',
+  'LCA':             '#84cc16',
+  'LC':              '#c026d3',
+  'Poupança':        '#34d399',
+  'Debênture':       '#0284c7',
+  'CRI':             '#0891b2',
+  'CRA':             '#65a30d',
+  'COE':             '#7c3aed',
   // Vindos do Open Finance (Celcoin): debêntures/CRI/CRA e fundos de investimento.
   'Renda Fixa':      '#0ea5e9',
   'Fundos':          '#6366f1',
@@ -499,8 +511,20 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
             "+0,00%" numa aplicação resgatada. */}
         <Stat label="Maior ganho" value={totais.maiorG?.nome || '—'}
               sub={totais.maiorG ? fmtPct((totais.maiorG.rentabilidade || 0) * 100) : undefined} subColor="#22c55e" />
-        <Stat label="Maior perda" value={totais.maiorP?.nome || '—'}
-              sub={totais.maiorP ? fmtPct((totais.maiorP.rentabilidade || 0) * 100) : undefined} subColor="#ef4444" />
+        {/* ⚠️ "Maior perda" com número POSITIVO e em vermelho é contradição na
+            cara do usuário — foi o que a tela mostrou: "Maior perda · RDB ·
+            +0,05%". Quando o pior ativo ainda está no lucro, não existe perda:
+            o card vira "Menor ganho" e sai do vermelho. */}
+        {(() => {
+          const r = (totais.maiorP?.rentabilidade || 0) * 100;
+          const negativo = r < 0;
+          return (
+            <Stat label={totais.maiorP && !negativo ? 'Menor ganho' : 'Maior perda'}
+                  value={totais.maiorP?.nome || '—'}
+                  sub={totais.maiorP ? fmtPct(r) : undefined}
+                  subColor={negativo ? '#ef4444' : '#22c55e'} />
+          );
+        })()}
         <Stat label="Dividendos do mês" value={fmt(totais.dividendos)} />
       </div>
 
@@ -586,14 +610,18 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
       const g = mapa.get(chave) || {
         chave, classe: cl, tipo: i.tipo, nome: i.nome, ticker: i.ticker,
         indexador: i.indexador, percentual_indexador: i.percentual_indexador,
-        taxa_anual: i.taxa_anual, itens: [] as any[],
+        taxa_anual: i.taxa_anual, instituicao: i.instituicao, itens: [] as any[],
         valor: 0, aportado: 0, quantidade: 0, dividendos: 0,
+        ir: 0, iof: 0, bloqueado: 0,
       };
       g.itens.push(i);
       g.valor += i.valor_atual || 0;
       g.aportado += i.valor_aportado || 0;
       g.quantidade += i.quantidade || 0;
       g.dividendos += i.dividendos_acumulados || 0;
+      g.ir += i.ir_provisionado || 0;
+      g.iof += i.iof_provisionado || 0;
+      g.bloqueado += i.saldo_bloqueado || 0;
       mapa.set(chave, g);
     }
 
@@ -605,6 +633,9 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
       rent: g.aportado > 0 ? (g.valor - g.aportado) / g.aportado : 0,
       vencimentos: g.itens.map((x: any) => x.data_vencimento).filter(Boolean).sort(),
       variacaoDia: g.itens[0]?.variacao_dia || 0,
+      // Carência que ainda não venceu, a mais distante do grupo: é a data em
+      // que TODO o dinheiro daquele card fica livre de penalidade.
+      carencia: g.itens.map((x: any) => x.carencia_ate).filter(Boolean).sort().pop() || null,
     }));
 
     lista.sort((a, b) => {
@@ -737,6 +768,26 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
   );
 }
 
+/** Carência: livre pra sacar, ou a data em que fica. */
+function ChipCarencia({ ate }: { ate: string }) {
+  const d = new Date(String(ate).slice(0, 10) + 'T12:00:00');
+  const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+  const dias = Math.round((d.getTime() - hoje.getTime()) / 86400000);
+  const livre = dias <= 0;
+  const cor = livre ? '#10b981' : '#f59e0b';
+  return (
+    <span className="text-[10px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}
+          title={livre
+            ? 'Passou da carência: dá pra resgatar sem perder rendimento.'
+            : `Resgatar antes de ${d.toLocaleDateString('pt-BR')} costuma custar rendimento.`}>
+      <Shield size={9} />
+      {livre
+        ? 'livre pra resgate'
+        : `carência até ${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} · ${dias}d`}
+    </span>
+  );
+}
+
 /* ── Card de uma posição (ou de um grupo de aplicações iguais) ───────── */
 function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
   const varios = g.itens.length > 1;
@@ -762,6 +813,11 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
                   style={{ background: `color-mix(in srgb, ${cor} 15%, transparent)`, color: cor }}>
               {g.tipo}
             </span>
+            {/* Quem emitiu o papel (migration 138). Sem isto o card não tinha
+                como dizer "Nubank" e todo investimento parecia vir do nada. */}
+            {g.instituicao && (
+              <span className="text-[10px] text-muted-foreground truncate">· {g.instituicao}</span>
+            )}
             {varios && (
               <span className="text-[10px] text-muted-foreground tabular">
                 · {g.itens.length} aplicações
@@ -821,6 +877,12 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
           )}
         </div>
 
+        {/* ── Carência e IR: o que os docs da Celcoin já mandavam ────────
+            ⚠️ CARÊNCIA É A PERGUNTA Nº 1 de quem guarda em caixinha: "posso
+            sacar sem perder?". O `grace_period_date` chegava em todo sync e era
+            descartado. Aparece antes de tudo porque decide o saque de hoje.
+            ⚠️ IR NÃO SE SUBTRAI DO VALOR — o `net_amount`, que é o nosso
+            `valor_atual`, já vem líquido dele. O chip só EXPLICA o número. */}
         {varios ? (
           <button onClick={onExpandir} aria-expanded={expandido}
                   aria-label={`${expandido ? 'Ocultar' : 'Ver'} as ${g.itens.length} aplicações de ${g.nome}`}
@@ -834,6 +896,23 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
           </button>
         )}
       </div>
+
+      {(g.carencia || g.ir > 0.005 || g.bloqueado > 0.005) && !zerado && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 pb-3 -mt-1 pl-[4.25rem]">
+          {g.carencia && <ChipCarencia ate={g.carencia} />}
+          {g.ir > 0.005 && (
+            <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
+                  title="Imposto de renda já provisionado pelo emissor. O valor mostrado já está líquido dele.">
+              <Landmark size={9} /> {fmt(g.ir)} de IR já descontado
+            </span>
+          )}
+          {g.bloqueado > 0.005 && (
+            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
+              <Shield size={9} /> {fmt(g.bloqueado)} bloqueado
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Aplicações individuais do grupo */}
       {varios && expandido && (

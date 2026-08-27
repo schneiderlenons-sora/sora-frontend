@@ -17,7 +17,11 @@ export function GraficoDistribuicao({ data, strokePie, isDark }: { data: any[]; 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
-        <Pie data={data} dataKey="valor" innerRadius="55%" outerRadius="85%" paddingAngle={2} stroke={strokePie} strokeWidth={2}>
+        {/* ⚠️ `nameKey` É OBRIGATÓRIO AQUI. O recharts assume `name` por padrão,
+            e estes objetos têm `tipo`. Sem o dado, ele cai no ÍNDICE da fatia —
+            e o tooltip mostrava literalmente "0 : R$ 2.642,80" em vez do nome
+            da classe. */}
+        <Pie data={data} dataKey="valor" nameKey="tipo" innerRadius="55%" outerRadius="85%" paddingAngle={2} stroke={strokePie} strokeWidth={2}>
           {data.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
         </Pie>
         <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: isDark ? '#18181b' : '#fff', border: `1px solid ${isDark ? '#3f3f46' : 'hsl(var(--border))'}`, borderRadius: 12, fontSize: 12, color: isDark ? '#fff' : '#111' }} />
