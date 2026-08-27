@@ -7,6 +7,8 @@ import {
   ChevronDown, ArrowRight, Infinity as InfinityIcon,
 } from 'lucide-react';
 import Personalizacao from './Personalizacao';
+import DashboardRelatorios from './DashboardRelatorios';
+import ControleCartoes from './ControleCartoes';
 import MobileShowcase from './MobileShowcase';
 import SoraLabs      from './SoraLabs';
 import FinancasChat  from './FinancasChat';
@@ -40,83 +42,6 @@ const FAQ = [
   { q: 'Meus dados estão seguros?', a: 'Sim. Criptografia de ponta, 100% em conformidade com a LGPD e seus dados são só seus — você pode exportar ou apagar quando quiser.' },
 ];
 
-// ── Mini-mockups da seção "Controle absoluto sobre seus cartões" ──
-const FluxoMock = (
-  <div>
-    <div className="flex items-start justify-between mb-3 gap-2">
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Fluxo de caixa</p>
-        <p className="text-xl font-bold text-white mt-1 tabular-nums"><span style={{ color: BRAND }}>R$</span> 4.250,00</p>
-      </div>
-      <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[10px] flex-shrink-0">
-        <span className="px-2 py-1 rounded-md text-white/50">Realizado</span>
-        <span className="px-2 py-1 rounded-md bg-white/10 text-white font-semibold">Projetado</span>
-      </div>
-    </div>
-    <div className="flex gap-2">
-      <div className="flex flex-col justify-between text-[9px] text-white/30 py-0.5">
-        <span>R$ 5k</span><span>R$ 2k</span><span>R$ 0</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <svg viewBox="0 0 300 90" className="w-full h-[86px]" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="fluxoKitGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={BRAND} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={BRAND} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d="M0,62 C30,55 45,66 70,60 C100,52 120,38 150,42 C185,47 205,22 235,28 C262,33 285,42 300,38 L300,90 L0,90 Z" fill="url(#fluxoKitGrad)" />
-          <path d="M0,62 C30,55 45,66 70,60 C100,52 120,38 150,42 C185,47 205,22 235,28 C262,33 285,42 300,38" fill="none" stroke={BRAND} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        </svg>
-        <div className="flex justify-between text-[9px] text-white/30 mt-1">
-          <span>01/mai</span><span>10/mai</span><span>20/mai</span><span>30/mai</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-const CategoriaMock = (
-  <div>
-    <p className="text-xs text-white/50 mb-2">Categoria</p>
-    <div className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 mb-2.5">
-      <span className="h-1.5 w-28 rounded-full bg-white/[0.12]" />
-      <ChevronDown size={14} className="text-white/40" />
-    </div>
-    <div className="space-y-1.5">
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm text-white/55">Lazer</div>
-      <div className="rounded-lg border px-3 py-2 text-sm font-medium text-white flex items-center gap-1.5"
-           style={{ borderColor: BRAND, background: `color-mix(in srgb, ${BRAND} 12%, transparent)` }}>
-        <Sparkles size={13} style={{ color: BRAND }} /> Vestuário
-      </div>
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm text-white/55">Utilidades</div>
-    </div>
-  </div>
-);
-
-const TransacaoMock = (
-  <div>
-    <div className="flex items-center justify-between mb-3 gap-2">
-      <p className="text-xs font-semibold text-white/70">Transação Identificada</p>
-      <p className="text-[10px] text-white/40 flex-shrink-0">Hoje, 14:30</p>
-    </div>
-    <div className="flex gap-2 mb-2">
-      <div className="flex-1 min-w-0 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-white truncate">SEPHORA STORE (8/10)</div>
-      <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-white tabular-nums whitespace-nowrap">R$ 261,12</div>
-    </div>
-    <div className="flex gap-2 items-center">
-      <div className="flex-1 min-w-0 flex items-center justify-between gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-white/70">Vestuário <ChevronDown size={12} className="text-white/40 flex-shrink-0" /></div>
-      <div className="flex-1 min-w-0 flex items-center justify-between gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-white/70">A Pagar <ChevronDown size={12} className="text-white/40 flex-shrink-0" /></div>
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: BRAND }}><Check size={16} className="text-black" strokeWidth={3} /></div>
-    </div>
-  </div>
-);
-
-const CARTOES_CARDS = [
-  { titulo: 'Cobranças recorrentes',           desc: 'Saiba quanto você já comprometeu para os próximos meses e projete seu fluxo de caixa.',                       visual: FluxoMock },
-  { titulo: 'Organização Automática por IA',   desc: 'Seus gastos são categorizados sozinhos. O sistema aprende com seus hábitos e automatiza sua gestão financeira.', visual: CategoriaMock },
-  { titulo: 'Identificação de Lançamentos',    desc: 'Tenha clareza total sobre a origem de cada transação em seu extrato.',                                          visual: TransacaoMock },
-];
 
 export default function KitOferta() {
   const [vagas, setVagas] = useState<{ restantes: number; vagas: number; vendidos: number } | null>(null);
@@ -196,89 +121,16 @@ export default function KitOferta() {
         </div>
       </section>
 
-      {/* ══════════ DASHBOARD (vídeo em loop) ══════════ */}
-      <section className="py-16 lg:py-20 px-5 border-t border-white/5">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-5 gap-8 lg:gap-12 items-center">
-          {/* Texto — centralizado no mobile, à esquerda no desktop */}
-          <div className="lg:col-span-2 text-center lg:text-left">
-            <h2 className="text-3xl sm:text-4xl font-bold leading-tight tracking-tight">
-              Dashboard inteligente com<br />
-              <span style={{ color: BRAND }}>relatórios automáticos</span>
-            </h2>
-            <p className="mt-5 text-base sm:text-lg text-white/60 leading-relaxed max-w-md mx-auto lg:mx-0">
-              Acompanhe seus gastos e receitas num painel incrível, com gráficos claros de saldo,
-              categorias, planejamento financeiro e fluxo de caixa. Você acessa tudo pelo celular ou
-              computador e a Sora organiza tudo pra você automaticamente.
-            </p>
-
-            <ul className="mt-7 space-y-3 border-t border-white/10 pt-6 w-fit mx-auto lg:mx-0 text-left">
-              {['Dashboard financeiro avançado', 'Gestão de contas e carteiras', 'Exportação de dados em PDF'].map((t) => (
-                <li key={t} className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: `color-mix(in srgb, ${BRAND} 18%, transparent)` }}>
-                    <Check size={14} style={{ color: BRAND }} strokeWidth={3} />
-                  </span>
-                  <span className="text-[15px] text-white/85 font-medium">{t}</span>
-                </li>
-              ))}
-            </ul>
-
-            <a href="#ofertas"
-               className="mt-8 inline-flex items-center gap-2 px-7 py-4 rounded-2xl font-black text-black text-lg active:scale-[0.98] transition"
-               style={{ background: `linear-gradient(135deg, ${BRAND}, #b6f54f)`, boxShadow: `0 12px 40px -10px ${BRAND}99` }}>
-              Começar agora <ArrowRight size={18} />
-            </a>
-          </div>
-
-          {/* Vídeo em loop — decorativo, sem nenhum controle (play/pause/carregamento).
-              Arquivo em: public/kit/relatorios.mp4 */}
-          <div className="lg:col-span-3 relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.85)] bg-[#0d0d0d]">
-            <video
-              className="w-full h-auto block pointer-events-none select-none"
-              src="/kit/relatorios.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="metadata"
-              disablePictureInPicture
-              controlsList="nodownload nofullscreen noremoteplayback"
-              aria-hidden="true"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════ CONTROLE DOS CARTÕES (cards) ══════════ */}
-      <section className="py-16 lg:py-20 px-5 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Controle absoluto sobre seus cartões.</h2>
-            <p className="mt-4 text-base sm:text-lg text-white/60 max-w-xl mx-auto leading-relaxed">
-              Tenha clareza imediata sobre cada transação e antecipe o impacto financeiro dos próximos meses.
-            </p>
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-3">
-            {CARTOES_CARDS.map((c, i) => (
-              <div key={c.titulo} className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-4 sm:p-5 flex flex-col animate-fade-in"
-                   style={{ animationDelay: `${i * 80}ms` }}>
-                <div className="rounded-2xl border border-white/[0.06] bg-[#0d0d0d] p-4 mb-5 min-h-[210px] flex flex-col justify-center">
-                  {c.visual}
-                </div>
-                <h3 className="text-lg font-bold text-white">{c.titulo}</h3>
-                <p className="mt-2 text-sm text-white/55 leading-relaxed flex-1">{c.desc}</p>
-                <div className="mt-5 flex items-center gap-1.5" aria-hidden="true">
-                  {[0, 1, 2].map((d) => (
-                    <span key={d} className="h-1.5 rounded-full transition-all"
-                          style={{ width: d === i ? 18 : 6, background: d === i ? BRAND : 'rgba(255,255,255,0.15)' }} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ══════════ DASHBOARD + CARTÕES ══════════
+          Eram markup inline aqui. Viraram componentes compartilhados porque a
+          landing principal passou a usar as MESMAS seções — duas cópias
+          significariam consertar bug duas vezes. O wrapper `.dark` já é o
+          padrão desta página pra componentes theme-aware (ver Personalizacao,
+          MobileShowcase e SoraLabs logo abaixo). */}
+      <div className="dark">
+        <DashboardRelatorios ctaHref="#ofertas" />
+        <ControleCartoes />
+      </div>
 
       {/* ══════════ DESTAQUES (Clareza total + Em conjunto) ══════════ */}
       {[

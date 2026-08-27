@@ -3,6 +3,8 @@ import CupomFlutuante  from '@/components/landing/CupomFlutuante';
 import Hero            from '@/components/landing/Hero';
 import Problema        from '@/components/landing/Problema';
 import Solucao         from '@/components/landing/Solucao';
+import DashboardRelatorios from '@/components/landing/DashboardRelatorios';
+import ControleCartoes  from '@/components/landing/ControleCartoes';
 import FinancasChat    from '@/components/landing/FinancasChat';
 import AgendaChat      from '@/components/landing/AgendaChat';
 import HabitosSaude    from '@/components/landing/HabitosSaude';
@@ -39,6 +41,13 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
       <Hero />
       <Problema />
       <Solucao />
+      {/* Vindas da /kit — logo depois de "Os três pilares conversam entre si":
+          a Solução apresenta o produto em abstrato e estas duas mostram a tela
+          de verdade, que é o passo natural de quem acabou de entender a ideia.
+          Os MESMOS componentes rodam nas duas páginas (na /kit dentro do
+          wrapper `.dark`), pra não existirem duas cópias do markup. */}
+      <DashboardRelatorios />
+      <ControleCartoes />
       <FinancasChat />
       <OpenFinance />
       <PrevistosShowcase />
