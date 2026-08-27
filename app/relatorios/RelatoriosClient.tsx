@@ -294,11 +294,36 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   // importa é o mais ANTIGO — ele é o mais atrasado, o que já devia ter sido
   // pago. Com a ordem herdada (mais novo no topo), a conta vencida há duas
   // semanas ficava no fim da lista.
+  // ⚠️ GASTO EM CARTÃO NÃO É PENDENTE INDIVIDUAL, e este é o filtro que mais
+  // muda a tela. A compra no crédito entra na FATURA, e quem se paga é a
+  // fatura — listar cada parcela como "despesa a pagar" pede pra pessoa
+  // resolver duas vezes a mesma coisa.
+  //
+  // Pior: `normalizeTxCartao` grava `pago: !(data > hoje)` pra parcela ainda
+  // não cobrada contar como prevista. Isso é verdade NO DIA em que a linha é
+  // escrita — e como o sync nunca reescreve linha existente, quando a data
+  // passa o `pago=false` fica lá pra sempre. Medido na base: das 1.000
+  // transações com `pago=false`, **969 são de cartão**, e 204 já venceram,
+  // somando R$ 21.433,88 de falso pendente.
+  //
+  // A migration 141 limpa o histórico; este filtro impede que volte.
+  const nomesCartao = useMemo(
+    () => new Set(wallets.filter(w => w.tipo === 'Crédito')
+      .map(w => String(w.nome || '').trim().toLowerCase())),
+    [wallets],
+  );
   const pendentes = useMemo(
-    () => txs.filter(t => !t.pago)
+    () => txs
+      .filter(t => !t.pago)
+      .filter(t => !nomesCartao.has(String(t.carteira_nome || t.wallet_nome || '').trim().toLowerCase()))
+      // ⚠️ "[Previsto]" NÃO é filtrado aqui, e isso é decisão. O previsto de
+      // conta VARIÁVEL (luz, água) é pendente de verdade — falta a pessoa
+      // confirmar o valor real. Quem não deveria existir é só o previsto de
+      // recorrência em modo "não lançar", e esse a migration 141 apaga na
+      // origem. Filtrar por prefixo aqui esconderia os dois.
       .slice()
       .sort((a, b) => String(a.data || '').localeCompare(String(b.data || ''))),
-    [txs],
+    [txs, nomesCartao],
   );
   const recebPendentes = pendentes.filter(t => t.tipo === 'Recebimento');
   const gastoPendentes = pendentes.filter(t => t.tipo === 'Gasto');
