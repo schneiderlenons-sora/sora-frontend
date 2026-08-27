@@ -141,6 +141,30 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
       const raw = localStorage.getItem(chavePlano);
       const obj = raw ? JSON.parse(raw) : {};
       setSazonais(obj.contas ?? []);
+
+      // ⚠️ IMPORTA O QUE FOI DIGITADO NA PÁGINA /planejamento ANTIGA.
+      // Ela guardava `meses: [{receita, despesa}, …]` na MESMA chave. Como
+      // aquela tela saiu do menu, quem tinha preenchido os 12 meses à mão
+      // perderia o trabalho sem isto — os valores viram ajustes manuais aqui,
+      // que é exatamente o que eles são.
+      // Só roda quando ainda não há ajuste nenhum: depois disso o que vale é o
+      // desta tela, e reimportar apagaria edição nova por cima.
+      const jaTem = obj.ajustes && Object.keys(obj.ajustes).length > 0;
+      if (!jaTem && Array.isArray(obj.meses)) {
+        const importados: Ajustes = {};
+        obj.meses.forEach((m: any, i: number) => {
+          const doMes: { receita?: number; despesa?: number } = {};
+          if (m?.receita > 0) doMes.receita = m.receita;
+          if (m?.despesa > 0) doMes.despesa = m.despesa;
+          if (Object.keys(doMes).length) importados[i] = doMes;
+        });
+        if (Object.keys(importados).length) {
+          setAjustes(importados);
+          const atual = raw ? JSON.parse(raw) : {};
+          localStorage.setItem(chavePlano, JSON.stringify({ ...atual, ajustes: importados }));
+          return;
+        }
+      }
       setAjustes(obj.ajustes ?? {});
     } catch { setSazonais([]); setAjustes({}); }
   }, [chavePlano]);

@@ -52,7 +52,6 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/metas',              label: 'Metas',             icon: Flag },
   { href: '/dividas',            label: 'Dívidas e Parcelas', icon: Receipt },
   { href: '/juros',              label: 'Calculadora de Juros', icon: Percent },
-  { href: '/planejamento',       label: 'Planejamento Anual', icon: CalendarRange },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
   { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Premium' },
 ];
@@ -285,7 +284,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
         // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
         // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
-        // e /investimentos, /metas, /relatorios, /juros e /planejamento carregam
+        // e /investimentos, /metas, /relatorios e /juros carregam
         // recharts (~288 KB cada). Medido: o dashboard baixava 3 MB de JS, com
         // 864 KB de recharts, sem desenhar um gráfico. A rota continua sendo
         // buscada no clique; só não vem antes da hora.
