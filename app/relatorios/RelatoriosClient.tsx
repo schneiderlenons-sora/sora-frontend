@@ -17,7 +17,7 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, RefreshCw,
   CheckCircle2, ClipboardList, Activity, Layers, Users,
   Target, AlertTriangle, Check as CheckIcon, Gauge,
-  CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock, Wand2, Pencil,
+  CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock, Wand2, Pencil, CircleDashed,
 } from 'lucide-react';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
@@ -181,7 +181,10 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     setAjustes(prev => {
       const novo = { ...prev };
       for (const l of linhas) {
-        if (!l.editavel) continue;      // fechado não recebe
+        // ⚠️ Só mês que AINDA VEM. Editar um mês passado é escolha deliberada,
+        // card a card; uma média jogada por cima de tudo apagaria em massa o
+        // que a pessoa preencheu à mão do histórico dela.
+        if (l.estado === 'realizado') continue;
         const doMes = { ...(novo[l.i] || {}) };
         if (rec !== null) doMes.receita = rec;
         if (des !== null) doMes.despesa = des;
@@ -401,8 +404,13 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
       : ano > hoje.getFullYear() ? 'previsto'
       : i < mesHoje ? 'realizado' : i === mesHoje ? 'emCurso' : 'previsto';
 
-    // Base = mês passado, fechado e com movimento — mesma regra do "Ritmo do
-    // mês".
+    // Valor EFETIVO de um mês: o ajuste manual quando existe, senão o real.
+    const efetivo = (m: any, i: number) => ({
+      receitas: ajustes[i]?.receita ?? m.receitas,
+      gastos:   ajustes[i]?.despesa ?? m.gastos,
+    });
+
+    // Base da média = mês PASSADO com movimento — mesma regra do "Ritmo do mês".
     //
     // ⚠️ CADA SÉRIE TEM O PRÓPRIO DIVISOR. Um divisor comum ("meses com
     // qualquer movimento") deixa entrar mês que teve receita e ZERO despesa:
@@ -411,8 +419,17 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     // rendimento e nenhuma despesa; com divisor comum a média de despesa caía
     // de R$ 1.155,78 pra R$ 577,89, exatamente metade, e o plano previa um ano
     // barato que não existe.
-    const baseRec = meses.filter((m, i) => i <= ultimoFechado && m.receitas > 0);
-    const baseDes = meses.filter((m, i) => i <= ultimoFechado && m.gastos > 0);
+    //
+    // ⚠️ MÊS FECHADO PREENCHIDO À MÃO ENTRA NA MÉDIA. Quem digita janeiro está
+    // dizendo "foi isto que aconteceu, o app é que não estava aqui" — é
+    // informação melhor que a ausência dela.
+    // Já o ajuste de mês FUTURO fica de fora, e isso é proposital: ele é
+    // previsão, e deixá-lo alimentar a média que prevê os outros meses
+    // futuros criaria um laço — a previsão de outubro puxando a de novembro,
+    // que puxa a de dezembro, sem nenhum fato no meio.
+    const fechadosEf = meses.map((m, i) => ({ ...efetivo(m, i), i })).filter(x => x.i <= ultimoFechado);
+    const baseRec = fechadosEf.filter(x => x.receitas > 0);
+    const baseDes = fechadosEf.filter(x => x.gastos > 0);
     const mediaRec = baseRec.length ? baseRec.reduce((s, m) => s + m.receitas, 0) / baseRec.length : 0;
     const mediaDes = baseDes.length ? baseDes.reduce((s, m) => s + m.gastos, 0) / baseDes.length : 0;
     const fechados = baseDes.length >= baseRec.length ? baseDes : baseRec;
@@ -440,14 +457,19 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
         autoDes = Math.max(mediaDes, m.gastos) + extras[i];
       }
 
-      // 2) O AJUSTE MANUAL por cima, quando existe.
+      // 2) O AJUSTE MANUAL por cima, quando existe — em QUALQUER mês.
       //
-      // ⚠️ MÊS FECHADO NÃO ACEITA AJUSTE, e isso é decisão, não esquecimento:
-      // ali o número é o que de fato aconteceu. Deixar editar transformaria o
-      // histórico — a base da média — em ficção, e o plano passaria a estimar
-      // o futuro a partir de um passado inventado. Quem quer corrigir um mês
-      // fechado corrige a transação, que é onde o erro está.
-      const aj = estado === 'realizado' ? undefined : ajustes[i];
+      // ⚠️ MÊS FECHADO TAMBÉM É EDITÁVEL. Eu tinha travado, com o argumento de
+      // que mês passado é fato. O argumento não se sustenta: mês anterior à
+      // chegada da pessoa na Sora não é "fato zero", é AUSÊNCIA DE DADO — nesta
+      // conta, janeiro a abril aparecem com R$ 0,00 só porque o app ainda não
+      // existia ali. Travar a edição obrigava a planejar o ano com quatro meses
+      // fantasmas.
+      //
+      // O que continua valendo: isto vive SÓ no planejamento. Não cria, não
+      // altera e não apaga transação nenhuma — dashboard, categorias, fluxo de
+      // caixa e o resumo do mês seguem lendo o banco, intocados.
+      const aj = ajustes[i];
       const receita = aj?.receita != null ? aj.receita : autoRec;
       const despesa = aj?.despesa != null ? aj.despesa : autoDes;
 
@@ -459,7 +481,10 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
         autoRec, autoDes,
         manualRec: aj?.receita != null,
         manualDes: aj?.despesa != null,
-        editavel: estado !== 'realizado',
+        // Mês passado sem nenhum lançamento — quase sempre "o app ainda não
+        // estava aqui". A tela convida a preencher em vez de mostrar um zero
+        // que parece dado.
+        semDados: estado === 'realizado' && m.receitas === 0 && m.gastos === 0,
         saldo, acumulado,
         jaLancado: m.gastos,          // o que o banco já conhece daquele mês
         sazonais: estado === 'previsto' ? extras[i] : 0,
@@ -485,7 +510,9 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
       mesAtualIx: ehAnoAtual ? mesHoje : null,
       temHistorico: fechados.length > 0,
     };
-  }, [anualData, ano, hoje, sazonais]);
+    // ⚠️ `ajustes` PRECISA estar aqui. Sem ele o memo não recalcula e digitar
+    // um valor não mudava nada na tela — o número voltava sozinho.
+  }, [anualData, ano, hoje, sazonais, ajustes]);
 
   /* ══════════════════════════════════════════════════════════════════════
      CATEGORIA × LIMITE
@@ -1303,7 +1330,7 @@ function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
 function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
   const [rec, setRec] = useState('');
   const [des, setDes] = useState('');
-  const abertos = plano.linhas.filter((l: any) => l.editavel).length;
+  const abertos = plano.linhas.filter((l: any) => l.estado !== 'realizado').length;
   const num = (s: string) => {
     const v = parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
     return Number.isFinite(v) ? v : null;
@@ -1325,8 +1352,8 @@ function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
       </div>
       <p className="text-xs text-muted-foreground mb-4 max-w-xl leading-relaxed">
         Sabe que vai ganhar ou gastar diferente do que a Sora estimou? Defina uma média sua para os{' '}
-        <strong className="text-foreground">{abertos}</strong> {abertos === 1 ? 'mês ainda aberto' : 'meses ainda abertos'}.
-        Os meses fechados não mudam — neles vale o que realmente aconteceu.
+        <strong className="text-foreground">{abertos}</strong> {abertos === 1 ? 'mês que ainda vem' : 'meses que ainda vêm'}.
+        Meses passados ficam de fora daqui — se quiser preencher algum, edite o card dele lá embaixo.
       </p>
 
       <div className="flex flex-wrap items-end gap-2">
@@ -1360,13 +1387,16 @@ function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
 function GradeMeses({ linhas, onAjustar }: any) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 mb-3 px-1">
-        <div>
-          <h3 className="font-semibold text-foreground">Mês a mês</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Toque num valor previsto pra mudar. Mês fechado mostra o que realmente aconteceu.
-          </p>
-        </div>
+      <div className="mb-3 px-1">
+        <h3 className="font-semibold text-foreground">Mês a mês</h3>
+        <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+          Todo mês aceita valor digitado — inclusive os que passaram antes de você usar a Sora e
+          por isso aparecem sem registro.{' '}
+          {/* A garantia que o usuário pediu, dita onde a dúvida nasce. */}
+          <strong className="text-foreground">O que você escreve aqui fica só no planejamento</strong>{' '}
+          e não cria nem altera lançamento nenhum — dashboard, categorias e relatórios continuam
+          mostrando o que está no banco.
+        </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {linhas.map((l: any) => <CardMes key={l.i} l={l} onAjustar={onAjustar} />)}
@@ -1377,8 +1407,8 @@ function GradeMeses({ linhas, onAjustar }: any) {
 
 function CardMes({ l, onAjustar }: any) {
   const manual = l.manualRec || l.manualDes;
-  const borda = !l.editavel ? 'hsl(var(--border) / 0.6)'
-    : manual ? 'color-mix(in srgb, #6366f1 45%, transparent)'
+  const borda = manual ? 'color-mix(in srgb, #6366f1 45%, transparent)'
+    : l.estado === 'realizado' ? 'hsl(var(--border) / 0.6)'
     : 'hsl(var(--border))';
 
   return (
@@ -1396,10 +1426,10 @@ function CardMes({ l, onAjustar }: any) {
 
       <div className="grid grid-cols-2 gap-2">
         <CampoMes rotulo="Receita" valor={l.Receitas} auto={l.autoRec} manual={l.manualRec}
-                  editavel={l.editavel} mes={l.nomeLongo}
+                  mes={l.nomeLongo} vazio={l.semDados}
                   onMudar={(v: number | null) => onAjustar(l.i, 'receita', v)} />
         <CampoMes rotulo="Despesa" valor={l.Despesas} auto={l.autoDes} manual={l.manualDes}
-                  editavel={l.editavel} mes={l.nomeLongo}
+                  mes={l.nomeLongo} vazio={l.semDados}
                   onMudar={(v: number | null) => onAjustar(l.i, 'despesa', v)} />
       </div>
 
@@ -1430,6 +1460,9 @@ function SeloEstado({ l, manual }: any) {
   // Ícone + palavra: o estado do mês nunca depende só de cor.
   const cfg = manual
     ? { Icone: Pencil, txt: 'manual',  cor: '#6366f1' }
+    // "sem registro" e não "fechado": o mês passou, mas a Sora não tem nada
+    // dele. Chamar isso de fechado sugere que o zero é resultado apurado.
+    : l.semDados               ? { Icone: CircleDashed, txt: 'sem registro', cor: 'hsl(var(--fg-muted))' }
     : l.estado === 'realizado' ? { Icone: Lock, txt: 'fechado', cor: 'hsl(var(--fg-muted))' }
     : l.estado === 'emCurso'   ? { Icone: Gauge, txt: 'em curso', cor: '#f59e0b' }
     : { Icone: Sparkles, txt: 'previsto', cor: '#6366f1' };
@@ -1441,7 +1474,7 @@ function SeloEstado({ l, manual }: any) {
   );
 }
 
-function CampoMes({ rotulo, valor, auto, manual, editavel, mes, onMudar }: any) {
+function CampoMes({ rotulo, valor, auto, manual, mes, vazio, onMudar }: any) {
   const [txt, setTxt] = useState('');
   const [focado, setFocado] = useState(false);
 
@@ -1453,23 +1486,6 @@ function CampoMes({ rotulo, valor, auto, manual, editavel, mes, onMudar }: any) 
     onMudar(Number.isFinite(v) && v >= 0 ? v : null);
     setTxt('');
   };
-
-  // ⚠️ MÊS FECHADO É READ-ONLY, NÃO DISABLED. `disabled` diz "não pode agora,
-  // talvez depois" e some do leitor de tela; aqui o valor é definitivo e
-  // continua sendo informação. Por isso vira texto com cadeado e um `title`
-  // que explica, em vez de um input apagado.
-  if (!editavel) {
-    return (
-      <div>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">{rotulo}</span>
-        <p className="px-3 py-2 rounded-lg bg-muted/40 text-sm tabular text-foreground flex items-center gap-1.5"
-           title={`${mes} já fechou — este é o valor real dos seus lançamentos`}>
-          <Lock size={10} className="text-muted-foreground flex-shrink-0" aria-hidden />
-          {fmt(valor)}
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -1484,15 +1500,20 @@ function CampoMes({ rotulo, valor, auto, manual, editavel, mes, onMudar }: any) 
           </button>
         )}
       </span>
+      {/* ⚠️ Mês passado sem lançamento nenhum mostra PLACEHOLDER, não "R$ 0,00".
+          Zero desenhado como valor lê-se "não gastei nada"; o certo ali é "a
+          Sora não estava aqui pra saber" — e o campo vazio convida a preencher
+          em vez de afirmar. */}
       <input
         inputMode="decimal"
-        value={focado ? txt : fmt(valor)}
-        onFocus={(e) => { setFocado(true); setTxt(String(valor.toFixed(2)).replace('.', ',')); requestAnimationFrame(() => e.target.select()); }}
+        value={focado ? txt : (vazio && !manual ? '' : fmt(valor))}
+        placeholder={vazio && !manual ? 'não registrado' : undefined}
+        onFocus={(e) => { setFocado(true); setTxt(valor ? String(valor.toFixed(2)).replace('.', ',') : ''); requestAnimationFrame(() => e.target.select()); }}
         onChange={(e) => setTxt(e.target.value)}
         onBlur={confirmar}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setTxt(''); setFocado(false); } }}
         aria-label={`${rotulo} de ${mes}`}
-        className="input tabular text-sm"
+        className="input tabular text-sm placeholder:text-muted-foreground/60 placeholder:text-xs"
         style={{ minHeight: 44, borderColor: manual ? 'color-mix(in srgb, #6366f1 50%, transparent)' : undefined }}
       />
     </div>
