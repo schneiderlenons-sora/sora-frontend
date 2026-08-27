@@ -128,7 +128,16 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
 
   const categorias = (catsData ?? []) as Categoria[];
   const resumo: any = resumoData ?? { por_categoria: [], gastos: 0 };
-  const limites = (Array.isArray(limitesData) ? limitesData : ((limitesData as any)?.limites ?? [])) as Limite[];
+  // ⚠️ A CHAVE É `categorias`, NÃO `limites`.
+  // `GET /api/limites/:phone` (e o porte de SSR em `limitesDireto`) devolvem
+  // `{ meta_mensal, …, categorias: [...] }`. Lendo `.limites` isto vinha
+  // `undefined` e caía no `[]` — ou seja, TODO limite de categoria era
+  // invisível no painel, sempre. Medido na base: 47 limites em 9 grupos, e
+  // nenhum aparecia. Era a causa de "defini limite em Encomendas e o gasto não
+  // conta". O `Array.isArray` fica como rede pra uma resposta em lista.
+  const limites = (Array.isArray(limitesData)
+    ? limitesData
+    : ((limitesData as any)?.categorias ?? [])) as Limite[];
 
   const loading   = catsLoading && !catsData;
   const erroFetch = catsError ? (catsError.message || 'Erro desconhecido ao buscar categorias.') : null;

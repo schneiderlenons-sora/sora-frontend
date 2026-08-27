@@ -16,6 +16,7 @@ import {
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
   ArrowUpRight, ArrowDownRight, Calendar, RefreshCw,
   CheckCircle2, ClipboardList, Activity, Layers, Users,
+  Target, AlertTriangle, Check as CheckIcon, Gauge,
 } from 'lucide-react';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
@@ -91,11 +92,18 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     useApi(compartilhado && grupoId ? `rel:membros:${grupoId}` : null, () => api.grupos.membros(grupoId!));
   const membros: any[] = Array.isArray(membrosData) ? membrosData : [];
 
-  // Os 12 meses REAIS do ano. Só busca quando a aba Fluxo está aberta — é uma
-  // varredura do ano inteiro e não faz sentido pagar por ela em Gráficos.
+  // Os 12 meses REAIS do ano — alimentam o gráfico de fluxo E a média/projeção.
+  // Não busca na aba de pendentes, que não usa nada disso. Como a key do SWR é
+  // a mesma nas duas abas, trocar entre elas não refaz a chamada.
   const { data: anualData } = useApi(
-    phone && tab === 'fluxo' ? `rel:anual:${phone}:${ano}:${membroFiltro}` : null,
+    phone && tab !== 'pendentes' ? `rel:anual:${phone}:${ano}:${membroFiltro}` : null,
     () => api.transacoes.anual(phone, ano, { criado_por: criadoPorParam }),
+  );
+
+  // Limites por categoria do mês (mesma fonte da aba Categorias).
+  const { data: limitesData } = useApi(
+    phone ? `rel:limites:${phone}:${mesRef}` : null,
+    () => api.limites.listar(phone, mesRef),
   );
 
   const resumo: any       = (rData as any)    ?? { receitas: 0, gastos: 0, por_categoria: [], por_membro: [] };
@@ -262,6 +270,94 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     });
   }, [anualData]);
   const anualCarregando = tab === 'fluxo' && anualData === undefined;
+
+  /* ══════════════════════════════════════════════════════════════════════
+     CATEGORIA × LIMITE
+     ══════════════════════════════════════════════════════════════════════ */
+  //
+  // ⚠️ O GASTO DE UMA CATEGORIA-PAI INCLUI AS FILHAS. Limite em "Encomendas"
+  // tem de contar o que foi gasto em "Shein" e "Aliexpress" — foi exatamente a
+  // queixa que originou isto ("tenho 215,19 numa subcategoria e o limite do pai
+  // não conta"). Mesma soma que a aba Categorias faz na árvore.
+  const limitesCats = useMemo(() => {
+    const arr = Array.isArray(limitesData)
+      ? limitesData
+      : ((limitesData as any)?.categorias ?? []);
+    return arr as { categoria?: string; limite_mensal?: number; ativo?: boolean }[];
+  }, [limitesData]);
+
+  const gastoPorNome = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of (resumo?.por_categoria || []) as any[]) {
+      m[nomeCategoria(c.categoria || '').toLowerCase()] = c.total || 0;
+    }
+    return m;
+  }, [resumo]);
+
+  const usoDosLimites = useMemo(() => {
+    return limitesCats
+      .filter(l => (l.limite_mensal || 0) > 0 && l.ativo !== false)
+      .map(l => {
+        const nome = nomeCategoria(l.categoria || '');
+        const chave = nome.toLowerCase();
+        // Gasto próprio + o das filhas desta categoria.
+        const pai = categorias.find((c: any) => nomeCategoria(c.nome).toLowerCase() === chave);
+        const filhas = pai ? categorias.filter((c: any) => c.parent_id === pai.id) : [];
+        const gasto = (gastoPorNome[chave] || 0)
+          + filhas.reduce((s: number, f: any) => s + (gastoPorNome[nomeCategoria(f.nome).toLowerCase()] || 0), 0);
+        const limite = l.limite_mensal || 0;
+        return {
+          nome, limite, gasto,
+          filhas: filhas.length,
+          pct: limite > 0 ? (gasto / limite) * 100 : 0,
+          theme: getCategoriaTheme(l.categoria || '', categorias),
+        };
+      })
+      // O que está pior primeiro: é o que exige ação.
+      .sort((a, b) => b.pct - a.pct);
+  }, [limitesCats, categorias, gastoPorNome]);
+
+  /* ══════════════════════════════════════════════════════════════════════
+     MÉDIA MENSAL E PROJEÇÃO DO MÊS
+     ══════════════════════════════════════════════════════════════════════ */
+  const mediaEProjecao = useMemo(() => {
+    const meses = anualData?.meses;
+    if (!meses) return null;
+
+    const ehMesAtual = mes === hoje.getMonth() && ano === hoje.getFullYear();
+    const gastoDoMes = meses[mes]?.gastos || 0;
+
+    // ⚠️ A MÉDIA SÓ OLHA MÊS PASSADO, FECHADO E COM MOVIMENTO. Três cortes,
+    // cada um por um motivo medido numa conta real:
+    //
+    //  · O MÊS EM CURSO fica fora: incompleto, ele puxaria a média pra baixo e
+    //    a comparação "estou acima da média" mentiria a favor do usuário.
+    //  · MÊS FUTURO fica fora: parcela lançada com data à frente faz setembro
+    //    existir com R$ 79,86 em agosto. Entrando na conta, ele derrubava a
+    //    média de R$ 1.155,78 pra R$ 886,80.
+    //  · MÊS ZERADO fica fora: quem começou a usar a Sora em julho tem seis
+    //    deles, e dividir por 12 dava R$ 322,47 — 3,6× menos que o real, o que
+    //    faria qualquer mês normal parecer um descontrole.
+    const ultimoFechado = ano < hoje.getFullYear() ? 11 : hoje.getMonth() - 1;
+    const base = meses.filter((m, i) => i <= ultimoFechado && i !== mes && m.gastos > 0);
+    const media = base.length ? base.reduce((s, m) => s + m.gastos, 0) / base.length : 0;
+
+    // Projeção: só faz sentido pro mês em curso e a partir do 3º dia — no dia 1
+    // um almoço viraria "projeção de R$ 3.000 no mês".
+    const diaHoje = hoje.getDate();
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const podeProjetar = ehMesAtual && diaHoje >= 3 && gastoDoMes > 0;
+    const projecao = podeProjetar ? (gastoDoMes / diaHoje) * diasNoMes : null;
+
+    return {
+      media, mesesNaMedia: base.length, gastoDoMes, projecao, ehMesAtual,
+      diaHoje, diasNoMes,
+      // Comparação contra a média usa a PROJEÇÃO quando existe (mês incompleto
+      // contra média de meses fechados seria comparar coisas diferentes).
+      refComparacao: projecao ?? gastoDoMes,
+      variacao: media > 0 ? (((projecao ?? gastoDoMes) - media) / media) * 100 : null,
+    };
+  }, [anualData, mes, ano, hoje]);
 
   return (
     <>
@@ -552,6 +648,34 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
               </ChartCard>
             )}
 
+            {/* Média mensal + projeção do mês */}
+            {mediaEProjecao && mediaEProjecao.mesesNaMedia > 0 && (
+              <ChartCard
+                title="Ritmo do mês"
+                subtitle={`Comparado à sua média de ${mediaEProjecao.mesesNaMedia} ${mediaEProjecao.mesesNaMedia === 1 ? 'mês' : 'meses'} em ${ano}`}
+                icon={<Activity size={14} className="text-indigo-500" />}
+                badgeColor="blue"
+                fullWidth
+              >
+                <RitmoDoMes {...mediaEProjecao} mesLabel={MESES[mes]} />
+              </ChartCard>
+            )}
+
+            {/* Categoria × limite */}
+            {usoDosLimites.length > 0 && (
+              <ChartCard
+                title="Limites por categoria"
+                subtitle={`Quanto já foi usado do limite de ${MESES_CURTO[mes]}`}
+                icon={<Target size={14} className="text-amber-500" />}
+                badgeColor="purple"
+                fullWidth
+              >
+                <div className="space-y-3.5 mt-2">
+                  {usoDosLimites.map((l, i) => <LinhaLimite key={l.nome} {...l} i={i} />)}
+                </div>
+              </ChartCard>
+            )}
+
             {/* Por membro — gastos, receitas e saldo de cada um (só grupo 2+
                 membros e sem filtro por membro ativo) */}
             {membroFiltro === 'todos' && (resumo?.por_membro || []).length >= 2 && (
@@ -821,6 +945,120 @@ function PremiumStatCard({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RITMO DO MÊS — média × mês atual × projeção
+   ═══════════════════════════════════════════════════════════════════════ */
+function RitmoDoMes({
+  media, mesesNaMedia, gastoDoMes, projecao, ehMesAtual, diaHoje, diasNoMes,
+  variacao, mesLabel,
+}: any) {
+  const acima = (variacao ?? 0) > 0;
+  // Faixa morta de ±5%: variação de 2% não é "acima da média", é ruído — e
+  // apontar isso como sinal treina a pessoa a ignorar o card.
+  const relevante = variacao !== null && Math.abs(variacao) >= 5;
+  const cor = !relevante ? 'hsl(var(--muted-foreground))' : acima ? RED : BRAND;
+
+  return (
+    <div className="space-y-4 mt-1">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <BlocoNum label={`Média mensal`} valor={media}
+                  sub={`${mesesNaMedia} ${mesesNaMedia === 1 ? 'mês fechado' : 'meses fechados'}`} />
+        <BlocoNum label={`${mesLabel} até agora`} valor={gastoDoMes}
+                  sub={ehMesAtual ? `dia ${diaHoje} de ${diasNoMes}` : 'mês fechado'} />
+        {projecao !== null && (
+          <BlocoNum label="Projeção do mês" valor={projecao} cor={cor} destaque
+                    sub="se o ritmo continuar" />
+        )}
+      </div>
+
+      {/* A frase é o produto do card: o número sozinho não diz o que fazer. */}
+      {relevante && (
+        <div className="flex items-start gap-2.5 rounded-xl p-3"
+             style={{ background: `color-mix(in srgb, ${cor} 10%, transparent)` }}>
+          {acima ? <AlertTriangle size={15} style={{ color: cor }} className="flex-shrink-0 mt-0.5" />
+                 : <CheckIcon size={15} style={{ color: cor }} className="flex-shrink-0 mt-0.5" />}
+          <p className="text-xs text-foreground leading-relaxed">
+            {projecao !== null ? 'No ritmo atual, ' : ''}
+            {mesLabel} {projecao !== null ? 'deve fechar' : 'fechou'}{' '}
+            <strong style={{ color: cor }}>{Math.abs(variacao).toFixed(0)}% {acima ? 'acima' : 'abaixo'}</strong>{' '}
+            da sua média — {fmt(Math.abs((projecao ?? gastoDoMes) - media))}{' '}
+            {acima ? 'a mais' : 'a menos'} que os {fmt(media)} de sempre.
+          </p>
+        </div>
+      )}
+
+      {/* ⚠️ A projeção é ESTIMATIVA e diz isso na cara. Foi um número inventado
+          apresentado como fato que quebrou esta aba antes; um rótulo honesto é
+          o que separa as duas coisas. */}
+      {projecao !== null && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+          <Gauge size={11} />
+          Projeção = o que já saiu ({fmt(gastoDoMes)}) dividido por {diaHoje} dias, vezes {diasNoMes}.
+          Não considera contas que ainda vão vencer.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BlocoNum({ label, valor, sub, cor, destaque }: any) {
+  return (
+    <div className={`rounded-xl p-3 ${destaque ? 'ring-1' : ''} bg-muted/30`}
+         style={destaque ? { ['--tw-ring-color' as any]: cor, background: `color-mix(in srgb, ${cor} 7%, transparent)` } : undefined}>
+      <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{label}</p>
+      <p className="text-lg font-bold tabular mt-0.5" style={cor ? { color: cor } : undefined}>{fmt(valor)}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LINHA DE LIMITE
+   ═══════════════════════════════════════════════════════════════════════ */
+function LinhaLimite({ nome, limite, gasto, pct, filhas, theme, i }: any) {
+  const estourou = pct > 100;
+  const perto    = pct >= 80 && pct <= 100;
+  // Status é ÍCONE + TEXTO, nunca a cor sozinha.
+  const cor = estourou ? RED : perto ? '#f59e0b' : BRAND;
+  const restante = limite - gasto;
+
+  return (
+    <div className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-2 min-w-0">
+          {temMarcaConhecida(nome)
+            ? <CategoriaIcon nome={nome} icone={theme.emoji} color={theme.color} size={22} />
+            : <span className="text-base flex-shrink-0">{theme.emoji}</span>}
+          <span className="text-sm font-medium text-foreground truncate">{nome}</span>
+          {/* Diz que o número inclui as filhas — sem isso o usuário estranha
+              um gasto maior do que ele lançou naquela categoria. */}
+          {filhas > 0 && (
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+              +{filhas} sub
+            </span>
+          )}
+        </div>
+        <span className="text-xs font-bold tabular whitespace-nowrap flex-shrink-0" style={{ color: cor }}>
+          {fmt(gasto)} <span className="text-muted-foreground font-medium">/ {fmt(limite)}</span>
+        </span>
+      </div>
+
+      <div className="h-2 rounded-full bg-muted/60 overflow-hidden"
+           role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}
+           aria-label={`${nome}: ${Math.round(pct)}% do limite usado`}>
+        <div className="h-full rounded-full transition-all duration-700"
+             style={{ width: `${Math.min(pct, 100)}%`, background: cor }} />
+      </div>
+
+      <p className="text-[11px] mt-1 flex items-center gap-1.5" style={{ color: estourou || perto ? cor : undefined }}>
+        {estourou ? <><AlertTriangle size={10} /> Estourou {fmt(-restante)} ({pct.toFixed(0)}%)</>
+          : perto ? <><AlertTriangle size={10} /> Faltam {fmt(restante)} ({pct.toFixed(0)}% usado)</>
+          : <span className="text-muted-foreground"><CheckIcon size={10} className="inline mr-1" />Sobram {fmt(restante)} ({pct.toFixed(0)}% usado)</span>}
+      </p>
     </div>
   );
 }
