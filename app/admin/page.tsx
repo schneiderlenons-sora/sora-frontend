@@ -40,6 +40,7 @@ type Overview = {
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
   cancelados?: number; naoConcluido?: number; recuperados?: number;
   anuais?: number; recorrentesMensais?: number;
+  vitalicioComAssinatura?: number; vitalicioComAssinaturaEmails?: string[];
   // Open Finance avulso. CONTRATADAS (receita) x CONECTADAS (uso): os dois
   // divergirem é sinal de cliente pagando por algo que não está usando.
   ofUsuarios?: number; ofConexoesPagas?: number; ofMensais?: number; ofAnuais?: number;
@@ -319,6 +320,34 @@ export default function AdminPage() {
             <RefreshCw size={13} /> Atualizar
           </button>
         </div>
+
+        {/* ⚠️ COBRANÇA EM DUPLICIDADE — acima das métricas de propósito.
+            Vitalício com assinatura mensal correndo é cobrança dupla pelo mesmo
+            produto: vira chargeback quando o cliente percebe, e some no meio dos
+            números porque o MRR descarta vitalício. Medido em ago/2026: 3
+            clientes, R$ 79,70/mês — um deles assinou e comprou o vitalício com
+            17 minutos de diferença. Some sozinho quando você cancela ou estorna. */}
+        {!!ov && (ov.vitalicioComAssinatura ?? 0) > 0 && (
+          <div className="rounded-2xl border p-4 flex items-start gap-3"
+               style={{ borderColor: '#f59e0b66', background: '#f59e0b14' }}>
+            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" style={{ color: "#f59e0b" }} />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground">
+                {ov.vitalicioComAssinatura} {ov.vitalicioComAssinatura === 1 ? 'cliente está pagando' : 'clientes estão pagando'} duas vezes
+              </p>
+              <p className="text-[13px] text-muted-foreground leading-relaxed mt-0.5">
+                Tem vitalício (pagamento único) <b>e</b> assinatura mensal ativa ao mesmo tempo.
+                Fora do MRR de propósito — é cobrança indevida, não receita. Cancele a assinatura
+                no Stripe ou estorne.
+              </p>
+              {!!ov.vitalicioComAssinaturaEmails?.length && (
+                <p className="text-[12px] font-mono text-foreground/75 mt-2 break-words">
+                  {ov.vitalicioComAssinaturaEmails.join(' · ')}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Métricas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">

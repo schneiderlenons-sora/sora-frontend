@@ -145,6 +145,37 @@ export async function GET() {
     mrr = soma;
   } catch { /* migration 074 pode não ter rodado → mantém a estimativa antiga */ }
 
+  // ── COBRANÇA EM DUPLICIDADE: vitalício COM assinatura ativa ──────────────
+  //
+  // ⚠️ ISTO É DINHEIRO QUE PROVAVELMENTE VAI SER DEVOLVIDO, não receita.
+  // O vitalício paga UMA vez; se ele também tem assinatura mensal correndo,
+  // está sendo cobrado duas vezes pelo mesmo produto — e quando percebe, o
+  // caminho normal é chargeback.
+  //
+  // Medido em ago/2026: 3 clientes nessa situação, R$ 79,70/mês. Um deles
+  // assinou e comprou o vitalício com 17 MINUTOS de diferença — ou seja, dá
+  // pra acontecer sem ninguém notar, e ficava invisível porque o MRR
+  // simplesmente descarta `vitalicio === true`.
+  //
+  // Fora do MRR de propósito (decisão do dono): contar aqui seria inflar a
+  // receita com cobrança indevida. O número existe pra ser RESOLVIDO — cancele
+  // a assinatura ou estorne, e ele volta a zero sozinho.
+  //
+  // `stripe_subscription_id` é confiável como sinal: o webhook o zera em
+  // `customer.subscription.deleted`.
+  let vitalicioComAssinatura = 0;
+  let vitalicioComAssinaturaEmails: string[] = [];
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .eq('vitalicio', true)
+      .not('stripe_subscription_id', 'is', null);
+    if (error) throw error;
+    vitalicioComAssinatura = (data || []).length;
+    vitalicioComAssinaturaEmails = (data || []).map((u) => String(u.email || '')).filter(Boolean);
+  } catch { /* colunas podem não existir */ }
+
   // ── OPEN FINANCE ────────────────────────────────────────────────────────
   //
   // Duas coisas DIFERENTES, e misturá-las esconde problema:
@@ -221,6 +252,7 @@ export async function GET() {
     ativos: total - inativo,
     premiumRecorrente, vitalicios, kitVitalicio, premiumVitalicio,
     receitaVitalicio: Math.round(receitaVitalicio * 100) / 100,
+    vitalicioComAssinatura, vitalicioComAssinaturaEmails,
     novos7, novos30, pagouInativo, bugsAbertos, melhoriasAbertas,
     semPagamento, recEnviadas, recEnviadas2, recRecuperados,
     anuais, recorrentesMensais,
