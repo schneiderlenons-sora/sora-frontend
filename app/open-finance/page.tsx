@@ -20,7 +20,7 @@ import IconeMarca from '@/components/ui/IconeMarca';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
   Clock, ShieldCheck, Search, ExternalLink, X,
-  Wrench, FileUp, Sparkles, ArrowRight,
+  Wrench, FileUp, Sparkles, ArrowRight, Scale,
 } from 'lucide-react';
 
 const BRAND = '#61D17B';
@@ -927,8 +927,9 @@ function ContratarConexao({ atual = 0, primeiraCompra = false }: { atual?: numbe
 // Observações sobre o Open Finance
 //
 // ⚠️ CADA ITEM SAIU DE UM CHAMADO REAL. A ordem é por frequência de dúvida:
-// segurança primeiro (é o que trava a decisão de conectar), depois os três
-// comportamentos do BANCO que fazem o painel parecer errado sem estar.
+// segurança primeiro (é o que trava a decisão de conectar), depois os
+// comportamentos do BANCO que fazem o painel parecer errado sem estar — o da
+// fatura em aberto na frente, porque é o único sem solução do nosso lado.
 //
 // Escrito em tom de expectativa, não de desculpa: dizer "o banco não manda o
 // limite" antes de a pessoa descobrir sozinha é a diferença entre um ajuste de
@@ -947,6 +948,41 @@ function ObservacoesOpenFinance() {
           lemos saldos, extrato, faturas e posições de investimento, e só. Não existe função de
           pagamento ou transferência nesta integração.
           {' '}Você revoga quando quiser, aqui ou no app do seu banco, e o acesso encerra na hora.
+        </>
+      ),
+    },
+    {
+      // ⚠️ ESTE ITEM É DIFERENTE DOS OUTROS: não é algo que o usuário resolve,
+      // é um limite do dado que o banco manda. Por isso vem logo depois da
+      // segurança — é a dúvida nº 1 de quem conecta cartão ("por que não bate
+      // com o app do banco?") e a única cuja resposta é "não vai bater sempre".
+      //
+      // O texto começa pelo que é EXATO (fatura fechada = número do banco;
+      // medido: 34 dos 36 cartões de OF da base têm fatura publicada) antes de
+      // falar do que é estimativa. Abrir pela limitação faria a pessoa duvidar
+      // do número inteiro, quando na prática só o ciclo em aberto oscila.
+      //
+      // ⚠️ NÃO recomendar "evite Pix no Crédito" — foi a nossa primeira ideia e
+      // a Polp desmentiu: o problema é o cartão TER um limite separado (Limite
+      // Pix no Crédito / NuPay), não a pessoa USAR a função. Deixar de usar não
+      // muda nada, e seria conselho inútil sobre o banco dela.
+      // Índigo, e não violeta: o card "nome estranho" logo abaixo já usa
+      // #a855f7 e os dois ficariam indistinguíveis lado a lado no grid. O peso
+      // do item vem do ícone + título, nunca da cor sozinha (color-not-only).
+      Icon: Scale,
+      cor: '#6366f1',
+      titulo: 'A fatura em aberto é uma estimativa',
+      corpo: (
+        <>
+          Assim que o banco <b>fecha</b> a fatura, a Sora passa a mostrar o número
+          dele — esse bate com o app. Antes disso, a fatura do mês é montada aqui a
+          partir dos lançamentos e pode ficar alguns reais acima ou abaixo.
+          {' '}Dois casos conhecidos explicam a diferença, e nenhum depende de você:
+          cartões que têm um <b>limite separado</b> (como o Limite Pix no Crédito) e
+          o <b>adiantamento de fatura</b> — antecipar um valor antes do fechamento
+          chega pra gente idêntico a pagar uma fatura já fechada.
+          {' '}Os <b>lançamentos</b> continuam corretos; se precisar do total exato
+          antes do fechamento, confira no app do banco.
         </>
       ),
     },
@@ -1026,7 +1062,7 @@ function ObservacoesOpenFinance() {
       <h2 id="of-obs" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
         O que esperar do Open Finance
       </h2>
-      {/* Duas colunas no desktop: são 5 blocos de texto e uma coluna só viraria
+      {/* Duas colunas no desktop: são 6 blocos de texto e uma coluna só viraria
           uma parede. No mobile empilha. */}
       <div className="grid gap-3 lg:grid-cols-2">
         {itens.map(({ Icon, cor, titulo, corpo }) => (
