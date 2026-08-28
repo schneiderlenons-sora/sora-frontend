@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api } from '@/lib/api';
+import MeusChamados from '@/components/suporte/MeusChamados';
 import {
   Bug, ImagePlus, X, Loader2, CheckCircle2, AlertCircle, Send, LifeBuoy, Lightbulb,
 } from 'lucide-react';
@@ -20,6 +21,9 @@ export default function ReportarBugPage() {
   const [enviado, setEnviado]   = useState(false);
   const [erro, setErro]         = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  // Deixa a lista de chamados se recarregar quando um relato novo entra —
+  // senao o chamado que a pessoa acabou de abrir so aparece no proximo F5.
+  const recarregarChamados = useRef<(() => void) | null>(null);
 
   function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -39,6 +43,7 @@ export default function ReportarBugPage() {
     try {
       await api.bug.reportar({ mensagem: mensagem.trim(), imagem: imagem || undefined, tipo });
       setEnviado(true);
+      recarregarChamados.current?.();
     } catch (e: any) {
       setErro(e?.message || 'Não consegui enviar seu relato. Tente de novo em instantes.');
     } finally {
@@ -186,6 +191,12 @@ export default function ReportarBugPage() {
             </button>
           </div>
         )}
+
+        {/* Chamados abertos — a conversa com o suporte. Fica ABAIXO do
+            formulario porque quem chega nesta tela vem relatar algo; a lista
+            e consulta, nao a acao principal. Some sozinha quando nao ha
+            chamado nenhum (o componente devolve null). */}
+        <MeusChamados recarregarRef={recarregarChamados} />
 
         {/* Atalho pro suporte humano */}
         <div className="flex items-start gap-3 p-4 rounded-2xl border border-border bg-card/60">

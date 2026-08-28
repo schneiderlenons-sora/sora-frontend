@@ -31,7 +31,7 @@ const PLANOS = PLANOS_DISPLAY;
 //
 // Isto NÃO afeta /oferta nem /kit — as landings vendem o vitalício sempre.
 // O cartão de status de quem JÁ TEM vitalício também é independente daqui.
-const MOSTRAR_VITALICIO = true;
+const MOSTRAR_VITALICIO = false;
 
 const ORDEM: Record<Plano, number> = {
   inativo: 0, basico: 1, kit: 1, premium: 2, platinum: 3,

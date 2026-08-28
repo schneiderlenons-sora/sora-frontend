@@ -38,6 +38,24 @@ export async function POST(req: NextRequest) {
     if (data?.ok === false) {
       return NextResponse.json({ erro: `Não entregue: ${data.erro || 'erro'}${data.code ? ` (código ${data.code})` : ''}` }, { status: 200 });
     }
+
+    // ⚠️ SÓ GRAVA DEPOIS DE O WHATSAPP CONFIRMAR. Gravar antes deixaria a
+    // resposta visível no painel do cliente sem ela ter sido entregue —
+    // e o histórico do chamado passaria a mentir sobre o que foi respondido.
+    //
+    // A conversa também precisa existir aqui porque o WhatsApp some no meio de
+    // outras mensagens: o painel é onde o cliente reencontra o que foi dito.
+    // Tolerante: sem a migration 143 a resposta ainda é entregue por WhatsApp.
+    try {
+      await supabaseAdmin.from('bug_mensagens').insert({
+        bug_id: bugId, autor: 'suporte', texto: texto.trim(),
+      });
+      // Respondeu = está sendo tratado. Poupa o admin de mudar o status à mão
+      // (e é o que faz o chamado sair da fila de "aberto" na visão dele).
+      await supabaseAdmin.from('bug_reports')
+        .update({ status: 'em_andamento' }).eq('id', bugId).eq('status', 'aberto');
+    } catch { /* migration 143 pendente — o envio já aconteceu */ }
+
     return NextResponse.json({ ok: true, para: b.nome || b.phone });
   } catch (e: unknown) {
     return NextResponse.json({ erro: e instanceof Error ? e.message : 'Erro ao enviar' }, { status: 502 });

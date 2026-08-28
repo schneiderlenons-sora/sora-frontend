@@ -134,6 +134,39 @@ export type ParcelaPrevista = {
   parcela_total: number;
 };
 
+// ── Chamados de suporte (migration 143) ──────────────────────────────────────
+export type StatusChamado = 'aberto' | 'em_andamento' | 'resolvido';
+
+export type ChamadoResumo = {
+  id: string;
+  mensagem: string;                 // o relato de abertura
+  tipo?: 'problema' | 'melhoria';
+  status: StatusChamado;
+  created_at: string;
+  tem_imagem?: boolean;
+  /** Mensagens do suporte que o usuário ainda não abriu — acende o badge. */
+  nao_lidas: number;
+  ultima_msg: { autor: 'usuario' | 'suporte'; texto: string; created_at: string } | null;
+};
+
+export type ChamadoMensagem = {
+  id: string;
+  autor: 'usuario' | 'suporte';
+  texto: string;
+  created_at: string;
+  /** URL ASSINADA e temporária — o bucket dos anexos é privado. */
+  imagem_url: string | null;
+};
+
+export type ChamadoDetalhe = {
+  id: string;
+  mensagem: string;
+  tipo?: 'problema' | 'melhoria';
+  status: StatusChamado;
+  created_at: string;
+  imagem_url: string | null;
+};
+
 // Fatura de um cartão vinda de GET /api/wallets/faturas/:phone (em lote).
 export type FaturaCartao = FaturaCiclo & {
   cartao_id: string;
@@ -193,6 +226,18 @@ export const api = {
     /** Envia um relato de bug ou sugestão de melhoria (texto + imagem base64 opcional) pro suporte. */
     reportar: (body: { mensagem: string; imagem?: string; tipo?: 'problema' | 'melhoria' }) =>
       req<{ ok: boolean; id?: string }>('/api/bug', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    /** Chamados do usuário logado, com contagem do que ele ainda não leu. */
+    meusChamados: () =>
+      req<{ chamados: ChamadoResumo[] }>('/api/bug/meus'),
+    /** Conversa de um chamado (marca as do suporte como lidas). */
+    conversa: (id: string) =>
+      req<{ chamado: ChamadoDetalhe; mensagens: ChamadoMensagem[] }>(`/api/bug/${id}/mensagens`),
+    /** Usuário responde no chamado. */
+    responder: (id: string, body: { texto: string; imagem?: string }) =>
+      req<{ ok: boolean; id?: string; created_at?: string }>(`/api/bug/${id}/mensagens`, {
         method: 'POST',
         body: JSON.stringify(body),
       }),

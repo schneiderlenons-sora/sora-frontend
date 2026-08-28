@@ -8,7 +8,7 @@ import { isAdminEmail } from '@/lib/admin';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -472,13 +472,18 @@ export default function AdminPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">{b.nome || '—'} <span className="font-normal text-muted-foreground">· {b.phone || b.email || ''}</span></p>
-                    <p className="text-[11px] text-muted-foreground">{new Date(b.created_at).toLocaleString('pt-BR')}{b.tem_imagem ? ' · 📷 com print (no seu WhatsApp)' : ''}</p>
+                    <p className="text-[11px] text-muted-foreground">{new Date(b.created_at).toLocaleString('pt-BR')}{b.tem_imagem ? ' · 📷 com print' : ''}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap ${b.status === 'resolvido' ? 'bg-emerald-500/15 text-emerald-600' : b.status === 'em_andamento' ? 'bg-amber-500/15 text-amber-600' : 'bg-red-500/15 text-red-600'}`}>
                     {b.status === 'resolvido' ? 'Resolvido' : b.status === 'em_andamento' ? 'Em andamento' : 'Aberto'}
                   </span>
                 </div>
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{b.mensagem}</p>
+
+                {/* Conversa do chamado + print anexado. Carrega sob demanda:
+                    a URL do anexo e ASSINADA e expira, entao nao vale trazer
+                    na listagem de 200 relatos — so quando o admin abre. */}
+                <ConversaChamado id={b.id} temImagem={b.tem_imagem} />
                 <div className="flex items-center gap-1.5 pt-1 flex-wrap">
                   {(['aberto', 'em_andamento', 'resolvido'] as const).map((s) => (
                     <button key={s} onClick={() => mudarStatusBug(b.id, s)}
@@ -927,6 +932,92 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Conversa de um chamado (visão do suporte) ───────────────────────────────
+//
+// Carrega SOB DEMANDA, num toque. Duas razões: a URL do anexo é assinada e
+// expira em 1h — trazer 200 delas na listagem seria gerar links que morrem
+// antes de alguém clicar; e a thread só interessa no chamado que o admin
+// resolveu abrir.
+function ConversaChamado({ id, temImagem }: { id: string; temImagem?: boolean }) {
+  const [aberto, setAberto] = useState(false);
+  const [dados, setDados] = useState<{
+    chamado: { imagem_url: string | null };
+    mensagens: { id: string; autor: 'usuario' | 'suporte'; texto: string; created_at: string; imagem_url: string | null }[];
+  } | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  async function abrir() {
+    if (aberto) { setAberto(false); return; }
+    setAberto(true);
+    if (dados) return;               // já carregado nesta sessão
+    setCarregando(true);
+    try {
+      const r = await fetch(`/api/admin/bugs/${id}`);
+      setDados(await r.json());
+    } catch { /* mostra vazio */ }
+    finally { setCarregando(false); }
+  }
+
+  const qtd = dados?.mensagens.length ?? 0;
+
+  return (
+    <div className="pt-1">
+      <button onClick={abrir}
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors">
+        <MessageSquare size={12} />
+        {aberto ? 'Ocultar conversa' : temImagem ? 'Ver conversa e print' : 'Ver conversa'}
+        {qtd > 0 && !aberto ? ` (${qtd})` : ''}
+      </button>
+
+      {aberto && (
+        <div className="mt-2 rounded-xl border border-border/60 bg-background/50 p-3 space-y-2">
+          {carregando && <Loader2 size={14} className="animate-spin text-muted-foreground mx-auto" />}
+
+          {/* Print do relato de abertura — o que antes só existia no WhatsApp */}
+          {dados?.chamado.imagem_url && (
+            <a href={dados.chamado.imagem_url} target="_blank" rel="noopener noreferrer"
+               className="block rounded-lg overflow-hidden border border-border">
+              <img src={dados.chamado.imagem_url} alt="Print anexado pelo cliente"
+                   className="w-full max-h-72 object-contain bg-muted" />
+            </a>
+          )}
+          {!carregando && temImagem && !dados?.chamado.imagem_url && (
+            // Relato anterior à migration 143: a imagem foi descartada na época.
+            <p className="text-[11px] text-muted-foreground italic">
+              Print não guardado (relato anterior ao histórico de anexos) — veja no seu WhatsApp.
+            </p>
+          )}
+
+          {!carregando && qtd === 0 && (
+            <p className="text-[11px] text-muted-foreground">Nenhuma resposta ainda.</p>
+          )}
+
+          {dados?.mensagens.map((m) => (
+            <div key={m.id} className={`flex ${m.autor === 'suporte' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                m.autor === 'suporte' ? 'bg-primary/12 border border-primary/25' : 'bg-muted border border-border'}`}>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
+                  {m.autor === 'suporte' ? 'Suporte' : 'Cliente'}
+                </p>
+                <p className="text-[13px] text-foreground whitespace-pre-wrap break-words leading-relaxed">{m.texto}</p>
+                {m.imagem_url && (
+                  <a href={m.imagem_url} target="_blank" rel="noopener noreferrer"
+                     className="block mt-1.5 rounded-lg overflow-hidden border border-border">
+                    <img src={m.imagem_url} alt="Anexo do cliente" className="w-full max-h-52 object-contain bg-background" />
+                  </a>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-1 text-right tabular-nums">
+                  {new Date(m.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
