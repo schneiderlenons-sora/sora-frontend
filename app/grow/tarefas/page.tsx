@@ -527,8 +527,14 @@ function CardTarefa({ t, i, modo, colunaAtual, onConcluir, onAbrir, onDeletar, o
             {t.titulo}
           </p>
 
-          {/* Metadados: só o que existe. Linha vazia de chip é ruído. */}
-          {(pz || cat || t.projetos || t.recorrente || t.tags?.length) && (
+          {/* Metadados: só o que existe. Linha vazia de chip é ruído.
+              ⚠️ `!!` OBRIGATÓRIO no fim da condição. Sem ele, uma tarefa sem
+              prazo, categoria, projeto e recorrência caía em `t.tags?.length`,
+              que numa lista VAZIA vale `0` — e o `&&` devolvia esse `0`, que o
+              React IMPRIME como texto. Era o "0" solto que aparecia embaixo do
+              título das tarefas sem nenhum chip (as com tag não mostravam,
+              porque aí o length era 1 e virava true). */}
+          {!!(pz || cat || t.projetos || t.recorrente || t.tags?.length) && (
             <div className="flex items-center gap-1.5 gap-y-1 mt-1.5 flex-wrap">
               {pz && !t.concluida && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
