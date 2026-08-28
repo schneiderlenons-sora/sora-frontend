@@ -38,6 +38,7 @@ export type Feature =
   | 'export_dados'           // Premium+: exportar transações em CSV
   | 'ocr_imagem'             // Premium+: enviar foto de comprovante
   | 'drive'                  // Premium+: Drive — guardar/buscar arquivos pelo WhatsApp
+  | 'oraculo'                // Premium+: "posso comprar isso?" no WhatsApp
   | 'suporte_prioritario'    // Platinum: fila de atendimento própria
   // Features disponíveis em todos os planos pagos (e inativo p/ onboarding):
   | 'metas'
@@ -75,6 +76,10 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   export_dados:       ['kit', 'premium', 'platinum'],
   ocr_imagem:         ['premium', 'platinum'],   // foto de nota
   drive:              ['premium', 'platinum'],   // Drive por WhatsApp
+  // ⚠️ Espelha PLANOS_ORACULO em `handlers/oraculo.js`. Ele depende da foto
+  // financeira completa (Open Finance, OFX, cartões, recorrências) — no Básico
+  // cairia em "não sei" quase sempre, o que leria como função quebrada.
+  oraculo:            ['premium', 'platinum'],
   suporte_prioritario: ['platinum'],
   metas:              ['inativo', 'basico', 'kit', 'premium', 'platinum'],
   dividas:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],

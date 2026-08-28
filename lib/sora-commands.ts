@@ -483,6 +483,20 @@ export const COMANDOS: Comando[] = [
 
   // ─── ANÁLISES ─────────────────────────────────────────────────────
   {
+    id: 'oraculo-compra',
+    titulo: 'Posso comprar isso? 🔮',
+    exemplo: 'posso comprar um celular em 10x de 500?',
+    descricao: 'O **Oráculo** cruza seu caixa, contas fixas, dívidas, fatura em aberto e limite do cartão e responde se a compra cabe — antes de você assumir a parcela. Se ele não tiver dado suficiente pra cravar, ele diz isso em vez de chutar.',
+    variantes: [
+      'dá pra comprar uma tv de 2500 em 12x?',
+      'vale a pena parcelar 1200 em 6x?',
+      'consigo comprar uma geladeira de 4000 à vista?',
+    ],
+    categoria: 'analises',
+    feature: 'oraculo',
+    destaque: true,
+  },
+  {
     id: 'resumo',
     titulo: 'Resumo do mês',
     exemplo: 'resumo',

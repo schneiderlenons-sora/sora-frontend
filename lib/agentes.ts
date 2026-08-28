@@ -337,15 +337,17 @@ export const AGENTES: Agente[] = [
     poster: '/agentes/oraculo-thumb.jpg',
     video: '/agentes/oraculo.webm',
     cadencia: 'Sob demanda',
-    emBreve: true,
     avisos: [
       {
         id: 'consulta',
         titulo: 'Vale a pena comprar?',
-        desc: 'Pergunte no WhatsApp e ele cruza seu limite, a fatura em aberto e suas metas.',
+        desc: 'Pergunte no WhatsApp e ele cruza seu caixa, as contas fixas, as dívidas, a fatura em aberto e o limite do cartão antes de responder.',
         cadencia: 'Sob demanda',
         chave: null,
-        exemplo: '"Posso comprar um celular de R$ 3.000?" — Pode. Mas sua meta da viagem atrasa 2 meses. Escolha.',
+        // ⚠️ O exemplo mostra um NÃO de propósito. O Oráculo só diz "pode"
+        // quando a conta fecha com folga — vender a promessa de um "sim" fácil
+        // seria mentir sobre o que ele faz.
+        exemplo: '"Posso comprar um celular em 10x de 500?" — Não dá: a parcela é maior que sua folga de R$ 320 por mês.',
       },
     ],
   },
