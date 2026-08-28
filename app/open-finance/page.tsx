@@ -962,10 +962,13 @@ function ObservacoesOpenFinance() {
       // falar do que é estimativa. Abrir pela limitação faria a pessoa duvidar
       // do número inteiro, quando na prática só o ciclo em aberto oscila.
       //
-      // ⚠️ NÃO recomendar "evite Pix no Crédito" — foi a nossa primeira ideia e
-      // a Polp desmentiu: o problema é o cartão TER um limite separado (Limite
-      // Pix no Crédito / NuPay), não a pessoa USAR a função. Deixar de usar não
-      // muda nada, e seria conselho inútil sobre o banco dela.
+      // ⚠️ SOBRE CITAR "USO DE PIX NO CRÉDITO": é redação escolhida pelo dono,
+      // depois de eu levantar a ressalva. Registrado aqui pra ninguém "corrigir"
+      // achando que é engano — mas a nuance técnica continua valendo: pela
+      // Polp, o que atrapalha o cálculo é o cartão TER um limite separado
+      // (Limite Pix no Crédito / NuPay), não a pessoa USAR a função. Quem tem o
+      // sublimite carrega a imprecisão mesmo sem nunca usar Pix no crédito.
+      //
       // Índigo, e não violeta: o card "nome estranho" logo abaixo já usa
       // #a855f7 e os dois ficariam indistinguíveis lado a lado no grid. O peso
       // do item vem do ícone + título, nunca da cor sozinha (color-not-only).
@@ -975,14 +978,27 @@ function ObservacoesOpenFinance() {
       corpo: (
         <>
           Assim que o banco <b>fecha</b> a fatura, a Sora passa a mostrar o número
-          dele — esse bate com o app. Antes disso, a fatura do mês é montada aqui a
+          dela — essa bate com o app. Antes disso, a fatura do mês é montada aqui a
           partir dos lançamentos e pode ficar alguns reais acima ou abaixo.
-          {' '}Dois casos conhecidos explicam a diferença, e nenhum depende de você:
-          cartões que têm um <b>limite separado</b> (como o Limite Pix no Crédito) e
-          o <b>adiantamento de fatura</b> — antecipar um valor antes do fechamento
-          chega pra gente idêntico a pagar uma fatura já fechada.
-          {' '}Os <b>lançamentos</b> continuam corretos; se precisar do total exato
-          antes do fechamento, confira no app do banco.
+          {' '}Isso pode acontecer devido a dois casos conhecidos: cartões que têm um{' '}
+          <b>limite separado</b> (como o Limite Pix no Crédito) e o{' '}
+          <b>adiantamento de fatura</b> — antecipar um valor antes do fechamento
+          chega pra gente de forma idêntica a pagar uma fatura já fechada.
+          {/* ⚠️ `span block` e NÃO `<p>`: o corpo já é renderizado dentro de um
+              <p> lá embaixo, e <p> dentro de <p> é HTML inválido — o navegador
+              fecha o primeiro sozinho e a formatação quebra. */}
+          <span className="block mt-2">
+            Dessa forma, fazer o uso de Pix no Crédito e adiantar um valor da fatura
+            antes do fechamento pode gerar divergências entre a fatura mostrada no
+            app e no banco. Os <b>lançamentos</b> continuam corretos; mas se houver
+            grande diferença entre a fatura no app e no banco, você poderá abrir um
+            chamado conosco na aba{' '}
+            <a href="/reportar-bug" className="underline underline-offset-2 hover:text-foreground">
+              Relatar um problema
+            </a>{' '}
+            para analisarmos se há possíveis transações duplicadas sendo contadas no
+            valor da fatura.
+          </span>
         </>
       ),
     },
