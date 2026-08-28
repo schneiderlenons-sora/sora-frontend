@@ -6,7 +6,15 @@
 // do limparCacheSWR). Ao abrir, o perfil do cache só é MANTIDO se a sessão do
 // Supabase for do MESMO usuário — senão é descartado na hora (ver AuthContext).
 
-const KEY = 'sora-perfil-cache-v1';
+// ⚠️ VERSÃO NA CHAVE — subir sempre que um campo NOVO passar a decidir acesso.
+//
+// v1 → v2: entrou `negocios_liberado` (migration 142), que é o que mantém a aba
+// Negócios pra quem já a usava. Um perfil cacheado ANTES não tem o campo, e o
+// primeiro paint sairia com a aba TRANCADA e badge "Platinum" pra quem pagou
+// por ela — até o /api/me responder. Trocar a chave descarta o cache velho:
+// custa um cold-start mais lento uma única vez, e ninguém vê paywall no que já
+// é seu.
+const KEY = 'sora-perfil-cache-v2';
 
 export interface PerfilCache {
   userId: string;

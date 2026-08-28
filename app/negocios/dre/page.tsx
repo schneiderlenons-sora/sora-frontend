@@ -46,7 +46,7 @@ const fmt = (c: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((c || 0) / 100);
 
 export default function DrePage() {
-  const { isPremium, phone } = useAuth();
+  const { temNegocios, phone } = useAuth();
   const { empresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -57,7 +57,7 @@ export default function DrePage() {
   const [atualizando, setAtualizando] = useState(false);
 
   const { data, mutate, isLoading } = useApi(
-    (phone && isPremium && empresa) ? `negdre2:${empresa.id}:${periodo}` : null,
+    (phone && temNegocios && empresa) ? `negdre2:${empresa.id}:${periodo}` : null,
     () => api.negocios.dre.gerencial(phone, periodo, empresa!.id),
   );
   const dre = (data ?? null) as DreGerencial | null;
@@ -91,9 +91,9 @@ export default function DrePage() {
     URL.revokeObjectURL(a.href);
   }
 
-  if (!isPremium) {
+  if (!temNegocios) {
     return <p className="max-w-md mx-auto pt-20 text-center text-sm text-muted-foreground">
-      Disponível no plano Premium.
+      Disponível no plano Platinum.
     </p>;
   }
 

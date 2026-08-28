@@ -302,7 +302,7 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
 }
 
 async function updateUserFromSub(userId: string, sub: Stripe.Subscription) {
-  // BLINDAGEM: vitalício mantém Black; só registra o id da assinatura.
+  // BLINDAGEM: vitalício mantém o plano dele; só registra o id da assinatura.
   if (await ehVitalicio(userId)) {
     await supabaseAdmin.from('users').update({ stripe_subscription_id: sub.id }).eq('id', userId);
     return;

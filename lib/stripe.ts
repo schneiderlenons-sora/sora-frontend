@@ -43,9 +43,14 @@ export const PRICE_IDS: Record<PlanoId, Record<Intervalo, string>> = {
     mensal: process.env.STRIPE_PRICE_PREMIUM_MENSAL!,
     anual:  process.env.STRIPE_PRICE_PREMIUM_ANUAL!,
   },
-  black:   {
-    mensal: process.env.STRIPE_PRICE_BLACK_MENSAL!,
-    anual:  process.env.STRIPE_PRICE_BLACK_ANUAL!,
+  // ⚠️ Os Price IDs do Platinum vêm CRAVADOS como padrão, ao contrário dos
+  // outros. Os planos antigos já tinham env var na Vercel; este nasceu
+  // agora, e sem o fallback o checkout responderia 400 ("plano inválido")
+  // no minuto seguinte ao deploy, até alguém lembrar de cadastrar a env.
+  // A env continua vencendo, pra trocar de preço sem deploy.
+  platinum: {
+    mensal: process.env.STRIPE_PRICE_PLATINUM_MENSAL || 'price_1U93pyQlbb8xkB6tzMS3cVqo',
+    anual:  process.env.STRIPE_PRICE_PLATINUM_ANUAL  || 'price_1U93pyQlbb8xkB6t91qNeNTq',
   },
 };
 
@@ -87,14 +92,14 @@ export function priceIdToIntervalo(priceId: string): Intervalo | null {
 export const PLANOS_INFO: Record<PlanoId, { mensal: number; anual: number; descAnual: number }> = {
   basico:  { mensal: 19.90, anual: 17.51, descAnual: 12 },
   premium: { mensal: 29.90, anual: 23.92, descAnual: 20 },
-  black:   { mensal: 79.90, anual: 47.94, descAnual: 40 },
+  platinum: { mensal: 49.90, anual: 39.92, descAnual: 20 }, // R$479/ano ÷ 12
 };
 
 // ── VITALÍCIO (pagamento único) ──────────────────────────────────────────────
 // O pagamento é via Mercado Pago (app/api/mercadopago/*). Aqui ficam só os
 // dados de exibição/escassez usados pelo /api/vitalicio/count.
 export const VITALICIO = {
-  plano:   'black' as PlanoId,   // o que libera
+  plano:   'premium' as PlanoId, // o que libera
   preco:   97.00,                // exibição
   // "Vagas de fundador" — gatilho de escassez. Total de 300 vagas, partindo de
   // uma base de 259 já ocupadas → exibe "Restam 41 de 300" no lançamento (barra

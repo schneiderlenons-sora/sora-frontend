@@ -16,9 +16,8 @@ import {
 const BRAND = 'hsl(var(--primary))';
 
 // Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
-// Black descontinuado — no painel mostramos só Básico e Premium (as features do
-// Black já foram anexadas ao Premium).
-const PLANOS = PLANOS_DISPLAY.filter((p) => p.id !== 'black');
+// Básico · Premium · Platinum.
+const PLANOS = PLANOS_DISPLAY;
 
 // ⚠️ CHAVE ÚNICA DA OFERTA VITALÍCIA NO PAINEL.
 //
@@ -27,7 +26,7 @@ const PLANOS = PLANOS_DISPLAY.filter((p) => p.id !== 'black');
 // trocar para `false` — o card some, a grade volta pra 2 colunas e o fetch de
 // vagas nem sai. NÃO apagar o bloco: da próxima vez o texto voltaria
 // desatualizado, que foi exatamente o que aconteceu agora (o card citava o
-// preço do Black, plano que nem existe mais, e "Stripe" no lugar do Mercado
+// preço do Black, plano já aposentado, e "Stripe" no lugar do Mercado
 // Pago).
 //
 // Isto NÃO afeta /oferta nem /kit — as landings vendem o vitalício sempre.
@@ -35,7 +34,7 @@ const PLANOS = PLANOS_DISPLAY.filter((p) => p.id !== 'black');
 const MOSTRAR_VITALICIO = true;
 
 const ORDEM: Record<Plano, number> = {
-  inativo: 0, basico: 1, kit: 1, premium: 2, black: 3,
+  inativo: 0, basico: 1, kit: 1, premium: 2, platinum: 3,
 };
 
 // ─── Componente principal (separado por causa do Suspense) ────────────────────
@@ -324,10 +323,10 @@ function PlanosContent() {
                   <span className="text-5xl font-bold text-white tabular-nums leading-none">97</span>
                   <span className="text-white/50 text-sm mb-1">único</span>
                 </div>
-                {/* Comparação com o PREMIUM (R$29,90/mês, PLANOS_INFO). Estava
-                    "R$79,90/mês", que era o Black — plano descontinuado: quem
-                    lesse acharia que economiza R$79,90/mês, e a alternativa real
-                    hoje é o Premium. */}
+                {/* Comparação com o PREMIUM (R$29,90/mês, PLANOS_INFO) — a
+                    assinatura que o vitalício substitui. Já esteve
+                    "R$79,90/mês" (um plano aposentado), e quem lesse
+                    acharia que economiza um valor que ninguém cobra. */}
                 <p className="text-white/40 text-xs line-through">R$29,90/mês na assinatura</p>
                 <button
                   onClick={comprarVitalicio}
@@ -412,7 +411,7 @@ function PlanosContent() {
         {/* Cards de planos — são só DOIS (Básico e Premium). Com 3 colunas a
             terceira ficava vazia e a grade desalinhada, então centraliza em 2,
             mesmo padrão de components/landing/Pricing.tsx. */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 max-w-3xl mx-auto gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 max-w-5xl mx-auto gap-5">
           {PLANOS.map((p) => {
             const info       = PLANOS_INFO[p.id];
             const preco      = anual ? info.anual : info.mensal;
@@ -447,7 +446,7 @@ function PlanosContent() {
                     style={{ background: `linear-gradient(135deg, ${p.cor}, ${escurecer(p.cor)})` }}
                   >
                     {p.id === 'premium' && <Sparkles size={9} />}
-                    {p.id === 'black' && <Crown size={9} />}
+                    {p.id === 'platinum' && <Crown size={9} />}
                     {p.badge}
                   </div>
                 )}

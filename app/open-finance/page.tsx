@@ -831,7 +831,7 @@ export default function OpenFinancePage() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Contratar conexão avulsa — qualquer plano compra, quando bate no limite.
 //
-// Cada plano tem uma franquia grátis (Básico 1 · Premium/Black 3 · vitalício
+// Cada plano tem uma franquia grátis (Básico 1 · Premium 3 · Platinum 5 · vitalício
 // 0, porque ele não paga mensalidade nenhuma). Além dela — pra QUALQUER plano,
 // não só o vitalício — dá pra somar quantas conexões quiser, uma por uma, cada
 // uma numa assinatura própria (separada da do plano).

@@ -32,7 +32,7 @@ type NavItem = {
   label:   string;
   icon:    any;
   gate?:   Feature;             // feature requerida (Finance)
-  badge?:  'Premium' | 'Black'; // rótulo quando bloqueado por plano
+  badge?:  'Premium' | 'Platinum'; // rótulo quando bloqueado por plano
   adminOnly?: boolean;          // só aparece pro admin (ex.: features em rollout)
   nota?:   string;              // mini texto abaixo do nome (ex.: status)
 };
@@ -53,7 +53,7 @@ const NAV_FINANCE: NavItem[] = [
   { href: '/dividas',            label: 'Dívidas e Parcelas', icon: Receipt },
   { href: '/juros',              label: 'Calculadora de Juros', icon: Percent },
   { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
-  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Premium' },
+  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Platinum' },
 ];
 
 // ── Grupo GROW ──────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ function PainelOpcao({ ativo, titulo, sub, onClick, logo, icon: Icon }:
 export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
-  const { perfil, phone, signOut, podeUsar, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
+  const { perfil, phone, signOut, podeUsar, temNegocios, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
 
   // Aquece TODAS as abas principais no tempo ocioso → clicar em qualquer uma
@@ -264,12 +264,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   function NavLink({ item, grow = false }: { item: NavItem; grow?: boolean }) {
     const { href, label, icon: Icon, gate, badge, nota } = item;
     const growLocked = grow && !temAcessoGrow;
-    const gateLocked = gate ? !podeUsar(gate) : false;
+    // ⚠️ Negócios NÃO passa por `podeUsar`: o gate dele soma o direito
+    // adquirido e o vitalício (temNegocios). Usar podeUsar aqui trancaria
+    // a aba de quem já a usa — o item sumiria da barra do dia pra noite.
+    const gateLocked = gate === 'negocios' ? !temNegocios : gate ? !podeUsar(gate) : false;
     const locked     = growLocked || gateLocked;
     const destino    = growLocked ? '/grow/upgrade' : gateLocked ? '/planos' : href;
     const ativo      = !locked && isActive(href);
     const badgeText  = growLocked ? 'Premium' : badge;
-    const corBadge   = badgeText === 'Black' ? 'bg-zinc-900 text-white' : 'bg-white text-emerald-700';
+    const corBadge   = badgeText === 'Platinum' ? 'bg-violet-600 text-white' : 'bg-white text-emerald-700';
 
     return (
       <Link

@@ -15,7 +15,7 @@ const BRAND = 'hsl(var(--primary))';
 const money = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const dataCurta = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }) : '—');
 
-type Plano = 'basico' | 'premium' | 'black' | 'inativo' | 'kit';
+type Plano = 'basico' | 'premium' | 'platinum' | 'inativo' | 'kit';
 type User = {
   id: string; name: string | null; email: string | null; phone: string | null;
   plano: Plano; plano_intervalo?: string | null; plano_valido_ate?: string | null;
@@ -34,7 +34,7 @@ type User = {
   created_at: string;
 };
 type Overview = {
-  total: number; ativos: number; inativo: number; basico: number; premium: number; black: number; kit?: number;
+  total: number; ativos: number; inativo: number; basico: number; premium: number; platinum: number; kit?: number;
   vitalicios?: number; kitVitalicio?: number; premiumVitalicio?: number; premiumRecorrente?: number; receitaVitalicio?: number;
   novos7: number; novos30: number; pagouInativo: number; bugsAbertos: number; melhoriasAbertas?: number; mrr: number; mrrExcluidos?: number;
   semPagamento?: number; recEnviadas?: number; recEnviadas2?: number; recRecuperados?: number;
@@ -56,7 +56,7 @@ type BugReport = {
 const PLANO_META: Record<Plano, { label: string; cor: string; icon?: any }> = {
   basico:  { label: 'Básico',  cor: '#71717a' },
   premium: { label: 'Premium', cor: '#10b981', icon: Sparkles },
-  black:   { label: 'Black',   cor: '#f59e0b', icon: Crown },
+  platinum: { label: 'Platinum', cor: '#a78bfa', icon: Crown },
   kit:     { label: 'Kit',     cor: '#8b5cf6', icon: Gem },
   inativo: { label: 'Inativo', cor: '#ef4444' },
 };
@@ -96,7 +96,7 @@ function StatusBadge({ u }: { u: Pick<User, 'plano' | 'vitalicio' | 'plano_inter
   const m = metaStatus(u);
   const Icon = m.icon;
   const recuperado = u.plano !== 'inativo' && !!(u.recuperacao_signup_em || u.recuperacao_enviada_em);
-  const pago = ['basico', 'premium', 'black'].includes(u.plano);
+  const pago = ['basico', 'premium', 'platinum'].includes(u.plano);
   // Recorrente = pagante ATIVO que não é vitalício e não cancelou → sustenta o
   // MRR. É o que o admin quer identificar de relance.
   const recorrente = pago && !u.vitalicio && !u.assinatura_cancelada && !u.mrr_excluir;
@@ -344,7 +344,7 @@ export default function AdminPage() {
                 alerta={!!ov && ((ov.ofComProblema ?? 0) > 0 || (ov.ofPagandoSemUsar ?? 0) > 0)}
                 hint={ov ? `${ov.ofGrupos ?? 0} contas · ${ov.ofGruposFranquia ?? 0} pela franquia · ${ov.ofGruposPagando ?? 0} pagando${ov.ofComProblema ? ` · ${ov.ofComProblema} reconectar` : ''}` : ''} />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
-          <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.kit ?? 0} Kit · ${ov.black} BK` : ''} />
+          <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.platinum} PL · ${ov.kit ?? 0} Kit` : ''} />
           <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
                 hint={ov ? 'tinham assinatura' : ''}
                 onClick={() => { setTab('users'); setFilter('cancelados'); }} />
@@ -354,7 +354,7 @@ export default function AdminPage() {
           <Stat label="Novos (30d)" value={ov?.novos30 ?? '—'} />
           <Stat label="Bugs abertos" value={ov?.bugsAbertos ?? '—'} alerta={!!ov && ov.bugsAbertos > 0} onClick={() => setTab('bugs')} />
           <Stat label="Melhorias propostas" value={ov?.melhoriasAbertas ?? '—'} onClick={() => setTab('melhorias')} />
-          <Stat label="Premium / Black" value={ov ? `${ov.premium} / ${ov.black}` : '—'} />
+          <Stat label="Premium / Platinum" value={ov ? `${ov.premium} / ${ov.platinum}` : '—'} />
           <Stat label="Cadastros sem pagamento" value={ov?.semPagamento ?? '—'}
                 hint={ov ? `${ov.recEnviadas ?? 0} no 1º · ${ov.recEnviadas2 ?? 0} no 2º lembrete` : ''} alerta={!!ov && (ov.semPagamento ?? 0) > 0} />
           <Stat label="Recuperados" value={ov?.recuperados ?? ov?.recRecuperados ?? '—'}
@@ -701,7 +701,7 @@ function PlanoEditor({ atual, onAplicar }: { atual: Plano; onAplicar: (plano: Pl
       <select value={plano} onChange={(e) => setPlano(e.target.value as Plano)} className="flex-1 h-10 rounded-xl bg-card border border-border text-sm px-2 focus:outline-none focus:border-primary">
         <option value="basico">Básico</option>
         <option value="premium">Premium</option>
-        <option value="black">Black</option>
+        <option value="platinum">Platinum</option>
         <option value="inativo">Inativo</option>
       </select>
       {plano !== 'inativo' && (
@@ -731,13 +731,13 @@ const PLANOS_ENVIO: { id: Plano; label: string }[] = [
   { id: 'premium', label: 'Premium' },
   { id: 'basico',  label: 'Básico' },
   { id: 'kit',     label: 'Kit' },
-  { id: 'black',   label: 'Black' },
+  { id: 'platinum', label: 'Platinum' },
   { id: 'inativo', label: 'Não pagantes' },
 ];
 
 function Comunicados({ flash }: { flash: (m: string) => void }) {
   const [texto, setTexto] = useState('');
-  const [planos, setPlanos] = useState<Plano[]>(['premium', 'basico', 'kit', 'black']);
+  const [planos, setPlanos] = useState<Plano[]>(['premium', 'platinum', 'basico', 'kit']);
   const [testePhone, setTestePhone] = useState('');
   const [busy, setBusy] = useState<'' | 'contar' | 'teste' | 'disparar'>('');
   const [total, setTotal] = useState<number | null>(null);

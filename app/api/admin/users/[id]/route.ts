@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // ── Trocar/ativar plano ──────────────────────────────────────────
   if (action === 'set_plano') {
     const plano = body.plano as string;
-    if (!['basico', 'premium', 'black', 'inativo'].includes(plano)) {
+    if (!['basico', 'premium', 'platinum', 'kit', 'inativo'].includes(plano)) {
       return NextResponse.json({ erro: 'Plano inválido' }, { status: 400 });
     }
     const dias = Number(body.dias) > 0 ? Number(body.dias) : 30;

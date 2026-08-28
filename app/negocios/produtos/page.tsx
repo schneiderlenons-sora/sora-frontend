@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function ProdutosPage() {
-  const { phone, isPremium } = useAuth();
+  const { phone, temNegocios } = useAuth();
   const { empresa, carregando: carregandoEmpresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -30,7 +30,7 @@ export default function ProdutosPage() {
   const [editando, setEditando] = useState<ProdutoNegocio | null | undefined>(undefined);
 
   const { data, mutate, isLoading } = useApi(
-    (phone && isPremium && empresa) ? `neg:produtos:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:produtos:${empresa.id}` : null,
     () => api.negocios.produtos.listar(phone, empresa!.id),
   );
   const produtos: ProdutoNegocio[] = useMemo(() => Array.isArray(data) ? data : [], [data]);
@@ -48,8 +48,8 @@ export default function ProdutosPage() {
 
   const semMargem = produtos.filter(p => p.preco > 0 && p.custo > 0 && p.preco <= p.custo);
 
-  if (!isPremium) {
-    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Premium.</p>;
+  if (!temNegocios) {
+    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Platinum.</p>;
   }
 
   return (

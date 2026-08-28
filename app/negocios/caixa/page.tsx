@@ -42,7 +42,7 @@ function rotuloDia(iso: string) {
 }
 
 export default function CaixaPage() {
-  const { empresa, carregando, recarregar, phone, isPremium } = useEmpresa();
+  const { empresa, carregando, recarregar, phone, temNegocios } = useEmpresa();
   const [modalLanc, setModalLanc] = useState<{ tipo: TipoLancamento; item?: Lancamento } | null>(null);
   const [modalContas, setModalContas] = useState(false);
   const [modalCentros, setModalCentros] = useState(false);
@@ -87,11 +87,11 @@ export default function CaixaPage() {
 
   const cor = corEmpresa(empresa);
 
-  if (!isPremium) {
+  if (!temNegocios) {
     return (
       <>
         <div className="pb-20">
-          <p className="text-sm text-muted-foreground">O Caixa faz parte do plano Premium.</p>
+          <p className="text-sm text-muted-foreground">O Caixa faz parte do plano Platinum.</p>
         </div>
       </>
     );

@@ -58,19 +58,41 @@ export const PLANOS_DISPLAY: PlanoDisplay[] = [
       'Exportação de dados',
       'Gestão compartilhada (casal/família)',
       'Relatórios avançados',
-      'Suporte prioritário',
+      'Conexão Open Finance — até 3 bancos',
       'Central de Investimentos',
       'Metas com aporte automático',
       'Metas compartilhadas',
       'Recomendações por perfil de risco',
       'Sora Grow completo — saúde, estudos, casa, viagens, filmes e leituras',
-      // Aba Negócios (antes exclusiva do Black — agora inclusa no Premium):
+      'Wrapped mensal compartilhável',
+      'Suporte via WhatsApp',
+    ],
+  },
+  {
+    // ⚠️ A ABA NEGÓCIOS SAIU DO PREMIUM E VEIO PARA CÁ. Quem já tinha acesso
+    // NÃO perde: a migration 142 marcou `negocios_liberado` em todos eles e o
+    // gate é `temNegocios()`, não `podeUsar(plano,'negocios')`. Esta lista é
+    // só a vitrine de quem compra a partir de agora.
+    id: 'platinum',
+    nome: 'Platinum',
+    cor: '#a78bfa',
+    corDark: '#7c3aed',
+    subtitulo: 'Pra quem também toca um negócio.',
+    badge: 'Completo',
+    badgeShort: 'Completo',
+    features: [
+      'Tudo do Premium',
       'Aba Negócios — Painel DRE completo',
+      'Vendas, clientes, produtos e estoque',
+      'Contas a pagar, a receber e fluxo de caixa',
+      'Equipe e folha com comissão por venda',
       'Integrações Hotmart, Kiwify, Eduzz, Stripe',
       'Forecast de receita/lucro + insights da IA',
       'Conciliação automática (venda × banco)',
       'Config tributária (MEI/Simples/Lucro Presumido)',
-      'Wrapped mensal compartilhável',
+      'Venda pelo WhatsApp: "vendi 3 bolos por 90 pra dona Maria"',
+      'Conexão Open Finance — até 5 bancos',
+      'Suporte prioritário',
     ],
   },
 ];

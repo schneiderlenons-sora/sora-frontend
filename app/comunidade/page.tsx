@@ -27,7 +27,7 @@ const PAPEL_INFO: Record<string, { label: string; emoji: string; color: string }
   leitura: { label: 'Leitura', emoji: '👀', color: '#8b5cf6' },
 };
 
-const LIMITE_PLANO: Record<string, number> = { inativo: 1, basico: 1, premium: 5, black: 5 };
+const LIMITE_PLANO: Record<string, number> = { inativo: 1, basico: 1, premium: 5, platinum: 5 };
 
 function maskPhone(p: string): string {
   if (!p) return '';
@@ -532,12 +532,6 @@ function PaywallGrupos() {
       'Categorias compartilhadas',
       'Limites por categoria',
       'Histórico ilimitado',
-    ],
-    black: [
-      'Até 5 membros no grupo',
-      'Tudo do Premium',
-      'Portfólio de investimentos',
-      'Suporte prioritário',
     ],
   };
 

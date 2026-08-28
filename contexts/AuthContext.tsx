@@ -13,7 +13,7 @@ import { lerPerfilCache, salvarPerfilCache, limparPerfilCache } from '@/lib/perf
 // do cliente casa com o SSR (perfil=null) → sem hydration mismatch; o layout
 // effect roda depois do commit e aplica o cache antes de pintar.
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-import { type Plano, type Feature, type Recurso, podeUsar as _podeUsar, limiteDe as _limiteDe } from '@/lib/plans';
+import { type Plano, type Feature, type Recurso, podeUsar as _podeUsar, limiteDe as _limiteDe, normalizarPlano, temNegocios as _temNegocios } from '@/lib/plans';
 
 export type Papel = 'admin' | 'escrita' | 'leitura';
 export type Painel = 'finance' | 'grow';
@@ -43,6 +43,9 @@ interface Perfil {
   of_conexoes_pagas?: number | null;
   of_assinatura_id?:  string | null;
   of_assinatura_intervalo?: 'mensal' | 'anual' | null;
+  /** Direito adquirido à aba Negócios: quem já tinha acesso quando ela saiu
+   *  do Premium e virou Platinum (migration 142). Nunca é revogado. */
+  negocios_liberado?: boolean | null;
   plano_grow?:      PlanoGrow;
   grow_trial_inicio?: string | null;
   grow_trial_fim?:    string | null;
@@ -65,8 +68,11 @@ interface AuthContextType {
   phone:           string;
   plano:           Plano;
   // Flags legados — mantidos por compat. Para novo código use `podeUsar`.
-  isBlack:         boolean;
   isPremium:       boolean;
+  isPlatinum:      boolean;
+  /** Aba Negócios liberada. ⚠️ NÃO é `podeUsar('negocios')`: soma o direito
+   *  adquirido e o vitalício. Todo gate de Negócios usa este. */
+  temNegocios:     boolean;
   isVitalicio:     boolean;
   isKit:           boolean;
   // Helpers centralizados (lib/plans.ts)
@@ -226,10 +232,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // JWT). Quem não tem WhatsApp cai pro id do usuário — assim o painel funciona
   // só com e-mail. NÃO usar pra exibir telefone (telas usam perfil.phone direto).
   const phone    = perfil?.phone || perfil?.id || '';
-  const plano: Plano = perfil?.plano || 'inativo';
-  const isBlack  = plano === 'black';
-  const isPremium = plano === 'premium' || isBlack;
+  // `normalizarPlano` é a rede de segurança do black aposentado (migration
+  // 142): linha que escape da conversão volta como premium em vez de cair
+  // fora do type e derrubar TODAS as features do usuário de uma vez.
+  const plano: Plano = normalizarPlano(perfil?.plano);
+  const isPlatinum = plano === 'platinum';
+  const isPremium = plano === 'premium' || isPlatinum;
   const isVitalicio = !!perfil?.vitalicio;
+  const temNegocios = _temNegocios(plano, {
+    vitalicio: perfil?.vitalicio,
+    negociosLiberado: perfil?.negocios_liberado,
+  });
   const isKit = plano === 'kit';
   const podeUsar = (f: Feature) => _podeUsar(plano, f);
   const limiteDe = (r: Recurso) => _limiteDe(plano, r);
@@ -237,7 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const podeAdministrar = papel === 'admin';
 
   // ── GROW: acesso, trial, troca de painel ───────────────────────────
-  // Premium e Black têm Sora Grow incluso (acesso direto, sem trial).
+  // Premium e Platinum têm Sora Grow incluso (acesso direto, sem trial).
   // Básico pode ativar 7 dias grátis. Inativo idem (onboarding).
   // Histórico: planos legados "grow_basico"/"grow_premium" continuam valendo.
   const planoGrow = perfil?.plano_grow || 'sem_acesso';
@@ -275,7 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, perfil, loading, phone,
-      plano, isBlack, isPremium, isVitalicio, isKit,
+      plano, isPremium, isPlatinum, temNegocios, isVitalicio, isKit,
       podeUsar, limiteDe,
       papel, podeEditar, podeAdministrar,
       painelAtivo, temAcessoGrow, podeAtivarTrialGrow, trialAtivo, diasTrialRestantes,

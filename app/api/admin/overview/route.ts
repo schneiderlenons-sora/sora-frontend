@@ -6,7 +6,7 @@ import { adminEmails } from '@/lib/admin';
 export const dynamic = 'force-dynamic';
 
 // Preços mensais (estimativa de MRR). Fonte real: lib/stripe.
-const PRECO = { basico: 19.9, premium: 29.9, black: 79.9 } as const;
+const PRECO = { basico: 19.9, premium: 29.9, platinum: 49.9 } as const;
 // Conexão de banco avulsa (Open Finance). Cobrada POR BANCO conectado, à parte
 // do plano — o vitalício não tem franquia e é quem mais contrata.
 const PRECO_OF = { mensal: 6, anual: 60 } as const;
@@ -25,12 +25,12 @@ export async function GET() {
   const d7  = new Date(Date.now() - 7  * 864e5).toISOString();
   const d30 = new Date(Date.now() - 30 * 864e5).toISOString();
 
-  const [total, inativo, basico, premium, black, kit, novos7, novos30, pagouInativo] = await Promise.all([
+  const [total, inativo, basico, premium, platinum, kit, novos7, novos30, pagouInativo] = await Promise.all([
     contar((q) => q),
     contar((q) => q.eq('plano', 'inativo')),
     contar((q) => q.eq('plano', 'basico')),
     contar((q) => q.eq('plano', 'premium')),
-    contar((q) => q.eq('plano', 'black')),
+    contar((q) => q.eq('plano', 'platinum')),
     contar((q) => q.eq('plano', 'kit')),
     contar((q) => q.gte('created_at', d7)),
     contar((q) => q.gte('created_at', d30)),
@@ -114,13 +114,13 @@ export async function GET() {
   //   • e-mail de admin  → a conta do próprio dono
   // Tolerante: se as colunas da migration 074 não existem, cai na conta antiga.
   const premiumRecorrente = Math.max(0, premium - premiumVitalicio);
-  let mrr = basico * PRECO.basico + premiumRecorrente * PRECO.premium + black * PRECO.black;
+  let mrr = basico * PRECO.basico + premiumRecorrente * PRECO.premium + platinum * PRECO.platinum;
   let mrrExcluidos = 0, anuais = 0, recorrentesMensais = 0;
   try {
     const { data: pagantes, error } = await supabaseAdmin
       .from('users')
       .select('email, plano, plano_intervalo, vitalicio, mrr_excluir, assinatura_cancelada')
-      .in('plano', ['basico', 'premium', 'black']);
+      .in('plano', ['basico', 'premium', 'platinum']);
     if (error) throw error;
     const admins = adminEmails();
     let soma = 0;
@@ -217,7 +217,7 @@ export async function GET() {
 
   return NextResponse.json({
     mrrExcluidos, cancelados, naoConcluido, recuperados,
-    total, inativo, basico, premium, black, kit,
+    total, inativo, basico, premium, platinum, kit,
     ativos: total - inativo,
     premiumRecorrente, vitalicios, kitVitalicio, premiumVitalicio,
     receitaVitalicio: Math.round(receitaVitalicio * 100) / 100,

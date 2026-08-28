@@ -29,7 +29,7 @@ function rotuloVenc(iso?: string | null) {
 }
 
 export default function ContasPage() {
-  const { empresa, carregando, recarregar, phone, isPremium } = useEmpresa();
+  const { empresa, carregando, recarregar, phone, temNegocios } = useEmpresa();
   const [modalNova, setModalNova] = useState(false);
   const [baixando, setBaixando] = useState<string | null>(null);
 
@@ -81,11 +81,11 @@ export default function ContasPage() {
     }
   }
 
-  if (!isPremium) {
+  if (!temNegocios) {
     return (
       <>
         <div className="pb-20">
-          <p className="text-sm text-muted-foreground">Contas a pagar faz parte do plano Premium.</p>
+          <p className="text-sm text-muted-foreground">Contas a pagar faz parte do plano Platinum.</p>
         </div>
       </>
     );

@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     // Recorrentes: pagante ATIVO que não é vitalício e não cancelou — quem
     // sustenta o MRR. `not(..., is, true)` casa false E null.
     else if (filter === 'recorrentes') {
-      query = query.in('plano', ['basico', 'premium', 'black']).not('vitalicio', 'is', true);
+      query = query.in('plano', ['basico', 'premium', 'platinum']).not('vitalicio', 'is', true);
       if (temMrr) query = query.not('assinatura_cancelada', 'is', true).not('mrr_excluir', 'is', true);
     }
     if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);

@@ -27,7 +27,7 @@ type Ctx = {
   carregando: boolean;
   recarregar: () => void;
   phone:      string;
-  isPremium:  boolean;
+  temNegocios:  boolean;
   /** Abre o cadastro de empresa. Sem argumento = criar; com = editar.
    *  Fica no shell pra ser alcançável de QUALQUER tela do painel — antes só
    *  existia no header de 4 páginas, e quem estava no DRE não tinha como
@@ -38,10 +38,10 @@ type Ctx = {
 const EmpresaCtx = createContext<Ctx | null>(null);
 
 export function EmpresaProvider({ children }: { children: React.ReactNode }) {
-  const { phone, isPremium, user } = useAuth();
+  const { phone, temNegocios, user } = useAuth();
 
   const { data, mutate } = useApi(
-    (phone && isPremium) ? `neg:empresas:${phone}` : null,
+    (phone && temNegocios) ? `neg:empresas:${phone}` : null,
     () => api.negocios.empresas.listar(phone),
   );
   const empresas: Empresa[] = useMemo(() => (Array.isArray(data) ? data : []), [data]);
@@ -73,8 +73,8 @@ export function EmpresaProvider({ children }: { children: React.ReactNode }) {
   const abrirCadastro = useCallback((e?: Empresa | null) => setCadastro(e ?? null), []);
 
   const valor = useMemo<Ctx>(
-    () => ({ empresas, empresa, trocar, carregando, recarregar, phone: phone || '', isPremium: !!isPremium, abrirCadastro }),
-    [empresas, empresa, trocar, carregando, recarregar, phone, isPremium, abrirCadastro],
+    () => ({ empresas, empresa, trocar, carregando, recarregar, phone: phone || '', temNegocios: !!temNegocios, abrirCadastro }),
+    [empresas, empresa, trocar, carregando, recarregar, phone, temNegocios, abrirCadastro],
   );
 
   return (
@@ -105,6 +105,6 @@ export function useEmpresa(): Ctx {
   if (ctx) return ctx;
   return {
     empresas: [], empresa: null, trocar: () => {}, carregando: false,
-    recarregar: () => {}, phone: '', isPremium: false, abrirCadastro: () => {},
+    recarregar: () => {}, phone: '', temNegocios: false, abrirCadastro: () => {},
   };
 }

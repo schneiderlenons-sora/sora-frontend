@@ -60,7 +60,7 @@ const NOME_PLAT: Record<string, string> = {
 };
 
 export default function NegociosPage() {
-  const { isPremium, phone } = useAuth();
+  const { temNegocios, phone } = useAuth();
 
   const hojeIso = new Date().toISOString().slice(0, 7);
   const [periodo, setPeriodo] = useState(hojeIso); // YYYY-MM
@@ -88,13 +88,13 @@ export default function NegociosPage() {
 
   // Indicadores da loja: uma chamada traz TUDO da tela (ver rota /indicadores).
   const { data: indicadores, mutate: mIndicadores } = useApi(
-    (phone && isPremium && empresa && visao === 'loja') ? `neg:ind:${phone}:${empresa.id}:${periodo}` : null,
+    (phone && temNegocios && empresa && visao === 'loja') ? `neg:ind:${phone}:${empresa.id}:${periodo}` : null,
     () => api.negocios.indicadores(phone, empresa!.id, periodo),
   );
 
   // ── DRE da empresa ativa. SEM mock: sem dado = empty state de verdade. ──
   const { data: dre, mutate: mDre } = useApi(
-    (phone && isPremium && empresa) ? `neg:dre:${phone}:${empresa.id}:${periodo}` : null,
+    (phone && temNegocios && empresa) ? `neg:dre:${phone}:${empresa.id}:${periodo}` : null,
     () => api.negocios.dre.get(phone, periodo, empresa!.id),
   );
   // A visão LOJA não usa o DRE — esperar por ele aqui atrasaria a tela por um
@@ -113,7 +113,7 @@ export default function NegociosPage() {
     finally { setRecalc(false); }
   }
 
-  if (!isPremium) return <><PaywallBlack /></>;
+  if (!temNegocios) return <><PaywallNegocios /></>;
   if (loading) return <><PageSkeleton /></>;
 
   // Nenhuma empresa cadastrada → onboarding real (no lugar dos dados fictícios).
@@ -738,7 +738,7 @@ function FuturoEmBreve() {
   );
 }
 
-function PaywallBlack() {
+function PaywallNegocios() {
   return (
     <div className="max-w-2xl mx-auto pb-20 pt-12 px-4">
       <div className="relative overflow-hidden rounded-3xl bg-black text-white p-10 text-center">
@@ -749,7 +749,7 @@ function PaywallBlack() {
                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }}>
             <Crown size={28} className="text-black" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Negócios é exclusivo do plano Premium</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Negócios é exclusivo do plano Platinum</h1>
           <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
             Conecte Hotmart, Stripe e mais. Tenha seu DRE, fluxo de caixa e insights de IA em tempo real.
           </p>

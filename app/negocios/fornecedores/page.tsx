@@ -33,7 +33,7 @@ const dataBr = (iso?: string | null) => {
 };
 
 export default function FornecedoresPage() {
-  const { phone, isPremium } = useAuth();
+  const { phone, temNegocios } = useAuth();
   const { empresa, carregando: carregandoEmpresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -44,7 +44,7 @@ export default function FornecedoresPage() {
   const [salvandoForn, setSalvandoForn] = useState(false);
 
   const { data: comprasData, mutate: mCompras, isLoading: carregandoCompras } = useApi(
-    (phone && isPremium && empresa) ? `neg:compras:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:compras:${empresa.id}` : null,
     () => api.negocios.compras.listar(phone, empresa!.id),
   );
   const compras: CompraNegocio[] = useMemo(
@@ -52,7 +52,7 @@ export default function FornecedoresPage() {
     [comprasData]);
 
   const { data: fornData, mutate: mForn } = useApi(
-    (phone && isPremium && empresa) ? `neg:fornecedores:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:fornecedores:${empresa.id}` : null,
     () => api.negocios.fornecedores.listar(phone, empresa!.id),
   );
   const fornecedores: FornecedorNegocio[] = useMemo(() => Array.isArray(fornData) ? fornData : [], [fornData]);
@@ -90,8 +90,8 @@ export default function FornecedoresPage() {
     } finally { setSalvandoForn(false); }
   }
 
-  if (!isPremium) {
-    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Premium.</p>;
+  if (!temNegocios) {
+    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Platinum.</p>;
   }
 
   return (

@@ -427,17 +427,19 @@ function SecaoPerfil() {
 // Ícone exibido junto ao nome do plano (mapeado a partir do id).
 // Mantido aqui pra não vazar lucide-react no lib/planos-display.
 const ICONE_PLANO = {
-  basico:  Zap,
-  premium: Gem,
-  black:   Crown,
+  basico:   Zap,
+  premium:  Gem,
+  platinum: Crown,
 } as const;
 
 // Catálogo de planos vem de lib/planos-display (fonte única, igual à landing).
-// Black descontinuado — no painel só Básico e Premium (features do Black já no Premium).
-const PLANOS_DETALHE = PLANOS_DISPLAY.filter((p) => p.id !== 'black');
+// Os três planos de assinatura aparecem no painel.
+const PLANOS_DETALHE = PLANOS_DISPLAY;
 
+// Ordem pra decidir se o card é upgrade ou downgrade em relação ao plano
+// atual. Kit empata com Básico de propósito: é vitalício, não escada.
 const ORDEM_PLANO: Record<Plano, number> = {
-  inativo: 0, basico: 1, kit: 1, premium: 2, black: 3,
+  inativo: 0, basico: 1, kit: 1, premium: 2, platinum: 3,
 };
 
 function SecaoPlano() {
@@ -447,7 +449,7 @@ function SecaoPlano() {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
-  // Usuário 'black' existente (plano descontinuado) cai no visual do Premium — equivalentes agora.
+  // Plano fora do catálogo de assinatura (kit, inativo) cai no visual do Premium.
   const planoVisual = PLANOS_DETALHE.find(p => p.id === planoAtual) ?? PLANOS_DETALHE.find(p => p.id === 'premium');
   const ordemAtual = ORDEM_PLANO[planoAtual];
   const temAssinatura = planoAtual !== 'inativo';
@@ -857,7 +859,7 @@ function PlanoCard({
             style={{ background: `linear-gradient(135deg, ${plano.cor} 0%, ${escurecer(plano.cor)} 100%)` }}
           >
             {plano.destaque && <Sparkles size={9} />}
-            {plano.id === 'black' && <Crown size={9} />}
+            {plano.id === 'platinum' && <Crown size={9} />}
             {plano.badge}
           </div>
         ) : null}

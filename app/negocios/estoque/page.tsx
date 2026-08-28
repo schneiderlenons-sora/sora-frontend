@@ -31,7 +31,7 @@ const dataBr = (iso?: string | null) => {
 };
 
 export default function EstoquePage() {
-  const { phone, isPremium } = useAuth();
+  const { phone, temNegocios } = useAuth();
   const { empresa, carregando: carregandoEmpresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -40,7 +40,7 @@ export default function EstoquePage() {
   const [ajuste, setAjuste] = useState<ItemEstoque | null>(null);
 
   const { data, mutate, isLoading } = useApi(
-    (phone && isPremium && empresa) ? `neg:estoque:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:estoque:${empresa.id}` : null,
     () => api.negocios.estoque.listar(phone, empresa!.id),
   );
   const produtos: ItemEstoque[] = useMemo(() => data?.produtos || [], [data]);
@@ -59,8 +59,8 @@ export default function EstoquePage() {
     return [...ls].sort((a, b) => peso(a) - peso(b) || a.nome.localeCompare(b.nome));
   }, [produtos, busca, filtro]);
 
-  if (!isPremium) {
-    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Premium.</p>;
+  if (!temNegocios) {
+    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Platinum.</p>;
   }
 
   const carregando = carregandoEmpresa || isLoading;

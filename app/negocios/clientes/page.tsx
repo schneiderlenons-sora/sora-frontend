@@ -30,7 +30,7 @@ function fone(t?: string | null): string {
 }
 
 export default function ClientesPage() {
-  const { phone, isPremium } = useAuth();
+  const { phone, temNegocios } = useAuth();
   const { empresa, carregando: carregandoEmpresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -39,7 +39,7 @@ export default function ClientesPage() {
   const [fichaId, setFichaId]   = useState<string | null>(null);
 
   const { data, mutate, isLoading } = useApi(
-    (phone && isPremium && empresa) ? `neg:clientes:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:clientes:${empresa.id}` : null,
     () => api.negocios.clientes.listar(phone, empresa!.id),
   );
   const clientes: ClienteNegocio[] = useMemo(() => Array.isArray(data) ? data : [], [data]);
@@ -51,8 +51,8 @@ export default function ClientesPage() {
       c.nome.toLowerCase().includes(q) || (c.telefone || '').includes(q.replace(/\D/g, '')));
   }, [clientes, busca]);
 
-  if (!isPremium) {
-    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Premium.</p>;
+  if (!temNegocios) {
+    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Platinum.</p>;
   }
 
   return (

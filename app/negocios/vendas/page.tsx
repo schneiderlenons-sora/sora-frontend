@@ -64,7 +64,7 @@ export default function VendasPage() {
 }
 
 function VendasDigital() {
-  const { isPremium, phone } = useAuth();
+  const { temNegocios, phone } = useAuth();
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [tipo, setTipo]       = useState('');
   const [plataforma, setPlataforma] = useState('');
@@ -75,7 +75,7 @@ function VendasDigital() {
 
   // Dados via SWR — revisita instantânea (cache em memória).
   const { data: vData, mutate: mV } = useApi(
-    (phone && isPremium) ? `neg:vendas:${phone}:${periodo}:${tipo}:${plataforma}:${page}` : null,
+    (phone && temNegocios) ? `neg:vendas:${phone}:${periodo}:${tipo}:${plataforma}:${page}` : null,
     () => api.negocios.eventos.listar(phone, { limit: PAGE, offset: page * PAGE, tipo: tipo || undefined, plataforma: plataforma || undefined, periodo }),
   );
   const eventos: any[] = (vData as any)?.eventos ?? [];
@@ -108,9 +108,9 @@ function VendasDigital() {
 
   const totalPages = Math.ceil(total / PAGE);
 
-  if (!isPremium) {
+  if (!temNegocios) {
     return <><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Platinum.</p>
     </div></>;
   }
 

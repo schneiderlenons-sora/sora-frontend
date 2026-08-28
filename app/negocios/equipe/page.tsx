@@ -36,7 +36,7 @@ import {
 const mesSP = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
 
 export default function EquipePage() {
-  const { empresa, carregando, phone, isPremium } = useEmpresa();
+  const { empresa, carregando, phone, temNegocios } = useEmpresa();
   const cor = corEmpresa(empresa);
 
   const [modalFunc, setModalFunc] = useState<'novo' | Funcionario | null>(null);
@@ -46,7 +46,7 @@ export default function EquipePage() {
   const mes = mesSP();
 
   const { data, mutate, isLoading } = useApi(
-    (phone && empresa && isPremium) ? `neg:equipe:${empresa.id}:${mes}` : null,
+    (phone && empresa && temNegocios) ? `neg:equipe:${empresa.id}:${mes}` : null,
     () => api.negocios.funcionarios.equipe(phone, empresa!.id, mes),
   );
   const resumo = (data ?? null) as ResumoEquipe | null;
@@ -78,8 +78,8 @@ export default function EquipePage() {
     finally { setPagando(null); }
   }
 
-  if (!isPremium) {
-    return <p className="text-sm text-muted-foreground py-20 text-center">A Equipe faz parte do plano Premium.</p>;
+  if (!temNegocios) {
+    return <p className="text-sm text-muted-foreground py-20 text-center">A Equipe faz parte do plano Platinum.</p>;
   }
   if (carregando || isLoading) return <SectionSkeleton />;
   if (!empresa) {

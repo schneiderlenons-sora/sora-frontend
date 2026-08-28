@@ -17,7 +17,7 @@ type Opcao = {
   cor:    string;
   /** Indica se requer plano pago específico. */
   requerPremium?: boolean;
-  requerBlack?:   boolean;
+  requerNegocios?: boolean;
 };
 
 const OPCOES: Opcao[] = [
@@ -42,7 +42,7 @@ const OPCOES: Opcao[] = [
     desc: 'Gerenciar finanças do meu negócio ou empresa',
     icon: Briefcase,
     cor: '#f59e0b',
-    requerBlack: true,
+    requerNegocios: true,
   },
   {
     id: 'ambos',
@@ -50,13 +50,13 @@ const OPCOES: Opcao[] = [
     desc: 'Gerenciar tanto finanças pessoais quanto do negócio',
     icon: UserPlus,
     cor: '#a855f7',
-    requerBlack: true,
+    requerNegocios: true,
   },
 ];
 
 export default function Step2PerfilUso() {
   const { state, setPerfilUso } = useOnboarding();
-  const { plano } = useAuth();
+  const { plano, temNegocios } = useAuth();
 
   return (
     <>
@@ -73,9 +73,11 @@ export default function Step2PerfilUso() {
         {OPCOES.map((opcao) => {
           const Icon = opcao.icon;
           const ativo = state.perfilUso === opcao.id;
+          // ⚠️ Negócios usa `temNegocios`, não `podeUsar`: quem tem o direito
+          // adquirido ou é vitalício escolhe "empresarial" mesmo sem Platinum.
           const bloqueado =
             (opcao.requerPremium && !podeUsar(plano, 'compartilhamento')) ||
-            (opcao.requerBlack && !podeUsar(plano, 'negocios'));
+            (opcao.requerNegocios && !temNegocios);
 
           return (
             <button
@@ -108,9 +110,9 @@ export default function Step2PerfilUso() {
                         Premium
                       </span>
                     )}
-                    {opcao.requerBlack && !podeUsar(plano, 'negocios') && (
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
-                        Premium
+                    {opcao.requerNegocios && !temNegocios && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-500">
+                        Platinum
                       </span>
                     )}
                   </div>

@@ -9,7 +9,7 @@ const TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 type Stored = { plano: PlanoId; ciclo: Intervalo; at: number };
 
-const PLANOS_VALIDOS: PlanoId[] = ['basico', 'premium', 'black'];
+const PLANOS_VALIDOS: PlanoId[] = ['basico', 'premium', 'platinum'];
 
 export function salvarIntencaoPlano(
   plano: string | null | undefined,

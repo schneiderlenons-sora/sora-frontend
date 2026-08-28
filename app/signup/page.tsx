@@ -537,7 +537,7 @@ function PlanoStep({
       </div>
 
       <div className="space-y-2.5">
-        {PLANOS_DISPLAY.filter((pl) => pl.id !== 'black').map((pl) => {
+        {PLANOS_DISPLAY.map((pl) => {
           const sel = planoSel === pl.id;
           const preco = anual ? PLANOS_INFO[pl.id].anual : PLANOS_INFO[pl.id].mensal;
           return (
@@ -562,7 +562,7 @@ function PlanoStep({
                       <p className="font-bold text-foreground flex items-center gap-1.5">
                         {pl.nome}
                         {pl.id === 'premium' && <Sparkles size={12} style={{ color: pl.cor }} />}
-                        {pl.id === 'black' && <Crown size={12} style={{ color: pl.cor }} />}
+                        {pl.id === 'platinum' && <Crown size={12} style={{ color: pl.cor }} />}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{pl.subtitulo}</p>
                     </div>

@@ -206,18 +206,33 @@
           "Exportación de datos",
           "Gestión compartida (pareja/familia)",
           "Reportes avanzados",
-          "Soporte prioritario",
+          "Conexión Open Finance — hasta 3 bancos",
           "Central de Inversiones",
           "Metas con aporte automático",
           "Metas compartidas",
           "Recomendaciones por perfil de riesgo",
           "Sora Grow completo — salud, estudios, casa, viajes, películas y lecturas",
-          "Sección Negocios — Estado de resultados completo",
+          "Wrapped mensual para compartir",
+          "Soporte por WhatsApp"
+        ]
+      },
+      "platinum": {
+        "nome": "Platinum",
+        "subtitulo": "Para quien también lleva un negocio.",
+        "badge": "Completo",
+        "features": [
+          "Todo lo del Premium",
+          "Sección Negocios — Panel de resultados completo",
+          "Ventas, clientes, productos e inventario",
+          "Cuentas por pagar, por cobrar y flujo de caja",
+          "Equipo y nómina con comisión por venta",
           "Integraciones Hotmart, Kiwify, Eduzz, Stripe",
-          "Pronóstico de ingresos/ganancias + insights de la IA",
+          "Pronóstico de ingresos y utilidad + insights de la IA",
           "Conciliación automática (venta × banco)",
           "Configuración fiscal",
-          "Wrapped mensual para compartir"
+          "Vende por WhatsApp: \"vendí 3 pasteles en 90 a doña María\"",
+          "Conexión Open Finance — hasta 5 bancos",
+          "Soporte prioritario"
         ]
       }
     }

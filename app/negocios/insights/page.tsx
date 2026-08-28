@@ -52,7 +52,7 @@ const ICONE: Record<string, any> = {
 };
 
 export default function InsightsPage() {
-  const { isPremium, phone } = useAuth();
+  const { temNegocios, phone } = useAuth();
   const { empresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -66,14 +66,14 @@ export default function InsightsPage() {
   // Loja: ao vivo. Insight guardado de ontem sobre estoque já reposto é pior
   // que insight nenhum — o dono para de confiar na tela.
   const { data: lojaData, mutate: mLoja, isLoading } = useApi(
-    (phone && isPremium && empresa) ? `neg:insights-loja:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:insights-loja:${empresa.id}` : null,
     () => api.negocios.insights.loja(phone, empresa!.id),
   );
   const insightsLoja = (lojaData as any)?.insights || [];
 
   // Digital: os guardados do motor antigo (só faz sentido com integrações).
   const { data: iaData, mutate: mIa } = useApi(
-    (phone && isPremium && empresa?.tipo !== 'fisico') ? `neg:insights:${phone}` : null,
+    (phone && temNegocios && empresa?.tipo !== 'fisico') ? `neg:insights:${phone}` : null,
     () => api.negocios.insights.listar(phone),
   );
   const insightsIa = Array.isArray(iaData) ? iaData : [];
@@ -96,9 +96,9 @@ export default function InsightsPage() {
     try { await api.negocios.insights.dispensar(id); } catch { /* já saiu da tela */ }
   }
 
-  if (!isPremium) {
+  if (!temNegocios) {
     return <p className="max-w-md mx-auto pt-20 text-center text-sm text-muted-foreground">
-      Disponível no plano Premium.
+      Disponível no plano Platinum.
     </p>;
   }
 

@@ -28,19 +28,19 @@ const fmtCompact = (centavos: number) => {
 };
 
 export default function ForecastPage() {
-  const { isPremium, phone } = useAuth();
+  const { temNegocios, phone } = useAuth();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [metrica, setMetrica] = useState<'receita_bruta' | 'lucro_liquido'>('receita_bruta');
 
   useEffect(() => {
-    if (!phone || !isPremium) return;
+    if (!phone || !temNegocios) return;
     api.negocios.forecast.get(phone).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
-  }, [phone, isPremium]);
+  }, [phone, temNegocios]);
 
-  if (!isPremium) {
+  if (!temNegocios) {
     return <><div className="max-w-md mx-auto pt-20 px-6 text-center">
-      <p className="text-sm text-muted-foreground">Disponível no plano Premium.</p>
+      <p className="text-sm text-muted-foreground">Disponível no plano Platinum.</p>
     </div></>;
   }
   if (loading) {

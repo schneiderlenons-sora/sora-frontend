@@ -9,7 +9,7 @@ import { precosDoLocale, partesPreco, type PlanoLandingId } from '@/lib/landing-
 
 // Ícone exibido junto ao nome do plano destacado. Mantido aqui pra não
 // vazar dependência de lucide-react no lib/planos-display.
-const ICONES = { premium: Sparkles } as const;
+const ICONES = { premium: Sparkles, platinum: Crown } as const;
 
 // `vitalicio` controla o 3º card (Premium Vitalício). A landing principal
 // (forsora.com) passa `false`; /financas e afins seguem mostrando.
@@ -70,7 +70,11 @@ export default function Pricing({ vitalicio = true, esperaLista = false }: { vit
         </div>
 
         {/* Cards de planos */}
-        <div className={`grid grid-cols-1 gap-5 mx-auto ${vitalicio ? 'lg:grid-cols-3 max-w-5xl' : 'lg:grid-cols-2 max-w-3xl'}`}>
+        {/* ⚠️ 3 PLANOS AGORA (Básico · Premium · Platinum). Antes eram 2 e a
+            grade alternava 2/3 colunas conforme o card do vitalício. Com o
+            Platinum, o padrão é 3 e o vitalício leva a 4 — em telas médias
+            elas viram 2×2 pra não sobrar um card órfão na última linha. */}
+        <div className={`grid grid-cols-1 gap-5 mx-auto ${vitalicio ? 'md:grid-cols-2 xl:grid-cols-4 max-w-6xl' : 'md:grid-cols-2 lg:grid-cols-3 max-w-5xl'}`}>
           {PLANOS_DISPLAY.map((p) => {
             const info = precos.planos[p.id as PlanoLandingId];
             const precoExibido = anual ? info.anual : info.mensal;
@@ -101,6 +105,7 @@ export default function Pricing({ vitalicio = true, esperaLista = false }: { vit
                     <div className="absolute -top-9 -right-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-white shadow-md whitespace-nowrap"
                          style={{ background: `linear-gradient(135deg, ${p.cor} 0%, ${escurecer(p.cor)} 100%)` }}>
                       {p.destaque && <Sparkles size={9} />}
+                      {p.id === 'platinum' && <Crown size={9} />}
                       {pt.badge}
                     </div>
                   )}

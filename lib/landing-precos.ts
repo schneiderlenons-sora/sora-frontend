@@ -6,7 +6,7 @@
 // (o CTA vira lista de espera). Quando a fase de pagamento criar os Price IDs
 // em MXN no Stripe, ligar o checkout de verdade.
 
-export type PlanoLandingId = 'basico' | 'premium';
+export type PlanoLandingId = 'basico' | 'premium' | 'platinum';
 
 export interface PlanoPreco {
   mensal: number;
@@ -27,8 +27,10 @@ export const PRECOS_LANDING: Record<'pt' | 'es', PrecoLocale> = {
     simbolo: 'R$',
     separadorDecimal: ',',
     planos: {
-      basico:  { mensal: 19.90, anual: 17.51, descAnual: 12 },
-      premium: { mensal: 29.90, anual: 23.92, descAnual: 20 },
+      basico:   { mensal: 19.90, anual: 17.51, descAnual: 12 },
+      premium:  { mensal: 29.90, anual: 23.92, descAnual: 20 },
+      // R$479/ano ÷ 12 = 39,92 (20% off sobre 12×49,90 = 598,80).
+      platinum: { mensal: 49.90, anual: 39.92, descAnual: 20 },
     },
   },
   es: {
@@ -36,8 +38,11 @@ export const PRECOS_LANDING: Record<'pt' | 'es', PrecoLocale> = {
     simbolo: '$',
     separadorDecimal: '.',
     planos: {
-      basico:  { mensal: 99,  anual: 84,  descAnual: 15 },
-      premium: { mensal: 149, anual: 112, descAnual: 25 },
+      basico:   { mensal: 99,  anual: 84,  descAnual: 15 },
+      premium:  { mensal: 149, anual: 112, descAnual: 25 },
+      // Mesma proporção dos outros (×~5 sobre o BRL). ⚠ Vitrine: o checkout MXN
+      // ainda não existe, o CTA no /es é lista de espera.
+      platinum: { mensal: 249, anual: 187, descAnual: 25 },
     },
   },
 };

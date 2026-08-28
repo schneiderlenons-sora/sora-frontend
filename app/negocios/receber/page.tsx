@@ -43,7 +43,7 @@ function diasAte(iso?: string | null): number | null {
 }
 
 export default function ReceberPage() {
-  const { phone, isPremium } = useAuth();
+  const { phone, temNegocios } = useAuth();
   const { empresa, carregando: carregandoEmpresa } = useEmpresa();
   const cor = corEmpresa(empresa);
 
@@ -51,7 +51,7 @@ export default function ReceberPage() {
   const [baixando, setBaixando]   = useState<string | null>(null);
 
   const { data, mutate, isLoading } = useApi(
-    (phone && isPremium && empresa) ? `neg:receber:${phone}:${empresa.id}` : null,
+    (phone && temNegocios && empresa) ? `neg:receber:${phone}:${empresa.id}` : null,
     () => api.negocios.lancamentos.listar(phone, {
       empresa_id: empresa!.id, status: 'pendente', tipo: 'entrada',
     }),
@@ -91,8 +91,8 @@ export default function ReceberPage() {
     }
   }
 
-  if (!isPremium) {
-    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Premium.</p>;
+  if (!temNegocios) {
+    return <p className="text-sm text-muted-foreground py-20 text-center">Recurso do plano Platinum.</p>;
   }
 
   const carregando = carregandoEmpresa || isLoading;
