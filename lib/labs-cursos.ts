@@ -33,7 +33,11 @@ export const CATEGORIAS: LabCategoria[] = [
         id: 'domine-vida-financeira',
         titulo: 'Domine sua vida financeira',
         tag: 'Curso · Finanças',
-        meta: '12 capítulos · 2h de leitura',
+        // ⚠️ `meta` bate com o conteúdo REAL (lib/labs-conteudo): 9 aulas,
+        // 75 min somados. Estava "12 capítulos · 2h" de quando era placeholder
+        // — prometer 2h e entregar 1h15 é o tipo de detalhe que faz a pessoa
+        // desconfiar do resto.
+        meta: '9 aulas · 1h15 de leitura',
         desc: 'Do zero ao controle: organize contas, monte sua reserva e saia do vermelho de uma vez.',
         cor: '#61ce70', corDark: '#1f6f3d', corGlow: 'rgba(97, 206, 112, 0.45)',
         icon: GraduationCap, destaque: true,
@@ -180,7 +184,10 @@ export const CATEGORIAS: LabCategoria[] = [
   },
 ];
 
-// Fileira "Em destaque" — os marcados com destaque (mesmas capas da landing).
-export const DESTAQUES: LabCurso[] = CATEGORIAS.flatMap(c => c.cursos).filter(c => c.destaque);
+/** Lista plana — o leitor (`/labs/[curso]`) resolve o id por aqui. */
+export const TODOS_CURSOS: LabCurso[] = CATEGORIAS.flatMap(c => c.cursos);
 
-export const TOTAL_CURSOS = CATEGORIAS.reduce((s, c) => s + c.cursos.length, 0);
+// Fileira "Em destaque" — os marcados com destaque (mesmas capas da landing).
+export const DESTAQUES: LabCurso[] = TODOS_CURSOS.filter(c => c.destaque);
+
+export const TOTAL_CURSOS = TODOS_CURSOS.length;

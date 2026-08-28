@@ -1,7 +1,9 @@
 'use client';
 
-import { Clock, Lock, BookOpen } from 'lucide-react';
+import { Clock, Lock, BookOpen, Play } from 'lucide-react';
+import Link from 'next/link';
 import type { LabCurso } from '@/lib/labs-cursos';
+import { cursoDisponivel } from '@/lib/labs-conteudo';
 
 // Capa de conteúdo do Sora Labs — mesmo estilo da seção da landing, adaptada
 // pra LEITURA (sem vídeo) e estado "em breve" (nada liberado ainda).
@@ -12,12 +14,20 @@ export default function CursoCover({
 }: { curso: LabCurso; index?: number; onClick?: (c: LabCurso) => void }) {
   const Icon = curso.icon;
 
+  // ⚠️ Curso COM conteúdo vira <Link>, não <button> com onClick: navegação de
+  // verdade precisa abrir em nova aba, aparecer no histórico e ser prefetchada.
+  // Um button que chama router.push perde as três coisas.
+  const liberado = cursoDisponivel(curso.id);
+  const Raiz: any = liberado ? Link : 'button';
+  const propsRaiz = liberado
+    ? { href: `/labs/${curso.id}`, prefetch: false }
+    : { type: 'button' as const, onClick: () => onClick?.(curso) };
+
   return (
-    <button
-      type="button"
+    <Raiz
+      {...propsRaiz}
       data-card
-      onClick={() => onClick?.(curso)}
-      aria-label={`${curso.titulo} — ${curso.tag} (em breve)`}
+      aria-label={`${curso.titulo} — ${curso.tag}${liberado ? '' : ' (em breve)'}`}
       style={{
         animationDelay: `${index * 50}ms`,
         ['--cor' as string]: curso.cor,
@@ -66,12 +76,19 @@ export default function CursoCover({
       {/* Vinheta inferior */}
       <div className="absolute inset-x-0 bottom-0 h-3/5 pointer-events-none bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
 
-      {/* Selo "Em breve" */}
+      {/* Selo — ícone + palavra, nunca só a cor */}
       <div className="absolute top-4 right-4 z-10">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-black/35 text-white backdrop-blur-md border border-white/20 shadow-sm">
-          <Clock size={9} />
-          Em breve
-        </span>
+        {liberado ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-white text-black backdrop-blur-md shadow-sm">
+            <Play size={9} className="fill-current" />
+            Disponível
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest bg-black/35 text-white backdrop-blur-md border border-white/20 shadow-sm">
+            <Clock size={9} />
+            Em breve
+          </span>
+        )}
       </div>
 
       {/* Conteúdo */}
@@ -93,15 +110,16 @@ export default function CursoCover({
             {curso.desc}
           </p>
 
-          {/* CTA — estado "em breve" (leitura, sem vídeo) */}
+          {/* CTA */}
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/85 group-hover:gap-2.5 transition-all duration-200">
-            <Lock size={12} />
-            Disponível em breve
+            {liberado
+              ? <><BookOpen size={12} /> Começar a ler</>
+              : <><Lock size={12} /> Disponível em breve</>}
           </div>
         </div>
       </div>
 
       <div className="absolute inset-0 rounded-3xl ring-1 ring-white/15 pointer-events-none group-hover:ring-white/30 transition-colors duration-300" />
-    </button>
+    </Raiz>
   );
 }

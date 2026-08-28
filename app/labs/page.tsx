@@ -2,11 +2,16 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import Link from 'next/link';
 import CursoCover from '@/components/labs/CursoCover';
-import { CATEGORIAS, DESTAQUES, TOTAL_CURSOS, type LabCurso, type LabCategoria } from '@/lib/labs-cursos';
+import { CATEGORIAS, DESTAQUES, TOTAL_CURSOS, TODOS_CURSOS, type LabCurso, type LabCategoria } from '@/lib/labs-cursos';
+import { cursoDisponivel } from '@/lib/labs-conteudo';
 import {
-  Beaker, Sparkles, BookOpen, Bell, ChevronLeft, ChevronRight, Clock, CheckCircle2,
+  Beaker, Sparkles, BookOpen, Bell, ChevronLeft, ChevronRight, CheckCircle2,
 } from 'lucide-react';
+
+/** Cursos que já têm conteúdo — decidem o banner do topo e o contador do hero. */
+const LIBERADOS = TODOS_CURSOS.filter((c) => cursoDisponivel(c.id));
 
 export default function SoraLabsPage() {
   const [toast, setToast] = useState<string>('');
@@ -62,7 +67,7 @@ export default function SoraLabsPage() {
 
             <div className="flex flex-wrap items-center gap-2 mt-6">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-full">
-                <BookOpen size={13} className="text-primary" /> {TOTAL_CURSOS} conteúdos a caminho
+                <BookOpen size={13} className="text-primary" /> {LIBERADOS.length} no ar · {TOTAL_CURSOS - LIBERADOS.length} a caminho
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-full">
                 <Sparkles size={13} className="text-primary" /> Novidades todo mês
@@ -71,18 +76,30 @@ export default function SoraLabsPage() {
           </div>
         </section>
 
-        {/* ── BANNER "EM BREVE" ───────────────────────────────── */}
-        <section className="rounded-2xl p-5 sm:p-6 border border-primary/30 bg-primary/[0.06] flex flex-col sm:flex-row sm:items-center gap-4 animate-fade-in" style={{ animationDelay: '60ms' }}>
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/15">
-            <Clock size={22} className="text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-base font-bold text-foreground">🚧 O Sora Labs está chegando</p>
-            <p className="text-sm text-muted-foreground leading-snug mt-0.5">
-              Estamos preparando os primeiros conteúdos com muito carinho. Dá uma olhada no que vem por aí — toque numa capa pra ser avisado quando lançar.
-            </p>
-          </div>
-        </section>
+        {/* ── BANNER DO CURSO LIBERADO ─────────────────────────
+            ⚠️ Substituiu o "🚧 o Labs está chegando". Com um curso no ar,
+            aquele banner passava a mentir logo acima de um card que abre —
+            e quem lê "está chegando" nem tenta tocar. */}
+        {LIBERADOS.length > 0 && (
+          <section className="rounded-2xl p-5 sm:p-6 border border-primary/30 bg-primary/[0.06] flex flex-col sm:flex-row sm:items-center gap-4 animate-fade-in" style={{ animationDelay: '60ms' }}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-primary/15">
+              <Sparkles size={22} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-foreground">
+                🎉 {LIBERADOS.length === 1 ? 'O primeiro curso já está no ar' : `${LIBERADOS.length} cursos já estão no ar`}
+              </p>
+              <p className="text-sm text-muted-foreground leading-snug mt-0.5">
+                Os demais seguem em produção — toque numa capa marcada como “em breve” pra ser avisado quando lançar.
+              </p>
+            </div>
+            <Link href={`/labs/${LIBERADOS[0].id}`} prefetch={false}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white flex-shrink-0 active:scale-[0.98] transition-transform"
+                  style={{ background: 'hsl(var(--primary))' }}>
+              <BookOpen size={15} /> Começar agora
+            </Link>
+          </section>
+        )}
 
         {/* ── EM DESTAQUE ─────────────────────────────────────── */}
         <Fileira id="destaques" titulo="Em destaque" emoji="✨" cursos={DESTAQUES} onCurso={onCurso} />
