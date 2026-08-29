@@ -236,7 +236,12 @@ function Bloco({ titulo, cor, Icone, legenda, grupos, onApagar }: any) {
                   {t.observacao || t.categoria || 'Lançamento'}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground tabular">
-                  {brl(t.valor)} · {dataCurta(t.data)} · {t.carteira_nome}
+                  {/* ⚠️ A DIREÇÃO É ESCRITA, não uma cor. O Watson passou a
+                      enxergar duplicata de RECEITA também (antes a query dele
+                      travava em 'Gasto'), então entrada e saída convivem na
+                      mesma lista — e apagar a linha errada por não saber qual
+                      é qual seria o pior desfecho possível aqui. */}
+                  {t.tipo === 'Recebimento' ? 'entrada' : 'saída'} · {brl(t.valor)} · {dataCurta(t.data)} · {t.carteira_nome}
                   {j === 0 && <span className="ml-1.5 font-semibold text-foreground">· o mais antigo</span>}
                 </p>
               </div>
