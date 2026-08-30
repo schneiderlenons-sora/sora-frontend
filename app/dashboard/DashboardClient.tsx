@@ -241,8 +241,14 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // exibiria menos do que a pessoa gastou, sem nada na tela explicando a
   // diferença. Mesmo defeito que apareceu na aba Categorias.
   //
-  // A fatia "Outras" fecha os 100%. Cinza neutro porque não é uma categoria, é
-  // o resíduo — cor de marca ali competiria com as reais.
+  // A fatia do resíduo fecha os 100%. Cinza neutro porque não é uma categoria,
+  // é o que sobrou — cor de marca ali competiria com as reais.
+  //
+  // ⚠️ CHAMA-SE "Demais categorias", NUNCA "Outras": existe uma categoria de
+  // verdade chamada "Outros" na taxonomia, e as duas caíam lado a lado na mesma
+  // legenda com valores diferentes. Relato real de cliente: "220,43 em outras e
+  // 377,84 em outros, duas categorias pra outros?". Uma é dado, a outra é o
+  // resto do gráfico — o rótulo tem de deixar isso óbvio sem precisar explicar.
   const dadosDonut = useMemo(() => {
     const fatias = catsComPct.map((c: any) => ({
       name:  nomeCategoria(c.categoria),
@@ -252,7 +258,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     }));
     const resto = totalGastos - fatias.reduce((s, f) => s + (f.value || 0), 0);
     // Centavos de arredondamento não viram fatia: só entra o que se lê na tela.
-    if (resto > 0.5) fatias.push({ name: 'Outras', value: resto, color: '#94a3b8', emoji: '📊' });
+    if (resto > 0.5) fatias.push({ name: 'Demais categorias', value: resto, color: '#94a3b8', emoji: '📊' });
     return fatias;
   }, [catsComPct, totalGastos]);
 

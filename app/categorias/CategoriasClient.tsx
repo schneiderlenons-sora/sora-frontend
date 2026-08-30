@@ -283,9 +283,13 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
     }));
 
     const resto = ordenadas.slice(8).reduce((s, x) => s + x.gastoTotal, 0);
-    // Cinza neutro de propósito: "Outras" não é uma categoria, é o resíduo —
-    // dar cor de marca a ela competiria com as que a pessoa realmente tem.
-    if (resto > 0) principais.push({ name: 'Outras', value: resto, color: '#94a3b8' });
+    // Cinza neutro de propósito: não é uma categoria, é o resíduo — dar cor de
+    // marca a ele competiria com as que a pessoa realmente tem.
+    //
+    // ⚠️ "Demais categorias", NUNCA "Outras": existe categoria de verdade
+    // chamada "Outros", e as duas apareciam na mesma legenda com valores
+    // diferentes (relato de cliente). Uma é dado, a outra é o resto do gráfico.
+    if (resto > 0) principais.push({ name: 'Demais categorias', value: resto, color: '#94a3b8' });
 
     return principais;
   }, [arvoreDespesa]);

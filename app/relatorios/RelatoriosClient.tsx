@@ -387,7 +387,11 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     });
     if (resto.length) {
       fatias.push({
-        name:  `Outras (${resto.length})`,
+        // ⚠️ "Demais categorias", NUNCA "Outras": existe categoria de verdade
+        // chamada "Outros" na taxonomia, e as duas caíam na mesma legenda com
+        // valores diferentes — relato real de cliente. Uma é dado, a outra é o
+        // resto do gráfico.
+        name:  `Demais categorias (${resto.length})`,
         value: resto.reduce((s, c) => s + (c.total || 0), 0),
         color: '#71717A',
         emoji: '•',
