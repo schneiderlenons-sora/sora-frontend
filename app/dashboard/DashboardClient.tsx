@@ -21,6 +21,10 @@ import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
+// Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
+// backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
+// payload antigo no cache do SWR, onde `saldo` ja e BRL.
+import { saldoBRL } from '@/lib/moeda';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, ChevronRight, Clock, BarChart3,
@@ -199,7 +203,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     [wallets]
   );
   const saldoTotal  = useMemo(
-    () => contasBancarias.reduce((s, w) => s + (w.saldo||0), 0),
+    () => contasBancarias.reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
     [contasBancarias]
   );
   const varReceitas = useMemo(() => pct(resumo?.receitas||0, resumoAnt?.receitas||0), [resumo, resumoAnt]);

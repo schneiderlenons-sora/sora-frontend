@@ -10,6 +10,11 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import DetalhesContaModal from '@/components/contas/DetalhesContaModal';
+// Conta em moeda estrangeira (migration 144). `saldo_brl` vem pronto do backend
+// — o painel NÃO busca câmbio, senão cada tela teria a sua cotação e elas
+// divergiriam entre si. O fallback pra `saldo` mantém tudo certo antes da
+// migration e em payload antigo no cache do SWR, onde `saldo` já é BRL.
+import { saldoBRL, normalizarMoeda, formatarMoeda, ehEstrangeira, MOEDAS } from '@/lib/moeda';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
@@ -87,6 +92,10 @@ interface Wallet {
   saldo: number;
   limite: number;
   cheque_especial?: number;
+  // Moeda da conta + equivalente em BRL calculado pelo BACKEND (migration 144).
+  // ⚠️ `saldo_brl === null` significa CÂMBIO INDISPONÍVEL, não zero.
+  moeda?: string | null;
+  saldo_brl?: number | null;
   padrao?: boolean;
   arquivada?: boolean;
   dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
@@ -97,9 +106,10 @@ interface Form {
   tipo:  string;
   saldo: string;
   cheque: string;   // limite de cheque especial (R$)
+  moeda: string;    // ISO 4217 — 'BRL' por padrão
 }
 
-const FORM_VAZIO: Form = { nome: '', tipo: 'Corrente', saldo: '', cheque: '' };
+const FORM_VAZIO: Form = { nome: '', tipo: 'Corrente', saldo: '', cheque: '', moeda: 'BRL' };
 
 type Tab = 'ativas' | 'arquivadas';
 
@@ -157,7 +167,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const saldoTotal = useMemo(() =>
     walletsAtivas
       .filter(w => w.tipo !== 'Crédito')
-      .reduce((s, w) => s + (w.saldo || 0), 0),
+      .reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
     [walletsAtivas]
   );
 
@@ -168,7 +178,9 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
     setErro(''); setSucesso(false);
     if (w) {
       setEditando(w);
-      setForm({ nome: w.nome, tipo: w.tipo, saldo: String(w.saldo), cheque: w.cheque_especial ? String(w.cheque_especial) : '' });
+      setForm({ nome: w.nome, tipo: w.tipo, saldo: String(w.saldo),
+                cheque: w.cheque_especial ? String(w.cheque_especial) : '',
+                moeda: normalizarMoeda(w.moeda) });
     } else {
       setEditando(null);
       setForm(FORM_VAZIO);
@@ -196,6 +208,10 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
       saldo:  parseFloat((form.saldo || '0').replace(',', '.')) || 0,
       limite: 0,
       cheque_especial: Math.abs(parseFloat((form.cheque || '0').replace(',', '.')) || 0),
+      // ⚠️ O `saldo` acima está NA MOEDA DA CONTA, não em reais. Uma conta
+      // Nomad com US$ 6.834,56 guarda 6834.56 — o equivalente em real é
+      // derivado pelo backend (`saldo_brl`) e muda com o câmbio, como deve.
+      moeda: form.moeda,
     };
     console.log('[contas] salvar wallet — payload:', payload);
 
@@ -587,9 +603,22 @@ function WalletCard({
           </div>
           <p className={`text-xl font-bold tabular tracking-tight ${isNeg ? 'text-red-500' : ''}`}
              style={{ color: !isNeg ? `hsl(${hue} 55% 40%)` : undefined }}>
-            {ocultar ? '••••••' : fmt(wallet.saldo)}
+            {/* ⚠️ O NÚMERO GRANDE É O NATIVO. É o que o cliente vê no app do
+                banco dele — mostrar o convertido aqui faria o saldo "mudar
+                sozinho" todo dia e ele não reconheceria a própria conta. */}
+            {ocultar ? '••••••' : formatarMoeda(wallet.saldo, wallet.moeda)}
           </p>
         </div>
+        {/* Equivalente em real, discreto: é derivado e muda com o câmbio.
+            `saldo_brl === null` = câmbio fora do ar; dizer isso é melhor que
+            mostrar um número que não existe. */}
+        {ehEstrangeira(wallet.moeda) && !ocultar && (
+          <p className="mt-1 text-[11px] text-muted-foreground tabular">
+            {wallet.saldo_brl === null
+              ? 'câmbio indisponível agora'
+              : `≈ ${fmt(saldoBRL(wallet) ?? 0)}`}
+          </p>
+        )}
         <div className="flex items-center gap-0.5 mt-2 text-[11px] font-medium text-muted-foreground group-hover/saldo:text-foreground transition-colors">
           <span>Ver extrato — entradas e saídas</span>
           <ChevronRight size={12} className="group-hover/saldo:translate-x-0.5 transition-transform" />
@@ -793,6 +822,36 @@ function ContaModal({
               </div>
             </div>
 
+            {/* Moeda da conta — conta internacional (Nomad, Wise, Revolut…).
+                ⚠️ Fica ANTES do saldo de propósito: o símbolo do campo abaixo
+                muda com esta escolha, então escolher depois faria o usuário
+                digitar o número achando que era real. */}
+            <div>
+              <label htmlFor="conta-moeda" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
+                Moeda
+              </label>
+              <select
+                id="conta-moeda"
+                value={form.moeda}
+                onChange={e => setForm(f => ({ ...f, moeda: e.target.value }))}
+                className="input py-3 font-semibold"
+                style={{ minHeight: 44 }}
+              >
+                {Object.entries(MOEDAS).map(([cod, m]) => (
+                  <option key={cod} value={cod}>
+                    {m.bandeira} {cod} · {m.nome}
+                  </option>
+                ))}
+              </select>
+              {ehEstrangeira(form.moeda) && (
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                  O saldo e os lançamentos desta conta ficam em{' '}
+                  <b className="text-foreground">{form.moeda}</b>. Nos totais do painel ela é
+                  convertida para real pelo câmbio do dia.
+                </p>
+              )}
+            </div>
+
             {/* Saldo inicial */}
             <div>
               <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
@@ -800,7 +859,7 @@ function ContaModal({
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">
-                  R$
+                  {MOEDAS[normalizarMoeda(form.moeda)].simbolo}
                 </span>
                 <input
                   type="text"
@@ -808,7 +867,7 @@ function ContaModal({
                   placeholder="0,00"
                   value={form.saldo}
                   onChange={e => setForm(f => ({ ...f, saldo: e.target.value.replace(/[^\d.,]/g, '') }))}
-                  className="input pl-11 py-3 tabular text-lg font-semibold"
+                  className="input pl-14 py-3 tabular text-lg font-semibold"
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">

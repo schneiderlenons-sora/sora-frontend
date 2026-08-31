@@ -14,6 +14,10 @@ import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
+// Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
+// backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
+// payload antigo no cache do SWR, onde `saldo` ja e BRL.
+import { saldoBRL } from '@/lib/moeda';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
@@ -177,7 +181,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     [txsFiltradas, ehTransferencia]);
 
   const saldoTotal = useMemo(() =>
-    wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo || 0), 0),
+    wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
     [wallets]);
 
   // ── Categorias únicas para filtro ──────────────────────────

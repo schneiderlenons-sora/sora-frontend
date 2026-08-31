@@ -11,6 +11,10 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import ValorAuto from '@/components/ui/ValorAuto';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
+// Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
+// backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
+// payload antigo no cache do SWR, onde `saldo` ja e BRL.
+import { saldoBRL } from '@/lib/moeda';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -265,7 +269,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 
   // ── Métricas derivadas ─────────────────────────────────────
   const saldo       = (resumo?.receitas || 0) - (resumo?.gastos || 0);
-  const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (w.saldo || 0), 0);
+  const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoBRL(w) ?? 0), 0);
 
   // Humor da baleia: com receita lançada → taxa de economia; sem receita →
   // quanto do saldo disponível do banco já foi gasto no mês (fica triste se
