@@ -307,7 +307,16 @@ export default function OpenFinancePage() {
   }
 
   async function desconectar(id: string, nome: string | null) {
-    if (!confirm(`Desconectar ${nome || 'este banco'}? O histórico já importado continua na Sora.`)) return;
+    // ⚠️ DESCONECTAR ≠ CANCELAR A COBRANÇA. Esta rota apaga a conexão e revoga
+    // o consentimento no provedor, mas NÃO toca na assinatura do Stripe — quem
+    // paga conexão avulsa continua pagando. Medido quando este aviso foi
+    // escrito: 2 clientes pagavam R$6 e R$12/mês por conexões que já tinham
+    // desconectado, quase certamente achando que desconectar encerrava a conta.
+    const pagas = Number(perfil?.of_conexoes_pagas) || 0;
+    const aviso = pagas > 0
+      ? `Desconectar ${nome || 'este banco'}?\n\nO histórico já importado continua na Sora.\n\n⚠️ Isto NÃO cancela a cobrança da conexão paga. Pra parar de pagar, use "Gerenciar cobrança" logo abaixo.`
+      : `Desconectar ${nome || 'este banco'}? O histórico já importado continua na Sora.`;
+    if (!confirm(aviso)) return;
     setConexoes(prev => prev.filter(c => c.external_id !== id));
     try { await api.openFinance.desconectar(id); } catch (e: any) { setErro(e.message); carregar(); }
   }
@@ -480,6 +489,14 @@ export default function OpenFinancePage() {
                 <ContratarConexao atual={perfil?.of_conexoes_pagas || 0} />
               </div>
             )}
+
+            {/* ⚠️ A SAÍDA. Quem paga conexão avulsa precisa conseguir PARAR de
+                pagar aqui — foi onde ele comprou. Antes só existia
+                "Desconectar", que remove o banco e mantém a cobrança, e o
+                vitalício não via o portal em lugar nenhum do painel (o botão
+                de /configuracoes era escondido pra ele). Medido: os 13
+                pagantes eram todos vitalícios. */}
+            <GerenciarCobrancaConexao pagas={Number(perfil?.of_conexoes_pagas) || 0} />
 
             {/* Ação principal */}
             <div className="flex flex-col sm:flex-row gap-2">
@@ -855,6 +872,66 @@ export default function OpenFinancePage() {
 // tinha 1 conexão paga não conseguia comprar a 2ª: o componente nem aparecia
 // mais depois da 1ª compra (`liberado` vira true), e ao reaparecer tem de
 // mandar `atual + 1`, não `1`.
+// ─────────────────────────────────────────────────────────────────────────────
+// A saída: cancelar/gerenciar a conexão paga.
+//
+// ⚠️ POR QUE ISTO EXISTE. A conexão avulsa (R$6/mês) é uma assinatura Stripe
+// SEPARADA da do plano. Quem é vitalício não tinha NENHUM caminho pra cancelá-la
+// no painel: o botão do portal em /configuracoes era escondido pra ele
+// (`!isVitalicio`), /planos esconde o bloco recorrente inteiro, e "Desconectar"
+// aqui só remove o banco — a cobrança segue. Enquanto isso, o texto do checkout
+// promete "dá pra cancelar quando quiser".
+//
+// Medido quando isto foi escrito: os 13 clientes que pagavam conexão eram TODOS
+// vitalícios (11 assinaturas ativas, R$ 198/mês), e 2 deles pagavam por conexão
+// que já tinham desconectado.
+//
+// Abre o Customer Portal do Stripe, que só precisa de `stripe_customer_id` —
+// que o vitalício ganha justamente ao contratar a conexão.
+// ─────────────────────────────────────────────────────────────────────────────
+function GerenciarCobrancaConexao({ pagas }: { pagas: number }) {
+  const [indo, setIndo] = useState(false);
+  const [erro, setErro] = useState('');
+
+  if (pagas <= 0) return null;   // sem cobrança, nada a gerenciar
+
+  async function abrir() {
+    setErro(''); setIndo(true);
+    try {
+      const r = await fetch('/api/stripe/portal', { method: 'POST' });
+      const d = await r.json();
+      if (d.url) window.location.href = d.url;
+      else { setErro(d.erro || 'Não consegui abrir a área de cobrança.'); setIndo(false); }
+    } catch {
+      setErro('Falha de conexão. Tente de novo.'); setIndo(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-2xl border border-border/60 p-3.5"
+         style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-foreground">
+            Você paga por {pagas} {pagas === 1 ? 'conexão' : 'conexões'}
+          </p>
+          <p className="text-[11.5px] text-muted-foreground mt-0.5 leading-relaxed">
+            Cancele ou troque o cartão quando quiser. O banco continua conectado até o
+            fim do período já pago.
+          </p>
+        </div>
+        <button onClick={abrir} disabled={indo}
+          className="flex-shrink-0 inline-flex items-center gap-2 h-10 px-3.5 rounded-xl border border-border text-xs font-bold text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-60"
+          style={{ minHeight: 44 }}>
+          {indo ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
+          Gerenciar cobrança
+        </button>
+      </div>
+      {erro && <p role="alert" className="mt-2 text-[11.5px] text-red-500">{erro}</p>}
+    </div>
+  );
+}
+
 function ContratarConexao({ atual = 0, primeiraCompra = false }: { atual?: number; primeiraCompra?: boolean }) {
   const [intervalo, setIntervalo] = useState<'mensal' | 'anual'>('mensal');
   const [enviando, setEnviando] = useState(false);

@@ -522,6 +522,7 @@ function SecaoPlano() {
         criadoEm={perfil?.created_at ? new Date(perfil.created_at) : null}
         isVitalicio={!!perfil?.vitalicio}
         vitalicioEm={perfil?.vitalicio_em ? new Date(perfil.vitalicio_em) : null}
+        temAssinaturaConexao={(Number(perfil?.of_conexoes_pagas) || 0) > 0}
       />
 
       {/* ═══════════════════════════════════════════════════════════
@@ -604,6 +605,7 @@ function SecaoPlano() {
 function HeroPlanoAtual({
   planoVisual, planoAtual, intervalo, validoAte, diasRestantes,
   temAssinatura, loadingPortal, onGerenciar, criadoEm, isVitalicio, vitalicioEm,
+  temAssinaturaConexao,
 }: {
   planoVisual?: PlanoDisplay;
   planoAtual: Plano;
@@ -616,6 +618,8 @@ function HeroPlanoAtual({
   criadoEm: Date | null;
   isVitalicio?: boolean;
   vitalicioEm?: Date | null;
+  /** Vitalício que contratou conexão de Open Finance TEM cobrança no Stripe. */
+  temAssinaturaConexao?: boolean;
 }) {
   // Estado: inativo → estado vazio sofisticado
   if (!temAssinatura || !planoVisual) {
@@ -708,8 +712,19 @@ function HeroPlanoAtual({
             </div>
           </div>
 
-          {/* CTA Gerenciar — só assinatura recorrente (vitalício não tem portal Stripe) */}
-          {!isVitalicio && (
+          {/* CTA Gerenciar — abre o portal do Stripe.
+              ⚠️ O VITALÍCIO TAMBÉM PRECISA DISTO. Antes a condição era só
+              `!isVitalicio`, com a justificativa "vitalício não tem portal
+              Stripe" — que era verdade até existir a CONEXÃO DE OPEN FINANCE
+              avulsa (R$6/mês). Quem é vitalício e contrata uma conexão passa a
+              ter cliente e assinatura no Stripe, e ficava SEM NENHUMA forma de
+              cancelar pelo painel — enquanto o texto do checkout promete "dá
+              pra cancelar quando quiser".
+              Medido quando isto foi corrigido: os 13 pagantes de conexão eram
+              TODOS vitalícios, 11 assinaturas ativas, R$ 198/mês. Dois deles
+              pagavam por conexão que já tinham desconectado — porque
+              "Desconectar" remove o banco mas NÃO cancela a cobrança. */}
+          {(!isVitalicio || temAssinaturaConexao) && (
             <button
               onClick={onGerenciar}
               disabled={loadingPortal}
@@ -721,7 +736,10 @@ function HeroPlanoAtual({
               ) : (
                 <SettingsIcon size={14} />
               )}
-              Gerenciar assinatura
+              {/* Rótulo honesto: pro vitalício a ÚNICA coisa cobrável ali é a
+                  conexão — dizer "assinatura" faria ele temer perder o acesso
+                  vitalício, que não tem mensalidade nenhuma. */}
+              {isVitalicio ? 'Gerenciar conexões pagas' : 'Gerenciar assinatura'}
             </button>
           )}
         </div>
