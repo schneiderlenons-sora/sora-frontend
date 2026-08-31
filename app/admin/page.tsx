@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
+import OpenFinancePainel from '@/components/admin/OpenFinancePainel';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
@@ -217,7 +218,7 @@ export default function AdminPage() {
   const router = useRouter();
   const admin = isAdminEmail(perfil?.email);
 
-  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados'>('users');
+  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance'>('users');
   const [ov, setOv] = useState<Overview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
@@ -394,7 +395,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60 w-fit">
-          {([['users', 'Usuários', UsersIcon], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone]] as const).map(([id, label, Icon]) => (
+          {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
                     className={`inline-flex items-center gap-1.5 px-4 h-9 rounded-xl text-sm font-bold transition-all ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               <Icon size={14} /> {label}
@@ -410,6 +411,8 @@ export default function AdminPage() {
 
         {tab === 'comunicados' ? (
           <Comunicados flash={flash} />
+        ) : tab === 'openfinance' ? (
+          <OpenFinancePainel />
         ) : tab === 'users' ? (
           <div className="space-y-3">
             {/* Busca + filtros */}
