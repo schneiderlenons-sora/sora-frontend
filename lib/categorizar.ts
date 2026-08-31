@@ -173,11 +173,12 @@ const REGRAS: Regra[] = [
   // ── Academia / Fitness ──
   { cat: 'Academia',       kws: ['academia', 'smartfit', 'smart fit', 'bodytech', 'bioritmo', 'bio ritmo', 'selfit', 'bluefit',
       'crossfit', 'personal trainer', 'pilates', 'tecnofit', 'totalpass', 'gympass', 'wellhub',
-      // ⚠️ NENHUMA academia chamada "Velocity" entra aqui: ela casaria o
-      // 'veloc' do Cinema, lá embaixo.
-      'contorno do corpo', 'sportfit', 'sport fit', 'panobianco', 'justfit', 'just fit',
+      // Franquias que faltavam — todas NOMES DE MARCA, nunca palavra genérica.
+      // ⚠️ 'fitness' JÁ ESTEVE AQUI e foi REMOVIDO: "Dellas Fitness" é uma LOJA,
+      // não academia. Ter "fitness" no nome não diz o ramo do negócio.
+      'contorno do corpo', 'sportfit', 'sport fit', 'panobianco', 'justfit',
       'cia athletica', 'pratique fitness', 'skyfit', 'sky fit', 'ironberg', 'iron berg',
-      'formula academia', 'bodyshape', 'body shape', 'fitness'] },
+      'formula academia'] },
 
   // ── Esporte ──
   { cat: 'Esporte',        kws: ['futebol', 'society', 'quadra de', 'aluguel de quadra', 'beach tennis', 'futevolei', 'volei',
@@ -225,9 +226,11 @@ const REGRAS: Regra[] = [
 
   // ── Lazer ──
   // 'Cinema' é subcategoria canônica (🎬, sql/087) e as marcas caíam todas no
-  // pai 'Lazer'. ⚠️ 'veloc' entra CRU (não 'veloc tickets') porque o descritor
-  // trunca; é seguro porque 'velocidade'/'velocity' não existem na base.
-  { cat: 'Cinema',         kws: ['cinema', 'cinemark', 'kinoplex', 'cinepolis', 'uci cinemas', 'veloc'] },
+  // pai 'Lazer'. ⚠️ É "Velox" (com X) e NUNCA a palavra solta: "Oi Velox" é
+  // banda larga. Exige-se o contexto de ingresso, pelo mesmo motivo que
+  // 'fitness' saiu da Academia.
+  { cat: 'Cinema',         kws: ['cinema', 'cinemark', 'kinoplex', 'cinepolis', 'uci cinemas',
+      'velox tick', 'veloxticket', 'velox ingresso', 'veloxingresso'] },
   { cat: 'Lazer',          kws: ['ingresso', 'sympla', 'eventim', 'show ', 'teatro',
       'parque', 'hopi hari', 'beto carrero', 'steam', 'playstation', 'xbox', 'nintendo', 'riot games', 'epic games', 'twitch',
       'boliche', 'balada', 'bar ', 'pub ', 'cervejaria', 'festa', 'evento'] },
