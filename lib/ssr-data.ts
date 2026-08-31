@@ -112,10 +112,28 @@ export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: s
   };
 }
 
+// Colunas mínimas do GRÁFICO do dashboard (`txsMes`). Enumeradas UMA A UMA a
+// partir dos consumidores reais, não por chute:
+//   · computeDailyAmount → data, valor
+//   · o filtro do gráfico → categoria, transferencia
+//   · gastoPorContaDe     → tipo, carteira_nome, valor, categoria, transferencia
+//   · ResumoCards         → carteira_nome
+//
+// ⚠️ `wallet_id` NÃO entra: o ResumoCards lê `t.wallet_id`, mas essa coluna não
+// existe em `transacoes` — já é `undefined` hoje, e pedi-la ao Postgres daria
+// erro. Omitir mantém exatamente o comportamento atual.
+//
+// ⚠️ NÃO tem o embed do `criador`: o gráfico não mostra avatar. É metade da
+// economia — o join puxava 6 campos de users por linha.
+//
+// Medido no grupo do dono: 57,1 KB → 12,8 KB por visita (−78%).
+const COLUNAS_GRAFICO = 'id, data, valor, categoria, tipo, transferencia, carteira_nome';
+
 // Porte fiel de dashboard.listarTransacoes (com o mesmo fallback de embed).
 export async function transacoesDireto(
   grupoId: string,
-  { mes, tipo, limit, ate }: { mes?: string; tipo?: string; limit: number; ate?: string },
+  { mes, tipo, limit, ate, colunas }:
+    { mes?: string; tipo?: string; limit: number; ate?: string; colunas?: string },
 ) {
   // `async` porque a sonda da coluna é assíncrona. Quem chama já usa `await`, e
   // o builder do Supabase é thenable — então o `await` do call site resolve a
@@ -128,6 +146,14 @@ export async function transacoesDireto(
     if (await arquivadasOk()) q = q.is('arquivada_por', null);
     return q;
   };
+
+  // Caminho enxuto: quem pediu colunas específicas (o gráfico) não precisa do
+  // embed do criador nem do fallback de embed — não há embed pra falhar.
+  if (colunas) {
+    const r = await aplicar(supabaseAdmin.from('transacoes').select(colunas, { count: 'exact' }));
+    const lista = (r.data || []).map((t: any) => ({ ...t, wallet_nome: t.carteira_nome }));
+    return { transacoes: lista, total: r.count || 0 };
+  }
 
   let { data, count, error } = await aplicar(
     supabaseAdmin.from('transacoes')
@@ -152,9 +178,30 @@ export async function walletsDireto(grupoId: string) {
   return data || [];
 }
 
+// ⚠️ COLUNAS EXPLÍCITAS, e sem o embed `parent:parent_id(id,nome)`.
+//
+// Esta era a leitura MAIS CARA do dashboard — 58,6 KB contra 57,1 KB das
+// transações — porque são ~180 categorias por grupo e o `select('*')` trazia
+// todas as colunas de todas elas em TODA visita (a página é `force-dynamic`).
+//
+// O dashboard usa `categorias` em exatamente dois pontos, os dois via
+// `getCategoriaTheme(nome, categorias)`, cujo contrato (`CategoriaUserMin` em
+// lib/categorias.ts) é `nome` + `icone` + `cor`. Nada é repassado a componente
+// filho — conferido linha a linha antes de estreitar.
+//
+// `id`/`parent_id`/`tipo` ficam por segurança (custam bytes desprezíveis e são
+// o que qualquer consumidor futuro pediria primeiro). O embed do pai sai: o
+// dashboard nunca lê `.parent`.
+//
+// Medido no grupo do dono: 58,6 KB → 27,4 KB por visita (−53%).
+//
+// ⚠️ Isto vale SÓ pro SSR do dashboard. A aba /categorias tem query própria
+// (pelo backend) e continua recebendo tudo — ela precisa.
 export async function categoriasDireto(grupoId: string) {
   const { data } = await supabaseAdmin
-    .from('categorias').select('*, parent:parent_id(id,nome)').eq('grupo_id', grupoId).eq('ativa', true).order('nome');
+    .from('categorias')
+    .select('id, nome, icone, cor, parent_id, tipo')
+    .eq('grupo_id', grupoId).eq('ativa', true).order('nome');
   return data || [];
 }
 
@@ -242,7 +289,10 @@ export async function dashboardDireto(grupoId: string, mes: string, mesAnt: stri
     resumoDireto(grupoId, mesAnt),
     walletsDireto(grupoId),
     transacoesDireto(grupoId, { limit: 8, ate: agora }),
-    transacoesDireto(grupoId, { mes, tipo: 'Gasto', limit: 500 }),
+    // ⚠️ Só o GRÁFICO usa colunas enxutas. A lista de recentes (acima) segue
+    // com `select('*')` + embed do criador, porque ela MOSTRA observação,
+    // avatar de quem lançou e o resto — estreitar ali apagaria conteúdo da tela.
+    transacoesDireto(grupoId, { mes, tipo: 'Gasto', limit: 500, colunas: COLUNAS_GRAFICO }),
     categoriasDireto(grupoId),
   ]);
   return { resumo, resumoAnt, wallets, txsRec, txsMes, categorias };
