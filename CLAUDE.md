@@ -952,6 +952,48 @@ UNDERSCORE, não espaço; agora há comparação direta.
 > transações entram nas duas. Precisa de fix próprio (merge por
 > `payment_methods.identification_number` + nome), com medição à parte.
 
+## `unbilled_amount` 0 = emissor sem transação, não fatura zerada (set/2026)
+
+Cliente com Banco Inter: **R$ 10.217,60 no painel × R$ 1.995,24 no banco**.
+
+- ⚠️ **A definição do campo estava registrada pela metade.** A doc diz "soma das
+  transações com `bill_id` null **e `bill_post_date` posterior a
+  `bill_closing_date` + 1 mês**". É a cláusula do MÊS que faz o campo ser
+  **parcela de fatura FUTURA**, não "fatura em aberto" — e é o que dá sentido à
+  regra de ouro (`used − unbilled` = limite usado menos o que já está lançado
+  para depois do próximo fechamento).
+- ⚠️ **Ele é DERIVADO DAS TRANSAÇÕES.** Emissor que não as entrega manda **0**, e
+  `used − 0` devolve o **limite usado inteiro** como se fosse a fatura. Medido:
+  a Polp tinha **4 transações** desse cartão (1 no ciclo aberto), nós
+  descartamos **0**, e o consentimento vinha `PARTIAL_SUCCESS` +
+  `PARTIALLY_UNAVAILABLE_RESOURCES`. O `used_amount` é o único campo que vem
+  **direto do emissor**, por isso é o único preenchido nesse cenário.
+- **Não dá pra reconstruir**: nenhuma fórmula sobre esse payload chega em
+  1.995,24 (as candidatas dão 8.690,81 e 9.259,74), e ali o `used_amount` é
+  `CONSOLIDADO`/`LIMITE_CREDITO_TOTAL` — parece incluir linha de crédito além do
+  cartão. Quem barra o número absurdo é `faturaVista.simuladoEhOLimiteUsado`.
+- ⚠️ **A tela de cartões tinha uma SEGUNDA fonte da verdade.** `CartaoClient`
+  calculava a fatura por conta própria e, no cartão de OF, usava `−wallets.saldo`
+  direto — então o guard do backend não a alcançava. Agora ela lê o `restante`
+  do payload de `/wallets/faturas`, que já buscava. O `ResumoCards` do dashboard
+  sempre fez certo (`restanteApi ?? local`); era por isso que as duas telas
+  mostravam números diferentes pro mesmo cartão.
+
+### ⚠️ `payments[]` pertence à fatura SEGUINTE — por contrato, e JÁ ESTÁ TRATADO
+
+"Um pagamento fica atrelado à fatura que fechar em seguida a ele" (doc da
+Celcoin). Como se paga a fatura N−1 durante o ciclo N, o pagamento vem pendurado
+na fatura **N**, em TODO emissor. No Itaú de um cliente as 12 faturas conferidas
+tinham `pago[N] === total[N−1]` **no centavo** — parece bug clamoroso e **não é**.
+
+`faturasBanco.pagoPorCompetencia` já atribui cada pagamento pela **DATA**
+(migration **128**, rodada — 325 das 394 faturas da base já têm os pagamentos
+datados), e `faturaVista` reporta `fonte: 'banco+datas'` quando isso acontece.
+**Não "consertar" de novo.** O `pago` que o `/api/admin/of-debug` mostra é o
+**BRUTO** (`pagoDaBill`), exposto só pra diagnóstico — não é o que a tela usa.
+
+---
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
