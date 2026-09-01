@@ -141,22 +141,42 @@ document.documentElement.setAttribute('data-abertura','on');
 if(document.documentElement.getAttribute('data-abertura')!=='on')return;
 var box=document.getElementById('sora-abertura');if(!box)return;
 var v=document.createElement('video');
-v.src='/abertura/sora-intro.webm';v.autoplay=true;v.muted=true;v.defaultMuted=true;
-v.playsInline=true;v.setAttribute('playsinline','');v.preload='auto';
+/* ⚠️ A ORDEM AQUI É O QUE FAZ O AUTOPLAY FUNCIONAR. O navegador avalia a
+   política de autoplay quando a FONTE é atribuída — se 'muted' e 'playsinline'
+   ainda não estiverem no elemento nesse instante, ele bloqueia. Por isso o
+   'src' vem POR ÚLTIMO. (Na 1ª versão ele vinha primeiro: o vídeo era barrado,
+   o play() rejeitava e a tela sumia depois de um frame.) */
+v.muted=true;v.defaultMuted=true;v.setAttribute('muted','');
+v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
+v.setAttribute('autoplay','');v.autoplay=true;
+v.preload='auto';
+v.src='/abertura/sora-intro.webm';
 box.appendChild(v);
-var fim=function(){
+
+var comecou=false,fim=function(){
   if(!box||box.dataset.saindo)return;box.dataset.saindo='1';
   box.style.opacity='0';
   setTimeout(function(){document.documentElement.removeAttribute('data-abertura');},420);
 };
+v.addEventListener('playing',function(){comecou=true;});
 v.addEventListener('ended',fim);
 v.addEventListener('error',fim);
-/* ⚠️ RELÓGIO DE SEGURANÇA. 'ended' nunca dispara se o arquivo travar no meio —
-   e rede ruim no celular é regra, não exceção. A abertura JAMAIS pode virar um
-   app que não abre. 5,02s de vídeo + margem de decode. */
+
+/* ⚠️ NÃO ENCERRAR NO CATCH DO play(). Com 'autoplay' já no elemento, esta
+   chamada é redundante e o navegador rejeita a promessa com AbortError ("play()
+   request was interrupted") JUSTAMENTE QUANDO O VÍDEO COMEÇOU A TOCAR. Ligar
+   'fim' nela matava a animação no primeiro frame — era o bug relatado. Só
+   desiste se o vídeo estiver DE FATO parado. */
+var pr=v.play();
+if(pr&&pr.catch)pr.catch(function(){if(v.paused&&!comecou)fim();});
+
+/* Não começou em 2s? Então não vai começar — não segura a tela. */
+setTimeout(function(){if(!comecou)fim();},2000);
+
+/* ⚠️ TETO ABSOLUTO. 'ended' nunca dispara se o arquivo travar no meio, e rede
+   ruim no celular é regra, não exceção. A abertura JAMAIS pode virar um app que
+   não abre. 5,02s de vídeo + margem. */
 setTimeout(fim,8000);
-/* Autoplay recusado (algumas versões de iOS): não segura a tela. */
-var pr=v.play();if(pr&&pr.catch)pr.catch(fim);
 }catch(e){try{document.documentElement.removeAttribute('data-abertura');}catch(_){}}}
 )();` }} />
 
