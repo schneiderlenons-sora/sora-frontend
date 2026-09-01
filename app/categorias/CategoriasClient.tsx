@@ -8,12 +8,13 @@ import { useApi } from '@/lib/useApi';
 import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
 import GerenciarMarcasModal from '@/components/categorias/GerenciarMarcasModal';
+import GerenciarRegrasModal from '@/components/categorias/GerenciarRegrasModal';
 import { nomeCategoria, getCategoriaTheme, isHexGrayscale, citrico } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
-  Calendar, Filter, RefreshCw, ServerOff, Store, MoreVertical,
+  Calendar, Filter, RefreshCw, ServerOff, Store, MoreVertical, Wand2,
 } from 'lucide-react';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 
@@ -116,6 +117,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
   const [modalCat,  setModalCat]   = useState<{ edicao?: Categoria; parentId?: string; parentNome?: string } | null>(null);
   const [modalLim,  setModalLim]   = useState<Categoria | null>(null);
   const [modalMarcas, setModalMarcas] = useState(false);
+  const [modalRegras, setModalRegras] = useState(false);
   const [confirmDel,setConfirmDel] = useState<Categoria | null>(null);
 
   // ── Dados via SWR: cache em memória → revisitar/trocar de mês é instantâneo.
@@ -382,6 +384,22 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
                 aria-label={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
               >
                 {ocultar ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+
+              {/* ⚠️ A PORTA QUE FALTAVA. O motor de regras existe desde a
+                  migration 104 e roda no sync do Open Finance, no import de OFX
+                  e no WhatsApp — mas não tinha tela, e por isso a base inteira
+                  tinha ZERO regras enquanto 69 descrições se repetiam em
+                  "Outros". Fica ao lado de "Minhas marcas" porque são a mesma
+                  família: coisas que o usuário ensinou à Sora. */}
+              <button
+                onClick={() => setModalRegras(true)}
+                className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
+                title="Minhas regras — o que a Sora aprendeu com suas correções"
+                aria-label="Minhas regras"
+              >
+                <Wand2 size={14} />
+                <span className="hidden sm:inline">Minhas regras</span>
               </button>
 
               <button
@@ -653,6 +671,15 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
           mesRef={mesRef}
           onClose={() => setModalLim(null)}
           onSuccess={carregar}
+        />
+      )}
+
+      {modalRegras && phone && (
+        <GerenciarRegrasModal
+          phone={phone}
+          categorias={categorias.map(c => ({ id: c.id, nome: c.nome }))}
+          onClose={() => setModalRegras(false)}
+          onMudou={() => { mCats(); mResumo(); }}
         />
       )}
 

@@ -473,6 +473,30 @@ export const api = {
       req(`/api/marcas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
   },
 
+  // ── REGRAS DE CATEGORIA ──────────────────────────────────────
+  //
+  // O motor existe desde a migration 104 e roda no sync do Open Finance, no
+  // import de OFX e no WhatsApp — mas não tinha tela, e por isso a base inteira
+  // tinha ZERO regras. Estes três endpoints são a tela.
+  //
+  // ⚠️ Não há `criar`. A regra continua nascendo de corrigir uma transação
+  // (`transacoes.editar` com `aplicar_todas`), que é onde a pessoa tem o
+  // contexto. Um "criar do zero" exigiria adivinhar qual pedaço da descrição
+  // casa — o formulário que fica vazio.
+  regras: {
+    /** `lancamentos` = quantos casam hoje; `fora` = quantos ainda mudariam. */
+    listar: (phone: string) =>
+      req<{
+        id: string; termo: string; categoria: string;
+        created_at: string; updated_at: string;
+        lancamentos: number; fora: number;
+      }[]>(`/api/regras/${phone}`),
+    editar: (id: string, categoria: string, phone: string) =>
+      req(`/api/regras/${id}`, { method: 'PUT', body: JSON.stringify({ categoria, phone }) }),
+    remover: (id: string, phone: string) =>
+      req(`/api/regras/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+  },
+
   // ── RECORRÊNCIAS (gastos/receitas fixas) ─────────────────────
   recorrencias: {
     listar: (phone: string) =>
