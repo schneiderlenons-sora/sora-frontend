@@ -20,6 +20,12 @@ export const CUPONS_VITALICIO: Record<string, number> = {
   SORA25: 25,
   SORA35: 35, // cortesia (transtorno com recusa de pagamento — jul/2026)
   SORA100: 100,
+
+  // Convite (set/2026). ⚠️ Sem prefixo SORA de propósito: nada no código exige
+  // esse prefixo — o catálogo casa pelo código EXATO, e o caso especial de
+  // acesso grátis é decidido por `pct === 100`, não pelo nome. Então um cupom
+  // de 50% segue o fluxo normal do Mercado Pago, cobrando metade.
+  CONVIDADO50: 50,
 };
 
 // % de desconto de um código (0 se inválido/ausente).
