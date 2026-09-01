@@ -7,7 +7,7 @@ import {
   Tag, Target, TrendingUp, Settings, LogOut, Menu, X, Users, ArrowLeftRight,
   Flag, Download, Receipt, Briefcase,
   Heart, ListChecks, Home as HomeIcon, Activity, GraduationCap, Sparkles, Zap,
-  MessageCircle, CalendarDays, ChevronDown, Lock,
+  MessageCircle, HelpCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
   Percent, CalendarRange, FolderLock,
@@ -79,7 +79,7 @@ const NAV_GERAL: NavItem[] = [
   { href: '/planos',        label: 'Planos',          icon: Zap },
   { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
   { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
-  // Agentes, Drive, Comandos e Configurações ficam FIXOS no rodapé (não rolam
+  // Agentes, Drive, Ajuda e Configurações ficam FIXOS no rodapé (não rolam
   // com a lista) — Agentes/Drive viraram atalho pra facilitar achar (antes
   // enterrados aqui dentro / dentro do grupo Grow).
 ];
@@ -152,7 +152,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       NAV_DASHBOARD.href,
       ...NAV_FINANCE.map((i) => i.href),
       ...NAV_GROW.map((i) => i.href),
-      '/wrapped', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
+      '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
     ];
     const warm = () => {
       rotas.forEach((r) => router.prefetch(r));
@@ -583,7 +583,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             superior direito, em toda tela (ThemeToggle.tsx). Os dois eram os
             mais difíceis de achar (Agentes enterrado no meio da lista Geral,
             Drive dentro do grupo Grow); viraram atalho de propósito.
-            ⚠️ SÓ estes 4 (+Comandos/Config abaixo) ficam mais escuros no
+            ⚠️ SÓ estes 4 (+Ajuda/Config abaixo) ficam mais escuros no
             tema BLACK — quase a cor do próprio fundo da sidebar, porque
             bg-white/10 "acendia" demais em cima do preto. Instalar/Sair
             (mais abaixo) continuam no bg-white/10 de sempre, nos dois temas:
@@ -603,13 +603,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           </Link>
         </div>
 
-        {/* Fixos: Comandos (ex-Central da Sora) + Configurações */}
+        {/* Fixos: Ajuda (ex-Comandos, ex-Central da Sora) + Configurações */}
         <div className="grid grid-cols-2 gap-1.5">
-          <Link href="/central-sora" onClick={() => setOpen(false)}
+          <Link href="/ajuda" onClick={() => setOpen(false)}
             className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
               isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
             }`}>
-            <MessageCircle size={16} /> Comandos
+            <HelpCircle size={16} /> Ajuda
           </Link>
           <Link href="/configuracoes" onClick={() => setOpen(false)}
             className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
