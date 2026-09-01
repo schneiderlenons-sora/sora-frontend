@@ -216,7 +216,9 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // Memoizado: percorre até 500 transações; sem isso recalcula a cada toggle.
   const dadosDiarios = useMemo(
     // Exclui pagamento de fatura/transferência (não é consumo) — consistente com o total.
-    () => computeDailyAmount(txsMes.filter(t => !t.transferencia && !ehPagamentoFatura(t.categoria) && t.categoria !== 'Transferências'), today),
+    // ⚠️ `ignorar_em` sai daqui tambem (migration 146) — a curva tem de
+    // contar o MESMO que o resumo do mes, senao o grafico e o card divergem.
+    () => computeDailyAmount(txsMes.filter(t => !t.ignorar_em && !t.transferencia && !ehPagamentoFatura(t.categoria) && t.categoria !== 'Transferências'), today),
     [txsMes, today]);
 
   // Gasto do mês por conta — o detalhe que os cards "Gastos do mês" abrem: no

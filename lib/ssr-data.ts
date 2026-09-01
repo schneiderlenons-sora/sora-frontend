@@ -145,7 +145,9 @@ export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: s
 // economia — o join puxava 6 campos de users por linha.
 //
 // Medido no grupo do dono: 57,1 KB → 12,8 KB por visita (−78%).
-const COLUNAS_GRAFICO = 'id, data, valor, categoria, tipo, transferencia, carteira_nome';
+// ⚠️ `ignorar_em` entra aqui: sem ela o GRAFICO desenharia a linha que o
+// resumo do mes exclui, e o total do card nao bateria com a curva ao lado.
+const COLUNAS_GRAFICO = 'id, data, valor, categoria, tipo, transferencia, carteira_nome, ignorar_em';
 
 // Porte fiel de dashboard.listarTransacoes (com o mesmo fallback de embed).
 export async function transacoesDireto(

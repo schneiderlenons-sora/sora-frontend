@@ -150,8 +150,14 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   //
   // É o mesmo `ehTransferencia` do backend (services/resumoTransacoes.js) —
   // manter os dois iguais é o que faz o card bater com o /resumo.
+  // ⚠️ `ignorar_em` (regra "não considerar", migration 146) TAMBÉM sai daqui,
+  // nos dois escopos. Sem esta linha, o total desta página contaria a linha
+  // ignorada enquanto o dashboard não contaria — o "número mágico" que este
+  // comentário inteiro existe pra evitar. Espelha `ehTransferencia` do backend
+  // (services/resumoTransacoes.js) e o de lib/ssr-data.ts.
   const ehTransferencia = useCallback((t: any) =>
-    t.transferencia === true || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências',
+    !!t.ignorar_em
+    || t.transferencia === true || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências',
   []);
 
   const receitasTotal = useMemo(() =>
@@ -176,9 +182,21 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // total sem explicação, o rodapé vira aquele "número mágico" que não bate com
   // a tela. Por isso elas ganham bloco PRÓPRIO: receitas + despesas +
   // transferências cobrem TODAS as linhas filtradas, nada evapora.
+  // ⚠️ IGNORADAS TÊM BLOCO PRÓPRIO, não entram aqui. Elas saem das somas como
+  // uma transferência sai, mas NÃO são transferência — chamá-las assim seria
+  // inventar um movimento que não existe. E como o invariante desta linha é
+  // "receitas + despesas + transferências cobrem TODAS as linhas filtradas",
+  // tirá-las sem dar bloco faria o rodapé parar de bater com a tela.
+  const ehIgnorada = useCallback((t: any) => !!t.ignorar_em, []);
+
   const transferenciasTotal = useMemo(() =>
-    txsFiltradas.filter(t => ehTransferencia(t)).reduce((s, t) => s + (t.valor || 0), 0),
-    [txsFiltradas, ehTransferencia]);
+    txsFiltradas.filter(t => ehTransferencia(t) && !ehIgnorada(t))
+      .reduce((s, t) => s + (t.valor || 0), 0),
+    [txsFiltradas, ehTransferencia, ehIgnorada]);
+
+  const ignoradasTotal = useMemo(() =>
+    txsFiltradas.filter(t => ehIgnorada(t)).reduce((s, t) => s + (t.valor || 0), 0),
+    [txsFiltradas, ehIgnorada]);
 
   const saldoTotal = useMemo(() =>
     wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
@@ -779,6 +797,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 receitas={receitasTotal}
                 despesas={despesasTotal}
                 transferencias={transferenciasTotal}
+                ignoradas={ignoradasTotal}
                 ocultar={ocultar}
               />
             </>
@@ -912,6 +931,11 @@ function TransactionRow({
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, arquivada, onArquivar,
 }: any) {
   const isTransfer = tx.transferencia === true || tx.tipo === 'Transferência';
+  // ⚠️ "Não considerar" (regra do usuário, migration 146). A linha CONTINUA
+  // visível e esmaecida — sumir com ela faria a pessoa procurar um lançamento
+  // que ela mesma mandou ignorar, e some também a chance de desfazer. É o que
+  // o desenho de referência faz.
+  const isIgnorada = !!tx.ignorar_em;
   const isGasto = tx.tipo === 'Gasto';
   const theme   = getCategoriaTheme(tx.categoria || '');
   const nome    = nomeCategoria(tx.categoria);
@@ -923,6 +947,8 @@ function TransactionRow({
   return (
     <div
       className={`group relative transition-colors animate-fade-in ${
+        isIgnorada ? 'opacity-55' : ''
+      } ${
         selecionado ? 'bg-primary/5' : 'hover:bg-muted/40'
       }`}
       // content-visibility: o browser pula layout/paint das linhas fora da tela
@@ -1039,7 +1065,21 @@ function TransactionRow({
 
       {/* Valor + status */}
       <div className="flex flex-col items-end justify-center">
-        {isTransfer ? (
+        {/* ⚠️ RÓTULO, não só opacidade. A linha esmaecida sozinha dependeria de
+            percepção visual pra comunicar "isto não conta" — e alguém que não
+            note vai procurar o valor no total e não achar. Aqui o motivo está
+            escrito, com ícone (regra §1 color-not-only da ui-ux-pro-max). */}
+        {isIgnorada ? (
+          <>
+            <p className="text-sm font-bold tabular whitespace-nowrap text-muted-foreground line-through">
+              {ocultar ? '••••' : fmt(tx.valor)}
+            </p>
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+              <EyeOff size={9} />
+              {tx.ignorar_em === 'fluxo' ? 'Fora de despesa/receita' : 'Não considerada'}
+            </span>
+          </>
+        ) : isTransfer ? (
           <>
             <p className="text-sm font-bold tabular whitespace-nowrap text-foreground">
               {ocultar ? '••••' : fmt(tx.valor)}
@@ -1172,10 +1212,13 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, a
    "100 − 0" ou "10.100 − 10.000", e são situações opostas.
    ═══════════════════════════════════════════════════════════════════════ */
 function LinhaTotais({
-  mostrar, qtd, receitas, despesas, transferencias, ocultar,
+  mostrar, qtd, receitas, despesas, transferencias, ignoradas, ocultar,
 }: {
   mostrar: boolean; qtd: number;
-  receitas: number; despesas: number; transferencias: number; ocultar: boolean;
+  receitas: number; despesas: number; transferencias: number;
+  /** Soma das linhas que uma regra mandou "não considerar" (migration 146). */
+  ignoradas: number;
+  ocultar: boolean;
 }) {
   if (!mostrar) return null;
 
@@ -1187,6 +1230,9 @@ function LinhaTotais({
   // Rótulo explica por que estão à parte — sem isso pareceria uma terceira
   // categoria inventada, e não "o que não é consumo nem ganho".
   if (transferencias > 0) blocos.push({ rotulo: 'Transferências', valor: transferencias, cor: 'hsl(var(--muted-foreground))', Icone: ArrowLeftRight });
+  // Bloco próprio pras "não consideradas": o rodapé continua cobrindo TODAS as
+  // linhas da tela, e o rótulo diz a verdade — não são transferência.
+  if (ignoradas > 0) blocos.push({ rotulo: 'Não consideradas', valor: ignoradas, cor: 'hsl(var(--muted-foreground))', Icone: EyeOff });
   // Saldo só quando há os DOIS lados: com um lado só ele repetiria o número
   // anterior trocando o sinal.
   if (receitas > 0 && despesas > 0) {

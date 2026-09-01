@@ -82,6 +82,8 @@ export function gastoPorContaDe(txsMes: any[]): { nome: string; total: number }[
   const map = new Map<string, number>();
   for (const t of txsMes || []) {
     if (t.tipo !== 'Gasto') continue;
+    // ⚠️ "Nao considerar" (146) sai daqui pelo mesmo motivo do resumo.
+    if (t.ignorar_em) continue;
     if (t.transferencia || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências') continue;
     const k = t.carteira_nome || 'Sem conta';
     map.set(k, (map.get(k) || 0) + (t.valor || 0));
