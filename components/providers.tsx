@@ -10,7 +10,6 @@ import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
 import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
 import { LoadingGateProvider } from '@/components/ui/LoadingGate';
-import AberturaSora from '@/components/ui/AberturaSora';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -46,11 +45,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <MarcasCustomProvider>
             <LoadingGateProvider>
               {children}
-              {/* Animação de abertura (só mobile, 1× por sessão). Mora aqui e
-                  não num layout pra cobrir a tela inteira desde o primeiro
-                  paint — dentro do DashboardLayout ela nasceria com a sidebar
-                  já desenhada por baixo. */}
-              <AberturaSora />
             </LoadingGateProvider>
           </MarcasCustomProvider>
         </AuthProvider>

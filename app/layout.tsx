@@ -108,8 +108,58 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} crossOrigin="anonymous" />
         )}
+
+        {/* ═══ ABERTURA DA SORA — a DECISÃO, antes do primeiro paint ═══
+            ⚠️ ISTO PRECISA RODAR NO <head>, e não num efeito do React. Montar o
+            overlay depois da hidratação faz o painel aparecer ANTES da
+            animação — que foi exatamente o defeito da primeira versão. Aqui o
+            atributo já está no <html> quando o <body> começa a pintar, então a
+            primeira coisa desenhada na tela é a abertura.
+            Mesmo padrão do script de cor do tema, logo abaixo. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{
+var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es'];
+for(var i=0;i<pub.length;i++){if(p===pub[i]||p.indexOf(pub[i]+'/')===0)return;}
+if(sessionStorage.getItem('sora-abertura-vista')==='1')return;
+if(!matchMedia('(max-width:767px)').matches)return;
+if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+if(!document.createElement('video').canPlayType('video/webm; codecs="vp9"'))return;
+sessionStorage.setItem('sora-abertura-vista','1');
+document.documentElement.setAttribute('data-abertura','on');
+}catch(e){}})();` }} />
       </head>
       <body className={inter.className} suppressHydrationWarning>
+        {/* ═══ ABERTURA DA SORA — o overlay ═══
+            PRIMEIRO filho do <body>: é o primeiro pixel que o navegador pinta.
+            Fica invisível por CSS até `html[data-abertura="on"]` existir, e o
+            script do <head> já decidiu isso — então nunca há um quadro sequer
+            de painel antes da animação.
+            ⚠️ O <video> NÃO está no HTML: ele é criado pelo script abaixo, e só
+            quando a abertura vai mesmo acontecer. No HTML, `preload` baixaria
+            os 242 KB até em desktop, onde a animação nem toca. */}
+        <div id="sora-abertura" aria-hidden="true" />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{
+if(document.documentElement.getAttribute('data-abertura')!=='on')return;
+var box=document.getElementById('sora-abertura');if(!box)return;
+var v=document.createElement('video');
+v.src='/abertura/sora-intro.webm';v.autoplay=true;v.muted=true;v.defaultMuted=true;
+v.playsInline=true;v.setAttribute('playsinline','');v.preload='auto';
+box.appendChild(v);
+var fim=function(){
+  if(!box||box.dataset.saindo)return;box.dataset.saindo='1';
+  box.style.opacity='0';
+  setTimeout(function(){document.documentElement.removeAttribute('data-abertura');},420);
+};
+v.addEventListener('ended',fim);
+v.addEventListener('error',fim);
+/* ⚠️ RELÓGIO DE SEGURANÇA. 'ended' nunca dispara se o arquivo travar no meio —
+   e rede ruim no celular é regra, não exceção. A abertura JAMAIS pode virar um
+   app que não abre. 5,02s de vídeo + margem de decode. */
+setTimeout(fim,8000);
+/* Autoplay recusado (algumas versões de iOS): não segura a tela. */
+var pr=v.play();if(pr&&pr.catch)pr.catch(fim);
+}catch(e){try{document.documentElement.removeAttribute('data-abertura');}catch(_){}}}
+)();` }} />
+
         {/* Cor temática escolhida — aplica --primary antes do paint (anti-flash) */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m={verde:'134 55% 60%',azul:'217 91% 60%',roxo:'262 83% 58%',laranja:'25 95% 53%',rosa:'330 81% 60%',vermelho:'0 72% 55%'};var id=localStorage.getItem('sora-brand')||'verde';document.documentElement.style.setProperty('--primary',m[id]||m.verde);}catch(e){}})();` }} />
         <NextIntlClientProvider locale={locale} messages={messages}>

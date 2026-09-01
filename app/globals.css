@@ -834,3 +834,43 @@ body { background-color: hsl(var(--bg)); }
   .delay-150 { animation-delay: 150ms; }
   .delay-300 { animation-delay: 300ms; }
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   ABERTURA DA SORA (mobile)
+
+   ⚠️ INVISÍVEL POR PADRÃO. Quem liga é o script do <head>, que decide ANTES do
+   primeiro paint e põe `data-abertura="on"` no <html>. Com o default invertido
+   (visível, e o script escondendo), uma falha de JS deixaria o app trancado
+   atrás de um overlay pra sempre.
+
+   ⚠️ `position: fixed` + `z-index` acima de tudo: o LoadingGate é z-40 e os
+   drawers são z-100. A abertura é a primeira coisa da tela, então fica acima
+   dos dois.
+   ═══════════════════════════════════════════════════════════════════════════ */
+#sora-abertura {
+  display: none;
+}
+
+html[data-abertura='on'] #sora-abertura {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;          /* acima de qualquer overlay do app */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--bg));
+  opacity: 1;
+  transition: opacity 400ms ease-out;
+}
+
+html[data-abertura='on'] #sora-abertura video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ⚠️ TRAVA O SCROLL enquanto a abertura está no ar. Sem isto dá pra rolar o
+   painel por trás dela — o app "vaza" por baixo da animação. */
+html[data-abertura='on'],
+html[data-abertura='on'] body {
+  overflow: hidden;
+}
