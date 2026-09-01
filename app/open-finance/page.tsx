@@ -38,6 +38,11 @@ type Conexao = {
    *  segundo consentimento cobrado pelo mesmo banco. */
   outro_grupo?: boolean;
   grupo_nome?: string | null;
+  /** Quantas contas/cartões esta conexão já trouxe. Serve pra dizer "o cartão
+   *  ainda está vindo" em vez de deixar o usuário achar que falhou e
+   *  reconectar — o que gera um 2º consentimento cobrado. */
+  contas_vinculadas?: number;
+  cartoes_vinculados?: number;
 };
 type Inst = { id: number | string; name?: string; institution_name?: string; logo_url?: string; image_url?: string; primary_color?: string;
   // Quais documentos o banco exige. A Polp devolve ["cpf"], ["cpf","cnpj"]…
@@ -243,8 +248,13 @@ export default function OpenFinancePage() {
       if (r.urlToAuthenticate) setAuthUrl(r.urlToAuthenticate);
       else if (r.externalId) setAuthId(String(r.externalId));
       else {
-        setFlash('Conexão iniciada! Em instantes os dados chegam — use Sincronizar se demorar.');
-        setTimeout(() => setFlash(''), 8000);
+        // ⚠️ NÃO PROMETER "em instantes". Era o texto antigo, e ele causava o
+        // problema: as CONTAS chegam em segundos, mas o CARTÃO costuma demorar
+        // horas (medido: 8 de 28 conexões, mediana de 5,7h). O usuário via só a
+        // conta, concluía que falhou e reconectava — criando um consentimento
+        // novo na Polp, cobrado, com o antigo ainda ativo.
+        setFlash('Conexão iniciada! A conta aparece em segundos; o cartão de crédito pode levar algumas horas — é normal, não precisa reconectar.');
+        setTimeout(() => setFlash(''), 12000);
       }
       carregar();
     } catch (e: any) {
@@ -567,6 +577,35 @@ export default function OpenFinancePage() {
                             {c.ultima_sync && <span className="text-muted-foreground whitespace-nowrap">· {quando(c.ultima_sync)}</span>}
                           </div>
                           {c.ultimo_erro && <p className="text-[11px] text-red-500 line-clamp-2 mt-0.5">{c.ultimo_erro}</p>}
+
+                          {/* ⚠️ "O cartão ainda está vindo".
+                              A conta chega em segundos; o CARTÃO costuma demorar
+                              horas — medido: 8 de 28 conexões, mediana de 5,7h.
+                              Sem este aviso o usuário via só a conta, concluía que
+                              falhou e RECONECTAVA, criando um 2º consentimento que
+                              a Polp cobra com o 1º ainda ativo (caso real: 3
+                              reconexões numa noite, e o cartão apareceu sozinho).
+                              Some assim que o cartão entra.
+
+                              ⚠️ SÓ NAS PRIMEIRAS 48h. Numa conexão de três
+                              semanas atrás sem cartão, a explicação verdadeira
+                              quase sempre é "essa pessoa não tem cartão nesse
+                              banco" — e aí "pode levar algumas horas" vira uma
+                              informação falsa que só polui a tela. Medido: das
+                              3 conexões sem cartão hoje, todas têm 10+ dias. */}
+                          {!c.outro_grupo
+                            && (c.contas_vinculadas ?? 0) > 0
+                            && (c.cartoes_vinculados ?? 0) === 0
+                            && Date.now() - new Date(c.created_at).getTime() < 48 * 3600 * 1000 && (
+                            <p className="mt-1 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                              <Clock size={11} className="mt-0.5 flex-shrink-0" />
+                              <span>
+                                Conta conectada. Se você tem <b>cartão de crédito</b> neste banco, ele
+                                pode levar algumas horas pra aparecer — é o banco liberando os dados,
+                                não precisa reconectar.
+                              </span>
+                            </p>
+                          )}
                           {/* ⚠️ Sem este aviso a conexão apareceria listada e as contas dela não,
                               o que confunde tanto quanto ela sumir. Diz ONDE ela vive e evita a
                               reconexão — que geraria consentimento e cobrança em dobro. */}
