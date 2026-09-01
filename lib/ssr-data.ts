@@ -24,6 +24,11 @@ function proximoMesPrimeiroDia(mes: string): string {
 
 // Transferência / quitação de dívida (não é consumo nem receita).
 function ehTransferencia(r: any): boolean {
+  // ⚠️ "Não considerar" (migration 146) sai das somas nos DOIS escopos —
+  // 'fluxo' e 'tudo'. A diferença entre eles é só a FATURA. ESPELHA
+  // `resumoTransacoes.ehTransferencia` do backend: divergir aqui faz o número
+  // do SSR pular quando o cliente revalida.
+  if (r.ignorar_em) return true;
   return r.transferencia === true || ehPagamentoFatura(r.categoria) || r.categoria === 'Transferências';
 }
 
@@ -49,16 +54,29 @@ async function arquivadasOk(): Promise<boolean> {
 }
 // Porte fiel de services/resumoTransacoes.calcularResumo.
 export async function resumoDireto(grupoId: string, mes: string, criadoPorId?: string) {
-  let q = supabaseAdmin.from('transacoes')
-    .select('tipo, categoria, valor, criado_por, transferencia')
-    .eq('grupo_id', grupoId)
-    .gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
-  if (criadoPorId) q = q.eq('criado_por', criadoPorId);
-  // ⚠️ Checa a flag ANTES de tocar na query. `await` no query builder do
-  // Supabase EXECUTA a consulta (ele é thenable), então `q = await …` trocaria
-  // o builder pelo resultado — funciona por acidente e quebra o tipo.
-  if (await arquivadasOk()) q = q.is('arquivada_por', null);
-  const { data: rows } = await q;
+  // ⚠️ `ignorar_em` (146) precisa vir: `ehTransferencia` a lê. A montagem é
+  // uma função porque pode ser refeita SEM a coluna — pedir coluna inexistente
+  // reprova o SELECT inteiro e o resumo do mês voltaria vazio pra toda a base
+  // até a migration rodar.
+  const montar = async (colunas: string) => {
+    let q = supabaseAdmin.from('transacoes')
+      .select(colunas)
+      .eq('grupo_id', grupoId)
+      .gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
+    if (criadoPorId) q = q.eq('criado_por', criadoPorId);
+    // ⚠️ Checa a flag ANTES de tocar na query. `await` no query builder do
+    // Supabase EXECUTA a consulta (ele é thenable), então `q = await …`
+    // trocaria o builder pelo resultado — funciona por acidente e quebra o tipo.
+    if (await arquivadasOk()) q = q.is('arquivada_por', null);
+    return q;
+  };
+
+  const BASE = 'tipo, categoria, valor, criado_por, transferencia';
+  let { data: rows, error: errIgnorar } =
+    await montar(`${BASE}, ignorar_em`) as { data: any[] | null; error: any };
+  if (errIgnorar && /ignorar_em/i.test(errIgnorar.message || '')) {
+    rows = (await montar(BASE) as { data: any[] | null }).data;
+  }
 
   let receitas = 0, gastos = 0;
   const porCategoria: Record<string, number> = {};

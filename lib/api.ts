@@ -483,18 +483,27 @@ export const api = {
   // (`transacoes.editar` com `aplicar_todas`), que é onde a pessoa tem o
   // contexto. Um "criar do zero" exigiria adivinhar qual pedaço da descrição
   // casa — o formulário que fica vazio.
+  // (tipos `Regra` e `NovaRegra` no fim do arquivo)
   regras: {
     /** `lancamentos` = quantos casam hoje; `fora` = quantos ainda mudariam. */
     listar: (phone: string) =>
-      req<{
-        id: string; termo: string; categoria: string;
-        created_at: string; updated_at: string;
-        lancamentos: number; fora: number;
-      }[]>(`/api/regras/${phone}`),
-    editar: (id: string, categoria: string, phone: string) =>
-      req(`/api/regras/${id}`, { method: 'PUT', body: JSON.stringify({ categoria, phone }) }),
+      req<Regra[]>(`/api/regras/${phone}`),
+    /** Cria do zero. `descricao` é o texto COMO O BANCO ESCREVE — o servidor só
+     *  normaliza caixa e acento, sem tirar palavra nenhuma. */
+    criar: (body: NovaRegra & { phone: string }) =>
+      req<{ ok: true; termo: string; atualizadas: number }>('/api/regras', {
+        method: 'POST', body: JSON.stringify(body),
+      }),
+    editar: (id: string, body: Partial<NovaRegra> & { phone: string; aplicar_agora?: boolean }) =>
+      req<Regra & { atualizadas: number }>(`/api/regras/${id}`, {
+        method: 'PUT', body: JSON.stringify(body),
+      }),
     remover: (id: string, phone: string) =>
       req(`/api/regras/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
+    /** O Watson propondo: descrições que se repetem e estão em "Outros". */
+    sugestoes: (phone: string) =>
+      req<{ sugestoes: { termo: string; exemplo: string; n: number; total: number; ultima: string }[] }>(
+        `/api/regras/sugestoes/${phone}`),
   },
 
   // ── RECORRÊNCIAS (gastos/receitas fixas) ─────────────────────
@@ -1368,4 +1377,40 @@ export const api = {
         req(`/api/negocios/conciliacao/${id}`, { method: 'DELETE' }),
     },
   },
+};
+// ── REGRAS (migration 104 + 146) ─────────────────────────────────────────────
+// Espelha `regras_categoria`. Os campos novos têm default no servidor, então
+// uma regra antiga (só termo + categoria) continua válida aqui.
+export type ModoMatch = 'exato' | 'contem';
+export type TipoRegra = 'categorizar' | 'ignorar';
+/** 'tudo' = fora das somas E da fatura · 'fluxo' = fora só de despesa/receita */
+export type EscopoIgnorar = 'tudo' | 'fluxo';
+
+export type Regra = {
+  id: string;
+  termo: string;
+  categoria: string | null;
+  tipo: TipoRegra;
+  modo_match: ModoMatch;
+  renomear_para: string | null;
+  recorrente: boolean;
+  ignorar_escopo: EscopoIgnorar | null;
+  created_at: string;
+  updated_at: string;
+  /** Quantos lançamentos casam hoje / quantos ainda estão fora da regra. */
+  lancamentos: number;
+  fora: number;
+};
+
+export type NovaRegra = {
+  /** O texto COMO O BANCO ESCREVE. Não é adivinhação: é copiar da descrição. */
+  descricao: string;
+  tipo: TipoRegra;
+  modo_match: ModoMatch;
+  categoria?: string | null;
+  renomear_para?: string | null;
+  recorrente?: boolean;
+  ignorar_escopo?: EscopoIgnorar;
+  /** Aplica no histórico que já existe (default: sim). */
+  aplicar_agora?: boolean;
 };

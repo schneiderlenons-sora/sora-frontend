@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Clock, Lock, MessageSquareQuote } from 'lucide-react';
 import Switch from '@/components/ui/Switch';
 import WatsonDuplicadas from './WatsonDuplicadas';
+import WatsonRegras from './WatsonRegras';
 import type { Agente, AvisoAgente } from '@/lib/agentes';
 
 // =============================================================================
@@ -126,7 +127,14 @@ export default function AgenteDrawer({ agente, prefs, phone, onToggle, onHorario
               (toggles de aviso), e "esperar o agente falar" não servia pra quem
               quer conferir a fatura AGORA. */}
           {agente.id === 'detetive-watson' && !agente.emBreve && phone && (
-            <WatsonDuplicadas phone={phone} />
+            <>
+              <WatsonDuplicadas phone={phone} />
+              {/* Regras: consertar categoria errada, nome estranho e lançamento
+                  que não deveria contar. Fica no card do Watson porque é a
+                  mesma natureza do que ele já faz — investigar e corrigir o
+                  que o automático errou. */}
+              <WatsonRegras phone={phone} />
+            </>
           )}
 
           <section className="space-y-2.5">

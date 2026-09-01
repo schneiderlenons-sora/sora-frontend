@@ -24,6 +24,8 @@ export type TxFatura = {
   valor?: number | null;
   categoria?: string | null;
   transferencia?: boolean | null;
+  /** "Nao considerar" do usuario (migration 146). 'tudo' sai tambem da fatura. */
+  ignorar_em?: string | null;
 };
 
 const cent = (v: number) => Math.round((Number(v) || 0) * 100) / 100;
@@ -55,6 +57,12 @@ export function ehPagamentoFaturaCat(categoria?: string | null): boolean {
  */
 export function valorNaFatura(t?: TxFatura | null): number {
   if (!t) return 0;
+
+  // ⚠️ "Nao considerar EM TUDO" (migration 146) sai TAMBEM da fatura — e o que
+  // a tela promete. O escopo 'fluxo' NAO entra aqui: ele tira a linha de
+  // receita/despesa e a MANTEM na fatura. ESPELHA services/valorFatura.js.
+  if (t.ignorar_em === 'tudo') return 0;
+
   const v = Math.abs(Number(t.valor) || 0);
 
   if (t.tipo === 'Gasto') return v;

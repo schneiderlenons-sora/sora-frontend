@@ -5,6 +5,7 @@ import { X, Loader2, Check, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
 import SeletorCategoria, { type CatItem } from '@/components/transacoes/SeletorCategoria';
+import RegraForm from '@/components/agentes/RegraForm';
 
 type Wallet = { id: string; nome: string; tipo?: string };
 
@@ -45,6 +46,12 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   const [aplicarTodas, setAplicarTodas] = useState(false);
   const mudouCategoria = (categoria || '') !== (tx.categoria || '');
   const estabelecimento = (tx.observacao || '').trim();
+  // Formulário completo de regra, aberto a partir desta transação. O toggle
+  // abaixo resolve o caso simples (categoria); isto abre as MESMAS telas do
+  // card do Watson pra quem quer renomear, marcar recorrente ou mandar o
+  // lançamento parar de contar.
+  const [regraAberta, setRegraAberta] = useState(false);
+  const [regraFeita, setRegraFeita]   = useState('');
 
   // Carrega o catálogo de categorias do grupo pro seletor.
   useEffect(() => {
@@ -151,6 +158,40 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
                   </span>
                 </span>
               </button>
+            )}
+
+            {/* Regra COMPLETA a partir deste lançamento — a descrição já entra
+                preenchida com o texto do banco, então não há o que adivinhar.
+                O toggle acima resolve o caso simples (só a categoria); isto
+                abre as MESMAS telas do card do Watson, pra quem quer renomear,
+                marcar como recorrente ou fazer o lançamento parar de contar. */}
+            {estabelecimento && !regraAberta && !regraFeita && (
+              <button type="button" onClick={() => setRegraAberta(true)}
+                      className="mt-2 w-full rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                      style={{ minHeight: 44 }}>
+                Criar regra a partir deste lançamento
+              </button>
+            )}
+            {regraFeita && (
+              <p role="status" className="mt-2 text-[12px] text-green-600 dark:text-green-400">{regraFeita}</p>
+            )}
+            {regraAberta && (
+              <div className="mt-2 rounded-2xl border border-border/60 p-3.5"
+                   style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+                <RegraForm
+                  phone={phone}
+                  categorias={cats.map((c) => ({ id: String(c.id ?? c.nome), nome: c.nome }))}
+                  descricaoInicial={estabelecimento}
+                  categoriaInicial={categoria}
+                  onCancelar={() => setRegraAberta(false)}
+                  onPronto={({ atualizadas }) => {
+                    setRegraAberta(false);
+                    setRegraFeita(atualizadas > 0
+                      ? `Regra criada — ${atualizadas} lançamento(s) ajustado(s).`
+                      : 'Regra criada. Vale pros próximos lançamentos.');
+                  }}
+                />
+              </div>
             )}
           </div>
 
