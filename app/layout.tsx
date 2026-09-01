@@ -112,95 +112,95 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* ═══ ABERTURA DA SORA — a DECISÃO, antes do primeiro paint ═══
             ⚠️ ISTO PRECISA RODAR NO <head>, e não num efeito do React. Montar o
             overlay depois da hidratação faz o painel aparecer ANTES da
-            animação — que foi exatamente o defeito da primeira versão. Aqui o
-            atributo já está no <html> quando o <body> começa a pintar, então a
-            primeira coisa desenhada na tela é a abertura.
-            Mesmo padrão do script de cor do tema, logo abaixo. */}
+            animação — que foi o defeito da primeira versão. Aqui o atributo já
+            está no <html> quando o <body> começa a pintar.
+            ?abertura=1 na URL força a abertura (ignora sessão, largura e
+            reduced-motion) — é como se testa sem depender do estado do
+            aparelho. */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{
-var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es'];
-for(var i=0;i<pub.length;i++){if(p===pub[i]||p.indexOf(pub[i]+'/')===0)return;}
-if(sessionStorage.getItem('sora-abertura-v2')==='1')return;
-if(!matchMedia('(max-width:767px)').matches)return;
-if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
-/* ⚠️ NÃO EXISTE MAIS CHECAGEM DE CODEC AQUI, e a ausência é o conserto.
-   A versão anterior barrava com canPlayType('video/webm; codecs="vp9"') — e no
-   iOS isso devolve STRING VAZIA (o Safari só toca VP9 a partir do 17.4, e ainda
-   assim responde vazio por conservadorismo). Ou seja: a guarda que eu pus pra
-   evitar tela preta era EXATAMENTE o motivo de a animação nunca aparecer no
-   iPhone, nem no navegador nem no PWA.
-   Agora o vídeo tem duas fontes (webm + mp4 H.264) e o MP4 toca em qualquer
-   navegador — não há o que checar. Quem decide é o próprio elemento, e se as
-   duas falharem o 'error' encerra. */
+if(location.search.indexOf('abertura=1')<0){
+  var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es'];
+  for(var i=0;i<pub.length;i++){if(p===pub[i]||p.indexOf(pub[i]+'/')===0)return;}
+  try{if(sessionStorage.getItem('sora-abertura-v3')==='1')return;}catch(e){}
+  if(!matchMedia('(max-width:767px)').matches)return;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+}
 document.documentElement.setAttribute('data-abertura','on');
 }catch(e){}})();` }} />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         {/* ═══ ABERTURA DA SORA — o overlay ═══
             PRIMEIRO filho do <body>: é o primeiro pixel que o navegador pinta.
-            Fica invisível por CSS até `html[data-abertura="on"]` existir, e o
+            Fica invisível por CSS até html[data-abertura="on"] existir, e o
             script do <head> já decidiu isso — então nunca há um quadro sequer
             de painel antes da animação.
-            ⚠️ O <video> NÃO está no HTML: ele é criado pelo script abaixo, e só
-            quando a abertura vai mesmo acontecer. No HTML, `preload` baixaria
-            os 242 KB até em desktop, onde a animação nem toca. */}
-        <div id="sora-abertura" aria-hidden="true" />
+
+            ⚠️ O <video> VEM NO HTML DO SERVIDOR, E ISSO É O CONSERTO. Antes ele
+            era criado por script DENTRO desta div — e a div é renderizada pelo
+            React. Na hidratação o React compara os filhos deste elemento com o
+            que ele próprio desenhou (nenhum) e REMOVE o nó extra: o vídeo era
+            apagado antes de começar a tocar. Era o "aparece um frame e pula".
+            Com dangerouslySetInnerHTML o React não inspeciona os filhos —
+            confia no HTML do servidor e não encosta neles.
+
+            ⚠️ MP4 PRIMEIRO. O navegador toca a PRIMEIRA fonte que sabe tocar, e
+            H.264 toca em absolutamente todo lugar. O webm economizaria 470 KB
+            no Android, mas depois de tantas idas e vindas a ordem aqui é por
+            garantia, não por bytes.
+
+            ⚠️ preload="none" e SEM autoplay no HTML: assim o desktop (onde a
+            abertura nem roda) não baixa nada. Quem liga os dois é o script
+            abaixo, e só quando a abertura vai mesmo acontecer.
+
+            ⚠️ muted+playsinline JÁ NO HTML — são eles que autorizam o play sem
+            gesto do usuário no iOS. Precisam existir antes da fonte ser
+            escolhida, e por isso vêm escritos no atributo, não por JS. */}
+        <div
+          id="sora-abertura"
+          aria-hidden="true"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: '<video muted playsinline webkit-playsinline preload="none" disablepictureinpicture><source src="/abertura/sora-intro.mp4" type="video/mp4"><source src="/abertura/sora-intro.webm" type="video/webm"></video>' }}
+        />
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{
 if(document.documentElement.getAttribute('data-abertura')!=='on')return;
 var box=document.getElementById('sora-abertura');if(!box)return;
-var v=document.createElement('video');
-/* ⚠️ A ORDEM AQUI É O QUE FAZ O AUTOPLAY FUNCIONAR. O navegador avalia a
-   política de autoplay quando a FONTE é atribuída — se 'muted' e 'playsinline'
-   ainda não estiverem no elemento nesse instante, ele bloqueia. Por isso o
-   'src' vem POR ÚLTIMO. (Na 1ª versão ele vinha primeiro: o vídeo era barrado,
-   o play() rejeitava e a tela sumia depois de um frame.) */
-v.muted=true;v.defaultMuted=true;v.setAttribute('muted','');
-v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
+var v=box.querySelector('video');
+if(!v){document.documentElement.removeAttribute('data-abertura');return;}
+v.muted=true;v.defaultMuted=true;v.playsInline=true;
 v.setAttribute('autoplay','');v.autoplay=true;
-v.preload='auto';
-/* ⚠️ DUAS FONTES, NESTA ORDEM. O navegador pega a PRIMEIRA que sabe tocar:
-   Chrome/Android fica no webm (242 KB) e o iOS pula pra o mp4 (711 KB, H.264
-   High 3.1 com faststart). Invertendo, todo mundo baixaria o mp4 à toa.
-   Com <source>, o 'error' do VÍDEO só dispara quando TODAS as fontes falham —
-   que é exatamente a hora de desistir. */
-var s1=document.createElement('source');s1.src='/abertura/sora-intro.webm';s1.type='video/webm';
-var s2=document.createElement('source');s2.src='/abertura/sora-intro.mp4';s2.type='video/mp4';
-v.appendChild(s1);v.appendChild(s2);
-box.appendChild(v);
+v.preload='auto';v.setAttribute('preload','auto');
 v.load();
 
-var comecou=false,fim=function(){
-  if(!box||box.dataset.saindo)return;box.dataset.saindo='1';
+var comecou=false,saiu=false;
+function fim(){
+  if(saiu)return;saiu=true;
+  /* ⚠️ A MARCA DE SESSÃO É GRAVADA NO FIM, não na decisão. Antes eu a gravava
+     antes de tocar: uma tentativa QUE FALHOU queimava a sessão e a animação
+     não voltava nem depois de consertada. */
+  try{sessionStorage.setItem('sora-abertura-v3','1');}catch(e){}
   box.style.opacity='0';
-  /* ⚠️ A MARCA DE SESSÃO É GRAVADA AQUI, NO FIM — não na decisão. Antes eu a
-     gravava antes de tocar, então uma tentativa QUE FALHOU queimava a sessão e
-     a animação não voltava nem depois de consertada. */
-  try{sessionStorage.setItem('sora-abertura-v2','1');}catch(e){}
   setTimeout(function(){document.documentElement.removeAttribute('data-abertura');},420);
-};
+}
 v.addEventListener('playing',function(){
   comecou=true;
-  try{sessionStorage.setItem('sora-abertura-v2','1');}catch(e){}
+  try{sessionStorage.setItem('sora-abertura-v3','1');}catch(e){}
 });
 v.addEventListener('ended',fim);
 v.addEventListener('error',fim);
 
-/* ⚠️ NÃO ENCERRAR NO CATCH DO play(). Com 'autoplay' já no elemento, esta
-   chamada é redundante e o navegador rejeita a promessa com AbortError ("play()
-   request was interrupted") JUSTAMENTE QUANDO O VÍDEO COMEÇOU A TOCAR. Ligar
-   'fim' nela matava a animação no primeiro frame — era o bug relatado. Só
-   desiste se o vídeo estiver DE FATO parado. */
+/* ⚠️ NÃO ENCERRAR NO CATCH DO play(). Com autoplay no elemento esta chamada é
+   redundante e o navegador rejeita a promessa com AbortError JUSTAMENTE QUANDO
+   O VÍDEO COMEÇOU. Só desiste se o vídeo estiver DE FATO parado. */
 var pr=v.play();
 if(pr&&pr.catch)pr.catch(function(){if(v.paused&&!comecou)fim();});
 
-/* Não começou em 2s? Então não vai começar — não segura a tela. */
-setTimeout(function(){if(!comecou)fim();},2000);
+/* Não começou em 3s? Não segura a tela. */
+setTimeout(function(){if(!comecou)fim();},3000);
 
 /* ⚠️ TETO ABSOLUTO. 'ended' nunca dispara se o arquivo travar no meio, e rede
-   ruim no celular é regra, não exceção. A abertura JAMAIS pode virar um app que
-   não abre. 5,02s de vídeo + margem. */
-setTimeout(fim,8000);
-}catch(e){try{document.documentElement.removeAttribute('data-abertura');}catch(_){}}}
-)();` }} />
+   ruim no celular é regra. A abertura JAMAIS pode virar um app que não abre. */
+setTimeout(fim,9000);
+}catch(e){try{document.documentElement.removeAttribute('data-abertura');}catch(_){}}})();` }} />
 
         {/* Cor temática escolhida — aplica --primary antes do paint (anti-flash) */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m={verde:'134 55% 60%',azul:'217 91% 60%',roxo:'262 83% 58%',laranja:'25 95% 53%',rosa:'330 81% 60%',vermelho:'0 72% 55%'};var id=localStorage.getItem('sora-brand')||'verde';document.documentElement.style.setProperty('--primary',m[id]||m.verde);}catch(e){}})();` }} />
