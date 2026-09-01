@@ -118,6 +118,31 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     return acc;
   }, [faturasData, faturasProx]);
 
+  // Valor CANÔNICO da fatura por cartão+competência, direto do servidor
+  // (`faturaVista.valorExibido` — a MESMA conta do /fatura/status e da agenda).
+  // Sai do payload que já era buscado: não custa chamada nova.
+  //
+  // ⚠️ É ELE QUE MANDA. Esta tela REDERIVAVA a fatura do cartão de Open Finance
+  // como `−saldo`, uma SEGUNDA fonte da verdade que ignorava o servidor. Num
+  // emissor que manda `unbilled_amount: 0` a regra de ouro (`used − unbilled`)
+  // devolve o LIMITE USADO inteiro, e o card exibia R$ 10.217,60 numa fatura de
+  // R$ 568,93 (Banco Inter, cliente real). O backend já rejeitava esse valor em
+  // `faturaVista.simuladoEhOLimiteUsado` — a tela é que não o consultava.
+  // Mesmo padrão que o `ResumoCards` do dashboard já usava, e é o que faz as
+  // duas telas pararem de mostrar números diferentes pro mesmo cartão.
+  //
+  // `restante` (= fatura − pago) e não `fatura`: é o número que o app do banco
+  // mostra. Pro cartão de OF o `jaPago` do card é 0, então não desconta duas vezes.
+  const faturaCanonPor = useMemo(() => {
+    const acc: Record<string, number> = {};
+    [(faturasData as any)?.faturas, (faturasProx as any)?.faturas].forEach((lista) => {
+      (lista || []).forEach((f: any) => {
+        if (typeof f.restante === 'number') acc[`${f.cartao_id}|${f.competencia}`] = f.restante;
+      });
+    });
+    return acc;
+  }, [faturasData, faturasProx]);
+
   const wallets: Wallet[] = ((wRaw as Wallet[]) ?? []).filter((w: any) => w.tipo === 'Crédito');
   const txsTodas: any[]   = (tAllData as any)?.transacoes ?? [];
   const loading = wRaw === undefined;
@@ -210,9 +235,27 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       // condição, o card exibia R$ 560,68 (agosto, paga) rotulado como a fatura
       // de setembro.
       const ehAtualDoCartao = mesIndex === 0 && !pulaUma[w.id];
-      const doBanco = ehAtualDoCartao && w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0;
-      if (doBanco) { acc[w.id] = -(w.saldo as number); return; }
       const ciclo = cicloPorCartao[w.id];
+
+      // 1º) O valor canônico do servidor pra ESTA competência. Existe pras
+      // faturas 0 e +1 (as duas que a tela busca); navegando pra trás, cai no
+      // cálculo local abaixo, que é o mesmo de sempre.
+      const canon = ciclo ? faturaCanonPor[`${w.id}|${ciclo.competencia}`] : undefined;
+      if (typeof canon === 'number') { acc[w.id] = canon; return; }
+
+      // 2º) Enquanto o canônico não responde, o `−saldo` gravado pelo sync serve
+      // de aproximação — MENOS quando ele é, literalmente, o limite usado.
+      // ⚠️ Emissor que manda `unbilled_amount: 0` faz `used − unbilled` devolver
+      // o limite comprometido inteiro. Exibir isso nem por um instante: são
+      // R$ 10.217,60 piscando no lugar de R$ 568,93. Mesmo teste que o backend
+      // faz em `faturaVista.simuladoEhOLimiteUsado`, pra os dois concordarem.
+      const usadoBanco = typeof w.of_limite_usado === 'number' ? w.of_limite_usado : null;
+      const saldoVira = typeof w.saldo === 'number' && w.saldo < 0 ? -(w.saldo as number) : null;
+      const ehOLimiteUsado = saldoVira != null && usadoBanco != null
+        && Math.abs(saldoVira - usadoBanco) < 0.01;
+      if (ehAtualDoCartao && w.of_conta_id && saldoVira != null && !ehOLimiteUsado) {
+        acc[w.id] = saldoVira; return;
+      }
       const minhas = txsTodas.filter(t => mesmaCarteira(t, w));
       // Critério decidido UMA vez por fatura. Decidir por transação misturava a
       // fatura vinculada com o ciclo novo e somava as duas.
@@ -230,7 +273,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsTodas, cicloPorCartao, mesIndex, pulaUma, previstoPor, billPor]);
+  }, [wallets, txsTodas, cicloPorCartao, mesIndex, pulaUma, previstoPor, billPor, faturaCanonPor]);
 
   // Restante pós-pagamento por cartão (reportado por cada CardCartao — é ele
   // quem sabe o status real via /fatura/status, migration 096). O header
