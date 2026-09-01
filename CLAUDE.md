@@ -1235,6 +1235,42 @@ A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Me
 
 ---
 
+## Animação de abertura no mobile (`app/layout.tsx`) — ago/2026
+
+Vídeo de abertura que roda ao abrir o painel no celular
+(`public/abertura/sora-intro.mp4` + `.webm`). Custou 5 tentativas; as duas
+causas reais não eram nenhuma das óbvias (arquivo, CSS, service worker,
+codec — **todas medidas e todas certas**).
+
+- ⚠️ **O REACT APAGA NÓ CRIADO POR SCRIPT DENTRO DE ELEMENTO QUE ELE RENDERIZA.**
+  O `<video>` era criado por JS dentro da `<div id="sora-abertura">`, que vem do
+  JSX. Na hidratação o React compara os filhos daquele elemento com o que ele
+  desenhou (nenhum) e **remove o extra** — o vídeo sumia antes de tocar. Era o
+  "aparece um frame e pula". Fix: o `<video>` vai no HTML do servidor via
+  **`dangerouslySetInnerHTML`**, que o React não inspeciona.
+- ⚠️ **A decisão roda em `<script>` no `<head>`, nunca em `useEffect`.** Efeito
+  roda depois da hidratação, que roda depois do primeiro paint — o painel
+  aparecia ANTES da animação. O script põe `data-abertura="on"` no `<html>` e o
+  CSS (em `globals.css`) revela o overlay já no primeiro paint.
+- ⚠️ **A marca de sessão grava no FIM, não na decisão.** Gravando antes, uma
+  tentativa QUE FALHOU queimava a sessão e a animação não voltava nem depois de
+  consertada — e no PWA do iOS o `sessionStorage` sobrevive ao app minimizado.
+  Ao mexer aqui, **bumpar a chave** (`sora-abertura-v3`) pra destravar quem ficou
+  preso.
+- **MP4 primeiro**, webm depois: H.264 toca em todo lugar. E **nunca** barrar por
+  `canPlayType('video/webm; codecs="vp9"')` — no iOS isso devolve string vazia,
+  e essa "proteção" era o que impedia a animação de aparecer no iPhone.
+- `muted`/`playsinline` **escritos no atributo**, antes de qualquer fonte ser
+  escolhida — são eles que autorizam o play sem gesto no iOS.
+- `preload="none"` e sem `autoplay` no HTML; o script liga os dois só quando a
+  abertura vai acontecer, senão o desktop baixa o vídeo à toa.
+- **`?abertura=1`** força a abertura (ignora sessão, largura e reduced-motion) —
+  é como se testa sem depender do estado do aparelho.
+- ⚠️ **Modo de Baixo Consumo do iOS bloqueia autoplay inline**, mesmo mudo.
+  Nenhum código contorna; é a primeira coisa a checar num "não toca no iPhone".
+
+---
+
 ## 🌍 Internacionalização (Espanhol) — PRÓXIMO FOCO (planejado, NÃO iniciado)
 
 > Objetivo do usuário: **traduzir a Sora pro espanhol e vender pra outros países**. Este é o roteiro pré-desenhado. Memória: `project-i18n-espanhol`. **Ao começar, use a skill `ui-ux-pro-max` no que for UI e `ai-prompting` no que for IA.**
