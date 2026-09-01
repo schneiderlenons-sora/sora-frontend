@@ -119,11 +119,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{
 var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es'];
 for(var i=0;i<pub.length;i++){if(p===pub[i]||p.indexOf(pub[i]+'/')===0)return;}
-if(sessionStorage.getItem('sora-abertura-vista')==='1')return;
+if(sessionStorage.getItem('sora-abertura-v2')==='1')return;
 if(!matchMedia('(max-width:767px)').matches)return;
 if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
-if(!document.createElement('video').canPlayType('video/webm; codecs="vp9"'))return;
-sessionStorage.setItem('sora-abertura-vista','1');
+/* ⚠️ NÃO EXISTE MAIS CHECAGEM DE CODEC AQUI, e a ausência é o conserto.
+   A versão anterior barrava com canPlayType('video/webm; codecs="vp9"') — e no
+   iOS isso devolve STRING VAZIA (o Safari só toca VP9 a partir do 17.4, e ainda
+   assim responde vazio por conservadorismo). Ou seja: a guarda que eu pus pra
+   evitar tela preta era EXATAMENTE o motivo de a animação nunca aparecer no
+   iPhone, nem no navegador nem no PWA.
+   Agora o vídeo tem duas fontes (webm + mp4 H.264) e o MP4 toca em qualquer
+   navegador — não há o que checar. Quem decide é o próprio elemento, e se as
+   duas falharem o 'error' encerra. */
 document.documentElement.setAttribute('data-abertura','on');
 }catch(e){}})();` }} />
       </head>
@@ -150,15 +157,30 @@ v.muted=true;v.defaultMuted=true;v.setAttribute('muted','');
 v.playsInline=true;v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
 v.setAttribute('autoplay','');v.autoplay=true;
 v.preload='auto';
-v.src='/abertura/sora-intro.webm';
+/* ⚠️ DUAS FONTES, NESTA ORDEM. O navegador pega a PRIMEIRA que sabe tocar:
+   Chrome/Android fica no webm (242 KB) e o iOS pula pra o mp4 (711 KB, H.264
+   High 3.1 com faststart). Invertendo, todo mundo baixaria o mp4 à toa.
+   Com <source>, o 'error' do VÍDEO só dispara quando TODAS as fontes falham —
+   que é exatamente a hora de desistir. */
+var s1=document.createElement('source');s1.src='/abertura/sora-intro.webm';s1.type='video/webm';
+var s2=document.createElement('source');s2.src='/abertura/sora-intro.mp4';s2.type='video/mp4';
+v.appendChild(s1);v.appendChild(s2);
 box.appendChild(v);
+v.load();
 
 var comecou=false,fim=function(){
   if(!box||box.dataset.saindo)return;box.dataset.saindo='1';
   box.style.opacity='0';
+  /* ⚠️ A MARCA DE SESSÃO É GRAVADA AQUI, NO FIM — não na decisão. Antes eu a
+     gravava antes de tocar, então uma tentativa QUE FALHOU queimava a sessão e
+     a animação não voltava nem depois de consertada. */
+  try{sessionStorage.setItem('sora-abertura-v2','1');}catch(e){}
   setTimeout(function(){document.documentElement.removeAttribute('data-abertura');},420);
 };
-v.addEventListener('playing',function(){comecou=true;});
+v.addEventListener('playing',function(){
+  comecou=true;
+  try{sessionStorage.setItem('sora-abertura-v2','1');}catch(e){}
+});
 v.addEventListener('ended',fim);
 v.addEventListener('error',fim);
 
