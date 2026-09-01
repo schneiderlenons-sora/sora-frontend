@@ -1392,8 +1392,7 @@ export type Regra = {
   categoria: string | null;
   tipo: TipoRegra;
   modo_match: ModoMatch;
-  renomear_para: string | null;
-  recorrente: boolean;
+  renomear_para: string | null;
   ignorar_escopo: EscopoIgnorar | null;
   created_at: string;
   updated_at: string;
@@ -1408,8 +1407,7 @@ export type NovaRegra = {
   tipo: TipoRegra;
   modo_match: ModoMatch;
   categoria?: string | null;
-  renomear_para?: string | null;
-  recorrente?: boolean;
+  renomear_para?: string | null;
   ignorar_escopo?: EscopoIgnorar;
   /** Aplica no histórico que já existe (default: sim). */
   aplicar_agora?: boolean;

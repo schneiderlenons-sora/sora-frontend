@@ -236,11 +236,9 @@ export default function WatsonRegras({ phone }: { phone: string }) {
                     </span>
                   </p>
 
-                  {(r.renomear_para || r.recorrente) && (
+                  {r.renomear_para && (
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {r.renomear_para && <>renomeia pra <b className="text-foreground">{r.renomear_para}</b></>}
-                      {r.renomear_para && r.recorrente && ' · '}
-                      {r.recorrente && 'marca como recorrente'}
                     </p>
                   )}
                 </div>

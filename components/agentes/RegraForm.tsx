@@ -3,15 +3,20 @@
 import { useState } from 'react';
 import { api, type NovaRegra, type TipoRegra, type ModoMatch, type EscopoIgnorar } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
-import { Loader2, Search, Tag, Pencil, Repeat, AlertCircle } from 'lucide-react';
+import { Loader2, Search, Tag, Pencil, AlertCircle } from 'lucide-react';
 
 // =============================================================================
 // "Nova regra" — o formulário do card do Watson.
 //
 // Reproduz a tela de referência campo a campo:
 //   CATEGORIZAR      descrição · texto exato|contém · categoria · renomear para
-//                    · considerar como recorrente
 //   NÃO CONSIDERAR   em tudo|só na despesa/receita · descrição · exato|contém
+//
+// ⚠️ SEM "considerar como recorrente", por decisão do dono. Na Sora, conta fixa
+// é uma TABELA À PARTE (`recorrencias`, 458 linhas em uso) com cron, lançamento
+// automático e lembrete. A coluna `transacoes.recorrente` faz UMA coisa só:
+// dizer ao Watson "não me acuse de duplicata". Um campo com esse nome aqui
+// prometeria conta fixa e entregaria outra coisa.
 //
 // ⚠️ A DESCRIÇÃO NÃO É ADIVINHAÇÃO. O texto que se digita aqui é o que o banco
 // escreve no extrato — o servidor só normaliza caixa e acento, sem remover
@@ -65,7 +70,6 @@ export default function RegraForm({
   const [match, setMatch]       = useState<ModoMatch>('contem');
   const [categoria, setCat]     = useState<string>(categoriaInicial || '');
   const [renomear, setRenomear] = useState('');
-  const [recorrente, setRec]    = useState(false);
   const [escopo, setEscopo]     = useState<EscopoIgnorar>('tudo');
 
   const [salvando, setSalvando] = useState(false);
@@ -83,7 +87,6 @@ export default function RegraForm({
         phone, descricao: texto, tipo, modo_match: match,
         categoria:      tipo === 'categorizar' ? (categoria || null) : null,
         renomear_para:  tipo === 'categorizar' ? (renomear.trim() || null) : null,
-        recorrente:     tipo === 'categorizar' ? recorrente : false,
         ignorar_escopo: tipo === 'ignorar' ? escopo : undefined,
       };
       const r = await api.regras.criar(body);
@@ -178,26 +181,9 @@ export default function RegraForm({
                    className="input py-2 text-[13px] max-w-[52%]" style={{ minHeight: 44 }} />
           </div>
 
-          <div className="flex items-center gap-3 p-3">
-            <Repeat size={15} className="text-muted-foreground flex-shrink-0" />
-            <span className="text-[13px] font-semibold text-foreground flex-1">Considerar como recorrente</span>
-            <button type="button" role="switch" aria-checked={recorrente}
-              aria-label="Considerar como recorrente"
-              onClick={() => setRec((v) => !v)}
-              className="relative rounded-full transition-colors flex-shrink-0"
-              style={{ width: 46, height: 28, background: recorrente ? 'hsl(var(--primary))' : 'hsl(var(--bg-muted))' }}>
-              <span className="absolute top-1 rounded-full bg-white transition-all"
-                    style={{ width: 20, height: 20, left: recorrente ? 22 : 4 }} />
-            </button>
-          </div>
         </div>
       )}
 
-      {tipo === 'categorizar' && (
-        <p className="text-[11.5px] leading-relaxed text-muted-foreground">
-          Ligue o recorrente se esse nome é sempre a mesma conta do mês, mesmo quando o valor muda.
-        </p>
-      )}
 
       {erro && (
         <p role="alert" className="text-[12px] text-red-500 flex items-start gap-1.5">
