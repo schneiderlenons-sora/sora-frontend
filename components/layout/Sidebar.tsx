@@ -67,6 +67,22 @@ const SIDEBAR_BG_BLACK = '#000000';
 // Ícones do painel Negócios, resolvidos pelo NOME que vem de lib/negocios-nav.
 // O catálogo de rotas fica livre de import de componente e pode ser lido no
 // servidor (prefetch, testes) sem arrastar a árvore do lucide junto.
+// ⚠️ FLAG DE MÓDULO, não estado do componente.
+//
+// Cada aba tem o SEU layout.tsx montando o próprio DashboardLayout, então a
+// Sidebar é DESMONTADA E REMONTADA a cada troca de aba — e o efeito de
+// aquecimento abaixo re-executava toda vez, disparando ~38 router.prefetch()
+// mais 3 prefetch de dados. São ~41 requisições por clique, competindo com a
+// navegação que o usuário acabou de pedir pelas 6 conexões que o browser abre
+// por host: o app enfileirava a própria navegação atrás do próprio prefetch.
+//
+// `useRef`/`useState` não resolvem — morrem junto com o componente. A flag
+// precisa viver no MÓDULO, que sobrevive enquanto a aba do browser existir.
+//
+// Guardada POR TELEFONE: trocar de conta (ou de grupo) reaquece, porque as
+// rotas visíveis e os dados são outros.
+let jaAqueceu: string | null = null;
+
 type IconeLucide = React.ComponentType<{ size?: number; className?: string }>;
 // Ícones da navegação do app, resolvidos pelo NOME vindo de lib/sidebar-nav.
 const ICONES_APP: Record<string, IconeLucide> = {
@@ -116,12 +132,19 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // ocioso, low-priority) e o recharts é dynamic → não vem no chunk da rota.
   useEffect(() => {
     if (!phone) return;
+    if (jaAqueceu === phone) return;   // já aqueceu nesta sessão
     const rotas = [
       ...NAV_TOPO.map((i) => i.href),
       ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
       '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
     ];
     const warm = () => {
+      // ⚠️ A FLAG É MARCADA AQUI DENTRO, não na entrada do efeito. Se o
+      // componente desmontar antes de o navegador ficar ocioso, o cleanup
+      // cancela o callback e NADA foi aquecido — marcar antes deixaria o
+      // app sem prefetch nenhum pelo resto da sessão.
+      if (jaAqueceu === phone) return;
+      jaAqueceu = phone;
       rotas.forEach((r) => router.prefetch(r));
       prefetchTopTabs(phone); // + dados das 3 mais usadas
     };
