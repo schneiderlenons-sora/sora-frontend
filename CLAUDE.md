@@ -1506,6 +1506,43 @@ CRÍTICO** tendo **R$ 79.836,29** num fundo DI. Três defeitos independentes.
 
 ---
 
+## Reprocessamento do agregador duplica tudo (set/2026)
+
+A Polp **reprocessou** as transações de um cartão e regravou todas com
+`of_tx_id` NOVO. Como o sync dedupa por `of_tx_id` — de propósito, é o que
+protege a categoria corrigida à mão —, as linhas antigas ficaram convivendo com
+as novas. Modo de falha que não existia antes: **id estável é premissa, e o
+agregador pode quebrá-la sem avisar.**
+
+- ⚠️ **NÃO dedupar por "mesma data + valor + descrição".** Não distingue
+  duplicata de duas compras iguais — o cliente do caso tem R$ 130,00 no mesmo
+  bar em 06/08, 24/08 e 31/08, todas legítimas. O critério certo é a **ORIGEM**:
+  o reprocesso grava um bloco contíguo de ids; quem está FORA dele e tem gêmeo
+  DENTRO é a cópia velha. Medido: 10 no bloco novo, 3 fora com gêmeo, **zero
+  fora sem gêmeo** — e é esse zero que prova que o reprocesso é superconjunto.
+- ⚠️ **A projeção de parcelas duplicou pelo mesmo motivo.** A dedup de
+  `parcelasPrevistas` casava pelo **instante da compra ao segundo**, e o
+  reprocesso mudou o `purchasedAt`. Passou a casar pelo **DIA**. Medido antes
+  nas 664 linhas: funde **75 pares**, todos com descrição e valor iguais, e
+  **zero** pares de compras diferentes. Os 38 pares de mesmo dia com valor
+  distante (Renner × C&A, R$ 18,00 × R$ 99,00 da mesma loja) continuam
+  separados — é a tolerância de R$ 1 que faz isso.
+- ⚠️ **O eval tinha a premissa derrubada cravada** ("1 segundo de diferença =
+  duas compras"). Foi invertido, e ganhou um caso provando que **dias
+  diferentes** seguem separados — a assinatura que sobrou pra distinguir
+  recompra do mesmo item.
+- **Bancos ABREVIAM o pagamento de fatura:** "PAGTO", "PGTO". A lista da 127
+  exigia a palavra inteira e deixava passar 12 quitações, R$ 57.566,13 abatendo
+  fatura já paga, em 5 cartões de 4 clientes. Migration **148**. A prova continua
+  sendo o valor bater com uma fatura publicada (9 das 12); as outras 3 são
+  pagamento PARCIAL, que por definição não bate com um total.
+- **Fecho do caso:** fatura do Inter saiu de R$ 10.217,60 → **R$ 1.995,24**,
+  igual ao app do banco, no centavo. Migrations 148 (frases), 149 (transações
+  duplicadas), 150 (projeções duplicadas). Conferidos os 40 cartões de OF
+  depois: zero valores negativos, zero acima do limite.
+
+---
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
