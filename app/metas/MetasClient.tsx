@@ -5,13 +5,13 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import AtrelarInvestimentos from '@/components/metas/AtrelarInvestimentos';
 import NovaMetaModal from '@/components/metas/NovaMetaModal';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 import {
   Plus, Sparkles, Pencil, Trash2, ArrowUpRight, ArrowDownLeft,
-  AlertCircle, Loader2, Check, X as XIcon, Flag, Calendar, Target as TargetIcon,
-} from 'lucide-react';
+  AlertCircle, Loader2, Check, X as XIcon, Flag, Calendar, Target as TargetIcon, TrendingUp as TrendingUpIcon, Shield as ShieldIcon } from 'lucide-react';
 // recharts sob demanda: fora do bundle inicial da página.
 const GraficoMeta = dynamic(() => import('./GraficoMeta'), {
   ssr: false,
@@ -98,6 +98,8 @@ export default function MetasClient({ phoneInicial, initialMetas }: { phoneInici
   const [edicao,   setEdicao]   = useState<any | null>(null);
   const [confirmDel, setConfirmDel] = useState<any | null>(null);
   const [aporteModal, setAporteModal] = useState<{ meta: any; tipo: 'aporte' | 'resgate' } | null>(null);
+  // Investimentos atrelados à meta (migration 147).
+  const [atrelarMeta, setAtrelarMeta] = useState<any | null>(null);
 
   // Dados via SWR — revisita instantânea (cache em memória).
   const { data: metasData, mutate: mMetas } = useApi(phone ? `metas:${phone}` : null, () => api.metas.listar(phone), { fallbackData: initialMetas });
@@ -186,6 +188,7 @@ export default function MetasClient({ phoneInicial, initialMetas }: { phoneInici
                 onExcluir={() => setConfirmDel(m)}
                 onAplicar={() => setAporteModal({ meta: m, tipo: 'aporte' })}
                 onResgatar={() => setAporteModal({ meta: m, tipo: 'resgate' })}
+                onAtrelar={() => setAtrelarMeta(m)}
               />
             ))}
           </div>
@@ -199,6 +202,15 @@ export default function MetasClient({ phoneInicial, initialMetas }: { phoneInici
           edicao={edicao}
           onClose={() => { setNovaOpen(false); setEdicao(null); }}
           onSuccess={carregar}
+        />
+      )}
+
+      {atrelarMeta && phone && (
+        <AtrelarInvestimentos
+          phone={phone}
+          meta={atrelarMeta}
+          onClose={() => setAtrelarMeta(null)}
+          onSuccess={() => mMetas()}
         />
       )}
 
@@ -251,8 +263,16 @@ interface CardProps {
   onResgatar: () => void;
 }
 
-function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: CardProps) {
-  const valorAtual = parseFloat(meta.valor_atual || 0);
+function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar, onAtrelar }: any) {
+  // ⚠️ `valor_total` = guardado (aportes) + investimentos atrelados, somado pelo
+  // servidor na LEITURA (migration 147) — nunca gravado em `metas.valor_atual`,
+  // que é coluna de aporte. Cai em `valor_atual` enquanto a migration não roda,
+  // e aí a meta se comporta exatamente como antes.
+  const guardado   = parseFloat(meta.valor_atual || 0);
+  const investido  = parseFloat(meta.valor_investido || 0);
+  const investimentos: any[] = meta.investimentos || [];
+  const naReserva  = investimentos.filter((i: any) => i.is_reserva_emergencia).length;
+  const valorAtual = meta.valor_total != null ? parseFloat(meta.valor_total) : guardado;
   const objetivo   = parseFloat(meta.valor_objetivo);
   const restante   = Math.max(0, objetivo - valorAtual);
   const pct        = objetivo > 0 ? Math.min((valorAtual / objetivo) * 100, 100) : 0;
@@ -407,6 +427,93 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
           </div>
         )}
 
+        {/* Composição do valor — só aparece quando há investimento atrelado.
+
+
+            Sem isto o usuário veria a barra andar sozinha sem saber de onde
+
+
+            veio o dinheiro. */}
+
+
+        {investido > 0 && (
+
+
+          <div className="rounded-xl p-2.5 bg-muted/40 border border-border/60 space-y-1">
+
+
+            <div className="flex items-center justify-between text-[11px]">
+
+
+              <span className="text-muted-foreground">Guardado</span>
+
+
+              <span className="font-semibold text-foreground tabular">{fmt(guardado)}</span>
+
+
+            </div>
+
+
+            <div className="flex items-center justify-between text-[11px]">
+
+
+              <span className="text-muted-foreground flex items-center gap-1">
+
+
+                <TrendingUpIcon size={11} /> Em investimentos
+
+
+                <span className="tabular">({investimentos.length})</span>
+
+
+              </span>
+
+
+              <span className="font-semibold text-foreground tabular">{fmt(investido)}</span>
+
+
+            </div>
+
+
+            {/* ⚠️ Aviso da dupla contagem: o mesmo dinheiro também sustenta a reserva
+
+
+                de emergência. São duas leituras da mesma carteira, não um erro — mas
+
+
+                quem soma as duas telas acha que tem o dobro. */}
+
+
+            {naReserva > 0 && (
+
+
+              <p className="text-[10.5px] text-muted-foreground leading-snug pt-1 flex items-start gap-1">
+
+
+                <ShieldIcon size={11} className="mt-0.5 flex-shrink-0" />
+
+
+                {naReserva === 1 ? 'Um destes investimentos também compõe' : `${naReserva} destes investimentos também compõem`}
+
+
+                {' '}sua reserva de emergência — é o mesmo dinheiro visto de dois ângulos.
+
+
+              </p>
+
+
+            )}
+
+
+          </div>
+
+
+        )}
+
+
+        
+
+
         {/* Botões Aplicar / Resgatar */}
         <PermissaoGuard>
           <div className="grid grid-cols-2 gap-2">
@@ -420,6 +527,12 @@ function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar }: C
               <ArrowDownLeft size={14} /> Resgatar
             </button>
           </div>
+          <button onClick={onAtrelar}
+                  className="btn-outline w-full mt-2 px-3 py-2.5 text-sm gap-2"
+                  style={{ minHeight: 44 }}>
+            <TrendingUpIcon size={14} />
+            {investimentos.length > 0 ? `Investimentos (${investimentos.length})` : 'Atrelar investimento'}
+          </button>
         </PermissaoGuard>
       </div>
     </div>
