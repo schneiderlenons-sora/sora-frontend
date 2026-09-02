@@ -14,7 +14,18 @@ import {
   Sun, Coffee, Cookie, UtensilsCrossed, Moon as MoonIcon,
   Trash2, ChevronRight, Flame, ArrowRight, Scale, Pencil, Check,
 } from 'lucide-react';
-import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ Só o ResponsiveContainer sai da página; os divs de tamanho ficam, e o
+// skeleton preenche 100% deles — nenhuma mudança de layout.
+const GraficoCalorias = dynamic(() => import('./GraficoCalorias'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full rounded-xl bg-muted/30 animate-pulse" />,
+});
+const AnelMacro = dynamic(() => import('./AnelMacro'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full rounded-full bg-muted/30 animate-pulse" />,
+});
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -398,22 +409,7 @@ export default function NutricaoPage() {
             </div>
           </div>
           <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={calorias7d} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="calGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={BRAND} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={BRAND} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={36} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                         formatter={(v: any) => [`${v} kcal`, 'Calorias']} />
-                <Area type="monotone" dataKey="cal" stroke={BRAND} strokeWidth={2.5} fill="url(#calGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <GraficoCalorias data={calorias7d} cor={BRAND} />
           </div>
         </div>
       </div>
@@ -480,12 +476,7 @@ function RingMacro({ pct, cor, label, valor, meta, unit }: any) {
   return (
     <div className="flex flex-col items-center">
       <div className="relative w-20 h-20 sm:w-24 sm:h-24">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart innerRadius="72%" outerRadius="100%" data={[{ pct: Math.min(100, pct) }]} startAngle={90} endAngle={-270}>
-            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-            <RadialBar dataKey="pct" fill={cor} cornerRadius={8} background={{ fill: 'hsl(var(--muted))' }} />
-          </RadialBarChart>
-        </ResponsiveContainer>
+        <AnelMacro pct={pct} cor={cor} />
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-sm font-bold tabular" style={{ color: cor }}>{pct}%</span>
         </div>

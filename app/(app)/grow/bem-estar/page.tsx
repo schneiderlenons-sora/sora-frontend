@@ -10,10 +10,18 @@ import {
   Moon, Zap, X,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
-import {
-  LineChart, Line, BarChart, Bar, Cell, ReferenceArea,
-  ResponsiveContainer, Tooltip, YAxis, XAxis, CartesianGrid,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ Skeletons com a MESMA ALTURA dos gráficos (h-64 e h-44): sem isso o
+// conteúdo salta quando o chunk do recharts termina de carregar.
+const GraficoHumor = dynamic(() => import('./GraficoHumor'), {
+  ssr: false,
+  loading: () => <div className="h-64 rounded-xl bg-muted/30 animate-pulse" />,
+});
+const GraficoSono = dynamic(() => import('./GraficoSono'), {
+  ssr: false,
+  loading: () => <div className="h-44 rounded-xl bg-muted/30 animate-pulse" />,
+});
 
 // Faixa ideal de sono (h) → cor de feedback
 const corSono = (h: number) => h < 6 ? '#ef4444' : h < 7 ? '#f59e0b' : h <= 9 ? '#22c55e' : '#6366f1';
@@ -133,20 +141,7 @@ export default function BemEstarPage() {
           {dadosGrafico.length > 0 && (
             <div className="card rounded-3xl p-6 animate-fade-in" style={{ animationDelay: '180ms' }}>
               <h2 className="text-lg font-bold text-foreground mb-4">Tendência — últimos 30 dias</h2>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dadosGrafico}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                    <YAxis domain={[1, 5]} stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                    <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }} />
-                    <Line type="monotone" dataKey="humor" stroke={BRAND} strokeWidth={3} dot={{ fill: BRAND, r: 4 }} name="Humor" />
-                    {dadosGrafico.some(d => d.energia) && (
-                      <Line type="monotone" dataKey="energia" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b', r: 3 }} name="Energia" />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <GraficoHumor data={dadosGrafico} cor={BRAND} />
             </div>
           )}
 
@@ -370,22 +365,7 @@ function SonoCard({ sono, onAdd }: { sono: any; onAdd: () => void }) {
           </div>
 
           {/* Barras com zona ideal */}
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barras} margin={{ top: 8, right: 4, left: -22, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} />
-                <YAxis domain={[0, 12]} ticks={[0, 4, 8, 12]} stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} />
-                <ReferenceArea y1={7} y2={9} fill="#22c55e" fillOpacity={0.10} />
-                <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.4)' }}
-                         contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                         formatter={(v: any) => [`${v}h`, 'Sono']} />
-                <Bar dataKey="horas" radius={[4, 4, 0, 0]} maxBarSize={28}>
-                  {barras.map((b: any, i: number) => <Cell key={i} fill={corSono(b.horas)} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <GraficoSono data={barras} />
         </div>
       )}
     </div>

@@ -14,7 +14,17 @@ import {
   Trophy, Sparkles, Plus, Flame, Clock, Calendar, Target,
   Pencil, ChevronRight, FileText, BookOpen, Play, TrendingUp,
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ Skeletons com a MESMA ALTURA dos gráficos (h-48 e h-32).
+const GraficoEstudoConcurso = dynamic(() => import('./GraficoEstudoConcurso'), {
+  ssr: false,
+  loading: () => <div className="h-48 rounded-xl bg-muted/30 animate-pulse" />,
+});
+const GraficoSimulados = dynamic(() => import('./GraficoSimulados'), {
+  ssr: false,
+  loading: () => <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />,
+});
 
 const BRAND = 'hsl(var(--primary))';
 const COR_CONCURSO = '#f59e0b';
@@ -319,24 +329,11 @@ export default function ConcursosPage() {
                 ))}
               </div>
             </div>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={grafico} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="concursoGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COR_CONCURSO} stopOpacity={1} />
-                      <stop offset="100%" stopColor={COR_CONCURSO} stopOpacity={0.4} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} interval={periodo === 90 ? 9 : periodo === 30 ? 3 : 0} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={36} />
-                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                           formatter={(v: any) => [`${v} min`, 'Estudo']} />
-                  <Bar dataKey="min" fill="url(#concursoGrad)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <GraficoEstudoConcurso
+                data={grafico}
+                cor={COR_CONCURSO}
+                intervaloX={periodo === 90 ? 9 : periodo === 30 ? 3 : 0}
+              />
           </div>
 
           {/* DISCIPLINAS + SIMULADOS */}
@@ -398,16 +395,7 @@ export default function ConcursosPage() {
               {simuladosGrafico.length === 0 ? (
                 <div className="text-center py-6 text-xs text-muted-foreground">Cadastre simulados pra ver evolução.</div>
               ) : (
-                <div className="h-32">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={simuladosGrafico} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} width={28} domain={[0, 'dataMax']} />
-                      <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 11 }} />
-                      <Line type="monotone" dataKey="nota" stroke="#ec4899" strokeWidth={2.5} dot={{ fill: '#ec4899', r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <GraficoSimulados data={simuladosGrafico} />
               )}
               {simulados.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-border/40 space-y-1 max-h-32 overflow-y-auto">

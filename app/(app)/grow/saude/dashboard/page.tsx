@@ -12,10 +12,19 @@ import {
   CalendarHeart, Pill, AlertCircle, TrendingDown, TrendingUp, Minus,
   Check, X, ChevronRight,
 } from 'lucide-react';
-import {
-  AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis,
-  RadialBarChart, RadialBar, PolarAngleAxis,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ Os dois componentes renderizam só o ResponsiveContainer; os divs de
+// tamanho continuam na página. O skeleton preenche 100% do div existente, então
+// a extração não muda layout nenhum.
+const GraficoPeso = dynamic(() => import('./GraficoPeso'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full rounded-xl bg-muted/30 animate-pulse" />,
+});
+const Anel = dynamic(() => import('./Anel'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full rounded-full bg-muted/30 animate-pulse" />,
+});
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -320,23 +329,7 @@ function CardPeso({ historico, pesoAtual, metaPeso }: any) {
         </div>
       ) : (
         <div className="h-48 mt-3">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dados} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="pesoGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={BRAND} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={BRAND} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-              <YAxis domain={[min, max]} stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={36} />
-              <Tooltip
-                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                formatter={(v: any) => [`${v} kg`, 'Peso']}
-              />
-              <Area type="monotone" dataKey="peso" stroke={BRAND} strokeWidth={2.5} fill="url(#pesoGrad)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          <GraficoPeso data={dados} cor={BRAND} min={min} max={max} />
         </div>
       )}
 
@@ -406,12 +399,7 @@ function MacroRing({ pct, cor, label, value, total }: any) {
   return (
     <div className="flex flex-col items-center">
       <div className="relative w-20 h-20">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart innerRadius="70%" outerRadius="100%" data={[{ pct }]} startAngle={90} endAngle={-270}>
-            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-            <RadialBar dataKey="pct" fill={cor} cornerRadius={8} background={{ fill: 'hsl(var(--muted))' }} />
-          </RadialBarChart>
-        </ResponsiveContainer>
+        <Anel pct={pct} cor={cor} />
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs font-bold tabular" style={{ color: cor }}>{pct}%</span>
         </div>
