@@ -1609,6 +1609,37 @@ refazia a ida ao servidor inteira, e os 38 prefetches eram jogados fora.
 cacheado**: as telas leem o SWR (`lib/useApi`), que ignora o `fallbackData` do SSR
 quando já há cache e revalida ao montar.
 
+### 3B. Sem `loading.tsx` o clique não pinta NADA (set/2026)
+
+Depois das duas fases do route group o usuário ainda relatava **~1s de tela
+parada** ao trocar de aba. A causa não era dado lento: **35 segmentos não tinham
+`loading.tsx`**.
+
+- ⚠️ **No App Router, `loading.tsx` É o Suspense da rota.** Sem boundary no
+  caminho, o Next **segura a transição** até a resposta RSC chegar — o clique
+  fica sem efeito visível e a aba aparece inteira de uma vez. Com boundary, o
+  esqueleto entra no mesmo frame do toque.
+- As 11 abas de Finanças tinham o seu. Faltava em **todo o Grow**, /planos,
+  /configuracoes, /open-finance, /comunidade, /reportar-bug, /agentes, /ajuda,
+  /labs e /admin — **5 são clique direto da sidebar**.
+- **`app/(app)/loading.tsx` resolve os 35 de uma vez:** o boundary vale pra tudo
+  **aninhado abaixo** dele, e quem declara o próprio continua com ele (o mais
+  próximo vence). Fica **abaixo** do layout do grupo, então Sidebar, BottomNav e
+  tema **não entram no Suspense** — só a área de conteúdo troca.
+- ⚠️ **Não dá pra conferir esse boundary pelo nome do chunk.** `export { default }
+  from '@/components/ui/PageSkeleton'` não gera corpo de módulo próprio e o
+  Turbopack funde no chunk do PageSkeleton — parece que não compilou. Pra provar,
+  troque por um marcador único e veja `app_(app)_loading_tsx_*.js` no build.
+
+### 3C. `staleTimes` tem de cobrir o aquecimento, senão ele é custo puro
+
+`staleTimes.dynamic` estava em **30s** e a Sidebar aquece as ~38 rotas **uma vez
+por sessão** (o guard que tirou as 41 requisições por clique). Meio minuto
+depois tudo expirava: **do minuto 1 em diante todo clique voltava a ser ida
+completa ao servidor**, e o aquecimento nunca era aproveitado. Hoje **300s**.
+
+⚠️ Ao mexer num dos dois, conferir o outro — eles só funcionam em par.
+
 ### 4. `getUser()` duplicado por navegação
 
 O middleware valida o JWT com `supabase.auth.getUser()` — ida de REDE ao Supabase
@@ -1633,6 +1664,26 @@ recharts entre dynamic imports diferentes. O que mudou não foi o NÚMERO de
 cópias, foi QUANDO carregam — antes vinham no chunk da ROTA, agora em chunk lazy
 depois do primeiro paint. Consolidar as 12 num módulo único faria as 8
 compartilharem um chunk só; sobra como melhoria.
+
+### 5B. Lazy demais trava a rolagem — aquecer no ocioso (set/2026)
+
+Relato: *"no dashboard mobile, ao rolar pra baixo trava e aparece a tela de
+carregando no meio da rolagem"*.
+
+- **Não era CLS:** o espaço já estava reservado (`minHeight: 220` + skeleton do
+  mesmo tamanho, donut com skeleton redondo do mesmo diâmetro).
+- **Era o PARSE.** `useVisivel` abre com **200px** de antecedência, que num
+  scroll de celular é quase nada: o dedo chega no gráfico antes de o chunk
+  (~289 KB de recharts + d3) baixar **e ser parseado** — e parse é trabalho de
+  **main thread**, então trava a rolagem enquanto acontece.
+- **Fix:** `import()` dos dois chunks dentro de `requestIdleCallback`, **depois
+  de `pronto`**. ⚠️ Isso **não** desfaz a regra do recharts: o que ela proíbe é
+  o recharts no bundle **inicial**, disputando a janela do LCP. Aqui ele começa
+  quando a chamada principal já respondeu e o navegador está ocioso, e o gate
+  depois abre com o módulo já em memória.
+- **Padrão pra qualquer conteúdo pesado abaixo da dobra:** gate de visibilidade
+  sozinho não basta no mobile — ou aquece no ocioso, ou o usuário encontra o
+  esqueleto no meio do scroll.
 
 ### ⚠️ O que NÃO fazer: portar /investimentos e /metas pra leitura direta
 
