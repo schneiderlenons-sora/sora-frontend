@@ -989,12 +989,30 @@ Cliente com Banco Inter: **R$ 10.217,60 no painel × R$ 1.995,24 no banco**.
   **parcela de fatura FUTURA**, não "fatura em aberto" — e é o que dá sentido à
   regra de ouro (`used − unbilled` = limite usado menos o que já está lançado
   para depois do próximo fechamento).
-- ⚠️ **Ele é DERIVADO DAS TRANSAÇÕES.** Emissor que não as entrega manda **0**, e
-  `used − 0` devolve o **limite usado inteiro** como se fosse a fatura. Medido:
-  a Polp tinha **4 transações** desse cartão (1 no ciclo aberto), nós
-  descartamos **0**, e o consentimento vinha `PARTIAL_SUCCESS` +
-  `PARTIALLY_UNAVAILABLE_RESOURCES`. O `used_amount` é o único campo que vem
-  **direto do emissor**, por isso é o único preenchido nesse cenário.
+- ⚠️ **`unbilled_amount: 0` NÃO É BUG DA POLP — a leitura anterior aqui estava
+  errada.** A cláusula do mês faz a janela do campo começar em
+  `bill_closing_date + 1 mês`: com o último fechamento em **03/08** a janela só
+  abre em **03/09**, e em 02/09 não existe transação nela. Zero é o valor
+  CORRETO. O que não se pode fazer é ler `used − 0` como fatura — nesse momento
+  do ciclo isso devolve o **limite usado inteiro**.
+- ⚠️ **O problema real é OUTRO: falta o histórico de transações.**
+  `GET /credit-cards/{id}/transactions` devolve **5 transações** num cartão com
+  **22 faturas publicadas** — e o recurso está **`AVAILABLE`** no
+  `/consents/{id}/resources`, então não é indisponibilidade. O `used_amount` é o
+  único campo que vem direto do emissor, por isso é o único íntegro.
+- ⚠️ **`PARTIALLY_UNAVAILABLE_RESOURCES` não acusava o cartão.** Medido nos dois
+  consentimentos do cliente: no Inter, 22 recursos (10 AVAILABLE / 12
+  UNAVAILABLE) e o cartão do relato está **AVAILABLE** — os indisponíveis são um
+  SEGUNDO cartão, contas, financiamento, Tesouro e renda fixa. No Itaú, 4
+  recursos e só o **FUND** está indisponível. **Nenhum** em
+  `TEMPORARILY_UNAVAILABLE`. Ou seja: a flag sozinha não diz nada sobre o
+  recurso que você está investigando — tem de abrir a lista.
+- 💡 **Pista não explorada: `GET /bills/{bill}/transactions`.** A doc dele avisa
+  que `bill_forecast_date` pode vir null "para lançamentos que a Polp só
+  sincronizou por ESTA rota (fatura já fechada)" — ou seja, ela alcança linhas
+  que a sincronização geral não trouxe. Temos os 22 `of_bill_id` desse cartão
+  guardados na 118. **Não usamos essa rota** — é o caminho mais provável pro
+  histórico que falta.
 - **Não dá pra reconstruir**: nenhuma fórmula sobre esse payload chega em
   1.995,24 (as candidatas dão 8.690,81 e 9.259,74), e ali o `used_amount` é
   `CONSOLIDADO`/`LIMITE_CREDITO_TOTAL` — parece incluir linha de crédito além do
