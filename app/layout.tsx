@@ -178,9 +178,21 @@ function fim(){
      antes de tocar: uma tentativa QUE FALHOU queimava a sessão e a animação
      não voltava nem depois de consertada. */
   try{sessionStorage.setItem('sora-abertura-v3','1');}catch(e){}
+  /* ⚠️ SOLTA O TOQUE ANTES DE COMEÇAR A SUMIR. O atributo só cai 420ms depois
+     (é o tempo do fade), e até lá o overlay continua fixed/inset-0 com o maior
+     z-index do app. Sem esta linha ele fica INVISÍVEL E AINDA ENGOLINDO TOQUE:
+     o usuário toca, não acontece nada, e ele toca de novo achando que travou. */
+  box.style.pointerEvents='none';
   box.style.opacity='0';
   setTimeout(function(){document.documentElement.removeAttribute('data-abertura');},420);
 }
+
+/* ⚠️ TOQUE NA ABERTURA PULA A ABERTURA. Enquanto o vídeo roda, o overlay cobre
+   a tela inteira e engole tudo — quem tocou pra abrir uma aba não recebe nem
+   resposta visual. Tocar aqui é intenção de entrar no app, então encerra na
+   hora em vez de descartar o toque. Só dispara se o usuário TOCAR: quem não
+   toca continua vendo a animação inteira. */
+box.addEventListener('pointerdown',fim,{once:true});
 v.addEventListener('playing',function(){
   comecou=true;
   try{sessionStorage.setItem('sora-abertura-v3','1');}catch(e){}
