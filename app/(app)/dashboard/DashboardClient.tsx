@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { ehPagamentoFatura } from '@/lib/categorizar';
 import dynamic from 'next/dynamic';
 import { useApi } from '@/lib/useApi';
@@ -185,6 +185,38 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // `pronto` como `ativo` é obrigatório: enquanto a página é skeleton ela é
   // curta, tudo "parece" visível e o gate abriria sozinho.
   const { ref: donutRef, visivel: donutVisivel } = useVisivel<HTMLDivElement>(pronto);
+
+  // ⚠️ AQUECE O RECHARTS NO OCIOSO — é o que tira a travada da rolagem.
+  //
+  // Os dois gates acima abrem com 200px de antecedência, o que num scroll de
+  // celular é quase nada: o dedo chega no gráfico ANTES de o chunk (~289 KB de
+  // recharts + d3) ter baixado e sido parseado. O usuário via o esqueleto
+  // pulsando no meio da rolagem, e o parse — que é trabalho de main thread —
+  // travava o scroll enquanto acontecia.
+  //
+  // Baixar antes NÃO desfaz a otimização original: o problema que ela resolveu
+  // era o recharts entrar no bundle INICIAL e disputar a janela do LCP. Aqui
+  // ele só começa depois de `pronto` (a chamada principal já respondeu) e
+  // dentro de `requestIdleCallback`, ou seja, num momento em que o navegador
+  // não tem nada melhor a fazer e o usuário ainda está lendo o topo da tela.
+  //
+  // É `import()` direto e não `.preload()` do next/dynamic: resolve pro MESMO
+  // chunk, o módulo fica no cache do bundler, e quando o gate abrir o
+  // componente monta sem ida à rede nem parse. Falha aqui é irrelevante — o
+  // `next/dynamic` tenta de novo na hora do uso, com o skeleton de sempre.
+  useEffect(() => {
+    if (!pronto) return;
+    const aquecer = () => {
+      import('@/components/dashboard/GraficoGastos').catch(() => {});
+      import('@/components/relatorios/CategoryDonut').catch(() => {});
+    };
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
+    const id = ric ? ric(aquecer) : window.setTimeout(aquecer, 1200);
+    return () => {
+      const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
+      if (ric && cic) cic(id as number); else clearTimeout(id as number);
+    };
+  }, [pronto]);
 
   const resumo:    any   = data?.resumo    ?? { receitas: 0, gastos: 0, por_categoria: [] };
   const resumoAnt: any   = data?.resumoAnt ?? { receitas: 0, gastos: 0, por_categoria: [] };

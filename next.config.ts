@@ -32,7 +32,19 @@ const nextConfig = {
     //
     // `static` fica no default (300s) de propósito — não há rota estática no
     // painel, então mexer nele seria mudança inerte.
-    staleTimes: { dynamic: 30 },
+    //
+    // ⚠️ 30s NÃO SOBREVIVIA AO AQUECIMENTO. A Sidebar aquece as ~38 rotas UMA
+    // vez por sessão, no primeiro ocioso (é o guard que tirou as 41 requisições
+    // por clique). Com 30s, tudo que ela aqueceu expirava meio minuto depois —
+    // do minuto 1 da sessão em diante, todo clique voltava a ser ida completa ao
+    // servidor, sem casca cacheada. O aquecimento virava custo sem retorno.
+    //
+    // 300s faz a janela do cache cobrir o aquecimento em vez de vencer antes
+    // dele. Continua seguro pelo mesmo motivo de antes, e o teto do risco é
+    // conhecido: o payload cacheado é só a CASCA (o `fallbackData` do SSR), e as
+    // telas leem o SWR, que ignora esse fallback quando já tem cache e revalida
+    // ao montar. Payload velho é corrigido no mesmo frame em que o SWR responde.
+    staleTimes: { dynamic: 300 },
   },
 } as NextConfig;
 
