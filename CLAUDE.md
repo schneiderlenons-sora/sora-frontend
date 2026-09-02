@@ -1556,21 +1556,35 @@ Router **segmentos irmãos não compartilham layout**: ir de /dashboard pra
 /transacoes desmontava um layout e montava outro, destruindo Sidebar, BottomNav
 e tema a cada clique — e re-executando todo `useEffect` do shell.
 
-Hoje existe **`app/(app)/layout.tsx`** com UM `DashboardLayout`, e as 12 abas
-vivem dentro. Mesmo desenho já validado em `app/negocios/layout.tsx`.
+Hoje existe **`app/(app)/layout.tsx`** com UM `DashboardLayout`, e **as 21 rotas
+do painel** vivem dentro. Mesmo desenho já validado em `app/negocios/layout.tsx`.
 
 - ⚠️ **Route group não entra na URL:** /transacoes continua /transacoes.
   Verificado derivando a lista de rotas dos `page.tsx` antes e depois — 82 dos
-  dois lados, diff vazio.
+  dois lados, diff vazio (nas DUAS levas).
 - ⚠️ **Aba nova entra dentro de `(app)` e NÃO declara `DashboardLayout` nem
   `layout.tsx` próprio.** Aninhar dois shells traz o remount de volta.
 - O gate do Grow continua num layout próprio dentro do grupo (pra persistir
   entre as abas do Grow), mas **parou de montar o `DashboardLayout`**.
-- ⚠️ **Ainda FORA do grupo:** /ajuda, /planos, /configuracoes, /comunidade,
-  /agentes, /open-finance, /wrapped, /admin, /labs e /reportar-bug montam o
-  `DashboardLayout` DENTRO da página. Ir de uma aba do grupo pra uma dessas
-  ainda remonta o shell. Movê-las é editar ~6.000 linhas com vários ramos de
-  retorno — ficou como fase 2.
+- **Fase 2 (set/2026) — FEITA.** As 9 que faltavam (/planos, /configuracoes,
+  /open-finance, /comunidade, /reportar-bug, /agentes, /ajuda, /labs, /admin)
+  montavam o `DashboardLayout` DENTRO da página, então o defeito continuava vivo
+  na **fronteira do grupo**: ir de /transacoes pra /planos remontava o shell —
+  e **5 delas são clique direto da sidebar**.
+  - Os 15 wrappers viraram **fragmento (`<>`)**, não foram apagados com
+    reindentação: fragmento na raiz do `return` é no-op, e assim cada página
+    muda 2–5 linhas em vez de deslocar o bloco inteiro. Um diff de 10 páginas de
+    produção **precisa continuar revisável** — é nele que um erro real apareceria.
+  - Substituição por **token exato, sem regex**: /open-finance tem a palavra
+    "DashboardLayout" dentro de um comentário JSX.
+- ⚠️ **FORA do grupo DE PROPÓSITO** (não é pendência):
+  - **`/negocios`** — painel IRMÃO, shell próprio. O `EmpresaProvider` tem de
+    ficar **por fora** do `DashboardLayout` (a Sidebar consome esse contexto);
+    trazê-lo pra cá obrigaria a subir o provider pro shell de todos, e o app
+    inteiro passaria a carregar empresas. Sair de Finanças pra Negócios ainda
+    remonta o shell — é o preço aceito.
+  - **`/wrapped`** — tela cheia, nunca teve sidebar; entrar no grupo **ganharia**
+    uma.
 
 ### 2. ~41 requisições por clique — a auto-sabotagem
 
