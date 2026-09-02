@@ -10,6 +10,7 @@ import ConvidarModal from '@/components/grupos/ConvidarModal';
 import EntrarGrupoModal from '@/components/grupos/EntrarGrupoModal';
 import MudarPapelModal from '@/components/grupos/MudarPapelModal';
 import EditarGrupoModal from '@/components/grupos/EditarGrupoModal';
+import PrivacidadeGrow from '@/components/comunidade/PrivacidadeGrow';
 import {
   Plus, Sparkles, Users, UserPlus, Pencil, MoreVertical,
   LogOut, Check, ArrowLeftRight, Wallet, Layers, Lock,
@@ -394,6 +395,11 @@ export default function ComunidadePage() {
             </div>
           </div>
         )}
+
+        {/* Privacidade do Grow — era a aba /grow/configuracoes.
+            Fica no fim: primeiro se resolve QUEM está no grupo, depois O QUE
+            cada um enxerga. */}
+        <PrivacidadeGrow />
       </div>
 
       {/* ════════════════════════════════════════════════════

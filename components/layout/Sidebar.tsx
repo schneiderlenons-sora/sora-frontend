@@ -11,11 +11,13 @@ import {
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
   Percent, CalendarRange, FolderLock,
+  Palette, Lightbulb, Share2, Megaphone,
   // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
   HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
   IdCard, Plug, CheckCheck, Store,
 } from 'lucide-react';
 import { gruposPara, rotaAtiva, rotasNavegaveis } from '@/lib/negocios-nav';
+import { NAV_TOPO, GRUPOS, SECOES, type ItemNav, type SubgrupoNav } from '@/lib/sidebar-nav';
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
@@ -37,52 +39,9 @@ type NavItem = {
   nota?:   string;              // mini texto abaixo do nome (ex.: status)
 };
 
-// ── Grupo FINANCE (núcleo) ──────────────────────────────────────────
-// Dashboard unifica Finance + Grow — fica fora dos grupos, no topo.
-const NAV_DASHBOARD: NavItem = { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard };
-
-const NAV_FINANCE: NavItem[] = [
-  { href: '/transacoes',         label: 'Transações',        icon: ArrowLeftRight },
-  { href: '/relatorios',         label: 'Relatórios',        icon: BarChart2 },
-  { href: '/contas-bancarias',   label: 'Contas',            icon: Landmark },
-  { href: '/open-finance',       label: 'Open Finance',      icon: Building2 },
-  { href: '/cartao-de-credito',  label: 'Cartão de crédito', icon: CreditCard },
-  { href: '/categorias',         label: 'Categorias',        icon: Tag },
-  { href: '/limites-de-gastos',  label: 'Limites',           icon: Target },
-  { href: '/metas',              label: 'Metas',             icon: Flag },
-  { href: '/dividas',            label: 'Dívidas e Parcelas', icon: Receipt },
-  { href: '/juros',              label: 'Calculadora de Juros', icon: Percent },
-  { href: '/investimentos',      label: 'Investimentos',     icon: TrendingUp,  gate: 'investimentos',    badge: 'Premium' },
-  { href: '/negocios',           label: 'Negócios',          icon: Briefcase,   gate: 'negocios',         badge: 'Platinum' },
-];
-
-// ── Grupo GROW ──────────────────────────────────────────────────────
-const NAV_GROW: NavItem[] = [
-  { href: '/grow/habitos',    label: 'Hábitos',    icon: Target },
-  { href: '/grow/tarefas',    label: 'Tarefas',    icon: ListChecks },
-  { href: '/grow/bem-estar',  label: 'Bem-estar',  icon: Heart },
-  { href: '/grow/saude',      label: 'Saúde',      icon: Activity,      gate: 'grow_saude',   badge: 'Premium' },
-  { href: '/grow/estudos',    label: 'Estudos',    icon: GraduationCap, gate: 'grow_estudos', badge: 'Premium' },
-  { href: '/grow/casa',       label: 'Casa',       icon: HomeIcon,      gate: 'grow_casa',     badge: 'Premium' },
-  { href: '/grow/agenda',     label: 'Agenda',     icon: CalendarDays },
-  { href: '/grow/viagens',    label: 'Viagens',    icon: Plane,         gate: 'grow_colecoes', badge: 'Premium' },
-  { href: '/grow/midia',      label: 'Filmes & Séries', icon: Clapperboard, gate: 'grow_colecoes', badge: 'Premium' },
-  { href: '/grow/leituras',   label: 'Leituras',   icon: BookOpen,      gate: 'grow_colecoes', badge: 'Premium' },
-  // Drive virou atalho fixo no rodapé (junto de Agentes) — mais fácil de
-  // achar do que enterrado dentro do grupo Grow. Ver o bloco fixo mais abaixo.
-  { href: '/grow/configuracoes', label: 'Compartilhamento', icon: Users },
-];
-
-// ── Geral (app-wide, sempre visível) ────────────────────────────────
-const NAV_GERAL: NavItem[] = [
-  { href: '/wrapped',       label: 'Sora Wrapped',    icon: Gift },
-  { href: '/planos',        label: 'Planos',          icon: Zap },
-  { href: '/comunidade',    label: 'Gestão compartilhada', icon: Users, gate: 'compartilhamento', badge: 'Premium' },
-  { href: '/reportar-bug',  label: 'Relatar um problema', icon: Bug },
-  // Agentes, Drive, Ajuda e Configurações ficam FIXOS no rodapé (não rolam
-  // com a lista) — Agentes/Drive viraram atalho pra facilitar achar (antes
-  // enterrados aqui dentro / dentro do grupo Grow).
-];
+// ⚠️ O catálogo da navegação mora em `lib/sidebar-nav.ts` — grupos, subgrupos
+// e o tom de cada seção. Aqui fica só o desenho. Antes as listas viviam neste
+// arquivo e qualquer mexida na navegação obrigava a abrir o componente inteiro.
 
 // ── Sora Labs (painel separado) — âncoras pras fileiras do /labs ─────
 const NAV_LABS: NavItem[] = [
@@ -109,6 +68,15 @@ const SIDEBAR_BG_BLACK = '#000000';
 // O catálogo de rotas fica livre de import de componente e pode ser lido no
 // servidor (prefetch, testes) sem arrastar a árvore do lucide junto.
 type IconeLucide = React.ComponentType<{ size?: number; className?: string }>;
+// Ícones da navegação do app, resolvidos pelo NOME vindo de lib/sidebar-nav.
+const ICONES_APP: Record<string, IconeLucide> = {
+  LayoutDashboard, Briefcase, ArrowLeftRight, Landmark, CreditCard, Building2,
+  Receipt, Flag, Target, BarChart2, Tag, TrendingUp, Percent, ListChecks,
+  CalendarDays, GraduationCap, Activity, Heart, Home: HomeIcon, Plane,
+  Clapperboard, BookOpen, Users, Zap, Bug, Palette, Gift, Lightbulb, Share2,
+  Megaphone, Shield,
+};
+
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
   LayoutDashboard, Sparkles, ArrowLeftRight, Receipt, HandCoins, FileBarChart,
   TrendingUp, ShoppingCart, Package, Boxes, Users, Truck, IdCard, Plug, CheckCheck,
@@ -149,9 +117,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   useEffect(() => {
     if (!phone) return;
     const rotas = [
-      NAV_DASHBOARD.href,
-      ...NAV_FINANCE.map((i) => i.href),
-      ...NAV_GROW.map((i) => i.href),
+      ...NAV_TOPO.map((i) => i.href),
+      ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
       '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
     ];
     const warm = () => {
@@ -260,81 +227,173 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     return pathname === href;
   }
 
-  // ── Item de navegação ──
-  function NavLink({ item, grow = false }: { item: NavItem; grow?: boolean }) {
-    const { href, label, icon: Icon, gate, badge, nota } = item;
+  // ═══ Item de navegação ═══════════════════════════════════════════════════
+  //
+  // Anatomia:  [barra do ativo] [chip 28×28] Rótulo ............ [badge/cadeado]
+  //
+  // ⚠️ O ÍCONE É SEMPRE BRANCO. O fundo da sidebar é a cor da marca e existem 6
+  // paletas — ícone colorido some na paleta da mesma família e vibra na
+  // complementar. A cor da seção vive no ponto do cabeçalho e na espinha
+  // (ver a nota sobre `tom` em lib/sidebar-nav.ts).
+  //
+  // ⚠️ O ATIVO NÃO SE ANUNCIA SÓ POR COR: ganha barra à esquerda (forma), peso
+  // de fonte (tipografia), fundo e `aria-current`. Regra `color-not-only` +
+  // `nav-state-active` — quem não distingue contraste continua sabendo onde está.
+  // O chip do ativo INVERTE (branco sólido, ícone na cor da marca): é o único
+  // ponto em que a marca aparece como matiz, e como é a própria `--primary`
+  // nunca briga com o fundo, em nenhuma das 6 paletas nem no tema black.
+  function NavLink({ item, grow = false }: { item: ItemNav; grow?: boolean }) {
+    const { href, label, gate, badge, breve, externa } = item;
+    const Icon = ICONES_APP[item.icone] || Sparkles;
+
+    // Chip base: no tema BLACK o branco "acende" demais sobre o preto — mesma
+    // observação que já valia pros atalhos do rodapé.
+    const chipBase = isTemaBlack ? 'bg-white/[0.07]' : 'bg-white/[0.13]';
+
+    // Aba que ainda não existe: aparece pra dar noção do todo, mas não navega.
+    // 404 é pior que "em breve" (mesma regra do painel Negócios).
+    if (breve) {
+      return (
+        <span
+          aria-disabled="true"
+          title={`${label} — em breve`}
+          className="flex items-center gap-3 pl-2 pr-2 rounded-xl text-[13.5px] text-white/40 cursor-default select-none"
+          style={{ minHeight: 44 }}
+        >
+          <span className={`grid place-items-center w-7 h-7 rounded-[9px] flex-shrink-0 ${chipBase}`}>
+            <Icon size={15} />
+          </span>
+          <span className="flex-1 truncate">{label}</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-white/45 flex-shrink-0">
+            em breve
+          </span>
+        </span>
+      );
+    }
+
     const growLocked = grow && !temAcessoGrow;
-    // ⚠️ Negócios NÃO passa por `podeUsar`: o gate dele soma o direito
-    // adquirido e o vitalício (temNegocios). Usar podeUsar aqui trancaria
-    // a aba de quem já a usa — o item sumiria da barra do dia pra noite.
+    // ⚠️ Negócios NÃO passa por `podeUsar`: o gate dele soma o direito adquirido
+    // e o vitalício (temNegocios). Usar podeUsar aqui trancaria a aba de quem já
+    // a usa — o item sumiria da barra do dia pra noite.
     const gateLocked = gate === 'negocios' ? !temNegocios : gate ? !podeUsar(gate) : false;
     const locked     = growLocked || gateLocked;
     const destino    = growLocked ? '/grow/upgrade' : gateLocked ? '/planos' : href;
-    const ativo      = !locked && isActive(href);
+    // Item com query (`?aba=`) nunca marca ativo: o pathname é o mesmo da aba
+    // inteira e ele acenderia junto com ela.
+    const ativo      = !locked && !externa && isActive(href);
     const badgeText  = growLocked ? 'Premium' : badge;
     const corBadge   = badgeText === 'Platinum' ? 'bg-violet-600 text-white' : 'bg-white text-emerald-700';
 
     return (
       <Link
         href={destino}
-        // Ao passar o mouse / tocar num item, prefetcha a ROTA (JS) + os DADOS
-        // daquela aba → quando clicar, tanto o código quanto os dados já estão
-        // prontos = navegação instantânea (fim da travada do clique). Barato:
-        // só a aba apontada, não todas de uma vez (por isso o prefetch={false}).
-        // Só no HOVER (desktop). No mobile NÃO prefetchamos no toque: (1) o
-        // aquecimento ocioso já baixou a rota, e (2) fazer prefetch no touchstart
-        // adiciona jank ao próprio toque. Também prefetcha os dados da aba.
+        // Hover no desktop prefetcha ROTA + DADOS daquela aba → o clique já
+        // encontra tudo pronto. No mobile NÃO: prefetch no touchstart adiciona
+        // jank ao próprio toque, e o aquecimento ocioso já baixou a rota.
         onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
-        // O prefetch do Next baixa a rota inteira quando o link aparece na tela.
-        // Com a sidebar sempre visível, TODAS as rotas eram baixadas de uma vez —
-        // e /investimentos, /metas, /relatorios e /juros carregam
-        // recharts (~288 KB cada). Medido: o dashboard baixava 3 MB de JS, com
-        // 864 KB de recharts, sem desenhar um gráfico. A rota continua sendo
-        // buscada no clique; só não vem antes da hora.
+        // ⚠️ prefetch={false} é PERFORMANCE, não detalhe: a sidebar fica sempre
+        // visível, então o prefetch automático do Next baixava TODAS as rotas de
+        // uma vez — e /investimentos, /metas, /relatorios e /juros carregam
+        // recharts (~288 KB cada). Medido: 3 MB de JS no dashboard sem desenhar
+        // um gráfico.
         prefetch={false}
         onClick={() => setOpen(false)}
+        aria-current={ativo ? 'page' : undefined}
         aria-disabled={locked || undefined}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-          ativo
-            ? 'bg-white/20 text-white font-semibold backdrop-blur-sm shadow-sm'
-            : locked
-              ? 'text-white/45 hover:text-white/70 hover:bg-white/10'
-              : 'text-white/80 hover:text-white hover:bg-white/15'
-        }`}
         title={locked ? `Disponível no plano ${badgeText || 'Premium'}` : label}
+        className={`group relative flex items-center gap-3 pl-2 pr-2 rounded-xl text-[13.5px] transition-all duration-200 ${
+          ativo
+            ? 'bg-white/[0.18] text-white font-semibold shadow-sm ring-1 ring-inset ring-white/20'
+            : locked
+              ? 'text-white/45 hover:text-white/75 hover:bg-white/[0.08]'
+              : 'text-white/85 hover:text-white hover:bg-white/[0.10]'
+        }`}
+        style={{ minHeight: 44 }}
       >
-        <Icon size={18} className={locked ? 'opacity-70' : ''} />
-        <span className="flex-1 min-w-0">
-          <span className="block truncate">{label}</span>
-          {nota && <span className="block text-[10px] leading-tight text-white/45 truncate">{nota}</span>}
+        {ativo && (
+          <span aria-hidden className="absolute -left-[9px] top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-white" />
+        )}
+        <span
+          className={`grid place-items-center w-7 h-7 rounded-[9px] flex-shrink-0 transition-all duration-200 ${
+            ativo ? 'shadow-sm' : `${chipBase} group-hover:bg-white/20`
+          }`}
+          style={ativo ? { background: 'rgba(255,255,255,0.95)', color: 'hsl(var(--primary))' } : undefined}
+        >
+          <Icon size={15} />
         </span>
+        <span className="flex-1 min-w-0 truncate">{label}</span>
         {locked && (
           badgeText
-            ? <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${corBadge}`}>{badgeText}</span>
-            : <Lock size={13} className="text-white/55" />
+            ? <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${corBadge}`}>{badgeText}</span>
+            : <Lock size={13} className="text-white/55 flex-shrink-0" />
         )}
       </Link>
     );
   }
 
-  // ── Cabeçalho de grupo (colapsável) ──
+  // ── Cabeçalho de subgrupo: ponto de cor + rótulo ──
+  // O ponto é decorativo (`aria-hidden`); quem informa é o texto ao lado.
+  function SubHeader({ titulo, tom }: { titulo: string; tom: string }) {
+    return (
+      <div className="flex items-center gap-2 px-2 pt-3 pb-1.5">
+        <span
+          aria-hidden
+          className="w-[7px] h-[7px] rounded-full flex-shrink-0"
+          style={{ background: tom, boxShadow: `0 0 0 3px ${tom}26` }}
+        />
+        <span className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/55">{titulo}</span>
+      </div>
+    );
+  }
+
+  // ── Pilha de itens de um subgrupo, com a espinha colorida à esquerda ──
+  // ⚠️ A espinha vai em `style`, não em classe do Tailwind: no v4 um
+  // `border-l` sem o shorthand completo some por causa do preflight (regra
+  // registrada no CLAUDE.md).
+  function Subgrupo({ sg, grow = false, from = 0 }: { sg: SubgrupoNav; grow?: boolean; from?: number }) {
+    return (
+      <div key={sg.id}>
+        <SubHeader titulo={sg.titulo} tom={sg.tom} />
+        <div
+          className="ml-[6px] pl-[10px] space-y-0.5"
+          style={{ borderLeft: `1px solid ${sg.tom}30` }}
+        >
+          {sg.itens.map((item, i) => (
+            <div
+              key={item.href}
+              className="animate-[fade-in_220ms_ease-out_both] motion-reduce:animate-none"
+              style={{ animationDelay: `${Math.min((from + i) * 22, 260)}ms` }}
+            >
+              <NavLink item={item} grow={grow} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Cabeçalho de grupo (nível 1, colapsável) ──
   function GroupHeader({ label, open: aberto, onToggle, locked = false, trial }:
     { label: string; open: boolean; onToggle: () => void; locked?: boolean; trial?: number }) {
     return (
       <button
         onClick={onToggle}
         aria-expanded={aberto}
-        className="w-full flex items-center gap-2 px-3 py-2 mt-1 rounded-lg text-white/60 hover:text-white/90 hover:bg-white/10 transition-colors"
+        className="w-full flex items-center gap-2 px-2 py-2 mt-3 rounded-xl text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+        style={{ minHeight: 40 }}
       >
-        {locked && <Lock size={12} className="text-white/55 flex-shrink-0" />}
-        <span className="text-[11px] font-bold uppercase tracking-widest">{label}</span>
+        {locked && <Lock size={11} className="text-white/55 flex-shrink-0" />}
+        <span className="text-[11px] font-extrabold uppercase tracking-[0.16em]">{label}</span>
         {locked && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-700">Premium</span>
         )}
         {trial != null && trial > 0 && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-300 text-yellow-900">{trial}d</span>
         )}
-        <ChevronDown size={15} className={`ml-auto flex-shrink-0 transition-transform duration-200 ${aberto ? '' : '-rotate-90'}`} />
+        <ChevronDown
+          size={14}
+          className={`ml-auto flex-shrink-0 transition-transform duration-200 ${aberto ? '' : '-rotate-90'}`}
+        />
       </button>
     );
   }
@@ -545,35 +604,64 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             </div>
           </div>
         ) : (
-          /* ── NAV do app (Dashboard + Finance + Grow) ── */
+          /* ── NAV do app (topo + grupos + seções) ──
+             Hierarquia em três níveis, e é ela que organiza a barra:
+               topo (sem grupo) → grupo colapsável → subgrupo com ponto de cor.
+             Regra `nav-hierarchy`: navegação primária (Finanças/Grow) e
+             secundária (Ajustes/Sua conta) ficam visualmente separadas. */
           <>
-            <div className="space-y-0.5 mb-2">
-              <NavLink item={NAV_DASHBOARD} />
+            {/* Fora de qualquer grupo: é onde se troca de CONTEXTO.
+                ⚠️ Negócios mora aqui, não dentro de Finanças — ele abre outro
+                painel, com switcher e navegação próprios. */}
+            <div className="space-y-0.5">
+              {NAV_TOPO.map(item => <NavLink key={item.href} item={item} />)}
             </div>
 
-            <GroupHeader label="Finance" open={openFin} onToggle={toggleFin} />
-            {openFin && (
-              <div className="space-y-0.5 mt-0.5 animate-fade-in">
-                {NAV_FINANCE
-                  .filter(item => !item.adminOnly || ehAdmin)
-                  .map(item => <NavLink key={item.href} item={item} />)}
-              </div>
-            )}
-
-            <GroupHeader label="Grow" open={openGrow} onToggle={toggleGrow}
-              locked={!temAcessoGrow} trial={temAcessoGrow && trialAtivo ? diasTrialRestantes : undefined} />
-            {openGrow && (
-              <div className="space-y-0.5 mt-0.5 animate-fade-in">
-                {NAV_GROW.map(item => <NavLink key={item.href} item={item} grow />)}
-              </div>
-            )}
+            {GRUPOS.map(g => {
+              const aberto    = g.id === 'grow' ? openGrow : openFin;
+              const alternar  = g.id === 'grow' ? toggleGrow : toggleFin;
+              const bloqueado = !!g.grow && !temAcessoGrow;
+              return (
+                <div key={g.id}>
+                  <GroupHeader
+                    label={g.titulo}
+                    open={aberto}
+                    onToggle={alternar}
+                    locked={bloqueado}
+                    trial={g.grow && temAcessoGrow && trialAtivo ? diasTrialRestantes : undefined}
+                  />
+                  {aberto && (
+                    <div className="mt-0.5">
+                      {g.subgrupos.map((sg, si) => (
+                        <Subgrupo
+                          key={sg.id}
+                          sg={sg}
+                          grow={!!g.grow}
+                          // A entrada escalonada continua de um subgrupo pro
+                          // outro em vez de reiniciar — senão a abertura do
+                          // grupo pisca em blocos, em vez de escorrer.
+                          from={g.subgrupos.slice(0, si).reduce((acc, x) => acc + x.itens.length, 0)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </>
         )}
 
-        {/* GERAL — sempre visível */}
-        <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
-          {NAV_GERAL.map(item => <NavLink key={item.href} item={item} />)}
-          {ehAdmin && <NavLink item={{ href: '/admin', label: 'Admin', icon: Shield }} />}
+        {/* Seções planas — visíveis em qualquer painel e SEM colapso.
+            ⚠️ De propósito: é aqui que cai quem está PROCURANDO alguma coisa
+            (planos, suporte, aparência). Esconder atrás de mais um clique
+            economiza altura e cobra descoberta — troca ruim. */}
+        <div className="mt-3 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+          {SECOES.map(sg => <Subgrupo key={sg.id} sg={sg} />)}
+          {ehAdmin && (
+            <div className="mt-0.5 ml-[6px] pl-[10px]" style={{ borderLeft: '1px solid #E2E8F030' }}>
+              <NavLink item={{ href: '/admin', label: 'Admin', icone: 'Shield' }} />
+            </div>
+          )}
         </div>
       </nav>
 
@@ -620,7 +708,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         </div>
 
         {/* Perfil */}
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/15 backdrop-blur-sm">
+        <Link href="/configuracoes" onClick={() => setOpen(false)}
+          className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-colors"
+          style={{ minHeight: 44 }}>
           <AvatarMembro
             name={perfil?.name}
             src={perfil?.avatar_url}
@@ -636,7 +726,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${PLANO_BADGE[plano]}`}>
             {plano}
           </span>
-        </div>
+        </Link>
 
         {/* Instalar app | Sair (mesma linha, economiza espaço) */}
         <div className="grid grid-cols-2 gap-1.5">
