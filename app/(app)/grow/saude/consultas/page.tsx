@@ -12,7 +12,15 @@ import {
   CalendarHeart, Sparkles, Plus, MapPin, Clock, Calendar,
   TestTube, Pencil, ChevronRight, History, TrendingDown, TrendingUp, Minus,
 } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceArea } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ `ssr: false` + skeleton da MESMA ALTURA (h-52): sem isso o gráfico
+// empurra o conteúdo ao terminar de carregar, e é o salto de layout que a regra
+// do CLAUDE.md manda evitar.
+const GraficoExames = dynamic(() => import('./GraficoExames'), {
+  ssr: false,
+  loading: () => <div className="h-52 rounded-xl bg-muted/30 animate-pulse" />,
+});
 
 const COR_CONS = '#ec4899';
 
@@ -228,20 +236,13 @@ export default function ConsultasPage() {
               </button>
             </div>
           ) : (
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={examesSelGrafico} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                  <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={36} />
-                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                           formatter={(v: any) => [`${v} ${exameRef.unidade || ''}`.trim(), exameSel]} />
-                  {exameRef.min != null && exameRef.max != null && (
-                    <ReferenceArea y1={exameRef.min} y2={exameRef.max} fill="#22c55e" fillOpacity={0.08} stroke="#22c55e" strokeOpacity={0.3} />
-                  )}
-                  <Line type="monotone" dataKey="valor" stroke={COR_CONS} strokeWidth={2.5} dot={{ fill: COR_CONS, r: 5 }} activeDot={{ r: 7 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <GraficoExames
+                data={examesSelGrafico}
+                cor={COR_CONS}
+                unidade={exameRef.unidade || ''}
+                nome={exameSel}
+                faixa={{ min: exameRef.min ?? null, max: exameRef.max ?? null }}
+              />
           )}
         </div>
 

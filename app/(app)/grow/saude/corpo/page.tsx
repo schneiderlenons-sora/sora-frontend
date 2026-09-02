@@ -10,7 +10,15 @@ import ModalMedida from '@/components/saude/ModalMedida';
 import {
   Ruler, Sparkles, Plus, Image as ImageIcon, TrendingDown, TrendingUp, Minus,
 } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ `ssr: false` + skeleton da MESMA ALTURA (h-56). Sem a altura igual, o
+// gráfico "empurra" o conteúdo quando termina de carregar — o salto de layout
+// que a regra do CLAUDE.md manda evitar.
+const GraficoEvolucao = dynamic(() => import('./GraficoEvolucao'), {
+  ssr: false,
+  loading: () => <div className="h-56 rounded-xl bg-muted/30 animate-pulse" />,
+});
 
 const COR_CORPO = '#a78bfa';
 const COR_GORD  = '#f59e0b';
@@ -182,17 +190,12 @@ export default function CorpoPage() {
                 Sem dados desta medida ainda.
               </div>
             ) : (
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={graficoEvo} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                    <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={36} />
-                    <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                             formatter={(v: any) => [`${v} cm`, CAMPOS.find(c => c.k === campoSel)?.l]} />
-                    <Line type="monotone" dataKey="valor" stroke={CAMPOS.find(c => c.k === campoSel)?.cor || COR_CORPO} strokeWidth={2.5} dot={{ fill: CAMPOS.find(c => c.k === campoSel)?.cor || COR_CORPO, r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <GraficoEvolucao
+                data={graficoEvo}
+                cor={CAMPOS.find(c => c.k === campoSel)?.cor || COR_CORPO}
+                unidade="cm"
+                label={CAMPOS.find(c => c.k === campoSel)?.l}
+              />
             )}
           </div>
 

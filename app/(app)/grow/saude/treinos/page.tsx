@@ -10,7 +10,15 @@ import SaudeNav from '../SaudeNav';
 import {
   Dumbbell, Sparkles, Plus, Trash2, Flame, Clock, Calendar, ChevronRight,
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// ⚠️ `ssr: false` + skeleton da MESMA ALTURA (h-44): sem isso o gráfico
+// empurra o conteúdo ao terminar de carregar, e é o salto de layout que a regra
+// do CLAUDE.md manda evitar.
+const GraficoTreinos = dynamic(() => import('./GraficoTreinos'), {
+  ssr: false,
+  loading: () => <div className="h-44 rounded-xl bg-muted/30 animate-pulse" />,
+});
 
 const BRAND = 'hsl(var(--primary))';
 const COR_TREINO = '#f59e0b';
@@ -165,24 +173,7 @@ export default function TreinosPage() {
               <p className="text-base font-bold text-foreground">Últimos 7 dias</p>
             </div>
           </div>
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={grafico7d} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="treinoGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={COR_TREINO} stopOpacity={1} />
-                    <stop offset="100%" stopColor={COR_TREINO} stopOpacity={0.5} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="dia" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={36} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }}
-                         formatter={(v: any) => [`${v} min`, 'Treino']} />
-                <Bar dataKey="min" fill="url(#treinoGrad)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <GraficoTreinos data={grafico7d} cor={COR_TREINO} />
         </div>
 
         {/* Catálogo */}
