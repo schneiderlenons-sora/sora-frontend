@@ -1543,6 +1543,100 @@ agregador pode quebrá-la sem avisar.**
 
 ---
 
+## Navegação entre abas: o app sabotava a si mesmo (set/2026)
+
+Relato: *"ao clicar para mudar de aba existe um delay perceptível; já pedi
+otimizações antes e o problema persiste"*. A causa não era lentidão de dado —
+eram três coisas que se reforçavam.
+
+### 1. Doze layouts remontavam o shell inteiro — corrigido com route group
+
+Cada aba tinha o SEU `layout.tsx` montando o próprio `DashboardLayout`. No App
+Router **segmentos irmãos não compartilham layout**: ir de /dashboard pra
+/transacoes desmontava um layout e montava outro, destruindo Sidebar, BottomNav
+e tema a cada clique — e re-executando todo `useEffect` do shell.
+
+Hoje existe **`app/(app)/layout.tsx`** com UM `DashboardLayout`, e as 12 abas
+vivem dentro. Mesmo desenho já validado em `app/negocios/layout.tsx`.
+
+- ⚠️ **Route group não entra na URL:** /transacoes continua /transacoes.
+  Verificado derivando a lista de rotas dos `page.tsx` antes e depois — 82 dos
+  dois lados, diff vazio.
+- ⚠️ **Aba nova entra dentro de `(app)` e NÃO declara `DashboardLayout` nem
+  `layout.tsx` próprio.** Aninhar dois shells traz o remount de volta.
+- O gate do Grow continua num layout próprio dentro do grupo (pra persistir
+  entre as abas do Grow), mas **parou de montar o `DashboardLayout`**.
+- ⚠️ **Ainda FORA do grupo:** /ajuda, /planos, /configuracoes, /comunidade,
+  /agentes, /open-finance, /wrapped, /admin, /labs e /reportar-bug montam o
+  `DashboardLayout` DENTRO da página. Ir de uma aba do grupo pra uma dessas
+  ainda remonta o shell. Movê-las é editar ~6.000 linhas com vários ramos de
+  retorno — ficou como fase 2.
+
+### 2. ~41 requisições por clique — a auto-sabotagem
+
+Como a Sidebar remontava (item 1), o `useEffect` de aquecimento re-executava a
+cada navegação: **38 `router.prefetch()` + 3 prefetch de dados**, competindo com
+a navegação que o usuário acabou de pedir pelas 6 conexões que o browser abre
+por host. O app enfileirava a própria navegação atrás do próprio prefetch.
+
+Agora aquece **uma vez por sessão**, com **flag de MÓDULO** — `useRef`/`useState`
+morrem junto com o componente remontado. Marcada DENTRO do `warm()`: se o
+componente desmontar antes do idle, o cleanup cancela e nada foi aquecido —
+marcar antes deixaria o app sem prefetch pelo resto da sessão.
+
+### 3. `staleTimes` — o Router Cache estava desligado
+
+⚠️ **O default do Next 16 é `experimental.staleTimes.dynamic = 0`**, e TODAS as
+rotas do painel são dinâmicas (`ƒ`, por causa do SSR por aba). Com 0, o cache do
+roteador DESCARTA o payload RSC assim que chega: voltar a uma aba recém-visitada
+refazia a ida ao servidor inteira, e os 38 prefetches eram jogados fora.
+
+`staleTimes: { dynamic: 30 }`. Seguro porque **o número na tela não vem do payload
+cacheado**: as telas leem o SWR (`lib/useApi`), que ignora o `fallbackData` do SSR
+quando já há cache e revalida ao montar.
+
+### 4. `getUser()` duplicado por navegação
+
+O middleware valida o JWT com `supabase.auth.getUser()` — ida de REDE ao Supabase
+Auth — em toda requisição (o matcher pega os payloads RSC). `contextoSSR()`
+chamava `getUser()` **de novo** na mesma requisição. Eram 3 idas sequenciais antes
+de buscar qualquer dado; agora são 2.
+
+O middleware repassa o id no header **`x-sora-user-id`** (mesmo mecanismo do
+`x-sora-locale`) e o `contextoSSR` usa `getSession()` sozinho, que lê cookie sem
+rede. ⚠️ **O middleware SEMPRE escreve ou apaga esse header** — `requestHeaders`
+nasce de uma cópia dos headers recebidos, então deixar o valor do cliente passar
+seria falsificar identidade.
+
+### 5. recharts fora do chunk das rotas do Grow
+
+Oito páginas do Grow importavam `recharts` direto, furando a regra. Hoje são 12
+componentes colocados com `next/dynamic` + `ssr:false`, e **zero** páginas do
+Grow importam recharts estaticamente.
+
+⚠️ **O build continua com 8 chunks de 289 KB**: o Turbopack não consolida o
+recharts entre dynamic imports diferentes. O que mudou não foi o NÚMERO de
+cópias, foi QUANDO carregam — antes vinham no chunk da ROTA, agora em chunk lazy
+depois do primeiro paint. Consolidar as 12 num módulo único faria as 8
+compartilharem um chunk só; sobra como melhoria.
+
+### ⚠️ O que NÃO fazer: portar /investimentos e /metas pra leitura direta
+
+As duas ainda usam `backendGet` (hop do Render, ~483ms × ~155ms direto), e a
+tentação é portá-las como as outras 8 abas. **Não porte.**
+
+`exigirPlano` (backend) não é uma checagem simples: lê `plano` + `plano_valido_ate`,
+aplica `normalizarPlano` (o 'black' aposentado da migration 142), **expira o plano
+e grava de volta** se venceu, e só então compara com a lista. Replicar isso no
+SSR criaria uma **segunda fonte da verdade do direito de acesso** — e divergir ali
+não dá número errado, dá usuário sem plano recebendo dado pago no payload RSC,
+ou pagante perdendo acesso quando um plano novo entrar só de um lado.
+
+E o ganho é menor do que parece: as duas já têm `loading.tsx`, então o skeleton
+aparece na hora e o que atrasa é só o conteúdo (~330ms), não a navegação.
+
+---
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
