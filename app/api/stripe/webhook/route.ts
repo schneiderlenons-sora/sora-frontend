@@ -54,8 +54,12 @@ export async function POST(req: NextRequest) {
       // usuário ainda estiver `inativo` — então não afeta quem já é cliente.
       case 'invoice.payment_failed':
       case 'payment_intent.payment_failed': {
-        const obj = event.data.object as { customer?: string | null };
-        await handlePagamentoFalhou(obj.customer ?? null);
+        const obj = event.data.object as {
+          customer?: string | null;
+          last_payment_error?: { code?: string | null; decline_code?: string | null } | null;
+          charges?: { data?: Array<{ outcome?: { type?: string; reason?: string | null } | null }> };
+        };
+        await handlePagamentoFalhou(obj.customer ?? null, motivoDaFalha(obj));
         break;
       }
     }
@@ -224,10 +228,32 @@ async function ehVitalicio(userId: string): Promise<boolean> {
   } catch { return false; }
 }
 
+// Motivo curto da recusa, no formato que o painel já entende.
+//
+// ⚠️ QUEM RECUSOU MUDA A ABORDAGEM, e o Stripe separa isso em dois campos:
+//   · `outcome.type = 'blocked'` → foi o RADAR (antifraude do Stripe), não o
+//     banco. Pedir "tenta outro cartão" não resolve — o cartão pode estar
+//     perfeito. Medido: 50 das 108 falhas da conta são bloqueio do Radar, em
+//     apenas 5 pessoas, e TRÊS delas acabaram pagando depois.
+//   · `last_payment_error.decline_code` → aí sim foi o emissor (sem limite,
+//     cartão vencido, exige autorização…).
+// Guardamos o mais específico dos dois, prefixado, pra não confundir os dois
+// mundos na hora de escrever a mensagem de recuperação.
+function motivoDaFalha(obj: {
+  last_payment_error?: { code?: string | null; decline_code?: string | null } | null;
+  charges?: { data?: Array<{ outcome?: { type?: string; reason?: string | null } | null }> };
+}): string | null {
+  const out = obj.charges?.data?.[0]?.outcome;
+  if (out?.type === 'blocked') return `stripe_blocked:${out.reason || 'radar'}`;
+  const e = obj.last_payment_error;
+  const cod = e?.decline_code || e?.code;
+  return cod ? `stripe:${cod}` : null;
+}
+
 // Pagamento recusado → marca o usuário pra recuperação (cron do backend envia
 // o WhatsApp). Só age em conta ainda `inativo` que nunca recebeu recuperação.
 // Tolerante: se a migration 047 não rodou, só loga (não derruba o webhook).
-async function handlePagamentoFalhou(customerId: string | null) {
+async function handlePagamentoFalhou(customerId: string | null, motivo: string | null = null) {
   if (!customerId) return;
   try {
     const { data: user } = await supabaseAdmin
@@ -239,10 +265,19 @@ async function handlePagamentoFalhou(customerId: string | null) {
     // Recupera só lead que ainda não pagou, tem WhatsApp e nunca foi recuperado.
     if (!user || user.plano !== 'inativo' || !user.phone || user.recuperacao_enviada_em) return;
 
-    await supabaseAdmin
-      .from('users')
-      .update({ recuperacao_pendente_em: new Date().toISOString() })
-      .eq('id', user.id);
+    // ⚠️ O MOTIVO SÓ ERA GRAVADO NO FLUXO DO MERCADO PAGO. Aqui ficava só a
+    // data, e o painel admin exibia "motivo não registrado (tentativa anterior
+    // à migration 102)" — culpando uma migration que está rodada há tempos.
+    // Medido: 6 das 7 recusas da base estavam sem motivo, e todas eram Stripe.
+    const patch: Record<string, unknown> = { recuperacao_pendente_em: new Date().toISOString() };
+    if (motivo) patch.recuperacao_motivo = motivo.slice(0, 120);
+
+    const { error } = await supabaseAdmin.from('users').update(patch).eq('id', user.id);
+    // `recuperacao_motivo` é da migration 102: sem ela, grava ao menos a data.
+    if (error && motivo) {
+      await supabaseAdmin.from('users')
+        .update({ recuperacao_pendente_em: new Date().toISOString() }).eq('id', user.id);
+    }
   } catch (e) {
     console.error('[stripe/webhook] recuperação (migration 047?):', e instanceof Error ? e.message : e);
   }

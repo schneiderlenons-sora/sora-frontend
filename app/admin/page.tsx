@@ -91,6 +91,27 @@ const MOTIVO_RECUSA: Record<string, string> = {
   cc_rejected_max_attempts: 'Tentativas demais — aguardar e refazer',
   cc_rejected_blacklist: 'Cartão em blacklist do MP',
   cc_rejected_other_reason: 'Recusado pelo banco emissor',
+
+  // ── Stripe (assinatura). Prefixo distingue do Mercado Pago acima. ──
+  // ⚠️ 'stripe_blocked:*' é o RADAR, o antifraude do PRÓPRIO Stripe — não o
+  // banco. Nesses casos "tenta outro cartão" costuma não resolver: o cartão
+  // pode estar perfeito. Medido nas 173 cobranças da conta: 50 bloqueios do
+  // Radar em apenas 5 pessoas, e TRÊS delas acabaram pagando depois.
+  'stripe_blocked:highest_risk_level': 'Radar do Stripe barrou (risco alto) — não foi o banco; ofereça Pix ou peça revisão no Radar',
+  'stripe_blocked:elevated_risk_level': 'Radar do Stripe barrou (risco elevado) — não foi o banco',
+  'stripe_blocked:rule': 'Bloqueado por uma regra sua no Radar',
+  'stripe_blocked:radar': 'Bloqueado pelo Radar do Stripe',
+  'stripe:generic_decline': 'Emissor recusou sem dizer o motivo — peça outro cartão',
+  'stripe:insufficient_funds': 'Sem saldo/limite — sugira Pix ou outro cartão',
+  'stripe:expired_card': 'Cartão vencido',
+  'stripe:incorrect_cvc': 'CVV errado',
+  'stripe:incorrect_number': 'Número do cartão errado',
+  'stripe:card_declined': 'Cartão recusado pelo emissor',
+  'stripe:do_not_honor': 'Emissor recusou (do not honor) — peça pra ligar no banco',
+  'stripe:lost_card': 'Cartão marcado como perdido',
+  'stripe:stolen_card': 'Cartão marcado como roubado',
+  'stripe:processing_error': 'Erro do processador — só refazer',
+  'stripe:authentication_required': 'Falta autenticar (3-D Secure) — refazer e confirmar no app do banco',
 };
 const textoMotivo = (m?: string | null) => (m ? MOTIVO_RECUSA[m] || m : null);
 
@@ -594,7 +615,7 @@ export default function AdminPage() {
                     </p>
                     <p className="text-[11px] text-foreground/80">
                       {sel.recuperacao_pendente_em
-                        ? (textoMotivo(sel.recuperacao_motivo) || 'Motivo não registrado (tentativa anterior à migration 102).')
+                        ? (textoMotivo(sel.recuperacao_motivo) || 'Motivo não registrado — recusa antiga, de antes de o gateway passar a gravar o porquê.')
                         : 'Sem registro de recusa: pode ter sido recusa antiga não gravada, Pix não pago ou desistência.'}
                     </p>
                   </div>
