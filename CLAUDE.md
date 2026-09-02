@@ -994,6 +994,42 @@ datados), e `faturaVista` reporta `fonte: 'banco+datas'` quando isso acontece.
 
 ---
 
+### Fatura fechada que o cliente PAGOU aparece vencida (medido, NÃO corrigido)
+
+Consequência direta da regra acima: se o pagamento só chega pendurado na fatura
+**seguinte**, e o emissor **só publica a fatura depois que ela fecha**, existe uma
+janela — do vencimento até a publicação do ciclo seguinte — em que a fatura já
+paga aparece **integralmente em aberto**, e como a competência atual já andou, o
+`/faturas` ainda a marca como **vencida**.
+
+Medido em 01/09/2026, nos 42 cartões de OF (38 com fatura publicada):
+
+```
+última publicada JÁ VENCIDA e ainda em aberto ....  5 cartões
+soma exibida como em atraso ..................... R$ 28.522,99
+
+Itaú Azul                     2026-08  venceu 20/08  R$ 21.956,19
+Itaú Latam Pass Black         2026-08  venceu 20/08  R$  4.680,61
+Itaú Uniclass Platinium+      2026-08  venceu 10/08  R$  1.414,03
+Nubank Ultraviolet Black      2026-08  venceu 06/08  R$     49,00
+PERSONNALITE MASTERCARD BLACK 2025-08  venceu 09/08  R$    423,16
+```
+
+⚠️ **4 dos 5 são Itaú** (o Personnalité é bandeira dele) — é o emissor que mais
+demora a publicar. O de 2025-08 é conexão morta, não a janela.
+
+⚠️ **`registrarPagamentosDoOF` NÃO cobre esse caso**: ele lê o pagamento como
+TRANSAÇÃO no cartão, e nesses cartões a transação não veio (`pagamentos_fatura`
+zerado nas 5 competências). Só o `payments[]` da fatura seguinte fecharia — e ela
+ainda não existe.
+
+**Decisão consciente (set/2026): registrado, não corrigido.** Se for atacar, o
+caminho é detectar o pagamento por outra via (débito na conta corrente do mesmo
+banco no valor da fatura) — e aí medir antes, porque alarme falso de R$ 21 mil e
+"quitar" fatura que não foi paga são erros de gravidade parecida.
+
+---
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
