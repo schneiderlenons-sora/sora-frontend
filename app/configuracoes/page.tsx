@@ -21,6 +21,7 @@ import {
 import { PALETAS, getPaletaSalva, aplicarPaleta } from '@/lib/theme-colors';
 import { limparCacheSWR } from '@/lib/swr-cache';
 import { limparPerfilCache } from '@/lib/perfil-cache';
+import { fmtDataBR } from '@/lib/data-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -1224,7 +1225,7 @@ function SecaoDados() {
 
       const headers = ['Data', 'Tipo', 'Categoria', 'Valor', 'Conta', 'Observação'];
       const rows = txs.map((t: any) => [
-        new Date(t.data).toLocaleDateString('pt-BR'),
+        fmtDataBR(t.data, { day: '2-digit', month: '2-digit', year: 'numeric' }),
         t.tipo,
         (t.categoria || '').replace(/,/g, ';'),
         Number(t.valor || 0).toFixed(2).replace('.', ','),

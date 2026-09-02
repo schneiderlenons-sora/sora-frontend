@@ -18,6 +18,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
+import { fmtDataBR } from '@/lib/data-br';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
@@ -31,8 +32,7 @@ const BRAND = 'hsl(var(--primary))';
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const fmtData = (d: string) =>
-  new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+const fmtData = (d: string) => fmtDataBR(d, { day: '2-digit', month: 'short' });
 
 // Final do cartão que fez a compra. Os dois trilhos do Open Finance gravam em
 // colunas diferentes — Pluggy em `pluggy_card`, Celcoin em `of_card`.

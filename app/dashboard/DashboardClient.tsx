@@ -25,6 +25,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
+import { fmtDataBR, diaDoMes } from '@/lib/data-br';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, ChevronRight, Clock, BarChart3,
@@ -83,7 +84,7 @@ function parseCategoria(cat: string) {
 function computeDailyAmount(txs: any[], today: number) {
   const byDay: Record<number, number> = {};
   txs.forEach(tx => {
-    const d = new Date(tx.data).getDate();
+    const d = diaDoMes(tx.data);
     byDay[d] = (byDay[d] || 0) + (tx.valor || 0);
   });
   return Array.from({ length: Math.max(today, 1) }, (_, i) => ({
@@ -749,7 +750,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(tx.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            {fmtDataBR(tx.data, { day: '2-digit', month: 'short' })}
                           </span>
                           {tx.wallet_nome && (
                             <>

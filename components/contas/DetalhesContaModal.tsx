@@ -5,6 +5,7 @@ import { X, ChevronRight, ChevronLeft, ExternalLink, Loader2, ArrowDownRight, Ar
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
+import { fmtDataBR } from '@/lib/data-br';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -199,7 +200,7 @@ export default function DetalhesContaModal({ phone, conta, onClose, onExcluir }:
                 {(verTudo ? txsOrdenadas : txsOrdenadas.slice(0, 10)).map((tx, i) => {
                   const entrada = tx.tipo === 'Recebimento';
                   const theme = getCategoriaTheme(tx.categoria || '');
-                  const data = new Date(tx.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+                  const data = fmtDataBR(tx.data, { day: '2-digit', month: 'short' }).replace('.', '');
                   return (
                     <div key={tx.id || i} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors">
                       <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0" style={{ background: theme.bg, color: theme.color }}>

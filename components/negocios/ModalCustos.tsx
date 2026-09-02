@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { fmtDataBR } from '@/lib/data-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -162,7 +163,7 @@ export default function ModalCustos({ periodo, onClose }: { periodo: string; onC
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{c.descricao}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {cat?.label}{c.fornecedor ? ` · ${c.fornecedor}` : ''} · {new Date(c.data).toLocaleDateString('pt-BR')}
+                        {cat?.label}{c.fornecedor ? ` · ${c.fornecedor}` : ''} · {fmtDataBR(c.data, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </p>
                     </div>
                     <span className="text-sm font-bold tabular-nums text-foreground flex-shrink-0">{fmt(c.valor)}</span>

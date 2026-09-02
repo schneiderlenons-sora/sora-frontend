@@ -9,6 +9,7 @@ import { competenciaAtual, competenciaVizinha, cicloPorCompetencia, pertenceAFat
 import { somarFatura } from '@/lib/valor-fatura';
 import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
+import { fmtDataBR } from '@/lib/data-br';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -609,10 +610,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
             ) : txs.length === 0 ? null : (
               <div className="space-y-2">
                 {(verTudo ? txs : txs.slice(0, 8)).map((tx, i) => {
-                  const data = new Date(tx.data).toLocaleDateString('pt-BR', {
-                    day: '2-digit',
-                    month: 'short',
-                  }).replace('.', '');
+                  const data = fmtDataBR(tx.data, { day: '2-digit', month: 'short' }).replace('.', '');
                   return (
                     <div
                       key={tx.id || i}

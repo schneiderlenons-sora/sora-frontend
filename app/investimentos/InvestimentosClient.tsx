@@ -8,6 +8,7 @@ import { useApi } from '@/lib/useApi';
 import { useTheme } from 'next-themes';
 import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoModal';
 import MovimentoModal from '@/components/investimentos/MovimentoModal';
+import { fmtDataBR } from '@/lib/data-br';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
@@ -1436,7 +1437,7 @@ function TabAportes({ aportes, invs, onAportar, onResgatar }: {
                 const m = estiloMovimento(a.tipo);
                 return (
                   <tr key={a.id || i} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 text-muted-foreground tabular">{new Date(a.data).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-3 text-muted-foreground tabular">{fmtDataBR(a.data, { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td className="px-4 py-3 font-semibold text-foreground">
                       {/* Ícone + rótulo, nunca só cor — a linha precisa ser
                           legível em preto e branco e por quem não distingue

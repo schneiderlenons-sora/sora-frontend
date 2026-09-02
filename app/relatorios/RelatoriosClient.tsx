@@ -15,6 +15,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
+import { fmtDataBR, diaDoMes } from '@/lib/data-br';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -442,7 +443,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     for (let d = 1; d <= dim; d++) byDay[d] = { rec: 0, gas: 0 };
 
     txs.forEach(t => {
-      const dia = new Date(t.data).getDate();
+      const dia = diaDoMes(t.data);
       if (!byDay[dia]) byDay[dia] = { rec: 0, gas: 0 };
       if (t.tipo === 'Recebimento') byDay[dia].rec += t.valor || 0;
       else byDay[dia].gas += t.valor || 0;
@@ -1989,7 +1990,7 @@ function PendentesList({
                   </p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-muted-foreground tabular">
-                      {new Date(tx.data).toLocaleDateString('pt-BR')}
+                      {fmtDataBR(tx.data, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </span>
                     {/* ⚠️ O ATRASO ERA INVISÍVEL. A linha mostrava só a data
                         crua, em cinza: uma conta vencida há duas semanas ficava
