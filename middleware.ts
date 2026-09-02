@@ -81,6 +81,33 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
+
+  // ⚠️ REPASSA O USUÁRIO JÁ VERIFICADO PRO SERVER COMPONENT.
+  //
+  // O middleware acabou de validar o JWT com `getUser()` — que é uma ida de
+  // REDE ao Supabase Auth. Sem este repasse, `contextoSSR()` (lib/ssr.ts)
+  // chamava `getUser()` DE NOVO na mesma requisição, pagando a segunda ida pra
+  // descobrir exatamente o que já se sabia aqui.
+  //
+  // Mesmo mecanismo do `x-sora-locale` logo acima: header de REQUEST, lido no
+  // servidor via `headers()`. Nunca chega ao navegador.
+  //
+  // ⚠️ SEMPRE ESCREVE OU APAGA — nunca deixa passar o que veio de fora. Um
+  // cliente pode mandar `x-sora-user-id` na requisição dele; como
+  // `requestHeaders` nasce de uma cópia dos headers recebidos, deixar o valor
+  // do cliente aqui seria falsificar identidade. O `delete` no ramo sem
+  // usuário é a metade que fecha isso.
+  if (user?.id) requestHeaders.set('x-sora-user-id', user.id);
+  else requestHeaders.delete('x-sora-user-id');
+
+  // A resposta foi criada ANTES do getUser (e pode ter sido recriada pelo
+  // `setAll` ao renovar o token), então precisa ser refeita pra carregar o
+  // header novo — preservando os cookies que a renovação escreveu.
+  {
+    const anterior = response;
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+    anterior.cookies.getAll().forEach((c) => response.cookies.set(c));
+  }
   const isProtegida = ROTAS_PROTEGIDAS.some(r => pathname.startsWith(r));
   const isPublica   = ROTAS_PUBLICAS.includes(pathname);
 
