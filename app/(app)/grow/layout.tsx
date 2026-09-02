@@ -3,10 +3,21 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { RefreshCw } from 'lucide-react';
 
+// =============================================================================
+// Gate de acesso do Sora Grow.
+//
+// ⚠️ ESTE LAYOUT NÃO MONTA MAIS O `DashboardLayout` — quem monta é o shell do
+// grupo, em `app/(app)/layout.tsx`. Aninhar os dois faria a sidebar remontar
+// toda vez que se entrasse ou saísse do Grow, que é exatamente o problema que o
+// route group veio resolver.
+//
+// O que continua aqui é só o GATE: sessão, perfil e direito ao Grow. Ele segue
+// sendo um layout próprio (e não um wrapper na página) porque assim persiste
+// entre as abas do Grow — trocar de Hábitos pra Agenda não reavalia o acesso.
+// =============================================================================
 export default function GrowLayout({ children }: { children: React.ReactNode }) {
   const { loading, user, perfil, temAcessoGrow, recarregar } = useAuth();
   const router = useRouter();
@@ -32,14 +43,14 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
     if (!temAcessoGrow && !ehUpgrade) router.replace('/grow/upgrade');
   }, [loading, user, perfil, temAcessoGrow, ehUpgrade, router]);
 
-  // Enquanto a sessão/perfil carregam, mostra o SHELL (sidebar) + skeleton em
-  // vez de um spinner full-screen — o Grow "aparece" na hora, igual Finanças
-  // (percepção de app nativo). O gate de acesso continua: assim que o perfil
-  // resolve, o useEffect acima redireciona pra /grow/upgrade se não tiver Grow.
-  // Nada de conteúdo real é exposto aqui (só skeleton), então não vaza.
+  // Enquanto a sessão/perfil carregam, mostra o skeleton — a sidebar já está
+  // na tela, vinda do shell do grupo, então o Grow "aparece" na hora, igual
+  // Finanças. O gate de acesso continua: assim que o perfil resolve, o
+  // useEffect acima redireciona pra /grow/upgrade se não tiver Grow. Nada de
+  // conteúdo real é exposto aqui (só skeleton), então não vaza.
   if (loading || !user || perfil === null) {
     return (
-      <DashboardLayout>
+      <>
         <PageSkeleton />
         {timeout6s && (
           <div className="mt-6 flex flex-col items-center gap-3 text-center">
@@ -54,9 +65,9 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
             </button>
           </div>
         )}
-      </DashboardLayout>
+      </>
     );
   }
 
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return <>{children}</>;
 }
