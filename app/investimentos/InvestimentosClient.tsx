@@ -341,6 +341,16 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
           <TabReserva
             reserva={reserva}
             invs={invs}
+            // Marcar/desmarcar um investimento como reserva. Otimista: a lista
+            // muda na hora e o servidor confirma depois — sem isso o toque
+            // parece não ter feito nada até a rede responder.
+            onToggleReserva={async (id: string, novo: boolean) => {
+              mInvs((prev: any) => Array.isArray(prev)
+                  ? prev.map((x: any) => (x.id === id ? { ...x, is_reserva_emergencia: novo } : x))
+                  : prev, false);
+              try { await api.investimentos.editar(id, { is_reserva_emergencia: novo }); }
+              finally { mInvs(); mRes(); }   // mRes: o total da reserva é calculado no servidor
+            }}
             onChangeMeses={async (n: number) => {
               if (!phone) return;
               try { await api.investimentos.atualizarReserva(phone, { meses_objetivo: n }); carregar(); } catch {}
@@ -1110,7 +1120,48 @@ function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number })
   );
 }
 
-function TabReserva({ reserva, invs, onChangeMeses }: any) {
+// ── Uma linha do seletor da reserva ─────────────────────────────────────────
+// ⚠️ O estado vem em ÍCONE + PALAVRA ("Na reserva" / "Fora"), não só na cor do
+// interruptor: cor sozinha não comunica pra quem não distingue contraste.
+function LinhaReserva({ inv, on = false, onToggle }: any) {
+  const [salvando, setSalvando] = useState(false);
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30" style={{ minHeight: 56 }}>
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+           style={{ background: corTipo(inv.tipo) }}>
+        {on ? '🛡️' : (inv.tipo || '?').slice(0, 2).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground truncate">{inv.nome}</p>
+        <p className="text-[11px] text-muted-foreground truncate">
+          {inv.tipo}{inv.origem === 'of' ? ' · do banco' : ''}
+        </p>
+      </div>
+      <p className="text-sm font-bold tabular flex-shrink-0">{fmt(inv.valor_atual || 0)}</p>
+      <span className="hidden sm:flex items-center gap-1 text-[11px] font-semibold flex-shrink-0"
+            style={{ color: on ? BRAND : 'hsl(var(--muted-foreground))' }}>
+        {on ? <><Shield size={12} /> Na reserva</> : <>Fora</>}
+      </span>
+      <button
+        role="switch"
+        aria-checked={on}
+        aria-label={`${on ? 'Tirar' : 'Colocar'} ${inv.nome} ${on ? 'da' : 'na'} reserva de emergência`}
+        disabled={salvando}
+        onClick={async () => {
+          setSalvando(true);
+          try { await onToggle?.(inv.id, !on); } finally { setSalvando(false); }
+        }}
+        className="relative rounded-full flex-shrink-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ background: on ? BRAND : 'hsl(var(--foreground) / 0.15)', minWidth: 48, minHeight: 28, width: 48, height: 28 }}
+      >
+        <span className="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform"
+              style={{ transform: on ? 'translateX(20px)' : 'translateX(0)' }} />
+      </button>
+    </div>
+  );
+}
+
+function TabReserva({ reserva, invs, onChangeMeses, onToggleReserva }: any) {
   const pct = reserva.percentual || 0;
   const status =
     pct >= 100 ? { label: 'Reserva completa ✓', color: '#22c55e' } :
@@ -1174,40 +1225,49 @@ function TabReserva({ reserva, invs, onChangeMeses }: any) {
         </div>
       </div>
 
-      {/* Lista de investimentos marcados */}
+      {/* ═══ Investimentos da reserva ═══════════════════════════════════════
+          ⚠️ ISTO ERA UMA LISTA MORTA. O vazio dizia "Edite um CDB de liquidez
+          diária ou Tesouro Selic" — e não existia edição de investimento em
+          lugar nenhum do painel: o marcador só era gravado na CRIAÇÃO, e ainda
+          assim só aparecia no modal para os tipos CDB, Caixa e Reserva.
+          Resultado: quem trouxe o investimento pelo Open Finance (todos eles)
+          NUNCA conseguia montar a reserva, e o card ficava R$ 0,00 em vermelho
+          por cima de um fundo DI de R$ 79.836,29. Agora o marcador é o próprio
+          seletor abaixo. */}
       <div className="card rounded-2xl p-5">
-        <p className="text-sm font-bold text-foreground mb-3">
+        <p className="text-sm font-bold text-foreground">
           Investimentos da reserva{' '}
-          <span className="text-muted-foreground font-normal">({reservaInvs.length})</span>
+          <span className="text-muted-foreground font-normal tabular">({reservaInvs.length})</span>
         </p>
+
         {reservaInvs.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-6 text-center">
-            Nenhum investimento marcado como reserva. Edite um CDB de liquidez diária ou Tesouro Selic.
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+            Nenhum investimento marcado ainda. Marque abaixo o que você usaria numa
+            emergência — o ideal é o que tem <strong className="text-foreground">liquidez diária</strong>
+            {' '}(CDB liquidez diária, Tesouro Selic, fundo DI).
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 mt-3">
             {reservaInvs.map((i: any) => (
-              <div key={i.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                     style={{ background: corTipo(i.tipo) }}>
-                  🛡️
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{i.nome}</p>
-                  <p className="text-[11px] text-muted-foreground">{i.tipo}</p>
-                </div>
-                <p className="text-sm font-bold tabular">{fmt(i.valor_atual || 0)}</p>
-              </div>
+              <LinhaReserva key={i.id} inv={i} on onToggle={onToggleReserva} />
             ))}
           </div>
         )}
       </div>
 
+      {/* Os que ainda não estão na reserva — é aqui que se resolve o problema. */}
       {naoReserva.length > 0 && (
         <div className="card rounded-2xl p-5">
-          <p className="text-xs text-muted-foreground">
-            💡 Você pode marcar outros investimentos (CDB de liquidez diária, Tesouro Selic) como parte da reserva editando-os no carteira.
+          <p className="text-sm font-bold text-foreground">Adicionar à reserva</p>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-3 leading-relaxed">
+            Só entra o que dá pra resgatar rápido. Deixe de fora ação, FII e o que
+            tem carência — na emergência eles não estariam disponíveis.
           </p>
+          <div className="space-y-2">
+            {naoReserva.map((i: any) => (
+              <LinhaReserva key={i.id} inv={i} onToggle={onToggleReserva} />
+            ))}
+          </div>
         </div>
       )}
     </div>
