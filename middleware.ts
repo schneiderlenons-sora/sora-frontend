@@ -125,5 +125,18 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  // ⚠️ `api` FICA DE FORA, e a exclusão vale um round-trip por chamada.
+  //
+  // O middleware roda `supabase.auth.getUser()` — ida de REDE ao Supabase Auth
+  // — em tudo que intercepta. As 26 rotas de `/api` caíam aqui e pagavam esse
+  // custo à toa: nenhuma está em ROTAS_PROTEGIDAS (o middleware não bloqueia
+  // nada nelas), nenhuma lê `x-sora-locale` nem `x-sora-user-id`, e 23 das 26
+  // já autenticam por conta própria (createSupabaseServer, checkAdmin, ou a
+  // assinatura do Stripe). As outras 3 são públicas de propósito: os dois
+  // bridges de analytics e o webhook do Mercado Pago, chamado pelos servidores
+  // deles, que não pode exigir sessão.
+  //
+  // Como toda revalidação do SWR passa por `/api`, isto tirava uma ida ao
+  // Supabase de cada atualização de dado do painel.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };
