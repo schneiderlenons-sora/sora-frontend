@@ -1382,6 +1382,38 @@ codec — **todas medidas e todas certas**).
 
 ---
 
+## Data da transação: `lib/data-br.ts` é a fonte única (set/2026)
+
+Relato: *"transações lançadas hoje (01/09) aparecem com a data do dia anterior
+(31/08)"*.
+
+- ⚠️ **`transacoes.data` é `timestamptz` mas guarda DUAS semânticas.**
+  **Data pura** — o backend grava a string `'YYYY-MM-DD'` e o Postgres a coage
+  pra **meia-noite UTC** (`2026-09-01T00:00:00+00:00`) — e **instante real**, a
+  hora da compra vinda do extrato (`2026-09-01T16:59:40.963+00:00`).
+- **A causa:** a tela fazia `new Date(v).toLocaleDateString('pt-BR')` nas duas.
+  No Brasil (UTC−3) meia-noite UTC é **21h do dia ANTERIOR**.
+- ⚠️ **E NÃO DÁ PRA SÓ FATIAR OS 10 PRIMEIROS CARACTERES.** Medido em 12.000
+  transações de 2026: **2.882 (24,0%)** são data pura (o fatiamento acerta), mas
+  **975 (8,1%)** são instante real entre **00:00 e 02:59 UTC**, onde o dia em SP
+  É o anterior e fatiar erraria pro outro lado. As duas têm volume.
+- **A regra:** hora exatamente `00:00:00` UTC ⇒ data pura, usa a parte da data.
+  Qualquer outra hora ⇒ instante real, converte pra `America/Sao_Paulo`.
+  As **452** linhas de Open Finance à meia-noite UTC também são data pura (o
+  próprio sync grava assim ao redistribuir parcelas) — não há falso positivo.
+- ⚠️ **Dois call sites não eram cosméticos:** `DashboardClient` e
+  `RelatoriosClient` agrupavam o **gráfico por dia** com
+  `new Date(tx.data).getDate()` — o gasto do dia inteiro ia pro dia anterior.
+  Use `diaDoMes()`.
+- ⚠️ **`new Date('YYYY-MM-DD')` é interpretado como UTC** e traz o bug de volta
+  pela porta dos fundos. Pra virar `Date`, use `dataLocal()`.
+- **Comparar instantes (`.getTime()`) para ordenar/filtrar continua certo** —
+  esses três call sites ficaram como estavam de propósito.
+- **`npm run eval:data-br`** trava a regra e roda com **`TZ=America/Sao_Paulo`
+  de propósito**: em UTC o bug não aparece e o eval passaria por acidente.
+
+---
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
