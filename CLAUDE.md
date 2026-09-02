@@ -1391,6 +1391,17 @@ codec — **todas medidas e todas certas**).
   é como se testa sem depender do estado do aparelho.
 - ⚠️ **Modo de Baixo Consumo do iOS bloqueia autoplay inline**, mesmo mudo.
   Nenhum código contorna; é a primeira coisa a checar num "não toca no iPhone".
+- ⚠️ **O OVERLAY ENGOLIA O TOQUE DEPOIS DE FICAR INVISÍVEL** (set/2026). Relato:
+  *"abri a Sora no celular e tive que clicar 3× no ícone da sidebar"* — e não
+  tinha nada a ver com a sidebar. `fim()` põe `opacity: 0`, mas o
+  `data-abertura` só cai **420ms depois** (o fade), e nesse intervalo o overlay
+  continua `fixed; inset: 0` no maior z-index do app **sem `pointer-events:
+  none`**. Invisível e cobrindo tudo. Hoje o `fim()` solta o ponteiro **antes**
+  de começar a sumir, e **tocar na abertura encerra a abertura**
+  (`pointerdown`, `once`) — quem tocou quer entrar no app, então vale mais
+  encerrar do que descartar o toque. Quem não toca vê a animação inteira.
+  **Regra:** overlay que some por opacidade solta `pointer-events` no MESMO
+  instante em que deixa de ser útil, nunca no fim da transição.
 
 ---
 
@@ -1684,6 +1695,38 @@ carregando no meio da rolagem"*.
 - **Padrão pra qualquer conteúdo pesado abaixo da dobra:** gate de visibilidade
   sozinho não basta no mobile — ou aquece no ocioso, ou o usuário encontra o
   esqueleto no meio do scroll.
+
+### 6. O gargalo do backend é a TRAVESSIA, não o processamento (set/2026)
+
+⚠️ **Corrigindo um número que estava errado aqui:** eu havia registrado "Render
+300–770ms contra ~100ms da Vercel". Medindo as **duas do mesmo lugar**, a Vercel
+também dá ~200ms — boa parte daquilo era latência de rede até a origem, não o
+Render.
+
+```
+Vercel .......................... mediana ~200ms   pior 226ms
+Render 404 (zero código nosso) .. mediana ~215ms   pior 652ms
+Render rota real (com auth) ..... mediana ~240ms   pior 671ms
+```
+
+- **A diferença entre o 404 e a rota real está dentro do ruído** → não há gordura
+  no processamento. Otimizar query/índice não move esse ponteiro. (É por isso que
+  a `sql/089` continua opcional.)
+- **O que o free tier custa são os PICOS:** ~1 em cada 5 requisições vai a 3×.
+- **O que sobra são as IDAS.** Render em **Oregon**, Supabase em **Ohio**: o
+  custo de uma consulta é a **travessia**, não o tamanho da query. Duas consultas
+  em série custam duas travessias mesmo sendo triviais. **É a única gordura real
+  do backend — procurar `await` sequencial independente, não query lenta.**
+- Feito nessa leva: `exigirPlano` **relia a mesma linha de `users`** que o `auth`
+  acabara de ler (agora o `auth` traz `plano`/`plano_valido_ate` junto e guarda a
+  linha crua em `req.authUser.row`; vale pra **toda** rota gated), e
+  `GET /api/metas/:phone` fazia em série duas consultas independentes
+  (`meta_aportes` e `investimentos` → `Promise.all`).
+  - ⚠️ Guardar a **linha crua**, não campos soltos: é o que distingue "plano é
+    null no banco" de "não li a linha".
+  - ⚠️ Em `Promise.all`, **cada consulta com o seu catch** — uma rejeição derruba
+    a outra, e a de investimentos pode falhar de propósito (leitura tolerante da
+    migration 147).
 
 ### ⚠️ O que NÃO fazer: portar /investimentos e /metas pra leitura direta
 
