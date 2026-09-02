@@ -7,6 +7,7 @@ import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
 import EditarTransacaoModal from '@/components/transacoes/EditarTransacaoModal';
 import EditarLoteModal, { type PatchLote } from '@/components/transacoes/EditarLoteModal';
+import RatearModal from '@/components/transacoes/RatearModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,8 +26,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
-  ChevronLeft, ChevronRight,
-} from 'lucide-react';
+  ChevronLeft, ChevronRight, SplitSquareHorizontal } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -75,6 +75,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [editTx, setEditTx] = useState<any | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [loteOpen, setLoteOpen] = useState(false);
+  const [ratearTx, setRatearTx] = useState<any | null>(null);
 
   // Filtros
   const [busca,    setBusca]    = useState('');
@@ -812,6 +813,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         onCloseMenu={() => setRowMenuOpen(null)}
                         onDeletar={() => handleDeletar(tx)}
                         onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
+                        onRatear={() => { setRatearTx(tx); setRowMenuOpen(null); }}
                         arquivada={!!tx.arquivada_por}
                         onArquivar={() => handleArquivar(tx, !tx.arquivada_por)}
                       />
@@ -875,6 +877,15 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             setTimeout(() => setImportToast(''), 5000);
             carregar();
           }}
+        />
+      )}
+
+      {ratearTx && phone && (
+        <RatearModal
+          phone={phone}
+          tx={ratearTx}
+          onClose={() => setRatearTx(null)}
+          onSuccess={() => { mTx(); mR(); }}
         />
       )}
 
@@ -970,7 +981,7 @@ function StatCard({
 
 function TransactionRow({
   tx, index, ocultar, compartilhado, selecionado, onToggleSelect,
-  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, arquivada, onArquivar,
+  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, arquivada, onArquivar,
 }: any) {
   // ⚠️ "Não considerar" (migration 146) entra AQUI, virando Transferência na
   // tela. É a mesma leitura que o pagamento de fatura nativo já tem hoje —
@@ -1145,6 +1156,7 @@ function TransactionRow({
           onCloseMenu={onCloseMenu}
           onDeletar={onDeletar}
           onEditar={onEditar}
+          onRatear={onRatear}
           arquivada={arquivada}
           onArquivar={onArquivar}
         />
@@ -1159,12 +1171,13 @@ function TransactionRow({
 // MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
 // overflow-x-auto da linha (que cria clipping em ambos os eixos).
 // ─────────────────────────────────────────────────────────────
-function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, arquivada, onArquivar }: {
+function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, arquivada, onArquivar }: {
   menuOpen: boolean;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onDeletar: () => void;
   onEditar: () => void;
+  onRatear?: () => void;
   arquivada?: boolean;
   onArquivar?: () => void;
 }) {
@@ -1202,6 +1215,15 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, a
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
               <Edit2 size={14} className="text-muted-foreground" /> Editar
             </button>
+            {/* Dividir por categoria (migration 151). Fica logo abaixo de
+                Editar porque é uma correção de classificação, não uma ação
+                destrutiva — mas SUBSTITUI a linha, e o modal avisa disso. */}
+            {onRatear && (
+              <button onClick={onRatear}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+                <SplitSquareHorizontal size={14} className="text-muted-foreground" /> Dividir
+              </button>
+            )}
             {/* ⚠️ Ocultar ≠ Excluir, e por isso fica ACIMA e sem cor de perigo.
                 A linha continua no banco: em conta de Open Finance apagar não
                 adianta, o próximo sync traz de volta. Some pros dois membros do

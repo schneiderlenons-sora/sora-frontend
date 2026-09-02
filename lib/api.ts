@@ -372,6 +372,14 @@ export const api = {
       req<{ inserted: number }>('/api/transacoes/bulk', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>
       req(`/api/transacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    // Divide o lançamento em N categorias (migration 151). SUBSTITUI a
+    // transação por partes que somam o mesmo valor — não há linha-pai, então
+    // nenhuma soma do painel muda. Regra e recusas em services/rateio.js,
+    // travadas em `npm run eval:rateio`.
+    ratear: (id: string, body: { phone: string; partes: Array<{ categoria: string; valor: number }> }) =>
+      req<{ ok: boolean; grupo: string; partes: number }>(`/api/transacoes/${id}/rateio`, {
+        method: 'POST', body: JSON.stringify(body),
+      }),
     // opts.parcelas='todas' → exclui a compra parcelada inteira (todas as parcelas).
     deletar: (id: string, phone?: string, opts?: { parcelas?: 'todas' }) => {
       const qs = new URLSearchParams();
