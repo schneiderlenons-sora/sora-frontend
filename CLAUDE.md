@@ -612,6 +612,33 @@ correções erradas na fatura de um cliente.
 - ⚠️ **O HTML É LEGÍVEL POR `curl`.** O CLAUDE.md dizia que "não lê, use
   browser" — está errado, o conteúdo vem no HTML servido.
 - Nomes: `credit-cards__installments.txt`, `bills__transactions.txt`, etc.
+- ⚠️ **A cópia estava PELA METADE: 35 de 51 páginas.** Faltavam `consents/resources`,
+  `consents/show`, `changelog`, `enums`, `alerts`, `institutions`, `rate-limits` e
+  mais. Foi essa lacuna que travou o diagnóstico do Banco Inter. O `_URLS.txt`
+  agora tem as 51 — reconferir contra o índice ao vivo de vez em quando.
+
+### `GET /consents/{id}/resources` — quem responde "por que faltou dado"
+
+O consentimento avisa `PARTIALLY_UNAVAILABLE_RESOURCES` mas **não diz QUAL**
+recurso. Esta rota diz: `type` + `status` de cada um, consultando a Celcoin **em
+tempo real**. Exposta em `/api/admin/of-debug` como `resources`, em todo foco
+(é uma chamada só). Cliente: `polpCelcoin.listarResources`.
+
+- ⚠️ `TEMPORARILY_UNAVAILABLE` **não é erro permanente** — a doc manda fazer
+  retry/polling antes de avisar o usuário. Só `UNAVAILABLE` é encerramento.
+- Só funciona com o consentimento em `AUTHORISED`.
+
+### Dois achados do changelog que ainda não exploramos
+
+- ⚠️ **`bill_forecast_date` (AAAA-MM), desde 19/08/2026** — o mês de faturamento
+  informado pelo EMISSOR, "sempre preenchido, inclusive para parcelas futuras e
+  lançamentos agendados". É exatamente o que `cicloFatura` + `parcelasPrevistas`
+  + `pertenceAFatura` reconstroem na mão. **Não usamos ainda** — vale medir
+  contra a nossa reconstrução antes de trocar.
+- ⚠️ **`bill_post_date` NUNCA é null**: vem a sentinela `"0001-01-01"` quando
+  ainda não há lançamento. Conferido: `dataDaFatura` a neutraliza por acaso (o
+  `delta > 7` dá 739.859 dias e cai na data da compra). Quem for usar o campo
+  direto **precisa** tratar a sentinela.
 
 ### O que os docs corrigiram das nossas suposições
 
