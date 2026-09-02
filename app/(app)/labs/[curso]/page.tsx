@@ -17,7 +17,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { TODOS_CURSOS } from '@/lib/labs-cursos';
 import { conteudoDoCurso, type Aula, type Bloco } from '@/lib/labs-conteudo';
@@ -67,7 +66,7 @@ export default function CursoPage() {
 
   if (!curso || !conteudo || !aula) {
     return (
-      <DashboardLayout>
+      <>
         <div className="max-w-md mx-auto py-20 text-center space-y-4">
           <BookOpen size={40} className="mx-auto text-muted-foreground" />
           <p className="text-lg font-bold text-foreground">Curso não encontrado</p>
@@ -79,7 +78,7 @@ export default function CursoPage() {
             <ArrowLeft size={15} /> Voltar ao Labs
           </Link>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -87,7 +86,7 @@ export default function CursoPage() {
   const ultima = indice === total - 1;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-3xl mx-auto pb-28">
 
         {/* ── Cabeçalho fixo: onde estou + quanto falta ─────────────── */}
@@ -209,7 +208,7 @@ export default function CursoPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

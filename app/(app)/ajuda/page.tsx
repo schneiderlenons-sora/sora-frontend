@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import VideosEDicas from '@/components/ajuda/VideosEDicas';
 import ComandosWhatsapp from '@/components/ajuda/ComandosWhatsapp';
 import { Lightbulb, MessageCircle } from 'lucide-react';
@@ -29,7 +28,7 @@ export default function AjudaPage() {
   const [aba, setAba] = useState<Aba>('dicas');
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-6xl mx-auto pb-20 space-y-5">
         <header>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Ajuda</h1>
@@ -64,6 +63,6 @@ export default function AjudaPage() {
 
         {aba === 'dicas' ? <VideosEDicas /> : <ComandosWhatsapp />}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

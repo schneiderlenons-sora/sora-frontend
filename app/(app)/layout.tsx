@@ -22,8 +22,22 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 // É o mesmo desenho já validado em `app/negocios/layout.tsx`, que passou por
 // exatamente este problema e foi corrigido primeiro.
 //
+// Hoje o grupo cobre as 21 rotas do painel. A primeira leva trouxe as 12 abas
+// de Finanças e o Grow; a segunda trouxe as que montavam o `DashboardLayout`
+// DENTRO da própria página — /planos, /configuracoes, /open-finance,
+// /comunidade, /reportar-bug, /agentes, /ajuda, /labs e /admin. Enquanto
+// estavam de fora, sair de uma aba do grupo pra uma delas remontava o shell
+// inteiro, que é o mesmo defeito, só que na fronteira do grupo.
+//
 // ⚠️ Aba nova deste painel entra AQUI DENTRO e NÃO declara `DashboardLayout`
 // nem `layout.tsx` próprio — aninhar dois shells traz o remount de volta.
+//
+// ⚠️ FICAM FORA DE PROPÓSITO:
+//   • `/negocios` — é painel IRMÃO, com shell próprio, e o `EmpresaProvider`
+//     precisa ficar POR FORA do `DashboardLayout` (a Sidebar consome esse
+//     contexto). Trazê-lo pra cá exigiria subir o provider pro shell de todo
+//     mundo, fazendo o app inteiro carregar empresas.
+//   • `/wrapped` — é tela cheia, nunca teve sidebar; entrar aqui GANHARIA uma.
 // =============================================================================
 export default function AppShellLayout({ children }: { children: React.ReactNode }) {
   return <DashboardLayout>{children}</DashboardLayout>;

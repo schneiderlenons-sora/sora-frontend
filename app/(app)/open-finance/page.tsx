@@ -10,7 +10,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
@@ -332,7 +331,7 @@ export default function OpenFinancePage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       {/* ⚠️ MESMO CONTAINER DAS OUTRAS ABAS (referência: /contas-bancarias).
           Era `max-w-3xl px-4`: estreito demais, o conteúdo ficava muito mais
           longe da sidebar que nas vizinhas, e o `px-4` ainda somava por cima
@@ -880,7 +879,7 @@ export default function OpenFinancePage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

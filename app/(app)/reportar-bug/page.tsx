@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api } from '@/lib/api';
 import MeusChamados from '@/components/suporte/MeusChamados';
 import {
@@ -56,7 +55,7 @@ export default function ReportarBugPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-2xl mx-auto px-4 pb-24 space-y-6">
 
         {/* Alternador problema / melhoria */}
@@ -207,6 +206,6 @@ export default function ReportarBugPage() {
           </p>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

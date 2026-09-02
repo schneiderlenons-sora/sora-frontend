@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -126,12 +125,12 @@ export default function ComunidadePage() {
   // ─────────────────────────────────────────────────────────
   if (!temAcesso) {
     return (
-      <DashboardLayout>
+      <>
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
           <HeroHeader title="Grupos" />
           <PaywallGrupos />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -143,7 +142,7 @@ export default function ComunidadePage() {
   const vagasRestantes = Math.max(0, (stats.limite_membros || limitePlanoTotal) - (stats.total_membros || membros.length));
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
 
         <HeroHeader
@@ -482,7 +481,7 @@ export default function ComunidadePage() {
           onConfirm={() => sairDoGrupo(confirmSair)}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
 import OpenFinancePainel from '@/components/admin/OpenFinancePainel';
@@ -272,8 +271,8 @@ export default function AdminPage() {
   useEffect(() => { if (admin) { const t = setTimeout(carregarUsers, q ? 300 : 0); return () => clearTimeout(t); } }, [admin, carregarUsers, q]);
   useEffect(() => { setMsg(''); }, [sel?.id]); // limpa o compositor ao trocar de usuário
 
-  if (loading || !perfil) return <DashboardLayout><div className="p-10 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div></DashboardLayout>;
-  if (!admin) return <DashboardLayout><div className="p-10 text-center text-muted-foreground">Acesso restrito.</div></DashboardLayout>;
+  if (loading || !perfil) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
+  if (!admin) return <div className="p-10 text-center text-muted-foreground">Acesso restrito.</div>;
 
   async function acao(action: string, extra: Record<string, unknown> = {}) {
     if (!sel) return;
@@ -323,7 +322,7 @@ export default function AdminPage() {
   const stripeBase = 'https://dashboard.stripe.com'; // troque p/ /test/... se estiver testando
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-6xl mx-auto px-4 pb-24 space-y-6">
 
         {/* Header */}
@@ -717,7 +716,7 @@ export default function AdminPage() {
           {toast}
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

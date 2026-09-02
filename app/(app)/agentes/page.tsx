@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import GrowHero from '@/components/grow/GrowHero';
 import AgenteCard from '@/components/agentes/AgenteCard';
 import AgenteDrawer from '@/components/agentes/AgenteDrawer';
@@ -53,7 +52,7 @@ export default function AgentesPage() {
   }, [prefs]);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-24 space-y-6">
         <GrowHero
           badge="Agentes"
@@ -146,7 +145,7 @@ export default function AgentesPage() {
           onClose={() => setAberto(null)}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

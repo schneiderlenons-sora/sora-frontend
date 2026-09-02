@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
@@ -197,7 +196,7 @@ function PlanosContent() {
   const temAssinatura = planoAtual !== 'inativo' && !!perfil;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-6xl mx-auto pb-24 space-y-8 px-4">
 
         {/* Banner de boas-vindas (vindo do signup com plano pré-selecionado) */}
@@ -557,18 +556,16 @@ function PlanosContent() {
         </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 
 export default function PlanosPage() {
   return (
     <Suspense fallback={
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 size={24} className="animate-spin text-muted-foreground" />
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+      </div>
     }>
       <PlanosContent />
     </Suspense>

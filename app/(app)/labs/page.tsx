@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import Link from 'next/link';
 import CursoCover from '@/components/labs/CursoCover';
 import { CATEGORIAS, DESTAQUES, TOTAL_CURSOS, TODOS_CURSOS, type LabCurso, type LabCategoria } from '@/lib/labs-cursos';
@@ -27,7 +26,7 @@ export default function SoraLabsPage() {
   }, [toast]);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-28 space-y-10">
 
         {/* ── HERO ─────────────────────────────────────────────── */}
@@ -130,7 +129,7 @@ export default function SoraLabsPage() {
           <span className="truncate">{toast}</span>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

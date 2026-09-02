@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
@@ -39,7 +38,7 @@ export default function ConfiguracoesPage() {
   ];
 
   return (
-    <DashboardLayout>
+    <>
       <div className="max-w-7xl mx-auto pb-20 space-y-6">
         {/* HERO HEADER */}
         <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-in border border-border/60"
@@ -107,7 +106,7 @@ export default function ConfiguracoesPage() {
           </section>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 
