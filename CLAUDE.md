@@ -1414,6 +1414,53 @@ Relato: *"transações lançadas hoje (01/09) aparecem com a data do dia anterio
 
 ---
 
+## Reserva de emergência e meta atrelada a investimento (set/2026)
+
+Relato de cliente premium: card "Sua reserva de emergência" em **R$ 0,00 ·
+CRÍTICO** tendo **R$ 79.836,29** num fundo DI. Três defeitos independentes.
+
+- ⚠️ **A flag nunca podia ser gravada.** `PUT /investimentos/:id` tem whitelist
+  `campos` e `is_reserva_emergencia` **não estava nela** — o campo era descartado
+  em silêncio e, sem outro campo junto, a rota ainda respondia **400 "Nada para
+  atualizar"**. Como a flag só era oferecida na CRIAÇÃO (e só pros tipos CDB,
+  Caixa e Reserva), **quem trouxe o investimento pelo Open Finance nunca teve
+  como montar a reserva** — e é a origem de praticamente todos.
+- ⚠️ **O vazio mandava fazer o impossível:** *"Edite um CDB de liquidez diária"*
+  — e não existe edição de investimento em lugar nenhum do painel. Agora a
+  própria aba Reserva marca e desmarca ("Adicionar à reserva").
+- ⚠️ **`GET /reserva/:phone` somava todo `tipo='Gasto'` cru**, sem o
+  `ehTransferencia` de `services/resumoTransacoes.js`. Pagamento de fatura é
+  `Gasto` + `transferencia`, então o dinheiro contava **duas vezes**: a compra no
+  cartão e a quitação. Medido: **40 dos 73 grupos** mudam de valor. No cliente
+  do relato, média **R$ 32.274,02 → R$ 15.094,83** e meta de 12 meses
+  **R$ 387.288,24 → R$ 181.138**. Sessenta mil reais de objetivo inexistente,
+  num card que já grita CRÍTICO em vermelho.
+
+### Meta atrelada a investimento — migration **147**
+
+- ⚠️ **Metade já existia e estava MORTA.** `POST /api/investimentos/metas`
+  gravava `investimento_id` junto de `nome`, `prazo_anos`, `taxa_anual` e
+  `aporte_mensal_sugerido` — **cinco colunas que não existem** em `metas`. Fazia
+  `const { data } = await ...insert()` **sem ler o `error`**, então respondia
+  **200 com `null`**. Mesma família do bug da migration 121. Hoje devolve **410**
+  explicando o caminho novo, em vez de mentir sucesso. As metas de verdade são
+  as de `routes/metas.js` (`/api/metas`).
+- **O vínculo mora em `investimentos.meta_id`, não em `metas.investimento_id`:**
+  assim N investimentos lastreiam 1 meta e cada investimento pertence a no
+  máximo uma — é o que impede o mesmo dinheiro de somar em duas metas.
+  `ON DELETE SET NULL`, nunca CASCADE.
+- ⚠️ **O total é somado na LEITURA** (`valor_investido`, `valor_total`), **nunca
+  gravado em `metas.valor_atual`** — aquela coluna é alimentada por
+  aporte/resgate, e escrever a soma nela deixaria o número inflado PARA SEMPRE
+  no instante em que alguém desvinculasse.
+- **Dupla contagem é PERMITIDA e AVISADA** (decisão do usuário): um investimento
+  pode compor a reserva E lastrear uma meta — são duas leituras da mesma
+  carteira. O card e a linha do seletor dizem isso, porque quem soma as duas
+  telas acharia que tem o dobro.
+- Modal via `createPortal` (o card da meta tem `backdrop-blur`).
+
+---
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
