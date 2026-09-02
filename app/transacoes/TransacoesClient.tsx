@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
 import EditarTransacaoModal from '@/components/transacoes/EditarTransacaoModal';
+import EditarLoteModal, { type PatchLote } from '@/components/transacoes/EditarLoteModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAuth } from '@/contexts/AuthContext';
@@ -73,6 +74,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
   const [editTx, setEditTx] = useState<any | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [loteOpen, setLoteOpen] = useState(false);
 
   // Filtros
   const [busca,    setBusca]    = useState('');
@@ -272,6 +274,41 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     } catch (e: any) {
       alert('Erro ao excluir: ' + (e.message || ''));
     }
+  }
+
+  // Aplica o MESMO patch a todas as selecionadas (otimista).
+  //
+  // ⚠️ Mesmo padrão do excluir logo abaixo, e pelos mesmos motivos: lotes de 20
+  // pra não derrubar o rate limit ao editar centenas, e `optimisticData` pra a
+  // lista mudar no toque em vez de esperar a rede.
+  //
+  // ⚠️ Só vão os campos que o usuário escolheu. O modal monta o patch e deixa
+  // de fora tudo que ficou em "não alterar" — mandar um campo vazio aqui
+  // sobrescreveria a categoria certa de centenas de linhas.
+  async function handleEditarSelecionados(patch: PatchLote) {
+    const ids = Array.from(selecionados);
+    if (!ids.length || !Object.keys(patch).length) return;
+    const alvo = new Set(ids);
+    await mTx(
+      async () => {
+        for (let i = 0; i < ids.length; i += 20) {
+          await Promise.all(ids.slice(i, i + 20).map(id => api.transacoes.editar(id, { ...patch, phone })));
+        }
+        return undefined;
+      },
+      {
+        optimisticData: (cur: any) => ({
+          ...(cur || { transacoes: [], total: 0 }),
+          transacoes: (cur?.transacoes || []).map((t: any) => (alvo.has(t.id) ? { ...t, ...patch } : t)),
+        }),
+        rollbackOnError: true,
+        populateCache: false,
+        revalidate: true,
+      },
+    );
+    setSelecionados(new Set());
+    // O resumo do mês (receitas/gastos/saldo) muda quando o status vira pago.
+    mR();
   }
 
   // Exclui todas as transações selecionadas de uma vez (otimista).
@@ -699,6 +736,11 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   Limpar
                 </button>
                 <span className="text-muted-foreground">·</span>
+                <button onClick={() => setLoteOpen(true)}
+                        className="text-xs font-semibold text-primary hover:underline">
+                  Editar
+                </button>
+                <span className="text-muted-foreground">·</span>
                 <button onClick={handleExcluirSelecionados}
                         className="text-xs text-red-500 hover:text-red-600 font-medium">
                   Excluir
@@ -836,6 +878,15 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         />
       )}
 
+      {loteOpen && phone && (
+        <EditarLoteModal
+          phone={phone}
+          quantidade={selecionados.size}
+          wallets={wallets}
+          onClose={() => setLoteOpen(false)}
+          onAplicar={handleEditarSelecionados}
+        />
+      )}
       {editTx && phone && (
         <EditarTransacaoModal
           tx={editTx}
