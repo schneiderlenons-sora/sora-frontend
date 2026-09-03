@@ -10,6 +10,7 @@ import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
 import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
 import { LoadingGateProvider } from '@/components/ui/LoadingGate';
+import ThemeColorSync from '@/components/layout/ThemeColorSync';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       storageKey="sora-theme"
       disableTransitionOnChange={false}
     >
+      {/* Mantém a faixa do home-indicator na cor da barra. Fica AQUI, dentro
+          do ThemeProvider, porque depende do tema resolvido — e fora do
+          DashboardLayout porque a meta é do documento inteiro, landing incluída. */}
+      <ThemeColorSync />
       <SWRConfig value={{ provider: localStorageProvider }}>
         <AuthProvider>
           <PaywallRedirect />

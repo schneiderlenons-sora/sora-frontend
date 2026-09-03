@@ -1,13 +1,20 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from 'next-themes';
+import { navPaleta } from '@/lib/nav-cores';
 import { Crown, Pencil, Eye } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { papel, perfil } = useAuth();
+  const { theme } = useTheme();
+  // `montado` evita hydration mismatch: no servidor não há tema resolvido.
+  const [montado, setMontado] = useState(false);
+  useEffect(() => { setMontado(true); }, []);
+  const paletaNav = navPaleta(theme, montado);
   const grupoNome = perfil?.grupo_ativo?.nome || '';
   const ehPessoal = /pessoal/i.test(grupoNome);
   // Drawer mobile (sidebar em tela cheia), aberto pelo ícone de perfil do BottomNav.
@@ -19,12 +26,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div
       className="flex h-dvh md:h-screen overflow-hidden"
-      // Fundo = --bg, MENOS a faixa do home-indicator (safe-area) que fica
-      // --bg-card, pra casar com o BottomNav (que é bg-card). No black mode
-      // --bg == --bg-card, então a faixa some sozinha; no desktop env()=0.
+      // Fundo = --bg, MENOS a faixa do home-indicator (safe-area), que recebe
+      // a cor da BARRA.
+      //
+      // ⚠️ Antes era `--bg-card`, "pra casar com o BottomNav (que é bg-card)".
+      // Quando a barra ganhou paleta própria (branca no claro, preta no black)
+      // esta linha ficou pra trás e apareceu um DEGRAU DE COR logo abaixo dela.
+      // Lendo de `lib/nav-cores`, a faixa acompanha a barra sozinha.
       style={{
         background:
-          'linear-gradient(to bottom, hsl(var(--bg)) calc(100% - env(safe-area-inset-bottom, 0px)), hsl(var(--bg-card)) calc(100% - env(safe-area-inset-bottom, 0px)))',
+          `linear-gradient(to bottom, hsl(var(--bg)) calc(100% - env(safe-area-inset-bottom, 0px)), ${paletaNav.superficie} calc(100% - env(safe-area-inset-bottom, 0px)))`,
       }}
     >
       <Sidebar mobileOpen={navOpen} onMobileClose={() => setNavOpen(false)} />

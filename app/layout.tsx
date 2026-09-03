@@ -6,6 +6,7 @@ import { HTML_LANG, normalizeLocale, type Locale } from '@/i18n/request';
 import './globals.css';
 import Providers from '@/components/providers';
 import InstallPwa from '@/components/pwa/InstallPwa';
+import { NAV_CORES } from '@/lib/nav-cores';
 import MetaPixel from '@/components/analytics/MetaPixel';
 import TikTokPixel from '@/components/analytics/TikTokPixel';
 import UtmifyPixel from '@/components/analytics/UtmifyPixel';
@@ -89,10 +90,18 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FAFAFA' },
-    { media: '(prefers-color-scheme: dark)',  color: '#09090B' },
-  ],
+  // ⚠️ ESTA É A COR DA BARRA INFERIOR, e não é coincidência: no PWA do iOS é o
+  // `theme-color` que pinta a faixa do home-indicator — a "área de segurança"
+  // logo abaixo da barra. Enquanto ele era #FAFAFA/#09090B e a barra virou
+  // branca/preta, aparecia um DEGRAU DE COR ali.
+  //
+  // ⚠️ E É UM VALOR SÓ, SEM `media`. A variante por `prefers-color-scheme`
+  // seguiria o tema do SISTEMA — mas o tema aqui é ESCOLHA DO USUÁRIO
+  // (`sora-theme`). Quem usasse o app no claro com o celular no escuro ganharia
+  // faixa preta embaixo de barra branca: a mesma divergência, por outra porta.
+  // Este é só o padrão (tema claro); quem acerta a cor de verdade é o
+  // `ThemeColorSync`, que a reescreve a partir do tema real.
+  themeColor: NAV_CORES.light.superficie,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

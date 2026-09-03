@@ -11,6 +11,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from 'next-themes';
 import { api } from '@/lib/api';
+import { navPaleta } from '@/lib/nav-cores';
 import QuickAddSheet from '@/components/dashboard/QuickAddSheet';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 
@@ -49,28 +50,6 @@ type Slot =
   | { tipo: 'link'; href: string; icon: any; label: string }
   | { tipo: 'menu'; icon: any; label: string };
 
-// ⚠️ A barra tem PALETA PRÓPRIA por tema, não `--bg-card`: no tema black
-// `--bg` e `--bg-card` são iguais, então ela sumiria dentro da página.
-//
-// ⚠️ E por isso a cor do ÍCONE anda junto com a da superfície. Barra branca com
-// ícone branco é conteúdo invisível — o par (fundo, texto) tem de ser trocado
-// inteiro, nunca só metade. É a regra `color-accessible-pairs`: 55% de preto
-// sobre branco e 55% de branco sobre preto ficam ambos acima de 4.5:1.
-const PALETA = {
-  light: {
-    superficie: '#FFFFFF',
-    item:       'rgba(17, 24, 39, 0.55)',
-    // Numa barra branca sobre página off-white, o fio é o que separa as duas.
-    fio:        'linear-gradient(180deg, rgba(0,0,0,0.10) 0px, rgba(0,0,0,0) 1.5px)',
-    sombraMais: '0 10px 24px -8px hsl(var(--primary) / 0.55), 0 3px 8px -3px rgba(0,0,0,0.22)',
-  },
-  black: {
-    superficie: '#000000',
-    item:       'rgba(255, 255, 255, 0.55)',
-    fio:        'linear-gradient(180deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0) 1.5px)',
-    sombraMais: '0 10px 24px -8px hsl(var(--primary) / 0.6), 0 3px 8px -3px rgba(0,0,0,0.5)',
-  },
-} as const;
 
 export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   const pathname = usePathname();
@@ -89,7 +68,10 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   // `mounted` evita hydration mismatch: no servidor não há tema resolvido.
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-  const paleta = PALETA[mounted && theme === 'black' ? 'black' : 'light'];
+  // ⚠️ A MESMA paleta que pinta a faixa de segurança abaixo da barra (o
+  // DashboardLayout lê daqui também). Foi a divergência entre os dois que
+  // criava o degrau de cor logo abaixo dela.
+  const paleta = navPaleta(theme, mounted);
 
   // No painel Negócios a barra leva às telas DO NEGÓCIO. Com os atalhos do app
   // pessoal, cada toque no mobile jogava o usuário pra fora do painel — o
