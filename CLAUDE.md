@@ -1386,6 +1386,28 @@ um **entalhe** embaixo dela; trocar de aba faz o entalhe **deslizar**.
   **4 destinos** (94px cada) e o "+" flutua acima, à direita.
 - ⚠️ **A bolha é `pointer-events-none`.** Ela passa da borda superior, então sem
   isso roubaria o toque — inclusive o do CONTEÚDO atrás da metade de cima dela.
+- ⚠️ **A BARRA AGE NO `pointerup`, NÃO NO `click`** — e esta é a causa raiz do
+  *"toco na aba e não abre; na segunda ou terceira vai"*, que sobreviveu a três
+  rodadas de correção. **No iOS, um toque dado enquanto a página ainda rola por
+  INÉRCIA é consumido pra parar a rolagem, e o `click` sintetizado nunca
+  acontece** — `pointerdown`/`pointerup` acontecem. Como `<Link>` depende de
+  `click`, o primeiro toque depois de rolar não fazia nada. Era isso que dava a
+  intermitência (dependia de ter rolado antes de tocar) e os 3 toques no menu.
+  - No **`pointerup`** e não no `down`: preserva o "arrastar pra fora cancela".
+  - O `<Link>` **continua link** (teclado, leitor de tela, nova aba). `jaNavegou`
+    evita navegação em dobro e é zerado no `pointerdown`, pra o teclado — que
+    não tem ponteiro — nunca cair no caminho de cancelamento.
+  - **Bolha otimista:** a fatia tocada assume antes de a rota chegar; senão o
+    toque parece ignorado mesmo quando funcionou.
+  - **Descartados com verificação:** `InstallPwa` usa Context sem DOM (não quebra
+    `position:fixed`), `touch-action: manipulation` já está no `html`, e o
+    portão de carregamento já estava em z-30.
+- **Cores por tema:** claro = barra **branca** com ícone escuro; black = barra
+  **preta** com ícone claro. ⚠️ O par (fundo, texto) troca **inteiro** — barra
+  branca com ícone branco é conteúdo invisível.
+- ⚠️ **Consequência assumida:** no tema claro a barra branca sobre a página
+  off-white deixa o **entalhe quase invisível** (3% de diferença). Ali quem
+  carrega a animação é a bolha, não o recorte.
 - **Superfície NEUTRA**, não o verde da sidebar: com fundo colorido a cor da
   marca não marcaria mais nada. Dois tons (light/black) porque no tema black
   `--bg` e `--bg-card` são iguais e a barra sumiria dentro da página.
