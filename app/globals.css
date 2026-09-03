@@ -874,3 +874,58 @@ html[data-abertura='on'],
 html[data-abertura='on'] body {
   overflow: hidden;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BARRA INFERIOR — o entalhe que segue a aba ativa
+   ═══════════════════════════════════════════════════════════════════════════
+
+   O entalhe é um BURACO DE VERDADE na superfície, feito com `mask-image`. Não
+   dá pra fazer com um círculo da cor do fundo por cima: a barra é `fixed` e o
+   conteúdo ROLA por baixo dela, então um disco opaco esconderia o conteúdo em
+   vez de revelá-lo. Máscara recorta de fato.
+
+   ⚠️ `@property` É O QUE PERMITE ANIMAR. Custom property comum não transiciona
+   — o navegador não sabe o tipo dela, então o valor SALTA. Registrando o tipo,
+   `--sora-notch` vira uma percentagem interpolável e o buraco DESLIZA de uma
+   aba pra outra. Sem suporte (navegador antigo), ela simplesmente salta: o
+   layout continua correto, só perde a suavidade.
+
+   ⚠️ O raio também é animado, e é ele que abre e fecha o entalhe. Alternar
+   `mask-image` entre `none` e o gradiente não anima — saltaria. Indo pra 0 o
+   buraco se fecha suavemente quando nenhuma aba da barra está ativa.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@property --sora-notch {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 50%;
+}
+@property --sora-notch-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.sora-nav-surface {
+  /* A mesma curva do "lift" do ícone (ver BottomNav): passar de leve do
+     destino e voltar é o que faz parecer peso, não interpolação. */
+  transition:
+    --sora-notch   460ms cubic-bezier(0.34, 1.32, 0.5, 1),
+    --sora-notch-r 320ms cubic-bezier(0.34, 1.32, 0.5, 1);
+  -webkit-mask-image: radial-gradient(
+    circle var(--sora-notch-r) at var(--sora-notch) 0,
+    transparent calc(var(--sora-notch-r) - 1.5px),
+    #000 var(--sora-notch-r)
+  );
+  mask-image: radial-gradient(
+    circle var(--sora-notch-r) at var(--sora-notch) 0,
+    transparent calc(var(--sora-notch-r) - 1.5px),
+    #000 var(--sora-notch-r)
+  );
+}
+
+/* Regra `reduced-motion` da ui-ux-pro-max: quem pediu menos movimento recebe a
+   mudança de estado na hora, sem o deslize. A informação (onde estou) continua
+   inteira — só o trajeto some. */
+@media (prefers-reduced-motion: reduce) {
+  .sora-nav-surface { transition: none; }
+}

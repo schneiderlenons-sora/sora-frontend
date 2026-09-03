@@ -204,6 +204,17 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
+  // Qual das duas formas da sidebar existe (ver o bloco no final do arquivo).
+  // `null` = ainda não sei — é o estado do servidor e da 1ª renderização.
+  const [ehDesktop, setEhDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const ler = () => setEhDesktop(mq.matches);
+    ler();
+    mq.addEventListener('change', ler);
+    return () => mq.removeEventListener('change', ler);
+  }, []);
+
   // Trava o scroll do conteúdo atrás enquanto o drawer está aberto (mobile).
   // Sem isso, arrastar na sidebar acaba rolando a página de baixo.
   useEffect(() => {
@@ -787,18 +798,46 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
 
   const sidebarStyle = { background: sidebarBg };
 
-  return (
-    <>
-      <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 shadow-xl transition-all duration-500" style={sidebarStyle}>
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ⚠️ UMA ÁRVORE SÓ — ANTES O `conteudo` ERA MONTADO DUAS VEZES.
+  //
+  // Ele aparecia no `<aside>` E no drawer. No mobile o `<aside>` é
+  // `hidden md:flex`, ou seja, `display:none` — mas o React MONTA E RENDERIZA
+  // a árvore inteira mesmo assim. Então o celular pagava a sidebar completa
+  // (~40 itens, avatar, switcher) o tempo todo, invisível, e ao tocar no menu
+  // montava uma SEGUNDA cópia inteira de uma vez. Era o "custa abrir".
+  //
+  // Agora renderiza só a que vale pro tamanho de tela. E no mobile o drawer
+  // fica SEMPRE montado, apenas deslocado pra fora: abrir vira um `translate`
+  // (composto na GPU, instantâneo) em vez de uma montagem.
+  //
+  // ⚠️ `ehDesktop` começa `null` de propósito. No servidor não existe
+  // viewport; se eu chutasse um valor, a primeira renderização do cliente
+  // poderia discordar e dar hydration mismatch. Com `null` os dois lados
+  // desenham o `<aside>` (que o CSS já esconde no mobile) e o efeito decide
+  // depois, com a medida real.
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (ehDesktop === false) {
+    return (
+      <div
+        className={`md:hidden fixed inset-0 z-[60] flex flex-col overscroll-contain
+                    transition-transform duration-300 ease-out motion-reduce:transition-none
+                    ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}`}
+        style={sidebarStyle}
+        // ⚠️ Fechado, ele continua no DOM — então precisa sair do alcance do
+        // toque E da árvore de acessibilidade. Sem isto eu criaria de novo o
+        // bug que acabei de corrigir: um painel invisível engolindo toque.
+        aria-hidden={!open}
+        inert={!open}
+      >
         {conteudo}
-      </aside>
+      </div>
+    );
+  }
 
-      {/* Drawer mobile — TELA CHEIA (aberto pelo ícone de perfil do BottomNav). */}
-      {open && (
-        <div className="md:hidden fixed inset-0 z-[60] flex flex-col animate-fade-in overscroll-contain" style={sidebarStyle}>
-          {conteudo}
-        </div>
-      )}
-    </>
+  return (
+    <aside className="hidden md:flex flex-col w-64 h-screen sticky top-0 shadow-xl transition-all duration-500" style={sidebarStyle}>
+      {conteudo}
+    </aside>
   );
 }
