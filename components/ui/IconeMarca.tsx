@@ -87,7 +87,10 @@ const MARCAS: Record<string, Marca> = {
   dropbox:           { si: 'dropbox' },
   'google one':      { si: 'googleone' },
   'google drive':    { si: 'googledrive' },
-  icloud:            { si: 'icloud' },
+  // ⚠️ `icloud` NÃO entra aqui de novo — já está na seção da Apple, e lá com
+  // `domain: 'apple.com'`. Esta linha existia em duplicata e, como em JS a
+  // ÚLTIMA chave vence, era ELA que valia: o iCloud ficava sem o domínio e
+  // perdia o fallback do Brandfetch quando o simple-icons falha.
   '1password':       { si: '1password' },
   bitwarden:         { si: 'bitwarden' },
   github:            { si: 'github' },

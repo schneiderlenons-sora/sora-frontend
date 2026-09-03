@@ -129,7 +129,7 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
             className="group relative aspect-[1919/864] w-full overflow-hidden bg-zinc-950 block cursor-zoom-in"
           >
             {falhou(ativo.id) ? (
-              <PlaceholderTema cor={ativo.hex} nome={ativo.nome} temaLabel={t('tema', { nome: ativo.nome })} emBreve={t('printEmBreve')} />
+              <PlaceholderTema cor={ativo.hex} temaLabel={t('tema', { nome: ativo.nome })} emBreve={t('printEmBreve')} />
             ) : (
               <img
                 key={ativo.id}
@@ -247,7 +247,16 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
           <div className="relative max-w-6xl w-full" onClick={(e) => e.stopPropagation()}>
             {falhou(ativo.id) ? (
               <div className="w-full aspect-[1919/864] max-h-[85dvh] rounded-2xl overflow-hidden ring-1 ring-white/10">
-                <PlaceholderTema cor={ativo.hex} nome={ativo.nome} />
+                {/* ⚠️ `temaLabel` e `emBreve` faltavam aqui, e é isso que o
+                    placeholder EXIBE. Sem eles as duas linhas de texto saíam
+                    `undefined` — ou seja, o card ampliado mostrava um círculo
+                    colorido e nada mais. Mesmos valores do card pequeno (linha
+                    132), pra os dois dizerem a mesma coisa. */}
+                <PlaceholderTema
+                  cor={ativo.hex}
+                  temaLabel={t('tema', { nome: ativo.nome })}
+                  emBreve={t('printEmBreve')}
+                />
               </div>
             ) : (
               <img
@@ -272,7 +281,11 @@ export default function Personalizacao({ ctaHref = '#pricing' }: { ctaHref?: str
 
 // Placeholder exibido enquanto o print da cor ainda não foi adicionado
 // (evita "imagem quebrada" no ar antes do upload dos arquivos).
-function PlaceholderTema({ cor, temaLabel, emBreve }: { cor: string; nome: string; temaLabel: string; emBreve: string }) {
+// ⚠️ `nome` SAIU do tipo. Ele era exigido e NUNCA usado (o corpo nem o
+// desestrutura) — é a props morta que fazia a assinatura mentir sobre o que o
+// componente precisa, e foi ela que disfarçou a falta de `temaLabel`/`emBreve`
+// no call site do zoom: quem lia "passei cor e nome" achava que estava completo.
+function PlaceholderTema({ cor, temaLabel, emBreve }: { cor: string; temaLabel: string; emBreve: string }) {
   return (
     <div
       className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6"
