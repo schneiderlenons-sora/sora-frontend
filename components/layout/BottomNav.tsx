@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { mutate } from 'swr';
 import {
   Home, List, Plus, BarChart2, User,
@@ -49,12 +49,28 @@ type Slot =
   | { tipo: 'link'; href: string; icon: any; label: string }
   | { tipo: 'menu'; icon: any; label: string };
 
-// ⚠️ A superfície é DIFERENTE do `--bg-card`: no tema black `--bg` e
-// `--bg-card` são iguais, então a barra sumiria dentro da página. Estes dois
-// valores existem pra ela continuar sendo uma superfície reconhecível nos dois
-// temas (regra `border-and-divider-visibility` / contraste por tema).
-const SUP_LIGHT = '#12141A';
-const SUP_BLACK = '#17181C';
+// ⚠️ A barra tem PALETA PRÓPRIA por tema, não `--bg-card`: no tema black
+// `--bg` e `--bg-card` são iguais, então ela sumiria dentro da página.
+//
+// ⚠️ E por isso a cor do ÍCONE anda junto com a da superfície. Barra branca com
+// ícone branco é conteúdo invisível — o par (fundo, texto) tem de ser trocado
+// inteiro, nunca só metade. É a regra `color-accessible-pairs`: 55% de preto
+// sobre branco e 55% de branco sobre preto ficam ambos acima de 4.5:1.
+const PALETA = {
+  light: {
+    superficie: '#FFFFFF',
+    item:       'rgba(17, 24, 39, 0.55)',
+    // Numa barra branca sobre página off-white, o fio é o que separa as duas.
+    fio:        'linear-gradient(180deg, rgba(0,0,0,0.10) 0px, rgba(0,0,0,0) 1.5px)',
+    sombraMais: '0 10px 24px -8px hsl(var(--primary) / 0.55), 0 3px 8px -3px rgba(0,0,0,0.22)',
+  },
+  black: {
+    superficie: '#000000',
+    item:       'rgba(255, 255, 255, 0.55)',
+    fio:        'linear-gradient(180deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0) 1.5px)',
+    sombraMais: '0 10px 24px -8px hsl(var(--primary) / 0.6), 0 3px 8px -3px rgba(0,0,0,0.5)',
+  },
+} as const;
 
 export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   const pathname = usePathname();
@@ -73,7 +89,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   // `mounted` evita hydration mismatch: no servidor não há tema resolvido.
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-  const superficie = mounted && theme === 'black' ? SUP_BLACK : SUP_LIGHT;
+  const paleta = PALETA[mounted && theme === 'black' ? 'black' : 'light'];
 
   // No painel Negócios a barra leva às telas DO NEGÓCIO. Com os atalhos do app
   // pessoal, cada toque no mobile jogava o usuário pra fora do painel — o
@@ -109,17 +125,45 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
     return melhor;
   }, [slots, pathname]);
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // ⚠️ A BARRA AGE NO PONTEIRO, NÃO NO CLIQUE. É a correção do "toco na aba e
+  // não abre; na segunda ou terceira vez vai".
+  //
+  // No iOS, um toque dado enquanto a página ainda rola por INÉRCIA é consumido
+  // pra PARAR a rolagem — e o `click` sintetizado nunca chega. `pointerdown` e
+  // `pointerup` chegam. Como `<Link>` depende de `click`, o primeiro toque
+  // depois de rolar simplesmente não fazia nada. Daí a intermitência: dependia
+  // de a pessoa ter rolado antes de tocar.
+  //
+  // Navego no `pointerup` (e não no `down`) de propósito: é o que preserva o
+  // "arrastar pra fora cancela", que todo tab bar nativo tem.
+  //
+  // O `<Link>` CONTINUA sendo um link de verdade — teclado, leitor de tela e
+  // abrir em nova aba seguem funcionando. `jaNavegou` evita a navegação em
+  // dobro quando o clique também chega, e é zerado no `pointerdown` pra que o
+  // teclado (que não tem ponteiro) nunca caia no caminho de cancelamento.
+  // ═════════════════════════════════════════════════════════════════════════
+  const router = useRouter();
+  const jaNavegou = useRef(false);
+
+  // Fatia que o dedo escolheu, antes de a rota chegar. Sem isso a bolha só
+  // sairia do lugar depois do servidor responder, e o toque pareceria ignorado
+  // mesmo quando funcionou.
+  const [otimista, setOtimista] = useState<number | null>(null);
+  useEffect(() => { setOtimista(null); }, [pathname]);
+
   const n = slots.length;
   const fatia = 100 / n;
-  const temAtivo = ativoIdx >= 0;
+  const idxVisual = otimista ?? ativoIdx;
+  const temAtivo = idxVisual >= 0;
   // Centro da fatia ativa, em % da largura da barra.
-  const centro = (ativoIdx + 0.5) * fatia;
+  const centro = (idxVisual + 0.5) * fatia;
 
   // ⚠️ Rota fora da barra (ex.: /metas, aberta pela sidebar) → SEM entalhe e
   // SEM bolha. Fingir que uma das quatro está ativa seria mentir sobre onde a
   // pessoa está; o entalhe fecha sozinho (raio → 0) em vez de sumir de golpe.
   const estiloSuperficie: React.CSSProperties & Record<string, string> = {
-    background: superficie,
+    background: paleta.superficie,
     ['--sora-notch']: `${temAtivo ? centro : 50}%`,
     ['--sora-notch-r']: temAtivo ? '34px' : '0px',
   };
@@ -146,7 +190,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
             className="sora-nav-surface absolute inset-0"
             style={{
               ...estiloSuperficie,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0) 1.5px)',
+              background: paleta.fio,
             }}
           />
 
@@ -164,7 +208,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
               // Curva com leve passagem do ponto — é ela que dá peso ao
               // movimento. Linear pareceria uma planilha animando.
               transitionTimingFunction: 'cubic-bezier(0.34, 1.32, 0.5, 1)',
-              transform: `translateX(${(temAtivo ? ativoIdx : Math.floor(n / 2)) * 100}%)`,
+              transform: `translateX(${(temAtivo ? idxVisual : Math.floor(n / 2)) * 100}%)`,
               opacity: temAtivo ? 1 : 0,
             }}
           >
@@ -180,7 +224,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
               }}
             >
               {temAtivo && (() => {
-                const s = slots[ativoIdx];
+                const s = slots[idxVisual];
                 const Icone = s.tipo === 'link' ? s.icon : User;
                 return <Icone size={22} strokeWidth={2.6} className="text-white" />;
               })()}
@@ -190,7 +234,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
           {/* ── Camada 3: os alvos de toque ──────────────────────────────── */}
           <div className="relative flex items-stretch" style={{ height: 62 }}>
             {slots.map((s, i) => {
-              const ativo = i === ativoIdx;
+              const ativo = i === idxVisual;
               // O conteúdo visível some quando a fatia está ativa: quem mostra
               // o ícone ali é a bolha. O rótulo continua no DOM pro leitor de
               // tela (`sr-only`) — sumir da tela não é sumir da semântica.
@@ -203,8 +247,8 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
                   }}
                   aria-hidden={ativo}
                 >
-                  <s.icon size={21} strokeWidth={2} className="text-white/55" />
-                  <span className="text-[10px] font-medium leading-none text-white/55">{s.label}</span>
+                  <s.icon size={21} strokeWidth={2} style={{ color: paleta.item }} />
+                  <span className="text-[10px] font-medium leading-none" style={{ color: paleta.item }}>{s.label}</span>
                 </span>
               );
 
@@ -213,9 +257,17 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
 
               if (s.tipo === 'menu') {
                 return (
-                  <button key="menu" onClick={onPerfil} aria-label={s.label} className={classes}>
+                  <button
+                    key="menu"
+                    aria-label={s.label}
+                    className={classes}
+                    // Mesmo motivo dos links: no zap do scroll por inércia o
+                    // clique some, e era isso que fazia o menu pedir 3 toques.
+                    onPointerDown={() => { jaNavegou.current = false; }}
+                    onPointerUp={() => { jaNavegou.current = true; onPerfil(); }}
+                    onClick={() => { if (jaNavegou.current) { jaNavegou.current = false; return; } onPerfil(); }}
+                  >
                     {miolo}
-                    {ativo && <span className="sr-only">{s.label}</span>}
                   </button>
                 );
               }
@@ -227,6 +279,13 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
                   aria-label={s.label}
                   aria-current={ativo ? 'page' : undefined}
                   className={classes}
+                  onPointerDown={() => { jaNavegou.current = false; setOtimista(i); }}
+                  onPointerUp={() => { jaNavegou.current = true; router.push(s.href); }}
+                  // Saiu de cima antes de soltar = desistiu. Devolve a bolha
+                  // pra fatia real, senão ela ficaria mentindo onde você está.
+                  onPointerCancel={() => setOtimista(null)}
+                  onPointerLeave={() => setOtimista(null)}
+                  onClick={(e) => { if (jaNavegou.current) { e.preventDefault(); jaNavegou.current = false; } }}
                 >
                   {miolo}
                   {ativo && <span className="sr-only">{s.label}</span>}
@@ -249,17 +308,19 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
             no centro ele voltaria a disputar espaço com as fatias 1 e 2. */}
         {!ehNegocios && (
           <button
-            onClick={() => setQuickOpen(true)}
             aria-label="Registrar lançamento"
-            className="absolute right-4 grid place-items-center rounded-[18px] text-white active:scale-90 transition-transform"
+            onPointerDown={() => { jaNavegou.current = false; }}
+            onPointerUp={() => { jaNavegou.current = true; setQuickOpen(true); }}
+            onClick={() => { if (jaNavegou.current) { jaNavegou.current = false; return; } setQuickOpen(true); }}
+            className="absolute right-4 grid place-items-center rounded-2xl text-white active:scale-90 transition-transform"
             style={{
-              width: 56, height: 56,
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 78px)',
+              width: 48, height: 48,
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)',
               background: 'linear-gradient(135deg, hsl(var(--primary)), #3dd68c)',
-              boxShadow: '0 12px 28px -8px hsl(var(--primary) / 0.6), 0 4px 10px -4px rgba(0,0,0,0.35)',
+              boxShadow: paleta.sombraMais,
             }}
           >
-            <Plus size={28} strokeWidth={2.8} />
+            <Plus size={24} strokeWidth={2.8} />
           </button>
         )}
       </nav>
