@@ -3,12 +3,25 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+// ⚠️ NÃO VOLTAR COM `typescript: { ignoreBuildErrors: true }`.
+//
+// Ele existia aqui e o custo apareceu: DOIS erros de tipo foram pro ar e ficaram
+// lá, porque o build não barrava e ninguém roda `tsc` à mão. Nenhum era teórico
+// — `IconeMarca` tinha CHAVE DUPLICADA no mapa de marcas (em JS a última vence,
+// então o iCloud perdia o fallback de logo) e `PlaceholderTema` recebia menos
+// props do que renderiza (duas linhas saíam `undefined` na tela).
+//
+// Como o push vai direto pra produção, sem esta checagem não existe NADA entre
+// um erro de tipo e o cliente. O projeto está em zero erros — foi o momento mais
+// barato que ia existir pra ligar.
+//
+// O preço, que é real: um erro de tipo passa a BLOQUEAR o deploy. Como o build
+// é rodado antes de subir, ele aparece na hora, não pela Vercel.
+//
+// A chave `eslint` saiu junto: o Next 16 a considera "no longer supported" e
+// avisava isso em TODO build ("Unrecognized key(s) in object: 'eslint'"). Era
+// config morta gerando ruído — o lint do build não existe mais nesta versão.
 const nextConfig = {
-  // Build de produção nao bloqueia em erros de TS/ESLint.
-  // VS Code continua mostrando erros normalmente em dev.
-  typescript: { ignoreBuildErrors: true },
-  eslint:     { ignoreDuringBuilds: true },
-
   experimental: {
     // Importar { Wallet, Plus, ... } de 'lucide-react' arrasta o barrel inteiro
     // (~1000 ícones) pro grafo de módulos. Isso reescreve pra import direto de
