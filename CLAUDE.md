@@ -2019,6 +2019,41 @@ regra virava `buscar` ou `resumo` — nunca `null`, então **nunca alcançava a 
   gatilho de `RE_TAREFA_NL`. Leitura defensável e melhor que o resumo de antes; se
   incomodar, tratar em `RE_NAO_TAREFA` do `grow.js`, não nesta regra.
 
+## Play Store (TWA) — o que já está pronto (set/2026)
+
+A Sora vai pra Play Store empacotada como **TWA**: o app Android abre a própria
+`www.forsora.com` em tela cheia. **iOS continua na PWA** — a Apple não entra
+nisso. Plano completo aprovado; a Fase 1 está feita.
+
+- **Ícones:** `sora-icon-192.png` (any) e `sora-icon-192-maskable.png`. O manifest
+  declarava 192 pra um arquivo de 512 — tamanho errado vira aviso no Lighthouse e
+  o Bubblewrap pode recusar. ⚠️ A **zona segura** do maskable foi MEDIDA: a marca
+  ocupa x 93–416 / y 104–419 em 512, e o corte do Android é 51–461. Cabe.
+- ⚠️ **O SW voltou a interceptar navegação — e isso já quebrou o PWA uma vez.**
+  Requisição de navegação tem `redirect: 'manual'`, e devolver por `respondWith`
+  uma resposta que veio de **redirect** é erro de protocolo ("This page couldn't
+  load"). A Sora redireciona muito (apex→www, `/`→`/dashboard`, locale, auth).
+  A correção é **reconstruir a resposta** sem a marca de redirect. Ao mexer no
+  `sw.js`, não remova isso.
+  - O `catch` só pega **falha de rede real**: 500/404 é resposta, e servir a
+    página de offline ali mentiria sobre o que aconteceu.
+  - `offline.html` é **autossuficiente** (CSS inline, SVG à mão, zero
+    requisição) — qualquer recurso externo falharia pelo mesmo motivo que a
+    trouxe à tela.
+- **assetlinks é ROTA** (`app/api/assetlinks`), servida em
+  `/.well-known/assetlinks.json` por rewrite. Lê `ANDROID_PACKAGE_NAME` e
+  `ANDROID_SHA256_FINGERPRINT` da Vercel, então a impressão digital entra sem
+  tocar em código. **404 enquanto não configurado**, nunca placeholder: um
+  assetlinks errado falha igual a um ausente, mas *parece* pronto.
+  - ⚠️ A impressão é a do **Play App Signing**, não a da keystore de upload.
+    Trocar as duas é o erro clássico, e o sintoma é a barra de endereço
+    continuar aparecendo, sem mensagem nenhuma.
+  - ⚠️ O host é **www**: o app redireciona apex→www, e se divergirem a
+    verificação falha em silêncio.
+- **Falta (só o dono faz):** conta de desenvolvedor, keystore, Bubblewrap, ficha
+  da loja, conta de teste pro revisor. E a **decisão de pagamento** — vender
+  assinatura dentro do app exige Play Billing.
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
