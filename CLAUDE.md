@@ -1698,6 +1698,43 @@ carregamento; modais (z-50) e drawer (z-[60]) seguem acima de tudo.
 - Mesma família do overlay da animação de abertura, que engolia toque por ficar
   `pointer-events` ativo durante o fade — ver a seção da animação.
 
+### 3E. ⚠️ Componente declarado DENTRO de componente remonta a cada render (set/2026)
+
+Relato: *"os itens da sidebar piscam toda vez que eu saio da aba da Sora e
+volto"*. Duas causas somadas.
+
+**1. A Sidebar remontava inteira a cada render.** `NavLink`, `SubHeader`,
+`Subgrupo` e `GroupHeader` eram declarados **no corpo** do componente. Função
+declarada no corpo é **recriada a cada render** → pro React é um **tipo de
+componente novo** → ele **desmonta e monta** a árvore. Com isso o
+`animate-[fade-in]` dos itens, que tem delay escalonado, **tocava de novo**.
+
+- ⚠️ **Não era só ao voltar pra aba:** a Sidebar usa `usePathname()` pro item
+  ativo, então re-renderiza a **cada navegação** — a barra era destruída e
+  recriada a **cada clique de aba**.
+- Hoje são **funções de render** (`navLink({...})`, não `<NavLink/>`): devolvem
+  os elementos direto na árvore de quem chama, sem identidade de componente pra
+  mudar. Hoistar pra fora resolveria igual, mas exigiria passar ~8 valores de
+  escopo como props por 4 níveis; **nenhuma das quatro usa hooks**, então a
+  função de render é equivalente e não reescreve a cascata.
+- ⚠️ Chamada dentro de `.map()`, o `key` precisa ir no elemento **devolvido** —
+  daí o parâmetro `chave`.
+- **Regra:** componente declarado dentro de outro componente é sempre remount.
+  Se tiver animação de entrada, vira piscada visível.
+
+**2. Voltar pra aba do navegador recarregava o perfil inteiro.** O
+`onAuthStateChange` do Supabase **dispara quando a aba volta ao foco** (ele
+revalida/renova o token aí), mesmo sem nada ter mudado. O callback fazia
+`setUser` com objeto **novo** (identidade diferente, conteúdo igual) + `/api/me`
++ `setPerfil` — e todo consumidor do contexto re-renderizava, a cada foco.
+
+- Hoje, mesmo usuário já em memória → preserva a identidade do objeto e sai sem
+  refazer nada. Usuário diferente ou perfil ausente seguem o caminho completo.
+- ⚠️ `perfilCarregadoDe` é **ref, não state**: é lido dentro do callback, que é
+  registrado uma vez só — com state leria eternamente o valor do 1º render.
+- ⚠️ O **`signOut` zera a ref**, senão um relogin do MESMO usuário cairia no
+  atalho e o painel abriria sem perfil.
+
 ### 4. `getUser()` duplicado por navegação
 
 O middleware valida o JWT com `supabase.auth.getUser()` — ida de REDE ao Supabase
