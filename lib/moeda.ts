@@ -11,9 +11,11 @@
 // projeto já pagou caro pra resolver.
 // =============================================================================
 
-export type Moeda = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'CHF' | 'CAD' | 'AUD' | 'JPY' | 'ARS' | 'NOK';
+export type Moeda = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'CHF' | 'CAD' | 'AUD' | 'JPY' | 'ARS' | 'MXN' | 'CLP' | 'NOK';
 
-export const MOEDAS: Record<Moeda, { nome: string; simbolo: string; bandeira: string }> = {
+// `casas` é opcional: só as moedas SEM centavos (iene, peso chileno) a
+// declaram. Quem não declara segue em 2.
+export const MOEDAS: Record<Moeda, { nome: string; simbolo: string; bandeira: string; casas?: number }> = {
   BRL: { nome: 'Real',              simbolo: 'R$',  bandeira: '🇧🇷' },
   USD: { nome: 'Dólar americano',   simbolo: 'US$', bandeira: '🇺🇸' },
   EUR: { nome: 'Euro',              simbolo: '€',   bandeira: '🇪🇺' },
@@ -21,8 +23,10 @@ export const MOEDAS: Record<Moeda, { nome: string; simbolo: string; bandeira: st
   CHF: { nome: 'Franco suíço',      simbolo: 'CHF', bandeira: '🇨🇭' },
   CAD: { nome: 'Dólar canadense',   simbolo: 'C$',  bandeira: '🇨🇦' },
   AUD: { nome: 'Dólar australiano', simbolo: 'A$',  bandeira: '🇦🇺' },
-  JPY: { nome: 'Iene',              simbolo: '¥',   bandeira: '🇯🇵' },
+  JPY: { nome: 'Iene',              simbolo: '¥', casas: 0,   bandeira: '🇯🇵' },
   ARS: { nome: 'Peso argentino',    simbolo: 'AR$', bandeira: '🇦🇷' },
+  MXN: { nome: 'Peso mexicano',     simbolo: 'MX$', bandeira: '🇲🇽' },
+  CLP: { nome: 'Peso chileno',      simbolo: 'CLP$', casas: 0, bandeira: '🇨🇱' },
   NOK: { nome: 'Coroa norueguesa',  simbolo: 'kr',  bandeira: '🇳🇴' },
 };
 
@@ -49,7 +53,12 @@ export function ehEstrangeira(m?: string | null): boolean {
 export function formatarMoeda(valor: number | null | undefined, m?: string | null): string {
   const cod = normalizarMoeda(m);
   const n = Number(valor) || 0;
-  const txt = n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // ⚠️ ESPELHO do services/moeda.js do backend — mexeu num, mexa no outro.
+  // `casas` só existe nas moedas SEM centavos (iene e peso chileno): fixar 2
+  // pra todo mundo mostrava ¥ 1.250,00 e CLP$ 1.250,00, valores que não
+  // existem nesses países.
+  const casas = MOEDAS[cod].casas ?? 2;
+  const txt = n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
   return `${MOEDAS[cod].simbolo} ${txt}`;
 }
 
