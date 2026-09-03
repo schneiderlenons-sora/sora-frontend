@@ -1961,6 +1961,38 @@ aparece na hora e o que atrasa é só o conteúdo (~330ms), não a navegação.
 - A chave `eslint` saiu junto: o Next 16 a considera *"no longer supported"* e
   avisava em TODO build. Config morta gerando ruído.
 
+## Áudio: valor com "R$" não virava lançamento (set/2026)
+
+Relato: *"a Sora não está fazendo os registros por áudio"*. Por texto
+funcionava. `"Gastei 3 reais no mercado com inter"` por áudio respondia
+**"Nenhum gasto encontrado para mercado com inter"** — resposta de CONSULTA.
+
+- ⚠️ **O que quebra é o PREFIXO `R$`, não a vírgula.** Medido no
+  `interpretarRapido`: `"Gastei 3,00 no mercado"` → `salvar`;
+  `"Gastei R$ 3,00 no mercado"` → `buscar`. E **`R$ 3,00` é exatamente como o
+  Whisper escreve valor falado** — por isso falhava só por áudio: ninguém
+  DIGITA "R$".
+- A normalização tirava a moeda **depois** do número (`"10 reais"` → `"10"`) e
+  nada tratava o prefixo. Sem número nu, a regra de SALVAR não casa e a frase
+  cai numa regra de consulta.
+- **Raio medido: 9 de 11 formatos de fala** não viravam lançamento, caindo de
+  três jeitos — `buscar` (o que o cliente viu), `resumo` (a regra `gastw+`
+  ampla) e `null`. Os dois primeiros são os graves: casam regra **errada** e
+  **nunca chegam na IA**.
+- ⚠️ **A correção é UMA linha na NORMALIZAÇÃO, não nas regras.** São dezenas de
+  regexes esperando número nu; remendar uma por uma deixa as outras quebradas.
+- ⚠️ **O lookahead de dígito impede estrago:** só remove o `R$` quando há
+  NÚMERO depois. Sem ele, um `$` solto em qualquer frase seria apagado.
+- ⚠️ `parseValor` já cuida do formato BR, então `R$ 1.250,00` chega como **1250**
+  e não 1,25 — travado em eval, porque era o jeito óbvio de errar.
+- ⚠️ **Mexer na normalização mexe em TODA regra**, então a regressão das
+  consultas entrou no eval junto. Suíte: 97 → **105 casos**.
+- ⚠️ **A rota da Meta transcrevia SEM o vocabulário.**
+  `transcreverAudio(src, phone, vocab)` usa os nomes das contas como dica de
+  grafia. A rota do Z-API sempre passou; a da Cloud API — a que roda hoje —
+  chamava com dois argumentos, então "Nubank Crédito" saía "no banco de
+  crédito". **Ao mexer em mídia, conferir as DUAS rotas.**
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
