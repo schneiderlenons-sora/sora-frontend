@@ -26,7 +26,26 @@ export function LoadingGateProvider({ children }: { children: React.ReactNode })
       {children}
       {count > 0 && (
         <div
-          className="fixed inset-0 md:left-64 z-40 flex items-center justify-center animate-[fade-in_200ms_ease-out_both]"
+          // ⚠️ z-30, ABAIXO DA NAVEGAÇÃO — e isso não é detalhe de estilo.
+          //
+          // Aqui era `z-40`, o MESMO do BottomNav, e o `md:left-64` só recua no
+          // DESKTOP. No mobile, portanto, este overlay cobria a tela INTEIRA,
+          // inclusive a barra de baixo e o botão que abre a sidebar. Enquanto
+          // qualquer `useApi` estivesse no primeiro carregamento, TODO toque na
+          // navegação era engolido: o usuário tocava em "Transações" duas, três
+          // vezes e nada acontecia, até o dado chegar e o portão sumir.
+          //
+          // Com z-30 o BottomNav (z-40) fica por cima: continua clicável e
+          // visível durante o carregamento. Os modais (z-50) e o drawer da
+          // sidebar (z-[60]) seguem acima de tudo, como antes.
+          //
+          // ⚠️ NÃO resolver subindo o BottomNav pra z-50: ele empataria com
+          // TODOS os modais do app, que são z-50, e passaria a disputar
+          // empilhamento com eles por ordem de DOM.
+          //
+          // Bloquear o CONTEÚDO continua sendo o trabalho deste portão (é o que
+          // evita o flash de zeros). Bloquear a NAVEGAÇÃO nunca foi.
+          className="fixed inset-0 md:left-64 z-30 flex items-center justify-center animate-[fade-in_200ms_ease-out_both]"
           style={{ background: 'hsl(var(--bg))' }}
         >
           <SoraLoader />
