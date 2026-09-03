@@ -1408,6 +1408,26 @@ um **entalhe** embaixo dela; trocar de aba faz o entalhe **deslizar**.
 - ⚠️ **Consequência assumida:** no tema claro a barra branca sobre a página
   off-white deixa o **entalhe quase invisível** (3% de diferença). Ali quem
   carrega a animação é a bolha, não o recorte.
+- ⚠️ **A COR DA BARRA VIVE EM `lib/nav-cores.ts` — FONTE ÚNICA, e por quê.**
+  A **faixa do home-indicator** (a "área de segurança" abaixo da barra) **não é
+  pintada pela barra**. Quem a pinta são dois pedaços de código nosso:
+  - o **`themeColor`** do `app/layout.tsx` (no PWA do iOS é ele que colore a
+    faixa) — era `#FAFAFA`/`#09090B`;
+  - o **gradiente do `DashboardLayout`**, que a pintava com `--bg-card`.
+  Enquanto a barra era `bg-card` os três coincidiam **por acaso**; quando ela
+  ganhou paleta própria, apareceu um **degrau de cor** logo abaixo dela. Hoje os
+  três leem do mesmo módulo.
+- ⚠️ **`themeColor` NÃO usa `media`.** `prefers-color-scheme` segue o tema do
+  **sistema**, e aqui o tema é **escolha do usuário** (`sora-theme`) — no claro
+  com o celular no escuro dava faixa preta sob barra branca.
+  `components/layout/ThemeColorSync.tsx` reescreve a meta pelo tema REAL e
+  **remove o atributo `media`** das existentes. Ele mora em `providers.tsx`
+  (dentro do ThemeProvider, fora do DashboardLayout — a meta é do documento) e
+  devolve `null`: wrapper com estilo em volta do app inteiro quebra
+  `position: fixed` sem avisar.
+- **A faixa NÃO tem como sumir:** o iOS a reserva pro home indicator e o app já
+  usa `viewport-fit: cover`. O possível é pintá-la igual à barra — aí ela deixa
+  de existir aos olhos.
 - **Superfície NEUTRA**, não o verde da sidebar: com fundo colorido a cor da
   marca não marcaria mais nada. Dois tons (light/black) porque no tema black
   `--bg` e `--bg-card` são iguais e a barra sumiria dentro da página.
