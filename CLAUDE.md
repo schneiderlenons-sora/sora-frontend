@@ -369,6 +369,27 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Extrato de conta bancária** (`components/contas/DetalhesContaModal.tsx`): clicar na caixa "Saldo atual" do card em `/contas-bancarias` abre um modal com saldo, navegação por mês, entradas/saídas/saldo-do-mês, saídas por categoria e movimentações (+entrada verde / −saída vermelha). Espelha o `DetalhesCartaoModal` mas mostra os DOIS fluxos (débito sai da conta). Casa transações por `carteira_nome`.
 - **Excluir conta com transações** (`components/contas/ExcluirContaModal.tsx` + backend `DELETE /wallets/:id`): antes deixava transações órfãs; agora, se a conta tem lançamentos, o backend responde 409 e o painel pergunta **mover pra outra conta** ou **excluir junto** (usado em contas-bancarias E cartao-de-credito). Ver memória `project-carteira-fantasma`.
 - **Prevenção de conta-fantasma** (backend `handlers/transacoes.js`): `resolverCarteiraReal()` (exato→sem ruído→palavra→fuzzy Levenshtein) casa a conta citada pela IA com uma wallet real; se não achar e o user citou conta, PERGUNTA de qual foi (nº ou nome). Guardrail no import (`routes/transacoes.js`) reconcilia `carteira_nome` → 'Dinheiro' se não existir. "quiosque" → Alimentação no `categorizar.js`.
+- ⚠️ **A ENTRADA ERA SÓ METADE — as SAÍDAS também criavam fantasma** (set/2026).
+  Relato: *"os lançamentos do WhatsApp não estão sincronizando"*. Medido na base
+  (484 carteiras, 14.740 transações): **20 transações órfãs, 10 nomes fantasma,
+  9 grupos**. E o padrão entregou a causa — o nome fantasma mais comum é
+  **"Dinheiro"**, que é o **fallback que o próprio código escreve**.
+  `transacoes.carteira_nome` é TEXTO, não FK: nada no banco impede o órfão, e a
+  linha órfã não mexe em saldo, não aparece no extrato da conta e some de
+  qualquer filtro por conta — pro usuário, "sumiu".
+  - **`services/carteiraGarantida.js`** (novo) concentra a regra. Comparação
+    **normalizada** (sem acento/caixa) porque o resto casa por `ilike`; falha de
+    LEITURA **não** cria carteira (criar às cegas duplicaria a conta).
+  - Três portas fechadas: o **cron de recorrências** (`jobs/index.js`, 2 inserts)
+    gravava `rec.carteira || 'Dinheiro'` **sem nunca criar a carteira** — era a
+    maior fonte; **`moverCarteira`** (`handlers/pendentes.js`) ajustava saldo só
+    se a carteira existisse mas gravava o nome **incondicionalmente**; e
+    `handlers/transacoes.js` criava, porém **descartava o erro** do upsert.
+  - ⚠️ Quando não dá pra garantir a carteira, a transação **fica na conta antiga**
+    (real) — e o **estorno de saldo já aplicado é desfeito** antes de sair, senão
+    a falha deixa o saldo da conta antiga errado, estrago maior que não mover.
+  - ⚠️ **Ao criar caminho novo que grave `carteira_nome`, use o helper.** O
+    guardrail do POST do painel e o do import cobrem só a ENTRADA.
 - **Fix "phone obrigatório" no Grow** (backend `routes/grow.js`, `saude.js`, `dados.js`): `requireGrow`/`requirePremiumGrow` NÃO exigem mais `phone` (o usuário vem do JWT via `req.authUser.id`); antes editar tarefa/consulta/Drive dava 400.
 - **Fix CLS na landing** (`components/landing/SocialProof.tsx`): depoimentos empilhados em grid ([grid-area:1/1]) + altura fixa dos avatares → sem pulo ao trocar de depoimento.
 - **Ícone da PWA no iOS** (`app/layout.tsx`): `apple-touch-icon` agora é `/sora-icon.png` (verde full-bleed) em vez de `/brands/sora.png` (círculo transparente → borda branca). iOS precisa REINSTALAR o PWA pra atualizar o ícone.
