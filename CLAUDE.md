@@ -1376,10 +1376,27 @@ um **entalhe** embaixo dela; trocar de aba faz o entalhe **deslizar**.
 - ⚠️ **`@property` é o que permite ANIMAR.** Custom property comum não
   transiciona: o valor salta. Registrando o tipo, `--sora-notch` vira
   percentagem interpolável. Sem suporte, só salta (layout intacto).
-- ⚠️ **O RAIO também é animado.** Alternar `mask-image` entre `none` e o
-  gradiente não anima — o entalhe **fecha** (raio → 0) quando a rota não está na
-  barra. E ela fica **sem bolha** nesse caso: fingir uma aba ativa seria mentir
-  sobre onde a pessoa está.
+- ⚠️ **O RAIO NUNCA VAI A ZERO — e isso é a correção de um bug que apagou a
+  barra inteira no iOS.** `radial-gradient(circle 0px …)` é **degenerado**, e os
+  motores discordam: medido lado a lado numa bancada, o **Chromium desenha a
+  superfície inteira** e o **WebKit do iOS trata como transparente e APAGA
+  TUDO**. Em rota fora da barra (onde eu fechava o entalhe com raio 0) sobravam
+  só os ícones — que ficam noutra camada, sem máscara — e o conteúdo da página
+  passava por baixo. **Era também a causa do "+ duplicado":** com a barra
+  transparente, botões que sempre estiveram ATRÁS dela ficaram à vista.
+  - Hoje o raio é fixo em 34px e o buraco sai de cena pela **posição** (−30%,
+    fora do elemento). Gradiente sempre válido, e a transição continua animando.
+  - **Regra:** nunca leve um `radial-gradient` de máscara a raio 0 pra
+    "desligá-lo". Tire-o de cena pela posição.
+- ⚠️ **Nada pode nascer em `bottom-6` numa tela com a barra.** A barra tem
+  **62px + safe-area**; elementos a 24px do fundo ficam ATRÁS dela e viram
+  **inalcançáveis** (foi o caso de 4: toasts de transações/admin/equipe e o FAB
+  de hábitos). Use
+  `bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:bottom-6`.
+- ⚠️ **Não criar FAB de página no canto inferior direito.** Ali mora o "+"
+  global. O de hábitos era verde, com ícone `Plus`, no mesmo lugar —
+  indistinguível, e o relato foi *"o botão + aparece duplicado"*. Ação de página
+  vai em botão com **rótulo** no topo (`primary-action`).
 - ⚠️ **O "+" FICA FORA DA BARRA, e isso foi MEDIDO.** Ele era a fatia do meio;
   com 5 fatias em 375px cada uma tem 75px, e entalhe (68px) + botão (52px) não
   convivem lado a lado — sobrava um fiapo de 15px e lia como defeito. Hoje são
