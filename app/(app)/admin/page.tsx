@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
 import OpenFinancePainel from '@/components/admin/OpenFinancePainel';
+import AfiliadosPainel from '@/components/admin/AfiliadosPainel';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -238,7 +239,7 @@ export default function AdminPage() {
   const router = useRouter();
   const admin = isAdminEmail(perfil?.email);
 
-  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance'>('users');
+  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance' | 'afiliados'>('users');
   const [ov, setOv] = useState<Overview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
@@ -415,7 +416,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60 w-fit">
-          {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone]] as const).map(([id, label, Icon]) => (
+          {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone], ['afiliados', 'Afiliados', Handshake]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
                     className={`inline-flex items-center gap-1.5 px-4 h-9 rounded-xl text-sm font-bold transition-all ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               <Icon size={14} /> {label}
@@ -429,7 +430,9 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === 'comunicados' ? (
+        {tab === 'afiliados' ? (
+          <AfiliadosPainel />
+        ) : tab === 'comunicados' ? (
           <Comunicados flash={flash} />
         ) : tab === 'openfinance' ? (
           <OpenFinancePainel />

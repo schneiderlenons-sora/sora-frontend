@@ -154,8 +154,8 @@ export const SECOES: SubgrupoNav[] = [
       { href: '/reportar-bug?aba=sugestao', label: 'Novidades e sugestões', icone: 'Lightbulb', externa: true },
       // Abas que ainda não existem: aparecem pra dar noção do todo, mas não
       // navegam. 404 é pior que "em breve" — mesma regra do `negocios-nav`.
-      { href: '/indique',   label: 'Indique e ganhe', icone: 'Share2',    breve: true },
-      { href: '/afiliados', label: 'Seja afiliado',   icone: 'Megaphone', breve: true },
+      { href: '/indique',   label: 'Indique e ganhe', icone: 'Share2' },
+      { href: '/afiliados', label: 'Seja afiliado',   icone: 'Megaphone' },
     ],
   },
 ];
