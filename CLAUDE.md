@@ -1829,6 +1829,25 @@ aparece na hora e o que atrasa é só o conteúdo (~330ms), não a navegação.
 
 ---
 
+## ⚠️ Erro de tipo BARRA o deploy (set/2026)
+
+`next.config.ts` **não tem mais** `typescript: { ignoreBuildErrors: true }`.
+**Não voltar com ele.**
+
+- Ele custou **dois bugs em produção**, achados só ao rodar `tsc` à mão:
+  `IconeMarca` tinha **chave duplicada** no mapa de marcas (em JS a última
+  vence, então o iCloud perdia o fallback de logo) e `PlaceholderTema` recebia
+  **menos props do que renderiza** (duas linhas saíam `undefined` na tela).
+- Como o push vai **direto pra produção**, sem a checagem não havia nada entre
+  um erro de tipo e o cliente.
+- **O preço:** erro de tipo **bloqueia o deploy**. Rodar `npm run build` antes
+  de subir mostra o erro na hora, em vez de descobrir pela Vercel.
+- ⚠️ Ao mexer numa flag assim, **provar que ela faz efeito**: criei um arquivo
+  com `const numero: number = 'string'`, o build falhou com exit 1, removi e
+  voltou a exit 0. "Tirei a flag" não prova que a checagem roda.
+- A chave `eslint` saiu junto: o Next 16 a considera *"no longer supported"* e
+  avisava em TODO build. Config morta gerando ruído.
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
