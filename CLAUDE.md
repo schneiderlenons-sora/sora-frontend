@@ -1364,6 +1364,52 @@ A Sora migrou do **Z-API (não-oficial)** pra **WhatsApp Cloud API OFICIAL da Me
 
 ---
 
+## Barra inferior (mobile) — entalhe que segue a aba ativa (set/2026)
+
+`components/layout/BottomNav.tsx` + o bloco `.sora-nav-surface` no `globals.css`.
+A aba ativa **sobe** pra fora da barra dentro de um círculo e a superfície abre
+um **entalhe** embaixo dela; trocar de aba faz o entalhe **deslizar**.
+
+- ⚠️ **O entalhe é um BURACO de verdade (`mask-image`), não um círculo por cima.**
+  A barra é `fixed` e o conteúdo **rola por baixo** dela — um disco da cor do
+  fundo esconderia o conteúdo em vez de revelá-lo.
+- ⚠️ **`@property` é o que permite ANIMAR.** Custom property comum não
+  transiciona: o valor salta. Registrando o tipo, `--sora-notch` vira
+  percentagem interpolável. Sem suporte, só salta (layout intacto).
+- ⚠️ **O RAIO também é animado.** Alternar `mask-image` entre `none` e o
+  gradiente não anima — o entalhe **fecha** (raio → 0) quando a rota não está na
+  barra. E ela fica **sem bolha** nesse caso: fingir uma aba ativa seria mentir
+  sobre onde a pessoa está.
+- ⚠️ **O "+" FICA FORA DA BARRA, e isso foi MEDIDO.** Ele era a fatia do meio;
+  com 5 fatias em 375px cada uma tem 75px, e entalhe (68px) + botão (52px) não
+  convivem lado a lado — sobrava um fiapo de 15px e lia como defeito. Hoje são
+  **4 destinos** (94px cada) e o "+" flutua acima, à direita.
+- ⚠️ **A bolha é `pointer-events-none`.** Ela passa da borda superior, então sem
+  isso roubaria o toque — inclusive o do CONTEÚDO atrás da metade de cima dela.
+- **Superfície NEUTRA**, não o verde da sidebar: com fundo colorido a cor da
+  marca não marcaria mais nada. Dois tons (light/black) porque no tema black
+  `--bg` e `--bg-card` são iguais e a barra sumiria dentro da página.
+- **Método:** o desenho foi conferido numa bancada HTML isolada com Playwright a
+  375px antes de ir pro componente. Foi ela que mostrou a colisão do "+".
+
+## Sidebar: o `conteudo` era montado DUAS vezes (set/2026)
+
+Relato: *"custa abrir a sidebar"*. `{conteudo}` aparecia no `<aside>` **e** no
+drawer. No mobile o `<aside>` é `hidden md:flex` — `display:none`, mas o React
+**monta e renderiza a árvore inteira mesmo assim**. O celular pagava a sidebar
+completa (~40 itens) o tempo todo, invisível, e ao tocar no menu montava uma
+**segunda cópia** de uma vez.
+
+- Hoje renderiza **só a forma que vale pro tamanho de tela**, e no mobile o
+  drawer fica **sempre montado, deslocado pra fora**: abrir virou um `translate`
+  (composto na GPU) em vez de uma montagem.
+- ⚠️ `ehDesktop` começa **`null`** de propósito: no servidor não existe viewport,
+  e chutar um valor daria hydration mismatch. Os dois lados desenham o `<aside>`
+  e o efeito decide depois, com a medida real.
+- ⚠️ Fechado, o drawer **continua no DOM** — então leva `aria-hidden` **e**
+  `inert`. Sem isso eu recriaria o bug do portão de carregamento: um painel
+  invisível engolindo toque.
+
 ## Responsividade mobile — regras aplicadas
 
 - **Sidebar:** botão fechar com `safe-area-inset-top` + toque 44pt
