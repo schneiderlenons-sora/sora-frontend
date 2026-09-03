@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -107,6 +107,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  // De qual usuário é o perfil que já está em memória (null = nenhum).
+  // Ref, não state, de propósito: é lido DENTRO do callback do
+  // `onAuthStateChange`, que é registrado uma vez só — com state ele leria
+  // sempre o valor da primeira renderização.
+  const perfilCarregadoDe = useRef<string | null>(null);
 
   // Carrega o perfil pelo SERVIDOR (/api/me): lê a sessão via cookie + service
   // role. É confiável no F5 — o caminho client-side (RLS + sessão ainda
@@ -127,6 +132,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPerfil(p);
       setPapel((pap as Papel) || 'admin');
       salvarPerfilCache(_u.id, p); // revalidou → atualiza o cache pra próxima abertura
+      // De quem é o perfil que está em memória. É o que permite ao
+      // `onAuthStateChange` saber que não há nada a recarregar quando ele
+      // dispara só porque a aba voltou ao foco — ver o comentário lá embaixo.
+      perfilCarregadoDe.current = _u.id;
     } catch (e) {
       if (tentativa < MAX) {
         await new Promise((r) => setTimeout(r, 500));
@@ -171,10 +180,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setUser(session?.user ?? null);
-        validarCache(session?.user ?? null);
-        if (session?.user) await carregarPerfil(session.user);
-        else setPerfil(null);
+        const novo = session?.user ?? null;
+
+        // ⚠️ ESTE CALLBACK DISPARA QUANDO A ABA VOLTA AO FOCO. O supabase-js
+        // revalida/renova o token nesse momento e emite o evento — mesmo que
+        // NADA tenha mudado, com a mesma sessão e o mesmo usuário.
+        //
+        // Antes, cada volta pra aba da Sora fazia: `setUser` com um objeto NOVO
+        // (identidade diferente, mesmo conteúdo) + um `/api/me` + `setPerfil`
+        // com outro objeto novo. Todo consumidor do contexto re-renderizava —
+        // e a Sidebar PISCAVA, porque os componentes internos dela são
+        // recriados a cada render (ver o comentário em Sidebar.tsx).
+        //
+        // Nada aqui é sobre segurança: se o usuário mudou, ou se ainda não há
+        // perfil em memória, o caminho completo roda igual a antes.
+        const mesmoUsuario = !!novo && perfilCarregadoDe.current === novo.id;
+
+        // Preserva a IDENTIDADE do objeto quando é o mesmo usuário — trocar por
+        // um objeto equivalente re-renderiza o app inteiro sem motivo.
+        setUser((atual) => (mesmoUsuario && atual ? atual : novo));
+
+        if (mesmoUsuario) { finalizar(); return; }
+
+        validarCache(novo);
+        if (novo) await carregarPerfil(novo);
+        else { setPerfil(null); perfilCarregadoDe.current = null; }
         finalizar();
       }
     );
@@ -219,6 +249,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut();
     setPerfil(null);
+    // ⚠️ Zera junto com o perfil. Sem isto, um relogin do MESMO usuário cairia
+    // no atalho do `onAuthStateChange` ("já tenho o perfil dele") e o painel
+    // abriria sem perfil nenhum — o signOut acabou de descartá-lo.
+    perfilCarregadoDe.current = null;
     limparCacheSWR();    // não deixa dado financeiro do usuário no localStorage
     limparPerfilCache(); // idem pro perfil (nome/plano/email) — PC compartilhado
     router.push('/login');

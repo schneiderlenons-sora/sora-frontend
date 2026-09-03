@@ -265,7 +265,25 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // O chip do ativo INVERTE (branco sólido, ícone na cor da marca): é o único
   // ponto em que a marca aparece como matiz, e como é a própria `--primary`
   // nunca briga com o fundo, em nenhuma das 6 paletas nem no tema black.
-  function NavLink({ item, grow = false }: { item: ItemNav; grow?: boolean }) {
+  // ⚠️ FUNÇÃO DE RENDER, NÃO COMPONENTE — e a diferença aqui é visível.
+  //
+  // Enquanto isto era `<NavLink/>`, o React via um TIPO NOVO a cada render da
+  // Sidebar (a função é recriada junto com o corpo do componente). Tipo novo =
+  // desmonta e monta de novo, então o `animate-[fade-in]` dos itens TOCAVA
+  // OUTRA VEZ. E a Sidebar re-renderiza a cada navegação (usa `usePathname`
+  // pro item ativo) — ou seja, a barra piscava a CADA clique de aba.
+  //
+  // Chamada como função (`{navLink({...})}`), ela devolve os elementos direto
+  // na árvore de quem chama: não existe identidade de componente pra mudar, e
+  // o React só reconcilia o que de fato mudou.
+  //
+  // ⚠️ Hoistar pra fora do componente também resolveria, mas exigiria passar
+  // ~8 valores de escopo (tema, gates, router, phone) como props em cascata.
+  // Como nenhuma destas usa hooks, virar função de render é equivalente e não
+  // reescreve a cascata inteira.
+  //
+  // `chave` existe porque em `.map()` o key precisa ir no elemento devolvido.
+  function navLink({ item, grow = false, chave }: { item: ItemNav; grow?: boolean; chave?: string }) {
     const { href, label, gate, badge, breve, externa } = item;
     const Icon = ICONES_APP[item.icone] || Sparkles;
 
@@ -278,6 +296,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     if (breve) {
       return (
         <span
+          key={chave}
           aria-disabled="true"
           title={`${label} — em breve`}
           className="flex items-center gap-3 pl-2 pr-2 rounded-xl text-[13.5px] text-white/40 cursor-default select-none"
@@ -309,6 +328,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
 
     return (
       <Link
+        key={chave}
         href={destino}
         // Hover no desktop prefetcha ROTA + DADOS daquela aba → o clique já
         // encontra tudo pronto. No mobile NÃO: prefetch no touchstart adiciona
@@ -356,7 +376,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
 
   // ── Cabeçalho de subgrupo: ponto de cor + rótulo ──
   // O ponto é decorativo (`aria-hidden`); quem informa é o texto ao lado.
-  function SubHeader({ titulo, tom }: { titulo: string; tom: string }) {
+  function subHeader({ titulo, tom }: { titulo: string; tom: string }) {
     return (
       <div className="flex items-center gap-2 px-2 pt-3 pb-1.5">
         <span
@@ -373,10 +393,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // ⚠️ A espinha vai em `style`, não em classe do Tailwind: no v4 um
   // `border-l` sem o shorthand completo some por causa do preflight (regra
   // registrada no CLAUDE.md).
-  function Subgrupo({ sg, grow = false, from = 0 }: { sg: SubgrupoNav; grow?: boolean; from?: number }) {
+  function subgrupo({ sg, grow = false, from = 0 }: { sg: SubgrupoNav; grow?: boolean; from?: number }) {
     return (
       <div key={sg.id}>
-        <SubHeader titulo={sg.titulo} tom={sg.tom} />
+        {subHeader({ titulo: sg.titulo, tom: sg.tom })}
         <div
           className="ml-[6px] pl-[10px] space-y-0.5"
           style={{ borderLeft: `1px solid ${sg.tom}30` }}
@@ -387,7 +407,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               className="animate-[fade-in_220ms_ease-out_both] motion-reduce:animate-none"
               style={{ animationDelay: `${Math.min((from + i) * 22, 260)}ms` }}
             >
-              <NavLink item={item} grow={grow} />
+              {navLink({ item, grow })}
             </div>
           ))}
         </div>
@@ -396,7 +416,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   }
 
   // ── Cabeçalho de grupo (nível 1, colapsável) ──
-  function GroupHeader({ label, open: aberto, onToggle, locked = false, trial }:
+  function groupHeader({ label, open: aberto, onToggle, locked = false, trial }:
     { label: string; open: boolean; onToggle: () => void; locked?: boolean; trial?: number }) {
     return (
       <button
@@ -637,7 +657,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
                 ⚠️ Negócios mora aqui, não dentro de Finanças — ele abre outro
                 painel, com switcher e navegação próprios. */}
             <div className="space-y-0.5">
-              {NAV_TOPO.map(item => <NavLink key={item.href} item={item} />)}
+              {NAV_TOPO.map(item => navLink({ item, chave: item.href }))}
             </div>
 
             {GRUPOS.map(g => {
@@ -646,25 +666,24 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               const bloqueado = !!g.grow && !temAcessoGrow;
               return (
                 <div key={g.id}>
-                  <GroupHeader
-                    label={g.titulo}
-                    open={aberto}
-                    onToggle={alternar}
-                    locked={bloqueado}
-                    trial={g.grow && temAcessoGrow && trialAtivo ? diasTrialRestantes : undefined}
-                  />
+                  {groupHeader({
+                    label: g.titulo,
+                    open: aberto,
+                    onToggle: alternar,
+                    locked: bloqueado,
+                    trial: g.grow && temAcessoGrow && trialAtivo ? diasTrialRestantes : undefined,
+                  })}
                   {aberto && (
                     <div className="mt-0.5">
                       {g.subgrupos.map((sg, si) => (
-                        <Subgrupo
-                          key={sg.id}
-                          sg={sg}
-                          grow={!!g.grow}
+                        subgrupo({
+                          sg,
+                          grow: !!g.grow,
                           // A entrada escalonada continua de um subgrupo pro
                           // outro em vez de reiniciar — senão a abertura do
                           // grupo pisca em blocos, em vez de escorrer.
-                          from={g.subgrupos.slice(0, si).reduce((acc, x) => acc + x.itens.length, 0)}
-                        />
+                          from: g.subgrupos.slice(0, si).reduce((acc, x) => acc + x.itens.length, 0),
+                        })
                       ))}
                     </div>
                   )}
@@ -679,10 +698,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             (planos, suporte, aparência). Esconder atrás de mais um clique
             economiza altura e cobra descoberta — troca ruim. */}
         <div className="mt-3 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-          {SECOES.map(sg => <Subgrupo key={sg.id} sg={sg} />)}
+          {SECOES.map(sg => subgrupo({ sg }))}
           {ehAdmin && (
             <div className="mt-0.5 ml-[6px] pl-[10px]" style={{ borderLeft: '1px solid #E2E8F030' }}>
-              <NavLink item={{ href: '/admin', label: 'Admin', icone: 'Shield' }} />
+              {navLink({ item: { href: '/admin', label: 'Admin', icone: 'Shield' } })}
             </div>
           )}
         </div>
