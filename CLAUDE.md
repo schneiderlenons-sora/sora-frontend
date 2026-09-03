@@ -1408,15 +1408,23 @@ um **entalhe** embaixo dela; trocar de aba faz o entalhe **deslizar**.
 - ⚠️ **Consequência assumida:** no tema claro a barra branca sobre a página
   off-white deixa o **entalhe quase invisível** (3% de diferença). Ali quem
   carrega a animação é a bolha, não o recorte.
-- ⚠️ **A COR DA BARRA VIVE EM `lib/nav-cores.ts` — FONTE ÚNICA, e por quê.**
-  A **faixa do home-indicator** (a "área de segurança" abaixo da barra) **não é
-  pintada pela barra**. Quem a pinta são dois pedaços de código nosso:
-  - o **`themeColor`** do `app/layout.tsx` (no PWA do iOS é ele que colore a
-    faixa) — era `#FAFAFA`/`#09090B`;
-  - o **gradiente do `DashboardLayout`**, que a pintava com `--bg-card`.
-  Enquanto a barra era `bg-card` os três coincidiam **por acaso**; quando ela
-  ganhou paleta própria, apareceu um **degrau de cor** logo abaixo dela. Hoje os
-  três leem do mesmo módulo.
+- ⚠️ **A FAIXA DO HOME-INDICATOR É PINTADA PELO FUNDO DE `html`/`body`.**
+  Não é o `theme-color` nem o gradiente do `DashboardLayout` — **tentei os dois
+  e a cor não mudou**. Quem entregou foi a medição: a faixa é exatamente
+  `hsl(var(--bg))`, que o `globals.css` aplica em `html` e `body`
+  (claro `220 20% 97%` = **#F5F6F8**; black `240 10% 4%` = **#0A0A0B**). É por
+  isso que no tema black ela parecia *"preta, mas não tão preta quanto a barra"*
+  — ela **é** #0A0A0B contra o #000 da barra.
+  - Hoje o **`DashboardLayout` pinta `html`+`body`** com a cor da barra, por
+    **estilo inline** (vence a regra do globals sem `!important`).
+  - ⚠️ **Escopado ao painel**, e por isso mora no componente e não no CSS
+    global: `--bg` é o fundo de **toda** a aplicação, landing e login inclusive.
+    O cleanup devolve o valor ao sair.
+  - **Método:** quando duas hipóteses de "quem pinta" falharem, **comparar o
+    valor de cor observado com os tokens** resolve em um passo — foi o que
+    faltou nas duas primeiras tentativas.
+- **A cor da barra vive em `lib/nav-cores.ts` (fonte única)** e é lida pela
+  barra, pelo `DashboardLayout` e pelo `themeColor`.
 - ⚠️ **`themeColor` NÃO usa `media`.** `prefers-color-scheme` segue o tema do
   **sistema**, e aqui o tema é **escolha do usuário** (`sora-theme`) — no claro
   com o celular no escuro dava faixa preta sob barra branca.
