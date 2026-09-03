@@ -712,7 +712,7 @@ export default function AdminPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-bold shadow-2xl animate-fade-in" role="status">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl bg-foreground text-background text-sm font-bold shadow-2xl animate-fade-in" role="status">
           {toast}
         </div>
       )}

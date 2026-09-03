@@ -225,12 +225,17 @@ export default function HabitosPage() {
         </div>
       )}
 
-      {/* FAB */}
-      <button onClick={() => { setEditando(null); setModalOpen(true); }}
-              className="md:hidden fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-primary hover:opacity-90 text-white shadow-xl shadow-primary/40 flex items-center justify-center active:scale-95 transition-all"
-              aria-label="Novo hábito">
-        <Plus size={22} />
-      </button>
+      {/* ⚠️ O FAB "Novo hábito" FOI REMOVIDO daqui, e não é descuido.
+          Ele era um círculo VERDE com ícone `Plus`, `md:hidden`, no canto
+          inferior direito — exatamente a cor, o ícone e o lugar do "+" global
+          da barra de navegação. Os dois lado a lado eram indistinguíveis, e o
+          relato foi literalmente "aparece o botão + duplicado, não entendi
+          nada". Pior: ele nascia em `bottom-6`, ATRÁS da barra, então na
+          prática era inalcançável — só apareceu quando um bug de máscara
+          deixou a barra transparente.
+          A ação não se perdeu: "+ Novo hábito" continua no topo da página, em
+          botão próprio e com rótulo. Regra `primary-action` da ui-ux-pro-max —
+          uma CTA primária por tela. */}
 
       {/* TOAST */}
       {toast && (

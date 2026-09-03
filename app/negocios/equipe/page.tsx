@@ -300,7 +300,7 @@ export default function EquipePage() {
 
       {toast && (
         <div role="status" aria-live="polite"
-             className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl"
+             className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl"
              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
           {toast}
         </div>

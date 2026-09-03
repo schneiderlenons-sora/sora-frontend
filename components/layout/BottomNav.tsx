@@ -141,13 +141,27 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   // Centro da fatia ativa, em % da largura da barra.
   const centro = (idxVisual + 0.5) * fatia;
 
-  // ⚠️ Rota fora da barra (ex.: /metas, aberta pela sidebar) → SEM entalhe e
-  // SEM bolha. Fingir que uma das quatro está ativa seria mentir sobre onde a
-  // pessoa está; o entalhe fecha sozinho (raio → 0) em vez de sumir de golpe.
+  // ⚠️ O RAIO NUNCA VAI A ZERO — E ISSO NÃO É ESTILO, É O BUG DA BARRA SUMIR.
+  //
+  // Antes, em rota fora da barra (ex.: /contas-bancarias, /grow/habitos), eu
+  // fechava o entalhe com `--sora-notch-r: 0px`. Isso produz
+  // `radial-gradient(circle 0px …)`, que é um gradiente DEGENERADO — e os
+  // motores discordam sobre o que fazer com ele. Medido numa bancada: o
+  // Chromium desenha a barra inteira; o **WebKit do iOS trata como
+  // transparente e APAGA A SUPERFÍCIE TODA**. Sobravam só os ícones (que ficam
+  // noutra camada, sem máscara) e o conteúdo da página passava por baixo.
+  //
+  // Também era a causa do "+ duplicado": com a barra transparente, botões que
+  // sempre estiveram ATRÁS dela ficaram à vista.
+  //
+  // A correção é manter o gradiente sempre VÁLIDO e tirar o buraco de cena
+  // pela POSIÇÃO. Fora da barra ele vai pra -30%, ou seja, inteiramente fora
+  // do elemento: a superfície fica cheia, e a transição continua animando
+  // (o entalhe entra e sai deslizando pela lateral).
   const estiloSuperficie: React.CSSProperties & Record<string, string> = {
     background: paleta.superficie,
-    ['--sora-notch']: `${temAtivo ? centro : 50}%`,
-    ['--sora-notch-r']: temAtivo ? '34px' : '0px',
+    ['--sora-notch']: `${temAtivo ? centro : -30}%`,
+    ['--sora-notch-r']: '34px',
   };
 
   return (

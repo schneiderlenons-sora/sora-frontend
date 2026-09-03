@@ -948,7 +948,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
       {/* Toast simples de feedback */}
       {importToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl animate-fade-in"
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl animate-fade-in"
              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
           {importToast}
         </div>
