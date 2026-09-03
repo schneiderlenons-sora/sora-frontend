@@ -1672,6 +1672,32 @@ completa ao servidor**, e o aquecimento nunca era aproveitado. Hoje **300s**.
 
 ⚠️ Ao mexer num dos dois, conferir o outro — eles só funcionam em par.
 
+### 3D. ⚠️ O `LoadingGate` engolia TODO toque na navegação (set/2026)
+
+Relato: *"cliquei em transações 2x e não abriu, só na terceira foi; depois tive
+que clicar 3x na sidebar"*. **Não eram os botões.**
+
+O overlay da baleia (`components/ui/LoadingGate.tsx`), que cobre a tela enquanto
+um `useApi` faz o **primeiro** carregamento, era `fixed inset-0 md:left-64 z-40`:
+
+- ⚠️ **`md:left-64` só recua no DESKTOP.** No mobile ele cobria a tela
+  **inteira**, inclusive o BottomNav e o botão que abre a sidebar.
+- ⚠️ **`z-40` é o MESMO do BottomNav**, e o portão renderiza **depois** na
+  árvore (é irmão posterior dos children no provider) — empate de z-index
+  resolve por ordem de DOM, então ele ganhava.
+
+Hoje é **z-30**: o BottomNav (z-40) fica por cima, clicável durante o
+carregamento; modais (z-50) e drawer (z-[60]) seguem acima de tudo.
+
+- ⚠️ **NÃO resolver subindo o BottomNav pra z-50:** ele empataria com **todos**
+  os modais do app (z-50) e passaria a disputar empilhamento por ordem de DOM —
+  trocaria bug de toque por modal atrás da barra.
+- **Regra:** bloquear o **conteúdo** é o trabalho do portão (evita flash de
+  zeros); bloquear a **navegação** nunca é. Overlay novo que cubra a tela no
+  mobile precisa ficar **abaixo de z-40** ou recuar do BottomNav.
+- Mesma família do overlay da animação de abertura, que engolia toque por ficar
+  `pointer-events` ativo durante o fade — ver a seção da animação.
+
 ### 4. `getUser()` duplicado por navegação
 
 O middleware valida o JWT com `supabase.auth.getUser()` — ida de REDE ao Supabase
