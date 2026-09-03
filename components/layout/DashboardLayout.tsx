@@ -15,6 +15,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [montado, setMontado] = useState(false);
   useEffect(() => { setMontado(true); }, []);
   const paletaNav = navPaleta(theme, montado);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ⚠️ QUEM PINTA A FAIXA DO HOME-INDICATOR É O FUNDO DE `html`/`body`.
+  //
+  // Não é o `theme-color` nem o gradiente aqui embaixo — tentei os dois e a cor
+  // não mudou. Quem entregou foi a MEDIÇÃO: a faixa é exatamente
+  // `hsl(var(--bg))`, que o globals.css aplica em `html` e `body`
+  // (claro `220 20% 97%` = #F5F6F8; black `240 10% 4%` = #0A0A0B). É por isso
+  // que no tema black a faixa parecia "preta, mas não tão preta quanto a barra":
+  // ela É #0A0A0B contra o #000 da barra.
+  //
+  // ⚠️ ESCOPADO AO PAINEL, por isso está aqui e não no CSS global: `--bg` é o
+  // fundo de TODA a aplicação, landing e login inclusive. Trocá-lo globalmente
+  // pra cor da barra mudaria o fundo de páginas que nem têm barra. O cleanup
+  // devolve o valor anterior ao sair do painel.
+  //
+  // Estilo inline de propósito: precisa vencer a regra do globals.css sem
+  // depender de `!important` nem de ordem de folha.
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const antesHtml = html.style.backgroundColor;
+    const antesBody = body.style.backgroundColor;
+    html.style.backgroundColor = paletaNav.superficie;
+    body.style.backgroundColor = paletaNav.superficie;
+    return () => {
+      html.style.backgroundColor = antesHtml;
+      body.style.backgroundColor = antesBody;
+    };
+  }, [paletaNav.superficie]);
+
   const grupoNome = perfil?.grupo_ativo?.nome || '';
   const ehPessoal = /pessoal/i.test(grupoNome);
   // Drawer mobile (sidebar em tela cheia), aberto pelo ícone de perfil do BottomNav.
