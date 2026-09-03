@@ -22,6 +22,14 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 // avisava isso em TODO build ("Unrecognized key(s) in object: 'eslint'"). Era
 // config morta gerando ruído — o lint do build não existe mais nesta versão.
 const nextConfig = {
+  // O Android exige o assetlinks exatamente em /.well-known/assetlinks.json.
+  // A rota real e /api/assetlinks (pra ler variavel de ambiente); o rewrite
+  // faz a ponte. O matcher do middleware ignora caminhos com ponto, entao
+  // este aqui passa sem interceptacao — conferido.
+  async rewrites() {
+    return [{ source: '/.well-known/assetlinks.json', destination: '/api/assetlinks' }];
+  },
+
   experimental: {
     // Importar { Wallet, Plus, ... } de 'lucide-react' arrasta o barrel inteiro
     // (~1000 ícones) pro grafo de módulos. Isso reescreve pra import direto de
