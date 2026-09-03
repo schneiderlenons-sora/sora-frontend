@@ -8,6 +8,7 @@ import ImportarModal from '@/components/transacoes/ImportarModal';
 import EditarTransacaoModal from '@/components/transacoes/EditarTransacaoModal';
 import EditarLoteModal, { type PatchLote } from '@/components/transacoes/EditarLoteModal';
 import RatearModal from '@/components/transacoes/RatearModal';
+import JuntarRateioModal from '@/components/transacoes/JuntarRateioModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +27,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
-  ChevronLeft, ChevronRight, SplitSquareHorizontal } from 'lucide-react';
+  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -76,6 +77,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [loteOpen, setLoteOpen] = useState(false);
   const [ratearTx, setRatearTx] = useState<any | null>(null);
+  const [juntarTx, setJuntarTx] = useState<any | null>(null);
 
   // Filtros
   const [busca,    setBusca]    = useState('');
@@ -814,6 +816,14 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         onDeletar={() => handleDeletar(tx)}
                         onEditar={() => { setEditTx(tx); setRowMenuOpen(null); }}
                         onRatear={() => { setRatearTx(tx); setRowMenuOpen(null); }}
+                        onJuntar={
+                          // Só quem FAZ PARTE de um rateio pode juntar de volta.
+                          // Em transação comum a opção nem existe — item de menu
+                          // que não faz nada é pior que item ausente.
+                          tx.rateio_grupo
+                            ? () => { setJuntarTx(tx); setRowMenuOpen(null); }
+                            : undefined
+                        }
                         arquivada={!!tx.arquivada_por}
                         onArquivar={() => handleArquivar(tx, !tx.arquivada_por)}
                       />
@@ -885,6 +895,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           phone={phone}
           tx={ratearTx}
           onClose={() => setRatearTx(null)}
+          onSuccess={() => { mTx(); mR(); }}
+        />
+      )}
+
+      {juntarTx && phone && (
+        <JuntarRateioModal
+          phone={phone}
+          tx={juntarTx}
+          // ⚠️ Passa a lista JÁ CARREGADA, não uma busca nova: quem soma de
+          // verdade é o servidor (que lê o rateio_grupo inteiro). Isto aqui é
+          // só pra tela mostrar o que está sendo fundido — por isso o modal
+          // rotula como "o que consegui ver" e nunca afirma um total final.
+          partes={txs}
+          onClose={() => setJuntarTx(null)}
           onSuccess={() => { mTx(); mR(); }}
         />
       )}
@@ -981,7 +1005,7 @@ function StatCard({
 
 function TransactionRow({
   tx, index, ocultar, compartilhado, selecionado, onToggleSelect,
-  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, arquivada, onArquivar,
+  menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
 }: any) {
   // ⚠️ "Não considerar" (migration 146) entra AQUI, virando Transferência na
   // tela. É a mesma leitura que o pagamento de fatura nativo já tem hoje —
@@ -1157,6 +1181,7 @@ function TransactionRow({
           onDeletar={onDeletar}
           onEditar={onEditar}
           onRatear={onRatear}
+          onJuntar={onJuntar}
           arquivada={arquivada}
           onArquivar={onArquivar}
         />
@@ -1171,13 +1196,14 @@ function TransactionRow({
 // MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
 // overflow-x-auto da linha (que cria clipping em ambos os eixos).
 // ─────────────────────────────────────────────────────────────
-function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, arquivada, onArquivar }: {
+function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar }: {
   menuOpen: boolean;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onDeletar: () => void;
   onEditar: () => void;
   onRatear?: () => void;
+  onJuntar?: () => void;
   arquivada?: boolean;
   onArquivar?: () => void;
 }) {
@@ -1222,6 +1248,16 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
               <button onClick={onRatear}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
                 <SplitSquareHorizontal size={14} className="text-muted-foreground" /> Dividir
+              </button>
+            )}
+            {/* Voltar ao normal (migration 152) — só aparece em linha que FAZ
+                PARTE de um rateio. Fica colado no "Dividir" porque é a mesma
+                ideia, no sentido inverso, e nunca os dois ao mesmo tempo:
+                lançamento dividido não se divide de novo. */}
+            {onJuntar && (
+              <button onClick={onJuntar}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+                <Merge size={14} className="text-muted-foreground" /> Juntar de volta
               </button>
             )}
             {/* ⚠️ Ocultar ≠ Excluir, e por isso fica ACIMA e sem cor de perigo.

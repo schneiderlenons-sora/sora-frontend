@@ -380,6 +380,16 @@ export const api = {
       req<{ ok: boolean; grupo: string; partes: number }>(`/api/transacoes/${id}/rateio`, {
         method: 'POST', body: JSON.stringify(body),
       }),
+    // Junta as partes de volta num lançamento só (migration 152). Também é
+    // SUBSTITUIÇÃO e também é neutro no saldo — por isso o backend RECUSA
+    // (422) quando as partes foram editadas pra contas/tipos diferentes, o
+    // que faria juntar mudar o saldo. `aviso` vem quando o total mudou desde
+    // a divisão, ou quando a categoria original não estava guardada.
+    desfazerRateio: (grupo: string, phone: string) =>
+      req<{ ok: boolean; id: string; partes: number; aviso: string | null }>(
+        `/api/transacoes/rateio/${grupo}/desfazer`,
+        { method: 'POST', body: JSON.stringify({ phone }) },
+      ),
     // opts.parcelas='todas' → exclui a compra parcelada inteira (todas as parcelas).
     deletar: (id: string, phone?: string, opts?: { parcelas?: 'todas' }) => {
       const qs = new URLSearchParams();
@@ -1400,7 +1410,7 @@ export type Regra = {
   categoria: string | null;
   tipo: TipoRegra;
   modo_match: ModoMatch;
-  renomear_para: string | null;
+  renomear_para: string | null;
   ignorar_escopo: EscopoIgnorar | null;
   created_at: string;
   updated_at: string;
@@ -1415,7 +1425,7 @@ export type NovaRegra = {
   tipo: TipoRegra;
   modo_match: ModoMatch;
   categoria?: string | null;
-  renomear_para?: string | null;
+  renomear_para?: string | null;
   ignorar_escopo?: EscopoIgnorar;
   /** Aplica no histórico que já existe (default: sim). */
   aplicar_agora?: boolean;
