@@ -1993,6 +1993,32 @@ funcionava. `"Gastei 3 reais no mercado com inter"` por áudio respondia
   chamava com dois argumentos, então "Nubank Crédito" saía "no banco de
   crédito". **Ao mexer em mídia, conferir as DUAS rotas.**
 
+## Regra ampla de "gasto" — CORRIGIDA (set/2026)
+
+Era um **catch-all**: qualquer frase com "gasto/gastei/gastar" que chegasse na
+regra virava `buscar` ou `resumo` — nunca `null`, então **nunca alcançava a IA**.
+
+- **Medido em 24 frases:** as 10 consultas legítimas acertavam e **as 14 outras
+  intenções eram sequestradas** — `"quero cadastrar um gasto fixo"` → resumo,
+  `"apaga o gasto do mercado"` → **busca**, `"o que é um gasto fixo"` → resumo.
+- ⚠️ **A INVERSÃO é o ponto:** em vez de aceitar tudo que tem "gasto" e excluir
+  exceções (lista que cresce pra sempre), agora se **exige sinal de pergunta** —
+  `?`/interrogativa, "no/em que", verbo de exibir, a frase **começar** falando de
+  gastos, ou "gast* mais/demais/muito". Sem sinal → `null` → IA.
+- ⚠️ **NÃO é lista de verbos proibidos.** Essa foi a tentação e ela erra em
+  `"quero VER meus gastos"`: tem "quero" e é pergunta de verdade. Travado em eval.
+- Registro (`"gastei 50 no mercado"`) não é afetado: retorna muito antes, por ter
+  **valor**.
+- ⚠️ **DOIS EVALS REGISTRAVAM O BUG COMO ESPERADO** e foram corrigidos, não
+  afrouxados: o `interpretador.eval.js` cobrava `resumo` em 2 casos ("registrado
+  como comportamento ATUAL"), e o `capturaRapidaGrow.eval.js` tinha 3 asserções
+  que **provavam** o sequestro — foram **invertidas**, e agora testam que o
+  interpretador não reivindica mais a frase (teste mais forte). Suíte: 105 → 116.
+- ⚠️ **Efeito a jusante conferido:** das 11 frases liberadas, **uma** ("preciso
+  registrar um gasto") passa a ser **tarefa** no Grow — `preciso + <verbo>ar` é
+  gatilho de `RE_TAREFA_NL`. Leitura defensável e melhor que o resumo de antes; se
+  incomodar, tratar em `RE_NAO_TAREFA` do `grow.js`, não nesta regra.
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
