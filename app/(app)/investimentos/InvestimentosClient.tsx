@@ -467,6 +467,11 @@ function PaywallPremium() {
 // TAB RESUMO
 // ─────────────────────────────────────────────────────────────
 function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, proventos = 0, onVerCaixinhas }: any) {
+  // Aportado > 0 e lucro exatamente zero = todas as posições entraram com
+  // aportado igual ao valor atual, ou seja, a Sora não conhece nenhum custo de
+  // compra. Não é "rendeu zero", é "não dá pra calcular".
+  const semRetornoTotal = totais.aportado > 0 && Math.abs(totais.lucro) < 0.005;
+
   const [periodo, setPeriodo] = useState<'7' | '30' | '90' | '365' | 'all'>('30');
   // Tema escuro = 'black' (classe .dark). No claro o hero fica branco como os
   // demais cards; no escuro mantém o visual atual.
@@ -536,7 +541,12 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
             </div>
             <div className="grid grid-cols-3 gap-3 mt-6">
               <DarkStat label="Aportado"     value={fmt(totais.aportado)} />
-              <DarkStat label="Lucro/Prej."   value={fmt(totais.lucro)} color={totais.lucro >= 0 ? '#22c55e' : '#ef4444'} />
+              {/* Mesma regra do card de posição: sem custo de compra não há
+                  lucro a afirmar. Verde em cima de R$ 0,00 diz "conferi"; o
+                  travessão diz "não sei", que é a verdade. */}
+              <DarkStat label="Lucro/Prej."
+                        value={semRetornoTotal ? '—' : fmt(totais.lucro)}
+                        color={semRetornoTotal ? undefined : (totais.lucro >= 0 ? '#22c55e' : '#ef4444')} />
               <DarkStat label="Proventos"    value={fmt(Math.max(totais.dividendos, proventos))} />
             </div>
           </div>
@@ -582,7 +592,10 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
 
       {/* 4 cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Rentabilidade total" value={fmtPct(totais.rent)} color={totais.rent >= 0 ? '#22c55e' : '#ef4444'} />
+        <Stat label="Rentabilidade total"
+              value={semRetornoTotal ? '—' : fmtPct(totais.rent)}
+              sub={semRetornoTotal ? 'sem custo de compra' : undefined}
+              color={semRetornoTotal ? undefined : (totais.rent >= 0 ? '#22c55e' : '#ef4444')} />
         {/* Sem posição viva o card mostra "—" e nenhum subtítulo, em vez de
             "+0,00%" numa aplicação resgatada. */}
         <Stat label="Maior ganho" value={totais.maiorG?.nome || '—'}
@@ -886,6 +899,10 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
   const vencPrimeiro = textoVencimento(g.vencimentos[0]);
   const vencUltimo = textoVencimento(g.vencimentos[g.vencimentos.length - 1]);
   const zerado = g.valor <= 0.005;
+  // Aportado === valor atual (ao centavo) = a Sora não sabe o custo de compra.
+  // Posição de verdade parada no MESMO centavo praticamente não existe; o que
+  // existe, e é a maioria, é banco que não informou o preço pago.
+  const semRetorno = Math.abs(lucro) < 0.005;
 
   return (
     <div className="card rounded-2xl overflow-hidden" style={{ opacity: zerado ? 0.6 : 1 }}>
@@ -960,9 +977,27 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
         <div className="text-right flex-shrink-0">
           <p className="font-bold tabular text-foreground">{fmt(g.valor)}</p>
           {g.aportado > 0 && !zerado && (
-            <p className={`text-[11px] font-semibold tabular ${lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-              {fmtPct(rentPct)} · {lucro >= 0 ? '+' : ''}{fmt(lucro)}
-            </p>
+            semRetorno ? (
+              // ⚠️ VERDE COM "+" É UMA AFIRMAÇÃO, E AQUI NÃO HÁ O QUE AFIRMAR.
+              // Quando aportado e valor atual são o MESMO número, não existe
+              // rentabilidade calculada — existe ausência de custo de compra.
+              // Pintar "+0,00%" de verde com sinal de mais lê como "conferi e
+              // seu retorno é zero", quando o certo é "não sei o que você
+              // pagou". Foi exatamente a dúvida de um cliente com R$ 10 mil num
+              // CDB: o número parecia um resultado, e era um vazio.
+              //
+              // Medido na base: 366 de 550 investimentos estão nesse estado.
+              // O Open Finance só manda `purchase_unit_price` em parte das
+              // posições e, sem ele, o sync grava aportado = atual de propósito
+              // ("rentabilidade 0 é melhor que rentabilidade inventada").
+              <p className="text-[11px] font-medium text-muted-foreground">
+                sem custo de compra
+              </p>
+            ) : (
+              <p className={`text-[11px] font-semibold tabular ${lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                {fmtPct(rentPct)} · {lucro >= 0 ? '+' : ''}{fmt(lucro)}
+              </p>
+            )
           )}
         </div>
 
