@@ -22,6 +22,9 @@ export type DividaVenc = {
   status?: string | null;
   /** 'YYYY-MM-DD' do último pagamento de parcela (juros de atraso não conta). */
   ultimo_pagamento?: string | null;
+  /** Vencimento da próxima parcela SEGUNDO O EMISSOR (migration 154, só Open
+   *  Finance). Vence a derivação por calendário enquanto não tiver passado. */
+  proximo_vencimento?: string | null;
 };
 
 function partes(iso: string) {
@@ -93,11 +96,34 @@ export function vencimentoCoberto(pagamento: string, dia: number): string {
 export function proximoVencimento(
   divida: DividaVenc,
   hoje: string = hojeSP(),
-): { data: string; dias: number; quitadaNoCiclo: boolean } | null {
+): { data: string; dias: number; quitadaNoCiclo: boolean; fonte?: 'banco' } | null {
   const dia = Number(divida?.dia_vencimento);
   if (!dia || dia < 1 || dia > 31) return null;
   if (divida.status === 'quitada') return null;
 
+  // ── A DATA QUE O BANCO INFORMA VENCE QUALQUER DERIVAÇÃO (migration 154) ──
+  //
+  // Relato: "a próxima parcela vence dia 06 de OUTUBRO" contra "em 2 dias"
+  // na tela. O resto desta função deriva a data do calendário — a próxima
+  // ocorrência do dia N que ainda não passou —, que é o melhor possível numa
+  // dívida lançada à mão e ERRADO numa do Open Finance: lá o emissor conhece
+  // o cronograma e a Sora não tem pagamento registrado pra corrigir o rumo
+  // (as parcelas pagas chegam como CONTAGEM, não como registro).
+  //
+  // ⚠️ E o caso que quebra o calendário é o mais comum em empréstimo:
+  // ANTECIPAÇÃO. Quem adianta parcelas fica com a próxima meses à frente,
+  // enquanto o calendário segue apontando o mês que vem.
+  //
+  // ⚠️ Só vale enquanto a data NÃO PASSOU. Cronograma do banco envelhece: se
+  // ele ficou pra trás (sync parado, parcela vencida e não paga), voltar a
+  // derivar do calendário é o comportamento honesto — melhor do que exibir
+  // uma data no passado como se fosse "a próxima".
+  const doBanco = divida?.proximo_vencimento
+    ? String(divida.proximo_vencimento).slice(0, 10)
+    : null;
+  if (doBanco && doBanco >= hoje) {
+    return { data: doBanco, dias: diffDias(hoje, doBanco), quitadaNoCiclo: false, fonte: 'banco' };
+  }
   const { Y, M } = partes(hoje);
 
   // 1) Próxima ocorrência que ainda não passou (hoje conta como "vence hoje").
