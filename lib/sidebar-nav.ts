@@ -40,7 +40,9 @@ export type ItemNav = {
   label:   string;
   icone:   string;                     // nome do ícone lucide
   gate?:   Feature;                    // feature exigida
-  badge?:  'Premium' | 'Platinum';     // rótulo quando bloqueado
+  // 'Básico' existe pros gates que barram SÓ o plano grátis — dizer
+  // "Premium" ali mandaria a pessoa pagar 50% a mais do que precisa.
+  badge?:  'Básico' | 'Premium' | 'Platinum';   // rótulo quando bloqueado
   breve?:  boolean;                    // aba futura: mostra, não navega
   externa?: boolean;                   // href com query (não casa por igualdade)
 };
@@ -82,7 +84,10 @@ export const GRUPOS: GrupoNav[] = [
           { href: '/transacoes',        label: 'Transações',         icone: 'ArrowLeftRight' },
           { href: '/contas-bancarias',  label: 'Contas',             icone: 'Landmark' },
           { href: '/cartao-de-credito', label: 'Cartão de crédito',  icone: 'CreditCard' },
-          { href: '/open-finance',      label: 'Open Finance',       icone: 'Building2' },
+          // ⚠️ A feature `open_finance` já existia; o ITEM é que nunca teve
+          // gate — quem não tinha direito via a aba e só descobria dentro
+          // dela, num card de upsell.
+          { href: '/open-finance',      label: 'Open Finance',       icone: 'Building2', gate: 'open_finance', badge: 'Básico' },
           { href: '/dividas',           label: 'Dívidas e Parcelas', icone: 'Receipt' },
         ],
       },
@@ -112,7 +117,7 @@ export const GRUPOS: GrupoNav[] = [
         itens: [
           { href: '/grow/habitos',   label: 'Hábitos',   icone: 'Target' },
           { href: '/grow/tarefas',   label: 'Tarefas',   icone: 'ListChecks' },
-          { href: '/grow/agenda',    label: 'Agenda',    icone: 'CalendarDays' },
+          { href: '/grow/agenda',    label: 'Agenda',    icone: 'CalendarDays', gate: 'grow_agenda', badge: 'Básico' },
           { href: '/grow/estudos',   label: 'Estudos',   icone: 'GraduationCap', gate: 'grow_estudos', badge: 'Premium' },
           { href: '/grow/saude',     label: 'Saúde',     icone: 'Activity',      gate: 'grow_saude',   badge: 'Premium' },
           { href: '/grow/bem-estar', label: 'Bem-estar', icone: 'Heart' },
@@ -149,7 +154,7 @@ export const SECOES: SubgrupoNav[] = [
   {
     id: 'conta', titulo: 'Sua conta', tom: '#FED7AA',
     itens: [
-      { href: '/wrapped', label: 'Sora Wrapped', icone: 'Gift' },
+      { href: '/wrapped', label: 'Sora Wrapped', icone: 'Gift', gate: 'wrapped', badge: 'Básico' },
       // Cai direto na seção de sugestão do Relatar um problema.
       { href: '/reportar-bug?aba=sugestao', label: 'Novidades e sugestões', icone: 'Lightbulb', externa: true },
       // Abas que ainda não existem: aparecem pra dar noção do todo, mas não

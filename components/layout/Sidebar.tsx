@@ -34,7 +34,7 @@ type NavItem = {
   label:   string;
   icon:    any;
   gate?:   Feature;             // feature requerida (Finance)
-  badge?:  'Premium' | 'Platinum'; // rótulo quando bloqueado por plano
+  badge?:  'Básico' | 'Premium' | 'Platinum'; // rótulo quando bloqueado por plano
   adminOnly?: boolean;          // só aparece pro admin (ex.: features em rollout)
   nota?:   string;              // mini texto abaixo do nome (ex.: status)
 };
@@ -294,6 +294,36 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // reescreve a cascata inteira.
   //
   // `chave` existe porque em `.map()` o key precisa ir no elemento devolvido.
+  /**
+   * Atalho do rodapé (Agentes, Drive).
+   *
+   * ⚠️ FUNÇÃO DE RENDER, não componente. Componente declarado dentro de
+   * componente é recriado a cada render, e pro React isso é um TIPO novo —
+   * ele desmonta e monta a árvore, refazendo a animação de entrada. Foi
+   * exatamente a causa do "os itens da sidebar piscam" já corrigido aqui.
+   *
+   * Bloqueado NÃO some: continua visível, apagado e com cadeado, levando pro
+   * /planos. Sumir esconderia que a função existe.
+   */
+  function atalho(href: string, label: string, icone: React.ReactNode, liberado: boolean) {
+    const fundo = isTemaBlack
+      ? 'bg-black/40 hover:bg-black/55 border border-white/5'
+      : 'bg-white/10 hover:bg-white/20';
+    return (
+      <Link
+        href={liberado ? href : '/planos'}
+        onClick={() => setOpen(false)}
+        title={liberado ? label : `${label} — disponível a partir do plano Básico`}
+        className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium transition-all ${fundo} ${
+          liberado ? 'text-white/85 hover:text-white' : 'text-white/40 hover:text-white/60'
+        }`}
+      >
+        {icone} {label}
+        {!liberado && <Lock size={12} className="flex-shrink-0" />}
+      </Link>
+    );
+  }
+
   function navLink({ item, grow = false, chave }: { item: ItemNav; grow?: boolean; chave?: string }) {
     const { href, label, gate, badge, breve, externa } = item;
     const Icon = ICONES_APP[item.icone] || Sparkles;
@@ -729,19 +759,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             bg-white/10 "acendia" demais em cima do preto. Instalar/Sair
             (mais abaixo) continuam no bg-white/10 de sempre, nos dois temas:
             só os 4 atalhos do topo tinham a queixa de "chamativo demais". */}
+        {/* ⚠️ ESTES DOIS ATALHOS NÃO PASSAM PELO CATÁLOGO `ItemNav`, então o
+            `gate:` de lá não os alcança — o gate tem de ser na mão. Foi
+            justamente por viverem fora do catálogo que Agentes e Drive
+            ficaram anos sem gate nenhum. */}
         <div className="grid grid-cols-2 gap-1.5">
-          <Link href="/agentes" onClick={() => setOpen(false)}
-            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
-              isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
-            }`}>
-            <Sparkles size={16} /> Agentes
-          </Link>
-          <Link href="/grow/dados" onClick={() => setOpen(false)}
-            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
-              isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
-            }`}>
-            <FolderLock size={16} /> Drive
-          </Link>
+          {atalho('/agentes', 'Agentes', <Sparkles size={16} />, podeUsar('agentes'))}
+          {atalho('/grow/dados', 'Drive', <FolderLock size={16} />, podeUsar('drive_painel'))}
         </div>
 
         {/* Fixos: Ajuda (ex-Comandos, ex-Central da Sora) + Configurações */}

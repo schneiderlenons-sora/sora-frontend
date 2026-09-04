@@ -51,13 +51,14 @@ export type Feature =
   | 'oraculo'                // Premium+: "posso comprar isso?" no WhatsApp
   | 'suporte_prioritario'    // Platinum: fila de atendimento própria
   // ─── Gates criados junto do plano `gratis` (migration 156) ────────────────
-  // ⚠️ Estes três NÃO EXISTIAM: as abas eram abertas a qualquer plano, sem
+  // ⚠️ Estes NÃO EXISTIAM: as abas eram abertas a qualquer plano, sem
   // `gate:` no catálogo da sidebar e sem guard de rota. Foram nomeados agora
   // só pra excluir o `gratis` — por isso a lista de cada um é "todo mundo
   // MENOS gratis". Restringi-los a Premium tiraria aba de quem já tem.
   | 'wrapped'                // Retrospectiva anual
   | 'grow_agenda'            // Aba Agenda do Grow
   | 'agentes'                // Watson, Oráculo e os outros
+  | 'drive_painel'           // A ABA Drive (arquivos já guardados)
   // Features disponíveis em todos os planos pagos (e inativo p/ onboarding):
   | 'metas'
   | 'dividas'
@@ -114,6 +115,12 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   // jeito. Listá-lo aqui sugeriria um acesso que não existe.
   grow_agenda:        ['inativo', 'basico', 'premium', 'platinum'],
   agentes:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],
+  // ⚠️ SEPARADA DA `drive` DE PROPÓSITO. `drive` é Premium e vale pro
+  // WhatsApp (receber e buscar arquivo); a ABA sempre foi aberta a todo plano
+  // pago "pra não trancar dados de Básico" — quem já guardou arquivo lá
+  // precisa continuar alcançando. Usar `drive` aqui trancaria o Básico fora
+  // dos próprios documentos. Sem `kit`: ele não tem Grow, e a aba vive lá.
+  drive_painel:       ['inativo', 'basico', 'premium', 'platinum'],
 
   metas:              ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
   dividas:            ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
