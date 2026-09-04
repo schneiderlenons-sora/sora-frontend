@@ -308,6 +308,10 @@ export default function AdminPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (d?.erro) { flash('⚠️ ' + d.erro); return; }
+      // Entregue mas NÃO gravado: o chamado seguiria com a conversa vazia e sem
+      // ninguém saber por quê. Fecha o formulário do mesmo jeito (a mensagem
+      // FOI enviada — reenviar mandaria duas ao cliente), mas avisa.
+      if (d?.aviso) { flash('⚠️ ' + d.aviso); setRespId(null); setRespMsg(''); return; }
       flash('Resposta enviada ✓'); setRespId(null); setRespMsg('');
     } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
     finally { setEnviandoResp(false); }

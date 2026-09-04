@@ -46,15 +46,38 @@ export async function POST(req: NextRequest) {
     // A conversa também precisa existir aqui porque o WhatsApp some no meio de
     // outras mensagens: o painel é onde o cliente reencontra o que foi dito.
     // Tolerante: sem a migration 143 a resposta ainda é entregue por WhatsApp.
+    // ⚠️ O `insert` do supabase-js NÃO LANÇA: ele DEVOLVE `{ error }`. Sem ler
+    // esse campo, uma gravação que falhou seguia adiante em silêncio, o status
+    // virava "em andamento" logo abaixo e o painel dizia "Resposta enviada ✓"
+    // — com a conversa em lugar nenhum. Foi o que aconteceu num chamado real:
+    // status alterado, zero mensagens. Mesma família do bug de investimentos
+    // (`const { data } = await ...insert()` respondendo 200 com null).
+    let gravou = true;
+    let falhaGrav = '';
     try {
-      await supabaseAdmin.from('bug_mensagens').insert({
+      const { error } = await supabaseAdmin.from('bug_mensagens').insert({
         bug_id: bugId, autor: 'suporte', texto: texto.trim(),
       });
+      if (error) { gravou = false; falhaGrav = error.message; }
       // Respondeu = está sendo tratado. Poupa o admin de mudar o status à mão
       // (e é o que faz o chamado sair da fila de "aberto" na visão dele).
       await supabaseAdmin.from('bug_reports')
         .update({ status: 'em_andamento' }).eq('id', bugId).eq('status', 'aberto');
-    } catch { /* migration 143 pendente — o envio já aconteceu */ }
+    } catch (e: unknown) {
+      gravou = false;
+      falhaGrav = e instanceof Error ? e.message : 'erro desconhecido';
+    }
+
+    // A entrega ACONTECEU — por isso `ok: true` e nunca um erro que sugira
+    // reenviar (mandaria a mesma mensagem duas vezes pro cliente). Mas o admin
+    // precisa saber que o histórico não guardou, senão ele confia numa thread
+    // que não existe.
+    if (!gravou) {
+      return NextResponse.json({
+        ok: true, para: b.nome || b.phone,
+        aviso: `Entregue no WhatsApp, mas NÃO gravei no histórico do chamado (${falhaGrav}). A conversa vai aparecer vazia.`,
+      });
+    }
 
     return NextResponse.json({ ok: true, para: b.nome || b.phone });
   } catch (e: unknown) {
