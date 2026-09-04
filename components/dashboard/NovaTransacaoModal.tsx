@@ -7,6 +7,7 @@ import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import IconeMarca from '@/components/ui/IconeMarca';
+import { hojeSP } from '@/lib/ciclo-fatura';
 
 const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
@@ -65,7 +66,10 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   const [categoria,  setCategoria]  = useState('');
   const [catEmoji,   setCatEmoji]   = useState('');
   const [walletId,   setWalletId]   = useState<string>('');
-  const [data,       setData]       = useState(new Date().toISOString().slice(0, 10));
+  // ⚠️ 'en-CA' + timeZone, NUNCA toISOString(): este é UTC, e depois das 21h no
+  // Brasil ele devolve AMANHÃ. A data padrão virava futura sozinha, e um
+  // lançamento futuro nasce pendente (pago=false) sem ninguém ter pedido.
+  const [data,       setData]       = useState(hojeSP());
   const [recorrente, setRecorrente] = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [erro,       setErro]       = useState('');
@@ -76,6 +80,15 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   const [numParcelas, setNumParcelas] = useState(2);
   const [pagas,       setPagas]       = useState<Set<number>>(new Set());
   const [avisoParcela, setAvisoParcela] = useState(''); // aviso ao tentar parcelar sem conta válida
+
+  // ⚠️ ESPELHA A REGRA DO BACKEND (routes/transacoes.js): com `recorrente` E
+  // data futura o servidor cria SÓ a recorrência e NÃO cria transação nenhuma —
+  // de propósito, porque um gasto que ainda não aconteceu não pode debitar o
+  // saldo hoje. O problema nunca foi essa regra, foi ela ser invisível: a linha
+  // entrava otimista na lista, a API respondia SUCESSO (`somente_recorrencia`),
+  // e a revalidação do SWR apagava a linha. Pro usuário, "lancei e sumiu".
+  const ehFuturo    = !!data && data > hojeSP();
+  const viraFixa    = recorrente && ehFuturo && !parcelado;
   // Parcelamento SEM cartão (parcelei com alguém): vira um parcelamento em Dívidas.
   const [credor,        setCredor]        = useState('');   // "de quem comprou" (opcional)
   const [diaVencimento, setDiaVencimento] = useState('');   // dia do mês do vencimento
@@ -213,7 +226,9 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
     // #6 otimista (opt-in, só o caminho NÃO-parcelado): fecha na hora e delega
     // a criação pro pai, que insere a linha no cache e chama a API em segundo
     // plano. Salvar "parece" instantâneo mesmo com o Render em ~500ms.
-    if (onOptimisticCreate && !parcelado) {
+    // `!viraFixa`: a linha otimista seria MENTIRA — o servidor não vai criar
+    // transação alguma, então ela apareceria e sumiria sozinha.
+    if (onOptimisticCreate && !parcelado && !viraFixa) {
       const valorNum = parseInt(valor, 10) / 100;
       // Estorno entra como crédito na fatura, não como despesa nem receita.
       const tipoFinal = estorno ? 'Recebimento' : tipo;
@@ -441,6 +456,24 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
               </span>
             </button>
           </div>
+          {/* Explica ANTES, não depois: o toggle ligado numa data futura muda o
+              que o botão salvar faz, e isso tem de estar na tela onde a escolha
+              é feita. Antes o usuário só descobria pela ausência. */}
+          {viraFixa && (
+            <div className="-mt-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-3 py-2.5">
+              <p className="text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
+                <span className="font-semibold">Isto vira uma conta fixa.</span>{' '}
+                Como a data ainda não chegou, a Sora não lança agora — ela lança
+                sozinha todo dia {Number(data.slice(8, 10))}. Você acompanha em{' '}
+                <span className="font-semibold">Gastos fixos</span>, aqui mesmo
+                nesta aba, e não na lista de movimentações.
+              </p>
+              <p className="mt-1.5 text-[11px] text-amber-700/80 dark:text-amber-300/80">
+                Quer que apareça agora como lançamento? Desligue o Recorrente.
+              </p>
+            </div>
+          )}
+
           {avisoParcela && !parcelado && (
             <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 -mt-2">
               <AlertCircle size={12} className="flex-shrink-0" /> {avisoParcela}
