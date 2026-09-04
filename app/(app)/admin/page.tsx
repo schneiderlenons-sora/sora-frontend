@@ -314,6 +314,19 @@ export default function AdminPage() {
   }
 
   async function mudarStatusBug(id: string, status: BugReport['status']) {
+    // ⚠️ "RESOLVIDO" APAGA A CONVERSA E OS ANEXOS, e isso é irreversível.
+    // É comportamento pedido (não guardar print de extrato depois de resolver),
+    // mas o botão não avisava nada — dava pra encerrar um chamado e ver a
+    // thread inteira sumir sem entender por quê. Foi exatamente o que aconteceu:
+    // "respondi o usuário e a conversa não aparece no painel".
+    if (status === 'resolvido') {
+      const ok = window.confirm(
+        `Encerrar este chamado apaga a conversa e os anexos dele, sem como desfazer.
+
+O relato de abertura continua no histórico. Encerrar mesmo assim?`
+      );
+      if (!ok) return;
+    }
     setBugs((b) => b.map((x) => x.id === id ? { ...x, status } : x));
     setMelhorias((m) => m.map((x) => x.id === id ? { ...x, status } : x));
     try { await adminFetch('/bugs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) }); carregarOverview(); }
