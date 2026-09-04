@@ -16,11 +16,12 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
+import { aindaVemNoMes, diaHojeSP } from '@/lib/saldo-projetado';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
   ArrowUpRight, ArrowDownRight, Calendar, RefreshCw,
-  CheckCircle2, ClipboardList, Activity, Layers, Users,
+  CheckCircle2, ClipboardList, Activity, Layers, Users, CalendarClock,
   Target, AlertTriangle, Check as CheckIcon, Gauge,
   CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock, Wand2, Pencil, CircleDashed,
 } from 'lucide-react';
@@ -133,6 +134,33 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const { data: membrosData } =
     useApi(compartilhado && grupoId ? `rel:membros:${grupoId}` : null, () => api.grupos.membros(grupoId!));
   const membros: any[] = Array.isArray(membrosData) ? membrosData : [];
+
+  // ── O QUE FALTAVA NA ABA DE PENDENTES ──────────────────────────────────
+  //
+  // RELATO: "não mostra nenhuma receita a receber e nenhum gasto a pagar,
+  // sendo que tenho várias contas a pagar em previstos e conta a receber
+  // amanhã". A aba não estava quebrada — ela respondia OUTRA pergunta.
+  //
+  // "Pendente" aqui sempre significou `transacoes` com `pago = false`. Só que
+  // conta fixa em modo "não lançar" NÃO CRIA TRANSAÇÃO NENHUMA (é o desenho:
+  // ver jobs/index.js — o modo existe pra quem tem Open Finance e recebe a
+  // cobrança real pelo banco). Medido na conta do relato: 8 recorrências
+  // ativas, TODAS em `nao_lancar` — daí a tela vazia com o card "Previstos do
+  // mês" cheio, na aba ao lado.
+  //
+  // Duas telas do mesmo app respondendo diferente à mesma pergunta lê como
+  // bug mesmo quando cada uma está certa isolada. Agora esta aba soma as duas
+  // fontes, com a MESMA regra do card (`aindaVemNoMes`, lib/saldo-projetado).
+  //
+  // ⚠️ Só busca na aba de pendentes (key null nas outras): as demais abas não
+  // usam nada disso, e a chamada extra sairia de graça no caminho do LCP.
+  const ehPendentes = tab === 'pendentes';
+  const { data: recData } = useApi(
+    phone && ehPendentes ? `rel:rec:${phone}` : null, () => api.recorrencias.listar(phone));
+  const { data: divData } = useApi(
+    phone && ehPendentes ? `rel:div:${phone}` : null, () => api.dividas.listar(phone));
+  const { data: fatData } = useApi(
+    phone && ehPendentes ? `rel:fat:${phone}` : null, () => api.wallets.faturas(phone, 0));
 
   // Os 12 meses REAIS do ano — alimentam o gráfico de fluxo E a média/projeção.
   // Não busca na aba de pendentes, que não usa nada disso. Como a key do SWR é
@@ -359,8 +387,93 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
       mR();
     } catch (e: any) { alert(e?.message || 'Não consegui dar baixa.'); }
   }, [mT, mR]);
-  const totalReceber = recebPendentes.reduce((s, t) => s + (t.valor || 0), 0);
-  const totalPagar   = gastoPendentes.reduce((s, t) => s + (t.valor || 0), 0);
+  // ── PREVISTOS: o que ainda vence e NÃO virou transação ──────────────────
+  //
+  // Mesma regra do card "Previstos do mês" (`aindaVemNoMes`), de propósito:
+  // era a divergência entre as duas telas que fazia esta aba parecer quebrada.
+  //
+  // ⚠️ O CUIDADO QUE IMPEDE CONTAR EM DOBRO é o `modo_lancamento`. Recorrência
+  // em "lançar" ou "só prever" VIRA transação no dia do vencimento — e essa
+  // transação já aparece na lista de pendentes logo acima. Somar as duas
+  // mostraria a mesma conta duas vezes. Então:
+  //   · `nao_lancar`      → nunca cria nada  → entra a partir de HOJE;
+  //   · `lancar`/`prever` → cria no dia      → entra só se ainda FALTAM dias.
+  // No dia do vencimento o cron já rodou e quem responde é a transação.
+  const previstosFixos = useMemo(() => {
+    const lista = Array.isArray(recData) ? recData : [];
+    const diaHoje = diaHojeSP();
+    return lista
+      .filter((r: any) => (r.modo_lancamento || 'lancar') === 'nao_lancar'
+        ? aindaVemNoMes({ tipo: r.tipo, valor: r.valor, dia_vencimento: r.dia_vencimento })
+        : Number(r.dia_vencimento) > diaHoje)
+      .map((r: any) => ({
+        chave: `rec:${r.id}`,
+        titulo: r.descricao || r.categoria || 'Conta fixa',
+        tipo: r.tipo as string,
+        valor: Number(r.valor) || 0,
+        dia: Number(r.dia_vencimento) || 0,
+        variavel: !!r.valor_variavel,
+        origem: 'Conta fixa',
+      }));
+  }, [recData]);
+
+  // Parcela de dívida e fatura de cartão também são saída prevista do mês —
+  // as duas já entram no card da aba Transações, e ficar de fora aqui
+  // reproduziria a mesma divergência que este bloco existe pra fechar.
+  // `nos_previstos !== false` (migrations 115 e 123) respeita quem tirou o
+  // item da previsão; `!== false` e não `=== true` porque antes da migration
+  // a coluna não vem e o certo é MOSTRAR.
+  const previstosDivida = useMemo(() => {
+    const lista = (divData as any)?.dividas || [];
+    return lista
+      .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0
+        && d.nos_previstos !== false
+        && aindaVemNoMes({ tipo: 'Gasto', valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }))
+      .map((d: any) => ({
+        chave: `div:${d.id}`,
+        titulo: d.titulo || 'Dívida',
+        tipo: 'Gasto',
+        valor: Number(d.valor_parcela) || 0,
+        dia: Number(d.dia_vencimento) || 0,
+        variavel: false,
+        origem: 'Parcela de dívida',
+      }));
+  }, [divData]);
+
+  const previstosFatura = useMemo(() => {
+    const lista = (fatData as any)?.faturas || [];
+    return lista
+      .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false
+        // A data INTEIRA manda: o ciclo do cartão cruza meses, e reduzido ao
+        // dia um vencimento 13/10 viraria "13" e seria lido como já vencido.
+        && aindaVemNoMes({ tipo: 'Gasto', valor: f.restante, dia_vencimento: 0, venc: f.venc }))
+      .map((f: any) => ({
+        chave: `fat:${f.cartao_id}`,
+        titulo: `Fatura ${f.nome || 'do cartão'}`,
+        tipo: 'Gasto',
+        valor: Number(f.restante) || 0,
+        dia: parseInt(String(f.venc || "").slice(8, 10), 10) || 0,
+        variavel: false,
+        origem: 'Fatura de cartão',
+      }));
+  }, [fatData]);
+
+  const previstos = useMemo(
+    () => [...previstosFixos, ...previstosDivida, ...previstosFatura]
+      .sort((a, b) => a.dia - b.dia),
+    [previstosFixos, previstosDivida, previstosFatura],
+  );
+  const prevReceber = previstos.filter((i) => i.tipo === "Recebimento");
+  const prevPagar   = previstos.filter((i) => i.tipo === "Gasto");
+  const somaPrev = (l: any[]) => l.reduce((s, i) => s + (i.valor || 0), 0);
+
+  // Os cards somam AS DUAS fontes — é o total que a pergunta "quanto tenho a
+  // receber?" espera. A composição fica escrita logo abaixo do número, pra
+  // ninguém precisar adivinhar de onde veio.
+  const lancReceber  = recebPendentes.reduce((s, t) => s + (t.valor || 0), 0);
+  const lancPagar    = gastoPendentes.reduce((s, t) => s + (t.valor || 0), 0);
+  const totalReceber = lancReceber + somaPrev(prevReceber);
+  const totalPagar   = lancPagar + somaPrev(prevPagar);
   const saldoPrevisto = (resumo?.receitas || 0) - (resumo?.gastos || 0) + saldoBanco;
 
   // ── Dados para gráficos ────────────────────────────────────
@@ -1126,7 +1239,11 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                     {fmt(totalReceber)}
                   </ValorAuto>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    {recebPendentes.length} lançamento{recebPendentes.length !== 1 ? 's' : ''} pendente{recebPendentes.length !== 1 ? 's' : ''}
+                    {recebPendentes.length > 0 && prevReceber.length > 0
+                      ? `${recebPendentes.length} lançado${recebPendentes.length !== 1 ? 's' : ''} · ${prevReceber.length} conta${prevReceber.length !== 1 ? 's' : ''} a vencer`
+                      : prevReceber.length > 0
+                        ? `${prevReceber.length} conta${prevReceber.length !== 1 ? 's' : ''} fixa${prevReceber.length !== 1 ? 's' : ''} a vencer`
+                        : `${recebPendentes.length} lançamento${recebPendentes.length !== 1 ? 's' : ''} pendente${recebPendentes.length !== 1 ? 's' : ''}`}
                   </p>
                 </div>
               </div>
@@ -1143,7 +1260,11 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                   </div>
                   <ValorAuto max="1.875rem" className="font-bold text-red-500 tracking-tight">{fmt(totalPagar)}</ValorAuto>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    {gastoPendentes.length} lançamento{gastoPendentes.length !== 1 ? 's' : ''} pendente{gastoPendentes.length !== 1 ? 's' : ''}
+                    {gastoPendentes.length > 0 && prevPagar.length > 0
+                      ? `${gastoPendentes.length} lançado${gastoPendentes.length !== 1 ? 's' : ''} · ${prevPagar.length} conta${prevPagar.length !== 1 ? 's' : ''} a vencer`
+                      : prevPagar.length > 0
+                        ? `${prevPagar.length} conta${prevPagar.length !== 1 ? 's' : ''} fixa${prevPagar.length !== 1 ? 's' : ''} a vencer`
+                        : `${gastoPendentes.length} lançamento${gastoPendentes.length !== 1 ? 's' : ''} pendente${gastoPendentes.length !== 1 ? 's' : ''}`}
                   </p>
                 </div>
               </div>
@@ -1195,6 +1316,59 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                 onBaixar={darBaixa}
               />
             </div>
+
+            {/* ── Contas fixas que ainda vencem ──────────────────────────
+                Fica FORA das duas listas de propósito: aqui não existe "dar
+                baixa". Estes itens não são transações — são compromissos que
+                ainda vão virar uma, ou que a Sora nunca lança (modo "não
+                lançar", de quem recebe a cobrança pelo banco). Misturar com
+                a lista acionável convidaria a um clique que não existe.
+
+                ⚠️ E o bloco só aparece quando há item: seção vazia num lugar
+                onde antes não havia nada seria ruído puro. */}
+            {previstos.length > 0 && (
+              <div className="card rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-border/60 flex items-start gap-3">
+                  <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 13%, transparent)' }}>
+                    <CalendarClock size={16} style={{ color: BRAND }} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-foreground leading-tight">Ainda vence este mês</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Contas fixas, parcelas e faturas com data à frente. Não são lançamentos —
+                      entram sozinhas quando chegar o dia.
+                    </p>
+                  </div>
+                </div>
+
+                <ul className="divide-y divide-border/50">
+                  {previstos.map((i) => (
+                    <li key={i.chave} className="px-5 py-3 flex items-center gap-3">
+                      {/* Dia como âncora visual: a pergunta aqui é "quando", */}
+                      {/* e ele é o que ordena a lista. */}
+                      <span className="w-9 flex-shrink-0 text-center">
+                        <span className="block text-[10px] uppercase tracking-wider text-muted-foreground leading-none">dia</span>
+                        <span className="block text-sm font-bold text-foreground tabular leading-tight">{i.dia || "—"}</span>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground truncate">{i.titulo}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {i.origem}
+                          {/* Valor que muda (luz, água) é aproximação — dizer isso */}
+                          {/* evita que o total pareça uma promessa exata. */}
+                          {i.variavel ? ' · valor estimado' : ''}
+                        </p>
+                      </div>
+                      <span className={`text-sm font-bold tabular whitespace-nowrap ${
+                        i.tipo === 'Recebimento' ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                        {i.tipo === 'Recebimento' ? '+' : '−'}{fmt(i.valor)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 

@@ -81,6 +81,27 @@ export function diaHojeSP(agora: Date = new Date()): number {
 }
 
 /**
+ * O item AINDA VAI ACONTECER neste mês? (ou seja: não venceu ainda)
+ *
+ * Estava fechado dentro de `calcularSaldoProjetado`. Foi exportado porque a
+ * aba Relatórios precisa da MESMA regra pra listar o que ainda vence — e
+ * reescrevê-la lá daria duas respostas diferentes pra mesma pergunta em duas
+ * telas do mesmo app, que é exatamente o defeito que essa aba tinha.
+ *
+ * Sem `dia_vencimento` conta como "ainda vem": é o lado conservador pra
+ * despesa (assume que ainda vai sair).
+ *
+ * ⚠️ Com `venc` (data inteira) a comparação é por DATA, não por dia do mês.
+ * É o que separa "vence dia 13 deste mês, já passou" de "vence 13 do mês que
+ * vem, ainda vem" — sem isso a fatura do mês seguinte sumia da projeção.
+ */
+export function aindaVemNoMes(i: ItemPrevisto, agora: Date = new Date()): boolean {
+  const hojeISO = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  if (i.venc) return String(i.venc).slice(0, 10) >= hojeISO;
+  return !i.dia_vencimento || i.dia_vencimento >= diaHojeSP(agora);
+}
+
+/**
  * @param carteiras  wallets do grupo (crédito é ignorado)
  * @param previstos  recorrências ativas do mês
  * @param parcelas   parcela do mês de cada dívida que conta nos previstos
@@ -91,21 +112,14 @@ export function calcularSaldoProjetado(
   parcelas: ItemPrevisto[] = [],
   agora: Date = new Date(),
 ): SaldoProjetado {
-  const hoje = diaHojeSP(agora);
 
   const saldoHoje = cent((carteiras || [])
     .filter((c) => c.tipo !== 'Crédito')
     .reduce((s, c) => s + (Number(c.saldo) || 0), 0));
 
-  // Sem `dia_vencimento` não dá pra saber se já passou — conta como "ainda vem",
-  // que é o lado conservador pra despesa (assume que ainda vai sair).
-  //
-  // Com `venc` (data inteira) a comparação é por DATA: é o que separa "vence
-  // dia 13 deste mês, já passou" de "vence 13 do mês que vem, ainda vem".
-  const hojeISO = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-  const aindaVem = (i: ItemPrevisto) => (i.venc
-    ? i.venc >= hojeISO
-    : (!i.dia_vencimento || i.dia_vencimento >= hoje));
+  // A regra de "ainda vem" é a mesma que a aba Relatórios usa pra listar o
+  // que ainda vence — por isso mora fora, em `aindaVemNoMes`.
+  const aindaVem = (i: ItemPrevisto) => aindaVemNoMes(i, agora);
 
   const todos = [...(previstos || []), ...(parcelas || [])].filter(aindaVem);
 
