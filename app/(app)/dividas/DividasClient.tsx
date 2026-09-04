@@ -369,7 +369,19 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
   const total  = divida.parcelas_total || 0;
   const pct    = total > 0 ? Math.min((pagas / total) * 100, 100) : 0;
   const restantes = Math.max(0, total - pagas);
-  const saldoDevedor = restantes * (divida.valor_parcela || 0);
+  // ⚠️ O SALDO DO BANCO VENCE A CONTA LOCAL (migration 155).
+  //
+  // `restantes × parcela` mede a soma do que ainda será pago ao longo do
+  // contrato, com os juros futuros dentro — não o valor de quitação hoje,
+  // que é o que o app do banco (e este rótulo) chamam de saldo devedor. E
+  // ela depende de `parcelas_pagas`, contagem que o emissor manda furada:
+  // um contrato cuja 1ª parcela ainda nem venceu chega com "11 de 48 pagas".
+  // Medido: R$ 28.165,88 aqui contra R$ 9.069,95 que o banco informa.
+  //
+  // Dívida manual não tem o campo e segue na conta local, sem mudança.
+  const saldoDevedor = divida.saldo_devedor != null
+    ? Number(divida.saldo_devedor)
+    : restantes * (divida.valor_parcela || 0);
 
   const concluida = divida.status === 'quitada';
 

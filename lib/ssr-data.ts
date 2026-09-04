@@ -270,6 +270,9 @@ export async function dividasDireto(grupoId: string, userId: string) {
 
   const ativas = lista.filter((d) => d.status === 'ativa' || d.status === 'em_atraso');
   const total_devido = ativas.reduce((s, d) => {
+    // Espelha routes/dividas.js: saldo do BANCO primeiro (migration 155); a
+    // conta local só entra em dívida manual, que não tem o campo.
+    if (d.saldo_devedor != null) return s + Number(d.saldo_devedor);
     const restantes = Math.max(0, (d.parcelas_total || 0) - (d.parcelas_pagas || 0));
     const saldo = restantes * (d.valor_parcela || 0);
     return s + (saldo || d.valor_total || 0);
