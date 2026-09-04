@@ -137,9 +137,11 @@ export async function GET(req: NextRequest) {
           cartoes: 'só o que decide a FATURA (fechamento, vencimento, limite)',
           saldo: 'só as CONTAS + a decomposição do saldo — use quando o saldo diverge do app do banco',
           investimentos: 'as 5 famílias + as MOVIMENTAÇÕES de cada papel com saldo — use quando a aba Aportes ou os proventos vêm vazios',
+          dividas: 'empréstimos e financiamentos + o CRONOGRAMA (1ª parcela, último vencimento, pagas) — use quando a data da próxima parcela diverge do app do banco',
         },
         exemplo_saldo: '/api/admin/of-debug?email=cliente@exemplo.com&foco=saldo',
         exemplo_investimentos: '/api/admin/of-debug?email=cliente@exemplo.com&foco=investimentos',
+        exemplo_dividas: '/api/admin/of-debug?email=cliente@exemplo.com&foco=dividas',
       }, { status: 400 });
     }
     const { data: u } = await supabaseAdmin
