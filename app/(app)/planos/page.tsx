@@ -32,8 +32,11 @@ const PLANOS = PLANOS_DISPLAY;
 // O cartão de status de quem JÁ TEM vitalício também é independente daqui.
 const MOSTRAR_VITALICIO = false;
 
+// `gratis` fica no MESMO degrau de `inativo` (0) de propósito: os dois não
+// pagam nada, então todo plano da tela é "subir" pros dois, e o CTA sai como
+// "Assinar" em vez de virar downgrade pro portal do Stripe.
 const ORDEM: Record<Plano, number> = {
-  inativo: 0, basico: 1, kit: 1, premium: 2, platinum: 3,
+  inativo: 0, gratis: 0, basico: 1, kit: 1, premium: 2, platinum: 3,
 };
 
 // ─── Componente principal (separado por causa do Suspense) ────────────────────

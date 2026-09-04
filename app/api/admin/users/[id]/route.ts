@@ -22,14 +22,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   // ── Trocar/ativar plano ──────────────────────────────────────────
   if (action === 'set_plano') {
     const plano = body.plano as string;
-    if (!['basico', 'premium', 'platinum', 'kit', 'inativo'].includes(plano)) {
+    // ⚠️ Lista à mão, e não `PLANOS` de lib/plans — o Record de lá é tipado
+    // por `Plano`, e aqui chega uma string crua do corpo do request. Plano
+    // novo TEM de ser adicionado aqui também, senão o admin não consegue
+    // atribuí-lo e o 400 não diz por quê.
+    if (!['basico', 'premium', 'platinum', 'kit', 'gratis', 'inativo'].includes(plano)) {
       return NextResponse.json({ erro: 'Plano inválido' }, { status: 400 });
     }
     const dias = Number(body.dias) > 0 ? Number(body.dias) : 30;
-    const patch: Record<string, unknown> =
-      plano === 'inativo'
-        ? { plano, plano_valido_ate: null }
-        : { plano, plano_valido_ate: new Date(Date.now() + dias * 864e5).toISOString() };
+    // ⚠️ `gratis` ENTRA NO RAMO SEM VALIDADE, junto do `inativo`.
+    //
+    // O modo manual não vence — e `plano_valido_ate` preenchido nele seria
+    // uma bomba-relógio: `exigirPlano` expira QUALQUER plano != inativo com
+    // data vencida, então o usuário grátis viraria `inativo` sozinho e
+    // apareceria no paywall sem nunca ter cancelado nada.
+    const semValidade = plano === "inativo" || plano === "gratis";
+    const patch: Record<string, unknown> = semValidade
+      ? { plano, plano_valido_ate: null }
+      : { plano, plano_valido_ate: new Date(Date.now() + dias * 864e5).toISOString() };
     const { error } = await supabaseAdmin.from('users').update(patch).eq('id', id);
     if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });

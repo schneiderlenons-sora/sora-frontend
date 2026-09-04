@@ -9,10 +9,20 @@
 // 'platinum' = tudo do Premium + aba Negócios + 5 conexões de Open Finance
 //              + suporte prioritário (R$49,90/mês · R$479/ano).
 //
+// 'gratis'   = modo manual (migration 156): o painel inteiro do Básico MENOS
+//              WhatsApp, Saúde, Open Finance, Drive, Wrapped, Agenda e Agentes.
+//              Lança à mão, de graça, pra sempre.
+//
+// ⚠️ 'gratis' NÃO É 'inativo'. `inativo` é paywall — `PaywallRedirect` joga
+// TODA rota pro /planos, inclusive o onboarding. `gratis` navega o app; quem
+// barra ele são os gates de feature. Os dois existem separados de propósito:
+// juntos, MRR e churn no /admin passariam a contar como cancelamento quem
+// nunca pagou.
+//
 // ⚠️ 'black' NÃO EXISTE MAIS (migration 142). Era idêntico ao Premium desde
 // 2026 e sobrevivia só como string espalhada pelo código. As linhas da base
 // foram convertidas; `normalizarPlano` abaixo cobre qualquer resquício.
-export type Plano = 'inativo' | 'basico' | 'kit' | 'premium' | 'platinum';
+export type Plano = 'inativo' | 'gratis' | 'basico' | 'kit' | 'premium' | 'platinum';
 
 // Features que podem ser gated. Todas explicitamente nomeadas pra evitar
 // strings mágicas espalhadas pelo código.
@@ -40,6 +50,14 @@ export type Feature =
   | 'drive'                  // Premium+: Drive — guardar/buscar arquivos pelo WhatsApp
   | 'oraculo'                // Premium+: "posso comprar isso?" no WhatsApp
   | 'suporte_prioritario'    // Platinum: fila de atendimento própria
+  // ─── Gates criados junto do plano `gratis` (migration 156) ────────────────
+  // ⚠️ Estes três NÃO EXISTIAM: as abas eram abertas a qualquer plano, sem
+  // `gate:` no catálogo da sidebar e sem guard de rota. Foram nomeados agora
+  // só pra excluir o `gratis` — por isso a lista de cada um é "todo mundo
+  // MENOS gratis". Restringi-los a Premium tiraria aba de quem já tem.
+  | 'wrapped'                // Retrospectiva anual
+  | 'grow_agenda'            // Aba Agenda do Grow
+  | 'agentes'                // Watson, Oráculo e os outros
   // Features disponíveis em todos os planos pagos (e inativo p/ onboarding):
   | 'metas'
   | 'dividas'
@@ -58,7 +76,11 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   cartoes_ilimitados: ['kit', 'premium', 'platinum'],
   investimentos:      ['kit', 'premium', 'platinum'], // Kit inclui as calculadoras de investimento/reserva
   negocios:           ['platinum'],                   // ⚠️ saiu do Premium — ver temNegocios()
-  sora_grow:          ['basico', 'premium', 'platinum'], // Grow NÃO entra no kit
+  // ⚠️ `gratis` ENTRA no Grow base (hábitos, tarefas, bem-estar) e sai só da
+  // Agenda, por `grow_agenda` abaixo — era o pedido: "as mesmas abas do
+  // básico, exceto…". Sem isto o layout do Grow (`temAcessoGrow`) trancaria a
+  // seção inteira. Grow continua NÃO entrando no kit.
+  sora_grow:          ['gratis', 'basico', 'premium', 'platinum'],
   grow_saude:         ['premium', 'platinum'],
   grow_estudos:       ['premium', 'platinum'],
   grow_casa:          ['premium', 'platinum'],
@@ -81,22 +103,35 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   // cairia em "não sei" quase sempre, o que leria como função quebrada.
   oraculo:            ['premium', 'platinum'],
   suporte_prioritario: ['platinum'],
-  metas:              ['inativo', 'basico', 'kit', 'premium', 'platinum'],
-  dividas:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],
-  limites:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],
-  subcategorias:      ['inativo', 'basico', 'kit', 'premium', 'platinum'],
-  lembretes:          ['inativo', 'basico', 'kit', 'premium', 'platinum'],
+
+  // ─── "Todo mundo MENOS gratis" ────────────────────────────────────────────
+  // ⚠️ A lista longa é a correção, não descuido. Estas abas hoje são abertas a
+  // QUALQUER plano (não têm gate nenhum), então nomear a feature e listar só
+  // 'premium' tiraria Wrapped e Agentes do Básico e do Kit — uma regressão em
+  // cima de quem paga, disfarçada de feature nova.
+  wrapped:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],
+  // Sem 'kit': ele não tem `sora_grow`, então nunca alcança a Agenda de todo
+  // jeito. Listá-lo aqui sugeriria um acesso que não existe.
+  grow_agenda:        ['inativo', 'basico', 'premium', 'platinum'],
+  agentes:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],
+
+  metas:              ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
+  dividas:            ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
+  limites:            ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
+  subcategorias:      ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
+  lembretes:          ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'],
 };
 
 // Limites quantitativos por plano (use Number.POSITIVE_INFINITY pra "ilimitado").
 export const LIMITES = {
-  contas:  { inativo: 3, basico: 3, kit: Infinity, premium: Infinity, platinum: Infinity },
-  cartoes: { inativo: 3, basico: 3, kit: Infinity, premium: Infinity, platinum: Infinity },
+  // `gratis` herda o teto do Básico (3): é o mesmo painel, sem WhatsApp.
+  contas:  { inativo: 3, gratis: 3, basico: 3, kit: Infinity, premium: Infinity, platinum: Infinity },
+  cartoes: { inativo: 3, gratis: 3, basico: 3, kit: Infinity, premium: Infinity, platinum: Infinity },
   // ⚠️ CONEXÃO de banco (Open Finance) ≠ CONTA. Conta criada à mão continua
   // ilimitada no Premium; o que é limitado é o vínculo automático com o banco,
   // porque cada um custa mensalidade nossa no agregador.
   // Acima do limite: +R$6/mês por conexão extra (add-on real no Stripe).
-  conexoes_of: { inativo: 0, basico: 1, kit: 0, premium: 3, platinum: 5 },
+  conexoes_of: { inativo: 0, gratis: 0, basico: 1, kit: 0, premium: 3, platinum: 5 },
 } as const satisfies Record<string, Record<Plano, number>>;
 
 // Preço da conexão extra de Open Finance: R$6/mês ou R$60/ano, cobrado de
@@ -119,7 +154,10 @@ export type Recurso = keyof typeof LIMITES;
  */
 export function normalizarPlano(plano: string | null | undefined): Plano {
   if (plano === 'black') return 'premium';
-  const validos: Plano[] = ['inativo', 'basico', 'kit', 'premium', 'platinum'];
+  // ⚠️ ESTA LISTA É RUNTIME, NÃO COMPILA. Plano novo esquecido aqui não quebra
+  // o build: ele vira `inativo` em silêncio, e o usuário cai no paywall com o
+  // plano certo gravado no banco. Espelhada em `src/config/planos.js`.
+  const validos: Plano[] = ['inativo', 'gratis', 'basico', 'kit', 'premium', 'platinum'];
   return validos.includes(plano as Plano) ? (plano as Plano) : 'inativo';
 }
 
@@ -206,6 +244,7 @@ export function planoMinimo(feature: Feature): Plano {
 
 export const PLANO_LABEL: Record<Plano, string> = {
   inativo:  'Inativo',
+  gratis:   'Grátis',
   basico:   'Básico',
   kit:      'Kit',
   premium:  'Premium',

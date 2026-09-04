@@ -438,8 +438,10 @@ const PLANOS_DETALHE = PLANOS_DISPLAY;
 
 // Ordem pra decidir se o card é upgrade ou downgrade em relação ao plano
 // atual. Kit empata com Básico de propósito: é vitalício, não escada.
+// `gratis` empata com `inativo` (0): nenhum dos dois paga, então todo plano
+// pago é upgrade pros dois.
 const ORDEM_PLANO: Record<Plano, number> = {
-  inativo: 0, basico: 1, kit: 1, premium: 2, platinum: 3,
+  inativo: 0, gratis: 0, basico: 1, kit: 1, premium: 2, platinum: 3,
 };
 
 function SecaoPlano() {
