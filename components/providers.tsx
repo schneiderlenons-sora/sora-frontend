@@ -11,6 +11,7 @@ import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
 import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
 import { LoadingGateProvider } from '@/components/ui/LoadingGate';
 import ThemeColorSync from '@/components/layout/ThemeColorSync';
+import OrigemSync from '@/components/app/OrigemSync';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           do ThemeProvider, porque depende do tema resolvido — e fora do
           DashboardLayout porque a meta é do documento inteiro, landing incluída. */}
       <ThemeColorSync />
+      {/* Marca a sessão como vinda do app Android antes de qualquer
+          navegação. Fora do AuthProvider de propósito: não depende de
+          usuário logado, e o sinal chega na primeira tela — que pode ser o
+          login. */}
+      <OrigemSync />
       <SWRConfig value={{ provider: localStorageProvider }}>
         <AuthProvider>
           <PaywallRedirect />

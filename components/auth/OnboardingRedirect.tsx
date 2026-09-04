@@ -31,6 +31,9 @@ export default function OnboardingRedirect() {
       '/login',
       '/signup',
       '/onboarding',
+      // A demonstração É o onboarding de quem vem do app — mandar pro
+      // wizard no meio dela desfaria a tela inteira.
+      '/tour',
       '/vincular-whatsapp',
       '/oferta',
       '/checkout-vitalicio',

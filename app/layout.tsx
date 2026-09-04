@@ -128,7 +128,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             aparelho. */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{
 if(location.search.indexOf('abertura=1')<0){
-  var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es'];
+  var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es','/tour'];
   for(var i=0;i<pub.length;i++){if(p===pub[i]||p.indexOf(pub[i]+'/')===0)return;}
   try{if(sessionStorage.getItem('sora-abertura-v3')==='1')return;}catch(e){}
   if(!matchMedia('(max-width:767px)').matches)return;
