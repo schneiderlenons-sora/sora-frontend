@@ -302,8 +302,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
    * ele desmonta e monta a árvore, refazendo a animação de entrada. Foi
    * exatamente a causa do "os itens da sidebar piscam" já corrigido aqui.
    *
-   * Bloqueado NÃO some: continua visível, apagado e com cadeado, levando pro
-   * /planos. Sumir esconderia que a função existe.
+   * Bloqueado NÃO some: continua visível, apagado e com cadeado, e abre a
+   * própria aba, onde o card de convite explica o que ela faz. Sumir
+   * esconderia que a função existe.
    */
   function atalho(href: string, label: string, icone: React.ReactNode, liberado: boolean) {
     const fundo = isTemaBlack
@@ -311,7 +312,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       : 'bg-white/10 hover:bg-white/20';
     return (
       <Link
-        href={liberado ? href : '/planos'}
+        // Bloqueado também abre a própria aba: o guard de rota mostra o card
+        // de convite ali, com o nome dela. Ver o comentário em `destino`.
+        href={href}
         onClick={() => setOpen(false)}
         title={liberado ? label : `${label} — disponível a partir do plano Básico`}
         className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium transition-all ${fundo} ${
@@ -360,7 +363,17 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // a usa — o item sumiria da barra do dia pra noite.
     const gateLocked = gate === 'negocios' ? !temNegocios : gate ? !podeUsar(gate) : false;
     const locked     = growLocked || gateLocked;
-    const destino    = growLocked ? '/grow/upgrade' : gateLocked ? '/planos' : href;
+    // ⚠️ ITEM BLOQUEADO POR PLANO ABRE A PRÓPRIA ABA, não o /planos.
+    //
+    // Cada uma delas renderiza o convite no próprio lugar (`AbaBloqueada`,
+    // `PaywallPremium`, o upsell do Open Finance…), com o nome da aba e o que
+    // ela faz. Mandar pro /planos direto tirava a pessoa do contexto: ela
+    // clicava em "Saúde" e caía numa tabela de preços sem nada dizendo qual
+    // aba tinha pedido.
+    //
+    // `growLocked` continua indo pro /grow/upgrade: ali não é uma aba, é o
+    // Grow inteiro, e essa página existe só pra isso.
+    const destino    = growLocked ? '/grow/upgrade' : href;
     // Item com query (`?aba=`) nunca marca ativo: o pathname é o mesmo da aba
     // inteira e ele acenderia junto com ela.
     const ativo      = !locked && !externa && isActive(href);
