@@ -2019,6 +2019,78 @@ regra virava `buscar` ou `resumo` — nunca `null`, então **nunca alcançava a 
   gatilho de `RE_TAREFA_NL`. Leitura defensável e melhor que o resumo de antes; se
   incomodar, tratar em `RE_NAO_TAREFA` do `grow.js`, não nesta regra.
 
+## Modo manual grátis + demo do app Android (set/2026)
+
+A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
+`PaywallRedirect` mandava **toda** rota pro /planos, onboarding incluído. Medido
+antes de mexer: **165 usuários, 73 (44%) em `inativo`** e **68 (41%) que nunca
+concluíram o onboarding**. Um app de loja não sobrevive a isso.
+
+**`gratis` = o painel do Básico MENOS WhatsApp, Saúde, Open Finance, Drive,
+Wrapped, Agenda e Agentes.** Migration **156** (obrigatória: o `users_plano_check`
+recusa valor fora da lista e o UPDATE não lê o erro — sem ela o plano não entra
+e o usuário fica `inativo` pra sempre).
+
+- ⚠️ **`gratis` NÃO é `inativo`.** `inativo` é paywall; `gratis` usa o app e é
+  limitado pelos gates. Juntá-los faria o /admin contar como churn quem nunca
+  pagou.
+- ⚠️ **O plano grátis NÃO PODE TER VALIDADE.** `exigirPlano` expira qualquer
+  plano != inativo com `plano_valido_ate` vencido — um grátis com data viraria
+  `inativo` sozinho. Fechado na rota do admin e no middleware.
+- ⚠️ **As features `wrapped`, `grow_agenda`, `agentes` e `drive_painel` são
+  "todo mundo MENOS gratis".** Essas abas não tinham gate nenhum; nomeá-las e
+  listar só 'premium' tiraria Wrapped e Agentes do Básico e do Kit.
+- ⚠️ **`drive_painel` ≠ `drive`.** A `drive` é Premium e vale pro WhatsApp; a ABA
+  sempre foi aberta a todo plano pago pra não trancar o Básico fora dos próprios
+  documentos.
+- ⚠️ **Descompasso corrigido:** `temAcessoGrow` do `routes/grow.js` tem lista
+  inline própria — o grátis levaria 403 no Grow inteiro com o painel mostrando as
+  abas. Ele entrou na base; a Agenda sai por `requireAgenda` (7 rotas).
+- **WhatsApp:** `webhook.js` tem um MAPA de planos sem zap (kit → /kit,
+  gratis → /planos). É o **único** ponto que segura o WhatsApp — tudo abaixo dele
+  já assume usuário com direito.
+
+### Aba bloqueada mostra CARD, não redireciona
+
+`GrowGate` (que apesar do nome só recebe uma `Feature`) renderiza
+`AbaBloqueada` no lugar da aba. Antes redirecionava pro /planos, e a pessoa caía
+numa tabela de preços sem nada dizendo qual aba tinha pedido. O item da sidebar
+continua visível com cadeado e leva à **própria aba**.
+
+### Demo do app (`/tour`) e o card em dois modos
+
+- ⚠️ **A política do Google proíbe vender assinatura fora do Play Billing dentro
+  do app, e proíbe LINK ou TEXTO PERSUASIVO** levando a outro meio de pagamento.
+  Brasil não está na lista de billing alternativo. Por isso `CardPlanos` tem modo
+  `android` **sem preço, sem "Assinar" e sem descrever o plano pago** — descrever
+  é o texto persuasivo que a política cita. A venda continua no site.
+- ⚠️ **`display-mode: standalone` NÃO distingue TWA de PWA.** Quem responde é o
+  `document.referrer` (`android-app://`), que só existe na PRIMEIRA navegação —
+  daí `lib/origem-app.ts` PERSISTIR o resultado, com `?fonte=android` do
+  `startUrl` como segunda fonte. `OrigemSync` roda no provider.
+- ⚠️ **`/tour` entrou nas TRÊS allowlists** (abertura em `app/layout.tsx`,
+  `OnboardingRedirect`, `PaywallRedirect`). Sem a primeira, a animação de
+  abertura cobre a demo por até 9s.
+- **Sem autoplay**, ao contrário do WrappedPlayer: aqui a pessoa está decidindo
+  se fica. Swipe com o limiar de 50px do `Carrossel.tsx`.
+- ⚠️ **As telas de `public/screenshots` são DESKTOP.** Em 390px o `object-cover`
+  recortava uma fatia ilegível; ficaram emolduradas. **Screenshots de celular
+  melhorariam muito a demo** — é a maior alavanca visual pendente.
+
+### Onboarding curto
+
+`SEQUENCIAS` em `OnboardingContext` diz quais passos cada modo roda
+(`curto: [1, 5]`), reaproveitando os mesmos componentes — renumerar quebraria o
+`onboarding_step` de quem está no meio do wizard. O step inicial é clampado à
+sequência, e o desvio pro Open Finance no fim só vale no modo completo.
+
+⚠️ **O plano não pode ser gravado pelo client** (o onboarding escreve em `users`
+direto pelo Supabase, então a tentação é fazer igual). `POST /api/plano-gratis`
+faz no servidor e **só anda de `inativo` para `gratis`**.
+
+---
+
+
 ## Play Store (TWA) — o que já está pronto (set/2026)
 
 A Sora vai pra Play Store empacotada como **TWA**: o app Android abre a própria
@@ -2194,6 +2266,7 @@ sql/124_debito_automatico_fatura.sql — reclassifica "Débito automático FATUR
 sql/125_divida_consorcio.sql    — tipo `consorcio` no CHECK + carta de crédito, contemplação, lance e grupo/cota. **OBRIGATÓRIA** pro tipo Consórcio salvar.
 sql/126_saldo_aplicado.sql      — `wallets.saldo_aplicado`: quanto do saldo está na aplicação automática do banco. O saldo já soma sem ela; a coluna é pra tela explicar "dos quais R$ X aplicados".
 sql/127_pagamento_fatura_frases.sql — pagamento de fatura descrito com a frase de CADA banco ("PAGAMENTO DEBITO AUTOMATICO", "Obrigado pelo pagamento", "Pagamento com saldo", "PAGAMENTO ON LINE"). Sem ela a fatura JÁ PAGA segue de pé no painel e o crédito ainda ABATE (medido: 11 linhas, R$ 35.516,30).
+sql/156_plano_gratis.sql        — plano `gratis` (modo manual) no users_plano_check. **OBRIGATORIA**: sem ela a ativacao falha calada e o usuario fica inativo pra sempre.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
