@@ -16,7 +16,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
-import { aindaVemNoMes, diaHojeSP } from '@/lib/saldo-projetado';
+import { aindaVemNoMes, diaHojeSP, calcularSaldoProjetado } from '@/lib/saldo-projetado';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -474,7 +474,35 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const lancPagar    = gastoPendentes.reduce((s, t) => s + (t.valor || 0), 0);
   const totalReceber = lancReceber + somaPrev(prevReceber);
   const totalPagar   = lancPagar + somaPrev(prevPagar);
-  const saldoPrevisto = (resumo?.receitas || 0) - (resumo?.gastos || 0) + saldoBanco;
+  // ── SALDO PREVISTO: mesma definição do card "Previstos do mês" ──────────
+  //
+  // Era `receitas − gastos do mês + saldo em conta`, que responde "como o mês
+  // se comportou", NÃO "como eu termino o mês". Duas diferenças concretas:
+  // contava o que JÁ aconteceu (receita que caiu, gasto que saiu — dinheiro
+  // que o saldo em conta já reflete, então entrava duas vezes) e ignorava o
+  // que ainda vai vencer.
+  //
+  // Agora é a mesma pergunta da aba Transações: saldo de hoje + o que ainda
+  // entra − o que ainda sai. E os dois termos são EXATAMENTE os números dos
+  // dois cards ao lado, então dá pra conferir a conta na própria tela.
+  //
+  // ⚠️ A aritmética vem de `calcularSaldoProjetado` (lib/saldo-projetado.ts,
+  // com eval próprio) em vez de somada à mão aqui — era ter duas contas pro
+  // mesmo nome que gerou a divergência que este bloco corrige.
+  //
+  // ⚠️ Os itens entram com `dia_vencimento: 0`, que o helper trata como
+  // "ainda vem". É de propósito: `totalReceber`/`totalPagar` JÁ aplicaram a
+  // regra de data — os previstos filtrados por `aindaVemNoMes` e os
+  // lançamentos pendentes INCLUINDO os atrasados, que continuam tendo de ser
+  // pagos. Refiltrar aqui derrubaria justamente a conta vencida.
+  const saldoPrevisto = useMemo(() => calcularSaldoProjetado(
+    // ⚠️ NORMALIZADO EM BRL antes de entrar. O helper soma `saldo` cru, e esta
+    // aba mostra `saldoBRL(w)` logo acima, no mesmo card: com conta em moeda
+    // estrangeira os dois números discordariam a um centímetro um do outro.
+    wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoBRL(w) ?? 0 })),
+    [{ tipo: 'Recebimento' as const, valor: totalReceber, dia_vencimento: 0 },
+     { tipo: 'Gasto' as const, valor: totalPagar, dia_vencimento: 0 }],
+  ).projetado, [wallets, totalReceber, totalPagar]);
 
   // ── Dados para gráficos ────────────────────────────────────
 
@@ -1282,11 +1310,18 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                   <div className="h-px bg-white/10" />
                   <div>
                     <p className="text-[10px] uppercase tracking-widest font-bold text-white/60 mb-1 flex items-center gap-1">
-                      Saldo previsto <span className="text-[9px] opacity-60">(?)</span>
+                      Saldo previsto
                     </p>
                     <ValorAuto max="1.25rem" className={`font-bold ${saldoPrevisto >= 0 ? 'text-white' : 'text-red-300'}`}>
                       {fmt(saldoPrevisto)}
                     </ValorAuto>
+                    {/* O "(?)" que ficava no rótulo não explicava nada — e o
+                        número mudou de definição, então agora ele se explica.
+                        Os dois termos são os cards ao lado: dá pra conferir a
+                        conta sem sair da tela. */}
+                    <p className="text-[10px] text-white/50 mt-1 leading-relaxed">
+                      Saldo de hoje + a receber − a pagar
+                    </p>
                   </div>
                 </div>
               </div>
