@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { querOpenFinance, limparIntencaoOF } from '@/lib/of-intent';
-import { useOnboarding, TOTAL_STEPS } from '../OnboardingContext';
+import { useOnboarding } from '../OnboardingContext';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -32,9 +32,11 @@ export default function StepNav({
   semPular,
   semVoltar,
 }: Props) {
-  const { state, prev, next, skip, finalizar, salvando } = useOnboarding();
+  const { state, posicao, total, modo, prev, next, skip, finalizar, salvando } = useOnboarding();
   const { user } = useAuth();
-  const ehUltimo = state.step >= TOTAL_STEPS;
+  // ⚠️ Pela POSIÇÃO na sequência, não pelo número do passo: no modo curto o
+  // último é o passo 5, e comparar com TOTAL_STEPS nunca acabaria.
+  const ehUltimo = posicao >= total;
   // Guard contra duplo-clique: onAntesAvancar (ex.: salvar receita) não pode
   // rodar duas vezes — senão duplica o que foi inserido.
   const [processando, setProcessando] = useState(false);
@@ -50,7 +52,10 @@ export default function StepNav({
         // que a tela prometeu ("eu te levo pra aba Open Finance"). Largar essa
         // pessoa no dashboard vazio quebraria a promessa e ela teria que
         // caçar a aba sozinha.
-        const paraOF = querOpenFinance(user?.id);
+        // ⚠️ NO MODO CURTO NÃO EXISTE OPEN FINANCE. Ele é do plano pago, e
+        // quem sai por aqui está no modo manual: o desvio levaria direto
+        // pra uma aba bloqueada, como primeira tela do app.
+        const paraOF = modo === 'completo' && querOpenFinance(user?.id);
         limparIntencaoOF();                    // dica de navegação, morre aqui
         // O OnboardingRedirect detecta onboarding_completed=true e libera.
         window.location.href = paraOF ? '/open-finance?onboarding=1' : '/dashboard';

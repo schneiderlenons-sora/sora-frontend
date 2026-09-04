@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { OnboardingProvider, useOnboarding } from './OnboardingContext';
+import { OnboardingProvider, useOnboarding, type ModoOnboarding } from './OnboardingContext';
 import WizardShell from './components/WizardShell';
 import { Loader2 } from 'lucide-react';
 
@@ -21,6 +21,11 @@ import Step10Comandos     from './steps/Step10Comandos';
 export default function OnboardingPage() {
   const { loading, user, perfil, recarregar } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  // ⚠️ Só `curto` é aceito; qualquer outro valor cai no completo. O modo vem
+  // da URL (o /tour manda `?modo=curto`) e não do plano, porque a escolha
+  // acontece ANTES de o plano existir na sessão.
+  const modo: ModoOnboarding = params?.get('modo') === 'curto' ? 'curto' : 'completo';
 
   // Garante perfil fresco ao entrar (phone/grupo recém-salvos no cadastro),
   // pra que os passos que chamam o backend tenham o número vinculado.
@@ -51,7 +56,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <OnboardingProvider>
+    <OnboardingProvider modo={modo}>
       <WizardShell>
         <StepRouter />
       </WizardShell>

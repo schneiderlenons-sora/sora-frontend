@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEhAndroid } from '@/lib/useOrigem';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { trackSignUp, trackInitiateCheckout, trackViewContent, trackAddToCart } from '@/lib/analytics';
@@ -40,6 +41,7 @@ export default function SignupPage() {
 function SignupWizard() {
   const { signUp, recarregar, plano: planoAtual } = useAuth();
   const router = useRouter();
+  const ehAndroid = useEhAndroid();
   const searchParams = useSearchParams();
 
   const planoParam = searchParams.get('plano');
@@ -117,6 +119,30 @@ function SignupWizard() {
       }
       await recarregar();
       trackSignUp();
+
+      // ── App Android: modo manual + demonstrações, sem passar por preço ──
+      //
+      // ⚠️ NÃO DÁ PRA GRAVAR O PLANO AQUI PELO CLIENT. O onboarding escreve
+      // em `users` direto pelo Supabase, então a tentação é fazer igual — e
+      // aí qualquer um com o console aberto se daria `platinum`. A rota
+      // `/api/plano-gratis` faz isso no servidor e só anda de inativo → gratis.
+      if (ehAndroid) {
+        try {
+          const r = await fetch('/api/plano-gratis', { method: 'POST' });
+          if (!r.ok) {
+            // Falhou (migration 156 não rodou?) — melhor cair no fluxo normal
+            // de planos do que largar a pessoa numa demo que termina em nada.
+            const d = await r.json().catch(() => ({}));
+            console.warn('[signup] plano gratis:', d?.erro || r.status);
+          } else {
+            await recarregar();
+            router.push('/tour');
+            return;
+          }
+        } catch {
+          /* sem rede: segue pro fluxo de planos */
+        }
+      }
 
       if (vitalicioMode) {
         // Vitalício: checkout transparente (Mercado Pago) na nossa própria

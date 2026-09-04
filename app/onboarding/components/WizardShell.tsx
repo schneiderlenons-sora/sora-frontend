@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useOnboarding, TOTAL_STEPS } from '../OnboardingContext';
+import { useOnboarding } from '../OnboardingContext';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -18,7 +18,7 @@ interface Props {
  * Os steps individuais renderizam o conteúdo dentro do main.
  */
 export default function WizardShell({ children, semFooter }: Props) {
-  const { state } = useOnboarding();
+  const { posicao, total } = useOnboarding();
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
@@ -38,13 +38,13 @@ export default function WizardShell({ children, semFooter }: Props) {
           {/* Step counter */}
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground tabular-nums">
-              Passo <strong className="text-foreground">{state.step}</strong> de {TOTAL_STEPS}
+              Passo <strong className="text-foreground">{posicao}</strong> de {total}
             </span>
           </div>
         </div>
 
         {/* Progress bar */}
-        <ProgressBar value={state.step / TOTAL_STEPS} />
+        <ProgressBar value={posicao / total} />
       </header>
 
       {/* MAIN — conteúdo do step */}

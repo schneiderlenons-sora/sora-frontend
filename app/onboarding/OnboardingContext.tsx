@@ -7,6 +7,25 @@ import type { PerfilUso, ObjetivoPrincipal } from '@/contexts/AuthContext';
 
 export const TOTAL_STEPS = 10;
 
+export type ModoOnboarding = "completo" | "curto";
+
+/**
+ * Quais passos cada modo roda, na ordem.
+ *
+ * ⚠️ É UMA SEQUÊNCIA, NÃO UM CORTE. O modo curto reaproveita os MESMOS
+ * componentes de passo, só pulando os que não fazem sentido pra quem entrou
+ * pelo modo manual: perfil de uso, objetivo, gastos e receitas fixas, meta e
+ * os dois passos de WhatsApp — que ele nem tem. Renumerar os steps quebraria
+ * o `onboarding_step` já gravado de quem está no meio do wizard completo.
+ *
+ * Sobram nome (quem é) e contas (de onde sai o dinheiro). Categoria não entra
+ * porque o banco já cria as padrão sozinho (`criar_categorias_padrao`).
+ */
+export const SEQUENCIAS: Record<ModoOnboarding, number[]> = {
+  completo: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  curto:    [1, 5],
+};
+
 interface OnboardingState {
   step:            number;
   nome:            string;
@@ -25,18 +44,33 @@ interface OnboardingContextType {
   skip:            () => Promise<void>;
   finalizar:       () => Promise<void>;
   salvando:        boolean;
+  /** Posição na sequência do modo (1-based) — o "Passo X". */
+  posicao:         number;
+  /** Quantos passos este modo tem — o "de Y". */
+  total:           number;
+  modo:            ModoOnboarding;
 }
 
 const Ctx = createContext<OnboardingContextType>({} as OnboardingContextType);
 
-export function OnboardingProvider({ children }: { children: React.ReactNode }) {
+export function OnboardingProvider({
+  children,
+  modo = "completo",
+}: { children: React.ReactNode; modo?: ModoOnboarding }) {
+  const sequencia = SEQUENCIAS[modo];
   const { user, perfil, recarregar } = useAuth();
   const [salvando, setSalvando] = useState(false);
 
   const [state, setState] = useState<OnboardingState>({
     // onboarding_step tem default 0 no banco — clamp pra 1 (senão o 1º clique
     // só vai de 0→1, exigindo dois cliques pra sair do passo inicial).
-    step:      Math.max(1, perfil?.onboarding_step || 1),
+    // ⚠️ CLAMPADO À SEQUÊNCIA DO MODO. Quem parou no passo 3 do wizard
+    // completo e volta pelo modo curto tem um `onboarding_step` que não
+    // existe nesta sequência — sem o clamp, `indexOf` daria -1 e o "próximo"
+    // jogaria a pessoa pro começo.
+    step:      sequencia.includes(perfil?.onboarding_step || 0)
+      ? (perfil?.onboarding_step as number)
+      : sequencia[0],
     nome:      perfil?.name ?? '',
     perfilUso: (perfil?.perfil_uso as PerfilUso | undefined) ?? null,
     objetivo:  (perfil?.objetivo_principal as ObjetivoPrincipal | undefined) ?? null,
@@ -66,15 +100,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
   }, [user, state]);
 
+  // Posição na sequência do modo (não o número do passo).
+  const posicao = Math.max(0, sequencia.indexOf(state.step));
+
   const next = useCallback(async () => {
-    const novo = Math.min(state.step + 1, TOTAL_STEPS);
+    const atual = sequencia.indexOf(state.step);
+    const novo = sequencia[Math.min(atual + 1, sequencia.length - 1)];
     setState((s) => ({ ...s, step: novo }));
     await persist({ step: novo });
-  }, [state.step, persist]);
+  }, [state.step, persist, sequencia]);
 
   const prev = useCallback(() => {
-    setState((s) => ({ ...s, step: Math.max(1, s.step - 1) }));
-  }, []);
+    setState((s) => {
+      const atual = sequencia.indexOf(s.step);
+      return { ...s, step: sequencia[Math.max(atual - 1, 0)] };
+    });
+  }, [sequencia]);
 
   const skip = useCallback(async () => {
     await next();
@@ -103,6 +144,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setNome, setPerfilUso, setObjetivo,
       goTo, next, prev, skip, finalizar,
       salvando,
+      posicao: posicao + 1,
+      total: sequencia.length,
+      modo,
     }}>
       {children}
     </Ctx.Provider>
