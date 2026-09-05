@@ -22,6 +22,7 @@ import {
 import GraficoMeses, { BarraDividida, type BarraMes } from '@/components/previstos/GraficoMeses';
 import FormRecorrencia, { type RecorrenciaForm } from '@/components/previstos/FormRecorrencia';
 import { descreveQuando, descreveFim, ocorrenciasNoMes } from '@/lib/frequencia-recorrencia';
+import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
@@ -71,6 +72,18 @@ type ItemComposicao = {
   /** Presente = dá pra editar por aqui (só recorrência tem). */
   rec?: any;
   semAviso?: boolean;
+  /** Cores e emoji do tema da categoria — ver `itemDaRecorrencia`. */
+  bg?: string;
+  cor?: string;
+  /**
+   * Quantas das ocorrências deste mês JÁ aconteceram, e quantas ao todo.
+   *
+   * ⚠️ A linha aparece na lista de qualquer jeito. Sumir com o que já
+   * aconteceu fazia a pessoa achar que a conta não estava cadastrada — foi
+   * relato real: "tenho duas receitas fixas e só aparece uma".
+   */
+  jaVezes?: number;
+  totalVezes?: number;
 };
 
 /** Distribui os itens nos blocos, na ordem do catálogo. */
@@ -138,20 +151,6 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     [wallets],
   );
 
-  const projecao = useMemo<MesProjetado[]>(() => projetarMeses({
-    inicio: ymHoje,
-    quantidade: MESES_A_FRENTE,
-    saldoInicial: saldoHoje,
-    recorrencias,
-    dividas,
-    faturas,
-    realizado: resumo && offset === 0
-      ? { receitas: resumo.receitas || 0, gastos: resumo.gastos || 0 }
-      : undefined,
-  }), [ymHoje, saldoHoje, recorrencias, dividas, faturas, resumo, offset]);
-
-  const vermelho = useMemo(() => primeiroMesNoVermelho(projecao), [projecao]);
-
   // ── Fecha o mês em… (a manchete) ─────────────────────────────────────────
   //
   // ⚠️ SAI DO MESMO `calcularSaldoProjetado` do card da aba Transações e do
@@ -183,6 +182,26 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     ),
     [wallets, previstosDoMes],
   );
+
+  const projecao = useMemo<MesProjetado[]>(() => projetarMeses({
+    inicio: ymHoje,
+    quantidade: MESES_A_FRENTE,
+    saldoInicial: saldoHoje,
+    recorrencias,
+    dividas,
+    faturas,
+    realizado: resumo && offset === 0
+      ? { receitas: resumo.receitas || 0, gastos: resumo.gastos || 0 }
+      : undefined,
+    // ⚠️ SEM ISTO O MÊS 0 CONTAVA O REALIZADO DUAS VEZES: `saldoHoje` já
+    // reflete o que entrou e saiu no mês, e a projeção somava por cima. Na
+    // tela isso aparecia como a manchete dizendo que o mês fecha em R$ 52,85
+    // e a projeção do MESMO mês, logo abaixo, dizendo R$ 154,02.
+    restante: { receitas: proj.aReceber, gastos: proj.aPagar },
+  }), [ymHoje, saldoHoje, recorrencias, dividas, faturas, resumo, offset, proj]);
+
+  const vermelho = useMemo(() => primeiroMesNoVermelho(projecao), [projecao]);
+
 
   // ── Barras dos gráficos históricos ───────────────────────────────────────
   const barrasHistoricas = useMemo(() => {
@@ -282,21 +301,36 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // As linhas que formam o que entra e o que sai. ⚠️ Cada uma leva o `rec`
   // original quando é recorrência: é o que permite editar dali mesmo, sem
   // mandar a pessoa pra outra aba.
-  const itemDaRecorrencia = useCallback((r: any, vezes: number): ItemComposicao => ({
-    id: `rec:${r.id}`,
-    titulo: r.descricao || r.categoria || 'Conta fixa',
-    valor: (Number(r.valor) || 0) * vezes,
-    legenda: [
-      descreveQuando(r),
-      vezes > 1 ? `${vezes}x no mês` : '',
-      descreveFim(r.data_fim),
-      r.carteira,
-    ].filter(Boolean).join(' · '),
-    icone: '🔁',
-    rec: r,
-    semAviso: r.lembrete === false,
-    grupo: r.valor_variavel ? 'variavel' : 'fixo',
-  }), []);
+  const itemDaRecorrencia = useCallback(
+    (r: any, vezes: number, ja = 0): ItemComposicao => {
+      // ⚠️ MESMA RECEITA DE ÍCONE DA ABA TRANSAÇÕES. Aqui eu passava um
+      // '🔁' fixo como reserva, então toda conta sem logo conhecida (Dentista,
+      // Barbeiro) caía no mesmo ícone genérico — enquanto a outra aba, com os
+      // MESMOS dados, mostrava o dente e a tesoura. O tema vem da DESCRIÇÃO e
+      // o emoji da categoria vence quando ela tem um.
+      const tema = getCategoriaTheme(r.descricao || r.categoria || '');
+      const emoji = (r.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0]) ?? tema.emoji;
+      return {
+        id: `rec:${r.id}`,
+        titulo: r.descricao || r.categoria || 'Conta fixa',
+        valor: (Number(r.valor) || 0) * vezes,
+        legenda: [
+          descreveQuando(r),
+          vezes > 1 ? `${vezes}x no mês` : '',
+          descreveFim(r.data_fim),
+          r.carteira,
+        ].filter(Boolean).join(' · '),
+        icone: emoji,
+        bg: tema.bg,
+        cor: tema.color,
+        rec: r,
+        semAviso: r.lembrete === false,
+        grupo: r.valor_variavel ? 'variavel' : 'fixo',
+        jaVezes: ja,
+        totalVezes: vezes,
+      };
+    }, [],
+  );
 
   const itemDaDivida = useCallback((d: any): ItemComposicao => ({
     id: `div:${d.id}`,
@@ -323,38 +357,70 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   /** Quantas vezes a recorrência AINDA cai neste mês. */
   const aindaVezes = useCallback((r: any) => vezesQueAindaVem(itemPrevistoDe(r)), []);
 
-  // O que ainda vem no mês CORRENTE — usado por Receitas, Despesas e Caixa.
+  // ── AS LINHAS DO MÊS CORRENTE ────────────────────────────────────────────
+  //
+  // ⚠️ TODAS as linhas, não só as que ainda vêm. A versão anterior listava
+  // apenas o que faltava, e o relato foi imediato: "tenho duas receitas fixas
+  // e só aparece uma". Some da lista o que já entrou e a pessoa conclui que a
+  // conta não está cadastrada. Agora tudo aparece, e o que já aconteceu leva a
+  // marca — que é informação, não ruído.
   const fontes = useMemo(() => {
-    const vem = recorrencias
-      .filter((r: any) => r.tipo === 'Recebimento' && aindaVezes(r) > 0)
-      .map((r: any) => itemDaRecorrencia(r, aindaVezes(r)));
+    const doTipo = (tipo: string) => recorrencias
+      .filter((r: any) => r.tipo === tipo && Number(r.valor) > 0)
+      .map((r: any) => {
+        const total = ocorrenciasNoMes(r, ymHoje);
+        const ainda = aindaVezes(r);
+        return { r, total, ainda, ja: Math.max(0, total - ainda) };
+      })
+      .filter((x) => x.total > 0)
+      .map((x) => itemDaRecorrencia(x.r, x.total, x.ja));
 
-    // ⚠️ DÍVIDA E FATURA ENTRAM AQUI, no mesmo balde dos gastos fixos. Elas
-    // já foram um card separado nesta tela, e aí não existia lugar nenhum
-    // que respondesse "quanto sai no total deste mês" — que é a pergunta.
+    // ⚠️ Dívida e fatura entram no MESMO balde dos gastos fixos. Elas já foram
+    // um card separado nesta tela, e aí não existia lugar nenhum que
+    // respondesse "quanto sai no total deste mês" — que é a pergunta.
     const vai: ItemComposicao[] = [
-      ...recorrencias.filter((r: any) => r.tipo === 'Gasto' && aindaVezes(r) > 0)
-        .map((r: any) => itemDaRecorrencia(r, aindaVezes(r))),
+      ...doTipo('Gasto'),
       ...dividas
-        .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false
-          && aindaVemNoMes({ tipo: 'Gasto', valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }))
-        .map(itemDaDivida),
+        .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false)
+        .map((d: any) => ({
+          ...itemDaDivida(d),
+          jaVezes: aindaVemNoMes({
+            tipo: 'Gasto' as const, valor: d.valor_parcela, dia_vencimento: d.dia_vencimento,
+          }) ? 0 : 1,
+          totalVezes: 1,
+        })),
       ...faturas
-        .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false
-          && aindaVemNoMes({ tipo: 'Gasto', valor: f.restante, dia_vencimento: 0, venc: f.venc }))
-        .map(itemDaFatura),
+        .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false)
+        .map((f: any) => ({
+          ...itemDaFatura(f),
+          jaVezes: aindaVemNoMes({
+            tipo: 'Gasto' as const, valor: f.restante, dia_vencimento: 0, venc: f.venc,
+          }) ? 0 : 1,
+          totalVezes: 1,
+        })),
     ];
 
-    // O que JÁ venceu neste mês (só recorrência: dívida e fatura paga saem da
-    // lista na origem, então não há como saber por aqui que existiram).
-    const jaVezes = (r: any) => Math.max(0, ocorrenciasNoMes(r, ymHoje) - aindaVezes(r));
-    const jaVeio = (tipo: string) => recorrencias
-      .filter((r: any) => r.tipo === tipo && jaVezes(r) > 0)
-      .map((r: any) => itemDaRecorrencia(r, jaVezes(r)));
-
-    return { vem, vai, jaEntrou: jaVeio('Recebimento'), jaSaiu: jaVeio('Gasto') };
+    return { vem: doTipo('Recebimento'), vai };
   }, [recorrencias, dividas, faturas, ymHoje, aindaVezes, itemDaRecorrencia, itemDaDivida, itemDaFatura]);
 
+  /**
+   * Quanto de uma lista JÁ aconteceu e quanto ainda vem — a divisão da barra.
+   *
+   * ⚠️ Sai das PRÓPRIAS linhas listadas, não do resumo do mês. É o que impede
+   * a barra de contradizer o rodapé do mesmo card, e é proporcional quando a
+   * conta é semanal e caiu 2 de 5 vezes.
+   */
+  const dividir = useCallback((itens: ItemComposicao[]) => {
+    let ja = 0;
+    let falta = 0;
+    for (const i of itens) {
+      const total = i.totalVezes || 1;
+      const jaN = Math.min(total, i.jaVezes || 0);
+      ja += (i.valor / total) * jaN;
+      falta += (i.valor / total) * (total - jaN);
+    }
+    return { ja: Math.round(ja * 100) / 100, falta: Math.round(falta * 100) / 100 };
+  }, []);
   /**
    * A composição de UM mês projetado — o card que a aba Projeção mostra.
    *
@@ -398,7 +464,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // A composição do mês que a Projeção está exibindo (o tocado no gráfico
   // ou, sem toque, o último da janela).
   const composicaoAlvo = useMemo(() => {
-    const ym = (mesDetalhe || projecao[projecao.length - 1])?.ym;
+    const ym = (mesDetalhe || projecao[0])?.ym;
     return ym ? composicaoDoMes(ym) : null;
   }, [mesDetalhe, projecao, composicaoDoMes]);
   // ── Patrimônio: passado reconstruído + futuro projetado ──────────────────
@@ -535,6 +601,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           blocosEntrada={agrupar(fontes.vem, BLOCOS_RECEITA)}
           totalSaida={somaItens(fontes.vai)}
           totalEntrada={somaItens(fontes.vem)}
+          divisaoSaida={dividir(fontes.vai)}
+          divisaoEntrada={dividir(fontes.vem)}
           aproximado={fontes.vai.some((i) => i.grupo === 'variavel')}
           onEditar={setFormTarget}
           onNovo={() => setFormTarget('novo')}
@@ -553,14 +621,11 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           onSelecionar={setMesSel}
           ymRef={ymRef}
           ymHoje={ymHoje}
-          blocosFuturos={aba === 'receitas'
+          blocos={aba === 'receitas'
             ? agrupar(fontes.vem, BLOCOS_RECEITA)
             : agrupar(fontes.vai, BLOCOS_DESPESA)}
-          blocosPassados={aba === 'receitas'
-            ? agrupar(fontes.jaEntrou, BLOCOS_RECEITA)
-            : agrupar(fontes.jaSaiu, BLOCOS_DESPESA)}
-          realizadoMes={aba === 'receitas' ? (resumo?.receitas || 0) : (resumo?.gastos || 0)}
-          totalFuturos={somaItens(aba === 'receitas' ? fontes.vem : fontes.vai)}
+          divisao={dividir(aba === 'receitas' ? fontes.vem : fontes.vai)}
+          total={somaItens(aba === 'receitas' ? fontes.vem : fontes.vai)}
           aproximado={(aba === 'receitas' ? fontes.vem : fontes.vai).some((i) => i.grupo === 'variavel')}
           onEditar={setFormTarget}
           onNovo={() => setFormTarget('novo')}
@@ -687,6 +752,10 @@ function LinhaComposicao({
   // têm campos que ele não tem (nº de parcelas, credor, juros) — abrir o de
   // conta fixa pra elas ofereceria salvar um objeto que não é o delas.
   const editavel = !!item.rec && !!onEditar;
+  // "já veio" · "2 de 5 já" · nada, quando ainda não aconteceu nenhuma vez.
+  const total = item.totalVezes || 1;
+  const ja = Math.min(total, item.jaVezes || 0);
+  const marcaJa = ja <= 0 ? null : (ja >= total ? 'já' : `${ja} de ${total}`);
   const confirmandoEste = confirmando === item.id;
   const saindo = removendo === item.id;
   const Tag: any = editavel ? 'button' : 'div';
@@ -713,7 +782,13 @@ function LinhaComposicao({
           }`}
           style={{ minHeight: 56 }}
         >
-          <CategoriaIcon nome={item.titulo} icone={item.icone || '🔁'} size={34} />
+          <CategoriaIcon
+            nome={item.titulo}
+            icone={item.icone || '🔁'}
+            size={34}
+            bg={item.bg}
+            color={item.cor}
+          />
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
               <span className="min-w-0 truncate text-sm font-semibold text-foreground">{item.titulo}</span>
@@ -722,8 +797,18 @@ function LinhaComposicao({
               {item.semAviso && (
                 <BellOff size={11} className="flex-shrink-0 text-muted-foreground" aria-label="sem aviso" />
               )}
+              {/* ⚠️ Chip de texto, não só uma cor mais fraca: "isto já
+                  aconteceu" é informação, e apagar a linha pra dizê-la a
+                  faria parecer desligada. */}
+              {marcaJa && (
+                <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                  {marcaJa}
+                </span>
+              )}
             </span>
-            <span className="block text-[11px] text-muted-foreground truncate">{item.legenda}</span>
+            <span className="block text-[11px] text-muted-foreground truncate">
+              {item.legenda}
+            </span>
           </span>
           <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
             {sinal}{fmt(item.valor)}
@@ -889,7 +974,7 @@ function CardComposicao({
 
 function SecaoHistorica({
   aba, barras, periodo, onPeriodo, mesSel, onSelecionar, ymRef, ymHoje,
-  blocosFuturos, blocosPassados, realizadoMes, totalFuturos, aproximado,
+  blocos, divisao, total, aproximado,
   onEditar, onNovo, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
   const cor = aba === 'receitas' ? VERDE : VERMELHO;
@@ -913,8 +998,7 @@ function SecaoHistorica({
   const verbo = aba === 'receitas' ? 'Recebido' : 'Gasto';
   const [anoFoco, mesFoco] = String(foco?.ym || ymRef).split('-').map(Number);
 
-  const temAlgo = blocosFuturos.some((b: any) => b.itens.length > 0)
-    || blocosPassados.some((b: any) => b.itens.length > 0);
+  const temAlgo = blocos.some((b: any) => b.itens.length > 0);
 
   return (
     <div className="space-y-5 animate-[fade-in_300ms_ease-out]">
@@ -985,53 +1069,30 @@ function SecaoHistorica({
         </section>
       )}
 
-      {blocosFuturos.some((b: any) => b.itens.length > 0) && (
+      {temAlgo && (
         <CardComposicao
           titulo={aba === 'receitas' ? 'De onde o dinheiro vem' : 'Para onde o dinheiro vai'}
-          // ⚠️ O total do cabeçalho é do MÊS (o que já aconteceu mais o que
-          // ainda vem); a lista é só do que ainda vem. Por isso a legenda diz
-          // "ainda", e o total do rodapé é o da LISTA.
-          totalCabecalho={realizadoMes + totalFuturos}
-          legenda={`${blocosFuturos.reduce((s: number, b: any) => s + b.itens.length, 0)} ainda ${
-            aba === 'receitas' ? 'a entrar' : 'a sair'
-          }`}
-          realizado={realizadoMes}
-          previsto={totalFuturos}
+          totalCabecalho={total}
+          legenda={`${blocos.reduce((s: number, b: any) => s + b.itens.length, 0)} ${
+            aba === 'receitas' ? 'fontes' : 'linhas'
+          } neste mês`}
+          realizado={divisao.ja}
+          previsto={divisao.falta}
           cor={cor}
           rotuloRealizado={aba === 'receitas' ? 'já entrou' : 'já saiu'}
           rotuloPrevisto={aba === 'receitas' ? 'ainda entra' : 'ainda sai'}
           secoes={[{
-            key: 'futuros',
+            key: 'mes',
             cor,
             sinal: aba === 'receitas' ? '+' : '−',
-            blocos: blocosFuturos,
+            blocos,
             total: {
-              label: aba === 'receitas' ? 'Total ainda a entrar' : 'Total ainda a sair',
-              valor: totalFuturos,
+              label: aba === 'receitas' ? 'Total do mês' : 'Total do mês',
+              valor: total,
               aproximado,
             },
           }]}
-          vazio="Nada mais previsto para este mês."
-          {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
-        />
-      )}
-
-      {blocosPassados.some((b: any) => b.itens.length > 0) && (
-        <CardComposicao
-          titulo={aba === 'receitas' ? 'Já entrou' : 'Já saiu'}
-          totalCabecalho={blocosPassados.reduce(
-            (s: number, b: any) => s + b.itens.reduce((t: number, i: any) => t + i.valor, 0), 0,
-          )}
-          legenda={(() => {
-            const n = blocosPassados.reduce((s: number, b: any) => s + b.itens.length, 0);
-            const verbo = aba === 'receitas'
-              ? (n === 1 ? 'já entrou' : 'já entraram')
-              : (n === 1 ? 'já venceu' : 'já venceram');
-            return `${n} ${verbo}`;
-          })()}
-          cor={cor}
-          secoes={[{ key: 'passados', cor, sinal: aba === 'receitas' ? '+' : '−', blocos: blocosPassados }]}
-          vazio="Nada venceu ainda neste mês."
+          vazio="Nada previsto para este mês."
           {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
         />
       )}
@@ -1044,7 +1105,7 @@ function SecaoHistorica({
 function SecaoCaixa({
   barras, periodo, onPeriodo, mesSel, onSelecionar, ymHoje, ymRef,
   proj, resumo, offset, onMes,
-  blocosSaida, blocosEntrada, totalSaida, totalEntrada, aproximado,
+  blocosSaida, blocosEntrada, totalSaida, totalEntrada, divisaoSaida, divisaoEntrada, aproximado,
   onEditar, onNovo, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
   const [anoRef, mesRef] = ymRef.split('-').map(Number);
@@ -1129,16 +1190,16 @@ function SecaoCaixa({
           uma assinatura é decisão de agora, arrumar mais receita não é. */}
       <CardComposicao
         titulo="Para onde o dinheiro vai"
-        totalCabecalho={(resumo?.gastos || 0) + totalSaida}
-        legenda={`${blocosSaida.reduce((s: number, b: any) => s + b.itens.length, 0)} ainda a sair`}
-        realizado={resumo?.gastos || 0}
-        previsto={totalSaida}
+        totalCabecalho={totalSaida}
+        legenda={`${blocosSaida.reduce((s: number, b: any) => s + b.itens.length, 0)} linhas neste mês`}
+        realizado={divisaoSaida.ja}
+        previsto={divisaoSaida.falta}
         cor={VERMELHO}
         rotuloRealizado="já saiu"
         rotuloPrevisto="ainda sai"
         secoes={[{
           key: 'saidas', cor: VERMELHO, sinal: '−', blocos: blocosSaida,
-          total: { label: 'Total ainda a sair', valor: totalSaida, aproximado },
+          total: { label: 'Total do mês', valor: totalSaida, aproximado },
         }]}
         vazio="Nenhuma saída prevista para este mês."
         {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
@@ -1146,16 +1207,16 @@ function SecaoCaixa({
 
       <CardComposicao
         titulo="De onde o dinheiro vem"
-        totalCabecalho={(resumo?.receitas || 0) + totalEntrada}
-        legenda={`${blocosEntrada.reduce((s: number, b: any) => s + b.itens.length, 0)} ainda a entrar`}
-        realizado={resumo?.receitas || 0}
-        previsto={totalEntrada}
+        totalCabecalho={totalEntrada}
+        legenda={`${blocosEntrada.reduce((s: number, b: any) => s + b.itens.length, 0)} fontes neste mês`}
+        realizado={divisaoEntrada.ja}
+        previsto={divisaoEntrada.falta}
         cor={VERDE}
         rotuloRealizado="já entrou"
         rotuloPrevisto="ainda entra"
         secoes={[{
           key: 'entradas', cor: VERDE, sinal: '+', blocos: blocosEntrada,
-          total: { label: 'Total ainda a entrar', valor: totalEntrada },
+          total: { label: 'Total do mês', valor: totalEntrada },
         }]}
         vazio="Nenhuma entrada prevista para este mês."
         {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
@@ -1173,7 +1234,11 @@ function SecaoProjecao({
   const eventos = projecao.flatMap((m: MesProjetado) =>
     m.eventos.map((e: any) => ({ ...e, ym: m.ym })));
 
-  const alvo: MesProjetado | undefined = detalhe || projecao[projecao.length - 1];
+  // ⚠️ SEM SELEÇÃO, O MÊS EM FOCO É O CORRENTE — não o último da janela. A
+  // versão anterior abria a aba já mostrando fevereiro de 2027, seis meses à
+  // frente, como se fosse o assunto. Quem entra em Projeção quer ver onde
+  // está e então caminhar pra frente.
+  const alvo: MesProjetado | undefined = detalhe || projecao[0];
   const [anoAlvo, mesAlvo] = String(alvo?.ym || ymHoje).split('-').map(Number);
 
   return (
@@ -1246,32 +1311,12 @@ function SecaoProjecao({
         </div>
       </section>
 
-      {alvo && <VisaoDoMes mes={alvo} ymHoje={ymHoje} />}
-
-      {/* ── A COMPOSIÇÃO DO MÊS ESCOLHIDO ────────────────────────────────────
-          ⚠️ É o card "Previstos do mês" da aba Transações, agora pro MÊS
-          PROJETADO: cada gasto fixo, cada parcela, cada fatura e cada receita,
-          somados. Sem ele a projeção é um número que a pessoa tem de aceitar
-          por fé — com ele, dá pra ver de onde vem e mexer no que incomoda. */}
-      {alvo && composicao && (
-        <CardComposicao
-          titulo={`O que compõe ${MESES[mesAlvo - 1].toLowerCase()}`}
-          totalCabecalho={composicao.totalReceitas - composicao.totalDespesas}
-          legenda={`${composicao.qtd} ${composicao.qtd === 1 ? 'linha' : 'linhas'} · entra menos sai`}
-          cor={composicao.totalReceitas >= composicao.totalDespesas ? VERDE : VERMELHO}
-          aberturaPadrao
-          secoes={[
-            {
-              key: 'saidas', cor: VERMELHO, sinal: '−', blocos: composicao.blocosDespesa,
-              total: { label: 'Total previsto', valor: composicao.totalDespesas, aproximado: composicao.aproximado },
-            },
-            {
-              key: 'entradas', cor: VERDE, sinal: '+', blocos: composicao.blocosReceita,
-              total: { label: 'Total a entrar', valor: composicao.totalReceitas },
-            },
-          ]}
-          vazio="Nenhuma conta fixa, parcela ou fatura cai neste mês."
-          {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
+      {alvo && (
+        <VisaoDoMes
+          mes={alvo}
+          ymHoje={ymHoje}
+          composicao={composicao}
+          onEditar={onEditar}
         />
       )}
 
@@ -1310,16 +1355,15 @@ function SecaoProjecao({
 }
 
 /**
- * O mês projetado, linha a linha.
+ * O mês projetado, linha a linha — e cada linha abre no que a compõe.
  *
- * ⚠️ A LINHA DE DESPESAS ABRE E O DETALHE TEM DE FECHAR COM ELA. Por isso o
- * `detalhe` de `projetarMeses` é a soma AGENDADA por origem: contas fixas +
- * parcelas + faturas. No mês CORRENTE os totais acima são o que já aconteceu (o
- * realizado substitui a previsão), e aí os dois não fecham — então ali o detalhe
- * não abre e a tela diz por quê, em vez de mostrar uma conta que não bate.
+ * ⚠️ ESTE CARD SUBSTITUIU UM SEGUNDO CARD "o que compõe X" que ficava logo
+ * abaixo. Eram dois cards mostrando o mesmo mês com os mesmos números, um com o
+ * resumo e o outro com a lista — a pessoa tinha de casar os dois de cabeça.
+ * Agora Receitas e Despesas ABREM na própria linha do total delas.
  */
-function VisaoDoMes({ mes, ymHoje }: { mes: MesProjetado; ymHoje: string }) {
-  const [abertoDespesas, setAberto] = useState(false);
+function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
+  const [aberto, setAberto] = useState<'receitas' | 'despesas' | null>(null);
   const [ano, m] = mes.ym.split('-').map(Number);
   const emCurso = mes.ym === ymHoje;
 
@@ -1328,14 +1372,6 @@ function VisaoDoMes({ mes, ymHoje }: { mes: MesProjetado; ymHoje: string }) {
   // Quanto das receitas as despesas comem. `null` quando não há receita — 0% e
   // "sem receita" são coisas diferentes, e mostrar 0% mentiria.
   const pct = receitas > 0 ? Math.round((despesas / receitas) * 100) : null;
-
-  const linhas = [
-    { id: 'fixas',  rotulo: 'Contas fixas',       valor: mes.detalhe.contasFixas, Icone: CalendarDays },
-    { id: 'parc',   rotulo: 'Parcelas de dívida', valor: mes.detalhe.parcelas,    Icone: Landmark },
-    { id: 'fatura', rotulo: 'Faturas de cartão',  valor: mes.detalhe.faturas,     Icone: CreditCard },
-  ].filter((l) => l.valor > 0);
-
-  const podeAbrir = !emCurso && linhas.length > 0;
 
   return (
     <section className="card rounded-2xl overflow-hidden">
@@ -1348,20 +1384,42 @@ function VisaoDoMes({ mes, ymHoje }: { mes: MesProjetado; ymHoje: string }) {
             color: emCurso ? VERDE : ROXO,
           }}
         >
-          {emCurso ? 'em curso' : 'previsto'}
+          {emCurso ? 'em aberto' : 'previsto'}
         </span>
       </div>
 
       <div className="divide-y divide-border/50 border-t border-border/50">
-        <Linha Icone={ClipboardList} rotulo="Saldo inicial" valor={fmt(mes.saldoInicial)} corValor="text-foreground" />
         <Linha
-          Icone={ArrowDownToLine}
-          rotulo="Receitas"
-          extra={receitas > 0 ? '100%' : undefined}
-          valor={`+${fmt(receitas)}`}
-          corValor="text-green-600 dark:text-green-400"
-          corIcone={VERDE}
+          Icone={ClipboardList}
+          rotulo="Saldo inicial"
+          extra={emCurso ? `fechamento de ${MESES[(m + 10) % 12].toLowerCase()}` : undefined}
+          valor={fmt(mes.saldoInicial)}
+          corValor="text-foreground"
         />
+
+        <div>
+          <Linha
+            Icone={ArrowDownToLine}
+            rotulo="Receitas"
+            extra={receitas > 0 ? '100%' : undefined}
+            valor={`+${fmt(receitas)}`}
+            corValor="text-green-600 dark:text-green-400"
+            corIcone={VERDE}
+            aberto={aberto === 'receitas'}
+            onToggle={() => setAberto((v) => (v === 'receitas' ? null : 'receitas'))}
+          />
+          {aberto === 'receitas' && (
+            <Detalhe
+              blocos={composicao?.blocosReceita || []}
+              total={receitas}
+              cor={VERDE}
+              sinal="+"
+              rotuloOutros="Outros recebimentos"
+              onEditar={onEditar}
+            />
+          )}
+        </div>
+
         <div>
           <Linha
             Icone={ArrowUpFromLine}
@@ -1370,27 +1428,24 @@ function VisaoDoMes({ mes, ymHoje }: { mes: MesProjetado; ymHoje: string }) {
             valor={`−${fmt(despesas)}`}
             corValor="text-red-500"
             corIcone={VERMELHO}
-            aberto={podeAbrir ? abertoDespesas : undefined}
-            onToggle={podeAbrir ? () => setAberto((v) => !v) : undefined}
+            aberto={aberto === 'despesas'}
+            onToggle={() => setAberto((v) => (v === 'despesas' ? null : 'despesas'))}
           />
-          {podeAbrir && abertoDespesas && (
-            <ul className="bg-muted/25 motion-safe:animate-[fade-in_200ms_ease-out]">
-              {linhas.map(({ id, rotulo, valor, Icone }) => (
-                <li key={id} className="flex items-center gap-3 pl-14 pr-5 py-2.5">
-                  <Icone size={14} className="flex-shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="min-w-0 flex-1 text-[13px] text-foreground truncate">{rotulo}</span>
-                  <span className="text-[13px] font-bold tabular text-red-500 whitespace-nowrap">−{fmt(valor)}</span>
-                </li>
-              ))}
-            </ul>
+          {aberto === 'despesas' && (
+            <Detalhe
+              blocos={composicao?.blocosDespesa || []}
+              total={despesas}
+              cor={VERMELHO}
+              sinal="−"
+              rotuloOutros="Outros lançamentos"
+              onEditar={onEditar}
+            />
           )}
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-border/50">
-        <p className="text-sm font-bold text-foreground">
-          {emCurso ? 'Fecha o mês em' : 'Saldo projetado'}
-        </p>
+        <p className="text-sm font-bold text-foreground">Saldo projetado</p>
         <p className={`text-lg font-bold tabular ${mes.saldoAcumulado >= 0 ? 'text-foreground' : 'text-red-500'}`}>
           {fmt(mes.saldoAcumulado)}
         </p>
@@ -1402,6 +1457,88 @@ function VisaoDoMes({ mes, ymHoje }: { mes: MesProjetado; ymHoje: string }) {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * O que compõe uma linha da Visão do mês.
+ *
+ * ⚠️ A ÚLTIMA LINHA ("Outros lançamentos") É O QUE FAZ A CONTA FECHAR. No mês
+ * corrente o total vem do REALIZADO — que inclui a compra avulsa, o Uber, o
+ * mercado —, enquanto esta lista só conhece o que é agendado. Sem essa linha, a
+ * soma do detalhe daria menos que o total logo acima e o card se contradiria.
+ * Nos meses futuros ela não aparece: lá não existe avulso, só o agendado.
+ */
+function Detalhe({ blocos, total, cor, sinal, rotuloOutros, onEditar }: any) {
+  const somado = blocos.reduce(
+    (s: number, b: any) => s + b.itens.reduce((t: number, i: any) => t + (Number(i.valor) || 0), 0),
+    0,
+  );
+  const outros = Math.round((total - somado) * 100) / 100;
+  const temBlocos = blocos.some((b: any) => b.itens.length > 0);
+
+  if (!temBlocos && Math.abs(outros) < 0.01) {
+    return (
+      <p className="px-5 pb-3 pl-14 text-[12px] text-muted-foreground">Nada neste mês.</p>
+    );
+  }
+
+  return (
+    <div className="bg-muted/25 motion-safe:animate-[fade-in_200ms_ease-out]">
+      {blocos.filter((b: any) => b.itens.length > 0).map((bloco: any) => (
+        <div key={bloco.key}>
+          <p className="pl-14 pr-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            {bloco.label}
+          </p>
+          <ul>
+            {bloco.itens.map((i: any) => {
+              const editavel = !!i.rec && !!onEditar;
+              const Tag: any = editavel ? 'button' : 'div';
+              const total2 = i.totalVezes || 1;
+              const ja = Math.min(total2, i.jaVezes || 0);
+              return (
+                <li key={i.id}>
+                  <Tag
+                    {...(editavel ? {
+                      type: 'button',
+                      onClick: () => onEditar(i.rec),
+                      'aria-label': `Editar ${i.titulo}`,
+                    } : {})}
+                    className={`w-full flex items-center gap-2 pl-14 pr-5 py-2 text-left ${
+                      editavel ? 'transition-colors hover:bg-muted/50 cursor-pointer' : ''
+                    }`}
+                    style={{ minHeight: 40 }}
+                  >
+                    <span className="min-w-0 flex-1 text-[13px] text-foreground truncate">
+                      {i.titulo}
+                      {ja > 0 && (
+                        <span className="ml-1.5 text-[10px] font-bold text-muted-foreground">
+                          {ja >= total2 ? 'já' : `${ja} de ${total2}`}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[13px] font-bold tabular whitespace-nowrap" style={{ color: cor }}>
+                      {sinal}{fmt(i.valor)}
+                    </span>
+                  </Tag>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+
+      {Math.abs(outros) >= 0.01 && (
+        <div className="flex items-center gap-2 pl-14 pr-5 py-2.5 border-t border-border/40">
+          <span className="min-w-0 flex-1 text-[13px] text-muted-foreground truncate">
+            {rotuloOutros}
+          </span>
+          <span className="text-[13px] font-bold tabular whitespace-nowrap" style={{ color: cor }}>
+            {sinal}{fmt(Math.abs(outros))}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 

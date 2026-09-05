@@ -228,8 +228,21 @@ export function projetarMeses(params: {
   faturas: FaturaProjetada[];
   /** Realizado do mês 0 — o que já entrou e saiu de fato. */
   realizado?: { receitas: number; gastos: number };
+  /**
+   * O que AINDA vem no mês 0 — a mesma conta da manchete
+   * (`calcularSaldoProjetado`).
+   *
+   * ⚠️ SEM ISTO O MÊS 0 CONTA O REALIZADO DUAS VEZES. O `saldoInicial` que se
+   * passa aqui é o saldo de HOJE, e o saldo de hoje já reflete o que entrou e
+   * saiu no mês. Somar o realizado por cima dele inflava o fecho do mês.
+   * Medido num caso real: a manchete dizia R$ 52,85 e a projeção do MESMO mês,
+   * dois cards abaixo, dizia R$ 154,02.
+   */
+  restante?: { receitas: number; gastos: number };
 }): MesProjetado[] {
-  const { inicio, quantidade, saldoInicial, recorrencias, dividas, faturas, realizado } = params;
+  const {
+    inicio, quantidade, saldoInicial, recorrencias, dividas, faturas, realizado, restante,
+  } = params;
 
   // As recorrências valem em TODO mês da janela: são mensais por definição.
   // `nao_lancar` entra igual — o modo diz se a Sora cria a transação, não se o
@@ -244,7 +257,13 @@ export function projetarMeses(params: {
   );
 
   const meses: MesProjetado[] = [];
-  let saldo = cent(saldoInicial);
+  // ⚠️ O saldo de partida é o do INÍCIO DO MÊS, não o de hoje: desfaz-se o
+  // realizado pra ele voltar ao fechamento do mês anterior. Assim o mês 0 se
+  // lê como todos os outros — "começou com X, entrou Y, saiu Z, fecha em W" —
+  // e W dá exatamente o saldo de hoje mais o que ainda vem.
+  let saldo = cent(realizado
+    ? saldoInicial - (Number(realizado.receitas) || 0) + (Number(realizado.gastos) || 0)
+    : saldoInicial);
 
   for (let k = 0; k < quantidade; k += 1) {
     const ym = somarMeses(inicio, k);
@@ -319,11 +338,19 @@ export function projetarMeses(params: {
         efeito: -restante,
       });
     }
-    // Mês 0 usa o REALIZADO no lugar da projeção de receita/despesa firme —
-    // o que já aconteceu não é previsão.
+    // ── MÊS 0: o que JÁ aconteceu + o que AINDA vem ────────────────────────
+    //
+    // ⚠️ O mês corrente não é previsão nem só passado: é os dois. O agendado
+    // que já venceu foi substituído pelo REALIZADO (que inclui o avulso, e é
+    // o número que o resto do painel mostra), e o que falta vem de
+    // `restante` — a mesma conta da manchete. Somados, dão o mês inteiro.
     if (k === 0 && realizado) {
-      receitaFirme = cent(realizado.receitas);
-      despesaFirme = cent(realizado.gastos);
+      receitaFirme = cent((Number(realizado.receitas) || 0) + (Number(restante?.receitas) || 0));
+      despesaFirme = cent((Number(realizado.gastos) || 0) + (Number(restante?.gastos) || 0));
+      // ⚠️ A estimada JÁ ESTÁ dentro de `restante` (a manchete soma a conta de
+      // valor variável como qualquer outra). Deixá-la aqui a contaria de novo.
+      if (restante) despesaEstimada = 0;
+      if (restante) receitaEstimada = 0;
     }
 
     const resultado = cent(
