@@ -580,6 +580,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           ymHoje={ymHoje}
           vermelho={vermelho}
           composicao={composicaoAlvo}
+          realizado={{ receitas: resumo?.receitas || 0, gastos: resumo?.gastos || 0 }}
           onEditar={setFormTarget}
           onExcluir={excluir}
           confirmando={confirmando}
@@ -1229,7 +1230,7 @@ function SecaoCaixa({
 
 function SecaoProjecao({
   projecao, barras, mesSel, onSelecionar, detalhe, saldoHoje, ymHoje, vermelho,
-  composicao, onEditar, confirmando, onConfirmar, removendo, onExcluir,
+  composicao, realizado, onEditar, confirmando, onConfirmar, removendo, onExcluir,
 }: any) {
   const eventos = projecao.flatMap((m: MesProjetado) =>
     m.eventos.map((e: any) => ({ ...e, ym: m.ym })));
@@ -1316,6 +1317,7 @@ function SecaoProjecao({
           mes={alvo}
           ymHoje={ymHoje}
           composicao={composicao}
+          realizado={realizado}
           onEditar={onEditar}
         />
       )}
@@ -1362,7 +1364,7 @@ function SecaoProjecao({
  * resumo e o outro com a lista — a pessoa tinha de casar os dois de cabeça.
  * Agora Receitas e Despesas ABREM na própria linha do total delas.
  */
-function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
+function VisaoDoMes({ mes, ymHoje, composicao, realizado, onEditar }: any) {
   const [aberto, setAberto] = useState<'receitas' | 'despesas' | null>(null);
   const [ano, m] = mes.ym.split('-').map(Number);
   const emCurso = mes.ym === ymHoje;
@@ -1411,10 +1413,12 @@ function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
           {aberto === 'receitas' && (
             <Detalhe
               blocos={composicao?.blocosReceita || []}
-              total={receitas}
               cor={VERDE}
               sinal="+"
-              rotuloOutros="Outros recebimentos"
+              // ⚠️ Só no mês CORRENTE existe metade realizada. Em mês futuro
+              // nada aconteceu ainda, e a lista sozinha soma o total.
+              realizado={emCurso ? realizado?.receitas : undefined}
+              rotuloRealizado="Já entrou"
               onEditar={onEditar}
             />
           )}
@@ -1434,10 +1438,10 @@ function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
           {aberto === 'despesas' && (
             <Detalhe
               blocos={composicao?.blocosDespesa || []}
-              total={despesas}
               cor={VERMELHO}
               sinal="−"
-              rotuloOutros="Outros lançamentos"
+              realizado={emCurso ? realizado?.gastos : undefined}
+              rotuloRealizado="Já saiu"
               onEditar={onEditar}
             />
           )}
@@ -1463,39 +1467,70 @@ function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
 /**
  * O que compõe uma linha da Visão do mês.
  *
- * ⚠️ A ÚLTIMA LINHA ("Outros lançamentos") É O QUE FAZ A CONTA FECHAR. No mês
- * corrente o total vem do REALIZADO — que inclui a compra avulsa, o Uber, o
- * mercado —, enquanto esta lista só conhece o que é agendado. Sem essa linha, a
- * soma do detalhe daria menos que o total logo acima e o card se contradiria.
- * Nos meses futuros ela não aparece: lá não existe avulso, só o agendado.
+ * ⚠️ AQUI JÁ HOUVE UMA LINHA "OUTROS LANÇAMENTOS" QUE ERA UMA SOBRA — total
+ * menos a soma do que a lista mostra — apresentada como se fosse uma categoria.
+ * Não era: aquela sobra misturava gasto avulso, a fatura de cartão contada duas
+ * vezes (as compras já estão como transações individuais no realizado, e a
+ * fatura entrava de novo como linha) e conta fixa em modo "só prever"/"não
+ * lançar", que está na lista e nunca vira transação — essa última empurrava a
+ * sobra pro NEGATIVO. Um número que ninguém sabia defender, tapando um buraco.
+ *
+ * A conta fecha agora porque as duas metades do mês têm origem própria e não se
+ * sobrepõem: o que JÁ aconteceu vem das transações (é um total, não uma lista —
+ * a aba Transações é que detalha isso) e o que AINDA vem é a lista de agendados.
+ * Em mês futuro não existe primeira metade, e aí a lista sozinha soma o total —
+ * o que o `eval:previstos` §11 prova.
  */
-function Detalhe({ blocos, total, cor, sinal, rotuloOutros, onEditar }: any) {
-  const somado = blocos.reduce(
-    (s: number, b: any) => s + b.itens.reduce((t: number, i: any) => t + (Number(i.valor) || 0), 0),
-    0,
-  );
-  const outros = Math.round((total - somado) * 100) / 100;
-  const temBlocos = blocos.some((b: any) => b.itens.length > 0);
+function Detalhe({ blocos, cor, sinal, realizado, rotuloRealizado, onEditar }: any) {
+  // ⚠️ Só a parte que AINDA vem. Uma conta semanal que caiu 2 de 5 vezes entra
+  // aqui com as 3 que faltam — as 2 já estão dentro do realizado acima.
+  const restante = (i: any) => {
+    const total = i.totalVezes || 1;
+    const ja = Math.min(total, i.jaVezes || 0);
+    return (Number(i.valor) || 0) / total * (total - ja);
+  };
 
-  if (!temBlocos && Math.abs(outros) < 0.01) {
-    return (
-      <p className="px-5 pb-3 pl-14 text-[12px] text-muted-foreground">Nada neste mês.</p>
-    );
+  const comFuturo = blocos
+    .map((b: any) => ({ ...b, itens: b.itens.filter((i: any) => restante(i) > 0.005) }))
+    .filter((b: any) => b.itens.length > 0);
+
+  const temRealizado = realizado !== undefined && Math.abs(Number(realizado) || 0) >= 0.01;
+
+  if (!comFuturo.length && !temRealizado) {
+    return <p className="px-5 pb-3 pl-14 text-[12px] text-muted-foreground">Nada neste mês.</p>;
   }
 
   return (
     <div className="bg-muted/25 motion-safe:animate-[fade-in_200ms_ease-out]">
-      {blocos.filter((b: any) => b.itens.length > 0).map((bloco: any) => (
-        <div key={bloco.key}>
+      {/* ⚠️ UMA LINHA, NÃO UMA LISTA. O que já aconteceu são TODAS as transações
+          do mês — inclusive as avulsas, que não têm nada a ver com conta fixa.
+          Detalhar isso aqui seria refazer a aba Transações dentro de um card de
+          projeção; o número basta, e ele tem definição exata. */}
+      {temRealizado && (
+        <div className="flex items-center gap-2 pl-14 pr-5 py-2.5">
+          <span className="min-w-0 flex-1 text-[13px] text-foreground truncate">
+            {rotuloRealizado}
+            <span className="block text-[10.5px] text-muted-foreground">
+              todas as transações do mês, inclusive as avulsas
+            </span>
+          </span>
+          <span className="text-[13px] font-bold tabular whitespace-nowrap" style={{ color: cor }}>
+            {sinal}{fmt(Math.abs(Number(realizado) || 0))}
+          </span>
+        </div>
+      )}
+
+      {comFuturo.map((bloco: any, bi: number) => (
+        <div key={bloco.key} className={bi > 0 || temRealizado ? 'border-t border-border/40' : ''}>
           <p className="pl-14 pr-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            {bloco.label}
+            {temRealizado ? `${bloco.label} · ainda vem` : bloco.label}
           </p>
           <ul>
             {bloco.itens.map((i: any) => {
               const editavel = !!i.rec && !!onEditar;
               const Tag: any = editavel ? 'button' : 'div';
-              const total2 = i.totalVezes || 1;
-              const ja = Math.min(total2, i.jaVezes || 0);
+              const total = i.totalVezes || 1;
+              const ja = Math.min(total, i.jaVezes || 0);
               return (
                 <li key={i.id}>
                   <Tag
@@ -1511,14 +1546,16 @@ function Detalhe({ blocos, total, cor, sinal, rotuloOutros, onEditar }: any) {
                   >
                     <span className="min-w-0 flex-1 text-[13px] text-foreground truncate">
                       {i.titulo}
-                      {ja > 0 && (
+                      {/* Semanal que já caiu parte das vezes: o valor aqui é só
+                          o que falta, e a marca diz por quê. */}
+                      {ja > 0 && ja < total && (
                         <span className="ml-1.5 text-[10px] font-bold text-muted-foreground">
-                          {ja >= total2 ? 'já' : `${ja} de ${total2}`}
+                          faltam {total - ja} de {total}
                         </span>
                       )}
                     </span>
                     <span className="text-[13px] font-bold tabular whitespace-nowrap" style={{ color: cor }}>
-                      {sinal}{fmt(i.valor)}
+                      {sinal}{fmt(restante(i))}
                     </span>
                   </Tag>
                 </li>
@@ -1527,17 +1564,6 @@ function Detalhe({ blocos, total, cor, sinal, rotuloOutros, onEditar }: any) {
           </ul>
         </div>
       ))}
-
-      {Math.abs(outros) >= 0.01 && (
-        <div className="flex items-center gap-2 pl-14 pr-5 py-2.5 border-t border-border/40">
-          <span className="min-w-0 flex-1 text-[13px] text-muted-foreground truncate">
-            {rotuloOutros}
-          </span>
-          <span className="text-[13px] font-bold tabular whitespace-nowrap" style={{ color: cor }}>
-            {sinal}{fmt(Math.abs(outros))}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
