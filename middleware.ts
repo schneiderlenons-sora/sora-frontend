@@ -2,17 +2,36 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Rotas que não precisam de login.
-// ⚠️ `/redefinir-senha` é onde o link do e-mail cai. Ela NÃO pode virar rota
-// protegida: quem chega ali está justamente sem conseguir entrar.
-const ROTAS_PUBLICAS = ['/', '/login', '/signup', '/recuperar-senha', '/redefinir-senha'];
-
-// Rotas protegidas (precisam de login)
-const ROTAS_PROTEGIDAS = [
-  '/dashboard', '/relatorios', '/contas-bancarias', '/cartao-de-credito',
-  '/categorias', '/limites-de-gastos', '/investimentos',
-  '/comunidade', '/configuracoes', '/vincular-whatsapp',
+// ── QUEM PRECISA DE LOGIN ─────────────────────────────────────────────────
+//
+// ⚠️ A LISTA É DE ROTAS PÚBLICAS, E O RESTO É PROTEGIDO — ao contrário do que
+// era. Antes existia uma lista de PROTEGIDAS com 10 nomes, e ela envelheceu:
+// o app tem 68 telas de painel e 58 delas não estavam ali. `/transacoes`,
+// `/metas`, `/dividas`, `/previstos`, as 24 do Grow e as 16 de Negócios
+// passavam pelo middleware sem nenhuma checagem — só o guard do cliente as
+// segurava, e guard de cliente roda DEPOIS de a página ser servida.
+//
+// Invertido, o padrão é seguro: aba nova nasce protegida sem ninguém lembrar
+// de editar este arquivo. Esquecer de somar a pública dá um redirect visível
+// no primeiro teste; esquecer de somar a protegida dava um furo silencioso.
+//
+// ⚠️ `/redefinir-senha` e `/recuperar-senha` TÊM de ser públicas: quem chega
+// ali está justamente sem conseguir entrar.
+const ROTAS_PUBLICAS = [
+  '/', '/login', '/signup', '/recuperar-senha', '/redefinir-senha',
+  // Vendas e funis — visitante sem conta é o público delas.
+  '/oferta', '/kit', '/checkout-vitalicio', '/financas', '/chat', '/quiz', '/tour',
+  '/termos', '/privacidade',
+  // Redirects de rota antiga. Públicas de propósito: elas só apontam pra
+  // outra tela, e é a de destino que decide se pede login.
+  '/central-sora', '/planejamento', '/avisos',
 ];
+
+/** Pública? `/es` e tudo abaixo dele é a landing em espanhol. */
+function ehPublica(pathname: string): boolean {
+  if (pathname === '/es' || pathname.startsWith('/es/')) return true;
+  return ROTAS_PUBLICAS.includes(pathname);
+}
 
 // ── i18n ──────────────────────────────────────────────────────────────────
 // Locale mora na URL: /es/* = espanhol, resto = português (raiz sem prefixo).
@@ -108,12 +127,22 @@ export async function middleware(request: NextRequest) {
     response = NextResponse.next({ request: { headers: requestHeaders } });
     anterior.cookies.getAll().forEach((c) => response.cookies.set(c));
   }
-  const isProtegida = ROTAS_PROTEGIDAS.some(r => pathname.startsWith(r));
-  const isPublica   = ROTAS_PUBLICAS.includes(pathname);
+  const isPublica = ehPublica(pathname);
 
-  // Sem login tentando acessar rota protegida → vai para login
-  if (!user && isProtegida) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Sem login tentando acessar rota protegida → vai para login.
+  if (!user && !isPublica) {
+    // ⚠️ LEVA O DESTINO JUNTO (`?next=`) E DIZ POR QUÊ (`?motivo=sessao`).
+    //
+    // Sem isso o redirect é mudo: a pessoa toca em "Abrir Sora", cai num
+    // formulário de login sem explicação e, depois de entrar, aterrissa no
+    // dashboard em vez de onde ia. Foi exatamente o relato — "clico no menu e
+    // abre a tela de login, por quê?" — de quem tinha sessão VÁLIDA no
+    // navegador e inválida no servidor (trocar a senha derruba as sessões
+    // antigas, e o cliente não sabe disso até tentar navegar).
+    const destino = new URL('/login', request.url);
+    destino.searchParams.set('next', pathname + request.nextUrl.search);
+    destino.searchParams.set('motivo', 'sessao');
+    return NextResponse.redirect(destino);
   }
 
   // Com login tentando acessar login/signup → vai para dashboard

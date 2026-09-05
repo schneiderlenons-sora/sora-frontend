@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
@@ -15,6 +15,20 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState('');
+
+  // ⚠️ POR QUE A PESSOA ESTÁ AQUI. O middleware manda `?motivo=sessao` quando
+  // derrubou alguém de uma tela do painel. Sem essa mensagem o formulário
+  // aparece do nada e a leitura é de defeito: foi o relato de um cliente com
+  // vitalício ativo — "clico no menu e abre a tela de login, por quê?". A
+  // sessão dele estava válida no navegador e inválida no servidor (trocar a
+  // senha derruba as sessões antigas), e nada na tela dizia isso.
+  const [aviso, setAviso] = useState('');
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('motivo') === 'sessao') {
+      setAviso('Sua sessão expirou — entre de novo pra continuar de onde parou. Sua conta e seus dados estão intactos.');
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,6 +117,14 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {aviso && !erro && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900"
+                   role="status">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 mt-1.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">{aviso}</p>
+              </div>
+            )}
 
             {erro && (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
