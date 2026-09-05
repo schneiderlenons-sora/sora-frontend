@@ -90,12 +90,22 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // A escolha é lembrada (localStorage): recolher e a seção reabrir no próximo
   // acesso seria o mesmo que não ter o botão.
   //
-  // Começa SEMPRE aberta no 1º render e só então lê o storage, com
+  // Começa aberta no 1º render e só então lê o storage, com
   // `useLayoutEffect`: ler no `useState` inicial faria o HTML do servidor
   // (que não tem localStorage) divergir do cliente — hydration mismatch.
   const [recolhida, setRecolhida] = useState(false);
   useLayoutEffect(() => {
-    try { setRecolhida(localStorage.getItem('sora-previstos-recolhida') === '1'); } catch { /* modo privado */ }
+    // ⚠️ MINIMIZADA POR PADRÃO, e a comparação é com `0`, não com `1`.
+    //
+    // A seção acumulou muita coisa (fixos, variáveis, cartões, dívidas,
+    // sugestões) e virou a maior parte da aba Transações — que é a aba das
+    // TRANSAÇÕES. Recolhida, ela mostra o resumo e sai da frente; o detalhe
+    // completo agora tem aba própria.
+    //
+    // `!== "0"` e não `=== "1"`: quem nunca mexeu não tem chave gravada, e a
+    // ausência precisa cair no lado RECOLHIDO. Com `=== '1'` o padrão seria
+    // aberto de novo, e a mudança não valeria pra ninguém que já usa o app.
+    try { setRecolhida(localStorage.getItem('sora-previstos-recolhida') !== '0'); } catch { /* modo privado */ }
   }, []);
   const alternarRecolhida = useCallback(() => {
     setRecolhida((v) => {
