@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
@@ -100,35 +100,23 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const [faturas, setFaturas]     = useState<FaturaPrevista[]>([]);
   const [mexendoCartao, setMexendoCartao] = useState<string | null>(null);
 
-  // Seção recolhida — a lista é longa e fica no TOPO da aba de transações;
-  // quem já configurou os fixos quer passar por ela, não relê toda visita.
-  // A escolha é lembrada (localStorage): recolher e a seção reabrir no próximo
-  // acesso seria o mesmo que não ter o botão.
+  // ── SEÇÃO RECOLHIDA POR PADRÃO, TODA VISITA ─────────────────────────────
   //
-  // Começa aberta no 1º render e só então lê o storage, com
-  // `useLayoutEffect`: ler no `useState` inicial faria o HTML do servidor
-  // (que não tem localStorage) divergir do cliente — hydration mismatch.
-  const [recolhida, setRecolhida] = useState(false);
-  useLayoutEffect(() => {
-    // ⚠️ MINIMIZADA POR PADRÃO, e a comparação é com `0`, não com `1`.
-    //
-    // A seção acumulou muita coisa (fixos, variáveis, cartões, dívidas,
-    // sugestões) e virou a maior parte da aba Transações — que é a aba das
-    // TRANSAÇÕES. Recolhida, ela mostra o resumo e sai da frente; o detalhe
-    // completo agora tem aba própria.
-    //
-    // `!== "0"` e não `=== "1"`: quem nunca mexeu não tem chave gravada, e a
-    // ausência precisa cair no lado RECOLHIDO. Com `=== '1'` o padrão seria
-    // aberto de novo, e a mudança não valeria pra ninguém que já usa o app.
-    try { setRecolhida(localStorage.getItem('sora-previstos-recolhida') !== '0'); } catch { /* modo privado */ }
-  }, []);
-  const alternarRecolhida = useCallback(() => {
-    setRecolhida((v) => {
-      const novo = !v;
-      try { localStorage.setItem('sora-previstos-recolhida', novo ? '1' : '0'); } catch { /* noop */ }
-      return novo;
-    });
-  }, []);
+  // A seção acumulou fixos, variáveis, cartões, dívidas e sugestões, e virou
+  // a maior parte da aba Transações — que é a aba das TRANSAÇÕES. Recolhida,
+  // ela mostra o resumo e sai da frente; o detalhe completo tem aba própria.
+  //
+  // ⚠️ A ESCOLHA NÃO É MAIS LEMBRADA, e isso é o conserto. A versão anterior
+  // gravava em `localStorage`, então UM toque pra espiar a lista deixava o
+  // card aberto PARA SEMPRE — e o "minimizado por padrão" valia só pra quem
+  // nunca tinha aberto. Na prática o card voltou a tomar a aba de quem já
+  // usava o app, que é exatamente o que a mudança existia pra evitar.
+  //
+  // Sem storage também some o motivo de existir o `useLayoutEffect`: servidor
+  // e cliente desenham o mesmo estado, então não há hydration mismatch — e o
+  // HTML do servidor deixa de carregar a lista inteira que ninguém vai ver.
+  const [recolhida, setRecolhida] = useState(true);
+  const alternarRecolhida = useCallback(() => setRecolhida((v) => !v), []);
   const [aceitando, setAceitando] = useState<string | null>(null); // descricao em processamento
   // Sugestões de CATEGORIA pras contas fixas que ficaram em "Outros",
   // indexadas por id da recorrência (a linha consulta pelo próprio id).
