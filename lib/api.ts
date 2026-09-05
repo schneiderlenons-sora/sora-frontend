@@ -6,6 +6,7 @@ import type {
   ItemEstoque, ResumoEstoque, FornecedorNegocio, CompraNegocio,
 } from '@/lib/lancamentos';
 import type { Funcionario } from '@/lib/funcionarios';
+import type { Frequencia } from '@/lib/frequencia-recorrencia';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -525,6 +526,11 @@ export const api = {
   },
 
   // ── RECORRÊNCIAS (gastos/receitas fixas) ─────────────────────
+  //
+  // ⚠️ Os campos da migration 157 (frequencia, dia_semana, mes_vencimento,
+  // repeticoes, lembrete_dias) são OPCIONAIS no contrato de propósito: sem
+  // eles o backend cria mensal e pra sempre, que é o comportamento de
+  // sempre. Quem chamar sem saber deles continua funcionando.
   recorrencias: {
     listar: (phone: string) =>
       req<any[]>(`/api/recorrencias/${phone}`),
@@ -539,12 +545,12 @@ export const api = {
     /** Dispensa uma sugestão de gasto fixo (não volta a aparecer). */
     dispensarSugestao: (descricao: string) =>
       req<{ ok: boolean }>('/api/recorrencias/dispensar', { method: 'POST', body: JSON.stringify({ descricao }) }),
-    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string; valor_variavel?: boolean; modo_lancamento?: ModoLancamentoFixo; lembrete?: boolean }) =>
+    criar: (body: { phone: string; tipo: 'Gasto' | 'Recebimento'; descricao: string; valor: number; dia_vencimento: number; carteira?: string; categoria?: string; valor_variavel?: boolean; modo_lancamento?: ModoLancamentoFixo; lembrete?: boolean; frequencia?: Frequencia; dia_semana?: number | null; mes_vencimento?: number | null; repeticoes?: number | null; lembrete_dias?: number }) =>
       req<any>('/api/recorrencias', { method: 'POST', body: JSON.stringify(body) }),
     /** `propagadas` = quantos lançamentos DESTE MÊS tiveram a categoria atualizada
      *  junto (a recorrência é template; sem isso o lançamento já feito ficava com
      *  a categoria antiga e parecia que a edição não salvou). */
-    editar: (id: string, body: { categoria?: string; valor?: number; dia_vencimento?: number; descricao?: string; carteira?: string; modo_lancamento?: ModoLancamentoFixo; lembrete?: boolean }) =>
+    editar: (id: string, body: { categoria?: string; valor?: number; dia_vencimento?: number; descricao?: string; carteira?: string; modo_lancamento?: ModoLancamentoFixo; lembrete?: boolean; frequencia?: Frequencia; dia_semana?: number | null; mes_vencimento?: number | null; repeticoes?: number | null; lembrete_dias?: number }) =>
       req<any & { propagadas?: number }>(`/api/recorrencias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     cancelar: (id: string, phone: string) =>
       req(`/api/recorrencias/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),

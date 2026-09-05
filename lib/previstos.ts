@@ -25,6 +25,15 @@ export type ItemRecorrente = {
   valor_variavel?: boolean | null;
   /** 'nao_lancar' segue contando na projeção: o dinheiro sai igual. */
   modo_lancamento?: string | null;
+  // Migration 157. Ausentes = mensal e pra sempre, que é o que toda
+  // recorrência anterior a ela é — então a projeção de quem não mexer nos
+  // campos novos não muda em nada.
+  descricao?: string | null;
+  frequencia?: 'semanal' | 'mensal' | 'anual' | null;
+  dia_semana?: number | null;
+  mes_vencimento?: number | null;
+  data_inicio?: string | null;
+  data_fim?: string | null;
 };
 
 export type ItemParcelado = {
@@ -70,6 +79,8 @@ export type MesProjetado = {
   aproximado: boolean;
   eventos: EventoMes[];
 };
+
+import { ocorrenciasNoMes } from '@/lib/frequencia-recorrencia';
 
 const cent = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -139,7 +150,26 @@ export function projetarMeses(params: {
     let despesaEstimada = 0;
 
     for (const r of recorrentes) {
-      const v = cent(r.valor);
+      // ⚠️ QUANTAS VEZES CAI NESTE MÊS — não mais um "1" implícito. Sem
+      // isto o IPVA (anual) entraria em TODO mês da janela e a diarista
+      // (semanal) uma vez em vez de quatro. E é aqui que a DURAÇÃO passa a
+      // valer: acabada a recorrência, `venceEm` devolve false e ela some da
+      // projeção sozinha, sem precisar de uma segunda regra de corte.
+      const vezes = ocorrenciasNoMes(r, ym);
+      if (!vezes) {
+        // Acabou de acabar: o mês SEGUINTE ao fim ganha o mesmo aviso que a
+        // última parcela de uma dívida — é a informação que muda decisão
+        // ("a partir de março sobra isso").
+        if (r.data_fim && String(r.data_fim).slice(0, 7) === somarMeses(ym, -1)) {
+          eventos.push({
+            tipo: 'fim_parcela',
+            texto: `${r.descricao || 'Conta fixa'} acaba`,
+            efeito: r.tipo === 'Recebimento' ? -cent(r.valor) : cent(r.valor),
+          });
+        }
+        continue;
+      }
+      const v = cent(r.valor) * vezes;
       const estimado = !!r.valor_variavel;
       if (r.tipo === 'Recebimento') {
         if (estimado) receitaEstimada += v; else receitaFirme += v;

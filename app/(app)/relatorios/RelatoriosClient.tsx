@@ -16,7 +16,9 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
-import { aindaVemNoMes, diaHojeSP, calcularSaldoProjetado } from '@/lib/saldo-projetado';
+import {
+  aindaVemNoMes, diaHojeSP, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
+} from '@/lib/saldo-projetado';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -402,18 +404,33 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const previstosFixos = useMemo(() => {
     const lista = Array.isArray(recData) ? recData : [];
     const diaHoje = diaHojeSP();
+    // ⚠️ Migration 157: quando a frequência NÃO é mensal, "ainda vem" deixa
+    // de ser sim/não. A anual só cai no mês dela — sem esta contagem, o IPVA
+    // apareceria como "ainda vai sair" em TODO mês do ano. A semanal cai
+    // várias vezes, e o que falta até o fim do mês é valor × ocorrências.
+    // Mensal continua no caminho antigo, incluindo a regra de
+    // `modo_lancamento` logo abaixo (no dia do vencimento o cron já rodou e
+    // quem responde é a transação, não a recorrência).
     return lista
-      .filter((r: any) => (r.modo_lancamento || 'lancar') === 'nao_lancar'
-        ? aindaVemNoMes({ tipo: r.tipo, valor: r.valor, dia_vencimento: r.dia_vencimento })
-        : Number(r.dia_vencimento) > diaHoje)
-      .map((r: any) => ({
+      .map((r: any) => {
+        const item = itemPrevistoDe(r);
+        const naoMensal = !!r.frequencia && r.frequencia !== 'mensal';
+        const vezes = naoMensal
+          ? vezesQueAindaVem(item)
+          : ((r.modo_lancamento || 'lancar') === 'nao_lancar'
+            ? (aindaVemNoMes(item) ? 1 : 0)
+            : (Number(r.dia_vencimento) > diaHoje ? 1 : 0));
+        return { r, vezes };
+      })
+      .filter((x: any) => x.vezes > 0)
+      .map(({ r, vezes }: any) => ({
         chave: `rec:${r.id}`,
         titulo: r.descricao || r.categoria || 'Conta fixa',
         tipo: r.tipo as string,
-        valor: Number(r.valor) || 0,
+        valor: (Number(r.valor) || 0) * vezes,
         dia: Number(r.dia_vencimento) || 0,
         variavel: !!r.valor_variavel,
-        origem: 'Conta fixa',
+        origem: vezes > 1 ? `Conta fixa · ${vezes}x no mês` : 'Conta fixa',
       }));
   }, [recData]);
 

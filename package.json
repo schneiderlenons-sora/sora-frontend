@@ -11,7 +11,8 @@
     "eval:saldo-projetado": "npx tsx lib/saldo-projetado.eval.mjs",
     "eval:limite-categoria": "npx tsx lib/limite-categoria.eval.mjs",
     "eval:data-br": "npx tsx lib/data-br.eval.mjs",
-    "eval:previstos": "npx tsx lib/previstos.eval.mjs"
+    "eval:previstos": "npx tsx lib/previstos.eval.mjs",
+    "eval:frequencia": "npx tsx lib/frequencia-recorrencia.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

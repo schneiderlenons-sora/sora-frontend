@@ -36,6 +36,12 @@ export type ItemPrevisto = {
   tipo:            'Gasto' | 'Recebimento';
   valor:           number;
   dia_vencimento:  number;
+  // Migration 157. Ausentes = mensal e pra sempre — o caminho de sempre.
+  frequencia?:     'semanal' | 'mensal' | 'anual' | null;
+  dia_semana?:     number | null;
+  mes_vencimento?: number | null;
+  data_inicio?:    string | null;
+  data_fim?:       string | null;
   /**
    * Vencimento COMPLETO ('YYYY-MM-DD'), quando existe. Vence o dia solto.
    *
@@ -70,6 +76,8 @@ export type SaldoProjetado = {
   /** Quantos itens entraram na projeção (0 = nada a projetar). */
   itens:        number;
 };
+
+import { ocorrenciasRestantes } from '@/lib/frequencia-recorrencia';
 
 const cent = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -106,6 +114,46 @@ export function aindaVemNoMes(i: ItemPrevisto, agora: Date = new Date()): boolea
  * @param previstos  recorrências ativas do mês
  * @param parcelas   parcela do mês de cada dívida que conta nos previstos
  */
+/**
+ * Recorrência do banco → `ItemPrevisto`.
+ *
+ * ⚠️ EXISTE PORQUE AS TELAS ESCOLHIAM CAMPO A CAMPO (`{ tipo, valor,
+ * dia_vencimento }`) e, com a migration 157, isso passou a DESCARTAR em
+ * silêncio a frequência e a duração: a conta anual entrava em todo mês e a
+ * semanal contava uma vez só. Um objeto montado à mão não avisa quando o
+ * schema cresce — este mapper avisa, porque só existe um lugar pra corrigir.
+ */
+export function itemPrevistoDe(r: {
+  tipo: 'Gasto' | 'Recebimento'; valor: number; dia_vencimento?: number | null;
+  valor_variavel?: boolean | null;
+  frequencia?: string | null; dia_semana?: number | null; mes_vencimento?: number | null;
+  data_inicio?: string | null; data_fim?: string | null;
+}): ItemPrevisto {
+  return {
+    tipo:           r.tipo,
+    valor:          Number(r.valor) || 0,
+    dia_vencimento: Number(r.dia_vencimento) || 0,
+    valor_variavel: r.valor_variavel ?? undefined,
+    frequencia:     (r.frequencia as ItemPrevisto['frequencia']) ?? undefined,
+    dia_semana:     r.dia_semana ?? undefined,
+    mes_vencimento: r.mes_vencimento ?? undefined,
+    data_inicio:    r.data_inicio ?? undefined,
+    data_fim:       r.data_fim ?? undefined,
+  };
+}
+
+/**
+ * Quantas vezes esta recorrência AINDA cai neste mês (0 = já passou).
+ * Mensal continua sendo o sim/não de sempre — ver a nota em
+ * `calcularSaldoProjetado`.
+ */
+export function vezesQueAindaVem(i: ItemPrevisto, agora: Date = new Date()): number {
+  if (i.frequencia && i.frequencia !== 'mensal') {
+    return ocorrenciasRestantes(i, agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }));
+  }
+  return aindaVemNoMes(i, agora) ? 1 : 0;
+}
+
 export function calcularSaldoProjetado(
   carteiras: CarteiraSaldo[],
   previstos: ItemPrevisto[],
@@ -119,13 +167,22 @@ export function calcularSaldoProjetado(
 
   // A regra de "ainda vem" é a mesma que a aba Relatórios usa pra listar o
   // que ainda vence — por isso mora fora, em `aindaVemNoMes`.
-  const aindaVem = (i: ItemPrevisto) => aindaVemNoMes(i, agora);
-
-  const todos = [...(previstos || []), ...(parcelas || [])].filter(aindaVem);
+  //
+  // ⚠️ Migration 157: quem tem frequência DIFERENTE de mensal não cabe num
+  // sim/não. Uma conta semanal cai várias vezes até o fim do mês e uma anual
+  // pode não cair nenhuma — a resposta ali é uma CONTAGEM, não um filtro.
+  //
+  // ⚠️ Mensal (e tudo que não é recorrência — parcela, fatura) continua no
+  // caminho ANTIGO, byte a byte: é ele que sabe tratar `venc` (a data
+  // inteira), que é como a fatura do cartão entra aqui. Mandar todo mundo
+  // pela contagem regrediria a fatura que vence no mês seguinte.
+  const todos = [...(previstos || []), ...(parcelas || [])]
+    .map((i) => ({ item: i, n: vezesQueAindaVem(i, agora) }))
+    .filter((x) => x.n > 0);
 
   const soma = (tipo: 'Gasto' | 'Recebimento') => cent(todos
-    .filter((i) => i.tipo === tipo)
-    .reduce((s, i) => s + (Number(i.valor) || 0), 0));
+    .filter((x) => x.item.tipo === tipo)
+    .reduce((s, x) => s + ((Number(x.item.valor) || 0) * x.n), 0));
 
   const aReceber = soma('Recebimento');
   const aPagar   = soma('Gasto');
@@ -137,7 +194,7 @@ export function calcularSaldoProjetado(
     projetado:  cent(saldoHoje + aReceber - aPagar),
     // Variável sem valor definido entra como 0 — o total é estimativa, e a tela
     // precisa dizer isso em vez de fingir precisão.
-    aproximado: todos.some((i) => i.valor_variavel),
+    aproximado: todos.some((x) => x.item.valor_variavel),
     itens:      todos.length,
   };
 }

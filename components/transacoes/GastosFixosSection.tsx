@@ -8,11 +8,18 @@ import {
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
 import { mutate as mutateGlobal } from 'swr';
+import FormRecorrencia from '@/components/previstos/FormRecorrencia';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { calcularSaldoProjetado, diaHojeSP } from '@/lib/saldo-projetado';
+import { ocorrenciasNoMes } from '@/lib/frequencia-recorrencia';
 
 const BRAND = 'hsl(var(--primary))';
+
+/** Mês corrente em SP ('YYYY-MM'). Nunca `toISOString()` — é UTC, e depois
+ *  das 21h no Brasil o mês pode virar. */
+const mesRefSP = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -31,6 +38,14 @@ type Recorrencia = {
   // Migration 112 — o que a Sora faz no vencimento, por conta fixa.
   modo_lancamento?: ModoLancamento;
   lembrete?:        boolean;
+  // Migration 157. Ausentes = mensal e pra sempre, o comportamento de sempre.
+  frequencia?:      'semanal' | 'mensal' | 'anual' | null;
+  dia_semana?:      number | null;
+  mes_vencimento?:  number | null;
+  repeticoes?:      number | null;
+  data_inicio?:     string | null;
+  data_fim?:        string | null;
+  lembrete_dias?:   number | null;
 };
 
 /** Fatura em aberto de um cartão, como o card de previstos precisa dela.
@@ -284,8 +299,14 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const totalCartoes      = useMemo(
     () => cartoesNaPrevisao.reduce((s, f) => s + (Number(f.restante) || 0), 0), [cartoesNaPrevisao]);
 
+  // ⚠️ `× ocorrenciasNoMes`: com a migration 157 a conta fixa pode ser
+  // semanal (cai 4 ou 5 vezes) ou anual (não cai neste mês). Somar o valor
+  // cru, como era, dizia "R$ 150/mês" pra uma diarista de R$ 150 por SEMANA
+  // e cobrava o IPVA todo mês — nos dois casos um número plausível e errado
+  // logo abaixo do título da seção.
   const totalGastos   = useMemo(
-    () => itens.filter((i) => i.tipo === 'Gasto').reduce((s, i) => s + (i.valor || 0), 0)
+    () => itens.filter((i) => i.tipo === 'Gasto')
+      .reduce((s, i) => s + ((i.valor || 0) * ocorrenciasNoMes(i, mesRefSP())), 0)
       + totalDividas + totalCartoes,
     [itens, totalDividas, totalCartoes]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
@@ -460,14 +481,14 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
-            onClick={() => setFormTarget((v) => (v ? null : 'novo'))}
+            onClick={() => setFormTarget('novo')}
             className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
                        hover:-translate-y-0.5 active:translate-y-0 flex-shrink-0"
-            style={{ background: formTarget ? 'hsl(var(--bg-muted))' : `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: formTarget ? undefined : BRAND }}
-            aria-expanded={!!formTarget}
+            style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}
+            aria-haspopup="dialog"
           >
-            {formTarget ? <X size={16} /> : <Plus size={16} />}
-            <span className="hidden sm:inline">{formTarget ? 'Fechar' : 'Adicionar'}</span>
+            <Plus size={16} />
+            <span className="hidden sm:inline">Adicionar</span>
           </button>
 
           {/* Recolher a seção. Fica SEPARADO do "Adicionar" (não é um menu
@@ -489,6 +510,22 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         </div>
       </div>
 
+      {/* ── Form de adicionar/editar ──────────────────────────────────────
+          ⚠️ FORA do bloco recolhível. Ele é um sheet em portal (o card usa
+          `backdrop-blur`, então `fixed` preso aqui dentro ficaria ATRÁS do
+          conteúdo), e o botão que o abre vive no cabeçalho — que continua
+          visível com a seção recolhida. Deixá-lo lá dentro fazia "Adicionar"
+          não abrir nada quando a seção estava fechada, que é o padrão. */}
+      {formTarget && (
+        <FormRecorrencia
+          phone={phone}
+          contas={wallets}
+          editItem={formTarget === 'novo' ? null : formTarget}
+          onCancel={() => setFormTarget(null)}
+          onSaved={() => { setFormTarget(null); carregar(); }}
+        />
+      )}
+
       {/* Tudo daqui pra baixo é o conteúdo recolhível.
           Render CONDICIONAL em vez de esconder por CSS: a lista tem N itens,
           cada um com ícone e estado próprio — mantê-los montados só pra ficarem
@@ -497,16 +534,6 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
       {!recolhida && (
       <div id="previstos-conteudo">
 
-      {/* ── Form de adicionar/editar (progressive disclosure) ── */}
-      {formTarget && (
-        <AddForm
-          phone={phone}
-          contas={wallets}
-          editItem={formTarget === 'novo' ? null : formTarget}
-          onCancel={() => setFormTarget(null)}
-          onSaved={() => { setFormTarget(null); carregar(); }}
-        />
-      )}
 
       {/* ── Sugestões detectadas (Open Finance / extratos) ───── */}
       {sugestoes.length > 0 && (
@@ -1168,288 +1195,10 @@ function Linha({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Form inline de adicionar recorrência (fixa ou variável)
-// ─────────────────────────────────────────────────────────────
-function AddForm({
-  phone, contas, editItem, onCancel, onSaved,
-}: {
-  phone?:    string;
-  contas:    Wallet[];
-  /** Presente = editando esse item (tipo/valor-variável ficam travados —
-   *  são estruturais; categoria/valor/dia/conta são editáveis). */
-  editItem?: Recorrencia | null;
-  onCancel:  () => void;
-  onSaved:   () => void;
-}) {
-  const editando = !!editItem;
-  const [tipo, setTipo]                   = useState<Tipo>(editItem?.tipo || 'Gasto');
-  const [valorVariavel, setValorVariavel] = useState(!!editItem?.valor_variavel);
-  const [descricao, setDescricao]         = useState(editItem?.descricao || '');
-  const [valor, setValor]                 = useState(editItem?.valor ? String(editItem.valor).replace('.', ',') : '');
-  const [dia, setDia]                     = useState(editItem ? String(editItem.dia_vencimento) : '5');
-  const [categoria, setCategoria]         = useState(editItem?.categoria || '');
-  const [cats, setCats]                   = useState<string[]>(editItem?.categoria ? [editItem.categoria] : []);
-  const [salvando, setSalvando]           = useState(false);
-  const [erro, setErro]                   = useState('');
-  const descRef = useRef<HTMLInputElement>(null);
-
-  // Catálogo de categorias do grupo, filtrado pelo tipo (despesa/receita) —
-  // mesmo padrão do EditarTransacaoModal. Recarrega se o tipo mudar (só ao criar;
-  // ao editar, tipo é fixo).
-  useEffect(() => {
-    if (!phone) return;
-    api.categorias.listar(phone, tipo === 'Recebimento' ? 'receita' : 'despesa')
-      .then((cs: any[]) => {
-        const nomes = (cs || []).map((c) => c.nome).filter(Boolean);
-        setCats(Array.from(new Set([editItem?.categoria, ...nomes].filter(Boolean) as string[])));
-      })
-      .catch(() => { /* mantém ao menos a atual */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phone, tipo]);
-
-  // Contas válidas pro tipo: receita fixa não cai em cartão de crédito.
-  // Garante "Dinheiro" como opção e remove duplicatas por nome.
-  const opcoesContas = useMemo(() => {
-    const base = tipo === 'Recebimento'
-      ? contas.filter((c) => c.tipo !== 'Crédito')
-      : contas;
-    const nomes = base.map((c) => c.nome);
-    const lista = [...base];
-    if (!nomes.some((n) => n.toLowerCase() === 'dinheiro')) {
-      lista.push({ id: '__dinheiro__', nome: 'Dinheiro' });
-    }
-    // Dedup por nome (case-insensitive), preservando ordem
-    const vistos = new Set<string>();
-    return lista.filter((c) => {
-      const k = c.nome.toLowerCase();
-      if (vistos.has(k)) return false;
-      vistos.add(k);
-      return true;
-    });
-  }, [contas, tipo]);
-
-  const [carteira, setCarteira] = useState(editItem?.carteira || opcoesContas[0]?.nome || 'Dinheiro');
-
-  // O QUE FAZER NO DIA — já na criação. Antes só dava pra escolher DEPOIS de
-  // salvar (o seletor da linha), então todo previsto nascia como "Lançar" e
-  // quem queria só somar custo fixo tinha de criar e corrigir em seguida.
-  const [modo, setModo] = useState<ModoLancamento>(editItem?.modo_lancamento || 'lancar');
-
-  useEffect(() => { descRef.current?.focus(); }, []);
-
-  // Se a conta selecionada deixou de ser válida (ex.: trocou pra receita e
-  // estava num cartão), volta pra primeira opção disponível.
-  useEffect(() => {
-    if (!opcoesContas.some((c) => c.nome === carteira)) {
-      setCarteira(opcoesContas[0]?.nome || 'Dinheiro');
-    }
-  }, [opcoesContas, carteira]);
-
-  const valorNum = parseFloat(valor.replace(',', '.'));
-  const temValor = !isNaN(valorNum) && valorNum > 0;
-  // Fixo exige valor; variável não (valor é só estimativa opcional).
-  const valido = !!descricao.trim() && (valorVariavel || temValor);
-
-  // 1–31. Dia que não existe no mês (31 em abr, 29-31 em fev) → o cron lança no
-  // último dia do mês, então não trava em 28 (isso mudava a intenção calada).
-  const diaLimpo = Math.max(1, Math.min(31, parseInt(dia, 10) || 5));
-
-  async function salvar() {
-    if (!valido || !phone) return;
-    setErro('');
-    setSalvando(true);
-    try {
-      if (editando && editItem) {
-        const r: any = await api.recorrencias.editar(editItem.id, {
-          categoria:      categoria || undefined,
-          descricao:      descricao.trim(),
-          valor:          temValor ? valorNum : 0,
-          dia_vencimento: diaLimpo,
-          carteira:       carteira || 'Dinheiro',
-          modo_lancamento: modo,
-        });
-        // O backend propaga a categoria nova pro lançamento deste mês; sem
-        // invalidar o cache, a lista de transações continuaria com a antiga.
-        if (r?.propagadas) mutateGlobal(() => true, undefined, { revalidate: true });
-      } else {
-        await api.recorrencias.criar({
-          phone,
-          tipo,
-          descricao:      descricao.trim(),
-          valor:          temValor ? valorNum : 0,   // variável sem estimativa → 0
-          dia_vencimento: diaLimpo,
-          carteira:       carteira || 'Dinheiro',
-          valor_variavel: valorVariavel,
-          modo_lancamento: modo,
-          categoria:      categoria || undefined,
-        });
-      }
-      onSaved();
-    } catch {
-      setErro('Não consegui salvar. Tente de novo.');
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  const eixo = (
-    ativo: boolean, label: string, onClick: () => void, ariaLabel?: string,
-  ) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={ativo}
-      aria-label={ariaLabel}
-      onClick={onClick}
-      className={`px-3.5 h-9 rounded-lg text-xs font-bold transition-all ${
-        ativo ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
-  return (
-    <div className="p-4 sm:p-6 bg-muted/20 border-b border-border/60 animate-fade-in">
-      {editando && (
-        <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-          <Pencil className="w-[11px] h-[11px] sm:w-3 sm:h-3" /> Editando {tipo === 'Gasto' ? 'gasto' : 'receita'} {valorVariavel ? 'variável' : 'fixo'}
-        </p>
-      )}
-      {/* Dois eixos: tipo (gasto/receita) × valor (fixo/variável) — travados ao
-          editar (são estruturais; mudar isso é como criar outro item). */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className={`inline-flex p-1 rounded-xl bg-muted/60 ${editando ? 'opacity-60' : ''}`} role="group" aria-label="Tipo">
-          {eixo(tipo === 'Gasto', 'Gasto', () => !editando && setTipo('Gasto'))}
-          {eixo(tipo === 'Recebimento', 'Receita', () => !editando && setTipo('Recebimento'))}
-        </div>
-        <div className={`inline-flex p-1 rounded-xl bg-muted/60 ${editando ? 'opacity-60' : ''}`} role="group" aria-label="Valor">
-          {eixo(!valorVariavel, 'Valor fixo', () => !editando && setValorVariavel(false))}
-          {eixo(valorVariavel, 'Valor varia', () => !editando && setValorVariavel(true))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_92px] gap-2.5">
-        <input
-          ref={descRef}
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && valido && salvar()}
-          placeholder={
-            valorVariavel
-              ? (tipo === 'Gasto' ? 'Ex.: Luz, Água, Cartão' : 'Ex.: Freela, Comissão')
-              : (tipo === 'Gasto' ? 'Ex.: Aluguel, Netflix' : 'Ex.: Salário')
-          }
-          aria-label="Descrição"
-          className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm
-                     placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
-        />
-        <input
-          inputMode="decimal"
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && valido && salvar()}
-          placeholder={valorVariavel ? 'Estimativa (opc.)' : 'R$ 0,00'}
-          aria-label={valorVariavel ? 'Valor estimado (opcional)' : 'Valor'}
-          className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm tabular-nums
-                     placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
-        />
-        <div className="flex items-center gap-1.5 px-3 h-11 rounded-xl bg-background border border-border text-sm">
-          <span className="text-muted-foreground text-xs">Dia</span>
-          <input
-            inputMode="numeric"
-            value={dia}
-            onChange={(e) => setDia(e.target.value)}
-            aria-label="Dia do vencimento"
-            className="w-full bg-transparent focus:outline-none tabular-nums"
-          />
-        </div>
-      </div>
-
-      {/* Categoria — se não escolher, a Sora tenta auto-categorizar pela
-          descrição (senão cai em "Outros"). Escolher aqui garante o certo. */}
-      <div className="mt-2.5">
-        <select
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-          className="w-full sm:w-auto px-3.5 h-11 rounded-xl bg-background border border-border text-sm
-                     focus:outline-none focus:border-primary transition-colors"
-          aria-label="Categoria"
-        >
-          <option value="">Categoria automática (pela descrição)</option>
-          {cats.map((c) => <option key={c} value={c}>{nomeCategoria(c)}</option>)}
-        </select>
-      </div>
-
-      {/* Conta de origem */}
-      <div className="mt-2.5">
-        <select
-          value={carteira}
-          onChange={(e) => setCarteira(e.target.value)}
-          className="w-full sm:w-auto px-3.5 h-11 rounded-xl bg-background border border-border text-sm
-                     focus:outline-none focus:border-primary transition-colors"
-          aria-label={tipo === 'Gasto' ? 'Conta de pagamento' : 'Conta de recebimento'}
-        >
-          {opcoesContas.map((c) => (
-            <option key={c.id} value={c.nome}>{c.nome}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* O QUE FAZER NO DIA — mesma escolha que a linha já oferece depois de
-          salva, agora disponível desde a criação. Sem isto todo previsto
-          nascia como "Lançar" e quem só queria somar custo fixo precisava
-          criar e corrigir em seguida.
-          Mesmo controle segmentado dos outros eixos (role=group + switch),
-          pra não introduzir um terceiro padrão de seleção no mesmo formulário. */}
-      <div className="mt-2.5">
-        <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="O que fazer no dia do vencimento">
-          {MODOS.map((m) => eixo(modo === m.id, m.label, () => setModo(m.id), m.ajuda))}
-        </div>
-      </div>
-
-      {/* Helper: explica o comportamento conforme fixo/variável (progressive disclosure) */}
-      <p className="text-xs text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
-        {/* ⚠️ O texto TEM de acompanhar o modo. Ele dizia "lanço automático"
-            sempre — e depois que o modo virou escolha da criação, isso
-            passaria a mentir pra quem marcasse "Só prever" ou "Não lançar". */}
-        {modo === 'nao_lancar'
-          ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
-              Não lanço nada — entra só na soma dos seus custos fixos do mês.</>
-          : valorVariavel
-            ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
-                Todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> eu te lembro e você confirma o valor real{temValor ? <> (estimei <span className="tabular-nums">{fmt(valorNum)}</span>)</> : ''} — nada é debitado antes disso.</>
-            : modo === 'prever'
-              ? <><CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
-                  Todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> crio como previsto e deixo a cobrança do seu banco confirmar — assim o gasto não conta duas vezes.</>
-              : <><Repeat size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
-                  Lanço automático todo dia <strong className="text-foreground/80 tabular-nums">{diaLimpo}</strong> com esse valor.</>}
-      </p>
-
-      {erro && <p className="text-xs text-red-500 mt-2" role="alert">{erro}</p>}
-
-      <div className="flex items-center gap-2 mt-4">
-        <button
-          onClick={salvar}
-          disabled={!valido || salvando}
-          className="flex items-center gap-1.5 px-4 h-11 rounded-xl text-sm font-bold text-white transition-all
-                     hover:-translate-y-0.5 active:translate-y-0 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0"
-          style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
-        >
-          {salvando ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-          {editando ? 'Salvar alterações' : 'Salvar'}
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 h-11 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-        >
-          Cancelar
-        </button>
-      </div>
-    </div>
-  );
-}
+// ⚠️ O `AddForm` que morava AQUI virou `components/previstos/FormRecorrencia`.
+// Ele agora é usado pela aba Previstos também, e manter uma cópia em cada
+// tela garantiria que as duas passassem a salvar campos diferentes — um bug
+// que ninguém reporta, só sente ('criei pelo outro lugar e não ficou igual').
 
 // ─────────────────────────────────────────────────────────────
 // Linha de uma DÍVIDA no card de previstos.

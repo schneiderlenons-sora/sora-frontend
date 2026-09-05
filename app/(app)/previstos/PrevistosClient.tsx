@@ -5,16 +5,21 @@ import Link from 'next/link';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   LineChart, AlertTriangle, Check, Clock, ArrowRight, Sparkles,
+  Plus, Pencil, Trash2, Loader2, BellOff,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
 import { saldoBRL } from '@/lib/moeda';
-import { aindaVemNoMes, calcularSaldoProjetado } from '@/lib/saldo-projetado';
+import {
+  aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
+} from '@/lib/saldo-projetado';
 import {
   projetarMeses, primeiroMesNoVermelho, ymHojeSP, somarMeses, type MesProjetado,
 } from '@/lib/previstos';
 import GraficoMeses, { type BarraMes } from '@/components/previstos/GraficoMeses';
+import FormRecorrencia, { type RecorrenciaForm } from '@/components/previstos/FormRecorrencia';
+import { descreveQuando, descreveFim } from '@/lib/frequencia-recorrencia';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
 
@@ -53,7 +58,9 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   const [anoRef, mesRef] = ymRef.split('-').map(Number);
 
   // ── Dados ────────────────────────────────────────────────────────────────
-  const { data: recData }  = useApi(phone ? `prev:rec:${phone}` : null, () => api.recorrencias.listar(phone));
+  const {
+    data: recData, mutate: recarregarRec,
+  } = useApi(phone ? `prev:rec:${phone}` : null, () => api.recorrencias.listar(phone));
   const { data: divData }  = useApi(phone ? `prev:div:${phone}` : null, () => api.dividas.listar(phone));
   const { data: fatData }  = useApi(phone ? `prev:fat:${phone}` : null, () => api.wallets.faturas(phone, 0));
   const { data: walData }  = useApi(phone ? `prev:wal:${phone}` : null, () => api.wallets.listar(phone));
@@ -105,9 +112,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // Relatórios. Três telas respondendo "quanto sobra" com contas diferentes foi
   // o defeito que a gente acabou de corrigir — não vou reintroduzi-lo aqui.
   const previstosDoMes = useMemo(() => {
+    // ⚠️ `itemPrevistoDe` em vez de escolher campo a campo: montado à mão,
+    // o objeto perdia frequência e duração (migration 157) sem avisar, e a
+    // conta anual voltava a ser cobrada todo mês.
     const itens = recorrencias
-      .filter((r: any) => aindaVemNoMes({ tipo: r.tipo, valor: r.valor, dia_vencimento: r.dia_vencimento }))
-      .map((r: any) => ({ tipo: r.tipo, valor: r.valor, dia_vencimento: r.dia_vencimento }));
+      .map((r: any) => itemPrevistoDe(r))
+      .filter((i) => vezesQueAindaVem(i) > 0);
     const parc = dividas
       .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false
         && aindaVemNoMes({ tipo: 'Gasto', valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }))
@@ -167,6 +177,26 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         </div>
       </div>
     );
+  }
+
+  // ── CRUD ─────────────────────────────────────────────────────────────────
+  // 'novo' = criando · um item = editando ESSE item · null = fechado.
+  const [formTarget, setFormTarget] = useState<'novo' | RecorrenciaForm | null>(null);
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const [removendo, setRemovendo]     = useState<string | null>(null);
+
+  async function excluir(id: string) {
+    setRemovendo(id);
+    try {
+      await api.recorrencias.cancelar(id, phone);
+      // ⚠️ Revalida em vez de tirar da lista na mão: a mesma recorrência
+      // alimenta a projeção, os gráficos e o "fecha o mês em" — sumir da
+      // lista com os números velhos ao lado seria o pior dos dois mundos.
+      await recarregarRec();
+    } finally {
+      setRemovendo(null);
+      setConfirmando(null);
+    }
   }
 
   // ── Listas ───────────────────────────────────────────────────────────────
@@ -261,6 +291,32 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         </div>
       )}
 
+      {/* ── Ação principal ───────────────────────────────────────────────
+          ⚠️ Botão COM RÓTULO no topo, nunca um FAB no canto inferior
+          direito: ali mora o "+" global da barra do celular, e dois botões
+          redondos no mesmo canto já geraram o relato "o + aparece
+          duplicado". (Regra registrada no CLAUDE.md.) */}
+      <button
+        type="button"
+        onClick={() => setFormTarget('novo')}
+        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 rounded-2xl
+                   text-sm font-bold text-white shadow-sm transition-all duration-200
+                   motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 motion-safe:active:scale-[0.99]"
+        style={{ height: 48, background: 'linear-gradient(135deg, hsl(var(--primary)), #3FA85A)' }}
+      >
+        <Plus size={16} /> Nova conta fixa
+      </button>
+
+      {formTarget && (
+        <FormRecorrencia
+          phone={phone}
+          contas={wallets}
+          editItem={formTarget === 'novo' ? null : formTarget}
+          onCancel={() => setFormTarget(null)}
+          onSaved={() => { setFormTarget(null); recarregarRec(); }}
+        />
+      )}
+
       {/* ── Sub-abas ───────────────────────────────────────────────────────
           Rolagem horizontal só nelas, nunca na página. */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist">
@@ -307,6 +363,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           itens={aba === 'receitas' ? receitas : aba === 'despesas' ? despesas : []}
           dividas={aba === 'despesas' ? dividas : []}
           faturas={aba === 'despesas' ? faturas : []}
+          onEditar={setFormTarget}
+          onNovo={() => setFormTarget('novo')}
+          onExcluir={excluir}
+          confirmando={confirmando}
+          onConfirmar={setConfirmando}
+          removendo={removendo}
         />
       )}
 
@@ -335,13 +397,14 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
 
 function SecaoHistorica({
   aba, barras, periodo, onPeriodo, mesSel, onSelecionar, historico, itens, dividas, faturas,
+  onEditar, onNovo, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
   const cor = aba === 'receitas' ? VERDE : aba === 'despesas' ? VERMELHO : 'hsl(var(--primary))';
   const doMes = historico.find((m: any) => m.ym === mesSel);
   const total = barras.reduce((s: number, b: BarraMes) => s + b.firme, 0);
   const media = barras.length ? total / barras.length : 0;
 
-  const jaVeio = (i: any) => !aindaVemNoMes({ tipo: i.tipo, valor: i.valor, dia_vencimento: i.dia_vencimento });
+  const jaVeio = (i: any) => vezesQueAindaVem(itemPrevistoDe(i)) === 0;
   const passados = itens.filter(jaVeio);
   const futuros  = itens.filter((i: any) => !jaVeio(i));
 
@@ -395,6 +458,31 @@ function SecaoHistorica({
         </p>
       </section>
 
+      {/* ⚠️ Vazio com AÇÃO. "Nada por aqui" é um beco sem saída: quem chega
+          nesta aba sem nenhuma conta fixa cadastrada é exatamente quem mais
+          precisa cadastrar uma, e o botão do topo pode já ter rolado. */}
+      {itens.length === 0 && aba !== 'caixa' && (
+        <section className="card rounded-2xl p-6 text-center">
+          <p className="text-sm font-bold text-foreground">
+            {aba === 'receitas' ? 'Nenhuma receita fixa ainda' : 'Nenhuma conta fixa ainda'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto leading-relaxed">
+            {aba === 'receitas'
+              ? 'Cadastre salário, aluguel recebido ou qualquer entrada que se repita — a projeção passa a contar com ela.'
+              : 'Cadastre aluguel, assinaturas, IPVA… e a Sora passa a saber quanto do mês já está comprometido.'}
+          </p>
+          <button
+            type="button"
+            onClick={onNovo}
+            className="mt-4 inline-flex items-center justify-center gap-2 px-5 rounded-2xl text-sm font-bold
+                       text-white shadow-sm transition-all duration-200 motion-safe:active:scale-[0.98]"
+            style={{ height: 48, background: 'linear-gradient(135deg, hsl(var(--primary)), #3FA85A)' }}
+          >
+            <Plus size={16} /> Nova conta fixa
+          </button>
+        </section>
+      )}
+
       {itens.length > 0 && (
         <>
           {futuros.length > 0 && (
@@ -403,6 +491,7 @@ function SecaoHistorica({
               icone={<Clock size={13} />}
               itens={futuros}
               cor={cor}
+              {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
             />
           )}
           {passados.length > 0 && (
@@ -412,6 +501,7 @@ function SecaoHistorica({
               itens={passados}
               cor={cor}
               esmaecido
+              {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
             />
           )}
         </>
@@ -456,7 +546,10 @@ function SecaoHistorica({
   );
 }
 
-function Grupo({ titulo, icone, itens, cor, esmaecido }: any) {
+function Grupo({
+  titulo, icone, itens, cor, esmaecido,
+  onEditar, onExcluir, confirmando, onConfirmar, removendo,
+}: any) {
   return (
     <section className={`card rounded-2xl overflow-hidden ${esmaecido ? 'opacity-70' : ''}`}>
       <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-2">
@@ -468,24 +561,107 @@ function Grupo({ titulo, icone, itens, cor, esmaecido }: any) {
         </span>
       </div>
       <ul className="divide-y divide-border/50">
-        {itens.map((i: any) => (
-          <li key={i.id} className="px-5 py-3 flex items-center gap-3">
-            <CategoriaIcon nome={i.descricao || i.categoria} icone="🔁" size={34} />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-foreground truncate">
-                {i.descricao || i.categoria || 'Conta fixa'}
-              </span>
-              <span className="block text-[11px] text-muted-foreground truncate">
-                dia {i.dia_vencimento}
-                {i.valor_variavel ? ' · valor estimado' : ''}
-                {i.carteira ? ` · ${i.carteira}` : ''}
-              </span>
-            </span>
-            <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
-              {fmt(i.valor)}
-            </span>
-          </li>
-        ))}
+        {itens.map((i: any, idx: number) => {
+          const confirmandoEste = confirmando === i.id;
+          const saindo = removendo === i.id;
+          return (
+            <li
+              key={i.id}
+              className="relative motion-safe:animate-[fade-in_320ms_ease-out_both]"
+              style={{ animationDelay: `${Math.min(idx * 35, 210)}ms`, opacity: saindo ? 0.45 : undefined }}
+            >
+              <div className="flex items-center gap-2 pl-2 pr-2 sm:pr-3">
+                {/* ⚠️ A LINHA INTEIRA abre a edição. Um lápis de 16px como único
+                    alvo obrigaria mira fina no celular — a regra é não exigir
+                    toque preciso. O ícone fica como PISTA de que dá pra editar. */}
+                <button
+                  type="button"
+                  onClick={() => onEditar?.(i)}
+                  className="group min-w-0 flex-1 flex items-center gap-3 px-3 py-3 rounded-xl text-left
+                             transition-colors hover:bg-muted/40 focus-visible:outline-none
+                             focus-visible:ring-2 focus-visible:ring-primary/50"
+                  style={{ minHeight: 56 }}
+                  aria-label={`Editar ${i.descricao || i.categoria || 'conta fixa'}`}
+                >
+                  <CategoriaIcon nome={i.descricao || i.categoria} icone="🔁" size={34} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                        {i.descricao || i.categoria || 'Conta fixa'}
+                      </span>
+                      {/* ⚠️ Ícone + rótulo acessível, nunca só a cor: "não te
+                          aviso" é informação, e quem não distingue tom precisa
+                          dela também. */}
+                      {i.lembrete === false && (
+                        <BellOff size={11} className="flex-shrink-0 text-muted-foreground" aria-label="sem aviso" />
+                      )}
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground truncate">
+                      {descreveQuando(i)}
+                      {descreveFim(i.data_fim) ? ` · ${descreveFim(i.data_fim)}` : ''}
+                      {i.valor_variavel ? ' · valor estimado' : ''}
+                      {i.carteira ? ` · ${i.carteira}` : ''}
+                    </span>
+                  </span>
+                  <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
+                    {fmt(i.valor)}
+                  </span>
+                  <Pencil
+                    size={13}
+                    className="flex-shrink-0 text-muted-foreground/45 transition-colors group-hover:text-muted-foreground"
+                    aria-hidden
+                  />
+                </button>
+
+                {/* ⚠️ Excluir NÃO é ícone escondido em hover: no celular não
+                    existe hover, e a ação simplesmente não existiria. */}
+                <button
+                  type="button"
+                  onClick={() => onConfirmar?.(confirmandoEste ? null : i.id)}
+                  aria-label={`Excluir ${i.descricao || 'conta fixa'}`}
+                  aria-expanded={confirmandoEste}
+                  className={`flex-shrink-0 grid place-items-center rounded-xl transition-colors ${
+                    confirmandoEste ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10'
+                  }`}
+                  style={{ width: 44, height: 44 }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+
+              {/* Confirmação IN LOCO: dá pra ler o nome do que vai sumir sem
+                  perder a linha de vista, e um toque fora cancela. */}
+              {confirmandoEste && (
+                <div className="flex flex-wrap items-center gap-2 px-4 pb-3 -mt-1 motion-safe:animate-[fade-in_180ms_ease-out]">
+                  <p className="text-xs text-muted-foreground flex-1 min-w-[9rem]" role="status">
+                    Parar de prever <strong className="text-foreground">{i.descricao || 'esta conta'}</strong>?
+                    {' '}Os lançamentos já feitos ficam.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onExcluir?.(i.id)}
+                    disabled={saindo}
+                    className="inline-flex items-center gap-1.5 px-3.5 rounded-xl text-xs font-bold
+                               text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+                    style={{ height: 40 }}
+                  >
+                    {saindo ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    Excluir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onConfirmar?.(null)}
+                    className="px-3.5 rounded-xl text-xs font-semibold text-muted-foreground
+                               hover:text-foreground hover:bg-muted/60 transition-colors"
+                    style={{ height: 40 }}
+                  >
+                    Manter
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
