@@ -226,17 +226,17 @@ export function projetarMeses(params: {
   recorrencias: ItemRecorrente[];
   dividas: ItemParcelado[];
   faturas: FaturaProjetada[];
-  /** Realizado do mês 0 — o que já entrou e saiu de fato. */
+  /**
+   * Realizado do mês 0.
+   *
+   * ⚠️ NÃO ENTRA NA CONTA — fica aqui só porque a tela às vezes quer exibi-lo
+   * ao lado. Ver a nota do mês 0 no laço: somá-lo ao que ainda vem conta a
+   * compra no cartão DUAS VEZES.
+   */
   realizado?: { receitas: number; gastos: number };
   /**
    * O que AINDA vem no mês 0 — a mesma conta da manchete
-   * (`calcularSaldoProjetado`).
-   *
-   * ⚠️ SEM ISTO O MÊS 0 CONTA O REALIZADO DUAS VEZES. O `saldoInicial` que se
-   * passa aqui é o saldo de HOJE, e o saldo de hoje já reflete o que entrou e
-   * saiu no mês. Somar o realizado por cima dele inflava o fecho do mês.
-   * Medido num caso real: a manchete dizia R$ 52,85 e a projeção do MESMO mês,
-   * dois cards abaixo, dizia R$ 154,02.
+   * (`calcularSaldoProjetado`). É ELE que o mês 0 usa.
    */
   restante?: { receitas: number; gastos: number };
 }): MesProjetado[] {
@@ -257,13 +257,7 @@ export function projetarMeses(params: {
   );
 
   const meses: MesProjetado[] = [];
-  // ⚠️ O saldo de partida é o do INÍCIO DO MÊS, não o de hoje: desfaz-se o
-  // realizado pra ele voltar ao fechamento do mês anterior. Assim o mês 0 se
-  // lê como todos os outros — "começou com X, entrou Y, saiu Z, fecha em W" —
-  // e W dá exatamente o saldo de hoje mais o que ainda vem.
-  let saldo = cent(realizado
-    ? saldoInicial - (Number(realizado.receitas) || 0) + (Number(realizado.gastos) || 0)
-    : saldoInicial);
+  let saldo = cent(saldoInicial);
 
   for (let k = 0; k < quantidade; k += 1) {
     const ym = somarMeses(inicio, k);
@@ -338,19 +332,29 @@ export function projetarMeses(params: {
         efeito: -restante,
       });
     }
-    // ── MÊS 0: o que JÁ aconteceu + o que AINDA vem ────────────────────────
+    // ── MÊS 0: SÓ O QUE AINDA VEM ──────────────────────────────────────────
     //
-    // ⚠️ O mês corrente não é previsão nem só passado: é os dois. O agendado
-    // que já venceu foi substituído pelo REALIZADO (que inclui o avulso, e é
-    // o número que o resto do painel mostra), e o que falta vem de
-    // `restante` — a mesma conta da manchete. Somados, dão o mês inteiro.
-    if (k === 0 && realizado) {
-      receitaFirme = cent((Number(realizado.receitas) || 0) + (Number(restante?.receitas) || 0));
-      despesaFirme = cent((Number(realizado.gastos) || 0) + (Number(restante?.gastos) || 0));
-      // ⚠️ A estimada JÁ ESTÁ dentro de `restante` (a manchete soma a conta de
-      // valor variável como qualquer outra). Deixá-la aqui a contaria de novo.
-      if (restante) despesaEstimada = 0;
-      if (restante) receitaEstimada = 0;
+    // ⚠️ O REALIZADO NÃO ENTRA AQUI, e a razão é a compra no cartão. Ela é
+    // transação no dia em que acontece (nasce `pago=true`), então está dentro
+    // de `realizado.gastos`; e ela também está dentro da FATURA em aberto, que
+    // é o que ainda vai sair da conta. Somar as duas metades conta a mesma
+    // despesa duas vezes — no caso que trouxe isto à tona, R$ 1.041,05 de
+    // fatura em cima de R$ 1.345,29 que já a continham.
+    //
+    // São bases contábeis diferentes: `realizado` é despesa por COMPETÊNCIA (a
+    // compra é despesa quando acontece) e a fatura é saída de CAIXA (o dinheiro
+    // sai quando ela é paga). Misturar as duas numa soma não tem conserto por
+    // ajuste de valor — só separando. E este card responde uma pergunta de
+    // CAIXA ("com que saldo o mês fecha"), então quem manda é o que ainda sai.
+    //
+    // O que já aconteceu não some do painel: ele é o assunto das abas Caixa e
+    // Despesas, que o mostram com a base certa.
+    if (k === 0 && restante) {
+      receitaFirme = cent(Number(restante.receitas) || 0);
+      despesaFirme = cent(Number(restante.gastos) || 0);
+      // A conta de valor variável já está somada dentro de `restante`.
+      receitaEstimada = 0;
+      despesaEstimada = 0;
     }
 
     const resultado = cent(
