@@ -94,6 +94,9 @@ export const GRUPOS: GrupoNav[] = [
       {
         id: 'planejar', titulo: 'Planejar', tom: '#BFDBFE',
         itens: [
+          // Previstos abre o grupo: 'o que ainda vem' é a pergunta que vem
+          // ANTES de meta e limite — os dois só fazem sentido sabendo quanto sobra.
+          { href: '/previstos',         label: 'Previstos',  icone: 'CalendarClock' },
           { href: '/metas',             label: 'Metas',      icone: 'Flag' },
           { href: '/limites-de-gastos', label: 'Limites',    icone: 'Target' },
           { href: '/relatorios',        label: 'Relatórios', icone: 'BarChart2' },

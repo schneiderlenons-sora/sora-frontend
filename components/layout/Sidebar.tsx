@@ -10,7 +10,7 @@ import {
   MessageCircle, HelpCircle, CalendarDays, ChevronDown, Lock,
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
-  Percent, CalendarRange, FolderLock,
+  Percent, CalendarRange, FolderLock, CalendarClock,
   Palette, Lightbulb, Share2, Megaphone,
   // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
   HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
@@ -90,7 +90,7 @@ const ICONES_APP: Record<string, IconeLucide> = {
   Receipt, Flag, Target, BarChart2, Tag, TrendingUp, Percent, ListChecks,
   CalendarDays, GraduationCap, Activity, Heart, Home: HomeIcon, Plane,
   Clapperboard, BookOpen, Users, Zap, Bug, Palette, Gift, Lightbulb, Share2,
-  Megaphone, Shield,
+  Megaphone, Shield, CalendarClock,
 };
 
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
