@@ -73,8 +73,25 @@ export type MesProjetado = {
   despesaEstimada: number;
   /** receita − despesa, contando as duas confianças. */
   resultado: number;
+  /** Saldo com que o mês COMEÇA (o acumulado do mês anterior). */
+  saldoInicial: number;
   /** Saldo acumulado a partir do saldo inicial informado. */
   saldoAcumulado: number;
+  /**
+   * De onde vem cada parte, pra a tela poder abrir "Despesas" em
+   * "contas fixas · parcelas · faturas" sem recalcular nada por fora.
+   *
+   * ⚠️ É a soma AGENDADA, sempre — mesmo no mês 0, onde os totais acima são
+   * substituídos pelo realizado. As duas coisas respondem perguntas
+   * diferentes ("o que já saiu" × "o que estava marcado pra sair"), e
+   * misturá-las faria a soma do detalhe não bater com o total logo acima.
+   */
+  detalhe: {
+    receitasFixas: number;
+    contasFixas:   number;
+    parcelas:      number;
+    faturas:       number;
+  };
   /** Há valor variável neste mês? Então o número é aproximado. */
   aproximado: boolean;
   eventos: EventoMes[];
@@ -149,6 +166,14 @@ export function projetarMeses(params: {
     let despesaFirme = 0;
     let despesaEstimada = 0;
 
+    // Detalhe por ORIGEM — o que a tela abre embaixo de "Despesas".
+    let dReceitasFixas = 0;
+    let dContasFixas = 0;
+    let dParcelas = 0;
+    let dFaturas = 0;
+
+    const saldoInicial = saldo;
+
     for (const r of recorrentes) {
       // ⚠️ QUANTAS VEZES CAI NESTE MÊS — não mais um "1" implícito. Sem
       // isto o IPVA (anual) entraria em TODO mês da janela e a diarista
@@ -172,8 +197,12 @@ export function projetarMeses(params: {
       const v = cent(r.valor) * vezes;
       const estimado = !!r.valor_variavel;
       if (r.tipo === 'Recebimento') {
+        dReceitasFixas += v;
         if (estimado) receitaEstimada += v; else receitaFirme += v;
-      } else if (estimado) despesaEstimada += v; else despesaFirme += v;
+      } else {
+        dContasFixas += v;
+        if (estimado) despesaEstimada += v; else despesaFirme += v;
+      }
     }
 
     for (const d of parcelas) {
@@ -187,6 +216,7 @@ export function projetarMeses(params: {
       // decisão ("dá pra assumir isso a partir de março").
       if (k < restantes) {
         despesaFirme += cent(d.valor_parcela);
+        dParcelas += cent(d.valor_parcela);
       } else if (k === restantes && Number.isFinite(restantes)) {
         eventos.push({
           tipo: 'fim_parcela',
@@ -205,6 +235,7 @@ export function projetarMeses(params: {
       if (!(restante > 0) || !f.venc) continue;
       if (String(f.venc).slice(0, 7) !== ym) continue;
       despesaFirme += restante;
+      dFaturas += restante;
       eventos.push({
         tipo: 'fatura',
         texto: `Fatura ${f.nome || 'do cartão'}`,
@@ -231,7 +262,14 @@ export function projetarMeses(params: {
       despesaFirme: cent(despesaFirme),
       despesaEstimada: cent(despesaEstimada),
       resultado,
+      saldoInicial: cent(saldoInicial),
       saldoAcumulado: saldo,
+      detalhe: {
+        receitasFixas: cent(dReceitasFixas),
+        contasFixas:   cent(dContasFixas),
+        parcelas:      cent(dParcelas),
+        faturas:       cent(dFaturas),
+      },
       aproximado: receitaEstimada > 0 || despesaEstimada > 0,
       eventos,
     });

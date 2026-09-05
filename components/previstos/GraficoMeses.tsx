@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 
 /**
  * Barras por mês — em CSS puro.
@@ -115,6 +115,9 @@ export default function GraficoMeses({
   titulo?: string;
 }) {
   const trilhoRef = useRef<HTMLDivElement>(null);
+  // Hover do desktop. No celular ele nunca dispara — lá quem sinaliza é o
+  // `ativo`, que o toque já liga.
+  const [sobre, setSobre] = useState<string | null>(null);
 
   const totais = useMemo(
     () => barras.map((b) => (b.realizado || 0) + (b.previsto || 0)),
@@ -242,6 +245,7 @@ export default function GraficoMeses({
               const firmePrevisto = previsto - estimado;
               const total = realizado + previsto;
               const ativo = selecionado === b.ym;
+              const destacada = ativo || sobre === b.ym;
               const { mes, ano } = rotulo(b.ym);
 
               const pct = (v: number) => (v / topo) * 100;
@@ -266,12 +270,21 @@ export default function GraficoMeses({
                   onClick={() => onSelecionar(b.ym)}
                   aria-pressed={ativo}
                   aria-label={`${mes} ${ano}: ${brl(total)}${legenda ? ` — ${legenda}` : ''}`}
-                  className={`group relative flex flex-col justify-end h-full rounded-xl transition-colors ${
+                  className={`group relative flex flex-col justify-end h-full rounded-xl
+                              transition-colors duration-200 cursor-pointer
+                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                     rolavel ? 'w-[46px]' : 'flex-1 min-w-[26px] max-w-[72px]'
                   }`}
                   // Alvo de toque: a barra é estreita, mas o BOTÃO ocupa a
                   // altura toda do quadro — bem acima dos 44px exigidos.
-                  style={{ minHeight: 44 }}
+                  style={{
+                    minHeight: 44,
+                    // Fundo da coluna: o alvo tocado inteiro se acende, não só
+                    // a barrinha dentro dele.
+                    background: destacada ? 'hsl(var(--muted) / 0.55)' : undefined,
+                  }}
+                  onMouseEnter={() => setSobre(b.ym)}
+                  onMouseLeave={() => setSobre((v) => (v === b.ym ? null : v))}
                 >
                   {/* Divisor vertical do "daqui pra frente". Fica DENTRO da
                       fatia, encostado na borda direita, pra cair exatamente
@@ -297,10 +310,15 @@ export default function GraficoMeses({
                       cápsula fantasma de 176px sobre uma barra de 8%. */}
                   <span className="w-full flex flex-col justify-end" style={{ height: '100%' }}>
                     <span
-                      className="relative w-full flex flex-col justify-end rounded-full transition-shadow duration-200"
+                      className="relative w-full flex flex-col justify-end rounded-full
+                                 transition-transform duration-200 origin-bottom motion-reduce:transition-none"
                       style={{
                         height: `${Math.max(pct(total), total > 0 ? 2 : 0)}%`,
-                        boxShadow: ativo ? `0 0 0 1.5px ${tom(cor, 26)}` : undefined,
+                        // ⚠️ `scaleY` a partir da BASE, nunca `height`: altura
+                        // anima no layout (reflow a cada frame) e ainda brigaria
+                        // com o `slide-up` de entrada dos segmentos. Transform é
+                        // composto na GPU e não toca no fluxo.
+                        transform: destacada ? 'scaleY(1.04)' : undefined,
                       }}
                     >
                       {/* ── PREVISTO (em cima, tom claro) ──────────────────
@@ -370,7 +388,7 @@ export default function GraficoMeses({
           <div className={`flex gap-1.5 sm:gap-2 mt-2.5 ${rolavel ? 'w-max' : ''}`}>
             {barras.map((b, i) => {
               const { mes, ano } = rotulo(b.ym);
-              const ativo = selecionado === b.ym;
+              const ativo = selecionado === b.ym || sobre === b.ym;
               // O ano só aparece quando MUDA (e no primeiro): repetir '26 em
               // seis rótulos é ruído que empurra o olho pra baixo.
               const mostraAno = i === 0 || b.ym.slice(0, 4) !== barras[i - 1].ym.slice(0, 4);

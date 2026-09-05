@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
-  LineChart, AlertTriangle, Check, Clock, ArrowRight, Sparkles,
+  LineChart, AlertTriangle, Check, Clock,
   Plus, Pencil, Trash2, Loader2, BellOff, ShoppingCart, Banknote,
+  ChevronDown, ClipboardList, ArrowDownToLine, ArrowUpFromLine,
+  CalendarDays, Landmark, CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
@@ -31,6 +32,10 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
 
 const VERDE = '#22c55e';
 const VERMELHO = '#ef4444';
+/** Roxo da projeção e do caixa — o mesmo violeta do Grow, pra "o que ainda
+ *  não aconteceu" ter uma cor própria e não disputar com o verde/vermelho
+ *  de receita e despesa, que ali significam outra coisa. */
+const ROXO = '#7c3aed';
 
 /** Quantos meses o gráfico das seções históricas mostra. */
 const PERIODOS = [
@@ -146,7 +151,14 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     for (const m of doAno(anoData))    todos.push({ ym: `${anoRef}-${String(m.mes).padStart(2, '0')}`, ...m });
     // Só até o mês de referência: mês futuro no gráfico "histórico" viria zerado
     // e leria como "você não gastou nada", que é falso.
-    return todos.filter((m) => m.ym <= ymRef).slice(-periodo);
+    const ate = todos.filter((m) => m.ym <= ymRef);
+
+    // ⚠️ E CORTA O QUE VEM ANTES DO PRIMEIRO MÊS COM MOVIMENTO. Quem abriu
+    // a conta em julho via abril, maio e junho zerados no gráfico — e mês
+    // vazio não lê como "não existe", lê como "não gastei nada", que é uma
+    // afirmação. De quebra, os zeros puxavam a média pra baixo.
+    const primeiro = ate.findIndex((m) => (m.receitas || 0) > 0 || (m.gastos || 0) > 0);
+    return (primeiro < 0 ? ate : ate.slice(primeiro)).slice(-periodo);
   }, [anoData, anoAntData, anoRef, ymRef, periodo]);
 
   // ⚠️ O MÊS CORRENTE É O ÚNICO QUE SE PARTE EM DOIS, e é essa divisão que
@@ -222,6 +234,93 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       setConfirmando(null);
     }
   }
+
+  // ── De onde vem / pra onde vai ───────────────────────────────────────────
+  //
+  // As linhas que compõem o que ainda entra e o que ainda sai neste mês.
+  // ⚠️ Cada uma leva o `rec` original quando é recorrência: é o que permite
+  // editar dali mesmo, sem mandar a pessoa pra outra aba (era o que o atalho
+  // pra /transacoes fazia, e ele saiu junto com esta mudança).
+  const fontes = useMemo(() => {
+    const vezes = (r: any) => vezesQueAindaVem(itemPrevistoDe(r));
+
+    const daRecorrencia = (r: any) => ({
+      id: `rec:${r.id}`,
+      titulo: r.descricao || r.categoria || 'Conta fixa',
+      valor: (Number(r.valor) || 0) * vezes(r),
+      legenda: [
+        descreveQuando(r),
+        vezes(r) > 1 ? `${vezes(r)}x ainda neste mês` : '',
+        r.valor_variavel ? 'valor estimado' : '',
+      ].filter(Boolean).join(' · '),
+      icone: '🔁',
+      rec: r,
+    });
+
+    const vem = recorrencias
+      .filter((r: any) => r.tipo === 'Recebimento' && vezes(r) > 0)
+      .map(daRecorrencia);
+
+    const vai = [
+      ...recorrencias.filter((r: any) => r.tipo === 'Gasto' && vezes(r) > 0).map(daRecorrencia),
+      ...dividas
+        .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false
+          && aindaVemNoMes({ tipo: 'Gasto', valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }))
+        .map((d: any) => ({
+          id: `div:${d.id}`,
+          titulo: d.titulo || 'Parcela',
+          valor: Number(d.valor_parcela) || 0,
+          legenda: `parcela · vence dia ${d.dia_vencimento}`,
+          icone: '🏦',
+        })),
+      ...faturas
+        .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false
+          && aindaVemNoMes({ tipo: 'Gasto', valor: f.restante, dia_vencimento: 0, venc: f.venc }))
+        .map((f: any) => ({
+          id: `fat:${f.cartao_id}`,
+          titulo: `Fatura ${f.nome || 'do cartão'}`,
+          valor: Number(f.restante) || 0,
+          legenda: `fatura · vence ${String(f.venc || '').slice(8, 10)}/${String(f.venc || '').slice(5, 7)}`,
+          icone: '💳',
+        })),
+    ].sort((a, b) => b.valor - a.valor);
+
+    return { vem, vai };
+  }, [recorrencias, dividas, faturas]);
+
+  // ── Patrimônio: passado reconstruído + futuro projetado ──────────────────
+  //
+  // ⚠️ O PASSADO É RECONSTRUÍDO PRA TRÁS a partir do saldo de HOJE, subtraindo
+  // o resultado de cada mês. Não existe histórico de saldo guardado — o que
+  // existe é o saldo atual das carteiras e o fluxo de cada mês. É aritmética
+  // sobre dado que temos, não estimativa: nada aqui é inventado.
+  //
+  // ⚠️ Ela PARA no primeiro mês que daria negativo. Antes de a pessoa usar a
+  // Sora não há fluxo registrado, então continuar subtraindo produziria um
+  // patrimônio negativo que nunca existiu — e o gráfico afirmaria dívida.
+  const barrasPatrimonio: BarraMes[] = useMemo(() => {
+    const passado: BarraMes[] = [];
+    let saldo = proj.saldoHoje;
+    const hist = barrasHistoricas.filter((m) => m.ym <= ymHoje);
+
+    for (let i = hist.length - 1; i >= 0; i -= 1) {
+      const m = hist[i];
+      if (saldo < 0) break;
+      passado.unshift(m.ym === ymHoje
+        // O mês corrente é o único partido: o que já se tem × o que a
+        // projeção acrescenta até o fim dele.
+        ? { ym: m.ym, realizado: saldo, previsto: Math.max(0, (projecao[0]?.saldoAcumulado ?? saldo) - saldo) }
+        : { ym: m.ym, realizado: saldo });
+      saldo -= (Number(m.receitas) || 0) - (Number(m.gastos) || 0);
+    }
+
+    const futuro: BarraMes[] = projecao.slice(1).map((m) => ({
+      ym: m.ym,
+      previsto: Math.max(0, m.saldoAcumulado),
+    }));
+
+    return [...passado, ...futuro];
+  }, [barrasHistoricas, projecao, proj.saldoHoje, ymHoje]);
 
   // ── Listas ───────────────────────────────────────────────────────────────
   const receitas = recorrencias.filter((r: any) => r.tipo === 'Recebimento');
@@ -370,10 +469,27 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       {aba === 'projecao' ? (
         <SecaoProjecao
           projecao={projecao}
-          barras={barrasProjecao}
+          barras={barrasPatrimonio}
           mesSel={mesSel}
           onSelecionar={setMesSel}
           detalhe={mesDetalhe}
+          saldoHoje={proj.saldoHoje}
+          ymHoje={ymHoje}
+        />
+      ) : aba === 'caixa' ? (
+        <SecaoCaixa
+          barras={barrasCaixa}
+          periodo={periodo}
+          onPeriodo={setPeriodo}
+          mesSel={mesSel}
+          onSelecionar={setMesSel}
+          ymHoje={ymHoje}
+          entrou={resumo?.receitas || 0}
+          saiu={resumo?.gastos || 0}
+          aEntrar={proj.aReceber}
+          aSair={proj.aPagar}
+          fontes={fontes}
+          onEditar={setFormTarget}
         />
       ) : (
         <SecaoHistorica
@@ -398,23 +514,6 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         />
       )}
 
-      {/* Ponte pro CRUD, que segue morando na aba Transações (fase 1 é leitura). */}
-      <Link
-        href="/transacoes"
-        className="flex items-center justify-between gap-3 card rounded-2xl p-4 hover:border-primary/40 transition-colors"
-      >
-        <span className="flex items-center gap-3 min-w-0">
-          <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 13%, transparent)' }}>
-            <Sparkles size={16} style={{ color: 'hsl(var(--primary))' }} />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-foreground">Criar ou editar uma conta fixa</span>
-            <span className="block text-xs text-muted-foreground">Na aba Transações, em Previstos</span>
-          </span>
-        </span>
-        <ArrowRight size={16} className="text-muted-foreground flex-shrink-0" />
-      </Link>
     </div>
   );
 }
@@ -747,91 +846,279 @@ function Grupo({
   );
 }
 
+/* ── Caixa ──────────────────────────────────────────────────────────────────
+ *
+ * Responde duas perguntas que o gráfico sozinho não responde: PARA ONDE o
+ * dinheiro vai e DE ONDE ele vem. O gráfico mostra o resultado; estes dois
+ * cards mostram a composição — e é a composição que a pessoa consegue mudar.
+ */
+
+function SecaoCaixa({
+  barras, periodo, onPeriodo, mesSel, onSelecionar, ymHoje,
+  entrou, saiu, aEntrar, aSair, fontes, onEditar,
+}: any) {
+  return (
+    <div className="space-y-5 animate-[fade-in_300ms_ease-out]">
+      <section className="card rounded-3xl p-5">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1.5">
+              <Wallet size={12} className="flex-shrink-0" /> Fluxo de caixa
+            </p>
+            <p className="text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
+              Quanto sobrou em cada mês — o que entrou menos o que saiu.
+            </p>
+          </div>
+          <FiltroPeriodo periodo={periodo} onPeriodo={onPeriodo} />
+        </div>
+
+        <GraficoMeses
+          barras={barras}
+          cor={ROXO}
+          selecionado={mesSel}
+          onSelecionar={onSelecionar}
+          titulo={`Sobrou · ${barras.length} ${barras.length === 1 ? 'mês' : 'meses'}`}
+          rotuloRealizado="sobrou"
+          rotuloPrevisto="previsto"
+          divisorApos={barras.some((b: BarraMes) => b.ym === ymHoje) ? ymHoje : undefined}
+          rotuloAcessivel={`Fluxo de caixa dos últimos ${barras.length} meses`}
+        />
+      </section>
+
+      {/* ⚠️ SAÍDAS PRIMEIRO. É a lista que a pessoa consegue mexer hoje: cortar
+          uma assinatura é uma decisão de agora, arrumar mais receita não é. */}
+      <CardFluxo
+        titulo="Para onde o dinheiro vai"
+        realizado={saiu}
+        previsto={aSair}
+        itens={fontes.vai}
+        cor={VERMELHO}
+        sinal="−"
+        rotuloRealizado="já saiu"
+        rotuloPrevisto="ainda sai"
+        rotuloLista="Ainda vai sair"
+        vazio="Nenhuma saída prevista para este mês."
+        onEditar={onEditar}
+      />
+
+      <CardFluxo
+        titulo="De onde o dinheiro vem"
+        realizado={entrou}
+        previsto={aEntrar}
+        itens={fontes.vem}
+        cor={VERDE}
+        sinal="+"
+        rotuloRealizado="já entrou"
+        rotuloPrevisto="ainda entra"
+        rotuloLista="Ainda vai entrar"
+        vazio="Nenhuma entrada prevista para este mês."
+        onEditar={onEditar}
+      />
+    </div>
+  );
+}
+
+/** Pílulas de período — as mesmas em toda seção que tem gráfico histórico. */
+function FiltroPeriodo({ periodo, onPeriodo }: any) {
+  return (
+    <div className="flex gap-1 p-1 rounded-2xl bg-muted/50 flex-shrink-0">
+      {PERIODOS.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => onPeriodo(p.id)}
+          aria-pressed={periodo === p.id}
+          className={`px-2.5 h-9 rounded-xl text-[12px] font-bold transition-colors ${
+            periodo === p.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+          }`}
+          style={{ minHeight: 36 }}
+        >
+          {p.id === 12 ? '1 ano' : `${p.id}m`}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Card "para onde vai" / "de onde vem": total, a divisão realizado × previsto
+ * e — ao abrir — de que linhas ele é feito.
+ *
+ * ⚠️ FECHADO POR PADRÃO. São dois cards com listas que podem ter dez linhas
+ * cada; abertos de saída, empurram o gráfico pra fora da tela no celular e a
+ * pessoa perde a visão geral que veio buscar.
+ */
+function CardFluxo({
+  titulo, realizado, previsto, itens, cor, sinal,
+  rotuloRealizado, rotuloPrevisto, rotuloLista, vazio, onEditar,
+}: any) {
+  const [aberto, setAberto] = useState(false);
+  const total = (Number(realizado) || 0) + (Number(previsto) || 0);
+
+  return (
+    <section className="card rounded-2xl overflow-hidden">
+      <p className="px-5 pt-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {titulo}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        aria-expanded={aberto}
+        className="w-full px-5 pt-2 pb-4 text-left transition-colors hover:bg-muted/25
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-2xl font-bold tabular tracking-tight text-foreground leading-none">
+              {fmt(total)}
+            </p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">
+              {itens.length} {itens.length === 1 ? 'linha' : 'linhas'} no mês
+            </p>
+          </div>
+          <ChevronDown
+            size={18}
+            className={`flex-shrink-0 text-muted-foreground transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </div>
+
+        <div className="mt-3.5">
+          <BarraDividida
+            realizado={Number(realizado) || 0}
+            previsto={Number(previsto) || 0}
+            cor={cor}
+            rotuloRealizado={rotuloRealizado}
+            rotuloPrevisto={rotuloPrevisto}
+          />
+        </div>
+      </button>
+
+      {aberto && (
+        <div className="border-t border-border/50 motion-safe:animate-[fade-in_200ms_ease-out]">
+          {itens.length === 0 ? (
+            <p className="px-5 py-5 text-xs text-muted-foreground text-center">{vazio}</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-2 px-5 pt-3.5 pb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {rotuloLista}
+                </p>
+                <p className="text-[10px] font-bold text-muted-foreground tabular-nums">
+                  {itens.length} de {itens.length}
+                </p>
+              </div>
+              <ul className="divide-y divide-border/50">
+                {itens.map((it: any, idx: number) => {
+                  // ⚠️ Só recorrência abre o formulário. Parcela de dívida e
+                  // fatura de cartão têm campos que este form não tem (nº de
+                  // parcelas, credor, juros) — abrir o de conta fixa pra elas
+                  // ofereceria salvar um objeto que não é o delas.
+                  const editavel = !!it.rec && !!onEditar;
+                  const Tag: any = editavel ? 'button' : 'div';
+                  return (
+                    <li key={it.id} className="motion-safe:animate-[fade-in_260ms_ease-out_both]"
+                        style={{ animationDelay: `${Math.min(idx * 35, 210)}ms` }}>
+                      <Tag
+                        {...(editavel ? {
+                          type: 'button',
+                          onClick: () => onEditar(it.rec),
+                          'aria-label': `Editar ${it.titulo}`,
+                        } : {})}
+                        className={`w-full flex items-center gap-3 px-5 py-3 text-left ${
+                          editavel ? 'transition-colors hover:bg-muted/30 cursor-pointer' : ''
+                        }`}
+                        style={{ minHeight: 56 }}
+                      >
+                        <CategoriaIcon nome={it.titulo} icone={it.icone || '🔁'} size={34} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-foreground truncate">
+                            {it.titulo}
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground truncate">
+                            {it.legenda}
+                          </span>
+                        </span>
+                        <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
+                          {sinal}{fmt(it.valor)}
+                        </span>
+                        {editavel && (
+                          <Pencil size={13} className="flex-shrink-0 text-muted-foreground/45" aria-hidden />
+                        )}
+                      </Tag>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ── Projeção ───────────────────────────────────────────────────────────── */
 
-function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe }: any) {
+function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe, saldoHoje, ymHoje }: any) {
   const eventos = projecao.flatMap((m: MesProjetado) =>
     m.eventos.map((e) => ({ ...e, ym: m.ym })));
 
-  // Média dos meses projetados — vira a linha tracejada de referência.
-  // ⚠️ É o que transforma seis barras numa informação: sem uma régua, "R$
-  // 1.240 em dezembro" não diz se é um mês caro ou o mês de sempre.
-  const media = barras.length
-    ? barras.reduce((s: number, b: BarraMes) => s + (b.realizado || 0) + (b.previsto || 0), 0) / barras.length
-    : 0;
+  const alvo: MesProjetado | undefined = detalhe || projecao[projecao.length - 1];
+  const [anoAlvo, mesAlvo] = String(alvo?.ym || ymHoje).split('-').map(Number);
 
   return (
     <div className="space-y-5 animate-[fade-in_300ms_ease-out]">
       <section className="card rounded-3xl p-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          Próximos {MESES_A_FRENTE} meses
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1.5">
+          <TrendingUp size={12} className="flex-shrink-0" /> Patrimônio hoje
         </p>
-        <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-          O que já está comprometido — contas fixas, parcelas e faturas. A parte
-          listrada é estimativa de conta que muda de valor.
+        <p className="text-[28px] sm:text-3xl font-bold tabular tracking-tight leading-none text-foreground mt-1">
+          {fmt(saldoHoje)}
         </p>
-
-        <div className="mt-4" />
+        {alvo && (
+          <p className="text-[12.5px] text-muted-foreground mt-1.5">
+            projetado para {MESES[mesAlvo - 1].toLowerCase()} &apos;{String(anoAlvo).slice(2)}:{' '}
+            <strong className="font-bold tabular" style={{ color: ROXO }}>{fmt(alvo.saldoAcumulado)}</strong>
+          </p>
+        )}
 
         <div className="mt-4">
           <GraficoMeses
             barras={barras}
-            cor={VERMELHO}
+            cor={ROXO}
             selecionado={mesSel}
             onSelecionar={onSelecionar}
-            titulo={`Despesas · ${MESES_A_FRENTE} meses`}
-            rotuloRealizado="já saiu"
-            rotuloPrevisto="a sair"
-            // A linha tracejada separa o mês em curso do que ainda nem
-            // começou. Sem ela, a barra de hoje (parte real) e a de outubro
-            // (100% palpite) leem como se tivessem a mesma confiança.
-            divisorApos={barras[0]?.ym}
-            linhaReferencia={media}
-            rotuloAcessivel={`Despesas projetadas para os próximos ${MESES_A_FRENTE} meses`}
+            titulo={`Patrimônio · ${barras.length} ${barras.length === 1 ? 'mês' : 'meses'}`}
+            rotuloRealizado="realizado"
+            rotuloPrevisto="previsto"
+            // A tracejada vertical separa o que aconteceu do que é conta: sem
+            // ela, a barra de hoje e a de dezembro leem com a mesma confiança.
+            divisorApos={ymHoje}
+            linhaReferencia={saldoHoje}
+            rotuloAcessivel={`Patrimônio ao longo de ${barras.length} meses`}
           />
 
-          <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5 flex-wrap">
+          {/* ⚠️ A amostra da linha é INLINE, não um item de flex: em flex com
+              `flex-wrap` ela ganhava a primeira linha só pra si e ficava
+              parecendo um tracinho solto no meio do card. */}
+          <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
             <span
-              className="inline-block w-5 flex-shrink-0"
-              style={{ borderTop: `1.5px dashed color-mix(in srgb, ${VERMELHO} 70%, transparent)` }}
+              className="inline-block w-5 align-middle mr-1.5"
+              style={{ borderTop: `1.5px dashed color-mix(in srgb, ${ROXO} 70%, transparent)` }}
               aria-hidden
             />
-            média de <strong className="font-bold text-foreground tabular-nums">{fmt(media)}</strong>/mês
-            no período
+            a tracejada marca o patrimônio de hoje — o que passa dela é o que a
+            projeção acrescenta.
           </p>
         </div>
-
-        {detalhe && (
-          <div className="mt-4 rounded-2xl p-4 bg-muted/30 animate-[fade-in_250ms_ease-out]">
-            <p className="text-sm font-bold text-foreground">
-              {MESES[Number(detalhe.ym.split('-')[1]) - 1]} {detalhe.ym.split('-')[0]}
-            </p>
-            <div className="grid grid-cols-2 gap-3 mt-2.5 text-[12.5px]">
-              <span>
-                <span className="block text-muted-foreground">Entra</span>
-                <span className="block font-bold tabular text-green-600 dark:text-green-400">
-                  {fmt(detalhe.receitaFirme + detalhe.receitaEstimada)}
-                </span>
-              </span>
-              <span>
-                <span className="block text-muted-foreground">Sai</span>
-                <span className="block font-bold tabular text-red-500">
-                  {fmt(detalhe.despesaFirme + detalhe.despesaEstimada)}
-                </span>
-              </span>
-            </div>
-            <p className="mt-2.5 pt-2.5 border-t border-border/50 text-[12.5px]">
-              <span className="text-muted-foreground">Sobra no mês: </span>
-              <span className={`font-bold tabular ${detalhe.resultado >= 0 ? 'text-foreground' : 'text-red-500'}`}>
-                {fmt(detalhe.resultado)}
-              </span>
-              {detalhe.aproximado && (
-                <span className="text-muted-foreground"> · aproximado</span>
-              )}
-            </p>
-          </div>
-        )}
       </section>
+
+      {/* ── Visão do mês ────────────────────────────────────────────────────
+          O extrato do mês escolhido: com que saldo ele começa, o que entra, o
+          que sai (aberto por origem) e com quanto termina. */}
+      {alvo && <VisaoDoMes mes={alvo} ymHoje={ymHoje} />}
 
       {/* ⚠️ A LINHA DO TEMPO É O MIOLO DA ABA. Um gráfico de barras quase iguais
           não informa nada; o que muda decisão é "em dezembro a parcela do sofá
@@ -872,5 +1159,151 @@ function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe }: any)
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * O mês projetado, linha a linha.
+ *
+ * ⚠️ A LINHA DE DESPESAS ABRE E O DETALHE TEM DE FECHAR COM ELA. Por isso o
+ * `detalhe` de `projetarMeses` é a soma AGENDADA por origem: contas fixas +
+ * parcelas + faturas. No mês CORRENTE os totais acima são o que já aconteceu
+ * (o realizado substitui a previsão), e aí os dois não fecham — então ali o
+ * detalhe não abre e a tela diz por quê, em vez de mostrar uma conta que não
+ * bate.
+ */
+function VisaoDoMes({ mes, ymHoje }: { mes: MesProjetado; ymHoje: string }) {
+  const [abertoDespesas, setAberto] = useState(false);
+  const [ano, m] = mes.ym.split('-').map(Number);
+  const emCurso = mes.ym === ymHoje;
+
+  const receitas = mes.receitaFirme + mes.receitaEstimada;
+  const despesas = mes.despesaFirme + mes.despesaEstimada;
+  // Quanto das receitas as despesas comem. `null` quando não há receita — 0%
+  // e "sem receita" são coisas diferentes, e mostrar 0% mentiria.
+  const pct = receitas > 0 ? Math.round((despesas / receitas) * 100) : null;
+
+  const linhas = [
+    { id: 'fixas',   rotulo: 'Contas fixas',      valor: mes.detalhe.contasFixas, Icone: CalendarDays },
+    { id: 'parc',    rotulo: 'Parcelas de dívida', valor: mes.detalhe.parcelas,    Icone: Landmark },
+    { id: 'fatura',  rotulo: 'Faturas de cartão',  valor: mes.detalhe.faturas,     Icone: CreditCard },
+  ].filter((l) => l.valor > 0);
+
+  const podeAbrir = !emCurso && linhas.length > 0;
+
+  return (
+    <section className="card rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+        <p className="text-base font-bold text-foreground">
+          {MESES[m - 1]} de {ano}
+        </p>
+        <span
+          className="text-[11px] font-bold px-2.5 h-7 inline-flex items-center rounded-full"
+          style={{
+            background: `color-mix(in srgb, ${emCurso ? VERDE : ROXO} 12%, transparent)`,
+            color: emCurso ? VERDE : ROXO,
+          }}
+        >
+          {emCurso ? 'em curso' : 'previsto'}
+        </span>
+      </div>
+
+      <div className="divide-y divide-border/50 border-t border-border/50">
+        <Linha
+          Icone={ClipboardList}
+          rotulo="Saldo inicial"
+          valor={fmt(mes.saldoInicial)}
+          corValor="text-foreground"
+        />
+        <Linha
+          Icone={ArrowDownToLine}
+          rotulo="Receitas"
+          extra={receitas > 0 ? '100%' : undefined}
+          valor={`+${fmt(receitas)}`}
+          corValor="text-green-600 dark:text-green-400"
+          corIcone={VERDE}
+        />
+        <div>
+          <Linha
+            Icone={ArrowUpFromLine}
+            rotulo="Despesas"
+            extra={pct !== null ? `${pct}% das receitas` : undefined}
+            valor={`−${fmt(despesas)}`}
+            corValor="text-red-500"
+            corIcone={VERMELHO}
+            aberto={podeAbrir ? abertoDespesas : undefined}
+            onToggle={podeAbrir ? () => setAberto((v) => !v) : undefined}
+          />
+          {podeAbrir && abertoDespesas && (
+            <ul className="bg-muted/25 motion-safe:animate-[fade-in_200ms_ease-out]">
+              {linhas.map(({ id, rotulo, valor, Icone }) => (
+                <li key={id} className="flex items-center gap-3 pl-14 pr-5 py-2.5">
+                  <Icone size={14} className="flex-shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1 text-[13px] text-foreground truncate">{rotulo}</span>
+                  <span className="text-[13px] font-bold tabular text-red-500 whitespace-nowrap">
+                    −{fmt(valor)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-border/50">
+        <p className="text-sm font-bold text-foreground">
+          {emCurso ? 'Fecha o mês em' : 'Saldo projetado'}
+        </p>
+        <p className={`text-lg font-bold tabular ${mes.saldoAcumulado >= 0 ? 'text-foreground' : 'text-red-500'}`}>
+          {fmt(mes.saldoAcumulado)}
+        </p>
+      </div>
+
+      {mes.aproximado && (
+        <p className="px-5 pb-4 -mt-2 text-[11px] text-muted-foreground">
+          Contém conta de valor variável — o número é aproximado.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Uma linha da Visão do mês. Vira botão só quando há o que abrir. */
+function Linha({
+  Icone, rotulo, extra, valor, corValor, corIcone, aberto, onToggle,
+}: any) {
+  const Tag: any = onToggle ? 'button' : 'div';
+  return (
+    <Tag
+      {...(onToggle ? { type: 'button', onClick: onToggle, 'aria-expanded': aberto } : {})}
+      className={`w-full flex items-center gap-3 px-5 py-3.5 text-left ${
+        onToggle ? 'transition-colors hover:bg-muted/30 cursor-pointer' : ''
+      }`}
+      style={{ minHeight: 56 }}
+    >
+      {/* ⚠️ O chevron ocupa lugar fixo mesmo quando não há o que abrir: sem
+          isso, as linhas com e sem detalhe desalinham e a coluna de valores
+          ganha um degrau. */}
+      <span className="w-4 flex-shrink-0">
+        {onToggle && (
+          <ChevronDown
+            size={16}
+            className={`text-muted-foreground transition-transform duration-200 ${aberto ? 'rotate-180' : '-rotate-90'}`}
+            aria-hidden
+          />
+        )}
+      </span>
+      <span
+        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ background: `color-mix(in srgb, ${corIcone || 'hsl(var(--muted-foreground))'} 12%, transparent)` }}
+      >
+        <Icone size={16} style={{ color: corIcone || 'hsl(var(--muted-foreground))' }} aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground truncate">{rotulo}</span>
+        {extra && <span className="block text-[11px] text-muted-foreground">{extra}</span>}
+      </span>
+      <span className={`text-sm font-bold tabular whitespace-nowrap ${corValor}`}>{valor}</span>
+    </Tag>
   );
 }
