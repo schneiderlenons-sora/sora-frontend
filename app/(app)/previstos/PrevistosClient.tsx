@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   LineChart, AlertTriangle, Check, Clock, ArrowRight, Sparkles,
-  Plus, Pencil, Trash2, Loader2, BellOff,
+  Plus, Pencil, Trash2, Loader2, BellOff, ShoppingCart, Banknote,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
@@ -17,7 +17,7 @@ import {
 import {
   projetarMeses, primeiroMesNoVermelho, ymHojeSP, somarMeses, type MesProjetado,
 } from '@/lib/previstos';
-import GraficoMeses, { type BarraMes } from '@/components/previstos/GraficoMeses';
+import GraficoMeses, { BarraDividida, type BarraMes } from '@/components/previstos/GraficoMeses';
 import FormRecorrencia, { type RecorrenciaForm } from '@/components/previstos/FormRecorrencia';
 import { descreveQuando, descreveFim } from '@/lib/frequencia-recorrencia';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -149,15 +149,39 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     return todos.filter((m) => m.ym <= ymRef).slice(-periodo);
   }, [anoData, anoAntData, anoRef, ymRef, periodo]);
 
-  const barrasReceitas: BarraMes[] = barrasHistoricas.map((m) => ({ ym: m.ym, firme: m.receitas, realizado: true }));
-  const barrasDespesas: BarraMes[] = barrasHistoricas.map((m) => ({ ym: m.ym, firme: m.gastos, realizado: true }));
-  const barrasCaixa: BarraMes[] = barrasHistoricas.map((m) => ({ ym: m.ym, firme: Math.max(0, m.receitas - m.gastos), realizado: true }));
-  const barrasProjecao: BarraMes[] = projecao.map((m, i) => ({
-    ym: m.ym,
-    firme: Math.max(0, m.despesaFirme),
-    estimado: m.despesaEstimada,
-    realizado: i === 0,
-  }));
+  // ⚠️ O MÊS CORRENTE É O ÚNICO QUE SE PARTE EM DOIS, e é essa divisão que
+  // dá sentido ao gráfico: mês passado já fechou (tudo realizado) e mês
+  // futuro ainda não começou (tudo previsto). Só o mês de hoje tem as duas
+  // metades — e é justamente ele que a pessoa está tentando ler.
+  //
+  // ⚠️ O "previsto" sai do MESMO `proj` da manchete lá em cima. Calcular a
+  // parte de cima da barra por outro caminho faria a barra e o número do
+  // topo da tela discordarem a três centímetros um do outro.
+  const parte = (m: { ym: string }, realizado: number, previsto: number): BarraMes => (
+    m.ym === ymHoje
+      ? { ym: m.ym, realizado: Math.max(0, realizado), previsto: Math.max(0, previsto) }
+      : { ym: m.ym, realizado: Math.max(0, realizado) }
+  );
+
+  const barrasReceitas: BarraMes[] = barrasHistoricas.map((m) => parte(m, m.receitas, proj.aReceber));
+  const barrasDespesas: BarraMes[] = barrasHistoricas.map((m) => parte(m, m.gastos, proj.aPagar));
+  // ⚠️ LIMITE CONHECIDO, herdado: mês em que saiu mais do que entrou vira uma
+  // barra VAZIA (o clamp em 0), e barra vazia lê como "não aconteceu nada".
+  // Desenhar abaixo do zero pediria um eixo com metade negativa e mudaria os
+  // outros três gráficos junto. Enquanto isso, quem dá o número certo é a
+  // manchete logo acima, que mostra o valor com sinal.
+  const barrasCaixa: BarraMes[] = barrasHistoricas.map(
+    (m) => parte(m, m.receitas - m.gastos, proj.aReceber - proj.aPagar),
+  );
+
+  // Na projeção o mês 0 já vem com o realizado no lugar da previsão (ver
+  // `projetarMeses`), então ele é o único que tem as duas partes. Nos meses
+  // seguintes tudo é previsão, e a fatia ESTIMADA (conta de valor variável)
+  // ganha listra em vez de virar mais um tom de vermelho.
+  const barrasProjecao: BarraMes[] = projecao.map((m, i) => (i === 0
+    ? { ym: m.ym, realizado: Math.max(0, m.despesaFirme), previsto: Math.max(0, proj.aPagar) }
+    : { ym: m.ym, previsto: Math.max(0, m.despesaFirme + m.despesaEstimada), estimado: m.despesaEstimada }
+  ));
 
   const mesDetalhe = useMemo(
     () => projecao.find((m) => m.ym === mesSel) || null,
@@ -363,6 +387,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           itens={aba === 'receitas' ? receitas : aba === 'despesas' ? despesas : []}
           dividas={aba === 'despesas' ? dividas : []}
           faturas={aba === 'despesas' ? faturas : []}
+          ymRef={ymRef}
+          ymHoje={ymHoje}
           onEditar={setFormTarget}
           onNovo={() => setFormTarget('novo')}
           onExcluir={excluir}
@@ -397,12 +423,31 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
 
 function SecaoHistorica({
   aba, barras, periodo, onPeriodo, mesSel, onSelecionar, historico, itens, dividas, faturas,
+  ymRef, ymHoje,
   onEditar, onNovo, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
   const cor = aba === 'receitas' ? VERDE : aba === 'despesas' ? VERMELHO : 'hsl(var(--primary))';
-  const doMes = historico.find((m: any) => m.ym === mesSel);
-  const total = barras.reduce((s: number, b: BarraMes) => s + b.firme, 0);
-  const media = barras.length ? total / barras.length : 0;
+
+  // O mês em foco é o tocado no gráfico; sem toque, o do seletor do topo.
+  // Assim o cabeçalho NUNCA fica sem assunto — "média de 6 meses" como
+  // manchete é um número que ninguém pediu.
+  const foco: BarraMes | undefined = barras.find((b: BarraMes) => b.ym === (mesSel || ymRef))
+    || barras[barras.length - 1];
+  const realizadoFoco = foco?.realizado || 0;
+  const previstoFoco = foco?.previsto || 0;
+
+  // ⚠️ MÉDIA SÓ DOS MESES COM MOVIMENTO. Somar e dividir por 6 quando três
+  // deles são zero (conta nova, ou período que pega meses antes do cadastro)
+  // devolve metade do gasto real e a pessoa acha que está gastando pouco.
+  const comValor = barras.filter((b: BarraMes) => ((b.realizado || 0) + (b.previsto || 0)) > 0);
+  const media = comValor.length
+    ? comValor.reduce((s: number, b: BarraMes) => s + (b.realizado || 0) + (b.previsto || 0), 0) / comValor.length
+    : 0;
+
+  const ehHoje = foco?.ym === ymHoje;
+  const Icone = aba === 'receitas' ? Banknote : aba === 'despesas' ? ShoppingCart : Wallet;
+  const verbo = aba === 'receitas' ? 'Recebido' : aba === 'despesas' ? 'Gasto' : 'Sobrou';
+  const [anoFoco, mesFoco] = String(foco?.ym || ymRef).split('-').map(Number);
 
   const jaVeio = (i: any) => vezesQueAindaVem(itemPrevistoDe(i)) === 0;
   const passados = itens.filter(jaVeio);
@@ -411,16 +456,28 @@ function SecaoHistorica({
   return (
     <div className="space-y-5 animate-[fade-in_300ms_ease-out]">
       <section className="card rounded-3xl p-5">
-        <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              {doMes ? 'No mês escolhido' : `Média de ${barras.length} ${barras.length === 1 ? 'mês' : 'meses'}`}
+            {/* Manchete no formato "assunto → número": o título diz DE QUE
+                mês é o valor logo abaixo. Sem ele, um número grande sozinho
+                obriga a olhar o seletor no topo pra saber o que está lendo. */}
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1.5">
+              <Icone size={12} className="flex-shrink-0" />
+              {verbo} em {MESES[mesFoco - 1]} {anoFoco}
             </p>
-            <p className="text-2xl font-bold tabular mt-0.5" style={{ color: cor }}>
-              {fmt(doMes
-                ? (aba === 'receitas' ? doMes.receitas : aba === 'despesas' ? doMes.gastos : doMes.receitas - doMes.gastos)
-                : media)}
-            </p>
+            <div className="flex items-baseline gap-2 flex-wrap mt-1">
+              <p className="text-[28px] sm:text-3xl font-bold tabular tracking-tight leading-none text-foreground">
+                {fmt(realizadoFoco)}
+              </p>
+              {/* ⚠️ O previsto vem AO LADO do realizado, não somado a ele: o
+                  que já saiu é fato e o que falta é estimativa, e um total
+                  único apaga a diferença bem no número mais visível da tela. */}
+              {previstoFoco > 0 && (
+                <p className="text-sm font-bold tabular leading-none" style={{ color: cor }}>
+                  +{fmt(previstoFoco)} previsto
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Filtro de período: pílulas, não uma folha. Com três opções, abrir
@@ -444,18 +501,41 @@ function SecaoHistorica({
           </div>
         </div>
 
-        <div className="mt-4">
-          <GraficoMeses
-            barras={barras}
-            cor={cor}
-            selecionado={mesSel}
-            onSelecionar={onSelecionar}
-            rotuloAcessivel={`${aba} nos últimos ${barras.length} meses`}
-          />
+        <GraficoMeses
+          barras={barras}
+          cor={cor}
+          selecionado={mesSel}
+          onSelecionar={onSelecionar}
+          titulo={`${verbo} · ${barras.length} ${barras.length === 1 ? 'mês' : 'meses'}`}
+          rotuloRealizado={aba === 'receitas' ? 'recebido' : aba === 'despesas' ? 'gasto' : 'sobrou'}
+          rotuloPrevisto="previsto"
+          divisorApos={ehHoje ? undefined : ymHoje}
+          rotuloAcessivel={`${aba} nos últimos ${barras.length} meses`}
+        />
+
+        <div className="flex items-center justify-between gap-3 mt-4 flex-wrap">
+          <p className="text-[11.5px] text-muted-foreground">
+            média <strong className="font-bold text-foreground tabular-nums">{fmt(media)}</strong>/mês
+            {comValor.length !== barras.length ? ' nos meses com movimento' : ''}
+          </p>
+          <p className="text-[11px] text-muted-foreground/70">Toque numa barra</p>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-3 text-center">
-          Toque numa barra para ver o mês
-        </p>
+
+        {/* ── A MESMA divisão da barra, escrita ─────────────────────────
+            ⚠️ De propósito é o MESMO desenho do segmento lá em cima. Duas
+            formas diferentes de mostrar a mesma divisão fazem a pessoa
+            parar pra conferir se são a mesma conta. */}
+        {previstoFoco > 0 && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <BarraDividida
+              realizado={realizadoFoco}
+              previsto={previstoFoco}
+              cor={cor}
+              rotuloRealizado={aba === 'receitas' ? 'já entrou' : aba === 'despesas' ? 'já saiu' : 'realizado'}
+              rotuloPrevisto={aba === 'receitas' ? 'ainda entra' : aba === 'despesas' ? 'ainda sai' : 'previsto'}
+            />
+          </div>
+        )}
       </section>
 
       {/* ⚠️ Vazio com AÇÃO. "Nada por aqui" é um beco sem saída: quem chega
@@ -673,6 +753,13 @@ function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe }: any)
   const eventos = projecao.flatMap((m: MesProjetado) =>
     m.eventos.map((e) => ({ ...e, ym: m.ym })));
 
+  // Média dos meses projetados — vira a linha tracejada de referência.
+  // ⚠️ É o que transforma seis barras numa informação: sem uma régua, "R$
+  // 1.240 em dezembro" não diz se é um mês caro ou o mês de sempre.
+  const media = barras.length
+    ? barras.reduce((s: number, b: BarraMes) => s + (b.realizado || 0) + (b.previsto || 0), 0) / barras.length
+    : 0;
+
   return (
     <div className="space-y-5 animate-[fade-in_300ms_ease-out]">
       <section className="card rounded-3xl p-5">
@@ -684,14 +771,34 @@ function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe }: any)
           listrada é estimativa de conta que muda de valor.
         </p>
 
+        <div className="mt-4" />
+
         <div className="mt-4">
           <GraficoMeses
             barras={barras}
             cor={VERMELHO}
             selecionado={mesSel}
             onSelecionar={onSelecionar}
+            titulo={`Despesas · ${MESES_A_FRENTE} meses`}
+            rotuloRealizado="já saiu"
+            rotuloPrevisto="a sair"
+            // A linha tracejada separa o mês em curso do que ainda nem
+            // começou. Sem ela, a barra de hoje (parte real) e a de outubro
+            // (100% palpite) leem como se tivessem a mesma confiança.
+            divisorApos={barras[0]?.ym}
+            linhaReferencia={media}
             rotuloAcessivel={`Despesas projetadas para os próximos ${MESES_A_FRENTE} meses`}
           />
+
+          <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1.5 flex-wrap">
+            <span
+              className="inline-block w-5 flex-shrink-0"
+              style={{ borderTop: `1.5px dashed color-mix(in srgb, ${VERMELHO} 70%, transparent)` }}
+              aria-hidden
+            />
+            média de <strong className="font-bold text-foreground tabular-nums">{fmt(media)}</strong>/mês
+            no período
+          </p>
         </div>
 
         {detalhe && (
