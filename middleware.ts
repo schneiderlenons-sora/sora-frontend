@@ -64,6 +64,9 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/' && !request.cookies.get(LOCALE_COOKIE)) {
     const geoMx = (request as unknown as { geo?: { country?: string } }).geo?.country === 'MX';
     if (prefereEspanhol(request) || geoMx) {
+      // ⚠️ ESTE redirect pode sair sem copiar cookie porque acontece ANTES de o
+      // client do Supabase existir — nada foi renovado ainda. Se um dia ele for
+      // movido pra baixo do `getUser()`, tem de passar por `comCookies`.
       return NextResponse.redirect(new URL('/es', request.url));
     }
   }
@@ -127,6 +130,33 @@ export async function middleware(request: NextRequest) {
     response = NextResponse.next({ request: { headers: requestHeaders } });
     anterior.cookies.getAll().forEach((c) => response.cookies.set(c));
   }
+
+  /**
+   * Devolve `resposta` carregando os cookies que a renovação de sessão
+   * escreveu nesta requisição.
+   *
+   * ⚠️ ESQUECER ISSO NUM REDIRECT DESLOGA A PESSOA DE VERDADE, e o estrago é
+   * permanente até ela entrar de novo. O access token dura 1 hora; quando
+   * vence, o `getUser()` acima RENOVA e o Supabase ROTACIONA o refresh token —
+   * o antigo é consumido e morre no servidor naquele instante. O par novo vai
+   * pro `response` via `setAll`. Se o caminho terminar num
+   * `NextResponse.redirect(...)` recém-criado, esse par novo NÃO VAI JUNTO: o
+   * navegador fica com o refresh token que acabou de ser invalidado, e daí em
+   * diante toda requisição falha a renovação, `user` vem null e o app manda
+   * pro login — inclusive na próxima vez que ela abrir o app.
+   *
+   * E se auto-alimenta: o ramo que mais roda é justamente o redirect de
+   * `/login` → `/dashboard` de quem já está logado, que é por onde o app abre.
+   *
+   * Foi o relato de um cliente com vitalício ativo: "consigo entrar, mas
+   * depois de um tempo volta pro login". Medido na conta dele — dois logins
+   * em pouco mais de quatro horas no mesmo dia.
+   */
+  const comCookies = (resposta: NextResponse) => {
+    response.cookies.getAll().forEach((c) => resposta.cookies.set(c));
+    return resposta;
+  };
+
   const isPublica = ehPublica(pathname);
 
   // Sem login tentando acessar rota protegida → vai para login.
@@ -142,12 +172,12 @@ export async function middleware(request: NextRequest) {
     const destino = new URL('/login', request.url);
     destino.searchParams.set('next', pathname + request.nextUrl.search);
     destino.searchParams.set('motivo', 'sessao');
-    return NextResponse.redirect(destino);
+    return comCookies(NextResponse.redirect(destino));
   }
 
   // Com login tentando acessar login/signup → vai para dashboard
   if (user && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return comCookies(NextResponse.redirect(new URL('/dashboard', request.url)));
   }
 
   return response;
