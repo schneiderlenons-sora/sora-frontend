@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
-  LineChart, AlertTriangle, Check, Clock,
+  LineChart, AlertTriangle,
   Plus, Pencil, Trash2, Loader2, BellOff, ShoppingCart, Banknote,
   ChevronDown, ClipboardList, ArrowDownToLine, ArrowUpFromLine,
   CalendarDays, Landmark, CreditCard,
@@ -609,6 +609,7 @@ function SecaoHistorica({
           rotuloRealizado={aba === 'receitas' ? 'recebido' : aba === 'despesas' ? 'gasto' : 'sobrou'}
           rotuloPrevisto="previsto"
           divisorApos={ehHoje ? undefined : ymHoje}
+          destaque={foco?.ym}
           rotuloAcessivel={`${aba} nos últimos ${barras.length} meses`}
         />
 
@@ -620,21 +621,10 @@ function SecaoHistorica({
           <p className="text-[11px] text-muted-foreground/70">Toque numa barra</p>
         </div>
 
-        {/* ── A MESMA divisão da barra, escrita ─────────────────────────
-            ⚠️ De propósito é o MESMO desenho do segmento lá em cima. Duas
-            formas diferentes de mostrar a mesma divisão fazem a pessoa
-            parar pra conferir se são a mesma conta. */}
-        {previstoFoco > 0 && (
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <BarraDividida
-              realizado={realizadoFoco}
-              previsto={previstoFoco}
-              cor={cor}
-              rotuloRealizado={aba === 'receitas' ? 'já entrou' : aba === 'despesas' ? 'já saiu' : 'realizado'}
-              rotuloPrevisto={aba === 'receitas' ? 'ainda entra' : aba === 'despesas' ? 'ainda sai' : 'previsto'}
-            />
-          </div>
-        )}
+        {/* ⚠️ A BARRA "já × ainda" NÃO MORA MAIS AQUI. Debaixo do gráfico de
+            seis meses ela lia como legenda dele; a pergunta que ela responde
+            ("quanto disto já aconteceu") é sobre a LISTA do mês, então ela
+            desceu pro card "Ainda vai sair/entrar". */}
       </section>
 
       {/* ⚠️ Vazio com AÇÃO. "Nada por aqui" é um beco sem saída: quem chega
@@ -666,17 +656,25 @@ function SecaoHistorica({
         <>
           {futuros.length > 0 && (
             <Grupo
-              titulo={aba === 'receitas' ? 'Ainda vai entrar' : 'Ainda vai sair'}
-              icone={<Clock size={13} />}
+              titulo={aba === 'receitas' ? 'De onde o dinheiro vem' : 'Para onde o dinheiro vai'}
               itens={futuros}
               cor={cor}
+              // ⚠️ O total do cabeçalho é do MÊS (o que já aconteceu mais o
+              // que ainda vem), e a lista é só do que ainda vem — por isso a
+              // legenda diz "ainda", e não "no mês". Dizer "3 linhas no mês"
+              // com um total maior que a soma delas seria conta que não bate.
+              realizado={realizadoFoco}
+              previsto={previstoFoco}
+              legenda={`${futuros.length} ${futuros.length === 1 ? 'linha ainda vem' : 'linhas ainda vêm'}`}
+              rotuloRealizado={aba === 'receitas' ? 'já entrou' : 'já saiu'}
+              rotuloPrevisto={aba === 'receitas' ? 'ainda entra' : 'ainda sai'}
+              rotuloLista={aba === 'receitas' ? 'Ainda vai entrar' : 'Ainda vai sair'}
               {...{ onEditar, onExcluir, confirmando, onConfirmar, removendo }}
             />
           )}
           {passados.length > 0 && (
             <Grupo
               titulo={aba === 'receitas' ? 'Já entrou' : 'Já saiu'}
-              icone={<Check size={13} />}
               itens={passados}
               cor={cor}
               esmaecido
@@ -725,123 +723,218 @@ function SecaoHistorica({
   );
 }
 
+/**
+ * Cabeçalho dos cards de fluxo — total, contagem, o botão de abrir e a barra
+ * realizado × previsto.
+ *
+ * ⚠️ Um só, usado pelo card do Caixa E pelos grupos de Receitas/Despesas. As
+ * duas telas mostram a mesma ideia ("disto aqui, tanto já aconteceu e tanto
+ * ainda vem"), e duas implementações dela divergiriam no primeiro ajuste — foi
+ * o que aconteceu com o formulário de conta fixa antes de virar folha única.
+ */
+function CabecalhoFluxo({
+  titulo, total, legenda, aberto, onToggle,
+  realizado, previsto, cor, rotuloRealizado, rotuloPrevisto,
+}: any) {
+  const temBarra = (Number(realizado) || 0) + (Number(previsto) || 0) > 0;
+  return (
+    <>
+      <p className="px-5 pt-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {titulo}
+      </p>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={aberto}
+        className="w-full px-5 pt-2 pb-4 text-left transition-colors hover:bg-muted/25
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-2xl font-bold tabular tracking-tight text-foreground leading-none">
+              {fmt(total)}
+            </p>
+            <p className="text-[12px] text-muted-foreground mt-1.5">{legenda}</p>
+          </div>
+          <ChevronDown
+            size={18}
+            className={`flex-shrink-0 text-muted-foreground transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </div>
+
+        {/* ⚠️ A BARRA MORA AQUI, não embaixo do gráfico. Ela responde "quanto
+            disto já aconteceu" — que é uma pergunta sobre ESTA lista, não sobre
+            o gráfico de doze meses logo acima. Debaixo do gráfico ela parecia
+            legenda dele. */}
+        {temBarra && (
+          <div className="mt-3.5">
+            <BarraDividida
+              realizado={Number(realizado) || 0}
+              previsto={Number(previsto) || 0}
+              cor={cor}
+              rotuloRealizado={rotuloRealizado}
+              rotuloPrevisto={rotuloPrevisto}
+            />
+          </div>
+        )}
+      </button>
+    </>
+  );
+}
+
+/**
+ * Lista de contas fixas de um lado do mês, com o cabeçalho de fluxo em cima.
+ *
+ * ⚠️ NASCE RECOLHIDO. São duas listas que podem ter dez linhas cada; abertas de
+ * saída, empurram o gráfico pra fora da tela no celular e a pessoa perde a
+ * visão geral que veio buscar. Fechado, o card ainda responde o essencial — o
+ * total e a divisão — na barra.
+ */
 function Grupo({
-  titulo, icone, itens, cor, esmaecido,
+  titulo, itens, cor, esmaecido, legenda,
+  realizado, previsto, rotuloRealizado, rotuloPrevisto, rotuloLista,
   onEditar, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
+  const [aberto, setAberto] = useState(false);
+  const somaItens = itens.reduce((s: number, i: any) => s + (Number(i.valor) || 0), 0);
+  // Sem realizado/previsto informados, o card é sobre a própria lista.
+  const total = realizado === undefined && previsto === undefined ? somaItens
+    : (Number(realizado) || 0) + (Number(previsto) || 0);
+
   return (
     <section className={`card rounded-2xl overflow-hidden ${esmaecido ? 'opacity-70' : ''}`}>
-      <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1.5">
-          {icone} {titulo}
-        </p>
-        <span className="text-[11px] font-bold tabular" style={{ color: cor }}>
-          {fmt(itens.reduce((s: number, i: any) => s + (Number(i.valor) || 0), 0))}
-        </span>
-      </div>
-      <ul className="divide-y divide-border/50">
-        {itens.map((i: any, idx: number) => {
-          const confirmandoEste = confirmando === i.id;
-          const saindo = removendo === i.id;
-          return (
-            <li
-              key={i.id}
-              className="relative motion-safe:animate-[fade-in_320ms_ease-out_both]"
-              style={{ animationDelay: `${Math.min(idx * 35, 210)}ms`, opacity: saindo ? 0.45 : undefined }}
-            >
-              <div className="flex items-center gap-2 pl-2 pr-2 sm:pr-3">
-                {/* ⚠️ A LINHA INTEIRA abre a edição. Um lápis de 16px como único
-                    alvo obrigaria mira fina no celular — a regra é não exigir
-                    toque preciso. O ícone fica como PISTA de que dá pra editar. */}
-                <button
-                  type="button"
-                  onClick={() => onEditar?.(i)}
-                  className="group min-w-0 flex-1 flex items-center gap-3 px-3 py-3 rounded-xl text-left
-                             transition-colors hover:bg-muted/40 focus-visible:outline-none
-                             focus-visible:ring-2 focus-visible:ring-primary/50"
-                  style={{ minHeight: 56 }}
-                  aria-label={`Editar ${i.descricao || i.categoria || 'conta fixa'}`}
+      <CabecalhoFluxo
+        titulo={titulo}
+        total={total}
+        legenda={legenda ?? `${itens.length} ${itens.length === 1 ? 'linha' : 'linhas'} no mês`}
+        aberto={aberto}
+        onToggle={() => setAberto((v: boolean) => !v)}
+        realizado={realizado}
+        previsto={previsto}
+        cor={cor}
+        rotuloRealizado={rotuloRealizado}
+        rotuloPrevisto={rotuloPrevisto}
+      />
+
+      {aberto && (
+        <div className="border-t border-border/50 motion-safe:animate-[fade-in_200ms_ease-out]">
+          {rotuloLista && (
+            <div className="flex items-center justify-between gap-2 px-5 pt-3.5 pb-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {rotuloLista}
+              </p>
+              <p className="text-[10px] font-bold text-muted-foreground tabular-nums">
+                {itens.length} de {itens.length}
+              </p>
+            </div>
+          )}
+          <ul className="divide-y divide-border/50">
+            {itens.map((i: any, idx: number) => {
+              const confirmandoEste = confirmando === i.id;
+              const saindo = removendo === i.id;
+              return (
+                <li
+                  key={i.id}
+                  className="relative motion-safe:animate-[fade-in_320ms_ease-out_both]"
+                  style={{ animationDelay: `${Math.min(idx * 35, 210)}ms`, opacity: saindo ? 0.45 : undefined }}
                 >
-                  <CategoriaIcon nome={i.descricao || i.categoria} icone="🔁" size={34} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                        {i.descricao || i.categoria || 'Conta fixa'}
+                  <div className="flex items-center gap-2 pl-2 pr-2 sm:pr-3">
+                    {/* ⚠️ A LINHA INTEIRA abre a edição. Um lápis de 16px como
+                        único alvo obrigaria mira fina no celular — a regra é não
+                        exigir toque preciso. O ícone fica como PISTA. */}
+                    <button
+                      type="button"
+                      onClick={() => onEditar?.(i)}
+                      className="group min-w-0 flex-1 flex items-center gap-3 px-3 py-3 rounded-xl text-left
+                                 transition-colors hover:bg-muted/40 focus-visible:outline-none
+                                 focus-visible:ring-2 focus-visible:ring-primary/50"
+                      style={{ minHeight: 56 }}
+                      aria-label={`Editar ${i.descricao || i.categoria || 'conta fixa'}`}
+                    >
+                      <CategoriaIcon nome={i.descricao || i.categoria} icone="🔁" size={34} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                            {i.descricao || i.categoria || 'Conta fixa'}
+                          </span>
+                          {/* ⚠️ Ícone + rótulo acessível, nunca só a cor: "não te
+                              aviso" é informação, e quem não distingue tom
+                              precisa dela também. */}
+                          {i.lembrete === false && (
+                            <BellOff size={11} className="flex-shrink-0 text-muted-foreground" aria-label="sem aviso" />
+                          )}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground truncate">
+                          {descreveQuando(i)}
+                          {descreveFim(i.data_fim) ? ` · ${descreveFim(i.data_fim)}` : ''}
+                          {i.valor_variavel ? ' · valor estimado' : ''}
+                          {i.carteira ? ` · ${i.carteira}` : ''}
+                        </span>
                       </span>
-                      {/* ⚠️ Ícone + rótulo acessível, nunca só a cor: "não te
-                          aviso" é informação, e quem não distingue tom precisa
-                          dela também. */}
-                      {i.lembrete === false && (
-                        <BellOff size={11} className="flex-shrink-0 text-muted-foreground" aria-label="sem aviso" />
-                      )}
-                    </span>
-                    <span className="block text-[11px] text-muted-foreground truncate">
-                      {descreveQuando(i)}
-                      {descreveFim(i.data_fim) ? ` · ${descreveFim(i.data_fim)}` : ''}
-                      {i.valor_variavel ? ' · valor estimado' : ''}
-                      {i.carteira ? ` · ${i.carteira}` : ''}
-                    </span>
-                  </span>
-                  <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
-                    {fmt(i.valor)}
-                  </span>
-                  <Pencil
-                    size={13}
-                    className="flex-shrink-0 text-muted-foreground/45 transition-colors group-hover:text-muted-foreground"
-                    aria-hidden
-                  />
-                </button>
+                      <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
+                        {fmt(i.valor)}
+                      </span>
+                      <Pencil
+                        size={13}
+                        className="flex-shrink-0 text-muted-foreground/45 transition-colors group-hover:text-muted-foreground"
+                        aria-hidden
+                      />
+                    </button>
 
-                {/* ⚠️ Excluir NÃO é ícone escondido em hover: no celular não
-                    existe hover, e a ação simplesmente não existiria. */}
-                <button
-                  type="button"
-                  onClick={() => onConfirmar?.(confirmandoEste ? null : i.id)}
-                  aria-label={`Excluir ${i.descricao || 'conta fixa'}`}
-                  aria-expanded={confirmandoEste}
-                  className={`flex-shrink-0 grid place-items-center rounded-xl transition-colors ${
-                    confirmandoEste ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10'
-                  }`}
-                  style={{ width: 44, height: 44 }}
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
+                    {/* ⚠️ Excluir NÃO é ícone escondido em hover: no celular não
+                        existe hover, e a ação simplesmente não existiria. */}
+                    <button
+                      type="button"
+                      onClick={() => onConfirmar?.(confirmandoEste ? null : i.id)}
+                      aria-label={`Excluir ${i.descricao || 'conta fixa'}`}
+                      aria-expanded={confirmandoEste}
+                      className={`flex-shrink-0 grid place-items-center rounded-xl transition-colors ${
+                        confirmandoEste ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10'
+                      }`}
+                      style={{ width: 44, height: 44 }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
 
-              {/* Confirmação IN LOCO: dá pra ler o nome do que vai sumir sem
-                  perder a linha de vista, e um toque fora cancela. */}
-              {confirmandoEste && (
-                <div className="flex flex-wrap items-center gap-2 px-4 pb-3 -mt-1 motion-safe:animate-[fade-in_180ms_ease-out]">
-                  <p className="text-xs text-muted-foreground flex-1 min-w-[9rem]" role="status">
-                    Parar de prever <strong className="text-foreground">{i.descricao || 'esta conta'}</strong>?
-                    {' '}Os lançamentos já feitos ficam.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onExcluir?.(i.id)}
-                    disabled={saindo}
-                    className="inline-flex items-center gap-1.5 px-3.5 rounded-xl text-xs font-bold
-                               text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
-                    style={{ height: 40 }}
-                  >
-                    {saindo ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    Excluir
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onConfirmar?.(null)}
-                    className="px-3.5 rounded-xl text-xs font-semibold text-muted-foreground
-                               hover:text-foreground hover:bg-muted/60 transition-colors"
-                    style={{ height: 40 }}
-                  >
-                    Manter
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                  {/* Confirmação IN LOCO: dá pra ler o nome do que vai sumir sem
+                      perder a linha de vista, e um toque fora cancela. */}
+                  {confirmandoEste && (
+                    <div className="flex flex-wrap items-center gap-2 px-4 pb-3 -mt-1 motion-safe:animate-[fade-in_180ms_ease-out]">
+                      <p className="text-xs text-muted-foreground flex-1 min-w-[9rem]" role="status">
+                        Parar de prever <strong className="text-foreground">{i.descricao || 'esta conta'}</strong>?
+                        {' '}Os lançamentos já feitos ficam.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onExcluir?.(i.id)}
+                        disabled={saindo}
+                        className="inline-flex items-center gap-1.5 px-3.5 rounded-xl text-xs font-bold
+                                   text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+                        style={{ height: 40 }}
+                      >
+                        {saindo ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        Excluir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onConfirmar?.(null)}
+                        className="px-3.5 rounded-xl text-xs font-semibold text-muted-foreground
+                                   hover:text-foreground hover:bg-muted/60 transition-colors"
+                        style={{ height: 40 }}
+                      >
+                        Manter
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -881,6 +974,7 @@ function SecaoCaixa({
           rotuloRealizado="sobrou"
           rotuloPrevisto="previsto"
           divisorApos={barras.some((b: BarraMes) => b.ym === ymHoje) ? ymHoje : undefined}
+          destaque={ymHoje}
           rotuloAcessivel={`Fluxo de caixa dos últimos ${barras.length} meses`}
         />
       </section>
@@ -957,43 +1051,18 @@ function CardFluxo({
 
   return (
     <section className="card rounded-2xl overflow-hidden">
-      <p className="px-5 pt-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-        {titulo}
-      </p>
-
-      <button
-        type="button"
-        onClick={() => setAberto((v) => !v)}
-        aria-expanded={aberto}
-        className="w-full px-5 pt-2 pb-4 text-left transition-colors hover:bg-muted/25
-                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-2xl font-bold tabular tracking-tight text-foreground leading-none">
-              {fmt(total)}
-            </p>
-            <p className="text-[12px] text-muted-foreground mt-1.5">
-              {itens.length} {itens.length === 1 ? 'linha' : 'linhas'} no mês
-            </p>
-          </div>
-          <ChevronDown
-            size={18}
-            className={`flex-shrink-0 text-muted-foreground transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-            aria-hidden
-          />
-        </div>
-
-        <div className="mt-3.5">
-          <BarraDividida
-            realizado={Number(realizado) || 0}
-            previsto={Number(previsto) || 0}
-            cor={cor}
-            rotuloRealizado={rotuloRealizado}
-            rotuloPrevisto={rotuloPrevisto}
-          />
-        </div>
-      </button>
+      <CabecalhoFluxo
+        titulo={titulo}
+        total={total}
+        legenda={`${itens.length} ${itens.length === 1 ? 'linha ainda vem' : 'linhas ainda vêm'}`}
+        aberto={aberto}
+        onToggle={() => setAberto((v) => !v)}
+        realizado={realizado}
+        previsto={previsto}
+        cor={cor}
+        rotuloRealizado={rotuloRealizado}
+        rotuloPrevisto={rotuloPrevisto}
+      />
 
       {aberto && (
         <div className="border-t border-border/50 motion-safe:animate-[fade-in_200ms_ease-out]">
@@ -1058,7 +1127,6 @@ function CardFluxo({
     </section>
   );
 }
-
 /* ── Projeção ───────────────────────────────────────────────────────────── */
 
 function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe, saldoHoje, ymHoje }: any) {
@@ -1096,6 +1164,7 @@ function SecaoProjecao({ projecao, barras, mesSel, onSelecionar, detalhe, saldoH
             // A tracejada vertical separa o que aconteceu do que é conta: sem
             // ela, a barra de hoje e a de dezembro leem com a mesma confiança.
             divisorApos={ymHoje}
+            destaque={ymHoje}
             linhaReferencia={saldoHoje}
             rotuloAcessivel={`Patrimônio ao longo de ${barras.length} meses`}
           />

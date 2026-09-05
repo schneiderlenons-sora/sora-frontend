@@ -98,6 +98,7 @@ export default function GraficoMeses({
   rotuloRealizado = 'realizado',
   rotuloPrevisto = 'previsto',
   titulo,
+  destaque,
 }: {
   barras: BarraMes[];
   /** Cor da série. Recebe token ou hex — o componente não decide semântica. */
@@ -113,6 +114,15 @@ export default function GraficoMeses({
   rotuloPrevisto?: string;
   /** Legenda do gráfico, à esquerda da amostra de cores. */
   titulo?: string;
+  /**
+   * Mês que fica em evidência quando ninguém tocou em nada (normalmente o
+   * corrente). Os outros esmaecem.
+   *
+   * ⚠️ SEM ELE O GRÁFICO NÃO TEM ASSUNTO. Doze barras no mesmo peso viram
+   * uma parede que o olho percorre sem saber onde parar; com um mês em
+   * evidência, os demais viram CONTEXTO — que é o papel deles ali.
+   */
+  destaque?: string | null;
 }) {
   const trilhoRef = useRef<HTMLDivElement>(null);
   // Hover do desktop. No celular ele nunca dispara — lá quem sinaliza é o
@@ -128,6 +138,15 @@ export default function GraficoMeses({
   // encosta no topo do quadro não deixa ler "quanto falta"; e um eixo em
   // "53,70" pede conta de cabeça a cada leitura.
   const { topo, ticks } = useMemo(() => escala(Math.max(...totais, 0)), [totais]);
+
+  // Quem manda no foco, em ordem: o dedo/mouse em cima > o mês escolhido >
+  // o destaque padrão. `temFoco` evita esmaecer TUDO quando o mês apontado
+  // não está no período visível (aconteceu ao trocar de 12 pra 3 meses).
+  const foco = sobre || selecionado || destaque || null;
+  const temFoco = useMemo(
+    () => !!foco && barras.some((b) => b.ym === foco),
+    [foco, barras],
+  );
 
   const temPrevisto = useMemo(() => barras.some((b) => (b.previsto || 0) > 0), [barras]);
   const temRealizado = useMemo(() => barras.some((b) => (b.realizado || 0) > 0), [barras]);
@@ -245,17 +264,27 @@ export default function GraficoMeses({
               const firmePrevisto = previsto - estimado;
               const total = realizado + previsto;
               const ativo = selecionado === b.ym;
-              const destacada = ativo || sobre === b.ym;
+              // ⚠️ DUAS COISAS DIFERENTES, de propósito:
+              //   `esmaecida`  → estado de REPOUSO. O mês em evidência sai
+              //                  colorido e o resto vira contexto, sem que
+              //                  ninguém precise tocar em nada.
+              //   `interagida` → resposta ao DEDO/MOUSE (fundo da coluna +
+              //                  crescimento). Se as duas fossem a mesma, o
+              //                  mês corrente já nasceria com cara de tocado.
+              const esmaecida = temFoco && b.ym !== foco;
+              const interagida = ativo || sobre === b.ym;
               const { mes, ano } = rotulo(b.ym);
+
+              // Tons da barra. Tabela explícita em vez de multiplicar por um
+              // fator: o previsto já nasce claro, e escalá-lo o apagava.
+              const T = esmaecida
+                ? { cheioTopo: 26, cheioBase: 40, claroTopo: 10, claroBase: 19 }
+                : { cheioTopo: 74, cheioBase: 100, claroTopo: 22, claroBase: 42 };
 
               const pct = (v: number) => (v / topo) * 100;
               // ⚠️ Dentro da barra a fatia é percentual DO TOTAL DELA, não do
               // eixo: quem já resolveu a escala foi a altura do invólucro.
-              const temVao = realizado > 0 && previsto > 0;
-              const VAO = 3;
-              const fatia = (v: number) => (total > 0
-                ? `calc(${(v / total) * 100}% - ${temVao ? VAO / 2 : 0}px)`
-                : '0%');
+              const fatia = (v: number) => (total > 0 ? `${(v / total) * 100}%` : '0%');
 
               const legenda = [
                 realizado > 0 ? `${rotuloRealizado} ${brl(realizado)}` : '',
@@ -281,7 +310,7 @@ export default function GraficoMeses({
                     minHeight: 44,
                     // Fundo da coluna: o alvo tocado inteiro se acende, não só
                     // a barrinha dentro dele.
-                    background: destacada ? 'hsl(var(--muted) / 0.55)' : undefined,
+                    background: interagida ? 'hsl(var(--muted) / 0.55)' : undefined,
                   }}
                   onMouseEnter={() => setSobre(b.ym)}
                   onMouseLeave={() => setSobre((v) => (v === b.ym ? null : v))}
@@ -301,72 +330,68 @@ export default function GraficoMeses({
                   )}
 
                   {/* ── A BARRA ────────────────────────────────────────────
-                      ⚠️ DOIS INVÓLUCROS, e o de fora é obrigatório: as alturas
-                      dos segmentos são percentuais, e percentual precisa de um
-                      pai com altura conhecida. O de dentro é o que RECEBE o
-                      arredondamento e o anel de seleção — botei os dois no de
-                      fora numa primeira versão e o anel saiu desenhado em volta
-                      da coluna inteira, do chão ao topo do quadro, virando uma
-                      cápsula fantasma de 176px sobre uma barra de 8%. */}
+                      ⚠️ TRÊS INVÓLUCROS, cada um com UM trabalho, e a separação
+                      não é preciosismo:
+                        · o de fora dá a ALTURA conhecida (fatia em % precisa de
+                          pai medido);
+                        · o do meio leva a ANIMAÇÃO de entrada;
+                        · o de dentro leva a APARÊNCIA e o `scaleY` do destaque.
+                      Juntar animação e destaque no mesmo elemento não funciona:
+                      `slide-up` termina em `transform: translateY(0)` e, com
+                      `animation-fill-mode: both`, esse valor final VENCE o
+                      estilo inline — o `scaleY` seria apagado ao fim dos 500ms.
+                      É a mesma armadilha que já apagava a opacidade das barras. */}
                   <span className="w-full flex flex-col justify-end" style={{ height: '100%' }}>
                     <span
-                      className="relative w-full flex flex-col justify-end rounded-full
-                                 transition-transform duration-200 origin-bottom motion-reduce:transition-none"
+                      className="w-full motion-safe:animate-[slide-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
                       style={{
                         height: `${Math.max(pct(total), total > 0 ? 2 : 0)}%`,
-                        // ⚠️ `scaleY` a partir da BASE, nunca `height`: altura
-                        // anima no layout (reflow a cada frame) e ainda brigaria
-                        // com o `slide-up` de entrada dos segmentos. Transform é
-                        // composto na GPU e não toca no fluxo.
-                        transform: destacada ? 'scaleY(1.04)' : undefined,
+                        animationDelay: `${i * 40}ms`,
                       }}
                     >
-                      {/* ── PREVISTO (em cima, tom claro) ──────────────────
-                          A parte estimada vem por cima da firme e leva LISTRA:
-                          a diferença entre "vai sair isto" e "deve sair mais ou
-                          menos isto" não pode depender só do tom. */}
-                      {estimado > 0 && (
-                        <span
-                          className="w-full rounded-t-full motion-safe:animate-[slide-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
-                          style={{
-                            height: fatia(estimado),
-                            animationDelay: `${i * 40}ms`,
-                            background: `repeating-linear-gradient(135deg, ${tom(cor, 46)}, ${tom(cor, 46)} 3px, ${tom(cor, 15)} 3px, ${tom(cor, 15)} 6px)`,
-                          }}
-                        />
-                      )}
-                      {firmePrevisto > 0 && (
-                        <span
-                          className={`w-full rounded-b-full motion-safe:animate-[slide-up_500ms_cubic-bezier(0.22,1,0.36,1)_both] ${
-                            estimado > 0 ? '' : 'rounded-t-full'
-                          }`}
-                          style={{
-                            height: fatia(firmePrevisto),
-                            animationDelay: `${i * 40}ms`,
-                            background: degrade(cor, 22, 42),
-                          }}
-                        />
-                      )}
+                      {/* ⚠️ UMA CÁPSULA SÓ, NUNCA DUAS EMPILHADAS. A versão
+                          anterior separava realizado e previsto com um vão de
+                          3px e o resultado eram duas pílulas soltas, como se
+                          fossem dois dados diferentes. É UMA barra: o fundo dela
+                          é o tom claro (o previsto) e o realizado entra como uma
+                          CAMADA por baixo, com o topo arredondado. O claro
+                          aparece através dessa curva — que é o que faz a divisão
+                          se ler sem quebrar a barra. */}
+                      <span
+                        className="relative block w-full h-full rounded-full overflow-hidden
+                                   transition-transform duration-200 origin-bottom motion-reduce:transition-none"
+                        style={{
+                          transform: interagida ? 'scaleY(1.04)' : undefined,
+                          background: previsto > 0
+                            ? degrade(cor, T.claroTopo, T.claroBase)
+                            : degrade(cor, T.cheioTopo, T.cheioBase),
+                        }}
+                      >
+                        {/* A parte ESTIMADA (conta de valor variável) leva
+                            listra: "vai sair isto" e "deve sair mais ou menos
+                            isto" não podem se distinguir só pelo tom. */}
+                        {estimado > 0 && (
+                          <span
+                            className="absolute inset-x-0 top-0"
+                            style={{
+                              height: fatia(estimado),
+                              background: `repeating-linear-gradient(135deg, ${tom(cor, T.claroBase + 6)}, ${tom(cor, T.claroBase + 6)} 3px, ${tom(cor, T.claroTopo - 8)} 3px, ${tom(cor, T.claroTopo - 8)} 6px)`,
+                            }}
+                            aria-hidden
+                          />
+                        )}
 
-                      {/* ⚠️ A SEPARAÇÃO É UM VÃO DE VERDADE, não uma borda: borda
-                          clara some no tema escuro e borda escura some no claro.
-                          Um vão transparente deixa o fundo do card aparecer e
-                          funciona nos dois. O `calc` desconta a folga das duas
-                          fatias — sem isso a barra passa 3px do próprio total e
-                          o mês fica alto demais em relação ao vizinho. */}
-                      {temVao && <span className="w-full flex-shrink-0" style={{ height: VAO }} aria-hidden />}
-
-                      {/* ── REALIZADO (embaixo, tom cheio) ─────────────────── */}
-                      {realizado > 0 && (
-                        <span
-                          className="w-full rounded-full motion-safe:animate-[slide-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
-                          style={{
-                            height: fatia(realizado),
-                            animationDelay: `${i * 40}ms`,
-                            background: degrade(cor, 74, 100),
-                          }}
-                        />
-                      )}
+                        {realizado > 0 && (
+                          <span
+                            className="absolute inset-x-0 bottom-0 rounded-t-full"
+                            style={{
+                              height: fatia(realizado),
+                              background: degrade(cor, T.cheioTopo, T.cheioBase),
+                            }}
+                            aria-hidden
+                          />
+                        )}
+                      </span>
                     </span>
 
                     {/* Mês sem nada: um traço no chão. Fatia vazia lê como falha
@@ -374,7 +399,7 @@ export default function GraficoMeses({
                     {total <= 0 && (
                       <span
                         className="w-full rounded-full"
-                        style={{ height: 3, background: tom(cor, 20) }}
+                        style={{ height: 3, background: tom(cor, esmaecida ? 10 : 20) }}
                         aria-hidden
                       />
                     )}
@@ -388,7 +413,7 @@ export default function GraficoMeses({
           <div className={`flex gap-1.5 sm:gap-2 mt-2.5 ${rolavel ? 'w-max' : ''}`}>
             {barras.map((b, i) => {
               const { mes, ano } = rotulo(b.ym);
-              const ativo = selecionado === b.ym || sobre === b.ym;
+              const ativo = temFoco ? b.ym === foco : false;
               // O ano só aparece quando MUDA (e no primeiro): repetir '26 em
               // seis rótulos é ruído que empurra o olho pra baixo.
               const mostraAno = i === 0 || b.ym.slice(0, 4) !== barras[i - 1].ym.slice(0, 4);
