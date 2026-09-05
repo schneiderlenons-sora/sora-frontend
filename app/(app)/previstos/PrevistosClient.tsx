@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   LineChart, AlertTriangle,
   Plus, Pencil, Trash2, Loader2, BellOff, ShoppingCart, Banknote,
   ChevronDown, ClipboardList, ArrowDownToLine, ArrowUpFromLine,
-  CalendarDays, Landmark, CreditCard, CircleDashed,
+  CalendarDays, Landmark, CreditCard, CircleDashed, Sparkles, X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
@@ -107,7 +107,11 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   const { phone: authPhone } = useAuth();
   const phone = authPhone || phoneInicial || '';
 
-  const [aba, setAba] = useState<Aba>('caixa');
+  // ⚠️ PROJEÇÃO É A PORTA DE ENTRADA. É a pergunta que traz a pessoa a esta
+  // aba ("quanto vai sobrar"); Receitas, Despesas e Caixa são o detalhe de
+  // como se chega lá. Abrir no Caixa dava a conta do mês corrente a quem veio
+  // olhar pra frente.
+  const [aba, setAba] = useState<Aba>('projecao');
   const [periodo, setPeriodo] = useState<number>(6);
   const [mesSel, setMesSel] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);           // navegação de mês
@@ -534,6 +538,13 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         </button>
       </div>
 
+      {/* ⚠️ SÓ QUANDO NÃO HÁ NENHUMA CONTA FIXA. Sem elas a projeção é uma
+          linha reta em cima do saldo de hoje — tecnicamente correta e inútil,
+          e nada na tela explica por quê. */}
+      {!carregando && recorrencias.length === 0 && (
+        <DicaSemFixos onCadastrar={() => setFormTarget('novo')} />
+      )}
+
       {formTarget && (
         <FormRecorrencia
           phone={phone}
@@ -548,10 +559,10 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           Rolagem horizontal só nelas, nunca na página. */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist">
         {([
+          ['projecao', 'Projeção', LineChart],
           ['receitas', 'Receitas', TrendingUp],
           ['despesas', 'Despesas', TrendingDown],
           ['caixa',    'Caixa',    Wallet],
-          ['projecao', 'Projeção', LineChart],
         ] as const).map(([id, label, Icone]) => (
           <button
             key={id}
@@ -635,6 +646,91 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           removendo={removendo}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Dica de primeiro uso: sem conta fixa cadastrada, não há o que projetar.
+ *
+ * ⚠️ FLUTUA ACIMA DO "+" GLOBAL, não ao lado dele. A barra do celular tem 62px
+ * e o botão "+" flutua a 76px do fundo, com 48px de altura — qualquer coisa
+ * abaixo de ~124px ou fica atrás da barra (e vira intocável) ou cobre o "+".
+ * É a mesma regra que já custou quatro toasts inalcançáveis neste app.
+ *
+ * ⚠️ z-40, não mais: modal (z-50) e o formulário (z-70) precisam cobri-la. Uma
+ * dica que fica por cima do que a pessoa abriu deixa de ser dica.
+ */
+function DicaSemFixos({ onCadastrar }: { onCadastrar: () => void }) {
+  const CHAVE = 'sora-previstos-dica-fixos';
+  // Começa escondida e só aparece depois de ler o storage: renderizar e sumir
+  // seria uma piscada em quem já dispensou.
+  const [visivel, setVisivel] = useState(false);
+  useEffect(() => {
+    try { setVisivel(localStorage.getItem(CHAVE) !== '1'); } catch { setVisivel(true); }
+  }, []);
+
+  if (!visivel) return null;
+
+  const fechar = () => {
+    setVisivel(false);
+    try { localStorage.setItem(CHAVE, '1'); } catch { /* modo privado */ }
+  };
+
+  return (
+    <div
+      role="status"
+      className="fixed z-40 inset-x-4 md:inset-x-auto md:right-6 md:w-[23rem]
+                 motion-safe:animate-[slide-up_400ms_cubic-bezier(0.22,1,0.36,1)_both]"
+      style={{
+        // Acima da barra (62px) E do "+" (76px + 48px de altura).
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8.5rem)',
+      }}
+    >
+      <div className="card rounded-2xl border border-border/60 shadow-xl p-4 backdrop-blur-xl"
+           style={{ background: 'hsl(var(--bg-card) / 0.97)' }}>
+        <div className="flex items-start gap-3">
+          <span
+            className="w-9 h-9 rounded-xl grid place-items-center flex-shrink-0"
+            style={{ background: `color-mix(in srgb, ${ROXO} 13%, transparent)` }}
+          >
+            <Sparkles size={16} style={{ color: ROXO }} aria-hidden />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-foreground leading-tight">
+              Falta o principal: suas contas fixas
+            </p>
+            <p className="text-[12.5px] text-muted-foreground mt-1 leading-relaxed">
+              Cadastre o que se repete todo mês — aluguel, assinaturas, salário — nas
+              abas <strong className="text-foreground/80">Receitas</strong> e
+              {' '}<strong className="text-foreground/80">Despesas</strong>. É com elas que a
+              Sora calcula quanto vai sobrar nos próximos meses.
+            </p>
+            <button
+              type="button"
+              onClick={() => { onCadastrar(); fechar(); }}
+              className="mt-3 inline-flex items-center gap-1.5 px-3.5 rounded-xl text-[13px] font-bold
+                         text-white transition-transform motion-safe:active:scale-[0.97]"
+              style={{ height: 40, background: `linear-gradient(135deg, ${ROXO}, #6d28d9)` }}
+            >
+              <Plus size={14} /> Cadastrar a primeira
+            </button>
+          </div>
+
+          {/* Alvo de 44px: o X é pequeno, a área de toque não pode ser. */}
+          <button
+            type="button"
+            onClick={fechar}
+            aria-label="Fechar dica"
+            className="flex-shrink-0 -mr-1.5 -mt-1.5 grid place-items-center rounded-xl
+                       text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            style={{ width: 44, height: 44 }}
+          >
+            <X size={17} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1401,7 +1497,7 @@ function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
           <Linha
             Icone={ArrowDownToLine}
             rotulo={emCurso ? 'Ainda entra' : 'Receitas'}
-            extra={emCurso ? 'o que já entrou está no saldo acima' : (receitas > 0 ? '100%' : undefined)}
+            extra={emCurso ? undefined : (receitas > 0 ? '100%' : undefined)}
             valor={`+${fmt(receitas)}`}
             corValor="text-green-600 dark:text-green-400"
             corIcone={VERDE}
@@ -1425,9 +1521,7 @@ function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
           <Linha
             Icone={ArrowUpFromLine}
             rotulo={emCurso ? 'Ainda sai' : 'Despesas'}
-            extra={emCurso
-              ? 'o que já saiu está no saldo acima'
-              : (pct !== null ? `${pct}% das receitas` : undefined)}
+            extra={emCurso ? undefined : (pct !== null ? `${pct}% das receitas` : undefined)}
             valor={`−${fmt(despesas)}`}
             corValor="text-red-500"
             corIcone={VERMELHO}
