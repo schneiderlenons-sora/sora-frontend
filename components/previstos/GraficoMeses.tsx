@@ -358,7 +358,7 @@ export default function GraficoMeses({
                           aparece através dessa curva — que é o que faz a divisão
                           se ler sem quebrar a barra. */}
                       <span
-                        className="relative block w-full h-full rounded-full overflow-hidden
+                        className="relative block w-full h-full rounded-t-full overflow-hidden
                                    transition-transform duration-200 origin-bottom motion-reduce:transition-none"
                         style={{
                           transform: interagida ? 'scaleY(1.04)' : undefined,
@@ -398,7 +398,7 @@ export default function GraficoMeses({
                         de carregamento; um traço lê como "foi zero". */}
                     {total <= 0 && (
                       <span
-                        className="w-full rounded-full"
+                        className="w-full rounded-t-full"
                         style={{ height: 3, background: tom(cor, esmaecida ? 10 : 20) }}
                         aria-hidden
                       />

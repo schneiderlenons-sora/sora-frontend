@@ -122,6 +122,95 @@ export function distanciaMeses(a: string, b: string): number {
   return (Y2 - Y1) * 12 + (M2 - M1);
 }
 
+/** Uma linha que cai num mês da projeção. */
+export type LinhaMes = {
+  origem: 'recorrencia' | 'divida' | 'fatura';
+  tipo: 'Gasto' | 'Recebimento';
+  /** Valor JÁ multiplicado pelas ocorrências do mês. */
+  valor: number;
+  vezes: number;
+  /** Conta de valor variável — o número é estimativa. */
+  estimado: boolean;
+  ref: any;
+};
+
+/**
+ * O QUE CAI NO MÊS `ym` — fonte única.
+ *
+ * ⚠️ EXISTE PORQUE O CARD E O GRÁFICO NÃO PODEM DIVERGIR. A tela precisa
+ * listar linha a linha o que compõe um mês; a projeção precisa somar o mesmo
+ * mês. Com duas implementações dessas regras, basta um ajuste em uma delas
+ * pra o card exibir R$ 1.240 embaixo de uma barra desenhada em R$ 1.310 —
+ * e não há como o usuário saber qual das duas está certa. `projetarMeses`
+ * SOMA daqui; a tela AGRUPA daqui.
+ *
+ * `k` é o índice do mês na janela (0 = mês corrente): é ele que decide até
+ * quando a parcela de uma dívida ainda cai.
+ */
+export function linhasDoMes(params: {
+  ym: string;
+  k: number;
+  recorrencias: ItemRecorrente[];
+  dividas: ItemParcelado[];
+  faturas: FaturaProjetada[];
+}): LinhaMes[] {
+  const { ym, k, recorrencias, dividas, faturas } = params;
+  const linhas: LinhaMes[] = [];
+
+  // ⚠️ `nao_lancar` entra igual: o modo diz se a Sora CRIA a transação, não
+  // se o dinheiro sai. Deixá-lo de fora faria a projeção ignorar justamente
+  // as contas de quem usa Open Finance.
+  for (const r of recorrencias || []) {
+    if (!(Number(r.valor) > 0)) continue;
+    // ⚠️ QUANTAS VEZES CAI NESTE MÊS — não um "1" implícito. Sem isto o IPVA
+    // (anual) entraria em TODO mês da janela e a diarista (semanal) uma vez
+    // em vez de quatro. E é aqui que a DURAÇÃO passa a valer: acabada a
+    // recorrência, `venceEm` devolve false e ela some sozinha.
+    const vezes = ocorrenciasNoMes(r, ym);
+    if (!vezes) continue;
+    linhas.push({
+      origem: 'recorrencia',
+      tipo: r.tipo,
+      valor: cent(r.valor) * vezes,
+      vezes,
+      estimado: !!r.valor_variavel,
+      ref: r,
+    });
+  }
+
+  for (const d of dividas || []) {
+    if (d.status === 'quitada') continue;
+    if (!(Number(d.valor_parcela) > 0)) continue;
+    if (d.nos_previstos === false) continue;
+    // A parcela entra enquanto sobrar parcela.
+    const total = Number(d.parcelas_total) || 0;
+    const pagas = Number(d.parcelas_pagas) || 0;
+    const restantes = total > 0 ? Math.max(0, total - pagas) : Infinity;
+    if (k >= restantes) continue;
+    linhas.push({
+      origem: 'divida',
+      tipo: 'Gasto',
+      valor: cent(d.valor_parcela),
+      vezes: 1,
+      estimado: false,
+      ref: d,
+    });
+  }
+
+  // ⚠️ FATURA SÓ NO MÊS DELA. Projetar fatura de cartão pra frente seria
+  // inventar: ela depende de compras que ainda não aconteceram. O que o banco
+  // já publicou entra; o resto fica de fora, e a tela diz isso.
+  for (const f of faturas || []) {
+    if (f.nos_previstos === false) continue;
+    const restante = cent(f.restante);
+    if (!(restante > 0) || !f.venc) continue;
+    if (String(f.venc).slice(0, 7) !== ym) continue;
+    linhas.push({ origem: 'fatura', tipo: 'Gasto', valor: restante, vezes: 1, estimado: false, ref: f });
+  }
+
+  return linhas;
+}
+
 /**
  * Projeta `quantidade` meses a partir de `inicio` (inclusive).
  *
@@ -174,34 +263,35 @@ export function projetarMeses(params: {
 
     const saldoInicial = saldo;
 
-    for (const r of recorrentes) {
-      // ⚠️ QUANTAS VEZES CAI NESTE MÊS — não mais um "1" implícito. Sem
-      // isto o IPVA (anual) entraria em TODO mês da janela e a diarista
-      // (semanal) uma vez em vez de quatro. E é aqui que a DURAÇÃO passa a
-      // valer: acabada a recorrência, `venceEm` devolve false e ela some da
-      // projeção sozinha, sem precisar de uma segunda regra de corte.
-      const vezes = ocorrenciasNoMes(r, ym);
-      if (!vezes) {
-        // Acabou de acabar: o mês SEGUINTE ao fim ganha o mesmo aviso que a
-        // última parcela de uma dívida — é a informação que muda decisão
-        // ("a partir de março sobra isso").
-        if (r.data_fim && String(r.data_fim).slice(0, 7) === somarMeses(ym, -1)) {
-          eventos.push({
-            tipo: 'fim_parcela',
-            texto: `${r.descricao || 'Conta fixa'} acaba`,
-            efeito: r.tipo === 'Recebimento' ? -cent(r.valor) : cent(r.valor),
-          });
-        }
+    // ⚠️ A SOMA VEM DE `linhasDoMes`, a MESMA função que a tela usa pra
+    // listar. Enquanto as duas eram implementações separadas das mesmas
+    // regras, nada impedia o card de somar um valor e a barra de desenhar
+    // outro para o mesmo mês.
+    for (const l of linhasDoMes({ ym, k, recorrencias: recorrentes, dividas: parcelas, faturas: faturas || [] })) {
+      if (l.tipo === 'Recebimento') {
+        dReceitasFixas += l.valor;
+        if (l.estimado) receitaEstimada += l.valor; else receitaFirme += l.valor;
         continue;
       }
-      const v = cent(r.valor) * vezes;
-      const estimado = !!r.valor_variavel;
-      if (r.tipo === 'Recebimento') {
-        dReceitasFixas += v;
-        if (estimado) receitaEstimada += v; else receitaFirme += v;
-      } else {
-        dContasFixas += v;
-        if (estimado) despesaEstimada += v; else despesaFirme += v;
+      if (l.origem === 'recorrencia') dContasFixas += l.valor;
+      else if (l.origem === 'divida') dParcelas += l.valor;
+      else dFaturas += l.valor;
+      if (l.estimado) despesaEstimada += l.valor; else despesaFirme += l.valor;
+    }
+
+    // ── EVENTOS ────────────────────────────────────────────────────────────
+    // ⚠️ ESTES SÃO O MIOLO DA ABA. Um gráfico de barras quase iguais não
+    // informa nada; o que muda decisão é "em dezembro a parcela do sofá acaba
+    // e sobram R$ 200 por mês".
+    for (const r of recorrentes) {
+      // Acabou de acabar: o mês SEGUINTE ao fim ganha o aviso.
+      if (ocorrenciasNoMes(r, ym)) continue;
+      if (r.data_fim && String(r.data_fim).slice(0, 7) === somarMeses(ym, -1)) {
+        eventos.push({
+          tipo: 'fim_parcela',
+          texto: `${r.descricao || 'Conta fixa'} acaba`,
+          efeito: r.tipo === 'Recebimento' ? -cent(r.valor) : cent(r.valor),
+        });
       }
     }
 
@@ -209,15 +299,7 @@ export function projetarMeses(params: {
       const total = Number(d.parcelas_total) || 0;
       const pagas = Number(d.parcelas_pagas) || 0;
       const restantes = total > 0 ? Math.max(0, total - pagas) : Infinity;
-
-      // ⚠️ AQUI ESTÁ O QUE FAZ A PROJEÇÃO DEIXAR DE SER UMA LINHA RETA. A
-      // parcela entra enquanto sobrar parcela; quando acaba, o mês SEGUINTE
-      // ganha um evento dizendo quanto sobra a mais. É a informação que muda
-      // decisão ("dá pra assumir isso a partir de março").
-      if (k < restantes) {
-        despesaFirme += cent(d.valor_parcela);
-        dParcelas += cent(d.valor_parcela);
-      } else if (k === restantes && Number.isFinite(restantes)) {
+      if (k === restantes && Number.isFinite(restantes)) {
         eventos.push({
           tipo: 'fim_parcela',
           texto: `${d.titulo || 'Parcela'} acaba`,
@@ -226,23 +308,17 @@ export function projetarMeses(params: {
       }
     }
 
-    // ⚠️ FATURA SÓ NO MÊS DELA. Projetar fatura de cartão pra frente seria
-    // inventar: ela depende de compras que ainda não aconteceram. O que o banco
-    // já publicou entra; o resto fica de fora, e a tela diz isso.
     for (const f of faturas || []) {
       if (f.nos_previstos === false) continue;
       const restante = cent(f.restante);
       if (!(restante > 0) || !f.venc) continue;
       if (String(f.venc).slice(0, 7) !== ym) continue;
-      despesaFirme += restante;
-      dFaturas += restante;
       eventos.push({
         tipo: 'fatura',
         texto: `Fatura ${f.nome || 'do cartão'}`,
         efeito: -restante,
       });
     }
-
     // Mês 0 usa o REALIZADO no lugar da projeção de receita/despesa firme —
     // o que já aconteceu não é previsão.
     if (k === 0 && realizado) {
