@@ -398,7 +398,7 @@ export function MockLimites() {
 
 const ASSINATURAS = [
   { nome: 'Spotify', valor: 'R$ 21,90', quando: 'cancelada', logo: '/brands/spotify.png', off: true },
-  { nome: 'Smart Fit', valor: 'R$ 99,90', quando: 'cancelada', logo: null, off: true },
+  { nome: 'Smart Fit', valor: 'R$ 99,90', quando: 'cancelada', logo: '/brands/smartfit.png', off: true },
   { nome: 'Amazon Prime', valor: 'R$ 19,90', quando: 'todo dia 18', logo: '/brands/amazon.png' },
   { nome: 'Netflix', valor: 'R$ 55,90', quando: 'cancelada', logo: '/brands/netflix.png', off: true },
   { nome: 'Internet', valor: 'R$ 129,00', quando: 'todo dia 28', logo: null },

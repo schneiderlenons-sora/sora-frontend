@@ -226,6 +226,23 @@ const MARCAS: Record<string, Marca> = {
   canva:             { local: '/brands/canva.png',          si: 'canva' },
   sora:              { local: '/brands/sora.png' },
 
+  // ── Academia / Fitness ──
+  //
+  // ⚠️ "smart fit" COM ESPAÇO também: é assim que aparece na fatura de
+  // vários bancos, e a busca do `marcaDe` casa a chave inteira.
+  smartfit:          { local: '/brands/smartfit.png' },
+  'smart fit':       { local: '/brands/smartfit.png' },
+  bluefit:           { local: '/brands/bluefit.png' },
+  'blue fit':        { local: '/brands/bluefit.png' },
+  strava:            { local: '/brands/strava.png',        si: 'strava' },
+  'contorno do corpo': { local: '/brands/contorno-do-corpo.png' },
+  // Wellhub é o nome novo do Gympass (mudou em 2024). Os dois apontam pro
+  // mesmo logo porque a cobrança ainda chega das duas formas.
+  wellhub:           { local: '/brands/wellhub.png' },
+  gympass:           { local: '/brands/wellhub.png' },
+  totalpass:         { local: '/brands/totalpass.png' },
+  'total pass':      { local: '/brands/totalpass.png' },
+
   // ── Combustível ──
   shell:             { si: 'shell' },
   petrobras:         { si: 'petrobras' },
