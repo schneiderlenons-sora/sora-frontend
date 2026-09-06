@@ -585,6 +585,23 @@ export const COMANDOS: Comando[] = [
     destaque: true,
   },
   {
+    id: 'gasto-por-periodo',
+    titulo: 'Quanto gastei com algo, num período',
+    exemplo: 'quanto gastei com mercado livre em setembro?',
+    descricao:
+      'Soma tudo que saiu com um assunto num período que você escolhe. O assunto pode ser categoria (alimentação), loja (mercado livre) ou qualquer palavra do lançamento. O período aceita mês pelo nome, dois meses juntos, os últimos N meses, ou os relativos de sempre. Mês que ainda não chegou é lido como o do ano passado — "em dezembro" em setembro traz dezembro passado.',
+    variantes: [
+      'quanto gastei com ifood esse mês?',
+      'quanto gastei com uber mês passado?',
+      'quanto gastei com farmácia nos últimos 3 meses?',
+      'quanto gastei com mercado nos últimos 6 meses?',
+      'quanto gastei com netflix em julho e agosto?',
+      'quanto gastei com alimentação em março?',
+    ],
+    categoria: 'analises',
+    destaque: true,
+  },
+  {
     id: 'gastos-carteiras',
     titulo: 'Gastos por cartão e conta',
     exemplo: 'gastos dos meus cartões',
