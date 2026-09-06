@@ -201,6 +201,12 @@ body { background-color: hsl(var(--bg)); }
     from { opacity: 0; transform: translateY(28px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  /* Barra de progresso enchendo. ⚠️ Anima `transform`, não `width`: largura
+     recalcula layout a cada frame; scaleX é composto na GPU. */
+  @keyframes cresce {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
   @keyframes marquee {
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }

@@ -96,37 +96,55 @@ export default function TourPlayer({ onFim }: { onFim: () => void }) {
       </button>
 
       {/* ── Arte ────────────────────────────────────────────────────────────
-          Altura FIXA em porcentagem da tela: o espaço é reservado antes de a
-          imagem chegar, então nada salta quando ela carrega (CLS). */}
-      <div className={`absolute inset-x-0 top-0 h-[58%] sm:h-[60%] ${slide.arte.tipo === 'img' ? 'flex items-center justify-center px-5' : ''}`}>
-        {slide.arte.tipo === 'jsx' ? (
-          <div key={slide.id} className="relative w-full h-full motion-safe:animate-[fade-in_500ms_ease-out_both]">
-            <ArteSlide slide={slide} prioridade={idx <= 1} />
-          </div>
-        ) : (
-          // ⚠️ MOLDURA, NÃO SANGRIA. As telas de `public/screenshots` são
-          // capturas de DESKTOP (16:9); em 390px de largura o `object-cover`
-          // recortava uma fatia ilegível do meio do dashboard — visto na
-          // bancada antes de mudar. Dentro de um quadro com borda e sombra a
-          // imagem lê como "uma foto do app", que é o que ela é.
-          <div
-            key={slide.id}
-            className="relative w-full max-w-[420px] aspect-[16/10] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl motion-safe:animate-[slide-up_600ms_cubic-bezier(0.22,1,0.36,1)_both]"
-          >
-            <ArteSlide slide={slide} prioridade={idx <= 1} />
-          </div>
-        )}
+          ⚠️ ELA OCUPA A TELA INTEIRA, e o texto flutua por cima. Antes a arte
+          era espremida num quadro de 58% da altura e o texto ficava embaixo,
+          num terço morto: a ilustração perdia metade do tamanho pra deixar
+          vazio o espaço que o gradiente resolve de graça. Rola por dentro se o
+          conteúdo for mais alto que a tela — nunca corta.
+
+          O padding inferior reserva o espaço do texto + navegação, pra o fim
+          da arte não nascer escondido sob o gradiente. */}
+      <div
+        key={slide.id}
+        className="absolute inset-0 overflow-y-auto overscroll-contain scrollbar-none
+                   motion-safe:animate-[fade-in_450ms_ease-out_both]"
+        style={{ paddingTop: 56, paddingBottom: 300 }}
+      >
+        <ArteSlide slide={slide} />
       </div>
 
-      {/* ⚠️ VÉU DE TOPO. As capturas são de tema CLARO: sem ele as barras de
-          progresso e o "Pular" (ambos brancos) somem em cima da imagem. */}
+      {/* ⚠️ VÉU DE TOPO: as barras de progresso e o "Pular" são brancos, e sem
+          ele somem em cima de um card claro da arte. */}
       <div
-        className="absolute inset-x-0 top-0 h-28 z-20 pointer-events-none"
-        style={{ background: 'linear-gradient(to bottom, rgba(7,10,8,0.75), transparent)' }}
+        className="absolute inset-x-0 top-0 h-24 z-20 pointer-events-none"
+        style={{ background: 'linear-gradient(to bottom, rgba(7,10,8,0.9), transparent)' }}
       />
 
+      {/* ⚠️ GRADIENTE DE BAIXO — é ele que deixa a arte passar por trás do
+          texto sem prejudicar a leitura.
+
+          Quatro paradas, não duas: com um degradê linear simples a borda
+          superior fica visível como uma faixa reta atravessando a ilustração.
+          As paradas intermediárias dissolvem o começo dele antes de o olho
+          registrar a linha.
+
+          ⚠️ E ELE COBRE 40%, NÃO 62%. Medido a 390×844: com 62% ele começava
+          em y=321 e o quarto item da lista de categorias — que termina em
+          y≈518 — ficava a 65% de opacidade, apagado sem motivo. O padding
+          inferior da arte (300px) já garante que o conteúdo pare acima do
+          texto; o gradiente é seguro pros slides mais altos, não o recurso
+          principal.
+
+          `pointer-events-none` porque ele cobre a arte inteira: sem isso
+          engoliria o swipe na metade de baixo da tela. */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-[40%] z-10 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, rgba(7,10,8,0.99) 0%, rgba(7,10,8,0.97) 62%, rgba(7,10,8,0.5) 84%, transparent 100%)',
+        }}
+      />
       {/* ── Texto ───────────────────────────────────────────────────────── */}
-      <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-5">
+      <div className="absolute inset-x-0 bottom-0 z-30 px-6 pb-5">
         <div
           key={slide.id}
           className="max-w-md mx-auto text-center motion-safe:animate-[slide-up_520ms_cubic-bezier(0.22,1,0.36,1)_both]"
