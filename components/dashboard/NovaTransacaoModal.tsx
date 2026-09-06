@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock, Undo2 } from 'lucide-react';
 import { api } from '@/lib/api';
+// Conta em moeda estrangeira (migration 144): o valor digitado está na moeda
+// DA CONTA, e é o backend que converte. Aqui só rotulamos o campo.
+import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda } from '@/lib/moeda';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -162,6 +165,25 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   // ── Compra parcelada ─────────────────────────────────────────────
   // Cartão selecionado? (parcelado vale pra cartão de crédito OU "sem cartão", só despesa)
   const walletSel = useMemo(() => wallets.find(w => w.id === walletId), [wallets, walletId]);
+
+  // ⚠️ O CAMPO PRECISA DIZER EM QUE MOEDA A PESSOA ESTÁ DIGITANDO. O backend
+  //    já lê o valor na moeda DA CONTA desde a migration 144 — quem lança na
+  //    conta em coroa digita kr e o BRL é derivado. Só que a tela dizia "R$"
+  //    fixo, então quem tinha conta estrangeira achava que a Sora não
+  //    suportava e convertia tudo na mão. Era feature pronta e invisível.
+  const moedaConta = normalizarMoeda(walletSel?.moeda);
+  const contaEstrangeira = ehEstrangeira(moedaConta);
+
+  // Equivalente em real, só como referência — o valor gravado é derivado no
+  // servidor com a cotação do momento, não com esta. `taxa_brl` da wallet vem
+  // do mesmo lugar, então o número aqui é o mesmo que ele vai ver depois.
+  const equivalenteBRL = useMemo(() => {
+    if (!contaEstrangeira) return null;
+    const t = Number(walletSel?.taxa_brl);
+    const v = parseInt(valor || '0', 10) / 100;
+    if (!Number.isFinite(t) || t <= 0 || !v) return null;
+    return v * t;
+  }, [contaEstrangeira, walletSel?.taxa_brl, valor]);
   const ehCartaoSel = walletSel?.tipo === 'Crédito' && tipo === 'Gasto';
   // "Sem cartão" = parcelei com alguém (vira parcelamento em Dívidas). Só p/ despesa.
   const semCartao   = walletId === SEM_CARTAO && tipo === 'Gasto';
@@ -590,7 +612,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">{parcelado ? 'Valor de cada parcela' : 'Valor'}</p>
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-2xl font-bold text-muted-foreground">R$</span>
+              <span className="text-2xl font-bold text-muted-foreground">{MOEDAS[moedaConta].simbolo}</span>
               <input
                 type="tel"
                 inputMode="numeric"
@@ -599,6 +621,14 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
                 className="text-5xl font-bold text-foreground bg-transparent border-none outline-none text-center w-full tabular"
               />
             </div>
+            {/* ⚠️ Só em conta estrangeira. Em real o bloco não existe e a tela
+                fica idêntica à de antes. */}
+            {contaEstrangeira && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Valor em <b className="text-foreground">{MOEDAS[moedaConta].nome}</b>
+                {equivalenteBRL !== null && <> · ≈ {formatarMoeda(equivalenteBRL, 'BRL')}</>}
+              </p>
+            )}
           </div>
 
           {/* 6) Descrição */}
