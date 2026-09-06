@@ -58,6 +58,28 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const locale = localeDoPath(pathname);
 
+  // ── ESTA REQUISIÇÃO É UM PALPITE DO ROTEADOR? ───────────────────────────
+  //
+  // O Next dispara `next-router-prefetch` sozinho, pra rotas que ele ACHA que
+  // a pessoa vai abrir — não é ação de ninguém. E ele dispara em RAJADA: a
+  // sidebar do mobile fica montada fora da tela e, quando o menu abre, todos
+  // os links dela entram no viewport de uma vez.
+  //
+  // ⚠️ ISSO PODE DESLOGAR DE VERDADE. Cada requisição da rajada chega com o
+  // MESMO refresh token vencido e cada uma tenta renovar; o Supabase
+  // ROTACIONA, então a primeira consome o token e as outras chegam com um
+  // token já morto. A que falha volta com `user` null, e o caminho de baixo
+  // APAGA os cookies de sessão e manda pro login — matando a sessão que a
+  // primeira acabou de renovar. Com VPN (latência alta) a rajada se espalha
+  // e passa da janela de reuso do refresh token, que é o que normalmente
+  // segura esse empate.
+  //
+  // A REGRA: um palpite PODE renovar a sessão, NUNCA encerrá-la. Ele segue
+  // renovando e persistindo o par novo (é isso que mantém a sessão viva);
+  // o que ele não faz é apagar cookie nem redirecionar. Quem descobre que a
+  // sessão morreu de verdade é a navegação REAL logo em seguida.
+  const ehPalpite = request.headers.get('next-router-prefetch') === '1';
+
   // Auto-detect: visitante da landing raiz, sem cookie de idioma, que prefere
   // espanhol (ou vem do México) → manda pro /es. Só a landing pública — nunca
   // rotas do app, pra não interferir no fluxo PT logado.
@@ -157,10 +179,27 @@ export async function middleware(request: NextRequest) {
     return resposta;
   };
 
+  // ⚠️ E O PALPITE TAMBÉM NÃO PODE APAGAR COOKIE. Não basta não redirecionar:
+  //    quando a renovação FALHA, o `setAll` acima já escreveu os cookies de
+  //    sessão VAZIOS no `response`, e devolvê-los encerra a sessão no
+  //    navegador do mesmo jeito — só que sem sair da tela, o que é pior de
+  //    diagnosticar. Numa rajada, é a requisição perdedora da corrida de
+  //    rotação que faz isso, apagando a sessão que a vencedora renovou.
+  //
+  //    Sem usuário num palpite, a resposta sai LIMPA: nenhum cookie tocado. O
+  //    navegador segue com o que tinha, e a navegação real logo em seguida
+  //    decide de verdade — inclusive mandando pro login, se for o caso.
+  if (ehPalpite && !user) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   const isPublica = ehPublica(pathname);
 
   // Sem login tentando acessar rota protegida → vai para login.
-  if (!user && !isPublica) {
+  // ⚠️ `!ehPalpite`: ver a nota lá em cima. Redirecionar um prefetch não leva
+  //    ninguém a lugar nenhum (o usuário não pediu navegação) e ainda carrega
+  //    os cookies apagados pro navegador, encerrando a sessão de verdade.
+  if (!user && !isPublica && !ehPalpite) {
     // ⚠️ LEVA O DESTINO JUNTO (`?next=`) E DIZ POR QUÊ (`?motivo=sessao`).
     //
     // Sem isso o redirect é mudo: a pessoa toca em "Abrir Sora", cai num

@@ -312,6 +312,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       : 'bg-white/10 hover:bg-white/20';
     return (
       <Link
+        prefetch={false}
         // Bloqueado também abre a própria aba: o guard de rota mostra o card
         // de convite ali, com o nome dela. Ver o comentário em `destino`.
         href={href}
@@ -382,18 +383,17 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
 
     return (
       <Link
+        prefetch={false}
         key={chave}
         href={destino}
         // Hover no desktop prefetcha ROTA + DADOS daquela aba → o clique já
         // encontra tudo pronto. No mobile NÃO: prefetch no touchstart adiciona
         // jank ao próprio toque, e o aquecimento ocioso já baixou a rota.
         onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
-        // ⚠️ prefetch={false} é PERFORMANCE, não detalhe: a sidebar fica sempre
         // visível, então o prefetch automático do Next baixava TODAS as rotas de
         // uma vez — e /investimentos, /metas, /relatorios e /juros carregam
         // recharts (~288 KB cada). Medido: 3 MB de JS no dashboard sem desenhar
         // um gráfico.
-        prefetch={false}
         onClick={() => setOpen(false)}
         aria-current={ativo ? 'page' : undefined}
         aria-disabled={locked || undefined}
@@ -655,6 +655,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
                     }
                     return (
                       <Link key={item.href} href={item.href}
+                        prefetch={false}
                         onClick={() => setOpen(false)}
                         onMouseEnter={() => router.prefetch(item.href)}
                         aria-current={ativo ? 'page' : undefined}
@@ -675,6 +676,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             ))}
 
             <Link href="/dashboard" onClick={() => setOpen(false)}
+              prefetch={false}
               className="flex items-center gap-3 px-3 py-2.5 mt-3 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/15 transition-all border-t border-white/10 pt-4"
               style={{ minHeight: 44 }}>
               <ArrowLeft size={18} /> <span>Voltar pro app</span>
@@ -684,6 +686,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           /* ── NAV do Sora Labs ── */
           <div className="animate-fade-in">
             <Link href="/dashboard" onClick={() => setOpen(false)}
+              prefetch={false}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/75 hover:text-white hover:bg-white/15 transition-all mb-1">
               <ArrowLeft size={18} /> <span>Voltar pro app</span>
             </Link>
@@ -693,6 +696,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
                 const Icon = item.icon;
                 return (
                   <Link key={item.href} href={item.href} onClick={() => setOpen(false)}
+                    prefetch={false}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/80 hover:text-white hover:bg-white/15 transition-all">
                     <Icon size={18} /> <span>{item.label}</span>
                   </Link>
@@ -784,12 +788,14 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         {/* Fixos: Ajuda (ex-Comandos, ex-Central da Sora) + Configurações */}
         <div className="grid grid-cols-2 gap-1.5">
           <Link href="/ajuda" onClick={() => setOpen(false)}
+            prefetch={false}
             className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
               isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
             }`}>
             <HelpCircle size={16} /> Ajuda
           </Link>
           <Link href="/configuracoes" onClick={() => setOpen(false)}
+            prefetch={false}
             className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white transition-all ${
               isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
             }`}>
@@ -799,6 +805,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
 
         {/* Perfil */}
         <Link href="/configuracoes" onClick={() => setOpen(false)}
+          prefetch={false}
           className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm transition-colors"
           style={{ minHeight: 44 }}>
           <AvatarMembro
