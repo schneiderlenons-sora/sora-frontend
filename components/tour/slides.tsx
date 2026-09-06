@@ -680,8 +680,8 @@ export function MockPedidos() {
 
       <div className="mt-4 space-y-2.5">
         {[
-          ['Ficou com dúvida?', 'Suporte direto pelo app, ou pelo WhatsApp da Sora'],
-          ['Quer uma funcionalidade nova?', 'É só pedir pra Sora no WhatsApp'],
+          ['Ficou com dúvida?', 'Suporte direto pelo app, ou pelo e-mail contato@forsora.com'],
+          ['Quer uma funcionalidade nova?', 'É só sugerir uma melhoria no app'],
         ].map(([t, s], i) => (
           <Entra key={t} i={i + 2}>
             <div>
