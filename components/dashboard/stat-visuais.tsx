@@ -43,7 +43,10 @@ export const CORES_CONTA = [
   '#CA8A04', // limão      · yellow-600
 ];
 
-export type Conta = { nome: string; saldo: number };
+// ⚠️ `saldo` é null quando a conta é em moeda estrangeira e o câmbio não
+// veio. NÃO é zero: "R$ 0,00" some com o dinheiro do usuário, e converter a
+// 1:1 mostra 4.090 coroas como R$ 4.090 — o defeito relatado.
+export type Conta = { nome: string; saldo: number | null };
 export type Fatia = { nome: string; saldo: number; pct: number; cor: string };
 
 /**
@@ -51,7 +54,11 @@ export type Fatia = { nome: string; saldo: number; pct: number; cor: string };
  * negativa não "ocupa" espaço do saldo, e largura negativa não existe.
  */
 export function fatiasDeContas(contas: Conta[]): Fatia[] {
-  const positivas = contas.filter((c) => c.saldo > 0).sort((a, b) => b.saldo - a.saldo);
+  // Sem câmbio a conta fica FORA da barra (não dá pra saber que fatia ela
+  // ocupa); a lista abaixo continua mostrando que ela existe.
+  const positivas = contas
+    .filter((c): c is { nome: string; saldo: number } => c.saldo !== null && c.saldo > 0)
+    .sort((a, b) => b.saldo - a.saldo);
   const soma = positivas.reduce((s, c) => s + c.saldo, 0);
   if (!soma) return [];
   return positivas.map((c, i) => ({
@@ -71,7 +78,7 @@ export function fatiasDeContas(contas: Conta[]): Fatia[] {
  * ver.
  */
 export function saldoPorContaDe(contas: Conta[]): Conta[] {
-  return [...contas].sort((a, b) => b.saldo - a.saldo);
+  return [...contas].sort((a, b) => (b.saldo ?? 0) - (a.saldo ?? 0));
 }
 
 /**

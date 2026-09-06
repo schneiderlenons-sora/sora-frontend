@@ -13,7 +13,8 @@
     "eval:data-br": "npx tsx lib/data-br.eval.mjs",
     "eval:previstos": "npx tsx lib/previstos.eval.mjs",
     "eval:frequencia": "npx tsx lib/frequencia-recorrencia.eval.mjs",
-    "eval:escala": "npx tsx lib/escala-grafico.eval.mjs"
+    "eval:escala": "npx tsx lib/escala-grafico.eval.mjs",
+    "eval:moeda": "npx tsx --env-file=.env.local lib/moeda.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

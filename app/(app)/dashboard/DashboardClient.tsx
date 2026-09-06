@@ -239,6 +239,16 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     () => contasBancarias.reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
     [contasBancarias]
   );
+  // ⚠️ O HERO RECEBE OS SALDOS JÁ EM BRL. Antes ele recebia a wallet crua e
+  //    lia `w.saldo`, que é o valor NA MOEDA DA CONTA — então a lista "Saldo
+  //    por conta" e a barra de composição mostravam 4.090 coroas como
+  //    "R$ 4.090,34" logo abaixo de um total que JÁ vinha convertido. As duas
+  //    metades do mesmo card discordavam, e a lista não somava o total.
+  //    `saldoBRL` devolve null quando não há câmbio — a tela diz isso.
+  const contasEmBRL = useMemo(
+    () => contasBancarias.map(w => ({ nome: w.nome as string, saldo: saldoBRL(w) })),
+    [contasBancarias],
+  );
   const varReceitas = useMemo(() => pct(resumo?.receitas||0, resumoAnt?.receitas||0), [resumo, resumoAnt]);
   const varGastos   = useMemo(() => pct(resumo?.gastos||0,   resumoAnt?.gastos||0),   [resumo, resumoAnt]);
   const economia    = (resumo?.receitas||0) - (resumo?.gastos||0);
@@ -569,7 +579,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                   frases curtas embaixo). Fora do bloco acima porque o layout é
                   outro, não uma variação responsiva dos mesmos 3 chips. */}
               <HeroStatsMobile
-                contas={contasBancarias}
+                contas={contasEmBRL}
                 saldoTotal={saldoTotal}
                 gastosMes={resumo?.gastos || 0}
                 dadosDiarios={dadosDiarios}

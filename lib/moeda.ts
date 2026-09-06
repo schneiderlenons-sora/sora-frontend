@@ -79,6 +79,15 @@ type CarteiraLike = { saldo?: number | null; saldo_brl?: number | null; moeda?: 
 export function saldoBRL(w: CarteiraLike): number | null {
   if (w?.saldo_brl === null) return null;             // câmbio falhou
   if (w?.saldo_brl !== undefined) return Number(w.saldo_brl) || 0;
+  // ⚠️ SEM `saldo_brl`, SÓ DÁ PRA CONFIAR NO NÚMERO SE A CARTEIRA FOR EM REAL.
+  // O fallback existe pra payload ANTIGO (pré-144) e pro cache do SWR, onde
+  // `saldo` já é BRL — e ali `moeda` nem vem, então cai em BRL e nada muda.
+  // Mas o SSR (`walletsDireto`) lê a wallet crua do Supabase e NÃO anexa
+  // `saldo_brl`: numa conta em coroa, devolver `saldo` aqui exibe 4.090 NOK
+  // como R$ 4.090 — exatamente o erro que esta função existe pra impedir.
+  // Sem cotação não há conversão possível, e a resposta honesta é null, que
+  // as telas já sabem mostrar como "câmbio indisponível".
+  if (ehEstrangeira(w?.moeda)) return null;
   return Number(w?.saldo) || 0;                        // resposta antiga = BRL
 }
 

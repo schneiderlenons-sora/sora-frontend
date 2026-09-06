@@ -14,6 +14,7 @@ import {
   fatiasDeContas, saldoPorContaDe, gastoPorContaDe, acumuladoDe,
   IconesContas, BarraContas, Sparkline,
 } from '@/components/dashboard/stat-visuais';
+import { saldoBRL } from '@/lib/moeda';
 
 // =============================================================================
 // Os stat cards abaixo do card de hábitos.
@@ -149,7 +150,10 @@ export default function ResumoCards({
   // (com as zeradas e as negativas — esconder conta no vermelho é esconder
   // justamente o que o usuário precisa ver).
   const listaContas = useMemo(
-    () => contas.map(w => ({ nome: w.nome, saldo: w.saldo || 0 })),
+    // ⚠️ `saldoBRL`, não `w.saldo`: o saldo cru está NA MOEDA DA CONTA, e
+    //    exibi-lo com "R$" mostra 4.090 coroas como R$ 4.090. O total do
+    //    card já convertia, então as duas metades discordavam.
+    () => contas.map(w => ({ nome: w.nome as string, saldo: saldoBRL(w) })),
     [contas],
   );
   const fatias = useMemo(() => fatiasDeContas(listaContas), [listaContas]);
@@ -162,7 +166,13 @@ export default function ResumoCards({
     <>
       {aberto === 'saldo' && (
         <Detalhe titulo="Saldo por conta" vazio="Sem contas cadastradas."
-          linhas={saldoPorConta.map(c => ({ nome: c.nome, valor: fmt(c.saldo), cor: c.saldo < 0 ? '#ef4444' : undefined }))} />
+          // ⚠️ Sem câmbio, a linha DIZ isso — não vira R$ 0,00 nem repete o
+          //    valor nativo com "R$". Mesma frase da aba de contas.
+          linhas={saldoPorConta.map(c => ({
+            nome: c.nome,
+            valor: c.saldo === null ? 'câmbio indisponível' : fmt(c.saldo),
+            cor: (c.saldo ?? 0) < 0 ? '#ef4444' : undefined,
+          }))} />
       )}
       {aberto === 'gastos' && (
         <Detalhe titulo="Gastos por conta" vazio="Nenhum gasto neste mês."

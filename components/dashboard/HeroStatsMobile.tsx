@@ -153,9 +153,14 @@ export default function HeroStatsMobile({
                             style={{ background: c.cor || 'hsl(var(--muted-foreground) / 0.35)' }} />
                       <span className="text-foreground truncate flex-1">{c.nome}</span>
                       <span className={`tabular font-semibold flex-shrink-0 ${
-                        c.saldo < 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                        (c.saldo ?? 0) < 0 ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
                       }`}>
-                        {fmt(c.saldo)}
+                        {/* ⚠️ Sem câmbio a conta NÃO vira R$ 0,00 nem repete o
+                            valor nativo com "R$": as duas coisas mentem sobre
+                            quanto a pessoa tem. Mesma frase da aba de contas. */}
+                        {c.saldo === null ? (
+                          <span className="text-[11px] font-normal">câmbio indisponível</span>
+                        ) : fmt(c.saldo)}
                       </span>
                     </li>
                   ))}
