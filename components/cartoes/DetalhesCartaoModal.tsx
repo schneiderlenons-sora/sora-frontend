@@ -82,11 +82,19 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
   const [quitadaServidor, setQuitadaServidor] = useState(false);
   // Fatura do EMISSOR nesta competência — agrupa a lista como o banco agrupa.
   const [billDaComp, setBillDaComp] = useState<string | null>(null);
+  // ⚠️ O VALOR VEM DO SERVIDOR. `/fatura/status` já devolve `fatura`, `pago` e
+  //    `restante` calculados por `faturaVista` — a MESMA fonte do card da
+  //    lista e do WhatsApp. Este modal recebia esse payload e usava só as
+  //    parcelas previstas, calculando o valor por conta própria logo abaixo.
+  const [faturaApi, setFaturaApi] = useState<number | null>(null);
+  const [pagoApi, setPagoApi] = useState<number | null>(null);
+  const [restanteApi, setRestanteApi] = useState<number | null>(null);
 
   useEffect(() => {
     if (!phone || !cartao?.id || !mesRef) return;
     let cancelado = false;
     setPrevistas([]); setTotalPrevisto(0); setQuitadaServidor(false); setBillDaComp(null);
+    setFaturaApi(null); setPagoApi(null); setRestanteApi(null);
     api.wallets.faturaStatus(phone, cartao.id, mesRef)
       .then((st) => {
         if (cancelado || !st) return;
@@ -94,6 +102,11 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
         setTotalPrevisto(Number(st.total_previsto) || 0);
         setQuitadaServidor(!!st.quitada);
         setBillDaComp((st as any).of_bill_id || null);
+        // `null` quando o servidor não sabe — e aí o cálculo local abaixo vale.
+        const num = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+        setFaturaApi(num((st as any).fatura));
+        setPagoApi(num((st as any).pago));
+        setRestanteApi(num((st as any).restante));
       })
       .catch(() => { /* informativo — nunca impede o modal de abrir */ });
     return () => { cancelado = true; };
@@ -220,8 +233,14 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
     // O total do banco JÁ inclui as parcelas previstas (é ele quem as conhece) —
     // somar de novo contaria em dobro. Elas seguem listadas: são justamente o
     // que explica a distância entre os lançamentos e o total do banco.
+    // ⚠️ O SERVIDOR VENCE, SEMPRE QUE ELE SOUBER. `restante` é `fatura − o que
+    //    já foi pago`, e é o número que o card da lista mostra. `−saldo` é a
+    //    fatura BRUTA: neste cartão eram R$ 3.496,13 no modal contra
+    //    R$ 1.041,05 no card, porque R$ 2.854,70 já haviam sido pagos e o
+    //    modal não descontava. Mesmo defeito que o `resumo` do WhatsApp tinha.
+    if (restanteApi !== null) return restanteApi;
     return doBanco ? -(cartao.saldo as number) : somaMes + totalPrevisto;
-  }, [ehFaturaEmCurso, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
+  }, [restanteApi, ehFaturaEmCurso, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
   // "Paga" vem do SERVIDOR quando ele sabe. O localStorage fica só como
   // marcação manual do usuário, que era tudo o que existia antes: cartão de
   // banco conectado ficava eternamente "Em aberto" mesmo depois de pago.
@@ -230,6 +249,12 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
     return localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga';
   }, [cartao?.id, mesRef]);
   const pagoFlag = quitadaServidor || pagoFlagLS;
+
+  // ⚠️ Pagamento PARCIAL existe e é comum (no Mercado Pago dá pra ir abatendo
+  //    a fatura em curso). Mostrar "Valor pago R$ 0,00" com R$ 2.854,70 pagos
+  //    é a mesma mentira do total errado, na linha de baixo. O servidor sabe
+  //    o valor; a marcação manual do localStorage só entra quando ele não sabe.
+  const valorPago = (pagoApi ?? 0) > 0 ? (pagoApi as number) : (pagoFlag ? valorFatura : 0);
 
   const dataPagamento = useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -481,10 +506,19 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
             </p>
 
             <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
+              {/* ⚠️ Com pagamento parcial o número grande é o que FALTA, e sem
+                  esta linha ele parece uma fatura pequena demais. Os três
+                  juntos se explicam: total − pago = o de cima. */}
+              <div className="flex items-center justify-between" hidden={!(faturaApi !== null && valorPago > 0)}>
+                <span className="text-xs text-muted-foreground">Total da fatura</span>
+                <span className="text-xs font-semibold text-foreground tabular">
+                  {fmt(faturaApi ?? 0)}
+                </span>
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Valor pago</span>
                 <span className="text-xs font-semibold text-green-600 dark:text-green-400 tabular">
-                  {pagoFlag ? fmt(valorFatura) : fmt(0)}
+                  {fmt(valorPago)}
                 </span>
               </div>
               {pagoFlag && dataPagamento && (
@@ -505,8 +539,11 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
           {porCartao.length > 1 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-foreground">Por cartão virtual</p>
-                <span className="text-xs text-muted-foreground">{porCartao.length} cartões · fatura única</span>
+                {/* ⚠️ As barras somam só `Gasto` (crédito viraria barra
+                    negativa — mesma regra do ranking por categoria), então
+                    elas NÃO fecham com o valor acima quando há estorno ou
+                    pagamento. Dizer "fatura única" convidava a somá-las. */}
+                <span className="text-xs text-muted-foreground">{porCartao.length} cartões · compras do ciclo</span>
               </div>
               <div className="space-y-3">
                 {porCartao.map(({ numero, total }, i) => {
