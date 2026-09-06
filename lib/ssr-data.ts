@@ -193,9 +193,51 @@ export async function transacoesDireto(
   return { transacoes, total: count || 0 };
 }
 
+// ── Carteiras, com o saldo já convertido pra BRL ───────────────────────────
+//
+// ⚠️ O SSR NÃO PODE ENTREGAR CARTEIRA SEM `saldo_brl`. O painel usa este
+// payload como `fallbackData`, e `lib/moeda.saldoBRL` devolve null pra conta
+// estrangeira sem ele — de propósito, porque a alternativa é exibir 4.090
+// coroas como "R$ 4.090,34". O resultado é a tela abrir dizendo "câmbio
+// indisponível" até o SWR responder.
+//
+// ⚠️ A COTAÇÃO SAI DO BANCO, não de uma API externa. `cotacoes_moeda`
+// (migration 159) guarda a última conhecida de cada moeda, gravada pelo
+// backend a cada conversão. Ler dali é uma consulta ao Supabase — cabe no
+// SSR; chamar câmbio aqui não caberia, e furaria a regra de a conversão ser
+// feita num lugar só.
+//
+// ⚠️ TOLERANTE: sem a 159 (ou sem linha pra aquela moeda) o campo não vem e o
+// comportamento é o de antes — o SWR corrige em seguida. Conta em real nunca
+// depende da tabela.
 export async function walletsDireto(grupoId: string) {
   const { data } = await supabaseAdmin.from('wallets').select('*').eq('grupo_id', grupoId).order('nome');
-  return data || [];
+  const ws = data || [];
+
+  const moedas = [...new Set(ws.map((w: any) => String(w.moeda || 'BRL').toUpperCase()))]
+    .filter((m) => m !== 'BRL');
+  if (!moedas.length) {
+    return ws.map((w: any) => ({ ...w, saldo_brl: Number(w.saldo) || 0 }));
+  }
+
+  let taxa: Record<string, number> = {};
+  try {
+    const { data: cot } = await supabaseAdmin.from('cotacoes_moeda')
+      .select('moeda, taxa_brl').in('moeda', moedas);
+    for (const c of cot || []) {
+      const t = Number((c as any).taxa_brl);
+      if (Number.isFinite(t) && t > 0) taxa[String((c as any).moeda).toUpperCase()] = t;
+    }
+  } catch { taxa = {}; }
+
+  return ws.map((w: any) => {
+    const m = String(w.moeda || 'BRL').toUpperCase();
+    if (m === 'BRL') return { ...w, saldo_brl: Number(w.saldo) || 0 };
+    const t = taxa[m];
+    // Sem cotação guardada, deixa `saldo_brl` FORA (undefined) em vez de null:
+    // null é "o câmbio falhou de verdade", e aqui só não temos o dado ainda.
+    return t ? { ...w, saldo_brl: Math.round((Number(w.saldo) || 0) * t * 100) / 100, taxa_brl: t } : w;
+  });
 }
 
 // ⚠️ COLUNAS EXPLÍCITAS, e sem o embed `parent:parent_id(id,nome)`.
