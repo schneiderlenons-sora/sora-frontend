@@ -8,6 +8,7 @@ import {
 import { mutate as mutateGlobal } from 'swr';
 import { api, type ModoLancamentoFixo } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
+import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda } from '@/lib/moeda';
 import { calcularDataFim, hojeSP, type Frequencia } from '@/lib/frequencia-recorrencia';
 
 /**
@@ -98,7 +99,9 @@ export type RecorrenciaForm = {
   lembrete_dias?:  number | null;
 };
 
-type Wallet = { id: string; nome: string; tipo?: string; saldo?: number };
+// `moeda`/`taxa_brl` vêm do backend (migration 144) — a conta fixa é lida na
+// moeda DA CONTA, igual à transação avulsa.
+type Wallet = { id: string; nome: string; tipo?: string; saldo?: number; moeda?: string | null; taxa_brl?: number | null };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Controles reutilizados — um só padrão de seleção no formulário inteiro.
@@ -275,6 +278,25 @@ export default function FormRecorrencia({
       setCarteira(opcoesContas[0]?.nome || 'Dinheiro');
     }
   }, [opcoesContas, carteira]);
+
+  // ⚠️ A CONTA FIXA TAMBÉM É LIDA NA MOEDA DA CONTA. O cliente cadastrou
+  //    "salário 20000" numa conta em coroa e a Sora guardou R$ 20.000 onde ele
+  //    quis dizer kr 20.000 (≈ R$ 11.000) — o campo dizia "R$" fixo e não havia
+  //    como escolher outra moeda. Quem converte é o backend; aqui só rotulamos.
+  const contaSel   = useMemo(() => opcoesContas.find((c) => c.nome === carteira), [opcoesContas, carteira]);
+  const moedaConta = normalizarMoeda(contaSel?.moeda);
+  const contaEstrangeira = ehEstrangeira(moedaConta);
+
+  // Referência em real. Sai da `taxa_brl` que a própria carteira traz, então é
+  // o mesmo número que ele verá depois; sem ela, mostra só a moeda em vez de
+  // inventar uma conta.
+  const equivalenteBRL = useMemo(() => {
+    if (!contaEstrangeira) return null;
+    const t = Number(contaSel?.taxa_brl);
+    const v = centavos / 100;
+    if (!Number.isFinite(t) || t <= 0 || !v) return null;
+    return v * t;
+  }, [contaEstrangeira, contaSel?.taxa_brl, centavos]);
 
   // Foco: no valor ao criar (é o primeiro dado que a pessoa tem na cabeça),
   // na descrição ao editar (o valor já está lá).
@@ -466,7 +488,7 @@ export default function FormRecorrencia({
                 background: temValor ? `color-mix(in srgb, ${BRAND} 6%, transparent)` : 'hsl(var(--bg-muted) / 0.35)',
               }}
             >
-              <span className="text-lg font-bold text-muted-foreground">R$</span>
+              <span className="text-lg font-bold text-muted-foreground">{MOEDAS[moedaConta].simbolo}</span>
               <input
                 ref={valorRef}
                 inputMode="numeric"
@@ -482,6 +504,14 @@ export default function FormRecorrencia({
                            placeholder:text-muted-foreground/35 focus:outline-none"
               />
             </div>
+            {/* ⚠️ Só em conta estrangeira. Em real o bloco não existe e o
+                formulário fica idêntico ao de antes. */}
+            {contaEstrangeira && (
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Valor em <b className="text-foreground">{MOEDAS[moedaConta].nome}</b>
+                {equivalenteBRL !== null && <> · ≈ {formatarMoeda(equivalenteBRL, 'BRL')}</>}
+              </p>
+            )}
           </div>
 
           <Campo label="O que é">
