@@ -38,6 +38,89 @@ function ehPublica(pathname: string): boolean {
 // O locale resolvido é injetado no header de REQUEST `x-sora-locale`, lido pelo
 // i18n/request.ts (via headers()) pra carregar o catálogo certo. NÃO usamos o
 // middleware de locale-routing do next-intl porque PT precisa ficar sem prefixo
+// ── Cache curto da VALIDAÇÃO da sessão ────────────────────────────────────
+//
+// `supabase.auth.getUser()` é uma ida de REDE ao Auth do Supabase, e ela roda
+// em TODA navegação — a página nova só começa a renderizar depois que ela
+// volta. Medido no `pg_stat_statements`: as 4 consultas que o Auth dispara por
+// validação eram a maior carga do banco, acima de qualquer consulta da Sora.
+//
+// ⚠️ AQUI É EDGE, NÃO É O BACKEND. O Render é um processo só, de pé o tempo
+// todo, então lá o cache acerta de forma previsível. A Vercel distribui o
+// middleware em várias instâncias e recicla quando quer: este Map pode
+// simplesmente não existir na requisição seguinte. Por isso o desenho é
+// "acelera quando dá, nunca atrapalha quando não dá" — o pior caso é o
+// comportamento de hoje, sem nenhuma regressão.
+//
+// ⚠️ NADA DE `Buffer` NEM `node:` — Edge Runtime não tem. Quem lê o token e o
+// vencimento é o `getSession()` do próprio SDK, que é LOCAL (lê o cookie, sem
+// rede — o mesmo motivo pelo qual `lib/ssr.ts` já o usa).
+const TTL_SESSAO_MS = 60_000;
+
+// ⚠️ A MARGEM É O QUE IMPEDE DE DERRUBAR A SESSÃO, e é o ponto mais delicado
+// deste arquivo. `getUser()` não só valida: quando o token está perto de
+// vencer, é ELE quem dispara a renovação e a rotação do cookie. Servir do
+// cache nessa hora PULARIA a renovação devida — e o refresh token morreria
+// sem substituto, que é exatamente o defeito que derrubava o cliente no menu.
+// Com margem de 2 minutos, uma entrada nunca é servida com o token perto do
+// fim: a renovação sempre acontece pela via normal.
+const MARGEM_RENOVACAO_MS = 120_000;
+
+// Teto de memória: instância de Edge é pequena. Cheiou, esvazia — custa
+// revalidar por um ciclo, e é mais simples de acertar que manter ordem de uso.
+const TETO_SESSAO = 200;
+const cacheSessao = new Map<string, { user: { id: string }; ate: number }>();
+
+/**
+ * O usuário desta requisição, reaproveitando a validação recente quando dá.
+ *
+ * ⚠️ A CHAVE É O ACCESS TOKEN, e isso não é detalhe: token diferente é sessão
+ * diferente, então nunca há como servir a identidade de uma pessoa para outra.
+ * E quando o SDK renova, o token MUDA — a entrada velha deixa de ser
+ * encontrada sozinha, sem precisar de invalidação explícita.
+ *
+ * ⚠️ SÓ SUCESSO É CACHEADO. Guardar um "não tem usuário" faria uma falha
+ * momentânea do Auth deslogar quem estava logado, e por 60 segundos.
+ */
+async function usuarioDaRequisicao(
+  supabase: ReturnType<typeof createServerClient>,
+  // ⚠️ Tipo de retorno EXPLÍCITO: sem ele o TS não fecha a inferência (o cache
+  //    referencia o próprio valor que a função devolve). E `{ id }` é tudo que
+  //    o middleware usa daqui — conferido nos 4 pontos de uso abaixo.
+): Promise<{ id: string } | null> {
+  let token: string | undefined;
+  let expiraMs = 0;
+  try {
+    // Local: lê o cookie e, se o token já venceu, renova por conta própria
+    // (a mesma renovação que o getUser faria — nada é pulado).
+    const { data } = await supabase.auth.getSession();
+    token = data.session?.access_token;
+    expiraMs = data.session?.expires_at ? data.session.expires_at * 1000 : 0;
+  } catch { /* sem sessão legível: cai no caminho normal abaixo */ }
+
+  const agora = Date.now();
+  // Só vale usar cache com token válido e LONGE do vencimento (ver a margem).
+  const podeCachear = !!token && expiraMs > agora + MARGEM_RENOVACAO_MS;
+
+  if (podeCachear) {
+    const hit = cacheSessao.get(token!);
+    if (hit && hit.ate > agora) return hit.user;
+    if (hit) cacheSessao.delete(token!);
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user && podeCachear) {
+    if (cacheSessao.size >= TETO_SESSAO) cacheSessao.clear();
+    cacheSessao.set(token!, {
+      user,
+      // Nunca além da margem: o vencimento da entrada respeita o do token.
+      ate: Math.min(agora + TTL_SESSAO_MS, expiraMs - MARGEM_RENOVACAO_MS),
+    });
+  }
+  return user ?? null;
+}
+
 // e este middleware de auth não pode ser substituído.
 const LOCALE_COOKIE = 'sora-locale';
 
@@ -124,7 +207,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await usuarioDaRequisicao(supabase);
 
   // ⚠️ REPASSA O USUÁRIO JÁ VERIFICADO PRO SERVER COMPONENT.
   //
