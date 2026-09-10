@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import { limparCacheSWR } from '@/lib/swr-cache';
 import { lerPerfilCache, salvarPerfilCache, limparPerfilCache } from '@/lib/perfil-cache';
+import { sessaoRealmenteMorreu } from '@/lib/sessao-viva';
 
 // useLayoutEffect no cliente (hidrata o perfil do cache ANTES do paint, sem
 // flash) e useEffect no servidor (evita o warning de SSR). A primeira render
@@ -112,6 +113,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // `onAuthStateChange`, que é registrado uma vez só — com state ele leria
   // sempre o valor da primeira renderização.
   const perfilCarregadoDe = useRef<string | null>(null);
+  // A pessoa PEDIU pra sair? Só o `signOut()` liga isto. Serve pra separar o
+  // logout de verdade do `SIGNED_OUT` que o supabase-js emite sozinho quando
+  // uma renovação de token perde a corrida de rotação — ver o callback abaixo.
+  const saindoDeProposito = useRef(false);
 
   // Carrega o perfil pelo SERVIDOR (/api/me): lê a sessão via cookie + service
   // role. É confiável no F5 — o caminho client-side (RLS + sessão ainda
@@ -179,8 +184,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(finalizar);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (evento, session) => {
         const novo = session?.user ?? null;
+
+        // ⚠️ `SIGNED_OUT` NEM SEMPRE É LOGOUT — e acreditar nele cegamente era
+        // metade do bug "clico no menu e ele pede login de novo".
+        //
+        // O refresh token do Supabase é de uso único. O navegador e o
+        // middleware renovam a MESMA sessão, e quando disparam juntos o
+        // perdedor recebe 400 ("Invalid Refresh Token: Already Used"). O
+        // supabase-js trata erro que não é de rede como definitivo: chama
+        // `_removeSession()` e emite `SIGNED_OUT` — enquanto a sessão que o
+        // vencedor renovou segue perfeitamente viva. (Conferido no auth-js
+        // 2.105.4 instalado, `GoTrueClient._callRefreshToken`.)
+        //
+        // Aceitar isso aqui derrubava o app inteiro de uma vez: `user` virava
+        // null e TODO guard de rota mandava a pessoa pro login.
+        //
+        // Logout de verdade (o botão Sair) passa reto — é o que
+        // `saindoDeProposito` marca.
+        if (!novo && evento === 'SIGNED_OUT' && !saindoDeProposito.current) {
+          const morreu = await sessaoRealmenteMorreu();
+          if (!morreu) { finalizar(); return; }
+        }
 
         // ⚠️ ESTE CALLBACK DISPARA QUANDO A ABA VOLTA AO FOCO. O supabase-js
         // revalida/renova o token nesse momento e emite o evento — mesmo que
@@ -247,6 +273,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    // Marca ANTES da chamada: é este sinal que faz o `onAuthStateChange`
+    // tratar o `SIGNED_OUT` que vem a seguir como logout de verdade, em vez de
+    // reconferir a sessão como faz quando o evento chega sozinho.
+    saindoDeProposito.current = true;
+    // ⚠️ Solta a marca por TEMPO, não no `finally`. O evento pode chegar depois
+    // do `signOut()` resolver; zerar imediatamente faria o callback reconferir
+    // a sessão e engolir o logout que a pessoa pediu. E zerar NUNCA também não
+    // serve: a marca presa faria uma corrida futura ser lida como saída
+    // intencional, trazendo o bug de volta.
+    setTimeout(() => { saindoDeProposito.current = false; }, 3000);
     await supabase.auth.signOut();
     setPerfil(null);
     // ⚠️ Zera junto com o perfil. Sem isto, um relogin do MESMO usuário cairia

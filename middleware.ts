@@ -33,6 +33,47 @@ function ehPublica(pathname: string): boolean {
   return ROTAS_PUBLICAS.includes(pathname);
 }
 
+// ── FALHA TRANSITÓRIA DE RENOVAÇÃO × SESSÃO REALMENTE MORTA ───────────────
+//
+// ⚠️ ERA ISTO QUE DERRUBAVA O CLIENTE AO TOCAR NO MENU — e estava AQUI DENTRO,
+// não no prefetch, que foi onde eu procurei nas três tentativas anteriores.
+//
+// O refresh token do Supabase é de USO ÚNICO: quem o usa recebe um novo e o
+// antigo morre no mesmo instante. E DOIS lados renovam a MESMA sessão:
+//   · o navegador — o timer de auto-refresh do supabase-js, que também dispara
+//     quando a aba volta ao foco (o próprio AuthContext já documenta isso);
+//   · este middleware — a cada navegação, porque `getSession()` NÃO só lê:
+//     conferido no auth-js 2.105.4 instalado (`GoTrueClient.__loadSession`),
+//     ele chama `_callRefreshToken` sozinho quando falta menos de 90s
+//     (`EXPIRY_MARGIN_MS`) pro token vencer.
+//
+// Quando os dois disparam juntos, um vence e o outro recebe **400 "Invalid
+// Refresh Token: Already Used"**. E aí vem a parte destrutiva, também conferida
+// na fonte (`GoTrueClient._callRefreshToken`): erro que NÃO é de rede não é
+// retentado — ele chama `_removeSession()`, que **apaga os cookies de sessão**
+// e faz a validação devolver `user = null`.
+//
+// Lá embaixo, `user = null` caía no ramo "não está logado": redirect pro /login
+// **levando junto os cookies apagados** (via `comCookies`). Ou seja: uma disputa
+// de milissegundos destruía no navegador uma sessão que o lado VENCEDOR tinha
+// acabado de renovar com sucesso — e o estrago era permanente, exigindo login
+// de novo. É exatamente o relato: "clico no menu, ele desconecta e pede login".
+//
+// A distinção que faltava é simples: **a requisição CHEGOU com cookie de
+// sessão?** Se chegou e a validação falhou, isso é SUSPEITA DE CORRIDA, não
+// prova de logout. Nesse caso o middleware continua protegendo a rota (segue
+// mandando pro /login), mas NUNCA propaga o apagamento — o navegador fica com o
+// que tem, e se o par novo já chegou lá pela resposta vencedora, o /login
+// devolve a pessoa pro destino original sem ela ver formulário nenhum.
+//
+// ⚠️ COM VPN ISSO FICA MUITO MAIS PROVÁVEL, e é o que ligava os dois relatos: o
+// Supabase tolera o reuso do mesmo refresh token por alguns segundos (a janela
+// de reuso) devolvendo a MESMA sessão em vez de erro. Com latência alta as duas
+// tentativas se espalham além dessa janela e viram erro de verdade.
+function ehCookieDeSessao(nome: string): boolean {
+  return /^sb-.+-auth-token/.test(nome);
+}
+
 // ── i18n ──────────────────────────────────────────────────────────────────
 // Locale mora na URL: /es/* = espanhol, resto = português (raiz sem prefixo).
 // O locale resolvido é injetado no header de REQUEST `x-sora-locale`, lido pelo
@@ -163,6 +204,13 @@ export async function middleware(request: NextRequest) {
   // sessão morreu de verdade é a navegação REAL logo em seguida.
   const ehPalpite = request.headers.get('next-router-prefetch') === '1';
 
+  // ⚠️ LIDO AQUI, ANTES DE QUALQUER COISA TOCAR NA SESSÃO. O `setAll` do client
+  // do Supabase escreve em `request.cookies` também (é assim que ele deixa o
+  // token novo visível pro resto desta requisição), então depois da validação
+  // não dá mais pra saber com o que a pessoa CHEGOU — que é justamente o dado
+  // que separa "corrida de renovação" de "não está logado".
+  const tinhaSessao = request.cookies.getAll().some((c) => ehCookieDeSessao(c.name));
+
   // Auto-detect: visitante da landing raiz, sem cookie de idioma, que prefere
   // espanhol (ou vem do México) → manda pro /es. Só a landing pública — nunca
   // rotas do app, pra não interferir no fluxo PT logado.
@@ -209,6 +257,26 @@ export async function middleware(request: NextRequest) {
 
   const user = await usuarioDaRequisicao(supabase);
 
+  // Chegou com sessão e mesmo assim não validou → SUSPEITA de corrida de
+  // rotação, não prova de logout (ver o bloco no topo). A partir daqui, nenhum
+  // caminho pode propagar o apagamento dos cookies de sessão.
+  const falhaTransitoria = !user && tinhaSessao;
+
+  /**
+   * Copia os cookies de uma resposta pra outra, PRESERVANDO a sessão do
+   * navegador quando a falha pode ser transitória.
+   *
+   * ⚠️ É a linha que impede o estrago permanente. Quando a renovação perde a
+   * corrida, o `setAll` já gravou os cookies de sessão VAZIOS na resposta;
+   * repassá-los encerra no navegador uma sessão que provavelmente está viva.
+   */
+  const copiarCookies = (de: NextResponse, para: NextResponse) => {
+    de.cookies.getAll().forEach((c) => {
+      if (falhaTransitoria && ehCookieDeSessao(c.name)) return;
+      para.cookies.set(c);
+    });
+  };
+
   // ⚠️ REPASSA O USUÁRIO JÁ VERIFICADO PRO SERVER COMPONENT.
   //
   // O middleware acabou de validar o JWT com `getUser()` — que é uma ida de
@@ -233,7 +301,7 @@ export async function middleware(request: NextRequest) {
   {
     const anterior = response;
     response = NextResponse.next({ request: { headers: requestHeaders } });
-    anterior.cookies.getAll().forEach((c) => response.cookies.set(c));
+    copiarCookies(anterior, response);
   }
 
   /**
@@ -258,7 +326,7 @@ export async function middleware(request: NextRequest) {
    * em pouco mais de quatro horas no mesmo dia.
    */
   const comCookies = (resposta: NextResponse) => {
-    response.cookies.getAll().forEach((c) => resposta.cookies.set(c));
+    copiarCookies(response, resposta);
     return resposta;
   };
 
@@ -297,9 +365,21 @@ export async function middleware(request: NextRequest) {
     return comCookies(NextResponse.redirect(destino));
   }
 
-  // Com login tentando acessar login/signup → vai para dashboard
+  // Com login tentando acessar login/signup → vai para dashboard.
+  //
+  // ⚠️ E É AQUI QUE A CORRIDA SE CURA SOZINHA. Quem perdeu a rotação foi
+  // mandado pro /login SEM ter os cookies apagados; se o lado vencedor já
+  // entregou o par novo ao navegador, esta passagem encontra a sessão viva e
+  // devolve a pessoa PRO DESTINO QUE ELA TOCOU (`?next=`), não pro dashboard.
+  // O que era "fui deslogado no meio do menu" vira, no pior caso, um piscar.
+  //
+  // ⚠️ Só caminho relativo é aceito. `next` vem da URL, então mandar o
+  // redirect pra onde ele apontar sem checar seria um open redirect — `//host`
+  // é URL absoluta pro navegador, por isso a segunda condição.
   if (user && (pathname === '/login' || pathname === '/signup')) {
-    return comCookies(NextResponse.redirect(new URL('/dashboard', request.url)));
+    const next = request.nextUrl.searchParams.get('next');
+    const destino = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+    return comCookies(NextResponse.redirect(new URL(destino, request.url)));
   }
 
   return response;

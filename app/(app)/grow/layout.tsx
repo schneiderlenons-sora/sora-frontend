@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { sessaoRealmenteMorreu } from '@/lib/sessao-viva';
 import PageSkeleton from '@/components/ui/PageSkeleton';
 import { RefreshCw } from 'lucide-react';
 
@@ -37,7 +38,19 @@ export default function GrowLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { router.replace('/login'); return; }
+
+    // ⚠️ NÃO REDIRECIONA NA HORA. `user` fica null por um instante quando o
+    // supabase-js perde a corrida de rotação do refresh token — a sessão
+    // continua viva do lado que venceu. Redirecionar aqui era metade do bug
+    // "clico no menu e ele pede login": o /grow é clique direto da sidebar, e
+    // este layout mandava pro /login antes de qualquer um poder verificar.
+    // Ver `lib/sessao-viva.ts`.
+    if (!user) {
+      let ativo = true;
+      sessaoRealmenteMorreu().then((morreu) => { if (ativo && morreu) router.replace('/login'); });
+      return () => { ativo = false; };
+    }
+
     // Aguarda perfil carregar para avaliar temAcessoGrow corretamente.
     if (perfil === null) return;
     if (!temAcessoGrow && !ehUpgrade) router.replace('/grow/upgrade');

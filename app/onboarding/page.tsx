@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { sessaoRealmenteMorreu } from '@/lib/sessao-viva';
 import { OnboardingProvider, useOnboarding, type ModoOnboarding } from './OnboardingContext';
 import WizardShell from './components/WizardShell';
 import { Loader2 } from 'lucide-react';
@@ -36,9 +37,15 @@ export default function OnboardingPage() {
 
   // Sem auth → manda pra login (provavelmente clicou no link do WhatsApp
   // sem estar logado no browser; ele já tem conta, é só logar).
+  //
+  // ⚠️ Confirma antes. `user` fica null por um instante quando o supabase-js
+  // perde a corrida de rotação do refresh token, e a sessão do lado vencedor
+  // segue viva — ver `lib/sessao-viva.ts`.
   useEffect(() => {
-    if (loading) return;
-    if (!user) router.replace('/login');
+    if (loading || user) return;
+    let ativo = true;
+    sessaoRealmenteMorreu().then((morreu) => { if (ativo && morreu) router.replace('/login'); });
+    return () => { ativo = false; };
   }, [loading, user, router]);
 
   // Já completou → manda pra dashboard
