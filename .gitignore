@@ -51,3 +51,20 @@ next-env.d.ts
 # CLAUDE.md sobre o build do app); isto é só uma rede de segurança.
 *.keystore
 *.jks
+
+# Projeto Android gerado pelo Bubblewrap — o build de verdade vive em
+# C:\Users\jenif\sora-android (fora deste repo, caminho ASCII-only por
+# limitação do Android Gradle Plugin no Windows). Se `bubblewrap init` rodar
+# aqui por engano de novo, isto impede o `git add -A` de arrastar um projeto
+# Gradle inteiro (~dezenas de arquivos, nada a ver com o Next.js) pro commit.
+/app/build.gradle
+/app/src/
+/.gradle/
+/build.gradle
+/gradle/
+/gradle.properties
+/gradlew
+/gradlew.bat
+/settings.gradle
+/twa-manifest.json
+/manifest-checksum.txt
