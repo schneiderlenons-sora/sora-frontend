@@ -32,6 +32,8 @@ type User = {
   // Bancos CONECTADOS (vem do enriquecimento no route, casando por grupo).
   // Diferente de of_conexoes_pagas: quem tem franquia conecta de graça.
   of_conectadas?: number; of_conectadas_ok?: number; of_bancos?: string[];
+  // Dispositivo da ÚLTIMA sessão que enviou (migration 161) — Android × Apple.
+  plataforma?: string | null;
   created_at: string;
 };
 type Overview = {
@@ -48,11 +50,24 @@ type Overview = {
   ofMrr?: number; ofReceitaAnual?: number;
   ofConectados?: number; ofGrupos?: number; ofComProblema?: number;
   ofGruposFranquia?: number; ofGruposPagando?: number; ofPagandoSemUsar?: number;
+  // Dispositivo (migration 161): Android × Apple × desktop × sem dado ainda.
+  android?: number; ios?: number; desktop?: number; semDado?: number;
 };
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
   mensagem: string; tem_imagem: boolean; status: 'aberto' | 'em_andamento' | 'resolvido'; created_at: string;
   tipo?: 'problema' | 'melhoria';
+};
+
+// Dispositivo da última sessão que enviou (migration 161). Curto de propósito
+// — mora numa coluna de lista e num badge, sem espaço pra frase.
+const PLATAFORMA_LABEL: Record<string, string> = {
+  android_app: 'Android · app', android_web: 'Android · navegador',
+  ios_pwa: 'iOS · instalado', ios_web: 'iOS · navegador',
+  desktop: 'Desktop', outro: 'Outro',
+};
+const PLATAFORMA_CURTO: Record<string, string> = {
+  android_app: 'Android app', android_web: 'Android', ios_pwa: 'iOS app', ios_web: 'iOS', desktop: 'Desktop', outro: '—',
 };
 
 const PLANO_META: Record<Plano, { label: string; cor: string; icon?: any }> = {
@@ -245,7 +260,7 @@ export default function AdminPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou' | 'open_finance' | 'of_conectado'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou' | 'open_finance' | 'of_conectado' | 'android' | 'ios'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
@@ -412,6 +427,13 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                 alerta={!!ov && ((ov.ofComProblema ?? 0) > 0 || (ov.ofPagandoSemUsar ?? 0) > 0)}
                 hint={ov ? `${ov.ofGrupos ?? 0} contas · ${ov.ofGruposFranquia ?? 0} pela franquia · ${ov.ofGruposPagando ?? 0} pagando${ov.ofComProblema ? ` · ${ov.ofComProblema} reconectar` : ''}` : ''} />
           <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
+          {/* Só aparece depois que a 161 rodou e algum navegador já enviou —
+              antes disso os quatro ficam em 0 e o card só faria ruído. */}
+          {!!ov && (ov.android ?? 0) + (ov.ios ?? 0) + (ov.desktop ?? 0) > 0 && (
+            <Stat label="Android × Apple" value={`${ov.android ?? 0} / ${ov.ios ?? 0}`}
+                  hint={`${ov.desktop ?? 0} desktop${ov.semDado ? ` · ${ov.semDado} sem dado` : ''}`}
+                  onClick={() => { setTab('users'); setFilter('android'); }} />
+          )}
           <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.platinum} PL · ${ov.kit ?? 0} Kit` : ''} />
           <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
                 hint={ov ? 'tinham assinatura' : ''}
@@ -463,7 +485,7 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                        className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['of_conectado', 'Conectados'], ['open_finance', 'OF pago'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
+                {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['of_conectado', 'Conectados'], ['open_finance', 'OF pago'], ['android', 'Android'], ['ios', 'Apple/iOS'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
                           className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
@@ -495,6 +517,11 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                         <p className="text-xs text-muted-foreground tabular-nums">{u.phone || 'sem número'}</p>
                         <p className="text-[10px] text-muted-foreground/70">{dataCurta(u.created_at)}</p>
                       </div>
+                      {u.plataforma && PLATAFORMA_CURTO[u.plataforma] && (
+                        <span className="hidden md:inline-block px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap bg-muted/60 text-muted-foreground flex-shrink-0">
+                          {PLATAFORMA_CURTO[u.plataforma]}
+                        </span>
+                      )}
                       <StatusBadge u={u} />
                     </button>
                   ))}
@@ -609,6 +636,7 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                 <Info label="Onboarding">{sel.onboarding_completed ? 'Concluído' : 'Pendente'}</Info>
                 <Info label="Welcome">{sel.welcomed_at ? 'Enviado' : 'Não enviado'}</Info>
                 <Info label="Criado">{dataCurta(sel.created_at)}</Info>
+                <Info label="Dispositivo">{PLATAFORMA_LABEL[sel.plataforma || ''] || 'sem dado'}</Info>
                 <button onClick={() => { navigator.clipboard?.writeText(sel.id); flash('ID copiado'); }} className="col-span-2 flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3 py-2 hover:bg-muted/40">
                   <span className="text-muted-foreground">ID</span>
                   <span className="font-mono text-[11px] text-foreground flex items-center gap-1">{sel.id.slice(0, 8)}… <Copy size={11} /></span>

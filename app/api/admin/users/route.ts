@@ -21,8 +21,10 @@ export async function GET(req: NextRequest) {
   // Motivo da recusa é a migration 102 — pedido só quando ela já rodou.
   const COM_MOTIVO = `${COM_MRR},recuperacao_motivo`;
   // Conexão de banco avulsa (Open Finance): quantas ele paga e em que intervalo.
-  // Última camada da degradação — se estas não existirem, o resto continua.
   const COM_OF = `${COM_MOTIVO},of_conexoes_pagas,of_assinatura_intervalo`;
+  // Dispositivo (migration 161) — Android × Apple. Última camada da
+  // degradação — se não existir, o resto continua igual a antes.
+  const COM_PLATAFORMA = `${COM_OF},plataforma`;
 
   // `temMrr` = as colunas da 074 (mrr_excluir/assinatura_cancelada) existem.
   // O filtro "recorrentes" depende delas; sem a migration, cai numa versão
@@ -54,6 +56,9 @@ export async function GET(req: NextRequest) {
     // Não é o mesmo que "usa Open Finance" — o Básico/Premium tem franquia e
     // não aparece aqui. Este filtro é a RECEITA extra.
     else if (filter === 'open_finance') query = query.gt('of_conexoes_pagas', 0);
+    // Dispositivo: Android (app OU navegador) × Apple (PWA OU navegador).
+    else if (filter === 'android') query = query.in('plataforma', ['android_app', 'android_web']);
+    else if (filter === 'ios')     query = query.in('plataforma', ['ios_pwa', 'ios_web']);
     // 'of_conectado' NÃO entra aqui: `of_conexoes` é por GRUPO, não por user,
     // e o Supabase não filtra por tabela irmã neste select. É aplicado depois
     // de enriquecer (ver abaixo) — o limite de 300 vale pra busca, e quem tem
@@ -70,8 +75,9 @@ export async function GET(req: NextRequest) {
     return query;
   };
 
-  // Degrada por migration: OF → 102 (motivo) → 074 (MRR) → base.
-  let { data, error } = await build(COM_OF, true);
+  // Degrada por migration: plataforma (161) → OF → 102 (motivo) → 074 (MRR) → base.
+  let { data, error } = await build(COM_PLATAFORMA, true);
+  if (error) ({ data, error } = await build(COM_OF, true));
   if (error) ({ data, error } = await build(COM_MOTIVO, true));
   if (error) ({ data, error } = await build(COM_MRR, true));
   if (error) ({ data, error } = await build(BASE, false));

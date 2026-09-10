@@ -246,7 +246,25 @@ export async function GET() {
     for (const g of gruposPagantes) if (!grupos.has(g)) ofPagandoSemUsar++;
   } catch { /* tabela of_conexoes pode não existir */ }
 
+  // ── DISPOSITIVO (Android × Apple) ──────────────────────────────────────
+  //
+  // Migration 161. Tolerante: sem ela, os quatro ficam em 0 e o card some
+  // sozinho no painel (ele só renderiza quando a soma é > 0).
+  let android = 0, ios = 0, desktop = 0, semDado = 0;
+  try {
+    const { data, error } = await supabaseAdmin.from('users').select('plataforma');
+    if (error) throw error;
+    for (const u of data || []) {
+      const p = u.plataforma as string | null;
+      if (p === 'android_app' || p === 'android_web') android++;
+      else if (p === 'ios_pwa' || p === 'ios_web') ios++;
+      else if (p === 'desktop' || p === 'outro') desktop++;
+      else semDado++;
+    }
+  } catch { /* migration 161 pode não ter rodado */ }
+
   return NextResponse.json({
+    android, ios, desktop, semDado,
     mrrExcluidos, cancelados, naoConcluido, recuperados,
     total, inativo, basico, premium, platinum, kit,
     ativos: total - inativo,
