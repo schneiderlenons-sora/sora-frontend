@@ -45,3 +45,9 @@ next-env.d.ts
 .playwright-mcp/
 /*.png
 .github/
+
+# Chaves de assinatura Android (Bubblewrap/TWA) — NUNCA versionar.
+# A keystore de verdade fica FORA deste repo de propósito (ver comentário no
+# CLAUDE.md sobre o build do app); isto é só uma rede de segurança.
+*.keystore
+*.jks
