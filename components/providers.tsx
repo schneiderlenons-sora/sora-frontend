@@ -12,6 +12,7 @@ import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
 import { LoadingGateProvider } from '@/components/ui/LoadingGate';
 import ThemeColorSync from '@/components/layout/ThemeColorSync';
 import OrigemSync from '@/components/app/OrigemSync';
+import DispositivoSync from '@/components/app/DispositivoSync';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <PaywallRedirect />
           <OnboardingRedirect />
           <WelcomeTrigger />
+          {/* Precisa de sessão pra gravar (é o `id` que identifica a linha em
+              `users`) — por isso mora AQUI, dentro do AuthProvider, e não ao
+              lado do OrigemSync (que roda mesmo deslogado). */}
+          <DispositivoSync />
           <MarcasCustomProvider>
             <LoadingGateProvider>
               {children}
