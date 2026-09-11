@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { detectarPlataforma } from '@/lib/plataforma';
 
 const CHAVE = 'sora-dispositivo-enviado';
@@ -20,7 +21,15 @@ const CHAVE = 'sora-dispositivo-enviado';
  * opcional, não vale reenviar pra sempre.
  */
 export default function DispositivoSync() {
+  const { user, loading } = useAuth();
+
   useEffect(() => {
+    // ⚠️ SÓ COM SESSÃO NA MÃO. Sem isto a rota respondia 401, o guard abaixo
+    // nunca era marcado e o envio se repetia A CADA CARREGAMENTO — virando uma
+    // chamada recorrente que valida sessão FORA do middleware. Telemetria não
+    // pode ter esse peso: espera o usuário existir e dispara uma vez só.
+    if (loading || !user) return;
+
     try {
       if (localStorage.getItem(CHAVE) === '1') return;
     } catch {
@@ -39,7 +48,7 @@ export default function DispositivoSync() {
         }
       })
       .catch(() => { /* melhor esforço — nunca atrapalha o app */ });
-  }, []);
+  }, [user, loading]);
 
   return null;
 }
