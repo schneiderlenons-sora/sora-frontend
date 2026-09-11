@@ -2,13 +2,19 @@
 
 import { preload } from 'swr';
 import { api } from './api';
+import { chave } from './chaves-swr';
 
 // ─────────────────────────────────────────────────────────────
 // Prefetch dos dados das abas — casado com as CHAVES do useApi de cada página.
 // Dispara com os params PADRÃO (mês atual, sem filtro), que é o estado inicial
 // das páginas → a chave bate e a página reaproveita a requisição já em voo.
-// (Se a chave mudar numa página, aqui só vira um request desperdiçado — não
-// quebra nada; manter em sincronia.)
+//
+// ⚠️ AS CHAVES VÊM DE `lib/chaves-swr.ts`, NUNCA ESCRITAS À MÃO AQUI. Enquanto
+// cada aba tinha o próprio prefixo, este arquivo pedia a MESMA URL várias vezes
+// com nomes diferentes e o SWR não tinha como deduplicar: medido num celular
+// emulado, aquecer estas três abas disparava `resumo?mes` 3×, `wallets` 2×,
+// `categorias` 2× e `transacoes?limit=500` 2×. Agora o conjunto abaixo tem 4
+// requisições distintas no total, e elas servem as três abas de uma vez.
 // ─────────────────────────────────────────────────────────────
 
 function mesAtual(): string {
@@ -19,30 +25,29 @@ function mesAtual(): string {
 const PREFETCHERS: Record<string, (p: string) => void> = {
   '/transacoes': (p) => {
     const m = mesAtual();
-    preload(`tx:list:${p}:${m}`, () => api.transacoes.listar(p, { mes: m, limit: 500 }));
-    preload(`tx:wallets:${p}`, () => api.wallets.listar(p));
-    preload(`tx:resumo:${p}:${m}`, () => api.transacoes.resumo(p, m));
+    preload(chave.transacoes(p, { mes: m, limit: 500 }), () => api.transacoes.listar(p, { mes: m, limit: 500 }));
+    preload(chave.wallets(p), () => api.wallets.listar(p));
+    preload(chave.resumo(p, m), () => api.transacoes.resumo(p, m));
   },
   '/relatorios': (p) => {
     const m = mesAtual();
-    preload(`rel:resumo:${p}:${m}:todos`, () => api.transacoes.resumo(p, m, { criado_por: undefined }));
-    preload(`rel:txs:${p}:${m}:todos`, () => api.transacoes.listar(p, { mes: m, limit: 500, criado_por: undefined }));
-    preload(`rel:wallets:${p}`, () => api.wallets.listar(p));
-    preload(`rel:cats:${p}`, () => api.categorias.listar(p));
+    preload(chave.resumo(p, m), () => api.transacoes.resumo(p, m));
+    preload(chave.transacoes(p, { mes: m, limit: 500 }), () => api.transacoes.listar(p, { mes: m, limit: 500 }));
+    preload(chave.wallets(p), () => api.wallets.listar(p));
+    preload(chave.categorias(p), () => api.categorias.listar(p));
   },
   '/categorias': (p) => {
     const m = mesAtual();
-    preload(`cat:list:${p}`, () => api.categorias.listar(p));
-    preload(`cat:resumo:${p}:${m}`, () => api.transacoes.resumo(p, m));
-    preload(`cat:limites:${p}:${m}`, () => api.limites.listar(p, m));
+    preload(chave.categorias(p), () => api.categorias.listar(p));
+    preload(chave.resumo(p, m), () => api.transacoes.resumo(p, m));
+    preload(chave.limites(p, m), () => api.limites.listar(p, m));
   },
   '/contas-bancarias': (p) => {
-    preload(`contas:wallets:${p}`, () => api.wallets.listar(p));
+    preload(chave.wallets(p), () => api.wallets.listar(p));
   },
   '/cartao-de-credito': (p) => {
-    const m = mesAtual();
-    preload(`cart:wallets:${p}`, () => api.wallets.listar(p));
-    preload(`cart:txmes:${p}:${m}`, () => api.transacoes.listar(p, { mes: m, limit: 500 }));
+    preload(chave.wallets(p), () => api.wallets.listar(p));
+    preload(chave.faturas(p, 0), () => api.wallets.faturas(p, 0));
   },
   // ⚠️ `/metas` e `/dividas` NÃO entram aqui, ao contrário de toda outra aba.
   // `metas.imagem_url` e `dividas.imagem_url` guardam a FOTO em base64 direto
@@ -54,9 +59,9 @@ const PREFETCHERS: Record<string, (p: string) => void> = {
   // conteúdo com imagem espera o clique de verdade.
   '/limites-de-gastos': (p) => {
     const m = mesAtual();
-    preload(`lim:cats:${p}`, () => api.categorias.listar(p));
-    preload(`lim:resumo:${p}:${m}`, () => api.transacoes.resumo(p, m));
-    preload(`lim:config:${p}:${m}`, () => api.limites.listar(p, m));
+    preload(chave.categorias(p), () => api.categorias.listar(p));
+    preload(chave.resumo(p, m), () => api.transacoes.resumo(p, m));
+    preload(chave.limites(p, m), () => api.limites.listar(p, m));
   },
   '/investimentos': (p) => {
     preload(`inv:lista:${p}`, () => api.investimentos.listar(p));
@@ -71,7 +76,24 @@ export function prefetchRota(rota: string, phone: string) {
   try { PREFETCHERS[base]?.(phone); } catch { /* prefetch é best-effort */ }
 }
 
-// Aquece as abas mais usadas no tempo ocioso → 1ª visita já instantânea.
+// ⚠️ AQUECE SÓ O QUE O DASHBOARD JÁ IA BUSCAR DE QUALQUER JEITO.
+//
+// Antes aquecia `/transacoes`, `/categorias` e `/relatorios` — o que, com as
+// chaves unificadas, ainda traria `transacoes?limit=500`: a consulta MAIS PESADA
+// do app, de uma aba que a pessoa talvez nem abra, disputando a fila com o
+// conteúdo do dashboard. Num celular a fila é o gargalo real: o navegador abre
+// 6 conexões por host e o dashboard já enche isso sozinho.
+//
+// Estas três são baratas, servem VÁRIAS abas por causa da chave compartilhada
+// (categorias serve /categorias, /limites-de-gastos e /relatorios; wallets serve
+// 5 telas) e o dashboard já as pede — então aqui elas custam ZERO requisição
+// extra e só garantem que a aba seguinte abra sem rede.
 export function prefetchTopTabs(phone: string) {
-  ['/transacoes', '/categorias', '/relatorios'].forEach((r) => prefetchRota(r, phone));
+  if (!phone) return;
+  const m = mesAtual();
+  try {
+    preload(chave.wallets(phone), () => api.wallets.listar(phone));
+    preload(chave.categorias(phone), () => api.categorias.listar(phone));
+    preload(chave.resumo(phone, m), () => api.transacoes.resumo(phone, m));
+  } catch { /* prefetch é best-effort */ }
 }

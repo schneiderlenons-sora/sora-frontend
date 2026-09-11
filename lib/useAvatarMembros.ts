@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useApi } from './useApi';
 import { api } from './api';
+import { chave } from './chaves-swr';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A FOTO DE QUEM LANÇOU — buscada UMA vez, não uma por linha.
@@ -37,7 +38,7 @@ export function useAvatarMembros(
   compartilhado = true,
 ): Map<string, AvatarMembro> {
   const { data } = useApi<any[]>(
-    compartilhado && grupoId ? `membros:avatar:${grupoId}` : null,
+    compartilhado && grupoId ? chave.membros(grupoId) : null,
     () => api.grupos.membros(grupoId!),
   );
 

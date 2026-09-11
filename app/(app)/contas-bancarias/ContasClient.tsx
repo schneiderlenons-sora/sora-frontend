@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import { supabase } from '@/lib/supabase';
 import { marcaDe } from '@/components/ui/IconeMarca';
@@ -144,7 +145,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   // pra UI renderizar corretamente.
   // SWR cacheia (revisita instantânea); mantém `wallets` local pro otimismo
   // (definir padrão, arquivar e excluir atualizam a UI na hora).
-  const { data: walletsRaw, mutate: mWallets } = useApi(phone ? `contas:wallets:${phone}` : null, () => api.wallets.listar(phone), { fallbackData: initialData });
+  const { data: walletsRaw, mutate: mWallets } = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone), { fallbackData: initialData });
   useEffect(() => {
     if (walletsRaw === undefined) return;
     const walletPadraoId = perfil?.wallet_padrao_id || null;

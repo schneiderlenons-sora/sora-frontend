@@ -10,6 +10,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import { mutate as mutateGlobal } from 'swr';
 import {
@@ -80,19 +81,19 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   // Uma lista só de transações (as 1000 mais recentes): o ciclo da fatura cruza
   // meses, então filtrar por mês não serve. Antes havia um fetch extra só do mês
   // corrente — virou desnecessário quando a fatura passou a ser por ciclo.
-  const { data: wRaw,     mutate: mW }  = useApi(phone ? `cart:wallets:${phone}` : null, () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
-  const { data: tAllData, mutate: mTA } = useApi(phone ? `cart:txall:${phone}` : null, () => api.transacoes.listar(phone, { limit: 1000 }), { fallbackData: initialData?.txAll });
+  const { data: wRaw,     mutate: mW }  = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
+  const { data: tAllData, mutate: mTA } = useApi(phone ? chave.transacoes(phone, { limit: 1000 }) : null, () => api.transacoes.listar(phone, { limit: 1000 }), { fallbackData: initialData?.txAll });
   // Situação da fatura ATUAL de cada cartão, numa chamada só. Serve pra uma
   // decisão que precisa acontecer ANTES de desenhar: fatura fechada e já paga
   // não é mais "a atual" — quem manda na tela é a seguinte.
   // ⚠️ Sempre no offset 0 (a competência de verdade), nunca na deslocada: é o
   // que impede o vaivém "pulou → não está mais paga → volta".
   const { data: faturasData } = useApi(
-    phone ? `cart:faturas:${phone}` : null, () => api.wallets.faturas(phone, 0));
+    phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
   // A fatura SEGUINTE: é dela que saem as parcelas previstas de quem já pagou a
   // atual (a projeção só existe pra fatura futura).
   const { data: faturasProx } = useApi(
-    phone ? `cart:faturas1:${phone}` : null, () => api.wallets.faturas(phone, 1));
+    phone ? chave.faturas(phone, 1) : null, () => api.wallets.faturas(phone, 1));
 
   // Parcelas que só o banco conhece, por cartão+competência (migration 116).
   const previstoPor = useMemo(() => {

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import BaleiaHumor, { humorPorFinancas } from '@/components/relatorios/BaleiaHumor';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria, citrico } from '@/lib/categorias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -124,18 +125,18 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 
   // Dados via SWR — revisita/troca de mês instantânea (cache em memória).
   const { data: rData, isValidating: refreshing, mutate: mR } =
-    useApi(phone ? `rel:resumo:${phone}:${mesRef}:${membroFiltro}` : null, () => api.transacoes.resumo(phone, mesRef, { criado_por: criadoPorParam }), { fallbackData: initialData?.resumo });
+    useApi(phone ? chave.resumo(phone, mesRef, criadoPorParam) : null, () => api.transacoes.resumo(phone, mesRef, { criado_por: criadoPorParam }), { fallbackData: initialData?.resumo });
   const { data: rAntData, mutate: mRAnt } =
-    useApi(phone ? `rel:resumoAnt:${phone}:${mesAntRef}` : null, () => api.transacoes.resumo(phone, mesAntRef), { fallbackData: initialData?.resumoAnt });
+    useApi(phone ? chave.resumo(phone, mesAntRef) : null, () => api.transacoes.resumo(phone, mesAntRef), { fallbackData: initialData?.resumoAnt });
   const { data: tData, mutate: mT } =
-    useApi(phone ? `rel:txs:${phone}:${mesRef}:${membroFiltro}` : null, () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por: criadoPorParam }), { fallbackData: initialData?.txs });
+    useApi(phone ? chave.transacoes(phone, { mes: mesRef, limit: 500, criadoPor: criadoPorParam }) : null, () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, criado_por: criadoPorParam }), { fallbackData: initialData?.txs });
   const { data: wData, mutate: mW } =
-    useApi(phone ? `rel:wallets:${phone}` : null, () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
+    useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
   const { data: cData, mutate: mC } =
-    useApi(phone ? `rel:cats:${phone}` : null, () => api.categorias.listar(phone), { fallbackData: initialData?.cats });
+    useApi(phone ? chave.categorias(phone) : null, () => api.categorias.listar(phone), { fallbackData: initialData?.cats });
   // Membros do grupo (só em gestão compartilhada) — pro seletor de membro.
   const { data: membrosData } =
-    useApi(compartilhado && grupoId ? `rel:membros:${grupoId}` : null, () => api.grupos.membros(grupoId!));
+    useApi(compartilhado && grupoId ? chave.membros(grupoId) : null, () => api.grupos.membros(grupoId!));
   const membros: any[] = Array.isArray(membrosData) ? membrosData : [];
   // ⚠️ A foto de quem lançou sai DAQUI, não da transação. Embutida na linha,
   // ela era baixada uma vez por transação (base64) e estourou a cota de egress
@@ -164,23 +165,23 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   // usam nada disso, e a chamada extra sairia de graça no caminho do LCP.
   const ehPendentes = tab === 'pendentes';
   const { data: recData } = useApi(
-    phone && ehPendentes ? `rel:rec:${phone}` : null, () => api.recorrencias.listar(phone));
+    phone && ehPendentes ? chave.recorrencias(phone) : null, () => api.recorrencias.listar(phone));
   const { data: divData } = useApi(
-    phone && ehPendentes ? `rel:div:${phone}` : null, () => api.dividas.listar(phone));
+    phone && ehPendentes ? chave.dividas(phone) : null, () => api.dividas.listar(phone));
   const { data: fatData } = useApi(
-    phone && ehPendentes ? `rel:fat:${phone}` : null, () => api.wallets.faturas(phone, 0));
+    phone && ehPendentes ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
 
   // Os 12 meses REAIS do ano — alimentam o gráfico de fluxo E a média/projeção.
   // Não busca na aba de pendentes, que não usa nada disso. Como a key do SWR é
   // a mesma nas duas abas, trocar entre elas não refaz a chamada.
   const { data: anualData } = useApi(
-    phone && tab !== 'pendentes' ? `rel:anual:${phone}:${ano}:${membroFiltro}` : null,
+    phone && tab !== 'pendentes' ? chave.anual(phone, ano, criadoPorParam) : null,
     () => api.transacoes.anual(phone, ano, { criado_por: criadoPorParam }),
   );
 
   // Limites por categoria do mês (mesma fonte da aba Categorias).
   const { data: limitesData } = useApi(
-    phone ? `rel:limites:${phone}:${mesRef}` : null,
+    phone ? chave.limites(phone, mesRef) : null,
     () => api.limites.listar(phone, mesRef),
   );
 

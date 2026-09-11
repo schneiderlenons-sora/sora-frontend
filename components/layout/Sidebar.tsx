@@ -144,21 +144,73 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
       '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
     ];
+    // ⚠️ EM LOTES, NÃO DE UMA VEZ — e isto veio de medição, não de teoria.
+    //
+    // `rotas.forEach(router.prefetch)` disparava as 31 rotas no mesmo instante.
+    // Medido num celular emulado (CPU 4×): o Next pede CADA rota DUAS vezes, o
+    // que dá **61 requisições**, com picos de 18 abertas na mesma janela de
+    // 300ms. O navegador só mantém 6 conexões por host — todo o resto vira
+    // FILA, e é a fila que fazia chamadas de 200ms aparecerem como 1s, 2,3s.
+    //
+    // ⚠️ E `requestIdleCallback` NÃO PROTEGIA: ele significa "CPU ociosa", não
+    // "rede ociosa". Ele disparava em ~1730ms enquanto as chamadas de dado do
+    // próprio dashboard saíam em ~2330ms — ou seja, o aquecimento competia de
+    // frente com o conteúdo que a pessoa está esperando ver. Era o app
+    // atrasando a si mesmo.
+    //
+    // Agora: espera a página carregar, e vai de 4 em 4. As 31 rotas se espalham
+    // por ~2s de tempo ocioso em vez de um pico — o aquecimento continua
+    // existindo (clicar numa aba segue instantâneo), mas deixa de disputar a
+    // fila com o que está na tela.
+    const LOTE = 4;
+    const timers: number[] = [];
+    let cancelado = false;
+
     const warm = () => {
       // ⚠️ A FLAG É MARCADA AQUI DENTRO, não na entrada do efeito. Se o
       // componente desmontar antes de o navegador ficar ocioso, o cleanup
       // cancela o callback e NADA foi aquecido — marcar antes deixaria o
       // app sem prefetch nenhum pelo resto da sessão.
+      if (cancelado) return;
       if (jaAqueceu === phone) return;
       jaAqueceu = phone;
-      rotas.forEach((r) => router.prefetch(r));
-      prefetchTopTabs(phone); // + dados das 3 mais usadas
+
+      // Dados primeiro: são as 3 chamadas que TODAS as abas compartilham
+      // (wallets, categorias, resumo) e o dashboard já as pediu — com as chaves
+      // de `lib/chaves-swr.ts` isto custa ZERO requisição extra.
+      prefetchTopTabs(phone);
+
+      for (let i = 0; i < rotas.length; i += LOTE) {
+        const fatia = rotas.slice(i, i + LOTE);
+        timers.push(window.setTimeout(() => {
+          if (cancelado) return;
+          fatia.forEach((r) => router.prefetch(r));
+        }, (i / LOTE) * 300));
+      }
     };
-    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
-    const id = ric ? ric(warm) : window.setTimeout(warm, 1500);
+
+    // Só depois do `load`: antes disso a rede está ocupada com o que a pessoa
+    // veio ver. Se a página já carregou, cai no ocioso normalmente.
+    // ⚠️ O handle do `requestIdleCallback` vive num pool de ids SEPARADO do
+    // `setTimeout`. Guardá-lo junto e cancelar tudo com `clearTimeout` podia
+    // matar um timer alheio que por acaso tivesse o mesmo número — por isso ele
+    // fica à parte, com o cancelador certo. O `cancelado` acima é a rede de
+    // segurança que torna o cancelamento correto de qualquer forma.
+    let ocioso: number | null = null;
+    const agendar = () => {
+      const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
+      if (ric) ocioso = ric(warm);
+      else timers.push(window.setTimeout(warm, 1500));
+    };
+    if (document.readyState === 'complete') agendar();
+    else window.addEventListener('load', agendar, { once: true });
+
     return () => {
+      cancelado = true;
+      window.removeEventListener('load', agendar);
+      timers.forEach((t) => clearTimeout(t));
       const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
-      if (ric && cic) cic(id as number); else clearTimeout(id as number);
+      if (ocioso !== null && cic) cic(ocioso);
     };
   }, [phone, router]);
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no

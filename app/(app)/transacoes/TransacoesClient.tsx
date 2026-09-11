@@ -14,6 +14,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAvatarMembros } from '@/lib/useAvatarMembros';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -116,14 +117,14 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // arquivadas dentro (ou o contrário) até revalidar.
   const [verArquivadas, setVerArquivadas] = useState(false);
   const { data: txData, mutate: mTx } = useApi(
-    phone ? `tx:list:${phone}:${mesRef}:${verArquivadas ? 'arq' : 'nrm'}` : null,
+    phone ? chave.transacoes(phone, { mes: mesRef, limit: 500, arquivadas: verArquivadas }) : null,
     () => api.transacoes.listar(phone, { mes: mesRef, limit: 500, ...(verArquivadas ? { arquivadas: 1 as const } : {}) }),
     // ⚠️ O fallback do SSR é da lista NORMAL — servi-lo na aba de arquivadas
     // mostraria transações visíveis como se estivessem escondidas.
     { fallbackData: verArquivadas ? undefined : initialData?.tx },
   );
-  const { data: wData,  mutate: mW }  = useApi(phone ? `tx:wallets:${phone}` : null,            () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
-  const { data: rData,  mutate: mR }  = useApi(phone ? `tx:resumo:${phone}:${mesRef}` : null,   () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
+  const { data: wData,  mutate: mW }  = useApi(phone ? chave.wallets(phone) : null,            () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
+  const { data: rData,  mutate: mR }  = useApi(phone ? chave.resumo(phone, mesRef) : null,   () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
 
   const txs: any[]     = txData?.transacoes ?? [];
   const wallets: any[] = wData ?? [];

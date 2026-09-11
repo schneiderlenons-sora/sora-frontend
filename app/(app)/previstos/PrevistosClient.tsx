@@ -11,6 +11,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { saldoBRL } from '@/lib/moeda';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -123,16 +124,16 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // ── Dados ────────────────────────────────────────────────────────────────
   const {
     data: recData, mutate: recarregarRec,
-  } = useApi(phone ? `prev:rec:${phone}` : null, () => api.recorrencias.listar(phone));
-  const { data: divData }  = useApi(phone ? `prev:div:${phone}` : null, () => api.dividas.listar(phone));
-  const { data: fatData }  = useApi(phone ? `prev:fat:${phone}` : null, () => api.wallets.faturas(phone, 0));
-  const { data: walData }  = useApi(phone ? `prev:wal:${phone}` : null, () => api.wallets.listar(phone));
-  const { data: resData }  = useApi(phone ? `prev:res:${phone}:${ymRef}` : null, () => api.transacoes.resumo(phone, ymRef));
+  } = useApi(phone ? chave.recorrencias(phone) : null, () => api.recorrencias.listar(phone));
+  const { data: divData }  = useApi(phone ? chave.dividas(phone) : null, () => api.dividas.listar(phone));
+  const { data: fatData }  = useApi(phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
+  const { data: walData }  = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone));
+  const { data: resData }  = useApi(phone ? chave.resumo(phone, ymRef) : null, () => api.transacoes.resumo(phone, ymRef));
   // O ano inteiro alimenta os gráficos históricos — mesma fonte do Relatórios,
   // pra os dois nunca divergirem no mesmo mês.
-  const { data: anoData }  = useApi(phone ? `prev:ano:${phone}:${anoRef}` : null, () => api.transacoes.anual(phone, anoRef));
+  const { data: anoData }  = useApi(phone ? chave.anual(phone, anoRef) : null, () => api.transacoes.anual(phone, anoRef));
   const { data: anoAntData } = useApi(
-    phone && periodo > mesRef ? `prev:ano:${phone}:${anoRef - 1}` : null,
+    phone && periodo > mesRef ? chave.anual(phone, anoRef - 1) : null,
     () => api.transacoes.anual(phone, anoRef - 1),
   );
 

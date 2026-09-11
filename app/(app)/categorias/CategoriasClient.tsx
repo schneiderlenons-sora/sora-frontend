@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ehPagamentoFatura } from '@/lib/categorizar';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
@@ -120,11 +121,11 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
 
   // ── Dados via SWR: cache em memória → revisitar/trocar de mês é instantâneo.
   const { data: catsData, error: catsError, isLoading: catsLoading, mutate: mCats } =
-    useApi(phone ? `cat:list:${phone}` : null, () => api.categorias.listar(phone), { fallbackData: initialData?.cats });
+    useApi(phone ? chave.categorias(phone) : null, () => api.categorias.listar(phone), { fallbackData: initialData?.cats });
   const { data: resumoData, mutate: mResumo } =
-    useApi(phone ? `cat:resumo:${phone}:${mesRef}` : null, () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
+    useApi(phone ? chave.resumo(phone, mesRef) : null, () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
   const { data: limitesData, mutate: mLimites } =
-    useApi(phone ? `cat:limites:${phone}:${mesRef}` : null, () => api.limites.listar(phone, mesRef), { fallbackData: initialData?.limites });
+    useApi(phone ? chave.limites(phone, mesRef) : null, () => api.limites.listar(phone, mesRef), { fallbackData: initialData?.limites });
 
   const categorias = (catsData ?? []) as Categoria[];
   const resumo: any = resumoData ?? { por_categoria: [], gastos: 0 };
