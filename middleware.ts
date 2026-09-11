@@ -74,6 +74,98 @@ function ehCookieDeSessao(nome: string): boolean {
   return /^sb-.+-auth-token/.test(nome);
 }
 
+// ── INSTRUMENTAÇÃO DO "DESLOGA AO CLICAR NO MENU" ─────────────────────────
+//
+// ⚠️ ISTO NÃO CORRIGE NADA — E É DE PROPÓSITO. O relato já teve CINCO rodadas
+// de correção (dutra.tim e weslley.jean1), cada uma partindo de uma teoria
+// plausível, e as duas principais foram DERRUBADAS por medição depois:
+//
+//   · "é a VPN / latência"  → o cliente respondeu que não usa VPN;
+//   · "a corrida de rotação do refresh token revoga a sessão" → TESTADO contra
+//     o Auth deste projeto: renovar duas vezes com o MESMO refresh token, 15s
+//     depois (fora da janela de reuso de 10s), devolveu HTTP 200 nas duas, o
+//     mesmo token rotacionado, e a sessão do vencedor seguiu válida. Este
+//     projeto NÃO revoga sessão por reuso.
+//
+// A causa raiz segue desconhecida e o bug nunca foi reproduzido aqui — tudo que
+// se sabe veio de duas frases de e-mail. Continuar corrigindo no escuro é o que
+// produziu as cinco rodadas. Isto troca teoria por fato: grava o instante exato
+// em que alguém é deslogado sem ter pedido.
+//
+// ⚠️ NUNCA PODE ATRAPALHAR A RESPOSTA. Só dispara no caminho da anomalia (que é
+// raro), tem teto de 1,5s, e qualquer falha dele é engolida — instrumentação que
+// derruba o que está medindo não serve.
+//
+// ⚠️ NÃO GUARDA TOKEN. O e-mail/id saem do próprio cookie só pra saber de QUEM
+// é o incidente. Nada de access token, refresh token ou o cookie em si.
+const INCIDENTE_TTL_MS = 60_000;
+const TETO_INCIDENTES = 100;
+const incidentesRecentes = new Map<string, number>();
+
+/** Quem era, lido do cookie de sessão. Best-effort, SEM verificar assinatura —
+ *  é só rótulo de log, então token forjado no máximo suja uma linha.
+ *  ⚠️ Recebe os cookies DA ENTRADA, não o request: depois da validação eles
+ *  podem ter sido reescritos (ou esvaziados) e a identidade se perderia. */
+function donoDoCookie(
+  cookies: { name: string; value: string }[],
+): { id?: string; email?: string } {
+  try {
+    // Sessão acima de ~4 KB vem FATIADA (`...auth-token.0`, `.1`): junta na
+    // ordem antes de decodificar, senão o JSON não fecha.
+    const partes = [...cookies].sort((a, b) => a.name.localeCompare(b.name));
+    let bruto = partes.map((c) => c.value).join('');
+    if (!bruto) return {};
+    if (bruto.startsWith('base64-')) bruto = atob(bruto.slice(7));
+    const j = JSON.parse(bruto);
+    return { id: j?.user?.id, email: j?.user?.email };
+  } catch { return {}; }
+}
+
+async function registrarIncidente(
+  request: NextRequest, pathname: string, ehPalpite: boolean, cookies: number,
+  dono: { id?: string; email?: string },
+) {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+    if (!url || !key) return;
+
+    const { id, email } = dono;
+
+    // ⚠️ Trava de repetição: se o app entrar em laço de redirect, sem isto a
+    // tabela vira um flood e o custo deixa de ser desprezível. Uma linha por
+    // pessoa por minuto já conta a história.
+    const agora = Date.now();
+    const chave = `${email || id || 'anon'}`;
+    const visto = incidentesRecentes.get(chave);
+    if (visto && agora - visto < INCIDENTE_TTL_MS) return;
+    if (incidentesRecentes.size >= TETO_INCIDENTES) incidentesRecentes.clear();
+    incidentesRecentes.set(chave, agora);
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1500);
+    await fetch(`${url}/rest/v1/auth_incidentes`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: id || null,
+        email: email || null,
+        rota: pathname,
+        palpite: ehPalpite,
+        user_agent: (request.headers.get('user-agent') || '').slice(0, 400),
+        cookies,
+      }),
+      signal: ctrl.signal,
+    }).catch(() => {});
+    clearTimeout(t);
+  } catch { /* instrumentação nunca derruba o que está medindo */ }
+}
+
 // ── i18n ──────────────────────────────────────────────────────────────────
 // Locale mora na URL: /es/* = espanhol, resto = português (raiz sem prefixo).
 // O locale resolvido é injetado no header de REQUEST `x-sora-locale`, lido pelo
@@ -209,7 +301,15 @@ export async function middleware(request: NextRequest) {
   // token novo visível pro resto desta requisição), então depois da validação
   // não dá mais pra saber com o que a pessoa CHEGOU — que é justamente o dado
   // que separa "corrida de renovação" de "não está logado".
-  const tinhaSessao = request.cookies.getAll().some((c) => ehCookieDeSessao(c.name));
+  const cookiesDeSessao = request.cookies.getAll().filter((c) => ehCookieDeSessao(c.name));
+  const tinhaSessao = cookiesDeSessao.length > 0;
+
+  // ⚠️ A IDENTIDADE TAMBÉM SAI DAQUI, pelo MESMO motivo — e este detalhe decide
+  // se a instrumentação serve pra alguma coisa. Se a validação falhar por
+  // `_removeSession`, o cookie já estará VAZIO quando o incidente for gravado,
+  // e a linha sairia sem saber de quem é — justo o campo que a investigação
+  // precisa. Lido antes, sobrevive.
+  const donoNaEntrada = donoDoCookie(cookiesDeSessao);
 
   // Auto-detect: visitante da landing raiz, sem cookie de idioma, que prefere
   // espanhol (ou vem do México) → manda pro /es. Só a landing pública — nunca
@@ -261,6 +361,16 @@ export async function middleware(request: NextRequest) {
   // rotação, não prova de logout (ver o bloco no topo). A partir daqui, nenhum
   // caminho pode propagar o apagamento dos cookies de sessão.
   const falhaTransitoria = !user && tinhaSessao;
+
+  // ⚠️ ESTE É O INSTANTE DO BUG — a requisição trouxe cookie de sessão e a
+  // validação voltou vazia. Até agora isso passava silencioso, e era por isso
+  // que as cinco rodadas anteriores só tinham teoria. Grava e segue (ver o
+  // bloco de instrumentação no topo: não decide nada, não bloqueia nada).
+  if (falhaTransitoria) {
+    await registrarIncidente(
+      request, pathname, ehPalpite, cookiesDeSessao.length, donoNaEntrada,
+    );
+  }
 
   /**
    * Copia os cookies de uma resposta pra outra, PRESERVANDO a sessão do
