@@ -209,17 +209,48 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // chunk, o módulo fica no cache do bundler, e quando o gate abrir o
   // componente monta sem ida à rede nem parse. Falha aqui é irrelevante — o
   // `next/dynamic` tenta de novo na hora do uso, com o skeleton de sempre.
+  // ⚠️ E MONTA NO OCIOSO TAMBÉM — baixar o chunk antes NÃO bastava.
+  //
+  // Medido num celular emulado (CPU 4×) DEPOIS do aquecimento acima estar no
+  // ar: rolar o dashboard ainda produzia uma tarefa de **549ms** bloqueando a
+  // main thread. Ou seja, o custo não era o download nem o parse (esses o
+  // `import()` acima já resolveu) — era o RENDER do recharts: montar os eixos,
+  // escalas d3 e o SVG é trabalho síncrono, e ele acontecia no instante em que
+  // o gate de visibilidade abria, ou seja, com o dedo no meio da rolagem.
+  //
+  // O custo é o mesmo em qualquer momento; o que muda é QUANDO ele é pago.
+  // Pago aqui, o usuário está lendo o topo da tela e não percebe. Pago no
+  // scroll, ele vê a rolagem travar — que é exatamente o relato.
+  //
+  // ⚠️ UM DE CADA VEZ, em callbacks de ocioso separados: montar os dois juntos
+  // junta os dois renders numa tarefa só e recria o bloqueio que estamos
+  // tirando, só que mais cedo.
+  const [graficosAquecidos, setGraficosAquecidos] = useState(false);
+
   useEffect(() => {
     if (!pronto) return;
-    const aquecer = () => {
-      import('@/components/dashboard/GraficoGastos').catch(() => {});
-      import('@/components/relatorios/CategoryDonut').catch(() => {});
-    };
+    let vivo = true;
     const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void) => number);
-    const id = ric ? ric(aquecer) : window.setTimeout(aquecer, 1200);
+    const agendar = (fn: () => void, ms: number) =>
+      (ric ? ric(fn) : window.setTimeout(fn, ms)) as number;
+
+    const aquecer = () => {
+      Promise.all([
+        import('@/components/dashboard/GraficoGastos').catch(() => {}),
+        import('@/components/relatorios/CategoryDonut').catch(() => {}),
+      ]).then(() => {
+        if (!vivo) return;
+        // Só depois de o módulo estar em memória: montar agora é render puro,
+        // sem rede e sem parse no caminho.
+        agendar(() => { if (vivo) setGraficosAquecidos(true); }, 600);
+      });
+    };
+
+    const id = agendar(aquecer, 1200);
     return () => {
+      vivo = false;
       const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
-      if (ric && cic) cic(id as number); else clearTimeout(id as number);
+      if (ric && cic) cic(id); else clearTimeout(id);
     };
   }, [pronto]);
 
@@ -359,7 +390,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           no mobile ele nasce abaixo da dobra. O skeleton tem a MESMA altura,
           então não há pulo de layout. */}
       <div ref={graficoRef} className="flex-1 flex items-center" style={{ minHeight: 220 }}>
-        {graficoVisivel ? (
+        {(graficoVisivel || graficosAquecidos) ? (
           <GraficoGastos
             modo={chartMode}
             barras={catsComPct.map((c: any) => ({
@@ -381,7 +412,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
           : <>Total gasto por categoria em {monthName}. Toque em <strong className="text-foreground">Área</strong> pra ver o dia a dia.</>}
       </p>
     </div>
-  ), [chartMode, dadosDiarios, catsComPct, monthName, graficoVisivel, graficoRef]);
+  ), [chartMode, dadosDiarios, catsComPct, monthName, graficoVisivel, graficosAquecidos, graficoRef]);
 
   // Saudação do card (desktop) — frase longa, sem vídeo por trás.
   const saudacao = temDados
@@ -673,7 +704,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
             {catsComPct.length > 0 && (
               <div ref={donutRef} className="lg:hidden -mx-2 mb-5">
                 <div className="w-full aspect-square max-w-[340px] mx-auto">
-                  {donutVisivel ? (
+                  {(donutVisivel || graficosAquecidos) ? (
                     <DonutCategorias
                       data={dadosDonut}
                       showList={false}
