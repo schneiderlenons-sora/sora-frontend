@@ -238,6 +238,21 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     finally { setQuitandoRec(null); }
   }
 
+  // A chave global da baixa automática — só existe pra quem tem Open Finance.
+  const temOpenFinance = useMemo(
+    () => wallets.some((w: any) => w.of_conta_id),
+    [wallets],
+  );
+  const { data: cfgData, mutate: mutCfg } = useApi(
+    ligado && temOpenFinance ? `d:previstos-cfg:${phone}` : null,
+    () => api.previstos.config(phone),
+  );
+  async function alternarBaixaAuto(v: boolean) {
+    // Otimista: o toggle responde na hora e revalida em silêncio.
+    await mutCfg({ baixa_automatica: v }, { revalidate: false });
+    try { await api.previstos.setConfig(v); } finally { await mutCfg(); }
+  }
+
   // Previsto ÚNICO (Fase 4). Por baixo é uma transação com data futura: o
   // backend grava `pago: false` e NÃO debita a carteira. Sem tabela nova.
   async function novoPrevistoAvulso(p: {
@@ -695,6 +710,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           ocupado={quitandoRec}
           sugestoes={(ocorrData as any)?.sugestoes ?? []}
           onNovoPrevisto={novoPrevistoAvulso}
+          baixaAutomatica={!!(cfgData as any)?.baixa_automatica}
+          onBaixaAutomatica={temOpenFinance ? alternarBaixaAuto : undefined}
         />
       ) : aba === 'projecao' ? (
         <SecaoProjecao

@@ -61,6 +61,7 @@ export type Sugestao = {
 
 export default function ExtratoFuturo({
   dados, carteiras, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
+  baixaAutomatica, onBaixaAutomatica,
 }: {
   dados: Parameters<typeof montarExtrato>[0];
   carteiras: string[];
@@ -73,6 +74,8 @@ export default function ExtratoFuturo({
     descricao: string; valor: number; data: string;
     tipo: 'Gasto' | 'Recebimento'; carteira: string | null;
   }) => Promise<void>;
+  baixaAutomatica?: boolean;
+  onBaixaAutomatica?: (v: boolean) => void;
 }) {
   const extrato: Extrato = useMemo(() => montarExtrato(dados), [dados]);
   const [aberta, setAberta] = useState<string | null>(null);
@@ -370,6 +373,56 @@ export default function ExtratoFuturo({
           </div>
         </div>
       ))}
+
+      {/* ── A CHAVE DA BAIXA AUTOMÁTICA ───────────────────────────────────
+          ⚠️ SÓ APARECE PRA QUEM TEM OPEN FINANCE. Quem não tem dá baixa
+          manualmente — que é o caminho principal e completo, não um plano B.
+          Mostrar uma opção inútil a esse usuário só geraria dúvida.
+
+          ⚠️ O AVISO FALA DO RISCO REAL. A tentação era escrever "o nome tem de
+          ser igual ao do banco" — e seria FALSO: o casamento usa conta, valor e
+          data, nunca o nome (ver `services/casarPrevisao.js`). Um aviso errado
+          faria a pessoa renomear coisas à toa achando que estava ajudando. */}
+      {onBaixaAutomatica && (
+        <div className="rounded-2xl border border-border/40 p-4"
+             style={{ background: 'hsl(var(--bg-card) / 0.35)' }}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!baixaAutomatica}
+            onClick={() => onBaixaAutomatica(!baixaAutomatica)}
+            className="w-full flex items-start gap-3 text-left min-h-[44px]"
+          >
+            <span className={`mt-0.5 flex-shrink-0 w-10 h-6 rounded-full p-0.5 transition-colors ${
+              baixaAutomatica ? 'bg-primary' : 'bg-muted-foreground/30'
+            }`}>
+              <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${
+                baixaAutomatica ? 'translate-x-4' : ''
+              }`} />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold">Dar baixa automática</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
+                {baixaAutomatica
+                  ? 'A Sora quita a previsão sozinha quando o banco confirma a cobrança.'
+                  : 'A Sora apenas sugere, e você confirma com um toque. (recomendado)'}
+              </span>
+            </span>
+          </button>
+
+          {baixaAutomatica && (
+            <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground border-t border-border/30 pt-3">
+              <TriangleAlert size={13} className="mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>
+                Ela casa por <strong>conta, valor e data</strong> — não pelo nome, então
+                você não precisa nomear igual ao banco. Mas se tiver{' '}
+                <strong>duas contas de valor parecido vencendo na mesma semana</strong>,
+                ela pergunta em vez de quitar. Conta de valor variável também sempre pergunta.
+              </span>
+            </p>
+          )}
+        </div>
+      )}
 
       {!extrato.dias.length && (
         <div className="rounded-2xl border border-border/40 p-8 text-center"

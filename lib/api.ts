@@ -593,6 +593,12 @@ export const api = {
     }) => req<any>('/api/previstos/ajuste', { method: 'POST', body: JSON.stringify(body) }),
     removerAjuste: (body: { recorrencia_id: string; competencia: string }) =>
       req<any>('/api/previstos/ajuste', { method: 'DELETE', body: JSON.stringify(body) }),
+    // Chave GLOBAL da baixa automatica. Nasce DESLIGADA: ligada, a Sora amarra
+    // sozinha a cobranca do banco a previsao; desligada, ela apenas SUGERE.
+    config: (phone: string) =>
+      req<{ baixa_automatica: boolean }>(`/api/previstos/config/${phone}`),
+    setConfig: (baixa_automatica: boolean) =>
+      req<any>('/api/previstos/config', { method: 'POST', body: JSON.stringify({ baixa_automatica }) }),
     desfazerQuitacao: (body: { transacao_id: string }) =>
       req<any>('/api/previstos/desfazer-quitacao', { method: 'POST', body: JSON.stringify(body) }),
   },
