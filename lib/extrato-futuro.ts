@@ -125,8 +125,17 @@ export type TransacaoExtrato = {
   recorrencia_id?: string | null;
 };
 
-/** Marca da forma ANTIGA de prever (o cron escreve isto em `observacao`). */
-const MARCA_PREVISTO = '[Previsto]';
+/** Marcas que o CRON escreve em `observacao` ao materializar uma ocorrência. */
+const MARCA_PREVISTO  = '[Previsto]';
+const MARCA_RECORRENTE = '[Recorrente]';
+
+/** Sem acento, sem caixa, sem marca — pra casar o texto que NÓS escrevemos. */
+function chaveTexto(s?: string | null) {
+  return String(s || '')
+    .replace(MARCA_PREVISTO, '').replace(MARCA_RECORRENTE, '')
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .trim().toLowerCase();
+}
 
 function diasEntre(de: string, ate: string): string[] {
   const out: string[] = [];
@@ -212,6 +221,52 @@ export function montarExtrato(params: {
 
   const dias = diasEntre(de, ate);
 
+  // ── 1B. QUITAÇÕES IMPLÍCITAS — o que o CRON já materializou ───────────────
+  //
+  // ⚠️ ISTO CORRIGE UMA CONTAGEM EM DOBRO REAL. No modo `lancar`, o cron cria a
+  // transação no dia do vencimento como `[Recorrente] <descrição>`, JÁ PAGA — e
+  // **sem `recorrencia_id`**, porque ele é anterior à migration 165. Sem
+  // reconhecer essa linha, o extrato gerava a previsão da mesma ocorrência por
+  // cima dela: no dia do vencimento, R$ 1.700 saíam duas vezes do saldo
+  // projetado (medido).
+  //
+  // ⚠️ AQUI CASAR POR TEXTO É LEGÍTIMO, ao contrário do casamento com o banco.
+  // A diferença é quem escreveu a string: o `[Recorrente] X` foi a PRÓPRIA SORA
+  // que gravou, a partir da descrição da recorrência. Com o banco, o texto é de
+  // terceiro e muda — e é por isso que lá o casamento é por valor e data.
+  //
+  // O terceiro caso é o "confirmar" de um `[Previsto]`: ele REMOVE o prefixo, e
+  // aí sobra só a descrição. Por isso a comparação sem marca — mas com valor
+  // dentro da tolerância, pra não engolir um gasto homônimo de outro valor.
+  const TOLERANCIA = 1;   // R$ — mesma do `parcelasPrevistas`/`casarPrevisao`
+  /** texto+competência → { comMarca, valores[] } */
+  const implicitas = new Map<string, { comMarca: boolean; valores: number[] }>();
+  for (const t of params.transacoes || []) {
+    if (t.transferencia) continue;
+    const obs = String(t.observacao || '');
+    const temMarca = obs.startsWith(MARCA_PREVISTO) || obs.startsWith(MARCA_RECORRENTE);
+    // ⚠️ SÓ TRANSAÇÃO PAGA MATERIALIZA A OCORRÊNCIA. Um `[Previsto]` com
+    // `pago: false` É a previsão — não a realização dela —, e nós já a geramos
+    // a partir da regra. Tratá-lo como materialização faria a linha sumir das
+    // duas formas e a conta desaparecer do extrato inteiro.
+    if (t.pago === false) continue;
+    const k = chaveTexto(obs) + '|' + ym(String(t.data).slice(0, 10));
+    const atual = implicitas.get(k) || { comMarca: false, valores: [] };
+    atual.comMarca = atual.comMarca || temMarca;
+    atual.valores.push(cent(Math.abs(Number(t.valor) || 0)));
+    implicitas.set(k, atual);
+  }
+  /** Esta ocorrência já foi materializada por uma transação? */
+  const jaMaterializada = (descricao: string | null | undefined, valor: number, comp: string) => {
+    const achado = implicitas.get(chaveTexto(descricao) + '|' + comp);
+    if (!achado) return false;
+    // Com a marca do cron, o texto basta: fomos NÓS que escrevemos aquela linha.
+    if (achado.comMarca) return true;
+    // Sem marca (um `[Previsto]` confirmado perde o prefixo), exige o valor
+    // bater — senão um gasto homônimo de outro valor engoliria a previsão.
+    return achado.valores.some((v) => Math.abs(v - cent(valor)) <= TOLERANCIA);
+  };
+
   // ── 2. Recorrências, DATADAS ──────────────────────────────────────────────
   for (const r of params.recorrencias || []) {
     if (!(Number(r.valor) > 0)) continue;
@@ -223,7 +278,10 @@ export function montarExtrato(params: {
       if (!venceEm(r as RecorrenciaQuando, dia)) continue;
       const comp = ym(dia);
       const chave = rid + ':' + comp;
-      if (rid && quitadas.has(chave)) continue;        // já foi paga
+      if (rid && quitadas.has(chave)) continue;        // já foi paga (vínculo)
+      // ⚠️ E a que o CRON já materializou, que não tem vínculo (ver 1B). Sem
+      // isto, no dia do vencimento a conta saía DUAS vezes do saldo.
+      if (jaMaterializada(r.descricao, Number(r.valor), comp)) continue;
       const aj = rid ? ajustePor.get(chave) : undefined;
       if (aj && aj.status === 'pulado') continue;      // pulada de propósito
       const data = aj && aj.status === 'movido' && aj.novaData
