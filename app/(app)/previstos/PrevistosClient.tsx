@@ -219,6 +219,35 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     const { linha, acao } = a;
     if (!linha.recorrenciaId || !linha.competencia) return;
     const base = { recorrencia_id: linha.recorrenciaId, competencia: linha.competencia };
+
+    // ── Correções de uma linha JÁ LANÇADA (Fase C) ──────────────────────────
+    //
+    // ⚠️ USA O `PUT /api/transacoes/:id` QUE JÁ EXISTE, de propósito. Ele já
+    // reconcilia o saldo pela DIFERENÇA (efeito depois − efeito antes), o que
+    // cobre sozinho os três casos daqui: mudar a data (não mexe no saldo),
+    // mudar o valor (aplica a diferença) e marcar como não paga (devolve o
+    // valor inteiro). Escrever uma segunda aritmética de saldo pra isso seria
+    // criar a divergência que este projeto já pagou caro várias vezes.
+    //
+    // O `recorrencia_id`/`competencia` vão junto pra AMARRAR a linha à
+    // ocorrência — é o que faz a previsão não reaparecer em dobro depois, nas
+    // transações que o cron criou antes da Fase B.
+    if (acao === 'corrigir' || acao === 'nao-paguei') {
+      if (!linha.transacaoId) return;
+      try {
+        setQuitandoRec(linha.recorrenciaId);
+        await api.transacoes.editar(linha.transacaoId, {
+          ...base,
+          ...(acao === 'nao-paguei' ? { pago: false } : {}),
+          ...(a.data  !== undefined ? { data: a.data }   : {}),
+          ...(a.valor !== undefined ? { valor: a.valor } : {}),
+        });
+        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.()]);
+      } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+      finally { setQuitandoRec(null); }
+      return;
+    }
+
     try {
       setQuitandoRec(linha.recorrenciaId);
       if (acao === 'quitar') {

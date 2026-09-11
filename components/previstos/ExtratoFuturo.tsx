@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus } from 'lucide-react';
+import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2 } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
 
 // =============================================================================
@@ -44,7 +44,19 @@ const VAZIO = {
 
 export type AcaoOcorrencia = {
   linha: LinhaExtrato;
-  acao: 'quitar' | 'pular' | 'adiar' | 'desfazer';
+  /**
+   * `quitar` / `pular` / `adiar` agem sobre a PREVISÃO (ainda não aconteceu).
+   *
+   * `corrigir` e `nao-paguei` agem sobre a linha JÁ LANÇADA — e existem por
+   * causa desta frase do cliente: "ao manter a opção de lançar, a transação só
+   * é criada na data do vencimento. Porém, na prática, um pagamento pode ser
+   * antecipado ou atrasado."
+   *
+   * ⚠️ `nao-paguei` é a única resposta possível para o pior caso, que ele nem
+   * chegou a nomear: a conta NÃO foi paga. Hoje a Sora afirma que foi, o saldo
+   * fica errado para sempre e a dívida fica invisível.
+   */
+  acao: 'quitar' | 'pular' | 'adiar' | 'corrigir' | 'nao-paguei';
   data?: string;
   valor?: number;
 };
@@ -274,7 +286,11 @@ export default function ExtratoFuturo({
             {dia.linhas.map((l, j) => {
               const id = `${dia.data}:${j}`;
               const previsto = l.estado === 'previsto';
-              const podeAgir = previsto && !!l.recorrenciaId;
+              // ⚠️ PAGA TAMBÉM É ACIONÁVEL — é o ponto da Fase C. Antes só a
+              // previsão podia ser tocada, então a linha que o cron lançou (e
+              // que pode estar com data ou valor errados, ou nem ter sido paga)
+              // era intocável. Basta saber QUAL ocorrência ela resolve.
+              const podeAgir = !!l.recorrenciaId;
               const sug = previsto && l.recorrenciaId && l.competencia
                 ? sugestaoDe.get(l.recorrenciaId + ':' + l.competencia) : undefined;
               return (
@@ -350,7 +366,7 @@ export default function ExtratoFuturo({
                       `backdrop-blur`, e um `position: fixed` dentro deles fica
                       preso/atrás do conteúdo (memória `feedback-modal-portal`).
                       Aqui não há fixed nenhum, então o problema não existe. */}
-                  {aberta === id && podeAgir && (
+                  {aberta === id && podeAgir && previsto && (
                     <div className="px-3 pb-3 pt-1 grid grid-cols-3 gap-2 border-t border-border/30 bg-muted/20">
                       <AcaoBtn
                         icone={<Check size={15} />} rotulo="Paguei"
@@ -365,6 +381,54 @@ export default function ExtratoFuturo({
                         icone={<SkipForward size={15} />} rotulo="Pular"
                         onClick={() => { onAcao({ linha: l, acao: 'pular' }); setAberta(null); }}
                       />
+                    </div>
+                  )}
+
+                  {/* ── CORRIGIR UMA LINHA JÁ LANÇADA ──────────────────────
+                      ⚠️ É a resposta à queixa central. No modo "desconta
+                      sozinho" o cron afirma, no dia do vencimento, que a conta
+                      foi paga — sem saber se foi. Aqui a pessoa corrige a data,
+                      o valor, ou diz que ainda NÃO pagou (o único caso que
+                      hoje não tem resposta nenhuma e deixa o saldo errado
+                      para sempre). */}
+                  {aberta === id && podeAgir && !previsto && (
+                    <div className="px-3 pb-3 pt-2 border-t border-border/30 bg-muted/20 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Paguei em
+                          <input
+                            type="date" defaultValue={l.data}
+                            onChange={(e) => e.target.value && onAcao({ linha: l, acao: 'corrigir', data: e.target.value })}
+                            className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm text-foreground"
+                          />
+                        </label>
+                        <label className="text-[11px] font-medium text-muted-foreground">
+                          Valor pago
+                          <input
+                            type="text" inputMode="decimal" defaultValue={String(l.valor).replace('.', ',')}
+                            onBlur={(e) => {
+                              const v = Number(e.target.value.replace(/\./g, '').replace(',', '.'));
+                              if (v > 0 && Math.abs(v - l.valor) > 0.005) onAcao({ linha: l, acao: 'corrigir', valor: v });
+                            }}
+                            className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm tabular text-foreground"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={ocupado === l.recorrenciaId}
+                        onClick={() => { onAcao({ linha: l, acao: 'nao-paguei' }); setAberta(null); }}
+                        className="w-full flex items-center justify-center gap-2 h-11 rounded-lg text-[13px] font-semibold
+                                   text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25
+                                   disabled:opacity-50 active:scale-[0.98] transition-all"
+                      >
+                        <Undo2 size={15} />
+                        {ocupado === l.recorrenciaId ? '...' : 'Ainda não paguei esta conta'}
+                      </button>
+                      <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+                        Ela volta a aparecer como previsto e o valor é devolvido ao saldo.
+                        {' '}Em conta conectada ao banco, o saldo continua sendo o do banco.
+                      </p>
                     </div>
                   )}
                 </div>

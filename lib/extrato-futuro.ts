@@ -358,6 +358,37 @@ export function montarExtrato(params: {
     });
   }
 
+  // ── 4B. ANOTA a linha real com a ocorrência que ela resolve ───────────────
+  //
+  // ⚠️ É ISTO QUE TORNA A LINHA JÁ PAGA CORRIGÍVEL. Sem a anotação, a tela não
+  // tem como saber a qual conta fixa aquele lançamento pertence, e os botões
+  // "paguei em outro dia" / "ainda não paguei" não teriam o que editar.
+  //
+  // Duas origens, e a segunda é a que cobre o passado:
+  //   · `recorrencia_id` na transação — o vínculo real, gravado pelo cron
+  //     desde a Fase B e por qualquer baixa feita pela tela;
+  //   · casamento por TEXTO, só pras linhas anteriores a isso. Legítimo aqui
+  //     porque o texto foi a PRÓPRIA SORA que escreveu (ver 1B) — e, quando
+  //     não tem a marca do cron, ainda exige o valor bater.
+  const recPorTexto = new Map<string, { id: string; valor: number }>();
+  for (const r of params.recorrencias || []) {
+    const rid = r.id ? String(r.id) : null;
+    if (!rid || !r.descricao) continue;
+    recPorTexto.set(chaveTexto(r.descricao), { id: rid, valor: cent(r.valor) });
+  }
+  for (const linhas of porDia.values()) {
+    for (const l of linhas) {
+      if (l.origem !== 'transacao' || l.recorrenciaId) continue;
+      const cand = recPorTexto.get(chaveTexto(l.descricao));
+      if (!cand) continue;
+      // Sem a marca do cron, o valor é que prova (mesma tolerância de 1B).
+      const temMarca = implicitas.get(chaveTexto(l.descricao) + '|' + ym(l.data))?.comMarca;
+      if (!temMarca && Math.abs(cand.valor - l.valor) > TOLERANCIA) continue;
+      l.recorrenciaId = cand.id;
+      l.competencia = ym(l.data);
+    }
+  }
+
   // ── 5. Acumula dia a dia ──────────────────────────────────────────────────
   const saida: DiaExtrato[] = [];
   let saldo = cent(saldoInicial);
