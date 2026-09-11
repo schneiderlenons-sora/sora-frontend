@@ -219,6 +219,42 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // BottomNav) — mantém `setOpen(false)` como fechar-mobile.
   const open = mobileOpen;
   const setOpen = (_v: boolean) => { if (!_v) onMobileClose?.(); };
+
+  // ⚠️ O DRAWER IGNORA TOQUE ENQUANTO ESTÁ ABRINDO — "clique fantasma".
+  //
+  // MEDIDO: o botão "Menu" da barra inferior fica em y=813 numa tela de 844px,
+  // e o botão **"Sair"** deste drawer ocupa y=789–828. É o MESMO ponto da tela.
+  // A barra age no `pointerup` (foi assim que se corrigiu o "menu precisa de 3
+  // toques"), então o drawer abre com o dedo ainda pousado ali — e o `click`
+  // que o navegador sintetiza DEPOIS é hit-testado contra o DOM novo, onde
+  // aquele pixel agora é o logout.
+  //
+  // Relato do cliente, palavra por palavra: "quando cliquei em Perfil, o
+  // sistema desconectou a conta". E é por isso que CINCO rodadas de correção de
+  // sessão não acharam nada: a sessão nunca falhou — ela foi ENCERRADA, pelo
+  // caminho legítimo do `signOut()`, que os guards de sessão pulam de propósito.
+  // Era também por isso que a instrumentação ficava vazia.
+  //
+  // 350ms cobre a transição de 300ms do painel com folga. Enquanto isso o
+  // drawer é visível e já anima — só não aceita toque.
+  const [abrindo, setAbrindo] = useState(false);
+  useEffect(() => {
+    if (!open) { setAbrindo(false); return; }
+    setAbrindo(true);
+    const t = window.setTimeout(() => setAbrindo(false), 350);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // Segundo passo do "Sair" (ver o comentário no botão). Volta ao normal
+  // sozinho em 4s e sempre que o drawer fecha — ninguém pode reabrir o menu e
+  // encontrar o botão já armado esperando um toque.
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  useEffect(() => {
+    if (!confirmandoSaida) return;
+    const t = window.setTimeout(() => setConfirmandoSaida(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmandoSaida]);
+  useEffect(() => { if (!open) setConfirmandoSaida(false); }, [open]);
   const [switcherOpen, setSwitcherOpen] = useState(false); // dropdown entre painéis
   const ehLabs     = !!pathname?.startsWith('/labs');
   const ehNegocios = !!pathname?.startsWith('/negocios');
@@ -893,9 +929,31 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/75 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
             <Download size={16} /> Instalar
           </button>
-          <button onClick={signOut}
-            className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/75 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
-            <LogOut size={16} /> Sair
+          {/*
+            ⚠️ SAIR PEDE CONFIRMAÇÃO — e não é excesso de zelo.
+
+            Este botão encerra a sessão na hora, e fica no canto inferior
+            DIREITO do drawer: medido, y=789–828 numa tela de 844px. O botão
+            "Menu" da barra inferior, que ABRE este drawer, fica em y=813, x=342
+            — dentro desta mesma célula do grid. Ou seja, o logout ocupa
+            exatamente o pixel que o dedo acabou de tocar pra chegar aqui.
+
+            Duas etapas custam um toque a mais a quem quer sair de verdade, e
+            evitam que quem só queria abrir o menu perca a sessão. É a regra
+            `confirmation-dialogs` da skill de UI: ação destrutiva confirma.
+          */}
+          <button
+            onClick={() => {
+              if (!confirmandoSaida) { setConfirmandoSaida(true); return; }
+              signOut();
+            }}
+            aria-label={confirmandoSaida ? 'Confirmar saída da conta' : 'Sair da conta'}
+            className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium transition-all ${
+              confirmandoSaida
+                ? 'text-white bg-red-500/80 hover:bg-red-500'
+                : 'text-white/75 hover:text-white bg-white/10 hover:bg-white/20'
+            }`}>
+            <LogOut size={16} /> {confirmandoSaida ? 'Confirmar' : 'Sair'}
           </button>
         </div>
       </div>
@@ -928,7 +986,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       <div
         className={`md:hidden fixed inset-0 z-[60] flex flex-col overscroll-contain
                     transition-transform duration-300 ease-out motion-reduce:transition-none
-                    ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}`}
+                    ${open ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
+                    ${open && abrindo ? 'pointer-events-none' : ''}`}
         style={sidebarStyle}
         // ⚠️ Fechado, ele continua no DOM — então precisa sair do alcance do
         // toque E da árvore de acessibilidade. Sem isto eu criaria de novo o
