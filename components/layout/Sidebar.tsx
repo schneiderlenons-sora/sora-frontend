@@ -27,6 +27,7 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
 import { usePwa } from '@/components/pwa/InstallPwa';
+import { useEhAndroid } from '@/lib/useOrigem';
 import type { Feature } from '@/lib/plans';
 
 type NavItem = {
@@ -125,6 +126,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const router = useRouter();
   const { perfil, phone, signOut, podeUsar, temNegocios, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
+  // Conformidade com a política do Play Console — ver `semAndroid` em
+  // `lib/sidebar-nav.ts`. Começa `false` e só vira `true` depois de montar
+  // (evita hydration mismatch), então o pior caso é a Saúde piscar por um
+  // frame no app; o guard da rota é quem realmente fecha a porta.
+  const ehAndroid = useEhAndroid();
 
   // Aquece TODAS as abas principais no tempo ocioso → clicar em qualquer uma
   // (inclusive no mobile, onde não há hover) já é instantâneo, porque a rota
@@ -455,7 +461,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           className="ml-[6px] pl-[10px] space-y-0.5"
           style={{ borderLeft: `1px solid ${sg.tom}30` }}
         >
-          {sg.itens.map((item, i) => (
+          {/* ⚠️ `semAndroid` sai da lista no app da Play Store — ver o comentário
+              em `lib/sidebar-nav.ts`. É filtro, não item desabilitado: o app
+              Android tem de genuinamente NÃO oferecer a seção pra declaração de
+              saúde do Play Console ser verdadeira. */}
+          {sg.itens.filter((item) => !(item.semAndroid && ehAndroid)).map((item, i) => (
             <div
               key={item.href}
               className="animate-[fade-in_220ms_ease-out_both] motion-reduce:animate-none"

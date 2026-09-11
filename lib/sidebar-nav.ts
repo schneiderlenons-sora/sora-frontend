@@ -40,6 +40,24 @@ export type ItemNav = {
   label:   string;
   icone:   string;                     // nome do ícone lucide
   gate?:   Feature;                    // feature exigida
+  // ⚠️ FORA DO APP ANDROID — e isto é conformidade de loja, não preferência.
+  //
+  // A política de requisitos do Play Console exige conta de ORGANIZAÇÃO (com
+  // CNPJ + D-U-N-S) pra distribuir "health apps, such as Medical apps". A Sora
+  // é publicada por conta PESSOAL, e o app Android é um TWA que embrulha o
+  // site inteiro — então declarar os recursos de saúde é obrigatório e leva à
+  // reprovação. Medido: dois envios recusados em 10/09/2026, o segundo em 11
+  // minutos (checagem automática), já com a categoria corrigida.
+  //
+  // A saída honesta é o app Android REALMENTE não oferecer a seção — assim a
+  // declaração de saúde passa a ser "nenhum recurso" de verdade, em vez de
+  // desmarcar uma caixa que descreve algo que o app faz (o que seria declaração
+  // falsa, e custa suspensão de conta, não outra rejeição).
+  //
+  // Mesmo padrão que o `CardPlanos` já usa no modo `android` por causa do Play
+  // Billing: o app não esconde a informação, ele genuinamente não oferece ali.
+  // No navegador nada muda.
+  semAndroid?: boolean;
   // 'Básico' existe pros gates que barram SÓ o plano grátis — dizer
   // "Premium" ali mandaria a pessoa pagar 50% a mais do que precisa.
   badge?:  'Básico' | 'Premium' | 'Platinum';   // rótulo quando bloqueado
@@ -122,7 +140,7 @@ export const GRUPOS: GrupoNav[] = [
           { href: '/grow/tarefas',   label: 'Tarefas',   icone: 'ListChecks' },
           { href: '/grow/agenda',    label: 'Agenda',    icone: 'CalendarDays', gate: 'grow_agenda', badge: 'Básico' },
           { href: '/grow/estudos',   label: 'Estudos',   icone: 'GraduationCap', gate: 'grow_estudos', badge: 'Premium' },
-          { href: '/grow/saude',     label: 'Saúde',     icone: 'Activity',      gate: 'grow_saude',   badge: 'Premium' },
+          { href: '/grow/saude',     label: 'Saúde',     icone: 'Activity',      gate: 'grow_saude',   badge: 'Premium', semAndroid: true },
           { href: '/grow/bem-estar', label: 'Bem-estar', icone: 'Heart' },
         ],
       },
