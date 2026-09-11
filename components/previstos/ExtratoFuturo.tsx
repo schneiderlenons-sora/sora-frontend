@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet } from 'lucide-react';
+import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
 
 // =============================================================================
@@ -37,6 +37,11 @@ function rotuloDia(iso: string) {
   return `${diaMes(iso)} · ${DIA_SEMANA[new Date(a, m - 1, d).getDay()]}`;
 }
 
+const VAZIO = {
+  descricao: '', valor: '', data: '',
+  tipo: 'Gasto' as 'Gasto' | 'Recebimento', carteira: '',
+};
+
 export type AcaoOcorrencia = {
   linha: LinhaExtrato;
   acao: 'quitar' | 'pular' | 'adiar' | 'desfazer';
@@ -44,8 +49,18 @@ export type AcaoOcorrencia = {
   valor?: number;
 };
 
+export type Sugestao = {
+  recorrencia_id: string;
+  competencia: string;
+  transacao_id: string;
+  data: string;
+  valor: number;
+  automatico: boolean;
+  motivo?: string;
+};
+
 export default function ExtratoFuturo({
-  dados, carteiras, carteiraAtiva, onCarteira, onAcao, ocupado,
+  dados, carteiras, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
 }: {
   dados: Parameters<typeof montarExtrato>[0];
   carteiras: string[];
@@ -53,9 +68,26 @@ export default function ExtratoFuturo({
   onCarteira: (c: string | null) => void;
   onAcao: (a: AcaoOcorrencia) => void;
   ocupado?: string | null;
+  sugestoes?: Sugestao[];
+  onNovoPrevisto?: (p: {
+    descricao: string; valor: number; data: string;
+    tipo: 'Gasto' | 'Recebimento'; carteira: string | null;
+  }) => Promise<void>;
 }) {
   const extrato: Extrato = useMemo(() => montarExtrato(dados), [dados]);
   const [aberta, setAberta] = useState<string | null>(null);
+  const [novoAberto, setNovoAberto] = useState(false);
+  const [novo, setNovo] = useState(VAZIO);
+  const [salvando, setSalvando] = useState(false);
+
+  // Sugestões indexadas por ocorrência — o casamento em si é feito no BACKEND
+  // (`services/casarPrevisao.js`), fonte única que a baixa automática também
+  // usa. A tela só desenha o resultado.
+  const sugestaoDe = useMemo(() => {
+    const m = new Map<string, Sugestao>();
+    for (const s of sugestoes || []) m.set(s.recorrencia_id + ':' + s.competencia, s);
+    return m;
+  }, [sugestoes]);
 
   const pior = extrato.pior;
   const apertado = pior && pior.saldo < 0;
@@ -105,6 +137,104 @@ export default function ExtratoFuturo({
         )}
       </div>
 
+      {/* ── PREVISTO ÚNICO ─────────────────────────────────────────────────
+          ⚠️ Fecha a terceira queixa do cliente: "tudo o que informo nessa área
+          acaba assumindo um comportamento recorrente". Era verdade — o único
+          jeito de adicionar algo em Previstos era o formulário de CONTA FIXA.
+          Aqui entra o compromisso que acontece UMA vez: IPVA, uma viagem, o
+          presente de aniversário.
+
+          Por baixo é só uma transação com data futura: o backend já grava
+          `pago: false` e NÃO debita a carteira nesse caso. Nenhuma tabela nova. */}
+      {onNovoPrevisto && (
+        <div className="rounded-2xl border border-border/40 overflow-hidden"
+             style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+          {!novoAberto ? (
+            <button
+              type="button"
+              onClick={() => setNovoAberto(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold
+                         text-primary min-h-[48px] active:scale-[0.99] transition-transform"
+            >
+              <Plus size={16} /> Previsto único
+            </button>
+          ) : (
+            <div className="p-3 space-y-2.5">
+              <p className="text-xs text-muted-foreground">
+                Um compromisso que acontece <strong>uma vez só</strong> — não se repete todo mês.
+              </p>
+              <input
+                value={novo.descricao}
+                onChange={(e) => setNovo({ ...novo, descricao: e.target.value })}
+                placeholder="Ex.: IPVA, viagem, presente"
+                className="w-full h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={novo.valor}
+                  onChange={(e) => setNovo({ ...novo, valor: e.target.value })}
+                  inputMode="decimal" placeholder="0,00"
+                  className="h-11 px-3 rounded-lg bg-background border border-border/50 text-sm tabular"
+                />
+                <input
+                  type="date" value={novo.data}
+                  onChange={(e) => setNovo({ ...novo, data: e.target.value })}
+                  className="h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={novo.tipo}
+                  onChange={(e) => setNovo({ ...novo, tipo: e.target.value as 'Gasto' | 'Recebimento' })}
+                  className="h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+                >
+                  <option value="Gasto">Vou pagar</option>
+                  <option value="Recebimento">Vou receber</option>
+                </select>
+                <select
+                  value={novo.carteira}
+                  onChange={(e) => setNovo({ ...novo, carteira: e.target.value })}
+                  className="h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+                >
+                  <option value="">Conta…</option>
+                  {carteiras.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => { setNovoAberto(false); setNovo(VAZIO); }}
+                  className="h-11 rounded-lg text-sm font-medium bg-muted/50 text-muted-foreground"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={!novo.descricao.trim() || !novo.valor || !novo.data || salvando}
+                  onClick={async () => {
+                    setSalvando(true);
+                    try {
+                      await onNovoPrevisto({
+                        descricao: novo.descricao.trim(),
+                        // Aceita "1.234,56" e "1234.56" — o brasileiro digita os dois.
+                        valor: Number(novo.valor.replace(/\./g, '').replace(',', '.')),
+                        data: novo.data,
+                        tipo: novo.tipo,
+                        carteira: novo.carteira || null,
+                      });
+                      setNovoAberto(false); setNovo(VAZIO);
+                    } finally { setSalvando(false); }
+                  }}
+                  className="h-11 rounded-lg text-sm font-semibold bg-primary text-white disabled:opacity-50"
+                >
+                  {salvando ? 'Salvando…' : 'Adicionar'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Filtro por conta ──────────────────────────────────────────────── */}
       {carteiras.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -142,6 +272,8 @@ export default function ExtratoFuturo({
               const id = `${dia.data}:${j}`;
               const previsto = l.estado === 'previsto';
               const podeAgir = previsto && !!l.recorrenciaId;
+              const sug = previsto && l.recorrenciaId && l.competencia
+                ? sugestaoDe.get(l.recorrenciaId + ':' + l.competencia) : undefined;
               return (
                 <div key={id} className={j > 0 ? 'border-t border-border/30' : ''}>
                   <button
@@ -177,6 +309,38 @@ export default function ExtratoFuturo({
                       {l.estimado && <span className="ml-0.5 text-muted-foreground">≈</span>}
                     </span>
                   </button>
+
+                  {/* ── O banco já confirmou esta cobrança ──────────────────
+                      ⚠️ Aparece SEM a pessoa ter configurado nada. A chave de
+                      baixa automática decide se a Sora quita sozinha; a
+                      SUGESTÃO é o padrão e não precisa de opt-in — ela só
+                      mostra o que o banco já disse, e a baixa continua sendo
+                      um toque consciente. */}
+                  {sug && aberta !== id && (
+                    <button
+                      type="button"
+                      onClick={() => { onAcao({ linha: l, acao: 'quitar', data: sug.data, valor: sug.valor }); }}
+                      disabled={ocupado === l.recorrenciaId}
+                      className="w-full flex items-center gap-2 px-3 py-2 border-t border-border/30
+                                 bg-emerald-500/10 text-left min-h-[44px] active:scale-[0.99] transition-transform
+                                 disabled:opacity-50"
+                    >
+                      <Check size={14} className="flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span className="flex-1 min-w-0 text-[11.5px] leading-tight">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          O banco confirmou esta cobrança em {diaMes(sug.data)}
+                        </span>
+                        {sug.motivo && (
+                          <span className="block text-muted-foreground">
+                            Confira antes: {sug.motivo}.
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex-shrink-0 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                        {ocupado === l.recorrenciaId ? '...' : 'Dar baixa'}
+                      </span>
+                    </button>
+                  )}
 
                   {/* Painel de ação — inline, logo abaixo da linha tocada.
                       ⚠️ Inline e não modal de propósito: os cards usam

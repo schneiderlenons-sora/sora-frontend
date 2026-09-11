@@ -176,11 +176,11 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // Duas listagens porque a janela do extrato cruza o mês. As chaves são as
   // CANÔNICAS de `lib/chaves-swr.ts`, então se a aba Transações já carregou o
   // mês corrente, aqui não custa requisição nenhuma.
-  const { data: txA } = useApi(
+  const { data: txA, mutate: mutTxA } = useApi(
     ligado ? chave.transacoes(phone, { mes: ymHoje, limit: 500 }) : null,
     () => api.transacoes.listar(phone, { mes: ymHoje, limit: 500 }),
   );
-  const { data: txB } = useApi(
+  const { data: txB, mutate: mutTxB } = useApi(
     ligado ? chave.transacoes(phone, { mes: ymProx, limit: 500 }) : null,
     () => api.transacoes.listar(phone, { mes: ymProx, limit: 500 }),
   );
@@ -236,6 +236,25 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       await recarregarOcorr();
     } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
     finally { setQuitandoRec(null); }
+  }
+
+  // Previsto ÚNICO (Fase 4). Por baixo é uma transação com data futura: o
+  // backend grava `pago: false` e NÃO debita a carteira. Sem tabela nova.
+  async function novoPrevistoAvulso(p: {
+    descricao: string; valor: number; data: string;
+    tipo: 'Gasto' | 'Recebimento'; carteira: string | null;
+  }) {
+    if (!phone || !(p.valor > 0)) return;
+    await api.transacoes.criar({
+      phone,
+      tipo: p.tipo,
+      valor: p.valor,
+      observacao: p.descricao,
+      carteira_nome: p.carteira,
+      data: p.data,
+      categoria: p.tipo === 'Gasto' ? 'Outros' : 'Outras receitas',
+    });
+    await Promise.all([mutTxA?.(), mutTxB?.()]);
   }
 
   // ── Fecha o mês em… (a manchete) ─────────────────────────────────────────
@@ -674,6 +693,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           onCarteira={setCarteiraExtrato}
           onAcao={acaoExtrato}
           ocupado={quitandoRec}
+          sugestoes={(ocorrData as any)?.sugestoes ?? []}
+          onNovoPrevisto={novoPrevistoAvulso}
         />
       ) : aba === 'projecao' ? (
         <SecaoProjecao
