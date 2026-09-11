@@ -16,7 +16,8 @@
     "eval:escala": "npx tsx lib/escala-grafico.eval.mjs",
     "eval:moeda": "npx tsx --env-file=.env.local lib/moeda.eval.mjs",
     "eval:sessao-prefetch": "npx tsx lib/sessao-prefetch.eval.mjs",
-    "eval:renovacao-sessao": "npx tsx lib/renovacao-sessao.eval.mjs"
+    "eval:renovacao-sessao": "npx tsx lib/renovacao-sessao.eval.mjs",
+    "eval:extrato-futuro": "npx tsx lib/extrato-futuro.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

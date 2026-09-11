@@ -63,6 +63,22 @@ const DURACOES: { id: number | null; label: string }[] = [
   { id: 24,   label: '24x' },
 ];
 
+/**
+ * Sentinela da opção "Outro" — não é um número de repetições, é um estado da
+ * TELA. Fica fora da faixa válida (1..999) de propósito, pra nunca colidir com
+ * uma quantidade que a pessoa possa digitar.
+ *
+ * ⚠️ O TETO (999) É O DO BACKEND — `routes/recorrencias.js` faz
+ * `Math.min(999, ...)`. Limitar menos aqui faria a tela recusar algo que a API
+ * aceitaria, sem nenhuma razão visível pro usuário.
+ */
+const OUTRO = -1;
+
+/** A quantidade escolhida é um dos atalhos, ou foi digitada à mão? */
+function ehAtalho(n: number | null) {
+  return n === null || DURACOES.some((d) => d.id === n);
+}
+
 const AVISOS: { id: number; label: string; ajuda: string }[] = [
   { id: 0, label: 'No dia',  ajuda: 'Aviso no próprio dia do vencimento' },
   { id: 1, label: '1 dia',   ajuda: 'Aviso 1 dia antes' },
@@ -230,6 +246,10 @@ export default function FormRecorrencia({
   const [diaSemana, setDiaSemana]   = useState<number>(editItem?.dia_semana ?? 1);
   const [mesVenc, setMesVenc]       = useState<number>(editItem?.mes_vencimento ?? 1);
   const [repeticoes, setRepeticoes] = useState<number | null>(editItem?.repeticoes ?? null);
+  // ⚠️ Abre JÁ ABERTO ao editar uma conta cujo valor não é um dos atalhos.
+  // Sem isto, quem salvou "18x" reabriria o formulário com nenhuma pílula
+  // marcada e o 18 invisível — parecendo que a escolha se perdeu.
+  const [outroAberto, setOutroAberto] = useState(!ehAtalho(editItem?.repeticoes ?? null));
   const [avisoDias, setAvisoDias]   = useState<number>(editItem?.lembrete_dias ?? 0);
   const [querAviso, setQuerAviso]   = useState<boolean>(editItem?.lembrete !== false);
 
@@ -596,13 +616,51 @@ export default function FormRecorrencia({
             </div>
           )}
 
-          <Pills
-            label="Por quanto tempo"
-            valor={repeticoes}
-            opcoes={DURACOES}
-            onChange={marcar(setRepeticoes)}
-            colunas={5}
-          />
+          {/* ── POR QUANTO TEMPO ───────────────────────────────────────────
+              ⚠️ 3 COLUNAS, NÃO 6. O comentário do `Pills` registra a medição:
+              a 375px o sheet tem 335px úteis e, com 5 colunas, "Sempre" já
+              quebra em duas linhas. Enfiar uma 6ª pílula na mesma fileira
+              quebraria o layout no celular — 3×2 cabe com folga. */}
+          <div>
+            <Pills
+              label="Por quanto tempo"
+              valor={outroAberto ? OUTRO : repeticoes}
+              opcoes={[...DURACOES, { id: OUTRO, label: 'Outro' }]}
+              onChange={(v) => {
+                if (v === OUTRO) { setOutroAberto(true); return; }
+                setOutroAberto(false);
+                marcar(setRepeticoes)(v);
+              }}
+              colunas={3}
+            />
+
+            {outroAberto && (
+              <div className="mt-2 flex items-center gap-2 animate-[slide-up_250ms_ease-out_both]">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={999}
+                  autoFocus
+                  value={repeticoes ?? ''}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    // ⚠️ Campo vazio vira `null`, que é "para sempre" — e não
+                    // pode ser confundido com o zero digitado. Sem esta
+                    // distinção, apagar o campo pra redigitar criaria uma conta
+                    // fixa eterna sem a pessoa perceber.
+                    marcar(setRepeticoes)(e.target.value === '' ? null : Math.max(1, Math.min(999, n)));
+                  }}
+                  placeholder="Ex.: 18"
+                  aria-label="Quantas vezes a conta se repete"
+                  className="w-24 h-11 px-3 rounded-xl bg-background border border-border/50 text-sm tabular text-center"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {repeticoes ? `vezes` : 'vezes — em branco, repete para sempre'}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* ── AVISO ─────────────────────────────────────────────────────── */}
           <div>
