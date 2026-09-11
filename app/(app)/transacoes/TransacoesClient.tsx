@@ -11,6 +11,7 @@ import RatearModal from '@/components/transacoes/RatearModal';
 import JuntarRateioModal from '@/components/transacoes/JuntarRateioModal';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
+import { useAvatarMembros } from '@/lib/useAvatarMembros';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
@@ -63,6 +64,11 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const podeImportarOFX = podeUsar('import_ofx');
   // Em grupo compartilhado (não-Pessoal), mostra o avatar de quem fez cada lançamento.
   const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
+  // ⚠️ A FOTO VEM DAQUI, não da transação. Ela é base64 e vinha embutida em
+  // CADA linha do `criador` — 500 transações baixavam 500 cópias da mesma foto
+  // (medido: 12,42 MB numa abertura desta aba, contra 0,41 MB sem). Ver
+  // `lib/useAvatarMembros.ts`.
+  const avatares = useAvatarMembros((perfil?.grupo_ativo as any)?.id, compartilhado);
   const podeImportarCSV = podeUsar('import_csv');
   const podeImportar = podeImportarOFX || podeImportarCSV;
   const podeExportar = podeUsar('export_dados');
@@ -803,6 +809,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         index={i}
                         ocultar={ocultar}
                         compartilhado={compartilhado}
+                        avatar={avatares.get(String(tx.criado_por || tx.criador?.id || ''))}
                         selecionado={selecionados.has(tx.id)}
                         onToggleSelect={() => {
                           const novo = new Set(selecionados);
@@ -1004,7 +1011,7 @@ function StatCard({
 }
 
 function TransactionRow({
-  tx, index, ocultar, compartilhado, selecionado, onToggleSelect,
+  tx, index, ocultar, compartilhado, avatar, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
 }: any) {
   // ⚠️ "Não considerar" (migration 146) entra AQUI, virando Transferência na
@@ -1122,9 +1129,12 @@ function TransactionRow({
         {compartilhado && tx.criador && (
           <AvatarMembro
             name={tx.criador.name}
-            src={tx.criador.avatar_url}
-            preset={tx.criador.avatar_preset}
-            cor={tx.criador.avatar_cor}
+            // A foto vem do mapa de membros (uma busca por grupo), não da
+            // transação — ver `lib/useAvatarMembros.ts`. Preset e cor seguem
+            // podendo vir da linha: são strings curtas, não pesam.
+            src={avatar?.url || undefined}
+            preset={avatar?.preset ?? tx.criador.avatar_preset}
+            cor={avatar?.cor ?? tx.criador.avatar_cor}
             size="sm"
           />
         )}

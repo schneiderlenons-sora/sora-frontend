@@ -1,5 +1,6 @@
 'use client';
 
+import { useAvatarMembros } from '@/lib/useAvatarMembros';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { ehPagamentoFatura } from '@/lib/categorizar';
 import dynamic from 'next/dynamic';
@@ -163,6 +164,10 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const primeiroNome = perfil?.name?.split(' ')[0] || 'amigo';
   // Em grupo compartilhado (não-Pessoal), mostra o avatar de quem fez cada lançamento.
   const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
+  // ⚠️ A foto sai do mapa de membros, não da transação — ver
+  // `lib/useAvatarMembros.ts`. Embutida na linha, ela era baixada uma vez POR
+  // TRANSAÇÃO e estourou a cota de egress do Supabase.
+  const avatares = useAvatarMembros((perfil?.grupo_ativo as any)?.id, compartilhado);
 
   // ── Dados via SWR: 1 chamada consolidada (com fallback automático pras 6
   // antigas). Cache em memória compartilhado → revisitar o dashboard é
@@ -807,7 +812,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                       {compartilhado && tx.criador?.name && (
                         <AvatarMembro
                           name={tx.criador.name}
-                          src={tx.criador.avatar_url}
+                          src={avatares.get(String(tx.criado_por || tx.criador?.id || ''))?.url || undefined}
                           preset={tx.criador.avatar_preset}
                           cor={tx.criador.avatar_cor}
                           size="sm"

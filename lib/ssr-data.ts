@@ -177,12 +177,12 @@ export async function transacoesDireto(
 
   let { data, count, error } = await aplicar(
     supabaseAdmin.from('transacoes')
-      .select('*, criador:users!transacoes_criado_por_fkey(id, name, phone, avatar_url, avatar_preset, avatar_cor)', { count: 'exact' }),
+      .select('*, criador:users!transacoes_criado_por_fkey(id, name, phone, avatar_preset, avatar_cor)', { count: 'exact' }),
   );
   if (error) {
     let r = await aplicar(
       supabaseAdmin.from('transacoes')
-        .select('*, criador:users!transacoes_criado_por_fkey(id, name, phone, avatar_url)', { count: 'exact' }),
+        .select('*, criador:users!transacoes_criado_por_fkey(id, name, phone)', { count: 'exact' }),
     );
     if (r.error) {
       r = await aplicar(supabaseAdmin.from('transacoes').select('*', { count: 'exact' }));

@@ -1,5 +1,6 @@
 'use client';
 
+import { useAvatarMembros } from '@/lib/useAvatarMembros';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
@@ -136,6 +137,11 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const { data: membrosData } =
     useApi(compartilhado && grupoId ? `rel:membros:${grupoId}` : null, () => api.grupos.membros(grupoId!));
   const membros: any[] = Array.isArray(membrosData) ? membrosData : [];
+  // ⚠️ A foto de quem lançou sai DAQUI, não da transação. Embutida na linha,
+  // ela era baixada uma vez por transação (base64) e estourou a cota de egress
+  // do Supabase — ver `lib/useAvatarMembros.ts`. O hook reaproveita a mesma
+  // rota de membros que a linha acima já usa.
+  const avatares = useAvatarMembros(grupoId, compartilhado);
 
   // ── O QUE FALTAVA NA ABA DE PENDENTES ──────────────────────────────────
   //
@@ -1354,6 +1360,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                 items={recebPendentes}
                 empty="Nenhuma receita pendente"
                 compartilhado={compartilhado}
+                avatares={avatares}
                 onBaixar={darBaixa}
                 positive
               />
@@ -1365,6 +1372,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                 items={gastoPendentes}
                 empty="Nenhuma despesa pendente"
                 compartilhado={compartilhado}
+                avatares={avatares}
                 onBaixar={darBaixa}
               />
             </div>
@@ -2156,7 +2164,7 @@ function ChartLegend({ items }: { items: { label: string; color: string; dashed?
 }
 
 function PendentesList({
-  title, subtitle, badgeText, badgeColor, items, empty, positive, compartilhado, onBaixar,
+  title, subtitle, badgeText, badgeColor, items, empty, positive, compartilhado, avatares, onBaixar,
 }: {
   title:      string;
   subtitle:   string;
@@ -2164,6 +2172,7 @@ function PendentesList({
   badgeColor: 'green' | 'red';
   items:      any[];
   empty:      string;
+  avatares?:  Map<string, { url?: string | null; preset?: string | null; cor?: string | null }>;
   positive?:  boolean;
   compartilhado?: boolean;
   onBaixar?:  (tx: any) => void;
@@ -2241,7 +2250,9 @@ function PendentesList({
                       <>
                         <span className="text-muted-foreground/40">·</span>
                         <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
-                          <AvatarMembro name={tx.criador.name} src={tx.criador.avatar_url} preset={tx.criador.avatar_preset} cor={tx.criador.avatar_cor} size="sm" />
+                          {/* Foto do mapa de membros (uma busca), não da linha
+                              — ver `lib/useAvatarMembros.ts`. */}
+                          <AvatarMembro name={tx.criador.name} src={avatares?.get(String(tx.criado_por || tx.criador?.id || ''))?.url || undefined} preset={tx.criador.avatar_preset} cor={tx.criador.avatar_cor} size="sm" />
                           <span className="truncate">{(tx.criador.name || '').split(' ')[0]}</span>
                         </span>
                       </>
