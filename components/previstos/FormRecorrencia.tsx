@@ -87,10 +87,27 @@ const AVISOS: { id: number; label: string; ajuda: string }[] = [
   { id: 7, label: '7 dias',  ajuda: 'Aviso 7 dias antes' },
 ];
 
-const MODOS: { id: ModoLancamentoFixo; label: string; ajuda: string }[] = [
-  { id: 'lancar',     label: 'Lançar',     ajuda: 'Cria a transação já paga e desconta do saldo.' },
-  { id: 'prever',     label: 'Só prever',  ajuda: 'Cria como previsto e deixa a cobrança do seu banco confirmar o valor. Evita o gasto contar duas vezes.' },
-  { id: 'nao_lancar', label: 'Não lançar', ajuda: 'Não cria nada. Serve só pra você somar seus custos fixos.' },
+/**
+ * ⚠️ OS RÓTULOS DESCREVEM O EFEITO NO SALDO, não o que a Sora faz por dentro.
+ *
+ * Relato de cliente, literal: "ao manter a opção de 'lançar', a transação só é
+ * criada na data do vencimento. Porém, na prática, um pagamento pode ser
+ * antecipado ou atrasado. **Ainda não ficou claro para mim qual é a melhor
+ * forma de tratar essas situações sem comprometer a previsibilidade do saldo.**"
+ *
+ * "Lançar" / "Só prever" / "Não lançar" nomeiam a ação do SISTEMA. Quem escolhe
+ * precisa saber o que acontece com o DINHEIRO dele — é essa a decisão real.
+ *
+ * Os `id` continuam os mesmos (`lancar`/`prever`/`nao_lancar`): o backend, o
+ * cron e a coluna não mudam. Só o texto.
+ */
+export const MODOS: { id: ModoLancamentoFixo; label: string; ajuda: string }[] = [
+  { id: 'lancar',     label: 'Desconta sozinho',
+    ajuda: 'No dia do vencimento a Sora dá a conta como paga e desconta do saldo. Se você pagar antes ou depois, pode corrigir a data no Extrato.' },
+  { id: 'prever',     label: 'Espero o banco',
+    ajuda: 'Aparece como previsto e NÃO mexe no saldo. Quando a cobrança do banco chegar, ela confirma o valor real. Evita o gasto contar duas vezes.' },
+  { id: 'nao_lancar', label: 'Só me lembre',
+    ajuda: 'Não cria lançamento nenhum e não mexe no saldo. A conta aparece no Extrato e você marca como paga quando pagar.' },
 ];
 
 export type Tipo = 'Gasto' | 'Recebimento';

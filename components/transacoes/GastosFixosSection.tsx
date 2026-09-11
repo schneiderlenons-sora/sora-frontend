@@ -66,11 +66,11 @@ type FaturaPrevista = {
  *  com a cobrança do banco · `nao_lancar` não cria nada (só lembra). */
 type ModoLancamento = ModoLancamentoFixo;
 
-const MODOS: { id: ModoLancamento; label: string; ajuda: string }[] = [
-  { id: 'lancar',     label: 'Lançar',     ajuda: 'Cria a transação já paga e desconta do saldo.' },
-  { id: 'prever',     label: 'Só prever',  ajuda: 'Cria como previsto e deixa a cobrança do seu banco confirmar o valor. Evita o gasto contar duas vezes.' },
-  { id: 'nao_lancar', label: 'Não lançar', ajuda: 'Não cria nada. Serve só pra você somar seus custos fixos.' },
-];
+// ⚠️ OS RÓTULOS VÊM DE `FormRecorrencia`, NÃO SÃO COPIADOS AQUI.
+// Esta seção e a aba Previstos oferecem a MESMA escolha; com duas listas, um
+// ajuste numa delas faria a mesma opção ter nomes diferentes conforme a tela
+// de onde foi aberta — e ninguém reporta isso, só sente.
+import { MODOS } from '@/components/previstos/FormRecorrencia';
 
 // `saldo` sempre vem (a rota faz `select('*')`) — o tipo é que não declarava,
 // e sem ele o saldo projetado somaria `undefined` e daria sempre zero.
