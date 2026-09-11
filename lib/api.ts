@@ -568,6 +568,35 @@ export const api = {
       req(`/api/limites/${id}`, { method: 'DELETE' }),
   },
 
+  // ── PREVISTOS (ocorrencias: quitar / pular / adiar) ────────────
+  //
+  // Migration 165. A chave e sempre recorrencia_id + competencia ('YYYY-MM'),
+  // NUNCA a data: e isso que faz "paguei dia 8 a conta do dia 10" cancelar a
+  // previsao de setembro.
+  previstos: {
+    ocorrencias: (phone: string, de?: string, ate?: string) => {
+      const q = new URLSearchParams();
+      if (de) q.set('de', de);
+      if (ate) q.set('ate', ate);
+      const qs = q.toString();
+      return req<{ quitacoes: any[]; ajustes: any[] }>(
+        `/api/previstos/ocorrencias/${phone}${qs ? '?' + qs : ''}`,
+      );
+    },
+    quitar: (body: {
+      recorrencia_id: string; competencia: string;
+      data?: string; valor?: number; carteira_nome?: string | null;
+    }) => req<any>('/api/previstos/quitar', { method: 'POST', body: JSON.stringify(body) }),
+    ajuste: (body: {
+      recorrencia_id: string; competencia: string;
+      status: 'pulado' | 'movido'; nova_data?: string; novo_valor?: number;
+    }) => req<any>('/api/previstos/ajuste', { method: 'POST', body: JSON.stringify(body) }),
+    removerAjuste: (body: { recorrencia_id: string; competencia: string }) =>
+      req<any>('/api/previstos/ajuste', { method: 'DELETE', body: JSON.stringify(body) }),
+    desfazerQuitacao: (body: { transacao_id: string }) =>
+      req<any>('/api/previstos/desfazer-quitacao', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
   // ── GRUPOS ────────────────────────────────────────────────────
   grupos: {
     listar: (phone: string) =>

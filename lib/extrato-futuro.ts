@@ -66,6 +66,16 @@ export type LinhaExtrato = {
   competencia?: string | null;
   transacaoId?: string | null;
   adiada?: boolean;
+  /**
+   * Já está DENTRO do `saldoInicial` — aparece na lista, mas não move o saldo.
+   *
+   * ⚠️ ISTO IMPEDE UMA DUPLA CONTAGEM SILENCIOSA. `saldoInicial` é o saldo atual
+   * das contas, que por definição já reflete tudo que foi PAGO. Somar de novo
+   * uma transação paga inflaria o extrato inteiro. Mas escondê-la também é
+   * ruim: quem acabou de tocar em "Paguei" veria a linha simplesmente sumir.
+   * Ela fica visível, com ✓, e neutra na conta.
+   */
+  jaNoSaldo?: boolean;
 };
 
 export type DiaExtrato = {
@@ -195,6 +205,8 @@ export function montarExtrato(params: {
       estimado: false,
       transacaoId: t.id,
       recorrenciaId: t.recorrencia_id || null,
+      // Paga = o dinheiro já saiu/entrou e o saldo das contas já reflete isso.
+      jaNoSaldo: t.pago !== false,
     });
   }
 
@@ -309,6 +321,9 @@ export function montarExtrato(params: {
     let entradas = 0;
     let saidas = 0;
     for (const l of linhas) {
+      // ⚠️ Já dentro do saldo inicial: aparece na lista, mas não move o saldo.
+      // Ver o campo `jaNoSaldo` — é o que impede a dupla contagem.
+      if (l.jaNoSaldo) continue;
       if (l.tipo === 'Recebimento') entradas += l.valor; else saidas += l.valor;
       if (l.estimado) { incertezaAcum += l.valor; temEstimativa = true; }
     }

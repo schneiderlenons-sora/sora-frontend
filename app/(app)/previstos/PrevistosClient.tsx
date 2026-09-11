@@ -7,11 +7,13 @@ import {
   Plus, Pencil, Trash2, Loader2, BellOff, ShoppingCart, Banknote,
   ChevronDown, ClipboardList, ArrowDownToLine, ArrowUpFromLine,
   CalendarDays, Landmark, CreditCard, CircleDashed, Sparkles, X,
+  ListOrdered,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
+import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
 import { saldoBRL } from '@/lib/moeda';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -22,7 +24,7 @@ import {
 } from '@/lib/previstos';
 import GraficoMeses, { BarraDividida, type BarraMes } from '@/components/previstos/GraficoMeses';
 import FormRecorrencia, { type RecorrenciaForm } from '@/components/previstos/FormRecorrencia';
-import { descreveQuando, descreveFim, ocorrenciasNoMes } from '@/lib/frequencia-recorrencia';
+import { descreveQuando, descreveFim, ocorrenciasNoMes, hojeSP } from '@/lib/frequencia-recorrencia';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
@@ -102,7 +104,7 @@ const somaItens = (itens: ItemComposicao[]) => itens.reduce((s, i) => s + (Numbe
 /** Quantos meses a Projeção enxerga à frente. */
 const MESES_A_FRENTE = 6;
 
-type Aba = 'receitas' | 'despesas' | 'caixa' | 'projecao';
+type Aba = 'receitas' | 'despesas' | 'caixa' | 'projecao' | 'extrato';
 
 export default function PrevistosClient({ phoneInicial }: { phoneInicial?: string }) {
   const { phone: authPhone } = useAuth();
@@ -155,6 +157,86 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       .reduce((s: number, w: any) => s + (saldoBRL(w) ?? 0), 0),
     [wallets],
   );
+
+  // ── Extrato Futuro (aba adicional) ───────────────────────────────────────
+  //
+  // ⚠️ TUDO AQUI SÓ CARREGA QUANDO A ABA ESTÁ ABERTA (`aba === 'extrato'` na
+  // chave do SWR). Sem isso, quem nunca abre o Extrato pagaria duas listagens
+  // de transação por visita à aba Previstos — exatamente o desperdício que o
+  // `prefetchTopTabs` acabou de deixar de fazer.
+  const [carteiraExtrato, setCarteiraExtrato] = useState<string | null>(null);
+  const [quitandoRec, setQuitandoRec] = useState<string | null>(null);
+  const ligado = !!phone && aba === 'extrato';
+  const ymProx = somarMeses(ymHoje, 1);
+
+  const { data: ocorrData, mutate: recarregarOcorr } = useApi(
+    ligado ? `d:ocorrencias:${phone}:${ymHoje}` : null,
+    () => api.previstos.ocorrencias(phone, ymHoje, somarMeses(ymHoje, 3)),
+  );
+  // Duas listagens porque a janela do extrato cruza o mês. As chaves são as
+  // CANÔNICAS de `lib/chaves-swr.ts`, então se a aba Transações já carregou o
+  // mês corrente, aqui não custa requisição nenhuma.
+  const { data: txA } = useApi(
+    ligado ? chave.transacoes(phone, { mes: ymHoje, limit: 500 }) : null,
+    () => api.transacoes.listar(phone, { mes: ymHoje, limit: 500 }),
+  );
+  const { data: txB } = useApi(
+    ligado ? chave.transacoes(phone, { mes: ymProx, limit: 500 }) : null,
+    () => api.transacoes.listar(phone, { mes: ymProx, limit: 500 }),
+  );
+
+  const dadosExtrato = useMemo(() => {
+    const hoje = hojeSP();
+    const [ay, am, ad] = hoje.split('-').map(Number);
+    const fim = new Date(ay, am - 1, ad + 60);
+    const ate = `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}`;
+    const txs = [
+      ...((txA as any)?.transacoes ?? []),
+      ...((txB as any)?.transacoes ?? []),
+    ];
+    return {
+      de: hoje,
+      ate,
+      // ⚠️ O saldo de partida é o MESMO `saldoHoje` que a aba Projeção usa —
+      // duas telas do mesmo painel não podem partir de números diferentes.
+      saldoInicial: saldoHoje,
+      transacoes: txs,
+      recorrencias: recorrencias as any[],
+      dividas: (Array.isArray(divData) ? divData : []) as any[],
+      faturas: (Array.isArray(fatData) ? fatData : []) as any[],
+      quitacoes: (ocorrData as any)?.quitacoes ?? [],
+      ajustes: (ocorrData as any)?.ajustes ?? [],
+      carteiras: carteiraExtrato ? [carteiraExtrato] : undefined,
+    };
+  }, [txA, txB, saldoHoje, recorrencias, divData, fatData, ocorrData, carteiraExtrato]);
+
+  const carteirasDebito = useMemo(
+    () => wallets.filter((w: any) => w.tipo !== 'Crédito').map((w: any) => w.nome).filter(Boolean),
+    [wallets],
+  );
+
+  async function acaoExtrato(a: AcaoOcorrencia) {
+    const { linha, acao } = a;
+    if (!linha.recorrenciaId || !linha.competencia) return;
+    const base = { recorrencia_id: linha.recorrenciaId, competencia: linha.competencia };
+    try {
+      setQuitandoRec(linha.recorrenciaId);
+      if (acao === 'quitar') {
+        await api.previstos.quitar({ ...base, data: a.data, valor: a.valor, carteira_nome: linha.carteira ?? null });
+      } else if (acao === 'pular') {
+        await api.previstos.ajuste({ ...base, status: 'pulado' });
+      } else if (acao === 'adiar') {
+        // Adia 7 dias por padrão — o ajuste fino fica pra uma iteração seguinte,
+        // quando o preview disser se o formato é o que o cliente espera.
+        const [y, m, d] = linha.data.split('-').map(Number);
+        const nova = new Date(y, m - 1, d + 7);
+        const iso = `${nova.getFullYear()}-${String(nova.getMonth() + 1).padStart(2, '0')}-${String(nova.getDate()).padStart(2, '0')}`;
+        await api.previstos.ajuste({ ...base, status: 'movido', nova_data: iso });
+      }
+      await recarregarOcorr();
+    } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+    finally { setQuitandoRec(null); }
+  }
 
   // ── Fecha o mês em… (a manchete) ─────────────────────────────────────────
   //
@@ -564,6 +646,9 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           ['receitas', 'Receitas', TrendingUp],
           ['despesas', 'Despesas', TrendingDown],
           ['caixa',    'Caixa',    Wallet],
+          // ⚠️ ENTRA COMO ABA ADICIONAL, nunca substituindo nenhuma das 4.
+          // Quem usa Projeção/Receitas/Despesas/Caixa hoje não sente diferença.
+          ['extrato',  'Extrato',  ListOrdered],
         ] as const).map(([id, label, Icone]) => (
           <button
             key={id}
@@ -581,7 +666,16 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         ))}
       </div>
       {/* ── Conteúdo ───────────────────────────────────────────────────── */}
-      {aba === 'projecao' ? (
+      {aba === 'extrato' ? (
+        <ExtratoFuturo
+          dados={dadosExtrato}
+          carteiras={carteirasDebito}
+          carteiraAtiva={carteiraExtrato}
+          onCarteira={setCarteiraExtrato}
+          onAcao={acaoExtrato}
+          ocupado={quitandoRec}
+        />
+      ) : aba === 'projecao' ? (
         <SecaoProjecao
           projecao={projecao}
           barras={barrasPatrimonio}
