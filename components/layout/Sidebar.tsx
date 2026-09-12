@@ -22,7 +22,9 @@ import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
 import AvatarMembro from '@/components/ui/AvatarMembro';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useApi } from '@/lib/useApi';
+import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
@@ -219,6 +221,26 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // BottomNav) — mantém `setOpen(false)` como fechar-mobile.
   const open = mobileOpen;
   const setOpen = (_v: boolean) => { if (!_v) onMobileClose?.(); };
+
+  // ── Respostas do suporte que a pessoa ainda não leu ───────────────────────
+  //
+  // ⚠️ UMA chamada, e barata: a rota devolve só o resumo dos chamados DESTA
+  // pessoa (a maioria tem zero). `revalidateOnFocus` fica ligado de propósito —
+  // é justamente ao voltar pro app que faz sentido descobrir que o suporte
+  // respondeu. A chave é canônica, então a tela de chamados reaproveita.
+  //
+  // ⚠️ Falha silenciosa: sem resposta, o badge simplesmente não aparece. Um
+  // erro aqui não pode quebrar a navegação inteira por causa de um contador.
+  const { data: chamadosData } = useApi(
+    phone ? `d:chamados:${phone}` : null,
+    () => api.bug.meusChamados(),
+    { refreshInterval: 120_000 },
+  );
+  const chamadosNaoLidos = useMemo(
+    () => ((chamadosData as any)?.chamados || [])
+      .reduce((s: number, c: any) => s + (Number(c.nao_lidas) || 0), 0),
+    [chamadosData],
+  );
 
   // ⚠️ O DRAWER IGNORA TOQUE ENQUANTO ESTÁ ABRINDO — "clique fantasma".
   //
@@ -513,6 +535,22 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           <Icon size={15} />
         </span>
         <span className="flex-1 min-w-0 truncate">{label}</span>
+        {/* ── RESPOSTA DO SUPORTE ESPERANDO ────────────────────────────────
+            ⚠️ Existe porque a conversa do chamado já funcionava e ninguém via.
+            A thread (migration 143) estava pronta dos dois lados, mas nada
+            fora da própria tela avisava que havia resposta — a pessoa teria
+            de adivinhar que devia abrir "Relatar um problema". Sem este
+            número, responder pelo painel continua sendo um bilhete numa
+            gaveta fechada. */}
+        {!locked && chamadosNaoLidos > 0 && href === '/reportar-bug' && (
+          <span
+            aria-label={`${chamadosNaoLidos} ${chamadosNaoLidos === 1 ? 'resposta nova' : 'respostas novas'} do suporte`}
+            className="flex-shrink-0 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full
+                       bg-red-500 text-white text-[10px] font-bold tabular"
+          >
+            {chamadosNaoLidos > 9 ? '9+' : chamadosNaoLidos}
+          </span>
+        )}
         {locked && (
           badgeText
             ? <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${corBadge}`}>{badgeText}</span>
