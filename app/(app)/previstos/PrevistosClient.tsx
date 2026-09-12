@@ -255,12 +255,11 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       } else if (acao === 'pular') {
         await api.previstos.ajuste({ ...base, status: 'pulado' });
       } else if (acao === 'adiar') {
-        // Adia 7 dias por padrão — o ajuste fino fica pra uma iteração seguinte,
-        // quando o preview disser se o formato é o que o cliente espera.
-        const [y, m, d] = linha.data.split('-').map(Number);
-        const nova = new Date(y, m - 1, d + 7);
-        const iso = `${nova.getFullYear()}-${String(nova.getMonth() + 1).padStart(2, '0')}-${String(nova.getDate()).padStart(2, '0')}`;
-        await api.previstos.ajuste({ ...base, status: 'movido', nova_data: iso });
+        // ⚠️ A DATA VEM DA TELA. Antes eram 7 dias fixos — um placeholder que
+        // adivinhava por todo mundo. Sem `a.data` não há o que mover: melhor
+        // não fazer nada do que mover a conta pra um dia que a pessoa não pediu.
+        if (!a.data) return;
+        await api.previstos.ajuste({ ...base, status: 'movido', nova_data: a.data });
       }
       await recarregarOcorr();
     } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }

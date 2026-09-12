@@ -42,6 +42,26 @@ const VAZIO = {
   tipo: 'Gasto' as 'Gasto' | 'Recebimento', carteira: '',
 };
 
+/** Os saltos que cobrem quase todo "adiar" real. */
+const ATALHOS_ADIAR = [
+  { dias: 7,  rotulo: '+7 dias' },
+  { dias: 15, rotulo: '+15 dias' },
+  { dias: 30, rotulo: '+30 dias' },
+];
+
+/**
+ * Soma dias a uma data ISO, sem passar por `new Date(iso)`.
+ *
+ * ⚠️ `new Date('2026-09-10')` é interpretado como UTC — no Brasil isso é 21h do
+ * dia ANTERIOR, e a conta volta um dia. É o mesmo bug que `lib/data-br.ts`
+ * existe pra impedir; aqui a data é construída por partes, no fuso local.
+ */
+function somarDias(iso: string, dias: number): string {
+  const [a, m, d] = iso.slice(0, 10).split('-').map(Number);
+  const x = new Date(a, m - 1, d + dias);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+
 export type AcaoOcorrencia = {
   linha: LinhaExtrato;
   /**
@@ -94,6 +114,8 @@ export default function ExtratoFuturo({
   const [novoAberto, setNovoAberto] = useState(false);
   const [novo, setNovo] = useState(VAZIO);
   const [salvando, setSalvando] = useState(false);
+  // Qual linha está com o seletor de data aberto (um por vez).
+  const [adiando, setAdiando] = useState<string | null>(null);
 
   // Sugestões indexadas por ocorrência — o casamento em si é feito no BACKEND
   // (`services/casarPrevisao.js`), fonte única que a baixa automática também
@@ -367,20 +389,67 @@ export default function ExtratoFuturo({
                       preso/atrás do conteúdo (memória `feedback-modal-portal`).
                       Aqui não há fixed nenhum, então o problema não existe. */}
                   {aberta === id && podeAgir && previsto && (
-                    <div className="px-3 pb-3 pt-1 grid grid-cols-3 gap-2 border-t border-border/30 bg-muted/20">
-                      <AcaoBtn
-                        icone={<Check size={15} />} rotulo="Paguei"
-                        ocupado={ocupado === l.recorrenciaId}
-                        onClick={() => { onAcao({ linha: l, acao: 'quitar', data: l.data, valor: l.valor }); setAberta(null); }}
-                      />
-                      <AcaoBtn
-                        icone={<CalendarClock size={15} />} rotulo="Adiar"
-                        onClick={() => { onAcao({ linha: l, acao: 'adiar' }); setAberta(null); }}
-                      />
-                      <AcaoBtn
-                        icone={<SkipForward size={15} />} rotulo="Pular"
-                        onClick={() => { onAcao({ linha: l, acao: 'pular' }); setAberta(null); }}
-                      />
+                    <div className="px-3 pb-3 pt-1 border-t border-border/30 bg-muted/20 space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <AcaoBtn
+                          icone={<Check size={15} />} rotulo="Paguei"
+                          ocupado={ocupado === l.recorrenciaId}
+                          onClick={() => { onAcao({ linha: l, acao: 'quitar', data: l.data, valor: l.valor }); setAberta(null); }}
+                        />
+                        <AcaoBtn
+                          icone={<CalendarClock size={15} />} rotulo="Adiar"
+                          ativo={adiando === id}
+                          onClick={() => setAdiando(adiando === id ? null : id)}
+                        />
+                        <AcaoBtn
+                          icone={<SkipForward size={15} />} rotulo="Pular"
+                          onClick={() => { onAcao({ linha: l, acao: 'pular' }); setAberta(null); }}
+                        />
+                      </div>
+
+                      {/* ── PARA QUANDO ─────────────────────────────────────
+                          ⚠️ Atalhos + data livre, nesta ordem. "Adiar" na
+                          prática é quase sempre "semana que vem" ou "quando cair
+                          o salário" — obrigar a abrir o calendário do sistema
+                          pra isso é atrito num gesto que deveria ser um toque.
+                          Quem precisa de um dia específico tem o campo ao lado.
+
+                          ⚠️ Diz "Mover para", não "Adiar para": adiantar uma
+                          conta é tão legítimo quanto atrasar, e o backend aceita
+                          qualquer data. O rótulo do botão continua "Adiar"
+                          porque é o caso comum. */}
+                      {adiando === id && (
+                        <div className="pt-1 space-y-2 animate-[slide-up_250ms_ease-out_both]">
+                          <p className="text-[11px] font-medium text-muted-foreground">Mover para</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {ATALHOS_ADIAR.map((a) => (
+                              <button
+                                key={a.dias}
+                                type="button"
+                                onClick={() => {
+                                  onAcao({ linha: l, acao: 'adiar', data: somarDias(l.data, a.dias) });
+                                  setAdiando(null); setAberta(null);
+                                }}
+                                className="h-11 rounded-lg text-[12px] font-semibold bg-background/60 hover:bg-background
+                                           border border-border/40 active:scale-[0.97] transition-all"
+                              >
+                                {a.rotulo}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            type="date"
+                            defaultValue={l.data}
+                            aria-label="Escolher a data"
+                            onChange={(e) => {
+                              if (!e.target.value) return;
+                              onAcao({ linha: l, acao: 'adiar', data: e.target.value });
+                              setAdiando(null); setAberta(null);
+                            }}
+                            className="w-full h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -516,17 +585,19 @@ function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => voi
   );
 }
 
-function AcaoBtn({ icone, rotulo, onClick, ocupado }: {
-  icone: React.ReactNode; rotulo: string; onClick: () => void; ocupado?: boolean;
+function AcaoBtn({ icone, rotulo, onClick, ocupado, ativo }: {
+  icone: React.ReactNode; rotulo: string; onClick: () => void; ocupado?: boolean; ativo?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={ocupado}
-      className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg text-[11px] font-medium
-                 bg-background/60 hover:bg-background border border-border/40 min-h-[44px]
-                 disabled:opacity-50 active:scale-[0.97] transition-all"
+      aria-expanded={ativo}
+      className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg text-[11px] font-medium
+                 border min-h-[44px] disabled:opacity-50 active:scale-[0.97] transition-all ${
+        ativo ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-background/60 hover:bg-background border-border/40'
+      }`}
     >
       {icone}
       {ocupado ? '...' : rotulo}
