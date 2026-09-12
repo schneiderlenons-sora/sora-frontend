@@ -239,8 +239,28 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
     //    R$ 1.041,05 no card, porque R$ 2.854,70 já haviam sido pagos e o
     //    modal não descontava. Mesmo defeito que o `resumo` do WhatsApp tinha.
     if (restanteApi !== null) return restanteApi;
-    return doBanco ? -(cartao.saldo as number) : somaMes + totalPrevisto;
-  }, [restanteApi, ehFaturaEmCurso, cartao?.of_conta_id, cartao?.saldo, somaMes, totalPrevisto]);
+    // ⚠️ `−saldo` NÃO SERVE DE RESERVA NO TRILHO CELCOIN — e este foi o bug
+    // relatado: o card mostrava R$ 1.350,58 e o modal R$ 1.618,18 no mesmo
+    // cartão, sendo que o banco cobrava R$ 884,36.
+    //
+    // Os R$ 1.618,18 eram exatamente o LIMITE USADO. O sync grava
+    // `saldo = −(used_amount − unbilled_amount)` e, quando `unbilled_amount`
+    // vem 0 — o que é CORRETO no começo do ciclo, porque a janela do campo só
+    // abre em `fechamento + 1 mês` —, a conta devolve o limite usado inteiro.
+    // O `faturaVista` barra esse número no servidor (por isso o card estava
+    // "menos errado"), mas esta linha lia `saldo` direto e passava por fora do
+    // guard: era uma SEGUNDA fonte da verdade, exatamente o que o CLAUDE.md
+    // proíbe — "nunca exibir o limite usado como Fatura atual".
+    //
+    // Sem resposta do servidor, a reserva passa a ser a soma do ciclo: erra a
+    // menos quando há parcela sem marcador, mas é AUDITÁVEL (bate com a lista
+    // de lançamentos logo abaixo dela) e nunca inventa um número que o cliente
+    // não reconhece. `doBanco` fica só pro trilho legado, onde `saldo` é de
+    // fato `−(balance − parcelas a vencer)`.
+    const celcoin = cartao?.of_provider === 'polp-celcoin';
+    if (doBanco && !celcoin) return -(cartao.saldo as number);
+    return somaMes + totalPrevisto;
+  }, [restanteApi, ehFaturaEmCurso, cartao?.of_conta_id, cartao?.saldo, cartao?.of_provider, somaMes, totalPrevisto]);
   // "Paga" vem do SERVIDOR quando ele sabe. O localStorage fica só como
   // marcação manual do usuário, que era tudo o que existia antes: cartão de
   // banco conectado ficava eternamente "Em aberto" mesmo depois de pago.
