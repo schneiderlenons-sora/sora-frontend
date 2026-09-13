@@ -1096,6 +1096,68 @@ banco no valor da fatura) — e aí medir antes, porque alarme falso de R$ 21 mi
 
 ---
 
+## Valor FÓSSIL no cartão: o sync não gravava "eu não sei" (set/2026)
+
+Relato: Mercado Pago **R$ 4.274,85 na Sora × R$ 689,23 no banco**. Não era erro
+de cálculo — era um número de agosto que ninguém mais atualizava.
+
+⚠️ **MODALIDADE QUE O CARTÃO NÃO TEM DERRUBAVA OS DOIS CONSENSOS.** O emissor
+manda três linhas em `limits[]`, todas `MODALIDADE_OPERACAO` e todas do mesmo
+plástico:
+
+```
+SAQUE_CREDITO_EXTERIOR   limite      0,00   usado      0,00
+SAQUE_CREDITO_BRASIL     limite      0,00   usado      0,00
+CREDITO_A_VISTA          limite  2.900,00   usado    655,93
+```
+
+As duas de saque são modalidades **não contratadas**: "usou 0 de 0" não informa
+nada. Mas `usadoDoCartao` via {0, 0, 655.93}, declarava discordância e devolvia
+`null`; e `limitePorModalidade` via tetos {0, 2900} e recusava com "DISCORDAM do
+teto". Sem `used_amount` a **regra de ouro não roda**.
+
+⚠️ **E AÍ VEIO O GOLPE: `patchSaldo` NÃO GRAVAVA `null`.** Era
+`saldo == null ? {} : { saldo }` — sem valor, o sync **não tocava na coluna**, e
+`wallets.saldo` ficava com o número de um sync anterior ao breaking change de
+24/08/2026. **Para sempre.** A tela exibia a fatura de agosto, **já paga**, como
+se fosse a de hoje. Hoje quem decide é `patchDoSaldo(saldo, limiteRespondeu)`,
+que distingue os dois silêncios igual a `limite`/`of_limite_usado`:
+- banco **não respondeu** sobre limites (`limits` null, ou a chamada falhou) →
+  `null` é ausência de dado, **não toca na coluna**. Soluço de rede não pode
+  zerar a fatura de ninguém — era isso que o patch antigo protegia.
+- banco **respondeu** e não deu pra derivar → `null` é RESPOSTA ("hoje não sei"),
+  **grava** e a tela cai no ciclo auditável.
+- ⚠️ **Escopado a cartão de graça:** `_limiteRespondeu` só existe em
+  `normalizeCartao`. Em conta bancária a flag nunca é true, e `null` lá apagaria
+  o dinheiro da pessoa da tela.
+
+⚠️ **A PROVA de que a linha sobrevivente é a do cartão é a aritmética do PRÓPRIO
+BANCO:** `2.900,00 − 655,93 = 2.244,07` = `available_amount`, ao centavo (o mesmo
+teste que `tetoEfetivo` já usa). E o 655,93 bate **ao centavo** com a nossa soma
+auditável do ciclo aberto — nossos dados estavam completos, faltava o consenso.
+
+**Nenhum limiar calibrado foi tocado.** `TOLERANCIA_SOMA` e
+`quitadaDepoisDoFechamento` ficaram como estavam: com o simulado fora de cena,
+`simuladoEhOLimiteUsado` recusa o fóssil sozinho, a competência fechada aparece
+**quitada** (soma do ciclo 4.018,54 = pagamentos 4.018,54) e a tela pula pra
+seguinte, que é o que o banco mostra. Cheguei a suspeitar de circularidade no
+`quitadaDepoisDoFechamento` — ela se dissolve sozinha.
+
+**Raio de impacto medido (12/09/2026):** 60 cartões de OF, 44 com `saldo < 0`,
+**9 no estado fóssil** (`saldo < 0` + `of_limite_usado` nulo) somando
+**R$ 11.346,27** exibidos sem confirmação da API — **7 deles Mercado Pago**.
+Desses 9, **6 se corrigem no próximo sync**; **3 não** (1 celcoin e os 2 do
+trilho legado `polp`, todos **sem conexão viva** — sync que não roda não
+corrige nada).
+
+⚠️ **Pendente conhecido:** cartão de OF com **conexão morta** segue exibindo o
+último valor que recebeu, e nenhuma das duas correções o alcança. Anular o saldo
+ali só trocaria um número velho por um ciclo velho — precisa de decisão de
+produto ("conexão expirada, reconecte"), não de aritmética.
+
+Travado em `eval:celcoin` §15 (as 3 linhas do payload vivo, + o NuPay e os tetos
+divergentes seguindo recusados) e §16 (`patchDoSaldo`: calar × apagar).
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
