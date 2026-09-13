@@ -286,6 +286,17 @@ export const api = {
     autorizar: (externalId: string) =>
       req<{ urlToAuthenticate?: string | null; status?: string | null }>(
         `/api/open-finance/conexoes/${externalId}/autorizar`),
+    /** RENOVA a URL de autorização de uma conexão pendente.
+     *
+     *  ⚠️ Não é o mesmo que `autorizar`. O `request_uri` de PAR é de USO
+     *  ÚNICO: reabrir a mesma URL devolve "invalid_request_uri" para sempre,
+     *  e era isso que prendia quem falhava na primeira tentativa. O servidor
+     *  só recria quando precisa (URL recém-emitida é reaproveitada) e NUNCA
+     *  numa conexão já autorizada. */
+    reautorizar: (externalId: string) =>
+      req<{ urlToAuthenticate?: string | null; status?: string | null;
+        renovada?: boolean; jaAutorizada?: boolean }>(
+        `/api/open-finance/conexoes/${externalId}/reautorizar`, { method: 'POST' }),
     /** Move a conexão (e as contas/transações dela) pra outro grupo SEU. Sem
      *  `grupo_id`, vai pro grupo ativo. É MOVIMENTO, não cópia — sai da origem.
      *  Só o dono do consentimento pode; ver o comentário da rota no backend. */

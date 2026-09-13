@@ -110,6 +110,10 @@ export default function OpenFinancePage() {
   // URL de autorização do banco — mostrada como LINK (window.open é bloqueado no
   // PWA / fora do clique direto). `authId` = modal aberto esperando a URL nascer.
   const [authUrl, setAuthUrl] = useState('');
+  // Conexão cuja URL está sendo RENOVADA agora. Segura o polling abaixo:
+  // sem isso ele podia preencher a URL VELHA (a que o banco recusa) antes
+  // de a renovação responder, e o usuário abriria justamente a morta.
+  const [renovando, setRenovando] = useState('');
   const [authNome, setAuthNome] = useState('');
   const [authId, setAuthId] = useState('');
   const [authLento, setAuthLento] = useState(false);
@@ -174,7 +178,7 @@ export default function OpenFinancePage() {
   // A URL de autorização nasce um instante DEPOIS do create. Em vez de segurar a
   // resposta do /conectar (eram ~7s), o modal abre na hora e a URL entra aqui.
   useEffect(() => {
-    if (!authId || authUrl) return;
+    if (!authId || authUrl || renovando) return;
     let vivo = true;
     let tentativas = 0;
     const tick = async () => {
@@ -202,7 +206,7 @@ export default function OpenFinancePage() {
     };
     const t = setTimeout(tick, 250);
     return () => { vivo = false; clearTimeout(t); };
-  }, [authId, authUrl, authTry]);
+  }, [authId, authUrl, authTry, renovando]);
 
   // Já no limite do plano? Avisa aqui em vez de deixar o usuário escolher o
   // banco, digitar CPF e só então tomar 403 do backend.
@@ -310,9 +314,28 @@ export default function OpenFinancePage() {
 
   // Abre o modal na hora; quem busca a URL é o polling (feedback imediato em vez
   // de o botão ficar "morto" esperando a resposta).
-  function autorizar(id: string, nome: string | null) {
+  // ⚠️ RENOVA ANTES DE ABRIR. O `request_uri` de PAR é de USO ÚNICO: depois
+  // do primeiro toque a MESMA URL responde "400 invalid_request_uri" para
+  // sempre, e este botão reentregava exatamente ela (a Celcoin só a renova
+  // no /recreate). O usuário ficava num laço que não tinha como dar certo —
+  // medido num Santander real: duas tentativas em 55 min, as duas mortas.
+  async function autorizar(id: string, nome: string | null) {
     setErro(''); setAuthUrl(''); setAuthLento(false);
-    setAuthNome(nome || 'seu banco'); setAuthId(id);
+    setAuthNome(nome || 'seu banco');
+    // O modal abre JÁ (feedback imediato); quem preenche a URL é a renovação.
+    setRenovando(id); setAuthId(id);
+    try {
+      const r = await api.openFinance.reautorizar(id);
+      if (r?.jaAutorizada) {
+        setAuthId('');
+        setFlash('Esse banco já está autorizado — toque em Sincronizar.');
+        return;
+      }
+      if (r?.urlToAuthenticate) setAuthUrl(r.urlToAuthenticate);
+    } catch {
+      // Renovação indisponível (trilho legado, rede): o polling assume, que
+      // é exatamente o comportamento anterior a esta correção.
+    } finally { setRenovando(''); }
   }
 
   async function desconectar(id: string, nome: string | null) {
