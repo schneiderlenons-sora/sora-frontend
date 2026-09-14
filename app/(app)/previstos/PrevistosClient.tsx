@@ -25,6 +25,7 @@ import {
 import GraficoMeses, { BarraDividida, type BarraMes } from '@/components/previstos/GraficoMeses';
 import FormRecorrencia, { type RecorrenciaForm } from '@/components/previstos/FormRecorrencia';
 import { descreveQuando, descreveFim, ocorrenciasNoMes, hojeSP } from '@/lib/frequencia-recorrencia';
+import { criarPrevistoUnico } from '@/lib/previsto-unico';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
@@ -337,15 +338,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     tipo: 'Gasto' | 'Recebimento'; carteira: string | null;
   }) {
     if (!phone || !(p.valor > 0)) return;
-    await api.transacoes.criar({
-      phone,
-      tipo: p.tipo,
-      valor: p.valor,
-      observacao: p.descricao,
-      carteira_nome: p.carteira,
-      data: p.data,
-      categoria: p.tipo === 'Gasto' ? 'Outros' : 'Outras receitas',
-    });
+    // Fonte única com o modo "Uma vez só" do modal de conta fixa.
+    await criarPrevistoUnico(phone, p);
     await Promise.all([mutTxA?.(), mutTxB?.()]);
   }
 
@@ -746,6 +740,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           editItem={formTarget === 'novo' ? null : formTarget}
           onCancel={() => setFormTarget(null)}
           onSaved={() => { setFormTarget(null); recarregarRec(); }}
+          onVerExtrato={() => { setFormTarget(null); setAba('extrato'); }}
         />
       )}
 

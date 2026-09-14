@@ -10,6 +10,9 @@ import { api, type ModoLancamentoFixo } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
 import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda } from '@/lib/moeda';
 import { calcularDataFim, hojeSP, type Frequencia } from '@/lib/frequencia-recorrencia';
+import Link from 'next/link';
+import { criarPrevistoUnico } from '@/lib/previsto-unico';
+import { categorizarDescricao, ajustarPorDirecao } from '@/lib/categorizar';
 
 /**
  * Formulário de conta fixa — frequência, duração e antecedência do aviso.
@@ -207,6 +210,11 @@ function Pills<T>({
 }
 
 /** Campo de texto com rótulo VISÍVEL (placeholder não é rótulo). */
+/** YYYY-MM-DD → DD/MM/AAAA, sem passar por `Date` (que leria em UTC e voltaria um dia). */
+function dataBR(ymd: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}/${ymd.slice(0, 4)}` : '';
+}
+
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -224,7 +232,7 @@ const inputCls =
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function FormRecorrencia({
-  phone, contas, editItem, onCancel, onSaved,
+  phone, contas, editItem, onCancel, onSaved, onVerExtrato,
 }: {
   phone?:    string;
   contas:    Wallet[];
@@ -233,6 +241,11 @@ export default function FormRecorrencia({
   editItem?: RecorrenciaForm | null;
   onCancel:  () => void;
   onSaved:   () => void;
+  /** Depois de criar um previsto único, leva ao Extrato. Ausente = link pra
+   *  /previstos?aba=extrato, que serve pra quem está FORA de Previstos. Na
+   *  própria página o link não trocaria a aba: a rota é a mesma, o
+   *  componente não remonta e o efeito que lê a URL não roda de novo. */
+  onVerExtrato?: () => void;
 }) {
   const editando = !!editItem;
 
@@ -272,6 +285,27 @@ export default function FormRecorrencia({
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro]         = useState('');
+
+  // ── UMA VEZ SÓ ─────────────────────────────────────────────────────────
+  //
+  // Pedido do usuário: o previsto único DENTRO deste modal, sem embolar.
+  // Organização: a pergunta "isso se repete?" vem PRIMEIRO e decide quais
+  // campos existem — frequência, dia, duração, aviso e "o que faço no dia"
+  // só aparecem quando se repete; no modo único entra só a DATA.
+  //
+  // ⚠️ SÃO DOIS MECANISMOS, e por isso cada modo chama o SEU caminho: conta
+  // fixa cria RECORRÊNCIA (`api.recorrencias.criar`), previsto único cria
+  // TRANSAÇÃO pendente (`criarPrevistoUnico`, o mesmo helper do Extrato).
+  // A escolha é explícita e única, então não existe como o mesmo gasto
+  // entrar pelos dois — que era o risco de misturá-los num formulário só.
+  const [unica, setUnica]         = useState(false);
+  // Renderiza só depois de `montado` (portal), então ler a data aqui não
+  // gera hydration mismatch.
+  const [dataUnica, setDataUnica] = useState(() => hojeSP());
+  // O previsto criado: troca o formulário pela confirmação de ONDE ele foi
+  // parar. Sem isso a pessoa cria pelo card de contas fixas, não o vê na
+  // lista (não é conta fixa) e conclui que não salvou.
+  const [criado, setCriado] = useState<{ descricao: string; valor: number; data: string; carteira: string } | null>(null);
   const [sujo, setSujo]         = useState(false);
   const descRef  = useRef<HTMLInputElement>(null);
   const valorRef = useRef<HTMLInputElement>(null);
@@ -352,7 +386,12 @@ export default function FormRecorrencia({
 
   const valorNum = centavos / 100;
   const temValor = centavos > 0;
-  const valido = !!descricao.trim() && (valorVariavel || temValor);
+  // Uma vez só exige VALOR (não existe "valor que varia" num compromisso
+  // único) e DATA de hoje em diante: data passada é registrar o que já
+  // aconteceu, e isso é lançamento, não previsão.
+  const valido = unica
+    ? !!descricao.trim() && temValor && !!dataUnica && dataUnica >= hojeSP()
+    : !!descricao.trim() && (valorVariavel || temValor);
 
   // 1–31. Dia que não existe no mês (31 em abril, 29–31 em fevereiro) faz o
   // cron lançar no ÚLTIMO dia — por isso não trava em 28: travar mudaria a
@@ -401,6 +440,27 @@ export default function FormRecorrencia({
     if (!valido || !phone) return;
     setErro('');
     setSalvando(true);
+
+    if (unica && !editando) {
+      try {
+        // "Automática (pela descrição)" precisa ser resolvida AQUI: a rota de
+        // transação grava a categoria como vier, e vazio viraria sem categoria.
+        const cat = categoria || ajustarPorDirecao(categorizarDescricao(descricao.trim()), tipo === 'Gasto');
+        await criarPrevistoUnico(phone, {
+          descricao: descricao.trim(), valor: valorNum, data: dataUnica, tipo,
+          carteira: carteira || null, categoria: cat,
+        });
+        // Extrato, Transações e a projeção leem transações pelo SWR.
+        mutateGlobal(() => true, undefined, { revalidate: true });
+        setCriado({ descricao: descricao.trim(), valor: valorNum, data: dataUnica, carteira: carteira || 'Dinheiro' });
+        setSujo(false);
+      } catch {
+        setErro('Não consegui salvar. Tente de novo.');
+      } finally {
+        setSalvando(false);
+      }
+      return;
+    }
     const comum = {
       descricao:      descricao.trim(),
       valor:          temValor ? valorNum : 0,
@@ -439,7 +499,7 @@ export default function FormRecorrencia({
       className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center"
       role="dialog"
       aria-modal="true"
-      aria-label={editando ? 'Editar conta fixa' : 'Nova conta fixa'}
+      aria-label={editando ? 'Editar conta fixa' : unica ? 'Novo previsto único' : 'Nova conta fixa'}
     >
       {/* Fundo: escurece e desfoca — o desfoque é o sinal de que tocar aqui sai.
 
@@ -466,12 +526,12 @@ export default function FormRecorrencia({
           <div className="absolute left-1/2 -translate-x-1/2 top-2 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" aria-hidden />
           <div className="min-w-0 flex-1 mt-1 sm:mt-0">
             <h2 className="text-base font-bold text-foreground leading-tight">
-              {editando ? 'Editar conta fixa' : 'Nova conta fixa'}
+              {editando ? 'Editar conta fixa' : unica ? 'Novo previsto único' : 'Nova conta fixa'}
             </h2>
             <p className="text-[11.5px] text-muted-foreground leading-snug">
               {editando
                 ? <><Pencil className="inline w-3 h-3 mr-1 -mt-0.5" />{tipo === 'Gasto' ? 'Gasto' : 'Receita'} {valorVariavel ? 'de valor variável' : 'fixa'}</>
-                : 'Algo que se repete — assinatura, aluguel, salário, IPVA.'}
+                : unica ? 'Acontece uma vez só — IPVA deste ano, viagem, presente.' : 'Algo que se repete — assinatura, aluguel, salário.'}
             </p>
           </div>
           <button
@@ -488,6 +548,44 @@ export default function FormRecorrencia({
 
         {/* ── Corpo rolável ─────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 py-5 space-y-5">
+          {criado ? (
+            <div className="py-6 text-center space-y-3 motion-safe:animate-[slide-up_250ms_ease-out_both]">
+              <div className="mx-auto w-12 h-12 rounded-2xl grid place-items-center"
+                   style={{ background: `color-mix(in srgb, ${BRAND} 12%, transparent)` }}>
+                <Check size={22} style={{ color: BRAND }} />
+              </div>
+              <div>
+                <p className="text-base font-bold text-foreground">Previsto criado</p>
+                <p className="text-sm text-muted-foreground mt-1 tabular-nums">
+                  {criado.descricao} · {fmt(criado.valor)} · {dataBR(criado.data)} · {criado.carteira}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                Como não se repete, ele não entra na lista de contas fixas. Aparece em
+                {' '}<strong className="text-foreground">Previstos → Extrato</strong> e em Transações,
+                no dia {dataBR(criado.data)}.
+              </p>
+            </div>
+          ) : (<>
+          {/* ── SE REPETE × UMA VEZ SÓ ─────────────────────────────────────
+              Primeira pergunta de propósito: é ela que decide o resto do
+              formulário. Some ao EDITAR — uma conta fixa não vira previsto
+              único (são registros diferentes por baixo). */}
+          {!editando && (
+            <Pills
+              label="Isso se repete?"
+              valor={unica ? 'unica' : 'repete'}
+              opcoes={[{ id: 'repete', label: 'Se repete' }, { id: 'unica', label: 'Uma vez só' }]}
+              onChange={(v) => {
+                setSujo(true);
+                setUnica(v === 'unica');
+                // Não existe "valor que varia" num compromisso único.
+                if (v === 'unica') setValorVariavel(false);
+              }}
+              colunas={2}
+            />
+          )}
+
           {/* Tipo — travado ao editar (estrutural). */}
           <Pills
             label={editando ? 'Tipo (não muda depois de criado)' : 'Gasto ou receita'}
@@ -510,6 +608,7 @@ export default function FormRecorrencia({
                 role="switch"
                 aria-checked={valorVariavel}
                 disabled={editando}
+                hidden={unica}
                 onClick={() => { setSujo(true); setValorVariavel((v) => !v); }}
                 className={`text-[11.5px] font-bold px-2.5 h-8 rounded-lg transition-colors ${
                   valorVariavel ? 'text-amber-600 bg-amber-500/12' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -557,7 +656,7 @@ export default function FormRecorrencia({
               value={descricao}
               onChange={(e) => { setSujo(true); setDescricao(e.target.value); }}
               onKeyDown={(e) => { if (e.key === 'Enter' && valido) salvar(); }}
-              placeholder={tipo === 'Gasto' ? 'Ex.: Aluguel, Netflix, IPVA' : 'Ex.: Salário, Aluguel recebido'}
+              placeholder={unica ? 'Ex.: IPVA 2027, viagem, presente' : tipo === 'Gasto' ? 'Ex.: Aluguel, Netflix' : 'Ex.: Salário, Aluguel recebido'}
               aria-label="Descrição"
               className={inputCls}
               style={{ height: 48 }}
@@ -566,6 +665,19 @@ export default function FormRecorrencia({
 
           <div className="h-px bg-border/50" />
 
+          {unica ? (
+            <Campo label={tipo === 'Gasto' ? 'Quando vai pagar' : 'Quando vai receber'}>
+              <input
+                type="date"
+                value={dataUnica}
+                min={hojeSP()}
+                onChange={(e) => { setSujo(true); setDataUnica(e.target.value); }}
+                aria-label="Data do previsto"
+                className={inputCls}
+                style={{ height: 48 }}
+              />
+            </Campo>
+          ) : (<>
           {/* ── QUANDO ────────────────────────────────────────────────────── */}
           <Pills
             label="Com que frequência"
@@ -715,6 +827,8 @@ export default function FormRecorrencia({
             )}
           </div>
 
+          </>)}
+
           <div className="h-px bg-border/50" />
 
           {/* ── DETALHES ──────────────────────────────────────────────────── */}
@@ -744,6 +858,24 @@ export default function FormRecorrencia({
             </Campo>
           </div>
 
+          {unica ? (
+            <div
+              className="rounded-2xl p-3.5 border text-xs leading-relaxed"
+              style={{
+                borderColor: `color-mix(in srgb, ${BRAND} 25%, transparent)`,
+                background: `color-mix(in srgb, ${BRAND} 6%, transparent)`,
+              }}
+            >
+              <p className="flex items-start gap-2 text-foreground/85">
+                <CalendarDays size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
+                <span><strong className="font-bold">Uma vez só</strong>{dataUnica ? <>, em {dataBR(dataUnica)}</> : null} — não se repete.</span>
+              </p>
+              <p className="flex items-start gap-2 mt-2 text-muted-foreground">
+                <CircleDashed size={14} className="mt-0.5 flex-shrink-0 text-amber-600" />
+                Entra como previsto e não mexe no saldo até você confirmar que {tipo === 'Gasto' ? 'pagou' : 'recebeu'}.
+              </p>
+            </div>
+          ) : (<>
           <Pills
             label="O que faço no dia"
             valor={modo}
@@ -781,12 +913,14 @@ export default function FormRecorrencia({
                     : <><Repeat size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />{temValor ? <>Lanço automático de {fmt(valorNum)} em {carteira}.</> : <>Lanço automático em {carteira} assim que você puser o valor.</>}</>}
             </p>
           </div>
+          </>)}
 
           {erro && (
             <p className="text-xs text-red-500 flex items-center gap-1.5" role="alert" aria-live="polite">
               <X size={13} /> {erro}
             </p>
           )}
+          </>)}
         </div>
 
         {/* ── Rodapé fixo ───────────────────────────────────────────────────
@@ -796,6 +930,35 @@ export default function FormRecorrencia({
           className="flex items-center gap-2 px-5 sm:px-6 py-3 border-t border-border/50 bg-card sm:rounded-b-3xl"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
         >
+          {criado ? (<>
+            {onVerExtrato ? (
+              <button
+                type="button"
+                onClick={onVerExtrato}
+                className="px-4 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                style={{ height: 48 }}
+              >
+                Ver no Extrato
+              </button>
+            ) : (
+              <Link
+                href="/previstos?aba=extrato"
+                className="px-4 inline-flex items-center rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                style={{ height: 48 }}
+              >
+                Ver no Extrato
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={onSaved}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl text-sm font-bold text-white
+                         transition-all duration-200 shadow-sm motion-safe:active:scale-[0.985]"
+              style={{ height: 48, background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
+            >
+              <Check size={16} /> Concluir
+            </button>
+          </>) : (<>
           <button
             type="button"
             onClick={fechar}
@@ -815,8 +978,9 @@ export default function FormRecorrencia({
             style={{ height: 48, background: `linear-gradient(135deg, ${BRAND}, #3FA85A)` }}
           >
             {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-            {editando ? 'Salvar alterações' : 'Criar conta fixa'}
+            {editando ? 'Salvar alterações' : unica ? 'Criar previsto' : 'Criar conta fixa'}
           </button>
+          </>)}
         </div>
       </div>
     </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
@@ -537,30 +536,6 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* ── PREVISTO ÚNICO ───────────────────────────────────────────
-              ⚠️ O cliente procurou e não achou ("Não encontrei esta opção.
-              Pode me orientar?"). O formulário existe, mas só dentro de
-              Previstos → Extrato, e a única porta DAQUI abria "Nova conta
-              fixa" — ou seja, quem queria lançar um IPVA era empurrado a
-              cadastrá-lo como conta que se repete todo mês, que é
-              exatamente a queixa "tudo vira recorrente" da rodada passada.
-
-              ⚠️ É LINK PRO FORMULÁRIO QUE JÁ EXISTE, não uma segunda cópia.
-              Conta fixa cria uma RECORRÊNCIA; previsto único cria um
-              LANÇAMENTO com `pago: false`. São mecanismos diferentes, e
-              duplicar o formulário aqui duplicaria a decisão de qual dos
-              dois a pessoa está criando — o caminho mais curto pro mesmo
-              gasto entrar duas vezes. */}
-          <Link
-            href="/previstos?aba=extrato&novo=1"
-            className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold
-                       border border-border/60 text-muted-foreground hover:text-foreground
-                       hover:bg-muted/40 transition-all flex-shrink-0"
-            title="Uma vez só — IPVA, viagem, presente"
-          >
-            <Calendar size={15} />
-            <span className="hidden md:inline">Previsto único</span>
-          </Link>
           <button
             onClick={() => setFormTarget('novo')}
             className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
