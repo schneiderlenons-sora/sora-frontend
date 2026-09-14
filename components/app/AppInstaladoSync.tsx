@@ -4,7 +4,9 @@ import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { detectarOrigem } from '@/lib/origem-app';
 
-const CHAVE = 'sora-app-android-marcado';
+// `-v2`: a marca anterior podia ter sido gravada pela regra de origem antiga,
+// que confundia link aberto pelo WhatsApp com o app (ver lib/origem-app.ts).
+const CHAVE = 'sora-app-android-marcado-v2';
 
 /**
  * Avisa o servidor que esta pessoa abriu a Sora DENTRO do app Android — é o que

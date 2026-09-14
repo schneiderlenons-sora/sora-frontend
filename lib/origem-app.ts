@@ -19,9 +19,39 @@
 // PERSISTIDO — sem isso a detecção valeria por um clique só.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { PACOTE_ANDROID } from './play-store';
+
 export type Origem = 'android' | 'web';
 
-const CHAVE = 'sora-origem';
+// ⚠️ A CHAVE MUDOU DE NOME DE PROPÓSITO (era `sora-origem`). A regra antiga
+// aceitava QUALQUER app Android como referrer (ver `referrerEhDoApp`) e
+// gravou "android" em navegadores que nunca abriram o app — e a marca é
+// permanente. Trocar a chave descarta essas marcas erradas de uma vez; quem
+// está de fato no app volta a ser marcado no próximo lançamento, pelo
+// `?fonte=android` do startUrl ou pelo referrer certo.
+const CHAVE = 'sora-origem-v2';
+const CHAVE_ANTIGA = 'sora-origem';
+
+/**
+ * O referrer diz que a página foi aberta pelo APP DA SORA?
+ *
+ * ⚠️ TEM DE SER O NOSSO PACOTE, não qualquer app. O Chrome do Android marca
+ * como `android-app://<pacote>/` todo link aberto a partir de um app — um
+ * link da Sora tocado no WhatsApp chega com `android-app://com.whatsapp/`,
+ * no Gmail com `android-app://com.google.android.gm/`. A regra antiga era
+ * só `startsWith('android-app://')`, e para um produto que vive no WhatsApp
+ * esse é o caminho de entrada MAIS comum: a sessão do navegador passava a
+ * ser tratada como "dentro do app" para sempre — escondendo itens da barra
+ * lateral, bloqueando a aba Saúde, mudando o cadastro e sumindo com o
+ * convite da Play Store justamente de quem ainda não instalou.
+ *
+ * ⚠️ `(/|$)` e não `startsWith`: senão `com.forsora.app.qualquercoisa`
+ * passaria por prefixo.
+ */
+export function referrerEhDoApp(referrer: string | null | undefined): boolean {
+  const escapado = PACOTE_ANDROID.replace(/\./g, '\\.');
+  return new RegExp(`^android-app://${escapado}(/|$)`).test(String(referrer || ''));
+}
 
 /** O parâmetro que o `startUrl` do twa-manifest.json carrega. */
 export const PARAM_ANDROID = 'fonte';
@@ -43,7 +73,9 @@ export function detectarOrigem(): Origem {
   try {
     const url = new URL(window.location.href);
     const porParam = url.searchParams.get(PARAM_ANDROID) === VALOR_ANDROID;
-    const porReferrer = String(document.referrer || '').startsWith('android-app://');
+    const porReferrer = referrerEhDoApp(document.referrer);
+    // Limpa a marca da regra antiga (ver CHAVE). Barato e idempotente.
+    localStorage.removeItem(CHAVE_ANTIGA);
 
     if (porParam || porReferrer) {
       localStorage.setItem(CHAVE, 'android');
@@ -78,5 +110,5 @@ export function ehAndroid(): boolean {
  */
 export function esquecerOrigem(): void {
   if (typeof window === 'undefined') return;
-  try { localStorage.removeItem(CHAVE); } catch { /* storage bloqueado */ }
+  try { localStorage.removeItem(CHAVE); localStorage.removeItem(CHAVE_ANTIGA); } catch { /* storage bloqueado */ }
 }

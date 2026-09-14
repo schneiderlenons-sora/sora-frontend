@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "eval:ciclo": "npx tsx lib/ciclo-fatura.eval.mjs",
+    "eval:origem-app": "npx tsx lib/origem-app.eval.mjs",
     "eval:saldo-projetado": "npx tsx lib/saldo-projetado.eval.mjs",
     "eval:limite-categoria": "npx tsx lib/limite-categoria.eval.mjs",
     "eval:data-br": "npx tsx lib/data-br.eval.mjs",
