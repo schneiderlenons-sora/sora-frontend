@@ -35,7 +35,7 @@ export default function ThemeToggle() {
       <div
         aria-hidden
         className="fixed z-30 w-11 h-11 rounded-full bg-card border border-border/60"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', right: '1rem' }}
+        style={{ top: 'calc(var(--sora-topo-safe) + var(--sora-barra-altura) + 0.75rem)', right: '1rem' }}
       />
     );
   }
@@ -57,7 +57,7 @@ export default function ThemeToggle() {
                  transition-all duration-300 hover:scale-105 active:scale-95
                  hover:border-primary/40 hover:shadow-glow-sm
                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)', right: '1rem' }}
+      style={{ top: 'calc(var(--sora-topo-safe) + var(--sora-barra-altura) + 0.75rem)', right: '1rem' }}
     >
       {/* Sol — visível quando o tema é BLACK (clicar vira dia) */}
       <Sun

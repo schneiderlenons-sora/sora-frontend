@@ -67,9 +67,24 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabaseAdmin.from('users').update({ plataforma }).eq('id', user.id);
+
+  // ── Abriu DENTRO do app Android → marca `app_android_em` (migration 166).
+  // É o que esconde a barra de convite da Play Store em qualquer navegador.
+  //
+  // ⚠️ UPDATE SEPARADO do de cima: juntar os dois faria a coluna nova
+  // (ainda não rodada) derrubar também a gravação da plataforma.
+  // ⚠️ `is(null)`: grava só a PRIMEIRA vez. Sem erro com 0 linhas afetadas
+  // (já estava marcado) também conta como confirmado.
+  let appAndroid = false;
+  if (plataforma === 'android_app') {
+    const { error: erroApp } = await supabaseAdmin.from('users')
+      .update({ app_android_em: new Date().toISOString() })
+      .eq('id', user.id).is('app_android_em', null);
+    appAndroid = !erroApp;
+  }
   // Coluna nova (migration 161) — se ainda não rodou, falha calado: é
   // telemetria opcional, não pode gerar erro visível pro usuário comum.
-  if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 200 });
+  if (error) return NextResponse.json({ ok: false, erro: error.message, appAndroid }, { status: 200 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, appAndroid });
 }

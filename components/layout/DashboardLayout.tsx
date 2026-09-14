@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import ThemeToggle from './ThemeToggle';
+import BarraPlayStore from '@/components/app/BarraPlayStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from 'next-themes';
 import { navPaleta } from '@/lib/nav-cores';
@@ -57,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div
-      className="flex h-dvh md:h-screen overflow-hidden"
+      className="flex flex-col h-dvh md:h-screen overflow-hidden"
       // Fundo = --bg, MENOS a faixa do home-indicator (safe-area), que recebe
       // a cor da BARRA.
       //
@@ -70,18 +71,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           `linear-gradient(to bottom, hsl(var(--bg)) calc(100% - env(safe-area-inset-bottom, 0px)), ${paletaNav.superficie} calc(100% - env(safe-area-inset-bottom, 0px)))`,
       }}
     >
+      {/* Convite pro app Android. Fica ACIMA do shell (coluna), então empurra
+          o painel pra baixo em vez de cobri-lo — e some sozinho quando a
+          pessoa não é alvo. Sem ele o layout é idêntico ao de antes. */}
+      <BarraPlayStore />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
       <Sidebar mobileOpen={navOpen} onMobileClose={() => setNavOpen(false)} />
       <main
         className="
           flex-1 overflow-y-auto relative
           px-4 sm:px-6
-          pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:pt-6
+          pt-[calc(var(--sora-topo-safe)+0.75rem)] md:pt-6
           pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:pb-6
         "
       >
         {mostrarBadge && <PapelBadge papel={papel} />}
         {children}
       </main>
+      </div>
       <BottomNav onPerfil={() => setNavOpen(true)} />
       <ThemeToggle />
     </div>

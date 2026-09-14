@@ -18,6 +18,14 @@ body { background-color: hsl(var(--bg)); }
    CSS VARIABLES — MODO CLARO
 ───────────────────────────────────────────────────────────── */
 :root {
+  /* ── Topo do painel ──────────────────────────────────────────────────
+     Lidas pelo <main>, pelo círculo de tema e pelo hero do dashboard.
+     A barra de convite da Play Store (components/app/BarraPlayStore.tsx)
+     as sobrescreve SÓ enquanto está na tela; estes padrões reproduzem
+     exatamente a conta de antes dela existir. */
+  --sora-topo-safe:    env(safe-area-inset-top, 0px);
+  --sora-barra-altura: 0px;
+
   --bg:          220 20% 97%;
   --bg-card:     0 0% 100%;
   --bg-muted:    220 15% 94%;

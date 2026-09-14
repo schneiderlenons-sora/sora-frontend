@@ -39,6 +39,9 @@ interface Perfil {
   stripe_subscription_id?: string | null;
   vitalicio?:       boolean | null;
   vitalicio_em?:    string | null;
+  /** Primeira vez que abriu a Sora dentro do app Android (migration 166).
+   *  Preenchido = já instalou → a barra de convite da Play Store some. */
+  app_android_em?:  string | null;
   /** Conexões de Open Finance pagas à parte (R$6/mês cada, migration 111).
    *  Somadas à franquia do plano; no vitalício são o limite inteiro. */
   of_conexoes_pagas?: number | null;

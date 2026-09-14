@@ -143,6 +143,8 @@ export default function HeroVideoBg() {
         style={{
           // Recuo da barra de rolagem do <main> — sem ele a faixa cobre a
           // barra inteira (ver o efeito que mede `barra`).
+          // Abaixo da barra de convite da Play Store, quando ela existe (0px sem).
+          top: 'var(--sora-barra-altura)',
           right: barra,
           // Altura pela PROPORÇÃO do arquivo no desktop (ver
           // lib/dashboard-hero.ts): é o que faz a cena aparecer inteira do
@@ -150,7 +152,7 @@ export default function HeroVideoBg() {
           // tela estreita.
           height: desktop
             ? ALTURA_VIDEO_DESKTOP
-            : `calc(env(safe-area-inset-top, 0px) + 0.75rem + ${ALTURA_VIDEO})`,
+            : `calc(var(--sora-topo-safe) + 0.75rem + ${ALTURA_VIDEO})`,
           zIndex: 0,
         }}
       >
@@ -219,8 +221,10 @@ export default function HeroVideoBg() {
         aria-hidden
         className="fixed inset-x-0 top-0 md:left-64 pointer-events-none transition-opacity duration-300"
         style={{
+          // Abaixo da barra de convite da Play Store, quando ela existe (0px sem).
+          top: 'var(--sora-barra-altura)',
           right: barra,
-          height: 'calc(env(safe-area-inset-top, 0px) + 4rem)',
+          height: 'calc(var(--sora-topo-safe) + 4rem)',
           zIndex: 2,
           opacity: rolou ? 1 : 0,
           background: 'linear-gradient(to bottom, hsl(var(--bg)) 0%, hsl(var(--bg) / .82) 40%, hsl(var(--bg) / .4) 72%, transparent 100%)',

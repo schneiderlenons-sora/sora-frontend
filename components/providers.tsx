@@ -13,6 +13,7 @@ import { LoadingGateProvider } from '@/components/ui/LoadingGate';
 import ThemeColorSync from '@/components/layout/ThemeColorSync';
 import OrigemSync from '@/components/app/OrigemSync';
 import DispositivoSync from '@/components/app/DispositivoSync';
+import AppInstaladoSync from '@/components/app/AppInstaladoSync';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -58,6 +59,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               `users`) — por isso mora AQUI, dentro do AuthProvider, e não ao
               lado do OrigemSync (que roda mesmo deslogado). */}
           <DispositivoSync />
+          {/* Marca no servidor que a pessoa abriu a Sora DENTRO do app
+              Android — é o que esconde a barra de convite da Play Store. */}
+          <AppInstaladoSync />
           <MarcasCustomProvider>
             <LoadingGateProvider>
               {children}
