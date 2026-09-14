@@ -885,6 +885,18 @@ html[data-abertura='on'] #sora-abertura {
   transition: opacity 400ms ease-out;
 }
 
+/* ⚠️ O <html> TAMBÉM NASCE VERDE. Nos primeiros quadros o navegador ainda está
+   rasterizando o overlay em blocos, e o que falta pintar mostra o fundo da RAIZ
+   — capturado: um bloco verde e o resto #09090B (o `--bg` escuro). Com a raiz na
+   mesma cor, o bloco que falta some.
+   ⚠️ SÓ ATÉ A SAÍDA COMEÇAR: o `body` pinta só a própria caixa, e durante o fade
+   uma página curta mostraria o verde por baixo. `data-abertura-saindo` entra no
+   `fim()`, junto do opacity 0. O estilo inline do DashboardLayout vence esta
+   regra depois da hidratação, e é o que se quer. */
+html[data-abertura='on']:not([data-abertura-saindo]) {
+  background-color: #44ac74;
+}
+
 html[data-abertura='on'] #sora-abertura video {
   width: 100%;
   height: 100%;

@@ -197,8 +197,11 @@ function fim(){
      z-index do app. Sem esta linha ele fica INVISÍVEL E AINDA ENGOLINDO TOQUE:
      o usuário toca, não acontece nada, e ele toca de novo achando que travou. */
   box.style.pointerEvents='none';
+  /* A raiz deixa de ser verde no MESMO instante em que o overlay começa a sumir
+     (ver html[data-abertura-saindo] no globals.css). */
+  document.documentElement.setAttribute('data-abertura-saindo','');
   box.style.opacity='0';
-  setTimeout(function(){document.documentElement.removeAttribute('data-abertura');},420);
+  setTimeout(function(){document.documentElement.removeAttribute('data-abertura');document.documentElement.removeAttribute('data-abertura-saindo');},420);
 }
 
 /* ⚠️ TOQUE NA ABERTURA PULA A ABERTURA. Enquanto o vídeo roda, o overlay cobre
