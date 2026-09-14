@@ -1158,6 +1158,35 @@ produto ("conexão expirada, reconecte"), não de aritmética.
 Travado em `eval:celcoin` §15 (as 3 linhas do payload vivo, + o NuPay e os tetos
 divergentes seguindo recusados) e §16 (`patchDoSaldo`: calar × apagar).
 
+## Parcela cobrada NÃO é `pago` (set/2026)
+
+Relato: o comando **"parcelas"** no WhatsApp listou *JIM.COM PROSED ES* como a
+pagar, com as duas parcelas cobradas — e o cliente viu a 2/2 nas transações de
+setembro enquanto o app do Mercado Pago a mostra em "3 de agosto".
+
+- ⚠️ **A DATA ESTAVA CERTA.** O app do MP lista toda parcela com a data da
+  COMPRA. Prova: o ciclo 09/08→08/09 com a 2/2 soma **R$ 4.018,54**, igual aos
+  pagamentos do banco no centavo. Não "corrigir" a redistribuição.
+- ⚠️ **O `pago` é que ficava velho.** Parcela futura nasce `pago: false` (painel,
+  WhatsApp e sync) e **nada a vira quando o dia chega**. A reconciliação do sync
+  só reescrevia a linha quando a data divergia. Medido: **30 do OF**
+  (R$ 14.270,19, 13 clientes) e **240 manuais** (R$ 21.812,15).
+- **Regra:** cobrada = `pago` **ou** dia (em SP) ≤ hoje —
+  `parcelaJaCobrada`/`agruparParcelas` em `services/consultaParcela.js`. Com o
+  total conhecido, **pagas = total − a vencer** (cobre a 1/2 que veio sem
+  marcador e o legado "Desc (2/3)", que só busca as não pagas). O texto diz
+  **"cobradas"**: a parcela da fatura aberta saiu do cronograma, mas a fatura
+  pode não ter sido paga.
+- **"antecipar parcela" ignora a já cobrada** — debitaria a conta por um valor
+  que a fatura também cobra.
+- **Sync:** `patchReconciliacaoParcela` refresca o `pago` na data certa, e
+  **só de false pra true** — parcela ANTECIPADA é paga com data futura e o sync a
+  devolveria pra "a pagar". Migration **167** corrige o histórico do OF.
+- ⚠️ **As 240 manuais NÃO foram tocadas** (decisão do usuário pendente). O
+  comando já as trata pela data; o `DetalhesCartaoModal` ainda oferece
+  "Antecipar" nelas e o filtro "pendente" de /transacoes ainda as conta.
+- Travado em `eval:consulta-parcela` §6 e `eval:reconciliar-parcelas` §6.
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a

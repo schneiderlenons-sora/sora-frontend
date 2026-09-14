@@ -402,7 +402,7 @@ export const COMANDOS: Comando[] = [
     id: 'parcelas-de-uma-compra',
     titulo: 'Parcelas de uma compra',
     exemplo: 'parcelas do presente da Juliana',
-    descricao: 'Busca uma compra parcelada pela descrição e mostra o valor total, de quanto é cada parcela, quantas já foram pagas, quantas faltam e quando vence a próxima. Serve também pra parcelamento e empréstimo cadastrados em Dívidas.',
+    descricao: 'Busca uma compra parcelada pela descrição e mostra o valor total, de quanto é cada parcela, quantas já foram cobradas, quantas faltam e quando vence a próxima. Serve também pra parcelamento e empréstimo cadastrados em Dívidas.',
     variantes: ['quantas parcelas faltam do celular', 'valor e quantidade de parcelas do notebook', 'valor da parcela da TV', 'detalhes da compra parcelada do fone', 'parcelas do nubank'],
     categoria: 'cartoes',
     destaque: true,
