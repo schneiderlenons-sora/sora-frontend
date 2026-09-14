@@ -115,6 +115,21 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // como se chega lá. Abrir no Caixa dava a conta do mês corrente a quem veio
   // olhar pra frente.
   const [aba, setAba] = useState<Aba>('projecao');
+  // ── ABA E FORMULARIO VINDOS DA URL ──────────────────────────────────────
+  //
+  // O card "Previstos do mes" (aba Transacoes) linka pra ca com
+  // ?aba=extrato&novo=1 quando a pessoa toca em "Previsto unico".
+  //
+  // ⚠️ EFEITO, nao valor inicial do useState: ler a URL no primeiro render
+  // divergiria do HTML do servidor (hydration mismatch). E `useSearchParams`
+  // exigiria Suspense em volta da pagina.
+  const [abrirNovoPrevisto, setAbrirNovoPrevisto] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('aba') === 'extrato') setAba('extrato');
+    if (p.get('novo') === '1') setAbrirNovoPrevisto(true);
+  }, []);
   const [periodo, setPeriodo] = useState<number>(6);
   const [mesSel, setMesSel] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);           // navegação de mês
@@ -165,6 +180,33 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // de transação por visita à aba Previstos — exatamente o desperdício que o
   // `prefetchTopTabs` acabou de deixar de fazer.
   const [carteiraExtrato, setCarteiraExtrato] = useState<string | null>(null);
+
+  // ⚠️ O SALDO DE PARTIDA SEGUE O FILTRO DE CONTA.
+  //
+  // Relato do cliente: "o saldo de ponto de partida deveria ser o saldo da
+  // conta que selecionei. Está correto quando é todas as contas, mas se
+  // seleciono uma conta, faz mais sentido ver o saldo atual daquela conta".
+  //
+  // Ele tem razão, e o defeito era pior do que parece: as LINHAS já filtravam
+  // por conta (`carteiras`, no objeto abaixo) e só o saldo inicial não. A
+  // coluna de saldo acumulado somava o dinheiro de TODAS as contas aos
+  // lançamentos de UMA — e o "ponto mais apertado" do topo, que é a manchete
+  // da tela, saía de um número que não existe em conta nenhuma.
+  //
+  // Sem filtro continua sendo o MESMO `saldoHoje` da aba Projeção: duas telas
+  // do mesmo painel não podem partir de números diferentes.
+  const saldoPartida = useMemo(() => {
+    if (!carteiraExtrato) return saldoHoje;
+    // O nome é chave única de carteira no grupo (o upsert casa por
+    // `grupo_id,nome`) e é por nome que o resto do painel liga conta a
+    // lançamento — a mesma regra do filtro das linhas, que não pode divergir
+    // desta.
+    const w = wallets.find((x: any) => x.tipo !== 'Crédito' && x.nome === carteiraExtrato);
+    // ⚠️ Conta que sumiu (renomeada, desconectada) → 0, nunca o total. Com o
+    // filtro de pé as linhas também saem vazias, e devolver o total aqui
+    // desenharia um saldo cheio sob uma lista vazia.
+    return w ? (saldoBRL(w) ?? 0) : 0;
+  }, [carteiraExtrato, wallets, saldoHoje]);
   const [quitandoRec, setQuitandoRec] = useState<string | null>(null);
   const ligado = !!phone && aba === 'extrato';
   const ymProx = somarMeses(ymHoje, 1);
@@ -197,9 +239,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     return {
       de: hoje,
       ate,
-      // ⚠️ O saldo de partida é o MESMO `saldoHoje` que a aba Projeção usa —
-      // duas telas do mesmo painel não podem partir de números diferentes.
-      saldoInicial: saldoHoje,
+      saldoInicial: saldoPartida,
       transacoes: txs,
       recorrencias: recorrencias as any[],
       dividas: (Array.isArray(divData) ? divData : []) as any[],
@@ -208,10 +248,19 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       ajustes: (ocorrData as any)?.ajustes ?? [],
       carteiras: carteiraExtrato ? [carteiraExtrato] : undefined,
     };
-  }, [txA, txB, saldoHoje, recorrencias, divData, fatData, ocorrData, carteiraExtrato]);
+  }, [txA, txB, saldoPartida, recorrencias, divData, fatData, ocorrData, carteiraExtrato]);
 
   const carteirasDebito = useMemo(
     () => wallets.filter((w: any) => w.tipo !== 'Crédito').map((w: any) => w.nome).filter(Boolean),
+    [wallets],
+  );
+
+  // Contas conectadas ao banco. O Extrato usa isto pra NAO pedir o valor pago
+  // nelas: la quem traz o valor real e o proprio extrato bancario, e digitar um
+  // a mao criaria a transacao que vai duplicar com a dele.
+  const carteirasBanco = useMemo(
+    () => wallets.filter((w: any) => w.tipo !== 'Crédito' && w.of_conta_id)
+      .map((w: any) => w.nome).filter(Boolean),
     [wallets],
   );
 
@@ -732,6 +781,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         <ExtratoFuturo
           dados={dadosExtrato}
           carteiras={carteirasDebito}
+          carteirasBanco={carteirasBanco}
+          abrirNovo={abrirNovoPrevisto}
           carteiraAtiva={carteiraExtrato}
           onCarteira={setCarteiraExtrato}
           onAcao={acaoExtrato}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2 } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
 
@@ -92,11 +92,15 @@ export type Sugestao = {
 };
 
 export default function ExtratoFuturo({
-  dados, carteiras, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
-  baixaAutomatica, onBaixaAutomatica,
+  dados, carteiras, carteirasBanco, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
+  baixaAutomatica, onBaixaAutomatica, abrirNovo,
 }: {
   dados: Parameters<typeof montarExtrato>[0];
   carteiras: string[];
+  /** Contas que vêm do Open Finance. Nelas o valor real quem traz é o
+   *  BANCO, então o campo "valor pago" não aparece — ver o painel do
+   *  "Paguei" lá embaixo. */
+  carteirasBanco?: string[];
   carteiraAtiva: string | null;
   onCarteira: (c: string | null) => void;
   onAcao: (a: AcaoOcorrencia) => void;
@@ -106,16 +110,28 @@ export default function ExtratoFuturo({
     descricao: string; valor: number; data: string;
     tipo: 'Gasto' | 'Recebimento'; carteira: string | null;
   }) => Promise<void>;
+  /** Abre o formulario de previsto unico ja na montagem. Vem de
+   *  /previstos?aba=extrato&novo=1, o link do card "Previstos do mes". */
+  abrirNovo?: boolean;
   baixaAutomatica?: boolean;
   onBaixaAutomatica?: (v: boolean) => void;
 }) {
   const extrato: Extrato = useMemo(() => montarExtrato(dados), [dados]);
   const [aberta, setAberta] = useState<string | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
+  // ⚠️ Efeito e nao valor inicial: o estado inicial vem do SERVIDOR, e ler a
+  // URL ali daria hydration mismatch (mesma regra do `ehDesktop` da Sidebar).
+  useEffect(() => { if (abrirNovo) setNovoAberto(true); }, [abrirNovo]);
   const [novo, setNovo] = useState(VAZIO);
   const [salvando, setSalvando] = useState(false);
   // Qual linha está com o seletor de data aberto (um por vez).
   const [adiando, setAdiando] = useState<string | null>(null);
+  // Qual linha está com o painel de "Paguei" aberto, e o que foi digitado.
+  const [quitando, setQuitando] = useState<string | null>(null);
+  const [quitacao, setQuitacao] = useState<{ data: string; valor: string }>({ data: '', valor: '' });
+
+  // Conta conectada ao banco? Decide se o campo de VALOR aparece.
+  const doBanco = useMemo(() => new Set(carteirasBanco || []), [carteirasBanco]);
 
   // Sugestões indexadas por ocorrência — o casamento em si é feito no BACKEND
   // (`services/casarPrevisao.js`), fonte única que a baixa automática também
@@ -393,8 +409,13 @@ export default function ExtratoFuturo({
                       <div className="grid grid-cols-3 gap-2">
                         <AcaoBtn
                           icone={<Check size={15} />} rotulo="Paguei"
+                          ativo={quitando === id}
                           ocupado={ocupado === l.recorrenciaId}
-                          onClick={() => { onAcao({ linha: l, acao: 'quitar', data: l.data, valor: l.valor }); setAberta(null); }}
+                          onClick={() => {
+                            if (quitando === id) { setQuitando(null); return; }
+                            setQuitando(id); setAdiando(null);
+                            setQuitacao({ data: l.data, valor: String(l.valor).replace('.', ',') });
+                          }}
                         />
                         <AcaoBtn
                           icone={<CalendarClock size={15} />} rotulo="Adiar"
@@ -448,6 +469,71 @@ export default function ExtratoFuturo({
                             }}
                             className="w-full h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
                           />
+                        </div>
+                      )}
+
+                      {/* ── PAGUEI: a data e o valor REAIS ───────────────────
+                          ⚠️ ANTES ESTE BOTÃO NÃO PERGUNTAVA NADA: mandava
+                          `data: l.data, valor: l.valor` — os valores
+                          PREVISTOS. A rota `/quitar` sempre aceitou os dois
+                          campos e é ela que cria a transação com o valor
+                          final; só a tela nunca perguntou. O cliente que
+                          pediu isto tinha acabado de pagar um plano de saúde
+                          por um valor diferente do previsto.
+
+                          ⚠️ O CAMPO DE VALOR SÓ APARECE EM CONTA MANUAL. Em
+                          conta do Open Finance quem traz o valor real é o
+                          banco, e digitar um aqui criaria uma transação que
+                          vai colidir com a do extrato quando ela chegar —
+                          exatamente a duplicidade que este fluxo existe pra
+                          eliminar. A DATA continua editável nos dois casos:
+                          corrigi-la não inventa lançamento nenhum. */}
+                      {quitando === id && (
+                        <div className="pt-1 space-y-2 animate-[slide-up_250ms_ease-out_both]">
+                          <div className={doBanco.has(l.carteira || '') ? '' : 'grid grid-cols-2 gap-2'}>
+                            <label className="text-[11px] font-medium text-muted-foreground">
+                              Paguei em
+                              <input
+                                type="date" value={quitacao.data}
+                                onChange={(e) => setQuitacao({ ...quitacao, data: e.target.value })}
+                                className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm text-foreground"
+                              />
+                            </label>
+                            {!doBanco.has(l.carteira || '') && (
+                              <label className="text-[11px] font-medium text-muted-foreground">
+                                Valor pago
+                                <input
+                                  type="text" inputMode="decimal" value={quitacao.valor}
+                                  onChange={(e) => setQuitacao({ ...quitacao, valor: e.target.value })}
+                                  className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm text-foreground tabular"
+                                />
+                              </label>
+                            )}
+                          </div>
+                          {doBanco.has(l.carteira || '') && (
+                            <p className="text-[11px] text-muted-foreground">
+                              O valor real vem do banco quando a cobrança cair no extrato.
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!quitacao.data || ocupado === l.recorrenciaId}
+                            onClick={() => {
+                              const v = Number(quitacao.valor.replace(/\./g, '').replace(',', '.'));
+                              onAcao({
+                                linha: l, acao: 'quitar', data: quitacao.data,
+                                // Valor inválido/vazio → o previsto, que é o que a
+                                // rota já usava. Nunca manda 0: zeraria a despesa.
+                                valor: v > 0 ? v : l.valor,
+                              });
+                              setQuitando(null); setAberta(null);
+                            }}
+                            className="w-full h-11 rounded-lg text-[12px] font-bold text-white
+                                       bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60
+                                       active:scale-[0.98] transition-all"
+                          >
+                            {ocupado === l.recorrenciaId ? '...' : 'Confirmar pagamento'}
+                          </button>
                         </div>
                       )}
                     </div>

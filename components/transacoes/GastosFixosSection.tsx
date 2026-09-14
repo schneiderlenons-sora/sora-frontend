@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
@@ -121,6 +122,71 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // Sugestões de CATEGORIA pras contas fixas que ficaram em "Outros",
   // indexadas por id da recorrência (a linha consulta pelo próprio id).
   const [sugCats, setSugCats] = useState<Record<string, SugestaoCategoriaFixa>>({});
+
+  // ── OCORRÊNCIAS JÁ PAGAS NESTE MÊS ──────────────────────────────────────
+  //
+  // ⚠️ SEM ISTO A CONTA PAGA CONTINUAVA "EM ABERTO" AQUI. Relato do cliente:
+  // ele marcou "Paguei" no plano de saúde pelo Extrato, e este card seguiu
+  // somando os R$ 1.700 no total do mês. A única saída visível era EXCLUIR —
+  // que apaga a recorrência de TODOS os meses, e foi exatamente o que ele
+  // estranhou ("se apago ele de lá, apaga todas as previsões de todos os
+  // mêses").
+  //
+  // A causa é de MODELO: a quitação é por OCORRÊNCIA (recorrência +
+  // competência, migration 165) e este card só conhecia a REGRA. Ele somava
+  // `valor × ocorrenciasNoMes` sem nunca perguntar o que já foi pago.
+  //
+  // ⚠️ LEITURA TOLERANTE: falhar aqui devolve o comportamento anterior (nada
+  // marcado como pago) em vez de derrubar o card. Mesmo padrão das outras
+  // fontes desta seção.
+  const [pagas, setPagas] = useState<Set<string>>(new Set());
+  const [puladas, setPuladas] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!phone) return;
+    let vivo = true;
+    const mes = mesRefSP();
+    api.previstos.ocorrencias(phone, mes, mes)
+      .then((r: any) => {
+        if (!vivo) return;
+        const achadas = new Set<string>();
+        for (const q of (r?.quitacoes || [])) {
+          // A janela pedida já é só este mês, mas conferir a competência
+          // impede que um alargamento futuro do range marque como paga a
+          // ocorrência de OUTRO mês.
+          if (q?.recorrenciaId && q.competencia === mes) achadas.add(String(q.recorrenciaId));
+        }
+        setPagas(achadas);
+        // "Pulado" é a outra forma de uma ocorrência sair do mês sem que a
+        // regra deixe de existir — é o que o botão "Só este mês" grava.
+        const saltadas = new Set<string>();
+        for (const a of (r?.ajustes || [])) {
+          if (a?.recorrenciaId && a.competencia === mes && a.status === 'pulado') {
+            saltadas.add(String(a.recorrenciaId));
+          }
+        }
+        setPuladas(saltadas);
+      })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [phone]);
+
+  // ── SAIR SÓ DESTE MÊS ───────────────────────────────────────────────
+  //
+  // ⚠️ A queixa: "se apago ele de lá, apaga todas as previsões de todos os
+  // mêses". Era verdade — o único botão apagava a RECORRÊNCIA. Agora a
+  // confirmação oferece as duas coisas, e "só este mês" reusa o MESMO
+  // `status: pulado` que o Extrato já grava (nenhuma regra nova).
+  const pularMes = useCallback(async (id: string) => {
+    setRemovendo(id);
+    try {
+      await api.previstos.ajuste({ recorrencia_id: id, competencia: mesRefSP(), status: 'pulado' });
+      // Otimista: a linha sai do total na hora. O carregamento seguinte
+      // confirma pelo servidor.
+      setPuladas((s) => new Set(s).add(id));
+      setConfirm(null);
+    } catch { /* silencioso: a linha continua como estava */ }
+    finally { setRemovendo(null); }
+  }, []);
 
   const carregar = useCallback(async () => {
     if (!phone) { setCarreg(false); return; }
@@ -292,11 +358,14 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // cru, como era, dizia "R$ 150/mês" pra uma diarista de R$ 150 por SEMANA
   // e cobrava o IPVA todo mês — nos dois casos um número plausível e errado
   // logo abaixo do título da seção.
+  // ⚠️ `!pagas.has(i.id)`: conta já quitada neste mês SAI do total. Era a
+  // segunda metade da queixa — o selo sem tirar do total ainda mostraria
+  // "R$ 15.104,91/mês" incluindo o que a pessoa acabou de pagar.
   const totalGastos   = useMemo(
-    () => itens.filter((i) => i.tipo === 'Gasto')
+    () => itens.filter((i) => i.tipo === 'Gasto' && !pagas.has(i.id) && !puladas.has(i.id))
       .reduce((s, i) => s + ((i.valor || 0) * ocorrenciasNoMes(i, mesRefSP())), 0)
       + totalDividas + totalCartoes,
-    [itens, totalDividas, totalCartoes]);
+    [itens, totalDividas, totalCartoes, pagas, puladas]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
 
   /** ⚠️ Fatura JÁ CADASTRADA como conta fixa contaria DUAS VEZES.
@@ -468,6 +537,30 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* ── PREVISTO ÚNICO ───────────────────────────────────────────
+              ⚠️ O cliente procurou e não achou ("Não encontrei esta opção.
+              Pode me orientar?"). O formulário existe, mas só dentro de
+              Previstos → Extrato, e a única porta DAQUI abria "Nova conta
+              fixa" — ou seja, quem queria lançar um IPVA era empurrado a
+              cadastrá-lo como conta que se repete todo mês, que é
+              exatamente a queixa "tudo vira recorrente" da rodada passada.
+
+              ⚠️ É LINK PRO FORMULÁRIO QUE JÁ EXISTE, não uma segunda cópia.
+              Conta fixa cria uma RECORRÊNCIA; previsto único cria um
+              LANÇAMENTO com `pago: false`. São mecanismos diferentes, e
+              duplicar o formulário aqui duplicaria a decisão de qual dos
+              dois a pessoa está criando — o caminho mais curto pro mesmo
+              gasto entrar duas vezes. */}
+          <Link
+            href="/previstos?aba=extrato&novo=1"
+            className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold
+                       border border-border/60 text-muted-foreground hover:text-foreground
+                       hover:bg-muted/40 transition-all flex-shrink-0"
+            title="Uma vez só — IPVA, viagem, presente"
+          >
+            <Calendar size={15} />
+            <span className="hidden md:inline">Previsto único</span>
+          </Link>
           <button
             onClick={() => setFormTarget('novo')}
             className="flex items-center gap-1.5 px-3 h-11 rounded-xl text-sm font-semibold transition-all
@@ -617,7 +710,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </p>
               <ul className="divide-y divide-border/50">
                 {g.itens.map((item, idx) => (
-                  <Linha key={item.id} item={item} idx={idx}
+                  <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)}
+                    pulado={puladas.has(item.id)} onPularMes={pularMes}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
                     onEditar={() => setFormTarget(item)}
@@ -777,7 +871,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </p>
               <ul className="divide-y divide-border/50">
                 {g.itens.map((item, idx) => (
-                  <Linha key={item.id} item={item} idx={idx}
+                  <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)}
+                    pulado={puladas.has(item.id)} onPularMes={pularMes}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
                     onEditar={() => setFormTarget(item)}
@@ -886,12 +981,19 @@ function LinhaConta({ icone, rotulo, valor, dica, cor }: {
 // Linha de uma recorrência (gasto ou receita, fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function Linha({
-  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo,
+  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, pulado, onPularMes,
   sugCat, onAceitarCat, onIgnorarCat, jaPassou,
 }: {
   /** Vencimento já passou neste mês? Só muda a APRESENTAÇÃO — a conta segue
    *  igual, e o "Total previsto" continua sendo o custo do mês inteiro. */
   jaPassou?:   boolean;
+  /** Esta ocorrência já foi paga neste mês (existe transação com
+   *  `recorrencia_id` + `competencia`). Só muda a APRESENTAÇÃO; quem tira
+   *  do total é `totalGastos` lá em cima. */
+  pago?:       boolean;
+  /** Ocorrência pulada neste mês (ajuste `pulado`). */
+  pulado?:     boolean;
+  onPularMes:  (id: string) => void;
   item:        Recorrencia;
   idx:         number;
   confirmando: string | null;
@@ -1014,18 +1116,42 @@ function Linha({
                   marca que é estimativa, e o cabeçalho da seção diz "você
                   confirma no dia" — o chip repetia a mesma informação uma
                   terceira vez. */}
+              {pago && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-px sm:py-0.5 rounded-md font-semibold
+                                 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                  <Check size={9} /> pago
+                </span>
+              )}
+              {pulado && !pago && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-px sm:py-0.5 rounded-md font-semibold
+                                 bg-muted text-muted-foreground">
+                  pulado este mês
+                </span>
+              )}
               {item.carteira && <span className="truncate">· {item.carteira}</span>}
             </div>
 
             {emConfirm ? (
               <div className="flex items-center gap-1 flex-shrink-0">
+                {/* ⚠️ DUAS SAÍDAS, e a de menos estrago vem PRIMEIRO. Antes
+                    só existia "Cancelar", que apaga a recorrência inteira —
+                    quem só queria tirar a conta DESTE mês não tinha opção e
+                    perdia todos os meses seguintes. */}
+                <button
+                  onClick={() => onPularMes(item.id)}
+                  disabled={saindo}
+                  className="h-6 px-2 rounded-md bg-muted text-foreground text-[10px] font-semibold flex items-center gap-1 hover:bg-muted/70 transition-colors"
+                  aria-label={`Tirar ${item.descricao} só deste mês`}
+                >
+                  {saindo ? <Loader2 size={11} className="animate-spin" /> : null} Só este mês
+                </button>
                 <button
                   onClick={() => onCancelar(item.id)}
                   disabled={saindo}
                   className="h-6 px-2 rounded-md bg-red-500 text-white text-[10px] font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
-                  aria-label={`Confirmar cancelamento de ${item.descricao}`}
+                  aria-label={`Apagar ${item.descricao} de todos os meses`}
                 >
-                  {saindo ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Cancelar
+                  {saindo ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Todos os meses
                 </button>
                 <button
                   onClick={() => onPedir(null)}
