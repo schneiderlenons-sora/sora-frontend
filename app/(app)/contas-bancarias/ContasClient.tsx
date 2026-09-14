@@ -743,10 +743,19 @@ function ContaModal({
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border/60">
+      {/* ⚠️ TETO DE ALTURA + CORPO QUE ROLA. Antes o card não tinha nenhum dos
+          dois e ficava CENTRALIZADO: quando o conteúdo passava da altura da
+          tela ele transbordava pra cima e pra baixo ao mesmo tempo, e nada
+          rolava — o cabeçalho sumia por cima e o "Salvar conta" por baixo,
+          inalcançável. Aconteceu num Android com barra de navegação depois de
+          escolher a MOEDA, que acrescenta o texto de câmbio e empurra a altura.
+          Mesmo padrão do TransferenciaModal logo abaixo neste arquivo.
+          `100dvh - 2rem` e não um % fixo: é o espaço real menos o `p-4` do
+          fundo, então nunca estoura nem em celular deitado. */}
+      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border/60 max-h-[calc(100dvh-2rem)] flex flex-col">
 
         {/* Header com gradient sutil */}
-        <div className="relative px-6 py-5 border-b border-border/60 overflow-hidden">
+        <div className="relative shrink-0 px-6 py-5 border-b border-border/60 overflow-hidden">
           <div className="absolute inset-0 opacity-30 pointer-events-none"
                style={{ background: `radial-gradient(ellipse at top right, color-mix(in srgb, ${BRAND} 25%, transparent) 0%, transparent 70%)` }} />
           <div className="relative flex items-center justify-between">
@@ -773,7 +782,8 @@ function ContaModal({
             <p className="text-sm text-muted-foreground">Sua conta foi cadastrada com sucesso</p>
           </div>
         ) : (
-          <div className="p-6 space-y-5">
+          <>
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
 
             {/* Nome */}
             <div>
@@ -909,8 +919,15 @@ function ContaModal({
               </div>
             )}
 
-            {/* Botões */}
-            <div className="flex gap-2.5 pt-2">
+          </div>
+
+            {/* Botões — FIXOS no rodapé, fora da área que rola: a ação
+                principal fica ao alcance do polegar sem precisar rolar até o
+                fim do formulário. */}
+            <div
+              className="shrink-0 flex gap-2.5 px-6 pt-4 border-t border-border/60 bg-card"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+            >
               <button onClick={onClose} className="btn-outline flex-1 py-3 text-sm font-semibold">
                 Cancelar
               </button>
@@ -925,7 +942,7 @@ function ContaModal({
                 }
               </button>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
