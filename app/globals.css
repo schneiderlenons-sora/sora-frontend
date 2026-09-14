@@ -871,7 +871,16 @@ html[data-abertura='on'] #sora-abertura {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--bg));
+  /* ⚠️ A COR DO PRIMEIRO QUADRO DO VÍDEO, e NÃO o fundo do tema. Medido nos dois
+     arquivos (mp4 e webm): o quadro 0 é verde chapado #44AC74 (±3 no quadro
+     inteiro) e segue assim por 0,3s.
+     Com `hsl(var(--bg))` a abertura piscava BRANCO → PRETO → verde: o overlay é
+     o 1º pixel pintado, mas quem aplica a classe `dark` é o script do
+     next-themes, que vem DEPOIS dele no HTML. O celular pintava o overlay com o
+     tema claro, repintava com o escuro e só então chegava o vídeo.
+     ⚠️ Se o vídeo for trocado, remedir o quadro 0 e trocar esta cor, o `poster`
+     em app/layout.tsx e o `backgroundColor` do app Android (twa-manifest.json). */
+  background: #44ac74;
   opacity: 1;
   transition: opacity 400ms ease-out;
 }

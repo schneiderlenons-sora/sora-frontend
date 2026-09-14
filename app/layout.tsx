@@ -163,12 +163,17 @@ document.documentElement.setAttribute('data-abertura','on');
 
             ⚠️ muted+playsinline JÁ NO HTML — são eles que autorizam o play sem
             gesto do usuário no iOS. Precisam existir antes da fonte ser
-            escolhida, e por isso vêm escritos no atributo, não por JS. */}
+            escolhida, e por isso vêm escritos no atributo, não por JS.
+
+            ⚠️ O `poster` é 1 pixel na COR DO QUADRO 0 (#44AC74, 69 bytes). Antes
+            do primeiro quadro decodificar, há aparelho que pinta o <video> de
+            PRETO — era o "tela preta" antes da animação. Com o poster e o fundo
+            do overlay na mesma cor, a tela já nasce no verde do vídeo. */}
         <div
           id="sora-abertura"
           aria-hidden="true"
           suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: '<video muted playsinline webkit-playsinline preload="none" disablepictureinpicture><source src="/abertura/sora-intro.mp4" type="video/mp4"><source src="/abertura/sora-intro.webm" type="video/webm"></video>' }}
+          dangerouslySetInnerHTML={{ __html: '<video muted playsinline webkit-playsinline preload="none" disablepictureinpicture poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNwWVMCAAKcAWUe25l1AAAAAElFTkSuQmCC"><source src="/abertura/sora-intro.mp4" type="video/mp4"><source src="/abertura/sora-intro.webm" type="video/webm"></video>' }}
         />
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{
 if(document.documentElement.getAttribute('data-abertura')!=='on')return;
