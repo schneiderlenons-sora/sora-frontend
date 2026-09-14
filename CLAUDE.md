@@ -2033,6 +2033,35 @@ aparece na hora e o que atrasa é só o conteúdo (~330ms), não a navegação.
 
 ---
 
+## Egress do Supabase: o que pesa é CONTAGEM de requisição (set/2026)
+
+Cota do Free: **5 GB/ciclo** (dia 11 a 11). Ciclo de set: **1,58 GB em 4 dias**,
+99,4% PostgREST — no ritmo, estouraria por volta do dia 22.
+
+- ⚠️ **Cada resposta do PostgREST custa ~1,1 KB no fio, e 1.029 bytes são só
+  CABEÇALHO HTTP** (medido: `select id, of_bill_forecast` com 69 bytes de
+  corpo). Consulta "pequena" não existe: o custo é o NÚMERO de idas. Procure
+  **laço com `await supabase` dentro** antes de procurar consulta pesada.
+- **Causa desta rodada:** o sync do Open Finance lia a linha já importada **uma
+  vez por transação** em 4 passos (reconciliar parcela, backfill de
+  `of_bill_post_date`/`of_bill_forecast`, melhorar descrição). ~18.400
+  consultas por rodada, e a **Celcoin dispara o webhook de hora em hora** por
+  conexão (31 de 44 sincronizaram na última hora medida). Hoje é leitura em
+  lote de 300 com o filtro no banco (`linhasPorOfTxId`); travado em
+  `eval:sync-lote` contra a versão antiga (tabela final idêntica, 2.132 → 16).
+- **Rodadas anteriores** (06–11/09): validação de token na rede a cada request
+  (backend e middleware, cache de 60s), SSR lido em dobro pelo SWR, foto do
+  autor em cada transação, foto base64 de dívida/meta no hover da sidebar.
+- ⚠️ **Imagem em base64 dentro da linha** ainda existe: um grupo tem ~420 KB em
+  `dividas.imagem_url` e ~475 KB em `metas.imagem_url`. Não entra em lista
+  que não mostra a foto.
+- **Pra NOMEAR a consulta em vez de deduzir:** `sora-backend/docs/diagnostico-egress.sql`
+  (`pg_stat_statements`, ordenar por `calls`). Zerar com
+  `pg_stat_statements_reset()` depois de um deploy e reler no dia seguinte.
+- **Se ainda precisar cortar:** um intervalo mínimo entre syncs da mesma
+  conexão (com execução atrasada, não descarte) corta egress e chamadas à
+  Polp — mas atrasa dado novo, então é decisão do usuário, não otimização.
+
 ## ⚠️ Erro de tipo BARRA o deploy (set/2026)
 
 `next.config.ts` **não tem mais** `typescript: { ignoreBuildErrors: true }`.
