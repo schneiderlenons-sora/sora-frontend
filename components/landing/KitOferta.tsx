@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import {
   Wallet, Percent, PiggyBank, TrendingUp, Target, CalendarRange, CreditCard, FileText,
   Check, X, Crown, ShieldCheck, Lock, Sparkles, MessageCircle,
@@ -75,12 +76,29 @@ export default function KitOferta() {
           </h1>
 
           {/* Mockup do produto (public/landing/kit/hero.png). Full-width no
-              mobile (tela inteira); contido + sombra leve no desktop. */}
+              mobile (tela inteira); contido + sombra leve no desktop.
+
+              ⚠️ `next/image` + `priority`, e não `<img>` cru. Num iPhone real a
+              imagem ficou com o espaço RESERVADO (os 4:3 exatos na largura da
+              tela) e nenhum pixel pintado — o cabeçalho do PNG chegou, o resto
+              não. Não reproduziu no WebKit emulando iPhone, então o suspeito é
+              o download interrompido ou uma cópia truncada em cache no aparelho.
+              Três coisas mudam de uma vez: a URL (`/_next/image`, que ignora
+              qualquer `hero.png` velho em cache), o PESO (WebP/AVIF na largura
+              da tela em vez dos 1200px) e a PRIORIDADE (preload com
+              fetchpriority alto — é a maior imagem da dobra e o LCP da página).
+              `width`/`height` mantêm a proporção reservada, sem salto de layout. */}
           <div className="mt-8 sm:mt-10 -mx-5 sm:mx-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/landing/kit/hero.png" alt="Sora — kit de organização financeira"
-                 className="w-full h-auto sm:max-w-3xl lg:max-w-4xl sm:mx-auto rounded-none sm:rounded-2xl sm:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
-                 draggable={false} />
+            <Image
+              src="/landing/kit/hero.png"
+              alt="Sora — kit de organização financeira"
+              width={1200}
+              height={900}
+              priority
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 768px, 896px"
+              className="w-full h-auto sm:max-w-3xl lg:max-w-4xl sm:mx-auto rounded-none sm:rounded-2xl sm:shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]"
+              draggable={false}
+            />
           </div>
 
           {/* CTA principal — estático, logo abaixo da imagem do hero (substitui a barra fixa) */}
