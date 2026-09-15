@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ehPagamentoFatura } from '@/lib/categorizar';
+import { ehPagamentoFatura, ehAjusteSaldo } from '@/lib/categorizar';
 import { createPortal } from 'react-dom';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
@@ -33,7 +33,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
-  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge } from 'lucide-react';
+  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -176,14 +176,28 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     || t.transferencia === true || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências',
   []);
 
+  // ⚠️ AJUSTE DE SALDO TAMBÉM NÃO É RECEITA NEM DESPESA (set/2026). Com o
+  // filtro na conta PJ, R$ 3.485,18 de acerto de saldo entravam como "receita"
+  // do mês. É o mesmo `ehAjusteSaldo` do backend, que já tira o ajuste do
+  // /resumo — sem ele aqui, o card desta página voltaria a divergir do dashboard.
+  const ehAjuste = useCallback((t: any) => !ehTransferencia(t) && ehAjusteSaldo(t.categoria), [ehTransferencia]);
+  const contaNoResultado = useCallback((t: any) => !ehTransferencia(t) && !ehAjusteSaldo(t.categoria), [ehTransferencia]);
+
   const receitasTotal = useMemo(() =>
-    txsFiltradas.filter(t => t.tipo === 'Recebimento' && !ehTransferencia(t))
+    txsFiltradas.filter(t => t.tipo === 'Recebimento' && contaNoResultado(t))
       .reduce((s, t) => s + (t.valor || 0), 0),
-    [txsFiltradas, ehTransferencia]);
+    [txsFiltradas, contaNoResultado]);
   const despesasTotal = useMemo(() =>
-    txsFiltradas.filter(t => t.tipo === 'Gasto' && !ehTransferencia(t))
+    txsFiltradas.filter(t => t.tipo === 'Gasto' && contaNoResultado(t))
       .reduce((s, t) => s + (t.valor || 0), 0),
-    [txsFiltradas, ehTransferencia]);
+    [txsFiltradas, contaNoResultado]);
+  // Líquido (entrada + / saída −): um ajuste pra cima e outro pra baixo no
+  // mesmo filtro se compensam, como no saldo da conta.
+  const ajustesTotal = useMemo(() =>
+    txsFiltradas.filter(ehAjuste)
+      .reduce((s, t) => s + (t.tipo === 'Gasto' ? -1 : 1) * (t.valor || 0), 0),
+    [txsFiltradas, ehAjuste]);
+  const temAjuste = useMemo(() => txsFiltradas.some(ehAjuste), [txsFiltradas, ehAjuste]);
   // ⚠️ PENDENTE A RECEBER E A PAGAR SÃO SEPARADOS. O card somava os dois num
   // número só — com o filtro na conta PJ, R$ 11.900 de uma receita pendente
   // apareciam como "pendentes" do mesmo jeito que uma conta a pagar. Mesmo
@@ -639,7 +653,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             value={ocultar ? null : receitasTotal}
             icon={TrendingUp}
             colorHue={142}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Recebimento' && !ehTransferencia(t)).length} entradas`}
+            sub={`${txsFiltradas.filter(t => t.tipo === 'Recebimento' && contaNoResultado(t)).length} entradas`}
             delay={60}
             positive
           />
@@ -650,7 +664,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             value={ocultar ? null : despesasTotal}
             icon={TrendingDown}
             colorHue={0}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && !ehTransferencia(t)).length} saídas`}
+            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && contaNoResultado(t)).length} saídas`}
             delay={120}
             negative
           />
@@ -942,6 +956,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 receitas={receitasTotal}
                 despesas={despesasTotal}
                 transferencias={transferenciasTotal}
+                ajustes={temAjuste ? ajustesTotal : null}
                 ocultar={ocultar}
                 saldoConta={saldoConta}
               />
@@ -1406,10 +1421,13 @@ type SaldoContaInfo =
   | { conta: string; atual: number; estado: 'pronto'; previsto: number; ate: string; estimado: boolean };
 
 function LinhaTotais({
-  mostrar, qtd, receitas, despesas, transferencias, ocultar, saldoConta,
+  mostrar, qtd, receitas, despesas, transferencias, ajustes, ocultar, saldoConta,
 }: {
   mostrar: boolean; qtd: number;
-  receitas: number; despesas: number; transferencias: number; ocultar: boolean;
+  receitas: number; despesas: number; transferencias: number;
+  /** Líquido dos ajustes de saldo; null quando a lista não tem nenhum. */
+  ajustes?: number | null;
+  ocultar: boolean;
   saldoConta?: SaldoContaInfo | null;
 }) {
   if (!mostrar) return null;
@@ -1422,6 +1440,10 @@ function LinhaTotais({
   // Rótulo explica por que estão à parte — sem isso pareceria uma terceira
   // categoria inventada, e não "o que não é consumo nem ganho".
   if (transferencias > 0) blocos.push({ rotulo: 'Transferências', valor: transferencias, cor: 'hsl(var(--muted-foreground))', Icone: ArrowLeftRight });
+  // Ajuste de saldo tem bloco PRÓPRIO pelo mesmo motivo das transferências:
+  // aparece na lista e não entra em receita/despesa — sem o bloco, a soma que a
+  // pessoa confere linha a linha não fecharia.
+  if (ajustes != null) blocos.push({ rotulo: 'Ajustes de saldo', valor: ajustes, cor: 'hsl(var(--muted-foreground))', Icone: Wrench });
   // Resultado só quando há os DOIS lados: com um lado só ele repetiria o número
   // anterior trocando o sinal.
   //

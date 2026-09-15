@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { ehPagamentoFatura } from './categorizar';
+import { ehPagamentoFatura, ehAjusteSaldo } from './categorizar';
 import { proximoVencimento, hojeSP } from './vencimento-divida';
 
 // =============================================================================
@@ -29,6 +29,8 @@ function ehTransferencia(r: any): boolean {
   // `resumoTransacoes.ehTransferencia` do backend: divergir aqui faz o número
   // do SSR pular quando o cliente revalida.
   if (r.ignorar_em) return true;
+  // Ajuste de saldo também não conta (espelho do backend).
+  if (ehAjusteSaldo(r.categoria)) return true;
   return r.transferencia === true || ehPagamentoFatura(r.categoria) || r.categoria === 'Transferências';
 }
 

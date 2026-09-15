@@ -1187,6 +1187,85 @@ setembro enquanto o app do Mercado Pago a mostra em "3 de agosto".
   "Antecipar" nelas e o filtro "pendente" de /transacoes ainda as conta.
 - Travado em `eval:consulta-parcela` §6 e `eval:reconciliar-parcelas` §6.
 
+## "Paguei" dos Previstos debita o saldo (set/2026)
+
+Relato de cliente com conta manual: o saldo "criava dinheiro". A baixa
+(`POST /api/previstos/quitar`) gravava a transação paga **sem debitar** a conta,
+e o "Ainda não paguei" usa o `PUT`, que **devolve** o valor — Paguei → Não paguei
+somava R$ 1.700 do nada. Hoje a regra mora em `services/quitacao.js`
+(`eval:quitacao`, passa pelas rotas reais com banco falso).
+
+- A aritmética é a do `PUT` (efeito = pago ? ±valor : 0): os dois botões são
+  inversos exatos. Mesmo `especial` (transferência/fatura não mexem).
+- ⚠️ **Nunca em conta de Open Finance nem em moeda estrangeira.** OF é a regra de
+  ouro; estrangeira porque o `PUT` devolve em reais e o saldo dela é na moeda
+  dela (3 carteiras na base, nenhuma baixa pelo painel). Os TRÊS — `POST`, `PUT`
+  e `DELETE` de transação — passaram a pular carteira OF juntos: um pulando e
+  outro não faz criar+apagar não voltar ao zero.
+- **Data de pagamento no futuro → 400** (havia um "pago" em 06/11 feito em
+  setembro). A tela sugere hoje e trava o botão com o motivo escrito.
+- **Ocorrência pendente volta a ser paga** (antes respondia "já quitada" e não
+  fazia nada). O `update ... eq('pago', false)` é a trava: só um toque vira e
+  debita. Dois toques simultâneos no insert: quem não é a 1ª linha se apaga.
+- ⚠️ **"Dar baixa" da SUGESTÃO do banco amarra, não cria.** Mandava pro caminho
+  de criar: duplicava a cobrança que já veio no extrato — e com o débito novo
+  tiraria o valor de uma conta manual por um pagamento que saiu de outra. Agora
+  a tela manda `transacao_id` e a rota faz o mesmo da baixa automática.
+- ⚠️ Baixas ANTIGAS pelo painel não debitaram; apagá-las ainda estorna. Medido:
+  só as 2 do cliente do relato, e nenhuma ficou paga.
+
+## Transações: saldo da conta filtrada = Extrato (set/2026)
+
+Com o filtro numa conta, o card "Saldo em contas" seguia somando todas, e o
+rodapé chamava de **"Saldo"** o receitas − despesas da lista (R$ 20.570,36 lido
+como saldo de uma conta com R$ 5.217,71).
+
+- Conta de DÉBITO no filtro → card "Saldo em <conta>" + **previsto do fim do
+  mês**; o rodapé ganha linha própria com saldo atual/previsto e o antigo
+  "Saldo" virou **"Resultado do filtro"**. Pendentes separa a receber/a pagar.
+- ⚠️ **O previsto sai do motor do Extrato** (`lib/saldo-conta.ts`), e o Extrato
+  passou a usar o MESMO `saldoInicialDaConta`. `eval:saldo-conta` trava a
+  igualdade em todo dia do mês com os dados reais (R$ 15.568,01).
+- ⚠️ **`useSWR` direto, não `useApi`**, pros dados do previsto: o `useApi`
+  registra no `LoadingGate` e cobriria a página inteira só por escolher uma
+  conta no filtro. Chaves canônicas (`chave.ocorrencias` é nova), então quem
+  passou pelo Extrato não paga requisição.
+- ⚠️ O `mutate` importado de `'swr'` fala com o cache PADRÃO, não com o
+  `localStorageProvider` do app — use o de `useSWRConfig()`. (O
+  `mutateGlobal` que já existia no `GastosFixosSection` é no-op por isso.)
+
+> ⚠️ **PENDENTE (decisão do usuário): o Extrato Futuro nunca recebeu dívidas
+> nem faturas.** O `PrevistosClient` passa `Array.isArray(divData) ? divData : []`,
+> mas a API devolve `{ dividas }` e `{ faturas }` — sempre `[]`, desde a criação
+> da aba. Com filtro de conta não muda nada (nenhuma das duas tem conta de
+> débito); em "todas as contas" o extrato sai sem as faturas e parcelas. Ligar
+> muda os números da aba e exige decidir a parcela de dívida JÁ paga no mês
+> (hoje `linhasDoMes` a projeta mesmo assim).
+
+## Ajuste de saldo NÃO é receita nem despesa (set/2026)
+
+⚠️ **Inverte a nota da migration 135** ("o ajuste continua contando, de
+propósito"). Decisão do usuário depois de um cliente ver R$ 3.485,18 de
+"receita" por ter acertado o saldo com o banco. O lançamento continua existindo
+e mexendo no saldo; só sai das somas.
+
+- **Fonte única:** `ehAjusteSaldo(categoria)` em `services/categorizar.js`,
+  espelhado em `lib/categorizar.ts` (`eval:ajuste-saldo` nos dois repos; o do
+  front compara caso a caso com o backend). Nome EXATO "Ajuste"/"Ajuste
+  recebido", sem ícone/caixa/acento — cobre a "🏦 Ajuste" criada à mão.
+  "Ajuste de roupa" e "Ajuste 2" seguem sendo gasto.
+- Entra no `ehTransferencia` do backend (resumo do mês e do ano → dashboard,
+  relatórios, categorias, previstos, reserva, "quanto gastei") e do
+  `lib/ssr-data.ts`; e nos filtros próprios de Transações (bloco "Ajustes de
+  saldo" no rodapé, pra lista continuar fechando), gráfico diário, gasto por
+  conta, resumo do WhatsApp, Wrapped e Oráculo.
+- ⚠️ **Tirar dos totais E das quebras por categoria juntos** — o bug da 135 foi
+  exatamente um lado contando e o outro não.
+- **Fica** no extrato de conta (`DetalhesContaModal`) e na Agenda: ali é
+  movimento da conta, e o ajuste é movimento.
+- Raio medido: 60 ajustes em 27 grupos; set/2026, 11 grupos (receitas
+  −R$ 13.507,57, despesas −R$ 2.265,97).
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a

@@ -3,7 +3,7 @@
 import { Wallet } from 'lucide-react';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { marcaDe } from '@/components/ui/IconeMarca';
-import { ehPagamentoFatura } from '@/lib/categorizar';
+import { ehPagamentoFatura, ehAjusteSaldo } from '@/lib/categorizar';
 
 // =============================================================================
 // Visuais compartilhados dos cards de stat do dashboard.
@@ -92,6 +92,7 @@ export function gastoPorContaDe(txsMes: any[]): { nome: string; total: number }[
     // ⚠️ "Nao considerar" (146) sai daqui pelo mesmo motivo do resumo.
     if (t.ignorar_em) continue;
     if (t.transferencia || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências') continue;
+    if (ehAjusteSaldo(t.categoria)) continue;   // acertar saldo não é gasto da conta
     const k = t.carteira_nome || 'Sem conta';
     map.set(k, (map.get(k) || 0) + (t.valor || 0));
   }

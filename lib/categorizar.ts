@@ -350,3 +350,19 @@ export function ehPagamentoFatura(categoria?: string | null): boolean {
   const c = (categoria || '').toString().trim().toLowerCase();
   return c === CATEGORIA_FATURA.toLowerCase() || c === CATEGORIA_FATURA_LEGADO.toLowerCase();
 }
+
+/**
+ * É AJUSTE DE SALDO? (`🔧 Ajuste` / `🔧 Ajuste recebido`)
+ *
+ * ⚠️ Ajuste não é receita nem despesa: é a correção de um saldo errado. Sai das
+ * somas de receita/despesa em todo o painel; o lançamento segue existindo e
+ * mexendo no saldo. Casa pelo NOME exato, sem ícone/caixa/acento ("🏦 Ajuste"
+ * criada à mão também vale). Espelho fiel de `ehAjusteSaldo` em
+ * sora-backend/src/services/categorizar.js — mexeu num, mexa no outro.
+ */
+export function ehAjusteSaldo(categoria?: string | null): boolean {
+  const c = (categoria || '').toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return c === 'ajuste' || c === 'ajuste recebido';
+}
