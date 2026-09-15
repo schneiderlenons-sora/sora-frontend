@@ -15,6 +15,7 @@ import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
 import { saldoBRL } from '@/lib/moeda';
+import { saldoInicialDaConta } from '@/lib/saldo-conta';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
 } from '@/lib/saldo-projetado';
@@ -201,19 +202,16 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     // O nome é chave única de carteira no grupo (o upsert casa por
     // `grupo_id,nome`) e é por nome que o resto do painel liga conta a
     // lançamento — a mesma regra do filtro das linhas, que não pode divergir
-    // desta.
-    const w = wallets.find((x: any) => x.tipo !== 'Crédito' && x.nome === carteiraExtrato);
-    // ⚠️ Conta que sumiu (renomeada, desconectada) → 0, nunca o total. Com o
-    // filtro de pé as linhas também saem vazias, e devolver o total aqui
-    // desenharia um saldo cheio sob uma lista vazia.
-    return w ? (saldoBRL(w) ?? 0) : 0;
+    // desta. ⚠️ Mora em `lib/saldo-conta.ts` porque Transações mostra o MESMO
+    // saldo atual/previsto da conta filtrada: uma cópia aqui divergiria de lá.
+    return saldoInicialDaConta(wallets, carteiraExtrato);
   }, [carteiraExtrato, wallets, saldoHoje]);
   const [quitandoRec, setQuitandoRec] = useState<string | null>(null);
   const ligado = !!phone && aba === 'extrato';
   const ymProx = somarMeses(ymHoje, 1);
 
   const { data: ocorrData, mutate: recarregarOcorr } = useApi(
-    ligado ? `d:ocorrencias:${phone}:${ymHoje}` : null,
+    ligado ? chave.ocorrencias(phone, ymHoje) : null,
     () => api.previstos.ocorrencias(phone, ymHoje, somarMeses(ymHoje, 3)),
   );
   // Duas listagens porque a janela do extrato cruza o mês. As chaves são as

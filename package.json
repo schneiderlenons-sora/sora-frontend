@@ -20,7 +20,8 @@
     "eval:renovacao-sessao": "npx tsx lib/renovacao-sessao.eval.mjs",
     "eval:extrato-futuro": "npx tsx lib/extrato-futuro.eval.mjs",
     "eval:paywall": "npx tsx lib/paywall.eval.mjs",
-    "eval:vitalicio-tier": "npx tsx lib/vitalicio-tier.eval.mjs"
+    "eval:vitalicio-tier": "npx tsx lib/vitalicio-tier.eval.mjs",
+    "eval:saldo-conta": "npx tsx lib/saldo-conta.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

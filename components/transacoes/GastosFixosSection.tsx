@@ -7,7 +7,8 @@ import {
   Bell, ChevronDown, Link2, EyeOff, TrendingUp, Wallet as WalletIcon,
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
-import { mutate as mutateGlobal } from 'swr';
+import { mutate as mutateGlobal, useSWRConfig } from 'swr';
+import { chave } from '@/lib/chaves-swr';
 import FormRecorrencia from '@/components/previstos/FormRecorrencia';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
@@ -87,6 +88,11 @@ interface Props {
 }
 
 export default function GastosFixosSection({ phone, wallets }: Props) {
+  // Em ref, não na lista de dependências do `carregar`: ele dispara um efeito
+  // de carregamento, e uma identidade instável aqui viraria laço de requisições.
+  const { mutate: mutateSWR } = useSWRConfig();
+  const mutateRef = useRef(mutateSWR);
+  mutateRef.current = mutateSWR;
   const [itens, setItens]         = useState<Recorrencia[]>([]);
   const [carregando, setCarreg]   = useState(true);
   const [confirmando, setConfirm] = useState<string | null>(null); // id em confirmação de cancelamento
@@ -192,6 +198,12 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     try {
       const data = await api.recorrencias.listar(phone);
       setItens(Array.isArray(data) ? (data as Recorrencia[]) : []);
+      // O card "Saldo em <conta>" desta mesma página projeta o fim do mês com
+      // as recorrências da chave canônica do SWR. Criar/editar uma conta fixa
+      // aqui recarrega esta lista — sem repassar ao cache, o previsto ficaria
+      // velho até a próxima visita. ⚠️ `mutate` do PROVIDER (useSWRConfig): o
+      // `mutate` importado de 'swr' fala com o cache padrão, não com o do app.
+      if (Array.isArray(data)) mutateRef.current(chave.recorrencias(phone), data, { revalidate: false });
     } catch {
       setItens([]);
     } finally {

@@ -70,6 +70,13 @@ export const chave = {
   anual: (p: string, ano: number | string, criadoPor?: string) =>
     `d:anual:${p}:${ano}:${criadoPor || T}`,
 
+  /**
+   * `api.previstos.ocorrencias(phone, ymHoje, somarMeses(ymHoje, 3))`.
+   * ⚠️ A janela de competências é FIXA (mês corrente + 3) justamente pra a
+   * chave só depender do mês: quem usar esta chave tem de pedir a mesma janela.
+   */
+  ocorrencias: (p: string, ymHoje: string) => `d:ocorrencias:${p}:${ymHoje}`,
+
   /** `api.transacoes.listar(phone, { mes, limit, criado_por, arquivadas })` */
   transacoes: (
     p: string,

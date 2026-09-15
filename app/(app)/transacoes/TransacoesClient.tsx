@@ -24,6 +24,10 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoBRL } from '@/lib/moeda';
 import { fmtDataBR } from '@/lib/data-br';
+import useSWR from 'swr';
+import { contaDebitoDoFiltro, saldoInicialDaConta, saldoPrevistoDaConta } from '@/lib/saldo-conta';
+import { ymHojeSP, somarMeses } from '@/lib/previstos';
+import { hojeSP } from '@/lib/ciclo-fatura';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
@@ -180,9 +184,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     txsFiltradas.filter(t => t.tipo === 'Gasto' && !ehTransferencia(t))
       .reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas, ehTransferencia]);
-  const pendentesTotal = useMemo(() =>
-    txsFiltradas.filter(t => !t.pago).reduce((s, t) => s + (t.valor || 0), 0),
-    [txsFiltradas]);
+  // ⚠️ PENDENTE A RECEBER E A PAGAR SÃO SEPARADOS. O card somava os dois num
+  // número só — com o filtro na conta PJ, R$ 11.900 de uma receita pendente
+  // apareciam como "pendentes" do mesmo jeito que uma conta a pagar. Mesmo
+  // universo de antes (toda linha não paga), só dividido pelo tipo: a soma dos
+  // dois é exatamente o total antigo.
+  const pendentes = useMemo(() => {
+    let aReceber = 0, aPagar = 0, qtd = 0;
+    for (const t of txsFiltradas) {
+      if (t.pago) continue;
+      qtd++;
+      if (t.tipo === 'Recebimento') aReceber += t.valor || 0; else aPagar += t.valor || 0;
+    }
+    return { aReceber, aPagar, qtd };
+  }, [txsFiltradas]);
 
   // ⚠️ O QUE `receitasTotal`/`despesasTotal` DEIXAM DE FORA.
   // Os dois excluem transferência (pagamento de fatura, Pix entre contas
@@ -205,6 +220,56 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const saldoTotal = useMemo(() =>
     wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
     [wallets]);
+
+  // ── SALDO DA CONTA FILTRADA (atual e previsto) ─────────────────────────────
+  //
+  // ⚠️ O card de saldo ignorava o filtro de conta: com a Inter PJ selecionada
+  // ele seguia somando todas (R$ 6.294,15), enquanto os outros três cards
+  // obedeciam. Com uma conta de DÉBITO no filtro, ele passa a ser o saldo dela,
+  // e embaixo vem o previsto do fim do mês — pelo motor do Extrato dos
+  // Previstos (`lib/saldo-conta.ts`, travado em `eval:saldo-conta`).
+  const contaFiltrada = useMemo(() => contaDebitoDoFiltro(contaId, wallets), [contaId, wallets]);
+  const ymHoje = ymHojeSP();
+  const querPrevisto = !!phone && !!contaFiltrada;
+  // ⚠️ `useSWR` DIRETO, e não `useApi`: o `useApi` registra no LoadingGate, e o
+  // primeiro carregamento cobriria a PÁGINA INTEIRA com a tela de espera só
+  // porque a pessoa escolheu uma conta no filtro. Este é um dado secundário: a
+  // lista continua na tela e só a linha do previsto espera. Chaves e janelas
+  // são as mesmas do Extrato, então quem passou por lá não paga requisição.
+  const swrSecundario = { revalidateOnFocus: false, keepPreviousData: true, dedupingInterval: 4000 };
+  const { data: txMesAtual, error: erroTxMes } = useSWR(
+    querPrevisto ? chave.transacoes(phone, { mes: ymHoje, limit: 500 }) : null,
+    () => api.transacoes.listar(phone, { mes: ymHoje, limit: 500 }), swrSecundario,
+  );
+  const { data: recsConta, error: erroRecs } = useSWR(
+    querPrevisto ? chave.recorrencias(phone) : null,
+    () => api.recorrencias.listar(phone), swrSecundario,
+  );
+  const { data: ocorrConta, error: erroOcorr } = useSWR(
+    querPrevisto ? chave.ocorrencias(phone, ymHoje) : null,
+    () => api.previstos.ocorrencias(phone, ymHoje, somarMeses(ymHoje, 3)), swrSecundario,
+  );
+  const saldoConta = useMemo(() => {
+    if (!contaFiltrada) return null;
+    const atual = saldoInicialDaConta(wallets, contaFiltrada.nome);
+    const base = { conta: contaFiltrada.nome as string, atual };
+    // Sem transações do mês ou sem as contas fixas não há previsão honesta —
+    // melhor dizer que não deu do que exibir um número que ignora metade.
+    if (erroTxMes || erroRecs) return { ...base, estado: 'erro' as const };
+    // Ocorrências falhando = sem baixas registradas, exatamente como o Extrato
+    // trata (`quitacoes ?? []`).
+    if (!txMesAtual || !recsConta || (!ocorrConta && !erroOcorr)) return { ...base, estado: 'carregando' as const };
+    const r = saldoPrevistoDaConta({
+      hoje: hojeSP(),
+      conta: contaFiltrada.nome,
+      wallets,
+      transacoes: (txMesAtual as any)?.transacoes ?? [],
+      recorrencias: (Array.isArray(recsConta) ? recsConta : []) as any[],
+      quitacoes: (ocorrConta as any)?.quitacoes ?? [],
+      ajustes: (ocorrConta as any)?.ajustes ?? [],
+    });
+    return { ...base, estado: 'pronto' as const, previsto: r.saldoPrevisto, ate: r.ate, estimado: r.temEstimativa };
+  }, [contaFiltrada, wallets, txMesAtual, recsConta, ocorrConta, erroTxMes, erroRecs, erroOcorr]);
 
   // ── Categorias únicas para filtro ──────────────────────────
   const categorias = useMemo(() =>
@@ -527,17 +592,44 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                     enquanto o "Saldo do mês" dos Relatórios é receitas − despesas
                     do período. Um cliente comparou os dois e achou que o painel
                     estava divergindo de si mesmo. Mesmo nome usado no dashboard. */}
-                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold">Saldo em contas</p>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `color-mix(in srgb, ${BRAND} 19%, transparent)` }}>
+                {/* Com uma conta no filtro, o nome dela QUEBRA LINHA em vez de
+                    truncar: "Banco Inter PF Poupança (OF)" cortado deixaria a
+                    pessoa sem saber de qual conta é o saldo. */}
+                <p className="text-white/50 text-[10px] uppercase tracking-widest font-bold break-words min-w-0">
+                  {saldoConta ? `Saldo em ${saldoConta.conta}` : 'Saldo em contas'}
+                </p>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-2" style={{ background: `color-mix(in srgb, ${BRAND} 19%, transparent)` }}>
                   <Wallet size={13} style={{ color: BRAND }} />
                 </div>
               </div>
               <p className="text-2xl font-bold text-white tabular tracking-tight">
-                {ocultar ? '••••••' : fmt(saldoTotal)}
+                {ocultar ? '••••••' : fmt(saldoConta ? saldoConta.atual : saldoTotal)}
               </p>
-              <p className="text-white/40 text-xs mt-1.5">
-                {wallets.filter(w => w.tipo !== 'Crédito').length} conta{wallets.length !== 1 ? 's' : ''}
-              </p>
+              {saldoConta ? (
+                // aria-live: o previsto chega depois do saldo; leitor de tela
+                // anuncia quando sai do "calculando".
+                <div className="mt-1.5 text-xs" aria-live="polite">
+                  {saldoConta.estado === 'pronto' ? (
+                    <>
+                      <p className="text-white/50">
+                        Previsto em {saldoConta.ate.slice(8, 10)}/{saldoConta.ate.slice(5, 7)}
+                        {saldoConta.estimado && <span title="Inclui conta de valor variável"> · aprox.</span>}
+                      </p>
+                      <p className="text-white/85 font-semibold tabular">
+                        {ocultar ? '••••••' : `${saldoConta.estimado ? '≈ ' : ''}${fmt(saldoConta.previsto)}`}
+                      </p>
+                    </>
+                  ) : saldoConta.estado === 'carregando' ? (
+                    <p className="text-white/40">Calculando o previsto…</p>
+                  ) : (
+                    <p className="text-white/40">Previsto indisponível agora</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-white/40 text-xs mt-1.5">
+                  {wallets.filter(w => w.tipo !== 'Crédito').length} conta{wallets.length !== 1 ? 's' : ''}
+                </p>
+              )}
             </div>
           </div>
 
@@ -563,13 +655,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             negative
           />
 
-          {/* Pendentes */}
-          <StatCard
-            label="Pendentes"
-            value={ocultar ? null : pendentesTotal}
-            icon={Clock}
-            colorHue={38}
-            sub={`${txsFiltradas.filter(t => !t.pago).length} aguardando`}
+          {/* Pendentes — a receber e a pagar separados */}
+          <PendentesCard
+            aReceber={pendentes.aReceber}
+            aPagar={pendentes.aPagar}
+            qtd={pendentes.qtd}
+            ocultar={ocultar}
             delay={180}
           />
         </div>
@@ -852,6 +943,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 despesas={despesasTotal}
                 transferencias={transferenciasTotal}
                 ocultar={ocultar}
+                saldoConta={saldoConta}
               />
             </>
           )}
@@ -1309,11 +1401,16 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
    com os dois esconde o tamanho de cada lado: R$ 100 de saldo pode ser
    "100 − 0" ou "10.100 − 10.000", e são situações opostas.
    ═══════════════════════════════════════════════════════════════════════ */
+type SaldoContaInfo =
+  | { conta: string; atual: number; estado: 'carregando' | 'erro' }
+  | { conta: string; atual: number; estado: 'pronto'; previsto: number; ate: string; estimado: boolean };
+
 function LinhaTotais({
-  mostrar, qtd, receitas, despesas, transferencias, ocultar,
+  mostrar, qtd, receitas, despesas, transferencias, ocultar, saldoConta,
 }: {
   mostrar: boolean; qtd: number;
   receitas: number; despesas: number; transferencias: number; ocultar: boolean;
+  saldoConta?: SaldoContaInfo | null;
 }) {
   if (!mostrar) return null;
 
@@ -1325,11 +1422,16 @@ function LinhaTotais({
   // Rótulo explica por que estão à parte — sem isso pareceria uma terceira
   // categoria inventada, e não "o que não é consumo nem ganho".
   if (transferencias > 0) blocos.push({ rotulo: 'Transferências', valor: transferencias, cor: 'hsl(var(--muted-foreground))', Icone: ArrowLeftRight });
-  // Saldo só quando há os DOIS lados: com um lado só ele repetiria o número
+  // Resultado só quando há os DOIS lados: com um lado só ele repetiria o número
   // anterior trocando o sinal.
+  //
+  // ⚠️ "RESULTADO DO FILTRO", NUNCA "SALDO". É receitas − despesas das LINHAS
+  // listadas (pendentes inclusas) — resultado do período, não dinheiro na
+  // conta. Com o rótulo "Saldo" um cliente leu R$ 20.570,36 como saldo da
+  // conta, que era R$ 5.217,71. O saldo de verdade vem na linha de baixo.
   if (receitas > 0 && despesas > 0) {
     blocos.push({
-      rotulo: 'Saldo', valor: receitas - despesas, forte: true,
+      rotulo: 'Resultado do filtro', valor: receitas - despesas, forte: true,
       cor: receitas - despesas >= 0 ? 'hsl(142 71% 40%)' : 'hsl(0 72% 51%)',
       Icone: receitas - despesas >= 0 ? ArrowUpRight : ArrowDownRight,
     });
@@ -1340,7 +1442,7 @@ function LinhaTotais({
 
   return (
     <div className="border-t-2 border-border/60 bg-muted/25 px-4 sm:px-5 py-3.5
-                    flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6">
+                    flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 sm:gap-x-6">
       <div className="flex items-center gap-2 flex-shrink-0">
         <Filter size={13} className="text-muted-foreground flex-shrink-0" />
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
@@ -1370,6 +1472,77 @@ function LinhaTotais({
             </span>
           </div>
         ))}
+      </div>
+
+      {/* ── SALDO DA CONTA FILTRADA ───────────────────────────────────────
+          Linha própria, separada dos totais da lista: saldo é o que EXISTE na
+          conta, os blocos acima são o que a lista soma. Misturar os dois na
+          mesma fileira foi o que gerou a leitura errada. */}
+      {saldoConta && (
+        <div className="sm:basis-full flex flex-wrap items-center gap-x-5 gap-y-2 pt-3 border-t border-border/40 sm:justify-end">
+          <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-bold min-w-0 break-words">
+            <Wallet size={13} className="flex-shrink-0" />
+            {saldoConta.conta}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Saldo atual</span>
+            <span className="text-sm font-bold tabular whitespace-nowrap text-foreground">
+              {ocultar ? '••••' : fmt(saldoConta.atual)}
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5" aria-live="polite">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              {saldoConta.estado === 'pronto'
+                ? `Saldo previsto ${saldoConta.ate.slice(8, 10)}/${saldoConta.ate.slice(5, 7)}`
+                : 'Saldo previsto'}
+            </span>
+            <span className="text-sm font-bold tabular whitespace-nowrap text-foreground">
+              {saldoConta.estado === 'pronto'
+                ? (ocultar ? '••••' : `${saldoConta.estimado ? '≈ ' : ''}${fmt(saldoConta.previsto)}`)
+                : saldoConta.estado === 'carregando' ? '…' : '—'}
+            </span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Pendentes: a receber e a pagar em linhas próprias, com ícone + rótulo (a cor
+   sozinha não carrega o sentido). Empilha rótulo e valor no celular, onde o
+   card tem ~120px úteis e os dois lado a lado não cabem. */
+function PendentesCard({
+  aReceber, aPagar, qtd, ocultar, delay = 0,
+}: { aReceber: number; aPagar: number; qtd: number; ocultar: boolean; delay?: number }) {
+  const linhas = [
+    { rotulo: 'A receber', valor: aReceber, Icone: ArrowUpRight, cor: 'text-green-500' },
+    { rotulo: 'A pagar', valor: aPagar, Icone: ArrowDownRight, cor: 'text-red-500' },
+  ];
+  return (
+    <div className="card rounded-2xl p-5 relative overflow-hidden animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
+      <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none opacity-40"
+           style={{ background: 'radial-gradient(circle, hsl(38 80% 55% / .2) 0%, transparent 70%)' }} />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Pendentes</p>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'hsl(38 80% 55% / 0.12)' }}>
+            <Clock size={13} style={{ color: 'hsl(38 65% 50%)' }} />
+          </div>
+        </div>
+        <dl className="space-y-1.5">
+          {linhas.map(({ rotulo, valor, Icone, cor }) => (
+            <div key={rotulo} className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
+              <dt className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                <Icone size={11} className={`${cor} flex-shrink-0`} />
+                {rotulo}
+              </dt>
+              <dd className="text-base font-bold tabular tracking-tight text-foreground whitespace-nowrap">
+                {ocultar ? '••••••' : fmt(valor)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs text-muted-foreground mt-1.5">{qtd} aguardando</p>
       </div>
     </div>
   );
