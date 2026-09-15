@@ -2170,6 +2170,26 @@ e o usuário fica `inativo` pra sempre).
   gratis → /planos). É o **único** ponto que segura o WhatsApp — tudo abaixo dele
   já assume usuário com direito.
 
+### No app Android não há paywall — nem pra conta criada no site (set/2026)
+
+Relato: conta criada **no site** sem pagar () instalou o app da Play
+Store e caía na /planos. O  só era dado no cadastro feito **dentro** do
+app ( → ); a conta que já existia nunca era
+convertida, e o  mandava pra /planos.
+
+- ⚠️ **A /planos dentro do app é a da WEB, com preço e Stripe** — o que a
+  política do Play proíbe no app. Não era só usuário travado.
+- **Regra (decisão do usuário):** conta  que abre o app vira 
+  (mesma rota, que só anda de inativo → gratis) e vai pro  se não fez
+  onboarding. O plano é da CONTA: no site ela também passa a usar o modo grátis.
+- **No app, as rotas de compra (/planos, /oferta, /checkout-vitalicio) também
+  convertem** — o TWA pode reabrir numa delas. Na web continuam livres.
+- ⚠️  **dentro do efeito**, não o : o hook nasce
+  "web" e o paywall redirecionaria antes de saber que é o app.
+- ⚠️ Navegação **completa** pro destino: com o plano recém-trocado o
+   disputaria a rota e mandaria pro wizard longo.
+- Decisão pura em , travada em .
+
 ### Aba bloqueada mostra CARD, não redireciona
 
 `GrowGate` (que apesar do nome só recebe uma `Feature`) renderiza
