@@ -38,6 +38,7 @@ const FAQ = [
   { q: 'Preciso entender de finanças?', a: 'Não. A Sora foi feita pra quem é leigo e bagunçado. Você só organiza o que já tem — sem termos complicados.' },
   { q: 'É pra sempre mesmo? Sem mensalidade?', a: 'Sim. Você paga UMA vez e o acesso é seu pra sempre. Sem mensalidade, sem pegadinha, sem cobrança recorrente.' },
   { q: 'Qual a diferença pro plano com WhatsApp?', a: 'No Kit você organiza tudo pelo painel. Na Sora Completa, você nem abre o app: manda "gastei 50 no mercado" no WhatsApp (texto, áudio ou foto) e ela lança sozinha. É o jeito mais fácil que existe.' },
+  { q: 'Como funciona a conexão Open Finance?', a: 'Você autoriza seu banco uma única vez, direto no app dele, e a Sora passa a puxar sozinha suas transações, saldos e faturas — sem digitar nada. É opcional e dá pra desconectar quando quiser. Obs.: cada banco conectado tem uma taxa de R$ 6/mês, cobrada pelo provedor de Open Finance, não pela Sora.' },
   { q: 'Funciona no meu celular?', a: 'Sim, funciona em qualquer celular ou computador pelo navegador. Nada pra instalar.' },
   { q: 'E se eu não gostar?', a: 'Você tem 7 dias de garantia. Se não curtir, devolvemos 100% do seu dinheiro. O risco é todo nosso.' },
   { q: 'Meus dados estão seguros?', a: 'Sim. Criptografia de ponta, 100% em conformidade com a LGPD e seus dados são só seus — você pode exportar ou apagar quando quiser.' },
