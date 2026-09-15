@@ -36,7 +36,13 @@ type Props = {
   /** Pré-preenche a descrição (sugestão do Watson ou edição de transação). */
   descricaoInicial?: string;
   categoriaInicial?: string | null;
-  onPronto: (r: { atualizadas: number }) => void;
+  /** `ids` = lançamentos que a regra alterou; `categoria`/`renomear`/`tipo` =
+   *  o que ela aplica — pra quem abriu o formulário a partir de um lançamento
+   *  refletir o valor novo em vez de gravar o antigo por cima. */
+  onPronto: (r: {
+    atualizadas: number; ids: string[];
+    tipo: TipoRegra; categoria: string | null; renomear: string | null;
+  }) => void;
   onCancelar: () => void;
 };
 
@@ -90,7 +96,13 @@ export default function RegraForm({
         ignorar_escopo: tipo === 'ignorar' ? escopo : undefined,
       };
       const r = await api.regras.criar(body);
-      onPronto({ atualizadas: r.atualizadas || 0 });
+      onPronto({
+        atualizadas: r.atualizadas || 0,
+        ids: r.ids || [],
+        tipo,
+        categoria: body.categoria ?? null,
+        renomear: body.renomear_para ?? null,
+      });
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Não consegui criar a regra.');
       setSalvando(false);

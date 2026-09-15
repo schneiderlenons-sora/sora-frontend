@@ -521,7 +521,7 @@ export const api = {
     /** Cria do zero. `descricao` é o texto COMO O BANCO ESCREVE — o servidor só
      *  normaliza caixa e acento, sem tirar palavra nenhuma. */
     criar: (body: NovaRegra & { phone: string }) =>
-      req<{ ok: true; termo: string; atualizadas: number }>('/api/regras', {
+      req<{ ok: true; termo: string; atualizadas: number; ids?: string[] }>('/api/regras', {
         method: 'POST', body: JSON.stringify(body),
       }),
     editar: (id: string, body: Partial<NovaRegra> & { phone: string; aplicar_agora?: boolean }) =>

@@ -137,7 +137,9 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
             {/* Só aparece quando a categoria mudou de verdade — oferecer isso
                 sem mudança nenhuma seria ruído. Vira regra do estabelecimento:
                 corrige o histórico e vale pras próximas importações. */}
-            {mudouCategoria && estabelecimento && (
+            {/* Some depois de criar a regra pelo formulário completo: a regra
+                já existe, e oferecer outra aqui criaria uma segunda por cima. */}
+            {mudouCategoria && estabelecimento && !regraFeita && (
               <button type="button" onClick={() => setAplicarTodas(v => !v)}
                       role="switch" aria-checked={aplicarTodas}
                       className={`mt-2.5 w-full flex items-start gap-2.5 p-3 rounded-xl text-left transition-colors ${
@@ -184,11 +186,22 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
                   descricaoInicial={estabelecimento}
                   categoriaInicial={categoria}
                   onCancelar={() => setRegraAberta(false)}
-                  onPronto={({ atualizadas }) => {
+                  onPronto={({ atualizadas, ids, tipo: tipoRegra, categoria: catRegra, renomear }) => {
                     setRegraAberta(false);
                     setRegraFeita(atualizadas > 0
                       ? `Regra criada — ${atualizadas} lançamento(s) ajustado(s).`
                       : 'Regra criada. Vale pros próximos lançamentos.');
+                    // ⚠️ A REGRA JÁ GRAVOU ESTE LANÇAMENTO NO SERVIDOR, mas este
+                    // modal continuava aberto com a categoria ANTIGA — e o
+                    // "Salvar" do rodapé a gravava de volta por cima. Caso real:
+                    // regra "Pix recebido MARIZA…" → Extras, e o lançamento
+                    // voltou pra PIX. Só adota o que a regra de fato mudou nele.
+                    if (ids.includes(tx.id) && tipoRegra === 'categorizar') {
+                      if (catRegra) setCategoria(catRegra);
+                      if (renomear) setObservacao(renomear);
+                    }
+                    // A lista atrás do modal também mudou (as outras linhas).
+                    if (atualizadas > 0) onSaved();
                   }}
                 />
               </div>
