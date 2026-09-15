@@ -7,7 +7,7 @@ import {
   Plus, Pencil, Trash2, Loader2, BellOff, ShoppingCart, Banknote,
   ChevronDown, ClipboardList, ArrowDownToLine, ArrowUpFromLine,
   CalendarDays, Landmark, CreditCard, CircleDashed, Sparkles, X,
-  ListOrdered,
+  ListOrdered, BadgeCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
@@ -74,6 +74,12 @@ const BLOCOS_RECEITA = [
 type ItemComposicao = {
   id: string; titulo: string; legenda: string; valor: number; icone: string;
   grupo: 'fixo' | 'variavel' | 'divida' | 'fatura';
+  /**
+   * Só em fatura de cartão do Open Finance: de onde vem o valor.
+   * `estimativa` = ciclo em aberto, o valor ainda muda; `banco` = o emissor já
+   * fechou e publicou a fatura, o valor é o oficial. Cartão manual não tem selo.
+   */
+  selo?: 'estimativa' | 'banco';
   /** Presente = dá pra editar por aqui (só recorrência tem). */
   rec?: any;
   semAviso?: boolean;
@@ -552,6 +558,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     legenda: `vence ${String(f.venc || '').slice(8, 10)}/${String(f.venc || '').slice(5, 7)}`,
     icone: '💳',
     grupo: 'fatura',
+    // ⚠️ A pergunta do cliente foi "como ajusto o previsto da fatura quando ela
+    // fecha diferente?". No cartão do Open Finance não se ajusta: enquanto o
+    // ciclo está aberto o valor é ESTIMATIVA, e quando o banco publica a fatura
+    // (`of_bill_id` da competência, migration 118) o sync troca pelo oficial. O
+    // selo diz em qual dos dois estados o número está.
+    selo: f.of ? (f.of_bill_id ? 'banco' as const : 'estimativa' as const) : undefined,
   }), []);
 
   /** Quantas vezes a recorrência AINDA cai neste mês. */
@@ -1117,8 +1129,30 @@ function LinhaComposicao({
                 </span>
               )}
             </span>
-            <span className="block text-[11px] text-muted-foreground truncate">
-              {item.legenda}
+            {/* Selo da fatura na linha da legenda, não ao lado do título: lá ele
+                disputaria espaço com o nome do cartão e o truncaria no celular.
+                Ícone + texto, nunca só cor. */}
+            <span className="flex items-center gap-1.5 min-w-0">
+              {item.selo && (
+                <span
+                  className={`flex-shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-px rounded-md ${
+                    item.selo === 'banco'
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                  }`}
+                  title={item.selo === 'banco'
+                    ? 'O banco já fechou esta fatura: é o valor oficial.'
+                    : 'Fatura em aberto: o valor muda até o banco fechar, e a Sora troca pelo oficial sozinha.'}
+                >
+                  {item.selo === 'banco'
+                    ? <BadgeCheck size={10} aria-hidden />
+                    : <CircleDashed size={10} aria-hidden />}
+                  {item.selo === 'banco' ? 'Fechada pelo banco' : 'Estimativa'}
+                </span>
+              )}
+              <span className="min-w-0 text-[11px] text-muted-foreground truncate">
+                {item.legenda}
+              </span>
             </span>
           </span>
           <span className="text-sm font-bold tabular whitespace-nowrap" style={{ color: cor }}>
