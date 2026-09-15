@@ -19,7 +19,8 @@
     "eval:sessao-prefetch": "npx tsx lib/sessao-prefetch.eval.mjs",
     "eval:renovacao-sessao": "npx tsx lib/renovacao-sessao.eval.mjs",
     "eval:extrato-futuro": "npx tsx lib/extrato-futuro.eval.mjs",
-    "eval:paywall": "npx tsx lib/paywall.eval.mjs"
+    "eval:paywall": "npx tsx lib/paywall.eval.mjs",
+    "eval:vitalicio-tier": "npx tsx lib/vitalicio-tier.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEhAndroid } from '@/lib/useOrigem';
 import { Crown, X, ArrowRight, MessageCircle } from 'lucide-react';
 
 // Banner de upsell mostrado SÓ pra quem tem o Kit (R$47) — leva pro upgrade
 // vitalício de +R$50 (vira Sora Completa). Dispensável (por dispositivo).
+// ⚠️ Nunca no app Android: é link de compra, e a política do Google Play
+// proíbe vender fora do Play Billing dentro do app (ver lib/paywall.ts).
 export default function KitUpsellBanner() {
   const { isKit, perfil } = useAuth();
+  const ehAndroid = useEhAndroid();
   const [oculto, setOculto] = useState(true);
   const chave = `sora_kit_upsell_${perfil?.id || ''}`;
 
@@ -17,7 +21,7 @@ export default function KitUpsellBanner() {
     try { setOculto(localStorage.getItem(chave) === '1'); } catch { setOculto(false); }
   }, [isKit, chave]);
 
-  if (!isKit || oculto) return null;
+  if (!isKit || oculto || ehAndroid) return null;
 
   function dispensar() {
     try { localStorage.setItem(chave, '1'); } catch { /* quota */ }

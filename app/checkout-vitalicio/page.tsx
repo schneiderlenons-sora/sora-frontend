@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import MercadoPagoBrick, { MP_SDK_ID, MP_SDK_SRC } from '@/components/checkout/MercadoPagoBrick';
 import AuthHero from '@/components/auth/AuthHero';
 import { aplicarCupomVitalicio, pctCupom } from '@/lib/cupons';
+import { normalizarTier, tierEfetivo } from '@/lib/vitalicio-tier';
 import { trackAddToCart, trackInitiateCheckout } from '@/lib/analytics';
 import { Crown, ShieldCheck, Check, Tag, Loader2, X } from 'lucide-react';
 
@@ -24,11 +25,14 @@ const TIERS = {
 } as const;
 
 function CheckoutContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, perfil, plano } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const raw = params.get('tier');
-  const tier = (raw === 'kit' || raw === 'upgrade' ? raw : 'completa') as keyof typeof TIERS;
+  const pedido = normalizarTier(params.get('tier'));
+  // ⚠️ Com a conta carregada, o tier é o que ELA compra: Kit pedindo a
+  // Completa vê o upgrade de R$50 (e o servidor cobra o mesmo). Sem perfil
+  // ainda (visitante, ou carregando), vale o que veio no link.
+  const tier = (perfil ? tierEfetivo(pedido, plano) : pedido) as keyof typeof TIERS;
   const t = TIERS[tier];
 
   // ── Cupom (opcional) ──────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mpCreatePayment, tierConfig } from '@/lib/mercadopago';
+import { tierEfetivo } from '@/lib/vitalicio-tier';
 import { aplicarCupomVitalicio } from '@/lib/cupons';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
@@ -106,12 +107,11 @@ export async function POST(req: NextRequest) {
     };
 
     // Valor + plano SEMPRE pelo tier no servidor (nunca confiar no cliente).
-    let cfg = tierConfig(form.tier);
-    // Upgrade (+R$50) só vale pra quem JÁ tem o Kit; senão cobra a Completa cheia.
-    if (form.tier === 'upgrade') {
-      const { data: u } = await supabaseAdmin.from('users').select('plano').eq('id', user.id).maybeSingle();
-      if (u?.plano !== 'kit') cfg = tierConfig('completa');
-    }
+    // O tier sai do PLANO DA CONTA, não só do link (ver lib/vitalicio-tier.ts):
+    // quem tem o Kit paga o upgrade (+R$50) mesmo chegando pela Completa, e
+    // upgrade sem Kit cobra a Completa cheia.
+    const { data: u } = await supabaseAdmin.from('users').select('plano').eq('id', user.id).maybeSingle();
+    const cfg = tierConfig(tierEfetivo(form.tier, u?.plano));
 
     // Cupom (opcional) — desconto SEMPRE recalculado aqui (nunca confiar no
     // cliente). Código inválido → 0% (cobra cheio, fluxo normal).

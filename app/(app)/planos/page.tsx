@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEhAndroid } from '@/lib/useOrigem';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANO_LABEL, type Plano } from '@/lib/plans';
@@ -43,6 +45,7 @@ const ORDEM: Record<Plano, number> = {
 
 function PlanosContent() {
   const { perfil, plano: planoAtual, recarregar, isVitalicio } = useAuth();
+  const ehAndroid = useEhAndroid();
   const searchParams = useSearchParams();
   const [anual, setAnual]         = useState(false);
   const [loadingPlano, setLoading] = useState<string | null>(null);
@@ -274,20 +277,31 @@ function PlanosContent() {
             Quem JÁ TEM vitalício vê sempre o cartão de status (é informação de
             conta, não oferta). A OFERTA em si respeita MOSTRAR_VITALICIO. */}
         {isVitalicio ? (
-          <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-400/30 flex items-center gap-4 animate-fade-in"
+          <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-400/30 flex flex-col sm:flex-row sm:items-center gap-4 animate-fade-in"
                style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' }}>
-            <Crown size={28} className="text-amber-400 flex-shrink-0" />
-            <div>
-              <p className="text-amber-400 text-[11px] font-bold uppercase tracking-widest">Fundador</p>
-              <p className="text-white font-bold text-lg leading-tight">
-                {planoAtual === 'kit' ? 'Você tem o Kit Vitalício 🐳' : 'Você é Premium Vitalício 🐳'}
-              </p>
-              <p className="text-white/60 text-sm">
-                {planoAtual === 'kit'
-                  ? 'Acesso vitalício ao Kit — organize tudo pelo painel, pra sempre. 💚'
-                  : 'Acesso completo à Sora, para sempre. Obrigado por acreditar desde o começo. 💚'}
-              </p>
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <Crown size={28} className="text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="text-amber-400 text-[11px] font-bold uppercase tracking-widest">Fundador</p>
+                <p className="text-white font-bold text-lg leading-tight">
+                  {planoAtual === 'kit' ? 'Você tem o Kit Vitalício 🐳' : 'Você é Premium Vitalício 🐳'}
+                </p>
+                <p className="text-white/60 text-sm">
+                  {planoAtual === 'kit'
+                    ? 'Acesso vitalício ao Kit — organize tudo pelo painel, pra sempre. 💚'
+                    : 'Acesso completo à Sora, para sempre. Obrigado por acreditar desde o começo. 💚'}
+                </p>
+              </div>
             </div>
+            {/* Kit → Completa pagando só a diferença. ⚠️ Fora do app Android: lá
+                não se vende (política do Google Play — ver lib/paywall.ts). */}
+            {planoAtual === 'kit' && !ehAndroid && (
+              <Link href="/checkout-vitalicio?tier=upgrade"
+                    className="flex-shrink-0 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-black transition active:scale-[0.98] hover:brightness-105"
+                    style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
+                Fazer upgrade por +R$ 50
+              </Link>
+            )}
           </div>
         ) : MOSTRAR_VITALICIO && (
           <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-amber-400/25 animate-fade-in"
