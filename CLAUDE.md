@@ -2172,23 +2172,23 @@ e o usuário fica `inativo` pra sempre).
 
 ### No app Android não há paywall — nem pra conta criada no site (set/2026)
 
-Relato: conta criada **no site** sem pagar () instalou o app da Play
-Store e caía na /planos. O  só era dado no cadastro feito **dentro** do
-app ( → ); a conta que já existia nunca era
-convertida, e o  mandava pra /planos.
+Relato: conta criada **no site** sem pagar (`inativo`) instalou o app da Play
+Store e caía na /planos. O `gratis` só era dado no cadastro feito **dentro** do
+app (`app/signup` → `/api/plano-gratis`); a conta que já existia nunca era
+convertida, e o `PaywallRedirect` mandava pra /planos.
 
 - ⚠️ **A /planos dentro do app é a da WEB, com preço e Stripe** — o que a
   política do Play proíbe no app. Não era só usuário travado.
-- **Regra (decisão do usuário):** conta  que abre o app vira 
-  (mesma rota, que só anda de inativo → gratis) e vai pro  se não fez
+- **Regra (decisão do usuário):** conta `inativo` que abre o app vira `gratis`
+  (mesma rota, que só anda de inativo → gratis) e vai pro `/tour` se não fez
   onboarding. O plano é da CONTA: no site ela também passa a usar o modo grátis.
 - **No app, as rotas de compra (/planos, /oferta, /checkout-vitalicio) também
   convertem** — o TWA pode reabrir numa delas. Na web continuam livres.
-- ⚠️  **dentro do efeito**, não o : o hook nasce
+- ⚠️ `detectarOrigem()` **dentro do efeito**, não o `useEhAndroid()`: o hook nasce
   "web" e o paywall redirecionaria antes de saber que é o app.
 - ⚠️ Navegação **completa** pro destino: com o plano recém-trocado o
-   disputaria a rota e mandaria pro wizard longo.
-- Decisão pura em , travada em .
+  `OnboardingRedirect` disputaria a rota e mandaria pro wizard longo.
+- Decisão pura em `lib/paywall.ts`, travada em `npm run eval:paywall`.
 
 ### Aba bloqueada mostra CARD, não redireciona
 
