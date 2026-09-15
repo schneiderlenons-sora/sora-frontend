@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2 } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
+import { hojeSP } from '@/lib/ciclo-fatura';
 
 // =============================================================================
 // EXTRATO FUTURO — a tela que o cliente pediu, e um pouco mais.
@@ -79,6 +80,12 @@ export type AcaoOcorrencia = {
   acao: 'quitar' | 'pular' | 'adiar' | 'corrigir' | 'nao-paguei';
   data?: string;
   valor?: number;
+  /**
+   * Só na baixa pela SUGESTÃO do banco: a cobrança do extrato que já é o
+   * pagamento. Com ela a rota amarra essa linha em vez de criar outra (que
+   * seria a duplicata).
+   */
+  transacaoBanco?: string;
 };
 
 export type Sugestao = {
@@ -376,7 +383,7 @@ export default function ExtratoFuturo({
                   {sug && aberta !== id && (
                     <button
                       type="button"
-                      onClick={() => { onAcao({ linha: l, acao: 'quitar', data: sug.data, valor: sug.valor }); }}
+                      onClick={() => { onAcao({ linha: l, acao: 'quitar', data: sug.data, valor: sug.valor, transacaoBanco: sug.transacao_id }); }}
                       disabled={ocupado === l.recorrenciaId}
                       className="w-full flex items-center gap-2 px-3 py-2 border-t border-border/30
                                  bg-emerald-500/10 text-left min-h-[44px] active:scale-[0.99] transition-transform
@@ -414,7 +421,11 @@ export default function ExtratoFuturo({
                           onClick={() => {
                             if (quitando === id) { setQuitando(null); return; }
                             setQuitando(id); setAdiando(null);
-                            setQuitacao({ data: l.data, valor: String(l.valor).replace('.', ',') });
+                            // ⚠️ Nunca sugere data no futuro: "paguei" é algo que
+                            // já aconteceu. Conta que vence depois de hoje e foi
+                            // paga adiantada foi paga HOJE (ou antes).
+                            const hoje = hojeSP();
+                            setQuitacao({ data: l.data > hoje ? hoje : l.data, valor: String(l.valor).replace('.', ',') });
                           }}
                         />
                         <AcaoBtn
@@ -494,7 +505,7 @@ export default function ExtratoFuturo({
                             <label className="text-[11px] font-medium text-muted-foreground">
                               Paguei em
                               <input
-                                type="date" value={quitacao.data}
+                                type="date" value={quitacao.data} max={hojeSP()}
                                 onChange={(e) => setQuitacao({ ...quitacao, data: e.target.value })}
                                 className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm text-foreground"
                               />
@@ -515,9 +526,17 @@ export default function ExtratoFuturo({
                               O valor real vem do banco quando a cobrança cair no extrato.
                             </p>
                           )}
+                          {/* O `max` do input não impede digitar a data no
+                              teclado em todo navegador — o botão é a trava, e
+                              o motivo fica escrito ao lado (não só o cinza). */}
+                          {quitacao.data > hojeSP() && (
+                            <p role="alert" className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                              A data do pagamento não pode ser no futuro. Se ainda não pagou, use “Adiar”.
+                            </p>
+                          )}
                           <button
                             type="button"
-                            disabled={!quitacao.data || ocupado === l.recorrenciaId}
+                            disabled={!quitacao.data || quitacao.data > hojeSP() || ocupado === l.recorrenciaId}
                             onClick={() => {
                               const v = Number(quitacao.valor.replace(/\./g, '').replace(',', '.'));
                               onAcao({
@@ -552,8 +571,11 @@ export default function ExtratoFuturo({
                         <label className="text-[11px] font-medium text-muted-foreground">
                           Paguei em
                           <input
-                            type="date" defaultValue={l.data}
-                            onChange={(e) => e.target.value && onAcao({ linha: l, acao: 'corrigir', data: e.target.value })}
+                            type="date" defaultValue={l.data} max={hojeSP()}
+                            // Linha paga com data no futuro diz que um dinheiro
+                            // saiu antes de sair. Pra depois, o caminho é "Ainda
+                            // não paguei" + Adiar.
+                            onChange={(e) => e.target.value && e.target.value <= hojeSP() && onAcao({ linha: l, acao: 'corrigir', data: e.target.value })}
                             className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm text-foreground"
                           />
                         </label>

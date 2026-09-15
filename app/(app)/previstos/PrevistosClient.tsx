@@ -145,7 +145,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   } = useApi(phone ? chave.recorrencias(phone) : null, () => api.recorrencias.listar(phone));
   const { data: divData }  = useApi(phone ? chave.dividas(phone) : null, () => api.dividas.listar(phone));
   const { data: fatData }  = useApi(phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
-  const { data: walData }  = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone));
+  const { data: walData, mutate: mutWal } = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone));
   const { data: resData }  = useApi(phone ? chave.resumo(phone, ymRef) : null, () => api.transacoes.resumo(phone, ymRef));
   // O ano inteiro alimenta os gráficos históricos — mesma fonte do Relatórios,
   // pra os dois nunca divergirem no mesmo mês.
@@ -292,7 +292,9 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           ...(a.data  !== undefined ? { data: a.data }   : {}),
           ...(a.valor !== undefined ? { valor: a.valor } : {}),
         });
-        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.()]);
+        // O PUT mexe no SALDO da conta — sem recarregar as carteiras o saldo
+        // de partida do extrato ficava velho até a próxima revalidação.
+        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutWal?.()]);
       } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
       finally { setQuitandoRec(null); }
       return;
@@ -301,7 +303,15 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     try {
       setQuitandoRec(linha.recorrenciaId);
       if (acao === 'quitar') {
-        await api.previstos.quitar({ ...base, data: a.data, valor: a.valor, carteira_nome: linha.carteira ?? null });
+        await api.previstos.quitar({
+          ...base, data: a.data, valor: a.valor, carteira_nome: linha.carteira ?? null,
+          ...(a.transacaoBanco ? { transacao_id: a.transacaoBanco } : {}),
+        });
+        // ⚠️ A baixa agora DEBITA o saldo da conta manual e cria a linha paga:
+        // o extrato precisa das duas coisas juntas. Com só uma, a linha paga
+        // sairia "já no saldo" contra um saldo que ainda não a descontou.
+        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutWal?.()]);
+        return;
       } else if (acao === 'pular') {
         await api.previstos.ajuste({ ...base, status: 'pulado' });
       } else if (acao === 'adiar') {
