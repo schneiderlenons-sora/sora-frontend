@@ -1209,27 +1209,36 @@ function TransactionRow({
           revelar o resto. `break-words` é a rede pra um nome de palavra única
           gigante. `min-w-0` é o que autoriza o item do grid a encolher até a
           trilha. */}
-      {/* ⚠️ O CHIP É `inline` + `box-decoration-clone`, NÃO um flex.
-          Como flex ele virava uma caixa só e, com o texto quebrando em duas
-          linhas, essa caixa assumia a largura INTEIRA da coluna (130px)
-          enquanto a linha mais larga do texto usava ~110px — a "box bem maior
-          que a frase". Não é ajuste de padding: shrink-to-fit no CSS sempre
-          usa o espaço disponível quando o conteúdo não cabe, então caixa
-          única NUNCA encolhe até o texto já quebrado.
-          Sendo `inline`, o fundo é pintado por FRAGMENTO de linha, e o
-          `box-decoration-clone` dá cantos e padding completos a cada um. Cada
-          linha fica do tamanho exato do seu texto — e nome curto continua
-          sendo uma pílula só, idêntica ao que era.
-          `leading-[1.8]` reserva 21,6px por linha contra ~20,4px de fundo: sem
-          essa folga os fundos de linhas vizinhas se sobrepõem. */}
+      {/* ⚠️ O CHIP É `inline` + `box-decoration-clone` DENTRO DE UM BLOCO.
+          Uma caixa só, com o texto quebrando em duas linhas, assume a largura
+          INTEIRA da coluna (130px) — a "box bem maior que a frase". Não é
+          padding: shrink-to-fit no CSS usa todo o espaço quando o conteúdo não
+          cabe. Inline, o fundo é pintado por LINHA, cada uma do tamanho exato
+          do seu texto.
+          ⚠️ O `<div>` INTERMEDIÁRIO É O QUE FAZ ISSO FUNCIONAR. Filho direto de
+          flex é "blockificado": o `<span>` virava bloco mesmo com a classe
+          inline, e a correção anterior nunca teve efeito (conferido numa
+          bancada com Playwright — reproduzia exatamente o print do relato).
+          ⚠️ As linhas FUNDEM numa forma só pela `box-shadow` da mesma cor
+          (2,5px em volta de cada linha), que independe da métrica da fonte.
+          Pra isso o fundo é OPACO (`color-mix` com o fundo do card): o
+          `theme.bg` é translúcido, e a sobreposição das linhas escureceria uma
+          faixa na junção. Raio 11 = metade da altura, então nome curto continua
+          pílula como antes. */}
       <div className="flex items-center min-w-0">
-        <span
-          className="text-xs font-medium leading-[1.8] px-2.5 py-[3px] rounded-2xl box-decoration-clone break-words"
-          style={{ background: theme.bg, color: theme.color }}
-        >
-          <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full" style={{ background: theme.color }} />
-          {nome}
-        </span>
+        <div className="min-w-0">
+          <span
+            className="text-xs font-medium leading-[18px] px-2 py-px rounded-[11px] box-decoration-clone break-words"
+            style={{
+              background: `color-mix(in srgb, ${theme.color} 12%, hsl(var(--bg-card)))`,
+              boxShadow: `0 0 0 2.5px color-mix(in srgb, ${theme.color} 12%, hsl(var(--bg-card)))`,
+              color: theme.color,
+            }}
+          >
+            <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full" style={{ background: theme.color }} />
+            {nome}
+          </span>
+        </div>
       </div>
 
       {/* Conta (+ avatar de quem lançou, em grupo compartilhado) */}
