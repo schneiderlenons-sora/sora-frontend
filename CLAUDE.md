@@ -1273,6 +1273,35 @@ e mexendo no saldo; só sai das somas.
 - Raio medido: 60 ajustes em 27 grupos; set/2026, 11 grupos (receitas
   −R$ 13.507,57, despesas −R$ 2.265,97).
 
+## Regras de categoria: casavam pela metade (set/2026)
+
+Relato: *"reclassifico um Pix e os outros com a mesma descrição não mudam — ele
+não aprende?"*. Três defeitos somados, todos em `services/regrasCategoria.js`
+(`casaRegra` é a fonte única; `eval:regras` §4 e §5).
+
+- ⚠️ **A regra não casava nem com a própria descrição.** O "Valer para todas"
+  grava o termo por `termoDe`, que tira "de/da/para" e códigos do MEIO da frase
+  ("Pix recebido MARIZA MARIA DA SILVA SANTOS" → "mariza maria silva santos"),
+  e o casamento era por pedaço contíguo. Medido: **38,9%** das descrições da
+  base (**61,3%** das de Pix). Hoje "contém" também aceita as palavras do termo
+  **na mesma ordem** com qualquer coisa entre elas — só alarga.
+- ⚠️ **O casamento ao contrário pegava descrição genérica.** "A descrição cabe
+  no termo" jogou 5 "Pix recebido" de outras pessoas numa regra da Mariza, e
+  "Pagamento" numa regra de Móveis. Decisão do usuário: fica, mas **só com nome
+  de verdade** — descrição só de ruído não casa, 4+ letras, palavra inteira
+  ("mercado" ≠ "supermercado").
+- ⚠️ **O modal desfazia a regra.** Criar regra pelo `EditarTransacaoModal`
+  aplicava no servidor, mas o modal seguia aberto com a categoria antiga e o
+  "Salvar" do rodapé gravava por cima. A rota devolve os `ids` alterados e o
+  modal adota o valor novo.
+- Junto: leitura **paginada** (`transacoesDoGrupo`; o `select` parava em 1.000
+  linhas), a contagem da tela e o "Valer para todas" usam `casaRegra` (tinham
+  cópias), e aplicar no histórico só onde a regra é a que **vence** (mesma
+  escolha do import).
+- **Dados (aprovados):** 24 lançamentos em balde genérico reaplicados; os 30 em
+  categoria específica ficaram (ex.: 18 do Mercado Livre que o cliente separou
+  à mão). 11 "PG" que o reverso jogou em Medicamento voltaram pra Outros.
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
