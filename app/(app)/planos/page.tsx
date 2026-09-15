@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEhAndroid } from '@/lib/useOrigem';
+import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANO_LABEL, type Plano } from '@/lib/plans';
@@ -20,19 +21,15 @@ const BRAND = 'hsl(var(--primary))';
 // Básico · Premium · Platinum.
 const PLANOS = PLANOS_DISPLAY;
 
-// ⚠️ CHAVE ÚNICA DA OFERTA VITALÍCIA NO PAINEL.
+// ⚠️ QUEM VÊ QUAL OFERTA mora em `lib/ofertas-plano.ts` (eval:ofertas-plano),
+// a mesma regra de Configurações → Plano e Cobrança: Kit vê só o upgrade,
+// assinante não vê a Completa vitalícia, sem plano pago vê as duas coisas, e no
+// app Android nada é vendido. Era uma constante liga/desliga daqui e as duas
+// telas divergiam.
 //
-// A oferta entra e sai daqui conforme a campanha (já foi removida uma vez, no
-// commit b4d81ea, e reposta a pedido de um cliente). Para tirar de novo:
-// trocar para `false` — o card some, a grade volta pra 2 colunas e o fetch de
-// vagas nem sai. NÃO apagar o bloco: da próxima vez o texto voltaria
-// desatualizado, que foi exatamente o que aconteceu agora (o card citava o
-// preço do Black, plano já aposentado, e "Stripe" no lugar do Mercado
-// Pago).
-//
-// Isto NÃO afeta /oferta nem /kit — as landings vendem o vitalício sempre.
-// O cartão de status de quem JÁ TEM vitalício também é independente daqui.
-const MOSTRAR_VITALICIO = false;
+// NÃO apagar o bloco da oferta vitalícia: já foi removido uma vez (b4d81ea) e
+// voltou com texto desatualizado (preço do Black, "Stripe" no lugar do Mercado
+// Pago). Isto não afeta /oferta nem /kit — as landings vendem sempre.
 
 // `gratis` fica no MESMO degrau de `inativo` (0) de propósito: os dois não
 // pagam nada, então todo plano da tela é "subir" pros dois, e o CTA sai como
@@ -53,10 +50,16 @@ function PlanosContent() {
   const [erro, setErro]           = useState('');
   const [vagas, setVagas] = useState<{ vendidos: number; vagas: number; restantes: number } | null>(null);
 
+  // Sem perfil ainda não se sabe o plano: nenhuma oferta nova pisca antes de
+  // saber (a grade de assinaturas segue como sempre foi).
+  const ofertas = perfil
+    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid })
+    : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
+
   useEffect(() => {
-    if (!MOSTRAR_VITALICIO) return;   // oferta fora do painel: nem busca vagas
+    if (!ofertas.completaVitalicia || vagas) return;   // sem a oferta, nem busca vagas
     fetch('/api/vitalicio/count').then((r) => r.json()).then(setVagas).catch(() => {});
-  }, []);
+  }, [ofertas.completaVitalicia, vagas]);
 
   useEffect(() => {
     try { trackViewContent({ name: 'Planos' }); } catch { /* noop */ }
@@ -275,7 +278,7 @@ function PlanosContent() {
 
         {/* ── OFERTA VITALÍCIA (Premium pra sempre, pagamento único) ─────────
             Quem JÁ TEM vitalício vê sempre o cartão de status (é informação de
-            conta, não oferta). A OFERTA em si respeita MOSTRAR_VITALICIO. */}
+            conta, não oferta). A OFERTA em si segue `ofertas.completaVitalicia`. */}
         {isVitalicio ? (
           <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-400/30 flex flex-col sm:flex-row sm:items-center gap-4 animate-fade-in"
                style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' }}>
@@ -294,8 +297,8 @@ function PlanosContent() {
               </div>
             </div>
             {/* Kit → Completa pagando só a diferença. ⚠️ Fora do app Android: lá
-                não se vende (política do Google Play — ver lib/paywall.ts). */}
-            {planoAtual === 'kit' && !ehAndroid && (
+                não se vende (política do Google Play — ver lib/ofertas-plano.ts). */}
+            {ofertas.upgradeKit && (
               <Link href="/checkout-vitalicio?tier=upgrade"
                     className="flex-shrink-0 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-black transition active:scale-[0.98] hover:brightness-105"
                     style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
@@ -303,7 +306,7 @@ function PlanosContent() {
               </Link>
             )}
           </div>
-        ) : MOSTRAR_VITALICIO && (
+        ) : ofertas.completaVitalicia && (
           <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-amber-400/25 animate-fade-in"
                style={{ background: 'linear-gradient(135deg, #1c1917 0%, #0a0a0a 55%, #1c1917 100%)' }}>
             <div className="absolute -top-20 -right-16 w-64 h-64 rounded-full pointer-events-none opacity-25"
@@ -380,7 +383,11 @@ function PlanosContent() {
           </h1>
           {isVitalicio ? (
             <p className="text-muted-foreground text-sm max-w-md mx-auto">
-              Plano completo, sem mensalidade — seu acesso é pra sempre. 💜
+              {/* O Kit não é o plano completo — dizer isso a quem tem o Kit
+                  contradiz o upgrade logo acima. */}
+              {planoAtual === 'kit'
+                ? 'Sem mensalidade — seu acesso ao Kit é pra sempre. 💜'
+                : 'Plano completo, sem mensalidade — seu acesso é pra sempre. 💜'}
             </p>
           ) : planoAtual !== 'inativo' ? (
             <p className="text-muted-foreground text-sm">
@@ -393,8 +400,9 @@ function PlanosContent() {
           )}
         </div>
 
-        {/* Assinaturas recorrentes — não fazem sentido pra quem é vitalício. */}
-        {!isVitalicio && (
+        {/* Assinaturas recorrentes — nem pra vitalício (Kit inclusive: o caminho
+            dele é o upgrade) nem dentro do app Android. */}
+        {ofertas.assinaturas && (
         <>
         {/* Toggle mensal/anual */}
         <div className="flex justify-center">

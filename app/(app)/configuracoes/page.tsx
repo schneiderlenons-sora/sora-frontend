@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEhAndroid } from '@/lib/useOrigem';
+import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -445,14 +448,27 @@ const ORDEM_PLANO: Record<Plano, number> = {
 };
 
 function SecaoPlano() {
-  const { perfil, plano: planoAtual, recarregar } = useAuth();
+  const { perfil, plano: planoAtual, recarregar, isVitalicio } = useAuth();
+  const ehAndroid = useEhAndroid();
   const [anual, setAnual] = useState(false);
   const [loadingPlano, setLoadingPlano] = useState<string | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
+  // ⚠️ MESMA REGRA DA /planos (`lib/ofertas-plano.ts`). Esta tela mostrava a
+  // grade de assinaturas pra TODO mundo: a conta Kit via só os planos mensais
+  // aqui, sem o upgrade pra Completa que a /planos oferecia.
+  const ofertas = perfil
+    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid })
+    : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
+
   // Plano fora do catálogo de assinatura (kit, inativo) cai no visual do Premium.
-  const planoVisual = PLANOS_DETALHE.find(p => p.id === planoAtual) ?? PLANOS_DETALHE.find(p => p.id === 'premium');
+  // ⚠️ Mas o Kit leva o PRÓPRIO nome: o hero dizia "Sora Premium" pra quem tem
+  // o Kit, justamente o plano que ele ainda não tem.
+  const planoVisualBase = PLANOS_DETALHE.find(p => p.id === planoAtual) ?? PLANOS_DETALHE.find(p => p.id === 'premium');
+  const planoVisual = planoAtual === 'kit' && planoVisualBase
+    ? { ...planoVisualBase, nome: 'Kit', subtitulo: 'Organize tudo pelo painel, pra sempre' }
+    : planoVisualBase;
   const ordemAtual = ORDEM_PLANO[planoAtual];
   const temAssinatura = planoAtual !== 'inativo';
   const validoAte = perfil?.plano_valido_ate ? new Date(perfil.plano_valido_ate) : null;
@@ -527,9 +543,13 @@ function SecaoPlano() {
         temAssinaturaConexao={(Number(perfil?.of_conexoes_pagas) || 0) > 0}
       />
 
+      {/* Kit → Completa: a ÚNICA oferta pra quem tem o Kit. */}
+      {ofertas.upgradeKit && <OfertaVitalicia modo="upgrade" />}
+
       {/* ═══════════════════════════════════════════════════════════
           OUTROS PLANOS DISPONÍVEIS
       ═══════════════════════════════════════════════════════════ */}
+      {ofertas.assinaturas && (
       <Card
         titulo={temAssinatura ? 'Mudar de plano' : 'Escolha seu plano'}
         subtitulo={
@@ -598,6 +618,67 @@ function SecaoPlano() {
           </span>
         </div>
       </Card>
+      )}
+
+      {/* Completa vitalícia: só pra quem não paga nada. Assinante não vê. */}
+      {ofertas.completaVitalicia && <OfertaVitalicia modo="completa" />}
+    </div>
+  );
+}
+
+// ─── OFERTA VITALÍCIA (upgrade do Kit / Completa cheia) ────────────────────
+// Mesma linguagem visual do card de fundador da /planos e do KitUpsellBanner.
+// O valor exibido é o do `tierConfig` (lib/mercadopago.ts), que é quem cobra.
+// ⚠️ Não promete Open Finance: vitalício tem franquia 0 de conexões
+// (LIMITES.conexoes_of) — cada banco é contratado à parte.
+
+function OfertaVitalicia({ modo }: { modo: 'upgrade' | 'completa' }) {
+  const upgrade = modo === 'upgrade';
+  return (
+    <div
+      className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-400/30 animate-fade-in"
+      style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)' }}
+    >
+      <div
+        className="absolute -top-16 -right-16 w-56 h-56 rounded-full pointer-events-none opacity-25"
+        style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 60%)' }}
+        aria-hidden
+      />
+      <div className="relative flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+        <div className="flex items-start gap-4 flex-1 min-w-0">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-400/15">
+            <Crown size={22} className="text-amber-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-amber-400">
+              {upgrade ? 'Você tem o Kit' : 'Pagamento único'}
+            </p>
+            <p className="text-white font-bold text-lg leading-tight mt-0.5">
+              {upgrade ? 'Leve a Sora Completa pagando só a diferença' : 'Sora Completa pra sempre'}
+            </p>
+            <p className="text-white/60 text-sm leading-snug mt-1">
+              {upgrade
+                ? 'A Sora no WhatsApp (texto, áudio e foto), Negócios e o Sora Grow completo — sem mensalidade.'
+                : 'Tudo do Premium — Sora no WhatsApp, Negócios e Sora Grow completo — pagando uma vez só.'}
+            </p>
+          </div>
+        </div>
+        <div className="flex-shrink-0 flex flex-col items-stretch sm:items-end gap-2">
+          <p className="text-white tabular-nums leading-none sm:text-right">
+            <span className="text-sm text-white/50">{upgrade ? '+R$ ' : 'R$ '}</span>
+            <span className="text-3xl font-bold">{upgrade ? '50' : '97'}</span>
+            <span className="text-sm text-white/50"> único</span>
+          </p>
+          <Link
+            href={upgrade ? '/checkout-vitalicio?tier=upgrade' : '/checkout-vitalicio?tier=completa'}
+            className="inline-flex items-center justify-center gap-2 px-5 rounded-xl font-bold text-black transition active:scale-[0.98] hover:brightness-105"
+            style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', minHeight: 44 }}
+          >
+            <Crown size={15} /> {upgrade ? 'Fazer upgrade' : 'Garantir vitalício'}
+          </Link>
+          <p className="text-[11px] text-white/40 sm:text-right">Pix ou cartão em até 12×</p>
+        </div>
+      </div>
     </div>
   );
 }

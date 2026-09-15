@@ -22,7 +22,8 @@
     "eval:paywall": "npx tsx lib/paywall.eval.mjs",
     "eval:vitalicio-tier": "npx tsx lib/vitalicio-tier.eval.mjs",
     "eval:saldo-conta": "npx tsx lib/saldo-conta.eval.mjs",
-    "eval:ajuste-saldo": "npx tsx lib/ajuste-saldo.eval.mjs"
+    "eval:ajuste-saldo": "npx tsx lib/ajuste-saldo.eval.mjs",
+    "eval:ofertas-plano": "npx tsx lib/ofertas-plano.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

@@ -113,6 +113,13 @@ Eventos: `checkout.session.completed`, `customer.subscription.updated`, `custome
 | **Upgrade** | +R$50 | `plano='premium'` | Só pra quem já tem o Kit; senão cobra a Completa cheia |
 
 - **Kit no WhatsApp:** `plano='kit'` NÃO atende pelo zap — o `processarMensagem` responde com CTA de upgrade (`webhook.js`). Kit organiza só pelo painel.
+- ⚠️ **Quem vê qual oferta no painel: `lib/ofertas-plano.ts`** (`eval:ofertas-plano`),
+  usado pela `/planos` E por Configurações → Plano e Cobrança. Regra do usuário
+  (set/2026): **Kit vê SÓ o upgrade** (+R$ 50, sem assinaturas); **assinante
+  (mensal/anual) não vê a Completa vitalícia**; sem plano pago (inativo/grátis)
+  vê as assinaturas e a Completa; vitalício completo não vê oferta; **no app
+  Android nada é vendido**. Antes Configurações mostrava a grade mensal pra todo
+  mundo (a conta Kit via só os mensais) e o hero chamava o Kit de "Sora Premium".
 
 **Pagamento = Mercado Pago** (checkout transparente / Payment Brick), NÃO o Stripe (Stripe é só assinatura mensal/anual):
 | Arquivo | Função |
