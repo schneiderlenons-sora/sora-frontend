@@ -2260,6 +2260,55 @@ Cota do Free: **5 GB/ciclo** (dia 11 a 11). Ciclo de set: **1,58 GB em 4 dias**,
   conexão (com execução atrasada, não descarte) corta egress e chamadas à
   Polp — mas atrasa dado novo, então é decisão do usuário, não otimização.
 
+## Egress: metade era o sync regravando investimento igual (set/2026)
+
+Segunda rodada, agora com `pg_stat_statements` NOMEANDO as consultas em vez de
+palpite. Medido em 16/09/2026, 51,5h desde o reset (todas JÁ com a correção do
+dia 14 no ar):
+
+```
+294.905 requisições  →  137.481 por dia  →  ~151 MB/dia só de cabeçalho
+   62.648  SELECT investimentos   (DUAS por investimento, por sync)
+   44.867  UPDATE investimentos   (regravava tudo igual)
+   23.900  INSERT investimento_movimentos  (numa tabela de 502 linhas)
+    7.189  UPDATE investimentos (fallback da migration 138)
+ = 140.442 de 294.905 — 47,6% de TODAS as idas ao banco
+```
+
+- ⚠️ **O FILTRO DO DIAGNÓSTICO ESCONDIA 98% DO CONSUMO.** `docs/diagnostico-egress.sql`
+  filtrava `query ilike 'select%'`, e **o PostgREST não gera SQL que começa com
+  `select`** — ele embrulha tudo em `WITH pgrst_source AS (...)`. A primeira
+  leitura voltou só com ruído interno (auth, pg_type, pgbouncer) e nenhuma
+  tabela da aplicação. Filtre por `"public"."`. O arquivo foi corrigido.
+- ⚠️ **`select set_config(...search_path...)` é o CONTADOR DE REQUISIÇÕES**: o
+  PostgREST roda um por requisição. É de onde sai o "137 mil por dia" sem
+  precisar do painel. E `pg_stat_statements_info.stats_reset` é o denominador —
+  sem ele, `calls` é número solto.
+- **A correção:** `upsertInvestimento` lê os campos que escreveria e **pula o
+  UPDATE quando nada mudou**; `sincronizarMovimentos` troca N upserts por UMA
+  leitura em lote dos `of_mov_id` já gravados; e o id do investimento é passado
+  adiante, matando a segunda leitura. Travado em `eval:sync-investimentos`.
+- ⚠️ **`select('*')` devolveria o ganho pela porta dos fundos.** Medido: a linha
+  de investimento tem **950 B** (39 colunas) contra **646 B** da lista estreita.
+  Como o custo é BYTE que sai, ler tudo comeria 40% da economia do UPDATE
+  evitado. Lê só as colunas comparadas, com fallback pro `*` se a migration 138
+  não tiver rodado.
+- ⚠️ **`ultima_atualizacao` FICA FORA da comparação** — ela muda a cada sync por
+  construção, e incluí-la faria "mudou" ser sempre verdade. Consequência
+  assumida (decisão do dono): o campo passa a marcar *quando mudou de verdade*,
+  não *quando o sync passou*.
+- ⚠️ **Na dúvida, `mesmoValor` diz que MUDOU.** Dizer "igual" pra algo diferente
+  congela o dado do cliente em silêncio — o modo de falha que não se perdoa.
+  Booleano não vira número, `null` não é `0`, objeto sempre conta como mudança,
+  e numérico em texto ("1234.50") compara como número porque o PostgREST às
+  vezes devolve assim.
+- **Resultado medido (projeção sobre os números reais):** a parte de
+  investimentos cai de **71 → 42 MB/dia** (−40%), e o total de requisições de
+  **137 mil → ~101 mil por dia** (−26%).
+- **O que sobrou no ranking**, em ordem: `users.id` (18,4 mil — auth por
+  requisição), `wallets.*` (5,6 mil), três leituras de `transacoes` (~4,2 mil
+  cada). Nada com a concentração dos investimentos.
+
 ## ⚠️ Erro de tipo BARRA o deploy (set/2026)
 
 `next.config.ts` **não tem mais** `typescript: { ignoreBuildErrors: true }`.
