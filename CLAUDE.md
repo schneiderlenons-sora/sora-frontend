@@ -1715,6 +1715,12 @@ que são justamente as duas com mais número na tela.
   Relatórios): fora do foco o input mostra a máscara; ao tocar, o valor real
   entra pra edição (`focado ? txt : fmt(valor)`). Placeholder mascara — não é
   o texto digitado.
+- ⚠️ **O ÍCONE MOSTRA O ESTADO, NÃO A AÇÃO.** Olho CORTADO = escondido; olho
+  ABERTO = à vista. Nasceu invertido (foi aplicada a leitura de campo de
+  SENHA, "o ícone mostra o que o clique faz") e o dono corrigiu na hora. O
+  que o clique faz vive no `title`; o `aria-label` é FIXO, porque quem
+  carrega o estado é o `aria-pressed` — rótulo que troca junto diz a mesma
+  coisa duas vezes e se contradiz no leitor de tela.
 - O botão tem `aria-pressed` (é interruptor, não ação) e 44px de alvo no
   mobile. Três das seis telas antigas não tinham `aria-label` nenhum.
 
