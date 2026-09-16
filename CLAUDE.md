@@ -1683,6 +1683,41 @@ completa (~40 itens) o tempo todo, invisível, e ao tocar no menu montava uma
   `inert`. Sem isso eu recriaria o bug do portão de carregamento: um painel
   invisível engolindo toque.
 
+## Ocultar valores (o olho do banco) — estado ÚNICO do painel (set/2026)
+
+`lib/valores-ocultos.tsx` (provider + `useValores` + `useFmt`) e
+`components/ui/BotaoOlhoValores.tsx`. O olho já existia em **6 telas**, cada
+uma com o SEU `useState(false)`: esconder em /transacoes e ir pra /contas
+devolvia tudo à vista, e um F5 zerava. Faltava em **dashboard e relatórios**,
+que são justamente as duas com mais número na tela.
+
+- ⚠️ **A persistência é COOKIE, não localStorage — é o que evita o FLASH.**
+  As telas do painel são SSR: o HTML já chega com os números. Com localStorage
+  o servidor não saberia da preferência e os valores apareceriam por um
+  instante justamente pra quem pediu pra escondê-los. O cookie é lido em
+  `app/(app)/layout.tsx` (Server Component) e desce como estado inicial.
+  Fica NESSE layout, não no raiz: ler cookie torna o segmento dinâmico, e as
+  rotas do painel já são — a landing não precisa entrar nisso.
+- ⚠️ **`useFmt(fmtCru)` é o que cobre TOOLTIP E EIXO de gráfico.** Recharts
+  recebe uma FUNÇÃO formatadora e devolve string; não dá pra trocar por JSX.
+  Envolvendo o formatador, todo `fmt(v)` que já existia passa a mascarar sem
+  a chamada mudar. **No EIXO a máscara é VAZIA**, não pontos: cinco "••••"
+  empilhados viram ruído e o gráfico segue legível pela forma.
+- ⚠️ **Renomear o `fmt` do módulo pra `fmtCru` transforma "esqueci um
+  componente" em ERRO DE TIPO.** Foi assim que os 5 filhos do dashboard e os
+  9 dos relatórios foram encontrados, em vez de no olho.
+- ⚠️ **O hook vem ANTES do early return** nos tooltips (`if (!active) return
+  null`) — Regras dos Hooks. Eles são passados como `content={<Tooltip/>}`,
+  ou seja, são componentes de verdade.
+- ⚠️ **A máscara tem largura FIXA.** Pontos proporcionais aos dígitos
+  entregariam a ordem de grandeza — o que a pessoa quer esconder.
+- **Campo de formulário mascara, mas revela no FOCO** (Planejamento anual dos
+  Relatórios): fora do foco o input mostra a máscara; ao tocar, o valor real
+  entra pra edição (`focado ? txt : fmt(valor)`). Placeholder mascara — não é
+  o texto digitado.
+- O botão tem `aria-pressed` (é interruptor, não ação) e 44px de alvo no
+  mobile. Três das seis telas antigas não tinham `aria-label` nenhum.
+
 ## Responsividade mobile — regras aplicadas
 
 - **Sidebar:** botão fechar com `safe-area-inset-top` + toque 44pt

@@ -15,6 +15,7 @@ import {
   IconesContas, BarraContas, Sparkline,
 } from '@/components/dashboard/stat-visuais';
 import { saldoBRL } from '@/lib/moeda';
+import { useFmt } from '@/lib/valores-ocultos';
 
 // =============================================================================
 // Os stat cards abaixo do card de hábitos.
@@ -35,7 +36,7 @@ import { saldoBRL } from '@/lib/moeda';
 // =============================================================================
 
 const BRAND = 'hsl(var(--primary))';
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 // Casa uma transação a uma carteira (por id ou por nome) — mesma regra do CartaoClient.
@@ -72,6 +73,7 @@ export default function ResumoCards({
   dadosDiarios?: { dia: string; valor: number }[];
   monthName?: string;
 }) {
+  const fmt = useFmt(fmtCru);
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
 

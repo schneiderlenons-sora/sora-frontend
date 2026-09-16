@@ -12,11 +12,13 @@ import GerenciarMarcasModal from '@/components/categorias/GerenciarMarcasModal';
 import { nomeCategoria, getCategoriaTheme, isHexGrayscale, citrico } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
-  Plus, Sparkles, Search, Eye, EyeOff, ChevronDown, ChevronUp,
+  Plus, Sparkles, Search, ChevronDown, ChevronUp,
   Pencil, Trash2, FolderPlus, Target, Loader2, AlertCircle, ChevronLeft, ChevronRight,
   Calendar, Filter, RefreshCw, ServerOff, Store, MoreVertical,
 } from 'lucide-react';
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
+import { useValores } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -106,7 +108,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
   const mesLabel = `${MESES_NOMES[refDate.getMonth()]} de ${refDate.getFullYear()}`;
 
   const [restaurando, setRestaurando] = useState(false);
-  const [ocultar,    setOcultar]    = useState(false);
+  const { ocultos: ocultar } = useValores();
   const [busca,      setBusca]      = useState('');
   const [filtro,     setFiltro]     = useState<Filtro>('todas');
   const [tipoTab,    setTipoTab]    = useState<TipoTab>('todas');
@@ -376,14 +378,7 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
 
               {/* Secundários */}
               <div className="flex items-center gap-2 order-last">
-              <button
-                onClick={() => setOcultar(v => !v)}
-                className="btn-ghost p-2.5 sm:px-3 sm:py-2 text-sm"
-                title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
-                aria-label={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
-              >
-                {ocultar ? <Eye size={16} /> : <EyeOff size={16} />}
-              </button>
+              <BotaoOlhoValores />
 
               <button
                 onClick={() => setModalMarcas(true)}

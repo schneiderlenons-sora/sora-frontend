@@ -10,14 +10,15 @@ import {
   ComposedChart, Line, ReferenceLine,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import { useFmt } from '@/lib/valores-ocultos';
 
 const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 const BLUE  = '#3b82f6';
 
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-const fmtCompact = (v: number) => {
+const fmtCompactCru = (v: number) => {
   if (v >= 1_000_000) return `R$${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000)     return `R$${(v / 1_000).toFixed(0)}k`;
   return `R$${v.toFixed(0)}`;
@@ -25,6 +26,7 @@ const fmtCompact = (v: number) => {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CustomTooltip({ active, payload, label }: any) {
+  const fmt = useFmt(fmtCru);
   if (!active || !payload?.length) return null;
   return (
     <div className="glass rounded-xl px-3.5 py-2.5 shadow-lg text-sm min-w-[160px] border border-border/60">
@@ -44,6 +46,7 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function GraficoFrequencia({ data }: { data: any[] }) {
+  const fmtCompact = useFmt(fmtCompactCru, '');
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} barGap={2}>
@@ -68,6 +71,7 @@ export function GraficoFrequencia({ data }: { data: any[] }) {
 }
 
 export function GraficoFluxo({ data }: { data: any[] }) {
+  const fmtCompact = useFmt(fmtCompactCru, '');
   return (
     <ResponsiveContainer width="100%" height={340}>
       <AreaChart data={data}>
@@ -95,6 +99,7 @@ export function GraficoFluxo({ data }: { data: any[] }) {
 }
 
 export function GraficoComparativo({ data }: { data: any[] }) {
+  const fmtCompact = useFmt(fmtCompactCru, '');
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} barGap={4}>
@@ -124,6 +129,7 @@ export function GraficoComparativo({ data }: { data: any[] }) {
    ═══════════════════════════════════════════════════════════════════════ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function TooltipPlano({ active, payload, label }: any) {
+  const fmt = useFmt(fmtCru);
   if (!active || !payload?.length) return null;
   const p0 = payload[0]?.payload || {};
   const manual = p0.manualRec || p0.manualDes;
@@ -198,6 +204,7 @@ function LabelHoje({ viewBox }: any) {
 }
 
 export function GraficoPlanejamento({ data, mesAtual }: { data: any[]; mesAtual: number | null }) {
+  const fmtCompact = useFmt(fmtCompactCru, '');
   return (
     <ResponsiveContainer width="100%" height={330}>
       <ComposedChart data={data} barGap={3} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>

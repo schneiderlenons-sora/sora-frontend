@@ -15,6 +15,8 @@ import {
   Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase,
   GraduationCap, FileText, MoreVertical, Bell, BellOff, Ticket, Trophy,
 } from 'lucide-react';
+import { useValores } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -52,7 +54,7 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
   });
   const [lembretesGlobais, setLembretesGlobais] = useState(true);
   const [salvandoLembrete, setSalvandoLembrete] = useState(false);
-  const [ocultar,   setOcultar]   = useState(false);
+  const { ocultos: ocultar } = useValores();
   const [novaOpen,  setNovaOpen]  = useState(false);
   const [edicao,    setEdicao]    = useState<any | null>(null);
   const [pagarOpen, setPagarOpen] = useState<any | null>(null);
@@ -165,10 +167,7 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setOcultar(v => !v)} className="btn-ghost px-3 py-2 text-sm gap-2"
-                      title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}>
-                {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
-              </button>
+              <BotaoOlhoValores />
               <button
                 onClick={toggleLembretesGlobais}
                 disabled={salvandoLembrete}

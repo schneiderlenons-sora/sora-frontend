@@ -19,9 +19,11 @@ import {
 } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
 import {
-  Plus, Sparkles, CreditCard, DollarSign, Eye, EyeOff, Pencil, Trash2,
+  Plus, Sparkles, CreditCard, DollarSign, Pencil, Trash2,
   ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight,
 } from 'lucide-react';
+import { useValores } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NOMES  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -58,7 +60,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   const compartilhado = !/pessoal/i.test((perfil?.grupo_ativo as any)?.nome || '');
 
   const [txsHistorico,   setTxsHistorico]   = useState<Record<string, any[]>>({});
-  const [ocultar,        setOcultar]        = useState(false);
+  const { ocultos: ocultar } = useValores();
   const [addOpen,        setAddOpen]        = useState(false);
   const [edicao,         setEdicao]         = useState<Wallet | null>(null);
   const [detalhes,       setDetalhes]       = useState<Wallet | null>(null);
@@ -370,13 +372,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setOcultar(v => !v)}
-                className="btn-ghost px-3 py-2 text-sm gap-2"
-                title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
-              >
-                {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
-              </button>
+              <BotaoOlhoValores />
 
               <button
                 onClick={() => {

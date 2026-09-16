@@ -29,6 +29,8 @@ import {
   Target, AlertTriangle, Check as CheckIcon, Gauge,
   CalendarRange, Sparkles, Plus, Trash2, PiggyBank, Lock, Wand2, Pencil, CircleDashed,
 } from 'lucide-react';
+import { useFmt } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
 const skel = (h: number) => () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: h }} role="status" aria-label="Carregando gráfico" />;
@@ -43,7 +45,7 @@ const BRAND       = 'hsl(var(--primary))';
 const RED         = '#ef4444';
 const BLUE        = '#3b82f6';
 
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const fmtCompact = (v: number) => {
@@ -103,6 +105,7 @@ const SAZONAIS_SUGERIDAS = [
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function RelatoriosClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useFmt(fmtCru);
   const { phone: authPhone, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const hoje = new Date();
@@ -915,8 +918,9 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
               </p>
             </div>
 
-            <div className="flex items-center gap-4 self-end sm:self-auto">
+            <div className="flex items-center gap-2 sm:gap-4 self-end sm:self-auto">
               <BaleiaHumor estado={humorBaleia} />
+              <BotaoOlhoValores />
               <button
                 onClick={carregar}
                 className="btn-outline px-3 py-2 text-sm gap-2"
@@ -1572,6 +1576,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 function PremiumStatCard({
   label, value, change, sub, icon: Icon, hue, positive, negative, accent, delay = 0,
 }: any) {
+  const fmt = useFmt(fmtCru);
   return (
     <div className="card rounded-2xl p-5 relative overflow-hidden animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
       <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full pointer-events-none opacity-40"
@@ -1686,6 +1691,7 @@ function LegendaPlano() {
 
 /** O plano se explicando. Estimativa sem memória de cálculo vira palpite. */
 function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
+  const fmt = useFmt(fmtCru);
   return (
     <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
       <Sparkles size={11} className="flex-shrink-0 mt-0.5" />
@@ -1704,6 +1710,7 @@ function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
    ⚠️ Só mexe em mês ABERTO. A versão antiga preenchia os 12 e passava por
    cima do que de fato aconteceu; aqui os fechados são fato e ficam de fora. */
 function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
+  const fmt = useFmt(fmtCru);
   const [rec, setRec] = useState('');
   const [des, setDes] = useState('');
   const abertos = plano.linhas.filter((l: any) => l.estado !== 'realizado').length;
@@ -1782,6 +1789,7 @@ function GradeMeses({ linhas, onAjustar }: any) {
 }
 
 function CardMes({ l, onAjustar }: any) {
+  const fmt = useFmt(fmtCru);
   const manual = l.manualRec || l.manualDes;
   const borda = manual ? 'color-mix(in srgb, #6366f1 45%, transparent)'
     : l.estado === 'realizado' ? 'hsl(var(--border) / 0.6)'
@@ -1851,6 +1859,7 @@ function SeloEstado({ l, manual }: any) {
 }
 
 function CampoMes({ rotulo, valor, auto, manual, mes, vazio, onMudar }: any) {
+  const fmt = useFmt(fmtCru);
   const [txt, setTxt] = useState('');
   const [focado, setFocado] = useState(false);
 
@@ -1897,6 +1906,7 @@ function CampoMes({ rotulo, valor, auto, manual, mes, vazio, onMudar }: any) {
 }
 
 function ContasSazonais({ contas, onSalvar, linhas }: any) {
+  const fmt = useFmt(fmtCru);
   const [nome, setNome]   = useState('');
   const [valor, setValor] = useState('');
   const [mes, setMes]     = useState(0);
@@ -1994,6 +2004,7 @@ function RitmoDoMes({
   media, mesesNaMedia, gastoDoMes, projecao, ehMesAtual, diaHoje, diasNoMes,
   variacao, mesLabel,
 }: any) {
+  const fmt = useFmt(fmtCru);
   const acima = (variacao ?? 0) > 0;
   // Faixa morta de ±5%: variação de 2% não é "acima da média", é ruído — e
   // apontar isso como sinal treina a pessoa a ignorar o card.
@@ -2044,6 +2055,7 @@ function RitmoDoMes({
 }
 
 function BlocoNum({ label, valor, sub, cor, destaque }: any) {
+  const fmt = useFmt(fmtCru);
   return (
     <div className={`rounded-xl p-3 ${destaque ? 'ring-1' : ''} bg-muted/30`}
          style={destaque ? { ['--tw-ring-color' as any]: cor, background: `color-mix(in srgb, ${cor} 7%, transparent)` } : undefined}>
@@ -2058,6 +2070,7 @@ function BlocoNum({ label, valor, sub, cor, destaque }: any) {
    LINHA DE LIMITE
    ═══════════════════════════════════════════════════════════════════════ */
 function LinhaLimite({ nome, limite, gasto, pct, filhas, theme, i }: any) {
+  const fmt = useFmt(fmtCru);
   const estourou = pct > 100;
   const perto    = pct >= 80 && pct <= 100;
   // Status é ÍCONE + TEXTO, nunca a cor sozinha.
@@ -2178,6 +2191,7 @@ function PendentesList({
   compartilhado?: boolean;
   onBaixar?:  (tx: any) => void;
 }) {
+  const fmt = useFmt(fmtCru);
   const badgeBg = badgeColor === 'green'
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
     : 'bg-red-500/10 text-red-500';

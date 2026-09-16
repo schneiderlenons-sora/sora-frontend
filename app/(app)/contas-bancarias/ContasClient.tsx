@@ -20,9 +20,10 @@ import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
   Archive, ArchiveRestore, ArrowLeftRight, DollarSign,
-  Shield, Star, Sparkles, AlertCircle, Eye, EyeOff,
-  ChevronRight,
+  Shield, Star, Sparkles, AlertCircle, ChevronRight,
 } from 'lucide-react';
+import { useValores } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -131,7 +132,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const [contaDetalhe, setContaDetalhe] = useState<Wallet | null>(null);
   const [sucesso,    setSucesso]    = useState(false);
   const [erro,       setErro]       = useState('');
-  const [ocultar,    setOcultar]    = useState(false);
+  const { ocultos: ocultar } = useValores();
   const [ajusteOpen, setAjusteOpen] = useState<Wallet | null>(null);
   const [transferOpen,setTransferOpen] = useState(false);
 
@@ -282,13 +283,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setOcultar(v => !v)}
-                className="btn-ghost px-3 py-2 text-sm gap-2"
-                title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
-              >
-                {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
-              </button>
+              <BotaoOlhoValores />
 
               {walletsAtivas.length >= 2 && (
                 <button

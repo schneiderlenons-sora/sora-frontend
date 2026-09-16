@@ -34,6 +34,8 @@ import {
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
   ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench } from 'lucide-react';
+import { useValores } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -79,7 +81,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const podeExportar = podeUsar('export_dados');
 
   const [modalOpen,setModalOpen]= useState(false);
-  const [ocultar,  setOcultar]  = useState(false);
+  const { ocultos: ocultar } = useValores();
   const [importMenuOpen, setImportMenuOpen] = useState(false);
   const [importarFormato, setImportarFormato] = useState<'ofx' | 'csv' | null>(null);
   const [importToast, setImportToast] = useState<string>('');
@@ -517,14 +519,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
               {/* Ações secundárias (row compacto) */}
               <div className="flex items-center gap-2 order-last">
-                <button
-                  onClick={() => setOcultar(v => !v)}
-                  className="btn-ghost p-2.5 sm:px-3 sm:py-2 text-sm"
-                  title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
-                  aria-label={ocultar ? 'Mostrar valores' : 'Ocultar valores'}
-                >
-                  {ocultar ? <Eye size={16} /> : <EyeOff size={16} />}
-                </button>
+                <BotaoOlhoValores />
 
               <div className="relative">
                 <button

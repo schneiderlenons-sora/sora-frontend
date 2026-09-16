@@ -1,4 +1,6 @@
+import { cookies } from 'next/headers';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { ValoresProvider, COOKIE_VALORES } from '@/lib/valores-ocultos';
 
 // =============================================================================
 // Shell ÚNICO das abas do painel.
@@ -39,6 +41,21 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 //     mundo, fazendo o app inteiro carregar empresas.
 //   • `/wrapped` — é tela cheia, nunca teve sidebar; entrar aqui GANHARIA uma.
 // =============================================================================
-export default function AppShellLayout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+//
+// ⚠️ O COOKIE DE "OCULTAR VALORES" É LIDO AQUI, NO SERVIDOR — não no cliente.
+// As telas do painel chegam com o HTML já pintado (SSR + `fallbackData`); lendo
+// a preferência só depois da hidratação, os números apareceriam por um instante
+// justamente pra quem pediu pra escondê-los. Lendo aqui, o primeiro paint já
+// sai mascarado e não há hydration mismatch.
+//
+// ⚠️ Fica NESTE layout, e não no `app/layout.tsx`: ler cookie torna o segmento
+// dinâmico, e as rotas do painel já são (`ƒ`). Subir isso pro layout raiz
+// arrastaria a landing junto, que não usa a preferência.
+export default async function AppShellLayout({ children }: { children: React.ReactNode }) {
+  const ocultos = (await cookies()).get(COOKIE_VALORES)?.value === '1';
+  return (
+    <ValoresProvider inicial={ocultos}>
+      <DashboardLayout>{children}</DashboardLayout>
+    </ValoresProvider>
+  );
 }

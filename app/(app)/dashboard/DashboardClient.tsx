@@ -31,6 +31,8 @@ import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, ChevronRight, Clock, BarChart3,
 } from 'lucide-react';
+import { useFmt } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 // ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
 // (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
 // também usam gráfico), o dashboard chegava a baixar 3 cópias — 864 KB antes
@@ -64,7 +66,7 @@ const mesAtual    = new Date().toISOString().slice(0, 7);
 const mesAnterior = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
   .toISOString().slice(0, 7);
 
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const fmtShort = (v: number) =>
@@ -145,6 +147,7 @@ async function fetchDashboard(phone: string, mes: string, mesAnt: string) {
 
 // ─────────────────────────────────────────────────────────────
 export default function DashboardClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useFmt(fmtCru);
   const { phone: authPhone, perfil, temAcessoGrow } = useAuth();
   // SSR: usa o phone vindo do servidor até a sessão hidratar no cliente, pra a
   // chave do SWR já ser válida no 1º render (e o fallbackData pintar na hora).
@@ -486,10 +489,14 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
             <div className="relative space-y-4 md:space-y-5">
               {/* Header — apenas data. Some no mobile: sem card-pai ela ficaria
                   solta no canto, sem nada a que pertencer. */}
-              <div className="hidden md:flex items-center justify-end">
-                <span className="text-muted-foreground text-xs">
+              <div className="flex items-center justify-end gap-1">
+                <span className="hidden md:inline text-muted-foreground text-xs">
                   {hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
                 </span>
+                {/* ⚠️ A linha deixou de ser 'hidden md:flex': a data segue só no
+                    desktop, mas o olho tem de existir no celular — é lá que se
+                    esconde saldo com gente do lado. */}
+                <BotaoOlhoValores />
               </div>
 
               {/* Texto de insight */}

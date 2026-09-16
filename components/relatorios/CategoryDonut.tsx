@@ -13,8 +13,9 @@ import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
+import { useFmt } from '@/lib/valores-ocultos';
 
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 export type DonutSlice = { name: string; value: number; color: string; emoji?: string };
@@ -85,6 +86,7 @@ export default function CategoryDonut({
   // Valor do centro como protagonista do card.
   valorGrande?: boolean;
 }) {
+  const fmt = useFmt(fmtCru);
   const total = data.reduce((s, d) => s + d.value, 0);
 
   // Raio da fatia em DESTAQUE: um pouco maior que o normal. Precisa saber lidar

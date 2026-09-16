@@ -22,7 +22,7 @@ const BRAND = 'hsl(var(--primary))';
 const mesRefSP = () =>
   new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
 
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 type Tipo = 'Gasto' | 'Recebimento';
@@ -72,6 +72,7 @@ type ModoLancamento = ModoLancamentoFixo;
 // ajuste numa delas faria a mesma opção ter nomes diferentes conforme a tela
 // de onde foi aberta — e ninguém reporta isso, só sente.
 import { MODOS } from '@/components/previstos/FormRecorrencia';
+import { useFmt } from '@/lib/valores-ocultos';
 
 // `saldo` sempre vem (a rota faz `select('*')`) — o tipo é que não declarava,
 // e sem ele o saldo projetado somaria `undefined` e daria sempre zero.
@@ -88,6 +89,7 @@ interface Props {
 }
 
 export default function GastosFixosSection({ phone, wallets }: Props) {
+  const fmt = useFmt(fmtCru);
   // Em ref, não na lista de dependências do `carregar`: ele dispara um efeito
   // de carregamento, e uma identidade instável aqui viraria laço de requisições.
   const { mutate: mutateSWR } = useSWRConfig();
@@ -997,6 +999,7 @@ function Linha({
   const modo = item.modo_lancamento || 'lancar';
   const modoInfo = MODOS.find((m) => m.id === modo) || MODOS[0];
   const querLembrete = item.lembrete !== false;
+  const fmt = useFmt(fmtCru);
   const tema = getCategoriaTheme(item.descricao);
   // Emoji da categoria (se tiver) OU o do tema da descrição — ex.: "academia" → 💪
   // (antes caía no 📦 genérico do CategoriaIcon quando a recorrência era "Outros").
@@ -1317,6 +1320,7 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
   mexendo: boolean;
   onTirar: () => void;
 }) {
+  const fmt = useFmt(fmtCru);
   const dia = String(fatura.venc || '').slice(8, 10);
   return (
     <li className="group flex items-center gap-2.5 sm:gap-3 px-3 sm:px-6 py-2.5 sm:py-3 transition-colors hover:bg-muted/30 animate-fade-in"
@@ -1377,6 +1381,7 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
 function LinhaDivida({
   divida, idx, saindo, onTirar,
 }: { divida: any; idx: number; saindo: boolean; onTirar?: () => void }) {
+  const fmt = useFmt(fmtCru);
   void onTirar;
   const parcelas = Number(divida.parcelas_total) || 0;
   const pagas    = Number(divida.parcelas_pagas) || 0;

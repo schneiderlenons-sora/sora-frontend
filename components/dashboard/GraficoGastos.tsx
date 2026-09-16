@@ -15,18 +15,21 @@ import {
   AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
+import { useFmt } from '@/lib/valores-ocultos';
 
 const BRAND  = 'hsl(var(--primary))';
 const BRAND2 = '#3dd68c';
 
-const fmt = (v: number) =>
+const fmtCru = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const fmtShort = (v: number) =>
+const fmtShortCru = (v: number) =>
   v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : v > 0 ? `R$${v}` : 'R$0';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload, label }: any) {
+  // ⚠️ O hook vem ANTES do early return — Regras dos Hooks.
+  const fmt = useFmt(fmtCru);
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl p-3 shadow-xl text-sm min-w-[150px] border border-border/60"
@@ -53,6 +56,9 @@ interface Props {
 }
 
 export default function GraficoGastos({ modo, barras, area }: Props) {
+  // ⚠️ Eixo com máscara VAZIA, não com pontos: cinco "••••" empilhados viram
+  // ruído, e o gráfico continua legível pela FORMA — que é o que o banco faz.
+  const fmtShort = useFmt(fmtShortCru, '');
   return (
     <ResponsiveContainer width="100%" height={220}>
       {modo === 'bar' ? (

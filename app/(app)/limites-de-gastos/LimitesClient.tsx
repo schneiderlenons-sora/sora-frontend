@@ -11,9 +11,11 @@ import { nomeCategoria } from '@/lib/categorias';
 import { gastoComFilhas, indexarGastos, chaveCategoria } from '@/lib/limite-categoria';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
-  Plus, Sparkles, Eye, EyeOff, Pencil, Trash2, Target, Bell, BellOff,
+  Plus, Sparkles, Pencil, Trash2, Target, Bell, BellOff,
   AlertCircle, Wallet, ChevronRight,
 } from 'lucide-react';
+import { useValores } from '@/lib/valores-ocultos';
+import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -59,7 +61,7 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
   const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
   const [tab, setTab] = useState<Tab>('geral');
-  const [ocultar, setOcultar] = useState(false);
+  const { ocultos: ocultar } = useValores();
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [resumo,     setResumo]     = useState<any>({ gastos: 0, por_categoria: [] });
@@ -195,10 +197,7 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setOcultar(v => !v)} className="btn-ghost px-3 py-2 text-sm gap-2"
-                title={ocultar ? 'Mostrar valores' : 'Ocultar valores'}>
-                {ocultar ? <Eye size={15} /> : <EyeOff size={15} />}
-              </button>
+              <BotaoOlhoValores />
               <button
                 onClick={() => tab === 'geral' ? setEditGeralOpen(true) : setCatModal({})}
                 className="btn btn-primary px-4 py-2.5 text-sm gap-2 shadow-glow-sm"
