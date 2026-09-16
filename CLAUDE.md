@@ -1898,6 +1898,48 @@ CRÍTICO** tendo **R$ 79.836,29** num fundo DI. Três defeitos independentes.
 
 ---
 
+## Aporte de investimento não somava COTA (set/2026)
+
+Relato: *"tem a opção aporte, mas somente com o valor, e com isso a quantidade
+de cota não tem como aumentar"*. O cliente estava certo — e o efeito é bem pior
+que o sintoma que ele descreveu.
+
+- ⚠️ **O APORTE ERA APAGADO NO REFRESH DE PREÇO.** Em ativo com ticker,
+  `POST /atualizar-precos` recalcula `valor_atual = cotação × quantidade`. Com
+  a quantidade parada, a atualização seguinte devolve o valor pro tamanho da
+  posição ANTIGA: o `valor_aportado` sobe, o `valor_atual` não, e a tela passa
+  a mostrar **prejuízo numa compra**.
+- **Medido na conta do relato (RADL3.SA):** 5 cotas a R$ 19,53 = R$ 97,65, mais
+  aporte de R$ 19,63 (1 cota) → aportado R$ 117,28 com quantidade ainda em 5. O
+  refresh gravou R$ 98,30 (5 × 19,66) e a aba passou a acusar −16% que não
+  existe. **A linha dele segue inconsistente** (qtd 5 pra 6 cotas pagas).
+- **Aritmética canônica:** `services/aporteInvestimento.js` (`eval:aporte`),
+  espelho do `resgateInvestimento.js`. A quantidade é **opcional**: metade da
+  base é renda fixa (CDB/LCI/Tesouro), onde cota não significa nada — sem o
+  campo o resultado é idêntico ao de antes, e o eval §4 trava essa regressão.
+- ⚠️ **O resgate SEMPRE reduziu a quantidade** (proporcional). Era o aporte que
+  não somava — a assimetria é que produzia o bug. O eval §6 trava os dois como
+  inversos: comprar 5 cotas e resgatar o equivalente volta ao estado inicial.
+- ⚠️ **Preço unitário NÃO passa por arredondamento de centavo.** Vira preço
+  MÉDIO (`aportado ÷ quantidade`, que é o "PM" já exibido na aba) com 8 casas:
+  a base tem cota de R$ 0,0101, que em 2 casas viraria 0,01 e erraria 1%.
+- ⚠️ **Posição do Open Finance NÃO aceita lançamento manual** —
+  `recusaSeDoBanco` (409 no painel, texto no zap). `upsertInvestimento`
+  reescreve quantidade/preço/valores a cada sync, então o lançamento some
+  sozinho no dia seguinte. Medido: **632 dos 700** investimentos da base vêm do
+  OF, e um já tinha recebido aporte manual de R$ 198,02 que o sync apagou em
+  silêncio. Mesma família do "carteira com `of_conta_id` nunca tem saldo
+  ajustado".
+- ⚠️ **São DUAS portas pro mesmo estrago:** a rota do painel e o
+  `handlers/investimentos.js` (aporte por WhatsApp), que grava direto na
+  tabela. As duas ganharam a trava. Por texto a quantidade **não** é pedida —
+  ninguém diz quantas cotas comprou num "aportei 500 na PETR4".
+- A tela **explica** em vez de desabilitar (`read-only-distinction`), e mostra
+  a prévia "fica com N cotas · preço médio X" antes de salvar.
+- **Sem migration.** A quantidade informada vai na descrição do extrato
+  ("Aporte: 1 cota de RADL3.SA"); o que precisa ser estruturado é a posição, e
+  ela já tem coluna.
+
 ## Reprocessamento do agregador duplica tudo (set/2026)
 
 A Polp **reprocessou** as transações de um cartão e regravou todas com

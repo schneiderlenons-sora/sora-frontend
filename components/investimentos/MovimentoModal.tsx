@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, ArrowDownCircle, ArrowUpCircle, Check } from 'lucide-react';
+import { X, Loader2, ArrowDownCircle, ArrowUpCircle, Check, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
 
 // =============================================================================
@@ -24,8 +24,21 @@ const COR_RESGATE = '#f97316';
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-type Investimento = { id: string; nome: string; valor_atual?: number | null };
+type Investimento = {
+  id: string; nome: string;
+  valor_atual?:    number | null;
+  valor_aportado?: number | null;
+  /** Cotas/unidades. É ela que o aporte passou a somar (ver `quantidade` abaixo). */
+  quantidade?:     number | null;
+  ticker?:         string | null;
+  /** Veio do Open Finance? Então a posição é do banco e não se mexe aqui. */
+  of_id?:          string | null;
+  origem?:         string | null;
+};
 type Conta        = { id: string; nome: string; tipo?: string | null };
+
+const qtdFmt = (n: number) =>
+  n.toLocaleString('pt-BR', { maximumFractionDigits: 8 });
 
 export default function MovimentoModal({
   tipo, phone, investimentos, investimentoId, onClose, onSuccess,
@@ -43,6 +56,7 @@ export default function MovimentoModal({
   const [montado, setMontado] = useState(false);
   const [invId, setInvId]     = useState(investimentoId || investimentos[0]?.id || '');
   const [valor, setValor]     = useState('');
+  const [qtd, setQtd]         = useState('');
   const [obs, setObs]         = useState('');
   const [walletId, setWalletId] = useState('');
   const [contas, setContas]   = useState<Conta[]>([]);
@@ -74,17 +88,45 @@ export default function MovimentoModal({
   const v = parseFloat((valor || '').replace(',', '.'));
   const excede = !ehAporte && Number.isFinite(v) && v > disponivel + 0.01;
 
+  // ⚠️ Posição do Open Finance não se mexe pelo painel: o sync do banco
+  // reescreve quantidade, preço e valores a cada rodada, então o lançamento
+  // manual some sozinho no dia seguinte. O backend recusa (409) — aqui a tela
+  // EXPLICA em vez de deixar a pessoa preencher pra levar erro no fim.
+  const ehDoBanco = !!inv?.of_id || inv?.origem === 'of';
+
+  // Só faz sentido falar em cota onde existe cota: ação, FII, ETF, cripto,
+  // fundo. Em CDB/LCI/Tesouro o campo não aparece — metade da base é isso, e
+  // um campo "quantidade de cotas" ali só geraria dúvida.
+  const temCota = !!inv?.ticker || (Number(inv?.quantidade) || 0) > 0;
+  const q = parseFloat((qtd || '').replace(',', '.'));
+  const qtdValida = Number.isFinite(q) && q > 0;
+
+  // Prévia do preço médio — o mesmo número que a aba mostra como "PM".
+  const previa = useMemo(() => {
+    if (!ehAporte || !temCota || !qtdValida || !Number.isFinite(v) || v <= 0) return null;
+    const qtdNova = (Number(inv?.quantidade) || 0) + q;
+    const aportadoNovo = (Number(inv?.valor_aportado) || 0) + v;
+    if (qtdNova <= 0) return null;
+    return { qtdNova, pm: aportadoNovo / qtdNova };
+  }, [ehAporte, temCota, qtdValida, v, q, inv?.quantidade, inv?.valor_aportado]);
+
   async function salvar() {
     setErro('');
     if (!invId) { setErro('Escolha o investimento.'); return; }
     if (!Number.isFinite(v) || v <= 0) { setErro('Informe um valor maior que zero.'); return; }
     if (excede) { setErro(`Você só tem ${fmt(disponivel)} nesse investimento.`); return; }
+    if (ehAporte && temCota && qtd.trim() && !qtdValida) {
+      setErro('A quantidade de cotas precisa ser maior que zero.'); return;
+    }
 
     setLoading(true);
     try {
       const body: Record<string, unknown> = { phone, investimento_id: invId, valor: v };
       if (obs.trim()) body.descricao = obs.trim();
       if (walletId) body.wallet_id = walletId;
+      // Só vai quando o usuário informou: sem o campo, o backend mantém o
+      // comportamento antigo (só dinheiro), que é o certo pra renda fixa.
+      if (ehAporte && temCota && qtdValida) body.quantidade = q;
       if (ehAporte) await api.investimentos.aportes.criar(body);
       else          await api.investimentos.aportes.resgatar(body as unknown as { investimento_id: string; valor: number });
       onSuccess();
@@ -148,13 +190,37 @@ export default function MovimentoModal({
                     <option key={i.id} value={i.id}>{i.nome} — {fmt(i.valor_atual ?? 0)}</option>
                   ))}
                 </select>
-                {!ehAporte && inv && (
+                {!ehAporte && inv && !ehDoBanco && (
                   <p className="text-[12px] text-muted-foreground tabular-nums">
                     Disponível: <strong className="text-foreground">{fmt(disponivel)}</strong>
                   </p>
                 )}
               </div>
 
+              {/* ⚠️ EXPLICA, NÃO DESABILITA. Formulário cinza lê como "quebrou";
+                  o certo é dizer por que aquele investimento não aceita
+                  lançamento manual (regra `read-only-distinction`). */}
+              {ehDoBanco ? (
+                <div className="rounded-2xl border border-border/60 p-4 space-y-2"
+                     style={{ background: 'hsl(var(--bg-subtle))' }}>
+                  <div className="flex items-center gap-2">
+                    <Landmark size={15} className="text-muted-foreground flex-shrink-0" />
+                    <p className="text-sm font-bold text-foreground">Este vem do seu banco</p>
+                  </div>
+                  <p className="text-[12.5px] leading-relaxed text-muted-foreground">
+                    <strong className="text-foreground">{inv?.nome}</strong> é sincronizado pelo
+                    Open Finance, então a quantidade e o valor vêm prontos da instituição e são
+                    atualizados sozinhos. Um {tipo} lançado aqui seria desfeito na próxima
+                    sincronização — por isso a Sora não deixa.
+                  </p>
+                  <p className="text-[12.5px] leading-relaxed text-muted-foreground">
+                    Comprou ou vendeu? É só esperar o banco atualizar. Se quiser controlar essa
+                    posição à mão, cadastre um investimento próprio em{' '}
+                    <strong className="text-foreground">Novo investimento</strong>.
+                  </p>
+                </div>
+              ) : (
+              <>
               <div className="space-y-1.5">
                 <label htmlFor="mov-valor" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                   {ehAporte ? 'Quanto está aplicando' : 'Quanto está resgatando'}
@@ -179,6 +245,38 @@ export default function MovimentoModal({
                   </p>
                 )}
               </div>
+
+              {/* ⚠️ QUANTIDADE DE COTAS — é o que faltava e gerava o relato.
+                  Sem ela o aporte só somava dinheiro, e o "atualizar preços"
+                  (cotação × quantidade) apagava a compra no refresh seguinte,
+                  virando prejuízo na tela. Opcional de propósito: em renda fixa
+                  o campo nem aparece. */}
+              {ehAporte && temCota && (
+                <div className="space-y-1.5">
+                  <label htmlFor="mov-qtd" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Quantidade de cotas <span className="font-medium normal-case tracking-normal text-muted-foreground/70">· opcional</span>
+                  </label>
+                  <input id="mov-qtd" inputMode="decimal"
+                         value={qtd} onChange={(e) => { setQtd(e.target.value); setErro(''); }}
+                         placeholder="Ex.: 10"
+                         className="w-full px-3.5 rounded-xl bg-background border border-border text-sm tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                         style={{ minHeight: 48 }} />
+                  {previa ? (
+                    <p className="text-[12px] leading-snug text-muted-foreground tabular-nums">
+                      Fica com <strong className="text-foreground">{qtdFmt(previa.qtdNova)}</strong>
+                      {' '}cotas · preço médio <strong className="text-foreground">{fmt(previa.pm)}</strong>
+                    </p>
+                  ) : (
+                    <p className="text-[11.5px] leading-snug text-muted-foreground">
+                      Comprou mais cotas? Informe quantas — é isso que mantém a posição certa
+                      quando a Sora atualiza a cotação.
+                      {(Number(inv?.quantidade) || 0) > 0 && (
+                        <> Hoje você tem <strong className="text-foreground tabular-nums">{qtdFmt(Number(inv?.quantidade) || 0)}</strong>.</>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label htmlFor="mov-conta" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -215,6 +313,8 @@ export default function MovimentoModal({
                 {loading ? <><Loader2 size={17} className="animate-spin" /> Salvando…</>
                          : <><Check size={17} /> {ehAporte ? 'Registrar aporte' : 'Registrar resgate'}</>}
               </button>
+              </>
+              )}
             </>
           )}
         </div>
