@@ -172,23 +172,34 @@ Contas somam na base; Nova transação e Conta fixa comparam com a base e o "≈
 sai nela; conta nova abre na base. `eval:moeda` §7 prova igualdade com
 `saldoBRL` em toda forma de payload.
 
-**5c — investimentos (feito).** Cotação **em real** (B3, cripto) vira a base no
-"Atualizar preços", no job das 03:00 e na cotação do modal (`precoBase`).
-⚠️ **Cotação em OUTRA moeda segue sem conversão, como sempre foi** —
-`fatorCotacaoParaBase`. Defeito anterior medido: um "MELI" (40 cotas, aportado
-R$ 2.729,20) aparece como **R$ 73.157,60** porque o preço em dólar da Nasdaq entra
-como real (provavelmente o cliente comprou o BDR MELI34). Corrigir muda o número
-desse cliente — **espera decisão do dono**.
+**5c — investimentos (feito).** A cotação, na moeda em que o ativo é negociado,
+vira a base no "Atualizar preços", no job das 03:00 e na cotação do modal
+(`precoBase`) — `fatorCotacaoParaBase`.
+- ⚠️ **Defeito anterior corrigido (decisão do dono: "só corrigir", sem aviso ao
+  cliente):** cotação estrangeira entrava sem conversão até em grupo em real. Um
+  "MELI" (40 cotas, Nasdaq a US$ 1.838) aparecia como R$ 73.157,60 e passa a
+  ~R$ 378 mil. Raio medido nos 170 investimentos com ticker: 37 em real (nada
+  muda), 131 sem cotação, 2 em dólar.
+- ⚠️ **A caixa da sigla importa:** o Yahoo cota Londres em "GBp" (pence); em
+  maiúsculas viraria libra, 100× maior. Sigla fora do catálogo não converte.
+- ⚠️ **Defeito anterior registrado, NÃO corrigido:** o job das 03:00 cota TODO
+  ticker pelo Yahoo, inclusive cripto. Um "BTC" (0,012) é cotado como um fundo
+  americano de US$ 33,79 e aparece como R$ 0,40 (R$ 2,09 depois da conversão) —
+  a rota do painel usa o CoinGecko pra cripto, o job não.
 
-**Pendentes da Fase 5 que dependem de decisão do dono:**
-- **Open Finance em grupo fora do real.** A Celcoin só fala real, e o subsistema
-  de fatura inteiro soma `transacoes.valor` como se fosse a moeda do CARTÃO. Pra
-  um cartão brasileiro num grupo em dólar funcionar, a fatura teria de somar o
-  nativo em todos os pontos (`valorFatura`, `faturaVista`, parcelas previstas,
-  faturas publicadas, telas) — é suportar cartão em moeda estrangeira, que hoje
-  não existe (0 na base).
-- **Negócios** (`lancamentos_negocio` em centavos, DRE, Simples/DAS, Hotmart):
-  o módulo é brasileiro por natureza.
+**✅ Decidido — Negócios continua em real.** A empresa é tratada como
+brasileira (DRE, Simples/DAS, Hotmart). Nada a fazer: o painel de Negócios fica
+fora do `MoedaBaseProvider` (hooks devolvem BRL) e o "+" de nova transação
+pessoal já é escondido lá (`BottomNav`, `ehNegocios`).
+
+**❓ Pendente — Open Finance em grupo fora do real.** A ideia do dono ("a conta do
+banco entra como conta em real, igual à conta em dólar num grupo em real") é o
+modelo certo, mas não sai sem código: o sync grava cada lançamento sem moeda, e
+num grupo em dólar R$ 100 contariam como US$ 100. Pra conta corrente basta o sync
+gravar convertido (`camposTransacao` com a base). O CARTÃO é o ponto sensível: a
+fatura soma `transacoes.valor` como se fosse a moeda do cartão em todos os
+pontos (`valorFatura`, `faturaVista`, parcelas previstas, faturas publicadas,
+telas) — hoje não existe cartão em moeda estrangeira (0 na base).
 
 ---
 
