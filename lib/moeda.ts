@@ -126,6 +126,47 @@ export function formatarDinheiro(
     .join('');
 }
 
+// ── Campo de valor digitado só com dígitos (Fase 2 da moeda base) ──────────
+//
+// O painel inteiro digita valor do mesmo jeito: o teclado numérico produz só
+// dígitos e a tela os lê na MENOR UNIDADE da moeda ("125050" → 1.250,50). Doze
+// campos faziam isso com `/ 100` e 2 casas cravadas.
+//
+// ⚠️ `/ 100` SÓ É CERTO EM MOEDA COM CENTAVOS. Em iene e peso chileno (sem
+// centavos) quem digita "1250" quer 1.250, e o `/ 100` gravaria 12,50 — valor
+// 100× menor, calado. USD e NOK têm 2 casas, então hoje isto está dormente; os
+// helpers existem pra armadilha não voltar na primeira moeda sem centavos.
+//
+// ⚠️ A GRAFIA É pt-BR em qualquer moeda (decisão do dono, 17/09/2026): quem
+// digita é o usuário em português. Só as CASAS vêm da moeda.
+//
+// A moeda é a do valor que está sendo digitado: a base do grupo na maioria dos
+// campos, a da CONTA em "Nova transação" e "Conta fixa" (migration 144).
+
+/** Casas decimais da moeda: 0 em iene e peso chileno, 2 no resto. */
+export function casasDaMoeda(m?: string | null): number {
+  return MOEDAS[normalizarMoeda(m)].casas ?? 2;
+}
+
+/** Menor unidade → valor. `(125050, 'BRL')` → 1250.5. */
+export function valorDasUnidades(unidades: number, m?: string | null): number {
+  return unidades / 10 ** casasDaMoeda(m);
+}
+
+/** Valor → menor unidade, pra preencher o campo ao editar. `(1250.5, 'BRL')` → 125050. */
+export function unidadesDoValor(valor: number, m?: string | null): number {
+  return Math.round(valor * 10 ** casasDaMoeda(m));
+}
+
+/** Texto do campo (sem símbolo). `(125050, 'BRL')` → "1.250,50"; `(1250, 'JPY')` → "1.250". */
+export function textoDasUnidades(unidades: number, m?: string | null): string {
+  const casas = casasDaMoeda(m);
+  return valorDasUnidades(unidades, m).toLocaleString('pt-BR', {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  });
+}
+
 /** Tipo mínimo de carteira que as telas somam. */
 type CarteiraLike = { saldo?: number | null; saldo_brl?: number | null; moeda?: string | null };
 

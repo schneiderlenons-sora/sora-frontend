@@ -5,7 +5,7 @@ import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, Cale
 import { api } from '@/lib/api';
 // Conta em moeda estrangeira (migration 144): o valor digitado está na moeda
 // DA CONTA, e é o backend que converte. Aqui só rotulamos o campo.
-import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda } from '@/lib/moeda';
+import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda, valorDasUnidades, textoDasUnidades } from '@/lib/moeda';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -180,10 +180,10 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   const equivalenteBRL = useMemo(() => {
     if (!contaEstrangeira) return null;
     const t = Number(walletSel?.taxa_brl);
-    const v = parseInt(valor || '0', 10) / 100;
+    const v = valorDasUnidades(parseInt(valor || '0', 10), moedaConta);
     if (!Number.isFinite(t) || t <= 0 || !v) return null;
     return v * t;
-  }, [contaEstrangeira, walletSel?.taxa_brl, valor]);
+  }, [contaEstrangeira, walletSel?.taxa_brl, valor, moedaConta]);
   const ehCartaoSel = walletSel?.tipo === 'Crédito' && tipo === 'Gasto';
   // "Sem cartão" = parcelei com alguém (vira parcelamento em Dívidas). Só p/ despesa.
   const semCartao   = walletId === SEM_CARTAO && tipo === 'Gasto';
@@ -229,10 +229,9 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
     setValor(e.target.value.replace(/\D/g, ''));
   }
 
+  // Casas da moeda DA CONTA: é nela que a pessoa está digitando.
   function formatValorDisplay(raw: string) {
-    if (!raw) return '0,00';
-    const num = parseInt(raw, 10) / 100;
-    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return textoDasUnidades(raw ? parseInt(raw, 10) : 0, moedaConta);
   }
 
   async function handleSalvar() {
@@ -251,7 +250,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
     // `!viraFixa`: a linha otimista seria MENTIRA — o servidor não vai criar
     // transação alguma, então ela apareceria e sumiria sozinha.
     if (onOptimisticCreate && !parcelado && !viraFixa) {
-      const valorNum = parseInt(valor, 10) / 100;
+      const valorNum = valorDasUnidades(parseInt(valor, 10), moedaConta);
       // Estorno entra como crédito na fatura, não como despesa nem receita.
       const tipoFinal = estorno ? 'Recebimento' : tipo;
       const catFull = estorno ? '↩️ Reembolso' : `${catEmoji} ${categoria}`;
@@ -279,7 +278,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
         const diaVenc = diaVencimento
           ? Math.min(31, Math.max(1, parseInt(diaVencimento, 10)))
           : new Date(`${data}T12:00:00`).getDate();
-        const vParcela = parseInt(valor, 10) / 100;
+        const vParcela = valorDasUnidades(parseInt(valor, 10), moedaConta);
         await api.dividas.criar({
           phone,
           titulo:         (descricao || '').trim() || 'Compra parcelada',
@@ -300,7 +299,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
           categoria: `${catEmoji} ${categoria}`,
           observacao: descricao,
           carteira_nome: walletNome,
-          valor_parcela: parseInt(valor, 10) / 100,
+          valor_parcela: valorDasUnidades(parseInt(valor, 10), moedaConta),
           num_parcelas: numParcelas,
           data,
           pagas: [...pagas],
@@ -309,7 +308,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
         await api.transacoes.criar({
           phone,
           tipo: estorno ? 'Recebimento' : tipo,
-          valor: parseInt(valor, 10) / 100,
+          valor: valorDasUnidades(parseInt(valor, 10), moedaConta),
           observacao: descricao,
           categoria: estorno ? '↩️ Reembolso' : `${catEmoji} ${categoria}`,
           wallet_id: walletId || undefined,
@@ -545,8 +544,8 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
               <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
                 <span className="text-xs text-muted-foreground">Total</span>
                 <span className="text-sm font-bold text-foreground tabular text-right">
-                  {fmt((parseInt(valor || '0', 10) / 100) * numParcelas)}
-                  <span className="block text-[11px] font-normal text-muted-foreground">{numParcelas}x de {fmt(parseInt(valor || '0', 10) / 100)}</span>
+                  {fmt(valorDasUnidades(parseInt(valor || '0', 10), moedaConta) * numParcelas)}
+                  <span className="block text-[11px] font-normal text-muted-foreground">{numParcelas}x de {fmt(valorDasUnidades(parseInt(valor || '0', 10), moedaConta))}</span>
                 </span>
               </div>
 

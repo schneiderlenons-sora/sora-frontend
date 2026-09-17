@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
 import { X, Plus, Trash2, Loader2, SplitSquareHorizontal, AlertTriangle } from 'lucide-react';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 // =============================================================================
 // Dividir um lançamento em várias categorias (migration 151).
@@ -33,15 +34,15 @@ const paraCentavos = (raw: string) => {
   const so = String(raw).replace(/\D/g, '');
   return so ? parseInt(so, 10) : 0;
 };
-const mascara = (raw: string) =>
-  (paraCentavos(raw) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const mascara = (raw: string, moeda: string) => textoDasUnidades(paraCentavos(raw), moeda);
 
 export default function RatearModal({
   phone, tx, onClose, onSuccess,
 }: { phone: string; tx: any; onClose: () => void; onSuccess: () => void }) {
   const dinheiro = useDinheiro();
   const simbolo = useSimboloMoeda();
-  const fmt = (c: number) => dinheiro(c / 100);
+  const moeda = useMoedaBase();
+  const fmt = (c: number) => dinheiro(valorDasUnidades(c, moeda));
   const [montado, setMontado] = useState(false);
   const [cats, setCats] = useState<string[]>([]);
   const [partes, setPartes] = useState<Parte[]>([
@@ -58,7 +59,7 @@ export default function RatearModal({
       .catch(() => {});
   }, [phone]);
 
-  const totalCent = Math.round((Number(tx.valor) || 0) * 100);
+  const totalCent = unidadesDoValor(Number(tx.valor) || 0, moeda);
   const somaCent = useMemo(() => partes.reduce((s, p) => s + paraCentavos(p.valorRaw), 0), [partes]);
   const faltaCent = totalCent - somaCent;
   const semCategoria = partes.some((p) => !p.categoria);
@@ -81,7 +82,7 @@ export default function RatearModal({
     try {
       await api.transacoes.ratear(tx.id, {
         phone,
-        partes: partes.map((p) => ({ categoria: p.categoria, valor: paraCentavos(p.valorRaw) / 100 })),
+        partes: partes.map((p) => ({ categoria: p.categoria, valor: valorDasUnidades(paraCentavos(p.valorRaw), moeda) })),
       });
       onSuccess(); onClose();
     } catch (e: any) {
@@ -133,10 +134,10 @@ export default function RatearModal({
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{simbolo}</span>
                 <input
                   className="input w-full text-right tabular" inputMode="numeric"
-                  value={p.valorRaw ? mascara(p.valorRaw) : ''}
+                  value={p.valorRaw ? mascara(p.valorRaw, moeda) : ''}
                   onChange={(e) => set(i, { valorRaw: e.target.value })}
                   onFocus={() => { if (!p.valorRaw && faltaCent > 0) completar(i); }}
-                  placeholder="0,00" aria-label={`Valor da parte ${i + 1}`}
+                  placeholder={textoDasUnidades(0, moeda)} aria-label={`Valor da parte ${i + 1}`}
                   style={{ minHeight: 44, paddingLeft: 30 }}
                 />
               </div>

@@ -12,7 +12,8 @@ import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 import {
   Plus, Sparkles, Pencil, Trash2, ArrowUpRight, ArrowDownLeft,
   AlertCircle, Loader2, Check, X as XIcon, Flag, Calendar, Target as TargetIcon, TrendingUp as TrendingUpIcon, Shield as ShieldIcon } from 'lucide-react';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades } from '@/lib/moeda';
 // recharts sob demanda: fora do bundle inicial da página.
 const GraficoMeta = dynamic(() => import('./GraficoMeta'), {
   ssr: false,
@@ -553,19 +554,18 @@ interface AporteProps {
 function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AporteProps) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const [valorRaw, setValorRaw] = useState('');
   const [obs,      setObs]      = useState('');
   const [walletId, setWalletId] = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState('');
 
-  const valor = parseFloat(valorRaw || '0') / 100;
+  const valor = valorDasUnidades(parseFloat(valorRaw || '0'), moeda);
   const ehAporte = tipo === 'aporte';
   const cor = meta.cor || BRAND;
 
-  const fmtBR = (raw: string) =>
-    !raw ? '0,00'
-         : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtBR = (raw: string) => textoDasUnidades(raw ? parseInt(raw, 10) : 0, moeda);
 
   async function salvar() {
     setErro('');

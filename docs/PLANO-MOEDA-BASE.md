@@ -1,6 +1,6 @@
 # Moeda principal (base) configurável — plano aprovado
 
-> **Status:** EM ANDAMENTO. Fases **0, 4 e 1 feitas** (16–17/09/2026). Próxima: **Fase 2**.
+> **Status:** EM ANDAMENTO. Fases **0, 4, 1 e 2 feitas** (16–17/09/2026). Próxima: **Fase 5**.
 > **Decidido pelo dono:** as duas primeiras moedas são **USD (dólar)** e
 > **NOK (coroa norueguesa)**; no MVP a moeda base **trava** depois que o grupo
 > tem lançamento.
@@ -98,14 +98,45 @@
     pode ter base ≠ BRL antes da Fase 5** (e hoje não há como escolher — a
     escolha é a Fase 6).
 
-### ❓ Decisão em aberto — grafia dos números
+### ✅ Decidido (17/09/2026) — a grafia dos números segue o IDIOMA, não a moeda
 
 O §3/§5.9 previa a grafia **seguir o locale da moeda** (NOK: `20 000,00 kr`).
-Implementado: **grafia pt-BR com o símbolo da moeda** (`kr 20.000,00`), porque
-moeda é do GRUPO e idioma é do USUÁRIO — eixos separados. Trocar é uma linha em
-`formatarDinheiro`, mas é decisão do dono.
+**Decisão do dono: fica a grafia pt-BR com o símbolo da moeda**
+(`kr 20.000,00`, `US$ 1.250,50`). Moeda é do GRUPO; idioma é do USUÁRIO — eixos
+separados. Isso derruba as armadilhas 4 e 9 do §5 como "ataque de cara": quem
+digita e lê é o usuário em português, e ele escreve `1.250,50` também num grupo
+em dólar.
 
-### ⏭️ Próximo: Fase 2 — entrada de valor
+### ✅ Fase 2 — entrada de valor (17/09/2026)
+
+- **12 campos de valor do painel** liam os dígitos com `/ 100` e 2 casas
+  cravadas. Hoje leem as casas da moeda que está sendo DIGITADA:
+  `casasDaMoeda`, `valorDasUnidades`, `unidadesDoValor` e `textoDasUnidades`
+  (`lib/moeda.ts`). A moeda é a **base do grupo** em metas, dívidas, limites,
+  cartão, pagar fatura/parcela e rateio; e a **da CONTA** em Nova transação e
+  Conta fixa, que já digitavam na moeda da conta (migration 144).
+- ⚠️ **Dormente em USD e NOK** (2 casas, igual ao real). Existe pra armadilha
+  5 não voltar na primeira moeda sem centavos: em iene, "1250" era gravado
+  como 12,50.
+- **Em BRL nada muda:** `eval:dinheiro` §8 compara os helpers com as
+  expressões exatas que substituíram (`parseInt(raw) / 100`, o
+  `toLocaleString` com e sem máximo de casas, `Math.round(v * 100)`) em 20
+  entradas e 12 valores de ida e volta — mutation-testado (4 e 4 falhas).
+  tsc, build e os 18 evals passam; lint dos 14 arquivos idêntico (82 → 82).
+- **`parseValor` do WhatsApp NÃO mudou**, por causa da decisão da grafia: quem
+  digita é o usuário em português, e ele escreve `1.250,50` também num grupo
+  em dólar. A armadilha 4 deixa de "atacar de cara".
+- ⚠️ **Movido pra Fase 3:** tirar o prefixo e a palavra da moeda na
+  normalização do interpretador ("US$ 50", "50 dólares", "200 coroas"). Não é
+  entrada de valor, é SEMÂNTICA do WhatsApp: num grupo em real "50 dólares" é
+  lançamento em moeda estrangeira (migration 160); num grupo em dólar é a
+  própria base. Só dá pra decidir junto com os handlers.
+- ⚠️ **Fica pra Fase 5:** os campos de centavos de **Negócios** (fora do
+  provider) e o `ehEstrangeira(moedaConta)` de Nova transação e Conta fixa, que
+  compara com BRL (armadilha 10) — só faz sentido trocar junto com a conversão
+  do backend pra base.
+
+### ⏭️ Próximo: Fase 5 — subsistemas que cravam real
 
 ---
 

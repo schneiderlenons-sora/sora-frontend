@@ -8,7 +8,7 @@ import {
 import { mutate as mutateGlobal } from 'swr';
 import { api, type ModoLancamentoFixo } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
-import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda } from '@/lib/moeda';
+import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda, valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 import { calcularDataFim, hojeSP, type Frequencia } from '@/lib/frequencia-recorrencia';
 import Link from 'next/link';
 import { criarPrevistoUnico } from '@/lib/previsto-unico';
@@ -262,9 +262,11 @@ export default function FormRecorrencia({
   const [tipo, setTipo]                   = useState<Tipo>(editItem?.tipo || 'Gasto');
   const [valorVariavel, setValorVariavel] = useState(!!editItem?.valor_variavel);
   const [descricao, setDescricao]         = useState(editItem?.descricao || '');
-  // Valor em CENTAVOS: digitar num teclado numérico é mais rápido e não tem
-  // como produzir "12.34,5". A máscara formata na saída.
-  const [centavos, setCentavos]           = useState(Math.round((editItem?.valor || 0) * 100));
+  // Valor na MENOR UNIDADE da moeda da conta (centavos em real): digitar num
+  // teclado numérico é mais rápido e não tem como produzir "12.34,5". A
+  // máscara formata na saída.
+  const [centavos, setCentavos]           = useState(() =>
+    unidadesDoValor(editItem?.valor || 0, contas.find((c) => c.nome === editItem?.carteira)?.moeda));
   const [dia, setDia]                     = useState(editItem ? String(editItem.dia_vencimento) : '5');
   const [categoria, setCategoria]         = useState(editItem?.categoria || '');
   const [cats, setCats]                   = useState<string[]>(editItem?.categoria ? [editItem.categoria] : []);
@@ -363,10 +365,10 @@ export default function FormRecorrencia({
   const equivalenteBRL = useMemo(() => {
     if (!contaEstrangeira) return null;
     const t = Number(contaSel?.taxa_brl);
-    const v = centavos / 100;
+    const v = valorDasUnidades(centavos, moedaConta);
     if (!Number.isFinite(t) || t <= 0 || !v) return null;
     return v * t;
-  }, [contaEstrangeira, contaSel?.taxa_brl, centavos]);
+  }, [contaEstrangeira, contaSel?.taxa_brl, centavos, moedaConta]);
 
   // Foco: no valor ao criar (é o primeiro dado que a pessoa tem na cabeça),
   // na descrição ao editar (o valor já está lá).
@@ -383,7 +385,7 @@ export default function FormRecorrencia({
     return () => { document.body.style.overflow = antes; };
   }, []);
 
-  const valorNum = centavos / 100;
+  const valorNum = valorDasUnidades(centavos, moedaConta);
   const temValor = centavos > 0;
   // Uma vez só exige VALOR (não existe "valor que varia" num compromisso
   // único) e DATA de hoje em diante: data passada é registrar o que já
@@ -627,13 +629,13 @@ export default function FormRecorrencia({
               <input
                 ref={valorRef}
                 inputMode="numeric"
-                value={centavos ? (centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''}
+                value={centavos ? textoDasUnidades(centavos, moedaConta) : ''}
                 onChange={(e) => {
                   setSujo(true);
                   const digitos = e.target.value.replace(/[^0-9]/g, '').slice(0, 11);
                   setCentavos(Number(digitos) || 0);
                 }}
-                placeholder="0,00"
+                placeholder={textoDasUnidades(0, moedaConta)}
                 aria-label={valorVariavel ? 'Valor estimado' : 'Valor'}
                 className="flex-1 min-w-0 bg-transparent text-3xl font-bold tabular-nums text-foreground
                            placeholder:text-muted-foreground/35 focus:outline-none"

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Target, Bell, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 interface Props {
   phone: string;
@@ -19,24 +20,19 @@ export default function DefinirLimiteModal({
 }: Props) {
   const fmt = useDinheiro();
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const ediMode = !!limiteExistente?.limite_mensal;
 
   const [valorRaw, setValorRaw] = useState(
     limiteExistente?.limite_mensal
-      ? String(Math.round(limiteExistente.limite_mensal * 100))
+      ? String(unidadesDoValor(limiteExistente.limite_mensal, moeda))
       : ''
   );
   const [alerta, setAlerta]   = useState(limiteExistente?.percentual_alerta ?? 80);
   const [loading, setLoading] = useState(false);
   const [erro, setErro]       = useState('');
 
-  const valorFmt = (() => {
-    if (!valorRaw) return '0,00';
-    return (parseInt(valorRaw, 10) / 100).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  })();
+  const valorFmt = textoDasUnidades(valorRaw ? parseInt(valorRaw, 10) : 0, moeda);
 
   function handleValor(e: React.ChangeEvent<HTMLInputElement>) {
     setValorRaw(e.target.value.replace(/\D/g, ''));
@@ -50,7 +46,7 @@ export default function DefinirLimiteModal({
     }
     setLoading(true);
     try {
-      const valor = parseInt(valorRaw, 10) / 100;
+      const valor = valorDasUnidades(parseInt(valorRaw, 10), moeda);
       await api.limites.setCategoria({
         phone,
         categoria: categoria.nome,
@@ -90,7 +86,7 @@ export default function DefinirLimiteModal({
     : 'hsl(var(--fg))';
 
   // Preview do valor alertado
-  const valorBruto = parseInt(valorRaw || '0', 10) / 100;
+  const valorBruto = valorDasUnidades(parseInt(valorRaw || '0', 10), moeda);
   const valorAlerta = valorBruto * (alerta / 100);
 
   return (

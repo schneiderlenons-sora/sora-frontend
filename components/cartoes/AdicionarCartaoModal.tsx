@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2, CreditCard, AlertCircle, Check } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useSimboloMoeda } from '@/lib/moeda-base';
+import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -92,6 +93,7 @@ interface Props {
 
 export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, onSuccess }: Props) {
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const ediMode = !!cartaoExistente;
 
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
@@ -99,7 +101,7 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
   const [nome,           setNome]              = useState(cartaoExistente?.nome || '');
   const [bandeira,       setBandeira]          = useState<typeof BANDEIRAS[number] | ''>('');
   const [limiteRaw,      setLimiteRaw]         = useState(
-    cartaoExistente?.limite ? String(Math.round(cartaoExistente.limite * 100)) : ''
+    cartaoExistente?.limite ? String(unidadesDoValor(cartaoExistente.limite, moeda)) : ''
   );
   const [ultimos4,       setUltimos4]          = useState('');
   const [diaFechamento,  setDiaFechamento]     = useState<number | ''>('');
@@ -144,13 +146,7 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
     setNome(`${contaSelecionada.nome} Crédito`);
   }, [contaSelecionada, ediMode]);
 
-  const limiteFmt = (() => {
-    if (!limiteRaw) return '0,00';
-    return (parseInt(limiteRaw, 10) / 100).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  })();
+  const limiteFmt = textoDasUnidades(limiteRaw ? parseInt(limiteRaw, 10) : 0, moeda);
 
   function handleLimite(e: React.ChangeEvent<HTMLInputElement>) {
     setLimiteRaw(e.target.value.replace(/\D/g, ''));
@@ -177,7 +173,7 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
 
     setLoading(true);
     try {
-      const limite = parseInt(limiteRaw, 10) / 100;
+      const limite = valorDasUnidades(parseInt(limiteRaw, 10), moeda);
 
       const walletPayload: any = {
         phone,

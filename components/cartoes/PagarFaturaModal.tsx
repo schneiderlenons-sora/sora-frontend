@@ -6,9 +6,10 @@ import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon } fro
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { hojeSP } from '@/lib/ciclo-fatura';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
-const fmtBR = (raw: string) => !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtBR = (raw: string, moeda: string) => textoDasUnidades(raw ? parseInt(raw, 10) : 0, moeda);
 
 // Valor sentinela do <select> pra "pago por fora" (sem conta no painel).
 const EXTERNA = '__externa__';
@@ -37,6 +38,7 @@ const novaLinha = (valorRaw = ''): Linha => ({ key: ++_seq, walletId: '', valorR
 export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, competencia, onClose, onPago }: Props) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const { phone } = useAuth();
   const comp = competencia || ymAtual();
   const [contas, setContas] = useState<{ id: string; nome: string; saldo: number }[]>([]);
@@ -44,7 +46,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
   const [status, setStatus] = useState<{ fatura: number; pago: number; restante: number } | null>(null);
   const restante = status ? status.restante : valorFatura;
   const [linhas, setLinhas] = useState<Linha[]>(
-    () => [novaLinha(valorFatura ? String(Math.round(valorFatura * 100)) : '')]
+    () => [novaLinha(valorFatura ? String(unidadesDoValor(valorFatura, moeda)) : '')]
   );
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
@@ -59,8 +61,8 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
       .then((st) => {
         setStatus(st);
         // Só ajusta a 1ª linha se o usuário ainda não mexeu (valor = fatura cheia).
-        setLinhas(ls => (ls.length === 1 && ls[0].valorRaw === String(Math.round(valorFatura * 100)))
-          ? [{ ...ls[0], valorRaw: st.restante > 0 ? String(Math.round(st.restante * 100)) : '' }]
+        setLinhas(ls => (ls.length === 1 && ls[0].valorRaw === String(unidadesDoValor(valorFatura, moeda)))
+          ? [{ ...ls[0], valorRaw: st.restante > 0 ? String(unidadesDoValor(st.restante, moeda)) : '' }]
           : ls);
       })
       .catch(() => { /* tolerante: sem status, usa valorFatura */ });
@@ -80,7 +82,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
   }, [phone]);
 
   const dividido = linhas.length > 1;
-  const total = linhas.reduce((s, l) => s + (parseInt(l.valorRaw || '0', 10) / 100), 0);
+  const total = linhas.reduce((s, l) => s + valorDasUnidades(parseInt(l.valorRaw || '0', 10), moeda), 0);
   const diferente = valorFatura > 0 && Math.abs(total - valorFatura) > 0.005;
 
   function setLinha(key: number, patch: Partial<Linha>) {
@@ -95,7 +97,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
       .map(l => ({
         externa:   l.walletId === EXTERNA,
         wallet_id: l.walletId === EXTERNA ? undefined : l.walletId,
-        valor:     parseInt(l.valorRaw || '0', 10) / 100,
+        valor:     valorDasUnidades(parseInt(l.valorRaw || '0', 10), moeda),
         descricao: l.quem.trim() || (l.walletId === EXTERNA ? 'Externo' : ''),
       }))
       .filter(i => i.valor > 0 && (i.externa || i.wallet_id));
@@ -119,7 +121,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
     } finally { setLoading(false); }
   }
 
-  const podePagar = linhas.some(l => l.walletId && (parseInt(l.valorRaw || '0', 10) / 100) > 0);
+  const podePagar = linhas.some(l => l.walletId && valorDasUnidades(parseInt(l.valorRaw || '0', 10), moeda) > 0);
 
   if (!mounted) return null;
 
@@ -210,7 +212,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Valor</label>
                       <div className="flex items-baseline gap-1 input py-2.5">
                         <span className="text-sm font-bold text-muted-foreground">{simbolo}</span>
-                        <input inputMode="numeric" value={fmtBR(l.valorRaw)}
+                        <input inputMode="numeric" value={fmtBR(l.valorRaw, moeda)}
                                onChange={e => setLinha(l.key, { valorRaw: e.target.value.replace(/\D/g, '') })}
                                className="text-lg font-bold text-foreground bg-transparent border-none outline-none w-full tabular p-0" />
                       </div>

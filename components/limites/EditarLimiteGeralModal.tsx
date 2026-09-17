@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Target, Bell } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -24,22 +25,17 @@ export default function EditarLimiteGeralModal({
 }: Props) {
   const fmt = useDinheiro();
   const simbolo = useSimboloMoeda();
-  const [valorRaw, setValorRaw]   = useState(String(Math.round((valorInicial || 0) * 100)));
+  const moeda = useMoedaBase();
+  const [valorRaw, setValorRaw]   = useState(String(unidadesDoValor(valorInicial || 0, moeda)));
   const [ativo,    setAtivo]      = useState(ativoInicial);
   const [alerta,   setAlerta]     = useState(alertaAtivoInicial);
   const [pct,      setPct]        = useState(alertaPctInicial);
   const [loading,  setLoading]    = useState(false);
   const [erro,     setErro]       = useState('');
 
-  const valorFmt = (() => {
-    if (!valorRaw) return '0,00';
-    return (parseInt(valorRaw, 10) / 100).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  })();
+  const valorFmt = textoDasUnidades(valorRaw ? parseInt(valorRaw, 10) : 0, moeda);
 
-  const valorBruto = parseInt(valorRaw || '0', 10) / 100;
+  const valorBruto = valorDasUnidades(parseInt(valorRaw || '0', 10), moeda);
   const valorAlerta = valorBruto * (pct / 100);
 
   function handleValor(e: React.ChangeEvent<HTMLInputElement>) {
@@ -56,7 +52,7 @@ export default function EditarLimiteGeralModal({
     try {
       await api.limites.setGeral({
         phone,
-        valor: parseInt(valorRaw, 10) / 100,
+        valor: valorDasUnidades(parseInt(valorRaw, 10), moeda),
         ativo,
         alerta_ativo: alerta,
         alerta_pct: pct,

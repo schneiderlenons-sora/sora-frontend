@@ -5,7 +5,8 @@ import { X, Loader2, AlertCircle, Check, Target, Bell, Info, ChevronDown } from 
 import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -33,6 +34,7 @@ export default function LimiteCategoriaModal({
 }: Props) {
   const fmt = useDinheiro();
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const ediMode = !!limiteExistente;
 
   const [categoriaNome, setCategoriaNome] = useState<string>(
@@ -40,7 +42,7 @@ export default function LimiteCategoriaModal({
   );
   const [valorRaw, setValorRaw] = useState(
     limiteExistente?.limite_mensal
-      ? String(Math.round(limiteExistente.limite_mensal * 100))
+      ? String(unidadesDoValor(limiteExistente.limite_mensal, moeda))
       : ''
   );
   const [alerta, setAlerta] = useState(true);
@@ -69,14 +71,9 @@ export default function LimiteCategoriaModal({
     }));
   }, [categorias]);
 
-  const valorFmt = (() => {
-    if (!valorRaw) return '0,00';
-    return (parseInt(valorRaw, 10) / 100).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2, maximumFractionDigits: 2,
-    });
-  })();
+  const valorFmt = textoDasUnidades(valorRaw ? parseInt(valorRaw, 10) : 0, moeda);
 
-  const valorBruto = parseInt(valorRaw || '0', 10) / 100;
+  const valorBruto = valorDasUnidades(parseInt(valorRaw || '0', 10), moeda);
   const valorAlerta = valorBruto * (pct / 100);
 
   const categoriaInfo = useMemo(() => {
@@ -92,7 +89,7 @@ export default function LimiteCategoriaModal({
       await api.limites.setCategoria({
         phone,
         categoria: categoriaNome,
-        limite_mensal: parseInt(valorRaw, 10) / 100,
+        limite_mensal: valorDasUnidades(parseInt(valorRaw, 10), moeda),
         percentual_alerta: alerta ? pct : 0,
         ativo: true,
         mes_referencia: mesRef,

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Receipt, Zap, Calendar, ArrowDownRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 const TIPOS_PAGAMENTO = [
   { v: 'parcela',       l: 'Parcela',         desc: 'Pagamento mensal regular',     icon: Receipt },
@@ -22,9 +23,10 @@ interface Props {
 export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }: Props) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const valorPadrao = divida.valor_parcela || 0;
   const [valorRaw, setValorRaw] = useState<string>(
-    valorPadrao ? String(Math.round(valorPadrao * 100)) : ''
+    valorPadrao ? String(unidadesDoValor(valorPadrao, moeda)) : ''
   );
   const [tipo,    setTipo]    = useState<'parcela' | 'antecipacao' | 'juros_atraso'>('parcela');
   const [data,    setData]    = useState(new Date().toISOString().slice(0, 10));
@@ -39,10 +41,9 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
   const restantes = Math.max(0, parcelasTotal - parcelasPagas);
   const ehUltima = numeroAtual >= parcelasTotal && parcelasTotal > 0;
 
-  const fmtBR = (raw: string) =>
-    !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtBR = (raw: string) => textoDasUnidades(raw ? parseInt(raw, 10) : 0, moeda);
 
-  const valor = parseInt(valorRaw || '0', 10) / 100;
+  const valor = valorDasUnidades(parseInt(valorRaw || '0', 10), moeda);
 
   async function salvar() {
     setErro('');

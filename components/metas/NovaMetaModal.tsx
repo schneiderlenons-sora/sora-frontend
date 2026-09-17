@@ -3,7 +3,8 @@
 import { useRef, useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle, Check, Flag, Upload, Camera, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useSimboloMoeda } from '@/lib/moeda-base';
+import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 const ICONES = ['🎯','🏠','🚗','✈️','💍','🎓','💼','👶','🐶','💻','📚','🛒','🎮','💎','🎁','🪙'];
 const CORES  = [
@@ -50,15 +51,16 @@ interface Props {
 
 export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Props) {
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const ediMode = !!edicao;
 
   const [titulo,        setTitulo]        = useState(edicao?.titulo || '');
   const [descricao,     setDescricao]     = useState(edicao?.descricao || '');
   const [valorObjRaw,   setValorObjRaw]   = useState(
-    edicao?.valor_objetivo ? String(Math.round(edicao.valor_objetivo * 100)) : ''
+    edicao?.valor_objetivo ? String(unidadesDoValor(edicao.valor_objetivo, moeda)) : ''
   );
   const [valorAtualRaw, setValorAtualRaw] = useState(
-    edicao?.valor_atual ? String(Math.round(edicao.valor_atual * 100)) : ''
+    edicao?.valor_atual ? String(unidadesDoValor(edicao.valor_atual, moeda)) : ''
   );
   const [dataAlvo,      setDataAlvo]      = useState(edicao?.data_alvo || '');
   const [imagem,        setImagem]        = useState<string | null>(edicao?.imagem_url || null);
@@ -71,8 +73,7 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
   const fileRef = useRef<HTMLInputElement>(null);
 
   function fmtBR(raw: string) {
-    if (!raw) return '0,00';
-    return (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return textoDasUnidades(raw ? parseInt(raw, 10) : 0, moeda);
   }
 
   async function handleFile(file: File) {
@@ -97,8 +98,8 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
       const payload = {
         titulo: titulo.trim(),
         descricao: descricao.trim() || undefined,
-        valor_objetivo: parseInt(valorObjRaw, 10) / 100,
-        valor_atual:    parseInt(valorAtualRaw || '0', 10) / 100,
+        valor_objetivo: valorDasUnidades(parseInt(valorObjRaw, 10), moeda),
+        valor_atual:    valorDasUnidades(parseInt(valorAtualRaw || '0', 10), moeda),
         data_alvo:      dataAlvo || null,
         imagem_url:     imagem || null,
         cor, icone,
@@ -118,8 +119,8 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
   }
 
   const corPreview = cor;
-  const valorObjPreview = parseFloat(valorObjRaw || '0') / 100;
-  const valorAtualPreview = parseFloat(valorAtualRaw || '0') / 100;
+  const valorObjPreview = valorDasUnidades(parseFloat(valorObjRaw || '0'), moeda);
+  const valorAtualPreview = valorDasUnidades(parseFloat(valorAtualRaw || '0'), moeda);
   const pctPreview = valorObjPreview > 0 ? Math.min((valorAtualPreview / valorObjPreview) * 100, 100) : 0;
 
   return (

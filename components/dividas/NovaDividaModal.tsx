@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users, Ticket, Trophy } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useSimboloMoeda } from '@/lib/moeda-base';
+import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
 async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> {
@@ -53,16 +54,17 @@ interface Props {
 
 export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: Props) {
   const simbolo = useSimboloMoeda();
+  const moeda = useMoedaBase();
   const ediMode = !!edicao;
 
   const [titulo,          setTitulo]          = useState(edicao?.titulo || '');
   const [credor,          setCredor]          = useState(edicao?.credor || '');
   const [tipo,            setTipo]            = useState<string>(edicao?.tipo || 'emprestimo');
   const [valorTotalRaw,   setValorTotalRaw]   = useState(
-    edicao?.valor_total ? String(Math.round(edicao.valor_total * 100)) : ''
+    edicao?.valor_total ? String(unidadesDoValor(edicao.valor_total, moeda)) : ''
   );
   const [valorParcelaRaw, setValorParcelaRaw] = useState(
-    edicao?.valor_parcela ? String(Math.round(edicao.valor_parcela * 100)) : ''
+    edicao?.valor_parcela ? String(unidadesDoValor(edicao.valor_parcela, moeda)) : ''
   );
   const [parcelasTotal,   setParcelasTotal]   = useState<string>(edicao?.parcelas_total?.toString() || '');
   const [parcelasPagas,   setParcelasPagas]   = useState<string>(edicao?.parcelas_pagas?.toString() || '0');
@@ -101,10 +103,10 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   useEffect(() => {
     if (valorParcelaRaw) return; // user já editou manualmente
     if (!valorTotalRaw || !parcelasTotal) return;
-    const total = parseInt(valorTotalRaw, 10) / 100;
+    const total = valorDasUnidades(parseInt(valorTotalRaw, 10), moeda);
     const n = parseInt(parcelasTotal, 10);
     if (n > 0 && total > 0) {
-      setValorParcelaRaw(String(Math.round((total / n) * 100)));
+      setValorParcelaRaw(String(unidadesDoValor(total / n, moeda)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valorTotalRaw, parcelasTotal]);
@@ -113,8 +115,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   const ehConsorcio = tipo === 'consorcio';
 
   function fmtBR(raw: string) {
-    if (!raw) return '0,00';
-    return (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return textoDasUnidades(raw ? parseInt(raw, 10) : 0, moeda);
   }
 
   async function salvar() {
@@ -127,8 +128,8 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         titulo: titulo.trim(),
         credor: credor.trim() || undefined,
         tipo,
-        valor_total:    parseInt(valorTotalRaw, 10) / 100,
-        valor_parcela:  valorParcelaRaw ? parseInt(valorParcelaRaw, 10) / 100 : undefined,
+        valor_total:    valorDasUnidades(parseInt(valorTotalRaw, 10), moeda),
+        valor_parcela:  valorParcelaRaw ? valorDasUnidades(parseInt(valorParcelaRaw, 10), moeda) : undefined,
         parcelas_total: parcelasTotal ? parseInt(parcelasTotal, 10) : undefined,
         parcelas_pagas: parseInt(parcelasPagas || '0', 10),
         taxa_juros:     taxaJuros ? parseFloat(taxaJuros) : undefined,
