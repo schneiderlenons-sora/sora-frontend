@@ -38,8 +38,12 @@ export function normalizarMoeda(m?: string | null): Moeda {
   return (MOEDAS as Record<string, unknown>)[s] ? (s as Moeda) : MOEDA_PADRAO;
 }
 
-export function ehEstrangeira(m?: string | null): boolean {
-  return normalizarMoeda(m) !== MOEDA_PADRAO;
+/**
+ * A moeda é diferente da base do grupo? Sem `base`, compara com o real — o
+ * comportamento de antes da migration 168.
+ */
+export function ehEstrangeira(m?: string | null, base?: string | null): boolean {
+  return normalizarMoeda(m) !== normalizarMoeda(base);
 }
 
 /**
@@ -168,7 +172,11 @@ export function textoDasUnidades(unidades: number, m?: string | null): string {
 }
 
 /** Tipo mínimo de carteira que as telas somam. */
-type CarteiraLike = { saldo?: number | null; saldo_brl?: number | null; moeda?: string | null };
+type CarteiraLike = {
+  saldo?: number | null; saldo_brl?: number | null; moeda?: string | null;
+  /** Migration 168: o backend manda o saldo também na moeda BASE do grupo. */
+  saldo_base?: number | null; moeda_base?: string | null;
+};
 
 /**
  * Saldo da carteira EM BRL, pra entrar em soma com as outras.
@@ -194,6 +202,57 @@ export function saldoBRL(w: CarteiraLike): number | null {
   // as telas já sabem mostrar como "câmbio indisponível".
   if (ehEstrangeira(w?.moeda)) return null;
   return Number(w?.saldo) || 0;                        // resposta antiga = BRL
+}
+
+/**
+ * Saldo da carteira NA MOEDA BASE do grupo, pra entrar em soma com as outras.
+ * É o que as telas somam desde a migration 168 — num grupo em real é
+ * exatamente o `saldoBRL` (o eval `eval:moeda` §7 trava isso).
+ *
+ * ⚠️ `saldo_base` vem pronto do backend (`comSaldoNaBase`) e do SSR
+ * (`walletsDireto`). Só vale se foi calculado PRA ESTA base: um payload em
+ * cache de antes de uma troca de base traria o número em outra moeda.
+ *
+ * ⚠️ PAYLOAD SEM `saldo_base` (cache do SWR de antes deste campo, backend ainda
+ * não publicado): em base real cai no `saldoBRL`, que é o mesmo número; em
+ * outra base só confia no saldo da conta que JÁ está na base — o resto é
+ * `null` (câmbio indisponível), nunca um número em moeda errada.
+ */
+export function saldoNaBase(w: CarteiraLike, base?: string | null): number | null {
+  const b = normalizarMoeda(base);
+  const doPayload = w?.saldo_base !== undefined
+    && (w?.moeda_base == null || normalizarMoeda(w.moeda_base) === b);
+  if (doPayload) return w.saldo_base === null ? null : Number(w.saldo_base) || 0;
+  if (b === MOEDA_PADRAO) return saldoBRL(w);
+  if (normalizarMoeda(w?.moeda) === b) return Number(w?.saldo) || 0;
+  return null;
+}
+
+/**
+ * Taxa da moeda da conta PARA a base do grupo — o `taxa_base` do backend.
+ * Mesma regra de `saldoNaBase`: só vale se foi calculada pra esta base; payload
+ * antigo em grupo em real usa `taxa_brl`, que é o mesmo número. `null` sem ela.
+ */
+export function taxaParaBase(
+  w: { taxa_brl?: number | null; taxa_base?: number | null; moeda_base?: string | null } | null | undefined,
+  base?: string | null,
+): number | null {
+  const b = normalizarMoeda(base);
+  if (w?.taxa_base != null && (w.moeda_base == null || normalizarMoeda(w.moeda_base) === b)) return Number(w.taxa_base);
+  if (b === MOEDA_PADRAO && w?.taxa_brl != null) return Number(w.taxa_brl);
+  return null;
+}
+
+/** Soma saldos NA MOEDA BASE avisando o que ficou de fora. */
+export function somarSaldosNaBase(ws: CarteiraLike[], base?: string | null): { total: number; semCambio: number } {
+  let total = 0;
+  let semCambio = 0;
+  for (const w of ws || []) {
+    const v = saldoNaBase(w, base);
+    if (v === null) { semCambio++; continue; }
+    total += v;
+  }
+  return { total, semCambio };
 }
 
 /**

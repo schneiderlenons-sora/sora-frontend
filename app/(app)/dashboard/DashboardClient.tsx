@@ -25,7 +25,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
-import { saldoBRL } from '@/lib/moeda';
+import { saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 // ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
 // (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
 // também usam gráfico), o dashboard chegava a baixar 3 cópias — 864 KB antes
@@ -143,6 +143,7 @@ async function fetchDashboard(phone: string, mes: string, mesAnt: string) {
 // ─────────────────────────────────────────────────────────────
 export default function DashboardClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmtCru = useDinheiro();
+  const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
   const { phone: authPhone, perfil, temAcessoGrow } = useAuth();
   // SSR: usa o phone vindo do servidor até a sessão hidratar no cliente, pra a
@@ -271,18 +272,18 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
     [wallets]
   );
   const saldoTotal  = useMemo(
-    () => contasBancarias.reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
-    [contasBancarias]
+    () => contasBancarias.reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
+    [contasBancarias, moedaBase]
   );
   // ⚠️ O HERO RECEBE OS SALDOS JÁ EM BRL. Antes ele recebia a wallet crua e
   //    lia `w.saldo`, que é o valor NA MOEDA DA CONTA — então a lista "Saldo
   //    por conta" e a barra de composição mostravam 4.090 coroas como
   //    "R$ 4.090,34" logo abaixo de um total que JÁ vinha convertido. As duas
   //    metades do mesmo card discordavam, e a lista não somava o total.
-  //    `saldoBRL` devolve null quando não há câmbio — a tela diz isso.
+  //    `saldoNaBase` devolve null quando não há câmbio — a tela diz isso.
   const contasEmBRL = useMemo(
-    () => contasBancarias.map(w => ({ nome: w.nome as string, saldo: saldoBRL(w) })),
-    [contasBancarias],
+    () => contasBancarias.map(w => ({ nome: w.nome as string, saldo: saldoNaBase(w, moedaBase) })),
+    [contasBancarias, moedaBase],
   );
   const varReceitas = useMemo(() => pct(resumo?.receitas||0, resumoAnt?.receitas||0), [resumo, resumoAnt]);
   const varGastos   = useMemo(() => pct(resumo?.gastos||0,   resumoAnt?.gastos||0),   [resumo, resumoAnt]);

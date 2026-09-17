@@ -14,7 +14,7 @@ export default async function TransacoesPage() {
   try {
     const [tx, wallets, resumo] = await Promise.all([
       transacoesDireto(ctx.grupoId, { mes, limit: 500 }),
-      walletsDireto(ctx.grupoId),
+      walletsDireto(ctx.grupoId, ctx.moedaBase),
       resumoDireto(ctx.grupoId, mes),
     ]);
     initialData = { tx, wallets, resumo };

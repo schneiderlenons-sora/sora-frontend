@@ -15,7 +15,7 @@ import DetalhesContaModal from '@/components/contas/DetalhesContaModal';
 // — o painel NÃO busca câmbio, senão cada tela teria a sua cotação e elas
 // divergiriam entre si. O fallback pra `saldo` mantém tudo certo antes da
 // migration e em payload antigo no cache do SWR, onde `saldo` já é BRL.
-import { saldoBRL, normalizarMoeda, formatarMoeda, ehEstrangeira, MOEDAS } from '@/lib/moeda';
+import { saldoNaBase, normalizarMoeda, formatarMoeda, ehEstrangeira, MOEDAS } from '@/lib/moeda';
 import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
-import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -92,10 +92,13 @@ interface Wallet {
   saldo: number;
   limite: number;
   cheque_especial?: number;
-  // Moeda da conta + equivalente em BRL calculado pelo BACKEND (migration 144).
-  // ⚠️ `saldo_brl === null` significa CÂMBIO INDISPONÍVEL, não zero.
+  // Moeda da conta + equivalente calculado pelo BACKEND (migration 144), em
+  // real e na moeda BASE do grupo (168).
+  // ⚠️ `saldo_base === null` significa CÂMBIO INDISPONÍVEL, não zero.
   moeda?: string | null;
   saldo_brl?: number | null;
+  saldo_base?: number | null;
+  moeda_base?: string | null;
   padrao?: boolean;
   arquivada?: boolean;
   dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
@@ -118,6 +121,7 @@ type Tab = 'ativas' | 'arquivadas';
 // ─────────────────────────────────────────────────────────────
 export default function ContasClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmt = useDinheiro();
+  const moedaBase = useMoedaBase();
   const { phone: authPhone, perfil, limiteDe } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
 
@@ -168,8 +172,8 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const saldoTotal = useMemo(() =>
     walletsAtivas
       .filter(w => w.tipo !== 'Crédito')
-      .reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
-    [walletsAtivas]
+      .reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
+    [walletsAtivas, moedaBase]
   );
 
   const podeAdicionar = walletsAtivas.length < limiteContas;
@@ -184,7 +188,10 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
                 moeda: normalizarMoeda(w.moeda) });
     } else {
       setEditando(null);
-      setForm(FORM_VAZIO);
+      // ⚠️ Conta nova nasce na moeda BASE do grupo, não em real: o formulário
+      //    manda a moeda escolhida explicitamente, e num grupo em dólar um
+      //    padrão 'BRL' criaria conta em real sem a pessoa perceber.
+      setForm({ ...FORM_VAZIO, moeda: moedaBase });
     }
     setModal(true);
   }
@@ -211,7 +218,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
       cheque_especial: Math.abs(parseFloat((form.cheque || '0').replace(',', '.')) || 0),
       // ⚠️ O `saldo` acima está NA MOEDA DA CONTA, não em reais. Uma conta
       // Nomad com US$ 6.834,56 guarda 6834.56 — o equivalente em real é
-      // derivado pelo backend (`saldo_brl`) e muda com o câmbio, como deve.
+      // derivado pelo backend (`saldo_base`) e muda com o câmbio, como deve.
       moeda: form.moeda,
     };
     console.log('[contas] salvar wallet — payload:', payload);
@@ -505,6 +512,7 @@ function WalletCard({
   onVerExtrato:  () => void;
 }) {
   const fmt = useDinheiro();
+  const moedaBase = useMoedaBase();
   const [gradStart, gradEnd] = bancoGrad(wallet.nome);
   const Icon  = TIPO_ICON[wallet.tipo] || WalletIcon;
   const hue   = TIPO_HUE[wallet.tipo] ?? 220;
@@ -605,14 +613,14 @@ function WalletCard({
             {ocultar ? '••••••' : formatarMoeda(wallet.saldo, wallet.moeda)}
           </p>
         </div>
-        {/* Equivalente em real, discreto: é derivado e muda com o câmbio.
-            `saldo_brl === null` = câmbio fora do ar; dizer isso é melhor que
-            mostrar um número que não existe. */}
-        {ehEstrangeira(wallet.moeda) && !ocultar && (
+        {/* Equivalente na moeda BASE do grupo, discreto: é derivado e muda com o
+            câmbio. `null` = câmbio fora do ar (ou ainda sem cotação no SSR);
+            dizer isso é melhor que mostrar um número que não existe. */}
+        {ehEstrangeira(wallet.moeda, moedaBase) && !ocultar && (
           <p className="mt-1 text-[11px] text-muted-foreground tabular">
-            {wallet.saldo_brl === null
+            {saldoNaBase(wallet, moedaBase) === null
               ? 'câmbio indisponível agora'
-              : `≈ ${fmt(saldoBRL(wallet) ?? 0)}`}
+              : `≈ ${fmt(saldoNaBase(wallet, moedaBase) ?? 0)}`}
           </p>
         )}
         <div className="flex items-center gap-0.5 mt-2 text-[11px] font-medium text-muted-foreground group-hover/saldo:text-foreground transition-colors">
@@ -731,6 +739,7 @@ function ContaModal({
   onClose:  () => void;
   onSalvar: () => void;
 }) {
+  const moedaBase = useMoedaBase();
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -849,11 +858,11 @@ function ContaModal({
                   </option>
                 ))}
               </select>
-              {ehEstrangeira(form.moeda) && (
+              {ehEstrangeira(form.moeda, moedaBase) && (
                 <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
                   O saldo e os lançamentos desta conta ficam em{' '}
                   <b className="text-foreground">{form.moeda}</b>. Nos totais do painel ela é
-                  convertida para real pelo câmbio do dia.
+                  convertida para {MOEDAS[moedaBase].nome.toLowerCase()} pelo câmbio do dia.
                 </p>
               )}
             </div>

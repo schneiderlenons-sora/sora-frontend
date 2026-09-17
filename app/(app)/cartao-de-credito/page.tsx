@@ -13,7 +13,7 @@ export default async function CartaoDeCreditoPage() {
     // Só as transações mais recentes (sem recorte de mês): a fatura é somada pelo
     // CICLO de fechamento, que cruza meses — um recorte mensal cortaria compras.
     const [wallets, txAll] = await Promise.all([
-      walletsDireto(ctx.grupoId),
+      walletsDireto(ctx.grupoId, ctx.moedaBase),
       transacoesDireto(ctx.grupoId, { limit: 1000 }),
     ]);
     initialData = { wallets, txAll };

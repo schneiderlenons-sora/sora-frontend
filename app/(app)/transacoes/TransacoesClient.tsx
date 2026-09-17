@@ -22,7 +22,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
-import { saldoBRL } from '@/lib/moeda';
+import { saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR } from '@/lib/data-br';
 import useSWR from 'swr';
 import { contaDebitoDoFiltro, saldoInicialDaConta, saldoPrevistoDaConta } from '@/lib/saldo-conta';
@@ -36,7 +36,7 @@ import {
   ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -65,6 +65,7 @@ const GRID_MIN_W = 880;
 
 export default function TransacoesClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmt = useDinheiro();
+  const moedaBase = useMoedaBase();
   const { phone: authPhone, podeUsar, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const podeImportarOFX = podeUsar('import_ofx');
@@ -233,8 +234,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     [txsFiltradas, ehTransferencia]);
 
   const saldoTotal = useMemo(() =>
-    wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoBRL(w) ?? 0), 0),
-    [wallets]);
+    wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
+    [wallets, moedaBase]);
 
   // ── SALDO DA CONTA FILTRADA (atual e previsto) ─────────────────────────────
   //
@@ -266,7 +267,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   );
   const saldoConta = useMemo(() => {
     if (!contaFiltrada) return null;
-    const atual = saldoInicialDaConta(wallets, contaFiltrada.nome);
+    const atual = saldoInicialDaConta(wallets, contaFiltrada.nome, moedaBase);
     const base = { conta: contaFiltrada.nome as string, atual };
     // Sem transações do mês ou sem as contas fixas não há previsão honesta —
     // melhor dizer que não deu do que exibir um número que ignora metade.
@@ -282,9 +283,10 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       recorrencias: (Array.isArray(recsConta) ? recsConta : []) as any[],
       quitacoes: (ocorrConta as any)?.quitacoes ?? [],
       ajustes: (ocorrConta as any)?.ajustes ?? [],
+      moedaBase,
     });
     return { ...base, estado: 'pronto' as const, previsto: r.saldoPrevisto, ate: r.ate, estimado: r.temEstimativa };
-  }, [contaFiltrada, wallets, txMesAtual, recsConta, ocorrConta, erroTxMes, erroRecs, erroOcorr]);
+  }, [contaFiltrada, wallets, txMesAtual, recsConta, ocorrConta, erroTxMes, erroRecs, erroOcorr, moedaBase]);
 
   // ── Categorias únicas para filtro ──────────────────────────
   const categorias = useMemo(() =>

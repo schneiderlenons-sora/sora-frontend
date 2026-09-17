@@ -1,5 +1,5 @@
 import { montarExtrato, type Quitacao, type Ajuste, type TransacaoExtrato } from './extrato-futuro';
-import { saldoBRL } from './moeda';
+import { saldoNaBase } from './moeda';
 
 // =============================================================================
 // SALDO ATUAL E PREVISTO DE UMA CONTA — o mesmo número em Transações e no Extrato.
@@ -27,6 +27,7 @@ import { saldoBRL } from './moeda';
 type CarteiraConta = {
   nome?: string | null; tipo?: string | null;
   saldo?: number | null; saldo_brl?: number | null; moeda?: string | null;
+  saldo_base?: number | null; moeda_base?: string | null;
 };
 
 /** 'YYYY-MM-DD' do último dia do mês de `hoje`. */
@@ -49,15 +50,15 @@ export function contaDebitoDoFiltro<W extends CarteiraConta>(nome: string | null
 }
 
 /**
- * Saldo de partida de uma conta, em reais.
+ * Saldo de partida de uma conta, na moeda BASE do grupo (em real, sem `base`).
  *
  * ⚠️ Conta que sumiu (renomeada, desconectada) → 0, nunca o total: com o filtro
  * de pé as linhas também saem vazias, e devolver o total desenharia um saldo
  * cheio sob uma lista vazia. Câmbio que falhou (`saldo_brl: null`) também → 0.
  */
-export function saldoInicialDaConta(wallets: CarteiraConta[], nome: string): number {
+export function saldoInicialDaConta(wallets: CarteiraConta[], nome: string, moedaBase?: string | null): number {
   const w = contaDebitoDoFiltro(nome, wallets);
-  return w ? (saldoBRL(w) ?? 0) : 0;
+  return w ? (saldoNaBase(w, moedaBase) ?? 0) : 0;
 }
 
 export type SaldoPrevisto = {
@@ -84,8 +85,10 @@ export function saldoPrevistoDaConta(p: {
   recorrencias: Parameters<typeof montarExtrato>[0]['recorrencias'];
   quitacoes?: Quitacao[];
   ajustes?: Ajuste[];
+  /** Moeda base do grupo (migration 168). Sem ela, real. */
+  moedaBase?: string | null;
 }): SaldoPrevisto {
-  const saldoAtual = saldoInicialDaConta(p.wallets, p.conta);
+  const saldoAtual = saldoInicialDaConta(p.wallets, p.conta, p.moedaBase);
   const ate = ultimoDiaDoMes(p.hoje);
   const ex = montarExtrato({
     de: p.hoje,

@@ -10,7 +10,7 @@ export default async function ContasBancariasPage() {
   if (!ctx?.grupoId) return <ContasClient phoneInicial={ctx?.phone} />;
   let initialData: any;
   try {
-    initialData = await walletsDireto(ctx.grupoId);
+    initialData = await walletsDireto(ctx.grupoId, ctx.moedaBase);
   } catch {
     initialData = undefined;
   }

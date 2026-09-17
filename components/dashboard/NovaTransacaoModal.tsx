@@ -5,13 +5,13 @@ import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, Cale
 import { api } from '@/lib/api';
 // Conta em moeda estrangeira (migration 144): o valor digitado está na moeda
 // DA CONTA, e é o backend que converte. Aqui só rotulamos o campo.
-import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda, valorDasUnidades, textoDasUnidades } from '@/lib/moeda';
+import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda, valorDasUnidades, textoDasUnidades, taxaParaBase } from '@/lib/moeda';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import IconeMarca from '@/components/ui/IconeMarca';
 import { hojeSP } from '@/lib/ciclo-fatura';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 
 // Valor sentinela do picker de conta pra "compra parcelada SEM cartão".
 const SEM_CARTAO = '__sem_cartao__';
@@ -171,19 +171,24 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   //    conta em coroa digita kr e o BRL é derivado. Só que a tela dizia "R$"
   //    fixo, então quem tinha conta estrangeira achava que a Sora não
   //    suportava e convertia tudo na mão. Era feature pronta e invisível.
-  const moedaConta = normalizarMoeda(walletSel?.moeda);
-  const contaEstrangeira = ehEstrangeira(moedaConta);
+  //
+  // ⚠️ "ESTRANGEIRA" É RELATIVO À MOEDA BASE DO GRUPO (migration 168), e sem
+  //    conta escolhida a moeda é a base — num grupo em dólar, ler `undefined`
+  //    como real mostraria "Valor em Real" pra quem nem escolheu conta.
+  const moedaBase = useMoedaBase();
+  const moedaConta = walletSel ? normalizarMoeda(walletSel.moeda) : moedaBase;
+  const contaEstrangeira = ehEstrangeira(moedaConta, moedaBase);
 
-  // Equivalente em real, só como referência — o valor gravado é derivado no
-  // servidor com a cotação do momento, não com esta. `taxa_brl` da wallet vem
-  // do mesmo lugar, então o número aqui é o mesmo que ele vai ver depois.
-  const equivalenteBRL = useMemo(() => {
+  // Equivalente na moeda base, só como referência — o valor gravado é derivado
+  // no servidor com a cotação do momento, não com esta. `taxa_base` da wallet
+  // vem do mesmo lugar, então o número aqui é o mesmo que ele vai ver depois.
+  const equivalenteBase = useMemo(() => {
     if (!contaEstrangeira) return null;
-    const t = Number(walletSel?.taxa_brl);
+    const t = Number(taxaParaBase(walletSel, moedaBase));
     const v = valorDasUnidades(parseInt(valor || '0', 10), moedaConta);
     if (!Number.isFinite(t) || t <= 0 || !v) return null;
     return v * t;
-  }, [contaEstrangeira, walletSel?.taxa_brl, valor, moedaConta]);
+  }, [contaEstrangeira, walletSel, moedaBase, valor, moedaConta]);
   const ehCartaoSel = walletSel?.tipo === 'Crédito' && tipo === 'Gasto';
   // "Sem cartão" = parcelei com alguém (vira parcelamento em Dívidas). Só p/ despesa.
   const semCartao   = walletId === SEM_CARTAO && tipo === 'Gasto';
@@ -625,7 +630,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
             {contaEstrangeira && (
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Valor em <b className="text-foreground">{MOEDAS[moedaConta].nome}</b>
-                {equivalenteBRL !== null && <> · ≈ {formatarMoeda(equivalenteBRL, 'BRL')}</>}
+                {equivalenteBase !== null && <> · ≈ {formatarMoeda(equivalenteBase, moedaBase)}</>}
               </p>
             )}
           </div>

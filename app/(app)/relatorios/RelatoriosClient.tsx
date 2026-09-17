@@ -16,7 +16,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
-import { saldoBRL } from '@/lib/moeda';
+import { saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
 import {
   aindaVemNoMes, diaHojeSP, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
 const skel = (h: number) => () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: h }} role="status" aria-label="Carregando gráfico" />;
@@ -98,6 +98,7 @@ const SAZONAIS_SUGERIDAS = [
 // ─────────────────────────────────────────────────────────────
 export default function RelatoriosClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmtCru = useDinheiro();
+  const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
   const { phone: authPhone, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
@@ -303,7 +304,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 
   // ── Métricas derivadas ─────────────────────────────────────
   const saldo       = (resumo?.receitas || 0) - (resumo?.gastos || 0);
-  const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoBRL(w) ?? 0), 0);
+  const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0);
 
   // Humor da baleia: com receita lançada → taxa de economia; sem receita →
   // quanto do saldo disponível do banco já foi gasto no mês (fica triste se
@@ -516,13 +517,13 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   // lançamentos pendentes INCLUINDO os atrasados, que continuam tendo de ser
   // pagos. Refiltrar aqui derrubaria justamente a conta vencida.
   const saldoPrevisto = useMemo(() => calcularSaldoProjetado(
-    // ⚠️ NORMALIZADO EM BRL antes de entrar. O helper soma `saldo` cru, e esta
-    // aba mostra `saldoBRL(w)` logo acima, no mesmo card: com conta em moeda
-    // estrangeira os dois números discordariam a um centímetro um do outro.
-    wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoBRL(w) ?? 0 })),
+    // ⚠️ NORMALIZADO NA MOEDA BASE antes de entrar. O helper soma `saldo` cru, e
+    // esta aba mostra `saldoNaBase(w)` logo acima, no mesmo card: com conta em
+    // moeda estrangeira os dois números discordariam a um centímetro um do outro.
+    wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
     [{ tipo: 'Recebimento' as const, valor: totalReceber, dia_vencimento: 0 },
      { tipo: 'Gasto' as const, valor: totalPagar, dia_vencimento: 0 }],
-  ).projetado, [wallets, totalReceber, totalPagar]);
+  ).projetado, [wallets, totalReceber, totalPagar, moedaBase]);
 
   // ── Dados para gráficos ────────────────────────────────────
 

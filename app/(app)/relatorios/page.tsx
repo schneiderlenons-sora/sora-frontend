@@ -17,7 +17,7 @@ export default async function RelatoriosPage() {
       resumoDireto(ctx.grupoId, mes),
       resumoDireto(ctx.grupoId, mesAnt),
       transacoesDireto(ctx.grupoId, { mes, limit: 500 }),
-      walletsDireto(ctx.grupoId),
+      walletsDireto(ctx.grupoId, ctx.moedaBase),
       categoriasDireto(ctx.grupoId),
     ]);
     initialData = { resumo, resumoAnt, txs, wallets, cats };

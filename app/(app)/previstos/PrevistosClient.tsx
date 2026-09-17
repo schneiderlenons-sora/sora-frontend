@@ -14,7 +14,7 @@ import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
-import { saldoBRL } from '@/lib/moeda';
+import { saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -30,7 +30,7 @@ import { criarPrevistoUnico } from '@/lib/previsto-unico';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -113,6 +113,7 @@ const MESES_A_FRENTE = 6;
 type Aba = 'receitas' | 'despesas' | 'caixa' | 'projecao' | 'extrato';
 
 export default function PrevistosClient({ phoneInicial }: { phoneInicial?: string }) {
+  const moedaBase = useMoedaBase();
   const { phone: authPhone } = useAuth();
   const phone = authPhone || phoneInicial || '';
 
@@ -175,8 +176,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // ── Projeção ─────────────────────────────────────────────────────────────
   const saldoHoje = useMemo(
     () => wallets.filter((w: any) => w.tipo !== 'Crédito')
-      .reduce((s: number, w: any) => s + (saldoBRL(w) ?? 0), 0),
-    [wallets],
+      .reduce((s: number, w: any) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
+    [wallets, moedaBase],
   );
 
   // ── Extrato Futuro (aba adicional) ───────────────────────────────────────
@@ -208,8 +209,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     // lançamento — a mesma regra do filtro das linhas, que não pode divergir
     // desta. ⚠️ Mora em `lib/saldo-conta.ts` porque Transações mostra o MESMO
     // saldo atual/previsto da conta filtrada: uma cópia aqui divergiria de lá.
-    return saldoInicialDaConta(wallets, carteiraExtrato);
-  }, [carteiraExtrato, wallets, saldoHoje]);
+    return saldoInicialDaConta(wallets, carteiraExtrato, moedaBase);
+  }, [carteiraExtrato, wallets, saldoHoje, moedaBase]);
   const [quitandoRec, setQuitandoRec] = useState<string | null>(null);
   const ligado = !!phone && aba === 'extrato';
   const ymProx = somarMeses(ymHoje, 1);
@@ -380,11 +381,11 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
 
   const proj = useMemo(
     () => calcularSaldoProjetado(
-      wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoBRL(w) ?? 0 })),
+      wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
       previstosDoMes.itens,
       previstosDoMes.extras,
     ),
-    [wallets, previstosDoMes],
+    [wallets, previstosDoMes, moedaBase],
   );
 
   const projecao = useMemo<MesProjetado[]>(() => projetarMeses({

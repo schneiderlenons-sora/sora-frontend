@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ehPagamentoFatura, ehAjusteSaldo } from './categorizar';
 import { proximoVencimento, hojeSP } from './vencimento-divida';
+import { normalizarMoeda, casasDaMoeda } from './moeda';
 
 // =============================================================================
 // Leitura DIRETA no Supabase para o SSR — corta o hop lento do Render no
@@ -212,33 +213,53 @@ export async function transacoesDireto(
 // ⚠️ TOLERANTE: sem a 159 (ou sem linha pra aquela moeda) o campo não vem e o
 // comportamento é o de antes — o SWR corrige em seguida. Conta em real nunca
 // depende da tabela.
-export async function walletsDireto(grupoId: string) {
+//
+// ⚠️ MOEDA BASE DO GRUPO (migration 168): além do `saldo_brl` de sempre, manda
+// `saldo_base`/`taxa_base`/`moeda_base` — a mesma forma do `comSaldoNaBase` do
+// backend, que é o que o painel soma (`lib/moeda.saldoNaBase`). Num grupo em
+// real, `saldo_base` é o próprio `saldo_brl`. A cotação da BASE entra na mesma
+// consulta: o pivô pelo real precisa das duas pontas.
+export async function walletsDireto(grupoId: string, moedaBase?: string | null) {
   const { data } = await supabaseAdmin.from('wallets').select('*').eq('grupo_id', grupoId).order('nome');
   const ws = data || [];
+  const base = normalizarMoeda(moedaBase);
 
   const moedas = [...new Set(ws.map((w: any) => String(w.moeda || 'BRL').toUpperCase()))]
     .filter((m) => m !== 'BRL');
-  if (!moedas.length) {
-    return ws.map((w: any) => ({ ...w, saldo_brl: Number(w.saldo) || 0 }));
+  const consultar = base === 'BRL' ? moedas : [...new Set([...moedas, base])];
+  if (!consultar.length) {
+    return ws.map((w: any) => {
+      const s = Number(w.saldo) || 0;
+      return { ...w, saldo_brl: s, moeda_base: base, saldo_base: s };
+    });
   }
 
   let taxa: Record<string, number> = {};
   try {
     const { data: cot } = await supabaseAdmin.from('cotacoes_moeda')
-      .select('moeda, taxa_brl').in('moeda', moedas);
+      .select('moeda, taxa_brl').in('moeda', consultar);
     for (const c of cot || []) {
       const t = Number((c as any).taxa_brl);
       if (Number.isFinite(t) && t > 0) taxa[String((c as any).moeda).toUpperCase()] = t;
     }
   } catch { taxa = {}; }
 
+  const emBRL = (m: string) => (m === 'BRL' ? 1 : taxa[m]);
+  const escalaBase = 10 ** casasDaMoeda(base);
   return ws.map((w: any) => {
     const m = String(w.moeda || 'BRL').toUpperCase();
-    if (m === 'BRL') return { ...w, saldo_brl: Number(w.saldo) || 0 };
+    const s = Number(w.saldo) || 0;
     const t = taxa[m];
     // Sem cotação guardada, deixa `saldo_brl` FORA (undefined) em vez de null:
     // null é "o câmbio falhou de verdade", e aqui só não temos o dado ainda.
-    return t ? { ...w, saldo_brl: Math.round((Number(w.saldo) || 0) * t * 100) / 100, taxa_brl: t } : w;
+    const emReal = m === 'BRL' ? { saldo_brl: s } : t ? { saldo_brl: Math.round(s * t * 100) / 100, taxa_brl: t } : {};
+    // Na base: mesma regra — sem as duas pontas, o campo não vem.
+    const ta = emBRL(m);
+    const tb = emBRL(base);
+    const naBase = m === base
+      ? { moeda_base: base, saldo_base: s, taxa_base: 1 }
+      : ta && tb ? { moeda_base: base, saldo_base: Math.round(s * (ta / tb) * escalaBase) / escalaBase, taxa_base: ta / tb } : {};
+    return { ...w, ...emReal, ...naBase };
   });
 }
 
@@ -349,12 +370,12 @@ export async function dividasDireto(grupoId: string, userId: string) {
 }
 
 // Consolidado do dashboard — mesma forma do GET /api/dashboard/:phone.
-export async function dashboardDireto(grupoId: string, mes: string, mesAnt: string) {
+export async function dashboardDireto(grupoId: string, mes: string, mesAnt: string, moedaBase?: string | null) {
   const agora = new Date().toISOString();
   const [resumo, resumoAnt, wallets, txsRec, txsMes, categorias] = await Promise.all([
     resumoDireto(grupoId, mes),
     resumoDireto(grupoId, mesAnt),
-    walletsDireto(grupoId),
+    walletsDireto(grupoId, moedaBase),
     transacoesDireto(grupoId, { limit: 8, ate: agora }),
     // ⚠️ Só o GRÁFICO usa colunas enxutas. A lista de recentes (acima) segue
     // com `select('*')` + embed do criador, porque ela MOSTRA observação,

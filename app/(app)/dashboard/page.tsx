@@ -20,7 +20,7 @@ export default async function DashboardPage() {
 
   let data: any;
   try {
-    if (ctx.grupoId) data = await dashboardDireto(ctx.grupoId, mesAtual(), mesAnterior());
+    if (ctx.grupoId) data = await dashboardDireto(ctx.grupoId, mesAtual(), mesAnterior(), ctx.moedaBase);
   } catch {
     data = undefined;
   }

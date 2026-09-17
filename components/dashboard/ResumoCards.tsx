@@ -14,9 +14,9 @@ import {
   fatiasDeContas, saldoPorContaDe, gastoPorContaDe, acumuladoDe,
   IconesContas, BarraContas, Sparkline,
 } from '@/components/dashboard/stat-visuais';
-import { saldoBRL } from '@/lib/moeda';
+import { saldoNaBase } from '@/lib/moeda';
 import { useFmt } from '@/lib/valores-ocultos';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 
 // =============================================================================
 // Os stat cards abaixo do card de hábitos.
@@ -73,6 +73,7 @@ export default function ResumoCards({
   monthName?: string;
 }) {
   const fmtCru = useDinheiro({ entrada: 'ouZero' });
+  const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
@@ -152,11 +153,11 @@ export default function ResumoCards({
   // (com as zeradas e as negativas — esconder conta no vermelho é esconder
   // justamente o que o usuário precisa ver).
   const listaContas = useMemo(
-    // ⚠️ `saldoBRL`, não `w.saldo`: o saldo cru está NA MOEDA DA CONTA, e
+    // ⚠️ `saldoNaBase`, não `w.saldo`: o saldo cru está NA MOEDA DA CONTA, e
     //    exibi-lo com "R$" mostra 4.090 coroas como R$ 4.090. O total do
     //    card já convertia, então as duas metades discordavam.
-    () => contas.map(w => ({ nome: w.nome as string, saldo: saldoBRL(w) })),
-    [contas],
+    () => contas.map(w => ({ nome: w.nome as string, saldo: saldoNaBase(w, moedaBase) })),
+    [contas, moedaBase],
   );
   const fatias = useMemo(() => fatiasDeContas(listaContas), [listaContas]);
   const saldoPorConta = useMemo(() => saldoPorContaDe(listaContas), [listaContas]);

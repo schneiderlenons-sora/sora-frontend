@@ -8,12 +8,12 @@ import {
 import { mutate as mutateGlobal } from 'swr';
 import { api, type ModoLancamentoFixo } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
-import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda, valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
+import { normalizarMoeda, ehEstrangeira, MOEDAS, formatarMoeda, valorDasUnidades, textoDasUnidades, unidadesDoValor, taxaParaBase } from '@/lib/moeda';
 import { calcularDataFim, hojeSP, type Frequencia } from '@/lib/frequencia-recorrencia';
 import Link from 'next/link';
 import { criarPrevistoUnico } from '@/lib/previsto-unico';
 import { categorizarDescricao, ajustarPorDirecao } from '@/lib/categorizar';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 
 /**
  * Formulário de conta fixa — frequência, duração e antecedência do aviso.
@@ -133,9 +133,12 @@ export type RecorrenciaForm = {
   lembrete_dias?:  number | null;
 };
 
-// `moeda`/`taxa_brl` vêm do backend (migration 144) — a conta fixa é lida na
-// moeda DA CONTA, igual à transação avulsa.
-type Wallet = { id: string; nome: string; tipo?: string; saldo?: number; moeda?: string | null; taxa_brl?: number | null };
+// `moeda`/`taxa_brl`/`taxa_base` vêm do backend (migrations 144 e 168) — a conta
+// fixa é lida na moeda DA CONTA, igual à transação avulsa.
+type Wallet = {
+  id: string; nome: string; tipo?: string; saldo?: number; moeda?: string | null;
+  taxa_brl?: number | null; taxa_base?: number | null; moeda_base?: string | null;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Controles reutilizados — um só padrão de seleção no formulário inteiro.
@@ -356,19 +359,23 @@ export default function FormRecorrencia({
   //    quis dizer kr 20.000 (≈ R$ 11.000) — o campo dizia "R$" fixo e não havia
   //    como escolher outra moeda. Quem converte é o backend; aqui só rotulamos.
   const contaSel   = useMemo(() => opcoesContas.find((c) => c.nome === carteira), [opcoesContas, carteira]);
-  const moedaConta = normalizarMoeda(contaSel?.moeda);
-  const contaEstrangeira = ehEstrangeira(moedaConta);
+  //
+  // ⚠️ "Estrangeira" é relativo à moeda BASE do grupo (migration 168), e conta
+  //    que não está na lista (o 'Dinheiro' que ainda vai nascer) está na base.
+  const moedaBase  = useMoedaBase();
+  const moedaConta = contaSel ? normalizarMoeda(contaSel.moeda) : moedaBase;
+  const contaEstrangeira = ehEstrangeira(moedaConta, moedaBase);
 
-  // Referência em real. Sai da `taxa_brl` que a própria carteira traz, então é
-  // o mesmo número que ele verá depois; sem ela, mostra só a moeda em vez de
-  // inventar uma conta.
-  const equivalenteBRL = useMemo(() => {
+  // Referência na moeda base. Sai da `taxa_base` que a própria carteira traz,
+  // então é o mesmo número que ele verá depois; sem ela, mostra só a moeda em
+  // vez de inventar uma conta.
+  const equivalenteBase = useMemo(() => {
     if (!contaEstrangeira) return null;
-    const t = Number(contaSel?.taxa_brl);
+    const t = Number(taxaParaBase(contaSel, moedaBase));
     const v = valorDasUnidades(centavos, moedaConta);
     if (!Number.isFinite(t) || t <= 0 || !v) return null;
     return v * t;
-  }, [contaEstrangeira, contaSel?.taxa_brl, centavos, moedaConta]);
+  }, [contaEstrangeira, contaSel, moedaBase, centavos, moedaConta]);
 
   // Foco: no valor ao criar (é o primeiro dado que a pessoa tem na cabeça),
   // na descrição ao editar (o valor já está lá).
@@ -646,7 +653,7 @@ export default function FormRecorrencia({
             {contaEstrangeira && (
               <p className="mt-1.5 text-[11px] text-muted-foreground">
                 Valor em <b className="text-foreground">{MOEDAS[moedaConta].nome}</b>
-                {equivalenteBRL !== null && <> · ≈ {formatarMoeda(equivalenteBRL, 'BRL')}</>}
+                {equivalenteBase !== null && <> · ≈ {formatarMoeda(equivalenteBase, moedaBase)}</>}
               </p>
             )}
           </div>
