@@ -24,7 +24,8 @@ import {
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { MOEDAS, cartaoForaDaBase, normalizarMoeda, valorDoCartaoNaBase } from '@/lib/moeda';
 const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NOMES  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -48,10 +49,17 @@ interface Wallet {
   bandeira?:       string | null;
   ultimos4?:       string | null;
   dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
+  // Moeda do cartão (migration 144) e a taxa dela pra base do grupo (168).
+  // Fatura, limite e pagamentos deste cartão estão NESTA moeda.
+  moeda?:      string | null;
+  taxa_base?:  number | null;
+  moeda_base?: string | null;
+  taxa_brl?:   number | null;
 }
 
 export default function CartaoClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmt = useDinheiro();
+  const moedaBase = useMoedaBase();
   const { phone: authPhone, perfil, limiteDe } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const limiteCartoes = limiteDe('cartoes');
@@ -288,13 +296,15 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
 
   // O restante só vale pra fatura ATUAL (é o que os cards reportam); navegando
   // pra uma fatura anterior, o header volta a somar o bruto daquele ciclo.
+  // ⚠️ Cada card está NA MOEDA DO CARTÃO; a soma vai pra moeda do grupo
+  // (migration 168). Cartão na base: o próprio valor. Sem câmbio fica fora.
   const faturaTotal = useMemo(
     () => wallets.reduce((s, w) => {
       const bruto = faturaPorCartao[w.id] || 0;
       const usaRestante = mesIndex === 0 && restantePorCartao[w.id] !== undefined;
-      return s + (usaRestante ? restantePorCartao[w.id] : bruto);
+      return s + (valorDoCartaoNaBase(usaRestante ? restantePorCartao[w.id] : bruto, w, moedaBase) ?? 0);
     }, 0),
-    [wallets, restantePorCartao, faturaPorCartao, mesIndex]
+    [wallets, restantePorCartao, faturaPorCartao, mesIndex, moedaBase]
   );
 
   // Limite COMPROMETIDO por cartão = fatura atual + parcelas futuras.
@@ -328,8 +338,9 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
         const comp = passo === 0 ? competenciaAtual(w) : competenciaVizinha(w, competenciaAtual(w), passo);
         const ciclo = cicloPorCompetencia(w, comp);
         if (!rotulo) rotulo = MES_ABREV[parseInt(comp.slice(5, 7), 10) - 1];
-        total += somarFatura(pote
-          .filter((t) => mesmaCarteira(t, w) && pertenceAFatura(t, w, ciclo, passo === 0)));
+        // Soma na moeda do cartão; o gráfico junta cartões, então vai pra base.
+        total += valorDoCartaoNaBase(somarFatura(pote
+          .filter((t) => mesmaCarteira(t, w) && pertenceAFatura(t, w, ciclo, passo === 0))), w, moedaBase) ?? 0;
       }
       // Sem cartão nenhum: mantém o eixo com o rótulo do mês.
       if (!rotulo) {
@@ -339,7 +350,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
       return { mes: rotulo, ref: String(passo), total, atual: i === 0 };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txsHistorico, wallets, mesIndex]);
+  }, [txsHistorico, wallets, mesIndex, moedaBase]);
 
   return (
     <>
@@ -629,7 +640,14 @@ interface CardCartaoProps {
 }
 
 function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
-  const fmt = useDinheiro();
+  // ⚠️ Tudo neste card está NA MOEDA DO CARTÃO (migration 168): fatura, limite,
+  // pago e rollover — é o número que o app do banco mostra. Num grupo em real
+  // (todo cartão hoje) é a mesma moeda do grupo e nada muda.
+  const fmt = useDinheiro({ moeda: cartao.moeda });
+  const fmtBase = useDinheiro();
+  const moedaBase = useMoedaBase();
+  const outraMoeda = cartao.moeda != null && normalizarMoeda(cartao.moeda) !== moedaBase;
+  const pagamentoTravado = cartaoForaDaBase(cartao, moedaBase);
   const { phone } = useAuth();
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);
@@ -786,6 +804,12 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
         <p className="text-2xl font-bold text-foreground tabular tracking-tight mt-0.5">
           {ocultar ? '••••••' : fmt(restante)}
         </p>
+        {/* Cartão em outra moeda: o equivalente na do grupo, como nas contas. */}
+        {outraMoeda && !ocultar && valorDoCartaoNaBase(restante, cartao, moedaBase) !== null && (
+          <p className="text-[11px] text-muted-foreground tabular mt-0.5">
+            ≈ {fmtBase(valorDoCartaoNaBase(restante, cartao, moedaBase) as number)}
+          </p>
+        )}
 
         {/* Período do ciclo — explica de onde vem o valor (compras de X a Y),
             que é o ponto todo da migração pro ciclo real de fechamento. */}
@@ -828,12 +852,21 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
           </div>
         )}
 
-        {restante > 0 && !paga && (
+        {restante > 0 && !paga && (pagamentoTravado ? (
+          // ⚠️ Cartão em outra moeda que a do grupo: o backend recusa o
+          // pagamento pela Sora (debitaria uma conta misturando moedas). A tela
+          // EXPLICA em vez de mostrar botão desabilitado, que leria como defeito.
+          <p className="relative mt-2 text-[11px] text-muted-foreground leading-snug">
+            {cartao.of_conta_id
+              ? 'O pagamento deste cartão chega pelo próprio banco.'
+              : `Pagar pela Sora ainda não está disponível pra cartão em ${MOEDAS[normalizarMoeda(cartao.moeda)].nome.toLowerCase()}.`}
+          </p>
+        ) : (
           <button onClick={(e) => { e.stopPropagation(); setPagarOpen(true); }}
             className="relative z-10 mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-bold hover:bg-primary hover:text-white transition-colors">
             <CreditCard size={11} /> Pagar fatura
           </button>
-        )}
+        ))}
 
         {/* Alerta de fechamento não configurado */}
         {!diaFechamento ? (

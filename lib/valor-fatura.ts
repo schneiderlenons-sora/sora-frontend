@@ -22,6 +22,8 @@
 export type TxFatura = {
   tipo?: string | null;
   valor?: number | null;
+  /** Valor ORIGINAL quando a carteira não está na moeda base (migration 168). */
+  valor_moeda?: number | null;
   categoria?: string | null;
   transferencia?: boolean | null;
   /** "Nao considerar" do usuario (migration 146). 'tudo' sai tambem da fatura. */
@@ -63,7 +65,11 @@ export function valorNaFatura(t?: TxFatura | null): number {
   // receita/despesa e a MANTEM na fatura. ESPELHA services/valorFatura.js.
   if (t.ignorar_em === 'tudo') return 0;
 
-  const v = Math.abs(Number(t.valor) || 0);
+  // ⚠️ NA MOEDA DO CARTÃO, não na do grupo (migration 168). Num grupo em dólar
+  //    o cartão em real guarda `valor` em dólar e o original em `valor_moeda`,
+  //    e tudo que a fatura compara (total do banco, limite, pagamentos) está em
+  //    real. Sem `valor_moeda` (cartão na moeda do grupo) é o `valor`.
+  const v = Math.abs(Number(t.valor_moeda ?? t.valor) || 0);
 
   if (t.tipo === 'Gasto') return v;
   if (t.tipo !== 'Recebimento') return 0;

@@ -11,10 +11,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
-import { api } from '@/lib/api';
+import { api, type FaturaCartao } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
-import { saldoNaBase } from '@/lib/moeda';
+import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -163,7 +163,13 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
 
   const recorrencias = useMemo(() => (Array.isArray(recData) ? recData : []), [recData]);
   const dividas  = useMemo(() => (divData as any)?.dividas || [], [divData]);
-  const faturas  = useMemo(() => (fatData as any)?.faturas || [], [fatData]);
+  // ⚠️ Previstos SOMA a fatura com contas fixas e dívidas: vai pra moeda do
+  // grupo (migration 168). A fatura vem na moeda do CARTÃO; na base é o mesmo
+  // objeto. Sem câmbio ela fica fora — nunca entra em real somada como dólar.
+  const faturas  = useMemo(
+    () => ((fatData as any)?.faturas || []).map((f: FaturaCartao) => faturaNaBase(f, moedaBase)).filter(Boolean),
+    [fatData, moedaBase],
+  );
   const wallets  = useMemo(() => (Array.isArray(walData) ? walData : []), [walData]);
   const resumo   = (resData as any) || null;
 

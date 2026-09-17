@@ -5,7 +5,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import BaleiaHumor, { humorPorFinancas } from '@/components/relatorios/BaleiaHumor';
-import { api } from '@/lib/api';
+import { api, type FaturaCartao } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import { getCategoriaTheme, nomeCategoria, citrico } from '@/lib/categorias';
@@ -16,7 +16,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
-import { saldoNaBase } from '@/lib/moeda';
+import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
 import {
   aindaVemNoMes, diaHojeSP, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -462,7 +462,9 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   }, [divData]);
 
   const previstosFatura = useMemo(() => {
-    const lista = (fatData as any)?.faturas || [];
+    // Na moeda do GRUPO (migration 168): a pendência entra num total com as
+    // outras. Cartão na base: o mesmo objeto. Sem câmbio fica fora.
+    const lista = ((fatData as any)?.faturas || []).map((f: FaturaCartao) => faturaNaBase(f, moedaBase)).filter(Boolean);
     return lista
       .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false
         // A data INTEIRA manda: o ciclo do cartão cruza meses, e reduzido ao
@@ -477,7 +479,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
         variavel: false,
         origem: 'Fatura de cartão',
       }));
-  }, [fatData]);
+  }, [fatData, moedaBase]);
 
   const previstos = useMemo(
     () => [...previstosFixos, ...previstosDivida, ...previstosFatura]

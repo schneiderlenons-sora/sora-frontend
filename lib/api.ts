@@ -174,6 +174,16 @@ export type FaturaCartao = FaturaCiclo & {
   nome: string;
   limite: number | null;
   of: boolean;             // Open Finance → valor vem do banco (−saldo)
+  /**
+   * Moeda da fatura = a do CARTÃO (migration 168): todos os valores desta linha
+   * estão nela. `taxa_base` leva pra moeda do grupo (use `faturaNaBase` pra
+   * somar). Ausentes em payload antigo — aí a fatura é da moeda do grupo.
+   */
+  moeda?: string;
+  moeda_base?: string;
+  taxa_base?: number | null;
+  /** Por que pagar/antecipar pela Sora está travado neste cartão, ou null. */
+  bloqueio_pagamento?: string | null;
   fatura: number;          // total do ciclo
   pago: number;            // já pago nessa competência
   restante: number;        // fatura − pago (é o que o painel destaca)

@@ -71,9 +71,12 @@ export type EntradaDinheiro = 'cru' | 'ouZero' | 'finitoOuZero';
  * refaria o memo à toa.
  */
 export function useDinheiro(
-  opts: { entrada?: EntradaDinheiro; maximoCasas?: number } = {},
+  // `moeda`: formata numa moeda que NÃO é a do grupo — o cartão em real num
+  // grupo em dólar mostra a fatura em real. Ausente (ou vazia), é a base.
+  opts: { entrada?: EntradaDinheiro; maximoCasas?: number; moeda?: string | null } = {},
 ): (v: number) => string {
-  const moeda = useMoedaBase();
+  const base = useMoedaBase();
+  const moeda = opts.moeda ? normalizarMoeda(opts.moeda) : base;
   const { entrada = 'cru', maximoCasas } = opts;
   return useMemo(() => (v: number) => {
     const n = entrada === 'ouZero' ? (v || 0)

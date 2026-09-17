@@ -70,7 +70,8 @@ type ModoLancamento = ModoLancamentoFixo;
 // de onde foi aberta — e ninguém reporta isso, só sente.
 import { MODOS } from '@/components/previstos/FormRecorrencia';
 import { useFmt } from '@/lib/valores-ocultos';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { faturaNaBase } from '@/lib/moeda';
 
 // `saldo` sempre vem (a rota faz `select('*')`) — o tipo é que não declarava,
 // e sem ele o saldo projetado somaria `undefined` e daria sempre zero.
@@ -88,6 +89,7 @@ interface Props {
 
 export default function GastosFixosSection({ phone, wallets }: Props) {
   const fmtCru = useDinheiro();
+  const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
   // Em ref, não na lista de dependências do `carregar`: ele dispara um efeito
   // de carregamento, e uma identidade instável aqui viraria laço de requisições.
@@ -251,10 +253,14 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     if (!phone) return;
     try {
       const r = await api.wallets.faturas(phone, 0);
-      const lista = (r?.faturas || []) as FaturaPrevista[];
+      // ⚠️ Na moeda do GRUPO (migration 168): a fatura soma com as contas fixas
+      // no total do mês. Cartão na base: o mesmo objeto. Sem câmbio fica fora.
+      const lista = ((r?.faturas || []) as FaturaPrevista[])
+        .map((f) => faturaNaBase(f, moedaBase))
+        .filter((f): f is FaturaPrevista => !!f);
       setFaturas(lista.filter((f) => Number(f.restante) > 0.01));
     } catch { setFaturas([]); }
-  }, [phone]);
+  }, [phone, moedaBase]);
 
   const carregarSugestoes = useCallback(async () => {
     try { const r = await api.recorrencias.sugestoes(); setSugestoes(r.sugestoes || []); }

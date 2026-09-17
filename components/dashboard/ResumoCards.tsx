@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Wallet, TrendingUp, TrendingDown, CreditCard, ChevronDown,
   ArrowUpRight, ArrowDownRight,
@@ -14,7 +14,7 @@ import {
   fatiasDeContas, saldoPorContaDe, gastoPorContaDe, acumuladoDe,
   IconesContas, BarraContas, Sparkline,
 } from '@/components/dashboard/stat-visuais';
-import { saldoNaBase } from '@/lib/moeda';
+import { formatarDinheiro, normalizarMoeda, saldoNaBase, valorDoCartaoNaBase } from '@/lib/moeda';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 
@@ -75,6 +75,15 @@ export default function ResumoCards({
   const fmtCru = useDinheiro({ entrada: 'ouZero' });
   const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
+  // Valor de UM cartão, na moeda DELE (migration 168) — é o que o app do banco
+  // mostra. Cartão na moeda do grupo (todo cartão hoje) usa o `fmt` de sempre.
+  const fmtCartaoCru = useCallback(
+    (v: number, moeda?: string | null) => (moeda == null || normalizarMoeda(moeda) === moedaBase
+      ? fmtCru(v)
+      : formatarDinheiro(v || 0, normalizarMoeda(moeda))),
+    [fmtCru, moedaBase],
+  );
+  const fmtCartao = useFmt(fmtCartaoCru);
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
 
@@ -136,16 +145,29 @@ export default function ResumoCards({
         // vinculada junto com o ciclo novo.
         const billId = billApi[w.id] || null;
         const criterio = criterioDaFatura(minhas, w, true, ciclo, billId);
+        // ⚠️ Cartão em outra moeda que a do grupo (migration 168): a soma local
+        //    só vale se as transações trouxerem `valor_moeda`. O SSR do dashboard
+        //    lê colunas enxutas, SEM ela — somar ali daria o valor na moeda do
+        //    grupo com o símbolo do cartão. Aí espera o servidor (`—`).
+        const outraMoeda = w.moeda != null && normalizarMoeda(w.moeda) !== moedaBase;
+        const somaLocalValida = !outraMoeda || minhas.every(t => t.valor_moeda !== undefined);
         // Soma ASSINADA (lib/valor-fatura.ts): estorno/crédito ABATE a fatura.
         const local = (w.of_conta_id && typeof w.saldo === 'number' && w.saldo < 0)
           ? -(w.saldo as number)
-          : somarFatura(minhas.filter(t => pertenceAFatura(t, w, ciclo, true, criterio, billId)));
-        const fatura = restanteApi[w.id] ?? local;
+          : somaLocalValida
+            ? somarFatura(minhas.filter(t => pertenceAFatura(t, w, ciclo, true, criterio, billId)))
+            : null;
+        const fatura: number | null = restanteApi[w.id] ?? local;
         const limite = w.limite || 0;
-        return { id: w.id, nome: w.nome, fatura, limite, disponivel: Math.max(limite - fatura, 0) };
+        return {
+          id: w.id, nome: w.nome, moeda: w.moeda as string | null | undefined, fatura, limite,
+          disponivel: fatura === null ? null : Math.max(limite - fatura, 0),
+          // "Maior fatura" compara cartões: na moeda do grupo. Na base, é a própria.
+          faturaBase: fatura === null ? null : valorDoCartaoNaBase(fatura, w, moedaBase),
+        };
       })
-      .sort((a, b) => b.fatura - a.fatura);
-  }, [wallets, txsMes, restanteApi, billApi]);
+      .sort((a, b) => (b.faturaBase ?? 0) - (a.faturaBase ?? 0));
+  }, [wallets, txsMes, restanteApi, billApi, moedaBase]);
 
   const cartaoTop = cartoes[0] || null;
 
@@ -186,7 +208,7 @@ export default function ResumoCards({
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Faturas por cartão</p>
           <div className="space-y-3">
             {cartoes.map(c => {
-              const pct = c.limite > 0 ? Math.min((c.fatura / c.limite) * 100, 100) : 0;
+              const pct = c.limite > 0 && c.fatura !== null ? Math.min((c.fatura / c.limite) * 100, 100) : 0;
               return (
                 <div key={c.id}>
                   <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -196,14 +218,16 @@ export default function ResumoCards({
                       </span>
                       <span className="text-sm font-semibold text-foreground truncate">{c.nome}</span>
                     </span>
-                    <span className="text-sm font-bold tabular text-foreground whitespace-nowrap">{fmt(c.fatura)}</span>
+                    <span className="text-sm font-bold tabular text-foreground whitespace-nowrap">{c.fatura === null ? '—' : fmtCartao(c.fatura, c.moeda)}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: '#7c3aed' }} />
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1 tabular">
-                    {c.limite > 0
-                      ? <>Limite: usado {fmt(c.fatura)} de {fmt(c.limite)} · disponível {fmt(c.disponivel)}</>
+                    {c.limite > 0 && c.fatura !== null
+                      ? <>Limite: usado {fmtCartao(c.fatura, c.moeda)} de {fmtCartao(c.limite, c.moeda)} · disponível {fmtCartao(c.disponivel ?? 0, c.moeda)}</>
+                      : c.limite > 0
+                      ? <>Limite: {fmtCartao(c.limite, c.moeda)}</>
                       : <>Sem limite cadastrado</>}
                   </p>
                 </div>
@@ -258,11 +282,11 @@ export default function ResumoCards({
       <StatCard
         className="order-2 lg:order-4"
         label="Cartões"
-        value={cartaoTop ? fmt(cartaoTop.fatura) : fmtCru(0)}
+        value={cartaoTop ? (cartaoTop.fatura === null ? '—' : fmtCartao(cartaoTop.fatura, cartaoTop.moeda)) : fmtCru(0)}
         valueColor="#7c3aed"
         icon={CreditCard} iconColor="#7c3aed"
         sub={cartaoTop ? `Maior fatura · ${cartaoTop.nome}` : 'Nenhum cartão'}
-        barra={cartaoTop && cartaoTop.limite > 0 ? Math.min((cartaoTop.fatura / cartaoTop.limite) * 100, 100) : null}
+        barra={cartaoTop && cartaoTop.limite > 0 && cartaoTop.fatura !== null ? Math.min((cartaoTop.fatura / cartaoTop.limite) * 100, 100) : null}
         barraCor="#7c3aed"
         aberto={aberto === 'cartoes'}
         onToggle={cartoes.length ? () => toggle('cartoes') : undefined}

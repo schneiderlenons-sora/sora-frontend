@@ -211,11 +211,39 @@ dólar lançada à mão num grupo em real), e cada lançamento é gravado conver
 - `eval:moeda-base` §8 passa pelo `sincronizarConsentimento` real com Celcoin e
   banco falsos, nos dois tipos de grupo. Mutation-testado.
 
-**⏭️ Próximo, com calma (pedido do dono): o CARTÃO do Open Finance em grupo
-fora do real.** A fatura soma `transacoes.valor` como se fosse a moeda do cartão
-em todos os pontos (`valorFatura`, `faturaVista`, parcelas previstas, faturas
-publicadas, `DetalhesCartaoModal`, `CartaoClient`, agenda, a pagar) — é suportar
-cartão em moeda estrangeira, que hoje não existe (0 na base). Empréstimos,
+**5e — Cartão numa moeda diferente da base (C1 backend + C2 painel, feito).**
+Suporte ao cartão em outra moeda que a do grupo. O caso real é o cartão do Open
+Finance (só fala real) num grupo em dólar. **O sync ainda NÃO importa cartão
+nesse grupo** (5d): ligar isso é o C3, a próxima etapa.
+- **A regra:** fatura, limite, pagamentos e parcelas previstas ficam NA MOEDA
+  DO CARTÃO, que é o número que o app do banco mostra. A soma da fatura usa o
+  original (`valor_moeda ?? valor`). Só quem SOMA cartão com outra coisa
+  converte pra base: "Fatura atual" e gráfico da aba Cartões, Previstos, a
+  seção de gastos fixos em Transações, pendências dos Relatórios, "a pagar",
+  "gastos por cartão" (zap), Oráculo e Agenda.
+- **Payload:** `/faturas` e `/fatura/status` trazem `moeda`, `moeda_base`,
+  `taxa_base` e `bloqueio_pagamento`. No painel: `useDinheiro({ moeda })` pro
+  valor de um cartão; `valorDoCartaoNaBase` / `faturaNaBase` pra somar.
+- ⚠️ **Pagar fatura e antecipar parcela ficam TRAVADOS nesse cartão**, em todas
+  as portas: painel (`/fatura/pagar`, `/antecipar-cartao`), WhatsApp (pagar
+  fatura, antecipar parcela) e o aviso automático de fatura do cron (só avisa,
+  não pergunta a conta). Debitar uma conta pela fatura misturaria moedas, e o
+  pagamento desse cartão já chega pelo banco (`registrarPagamentosDoOF`). A tela
+  explica em vez de mostrar botão. **Grupo em real NUNCA trava.** Decisão
+  tomada por mim no MVP, reversível — confirmar com o dono antes do C3.
+- **Compra parcelada** (painel e zap) no cartão fora da base guarda o original
+  e converte `valor`, igual ao lançamento avulso.
+- ⚠️ **Oráculo lia carteira sem `moeda` no select** — conta em outra moeda era
+  somada como real no caixa (bug de antes da 168, corrigido junto).
+- Medido antes (17/09/2026): 232 cartões, todos em real; 218 grupos em real;
+  nenhuma transação de cartão com `valor_moeda`. **Nada muda pra quem já usa.**
+- `eval:moeda-base` §9 (rotas, zap, cron, Oráculo, Agenda; o banco falso passou
+  a projetar as colunas do `select`, o que pegou a classe do bug do Oráculo) —
+  25 mutações, todas detectadas. `eval:moeda` §8 e `eval:dinheiro` no painel.
+
+**⏭️ Próximo — C3: importar o cartão do Open Finance em grupo fora do real**
+(`polpCelcoinSync`: transações do cartão com `cambio`, faturas publicadas e
+limite em real) e atualizar o aviso da tela de Open Finance. Empréstimos,
 investimentos e caixinhas do banco vêm depois, cada um medido à parte.
 
 **Pendentes anotados, fora da moeda base:** `fotografarPatrimonio` soma

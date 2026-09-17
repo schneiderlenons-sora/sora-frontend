@@ -243,6 +243,72 @@ export function taxaParaBase(
   return null;
 }
 
+// ── Cartão numa moeda diferente da base (migration 168) ─────────────────────
+//
+// O caso real é o cartão do Open Finance (só fala real) num grupo em dólar. A
+// fatura, o limite e os pagamentos estão NA MOEDA DO CARTÃO — é o número que o
+// app do banco mostra. Só o que SOMA cartão com outra coisa converte pra base.
+
+type CartaoLike = {
+  moeda?: string | null;
+  taxa_base?: number | null; moeda_base?: string | null; taxa_brl?: number | null;
+};
+
+/**
+ * Pagar e antecipar pela Sora ficam travados neste cartão? Espelha
+ * `cartaoForaDaBase` do backend (services/moeda.js).
+ *
+ * ⚠️ Grupo em REAL nunca trava — é o que mantém todo grupo que já existe
+ * igual. E `moeda` AUSENTE não trava às cegas (payload antigo em cache).
+ */
+export function cartaoForaDaBase(cartao: CartaoLike | null | undefined, base?: string | null): boolean {
+  if (!cartao || cartao.moeda === undefined) return false;
+  const b = normalizarMoeda(base);
+  if (b === MOEDA_PADRAO) return false;
+  return normalizarMoeda(cartao.moeda) !== b;
+}
+
+/**
+ * Leva um valor que está NA MOEDA DO CARTÃO pra moeda base, pra entrar em soma
+ * com outros cartões. `cartao` é a carteira (/wallets) ou a fatura (/faturas) —
+ * as duas trazem `taxa_base`. Cartão na base devolve o próprio valor.
+ *
+ * ⚠️ `moeda` ausente é tratada como a base: é payload de antes deste campo, e
+ * até ele existir todo cartão nascia na moeda do grupo.
+ * ⚠️ `null` = câmbio indisponível, nunca um número em moeda errada.
+ */
+export function valorDoCartaoNaBase(valor: number, cartao: CartaoLike | null | undefined, base?: string | null): number | null {
+  const b = normalizarMoeda(base);
+  if (cartao?.moeda == null || normalizarMoeda(cartao.moeda) === b) return valor;
+  const t = taxaParaBase(cartao, b);
+  if (t === null) return null;
+  const escala = 10 ** casasDaMoeda(b);
+  return Math.round((Number(valor) || 0) * t * escala) / escala;
+}
+
+/**
+ * A fatura de /faturas com os valores levados pra moeda base — pra quem SOMA
+ * (Previstos, pendências dos Relatórios). Cartão na base devolve o MESMO objeto.
+ * `null` sem câmbio: quem chama tira a fatura da soma.
+ */
+export function faturaNaBase<F extends CartaoLike & {
+  fatura?: number; pago?: number; restante?: number; total_previsto?: number;
+  vencida?: { restante: number } | null; proxima?: { restante: number; fatura?: number } | null;
+}>(f: F, base?: string | null): F | null {
+  const b = normalizarMoeda(base);
+  if (!f || f.moeda == null || normalizarMoeda(f.moeda) === b) return f;
+  if (taxaParaBase(f, b) === null) return null;
+  const n = (v: number) => valorDoCartaoNaBase(v, f, b) as number;   // a taxa existe (checada acima)
+  const o = (v: number | undefined) => (typeof v === 'number' ? n(v) : v);
+  return {
+    ...f,
+    fatura: o(f.fatura), pago: o(f.pago), restante: o(f.restante), total_previsto: o(f.total_previsto),
+    vencida: f.vencida ? { ...f.vencida, restante: n(f.vencida.restante) } : f.vencida,
+    proxima: f.proxima ? { ...f.proxima, restante: n(f.proxima.restante), fatura: o(f.proxima.fatura) } : f.proxima,
+    moeda: b,
+  } as F;
+}
+
 /** Soma saldos NA MOEDA BASE avisando o que ficou de fora. */
 export function somarSaldosNaBase(ws: CarteiraLike[], base?: string | null): { total: number; semCambio: number } {
   let total = 0;

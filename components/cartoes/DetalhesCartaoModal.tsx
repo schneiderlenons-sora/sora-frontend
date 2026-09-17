@@ -11,7 +11,8 @@ import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { fmtDataBR } from '@/lib/data-br';
 import { useFmt } from '@/lib/valores-ocultos';
-import { useDinheiro } from '@/lib/moeda-base';
+import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { cartaoForaDaBase } from '@/lib/moeda';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -39,8 +40,14 @@ interface Props {
 }
 
 export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, onClose, onRefresh, onExcluir }: Props) {
-  const fmtCru = useDinheiro();
+  // ⚠️ A fatura, as compras e as parcelas estão NA MOEDA DO CARTÃO (migration
+  // 168). Saldo de conta (no seletor de antecipação) segue na moeda do grupo,
+  // como sempre foi. Num grupo em real as duas são a mesma.
+  const fmtCru = useDinheiro({ moeda: cartao?.moeda });
   const fmt = useFmt(fmtCru);
+  const fmtBaseCru = useDinheiro();
+  const fmtBase = useFmt(fmtBaseCru);
+  const antecipacaoTravada = cartaoForaDaBase(cartao, useMoedaBase());
   // ⚠️ Começa JÁ na competência da fatura (mês do vencimento), não no mês do
   // calendário: partir do mês errado fazia o modal buscar as transações de DOIS
   // ciclos diferentes ao abrir, e a resposta que chegasse por último ganhava —
@@ -141,7 +148,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
       setTxs(prev => prev.map(t => ({ ...t, pago: true })));
       setEscolhendoConta(false);
       onRefresh?.();
-      alert(`✅ Fatura antecipada: ${fmt(r.debitado)} debitado de ${contaNome}.`);
+      alert(`✅ Fatura antecipada: ${fmtBase(r.debitado)} debitado de ${contaNome}.`);
     } catch (e: any) {
       alert(e.message || 'Erro ao antecipar.');
     } finally {
@@ -295,7 +302,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
     const acc: Record<string, number> = {};
     txs.filter(t => t.tipo === 'Gasto').forEach(t => {
       const cat = t.categoria || '📦 Outros';
-      acc[cat] = (acc[cat] || 0) + (t.valor || 0);
+      acc[cat] = (acc[cat] || 0) + ((t.valor_moeda ?? t.valor) || 0);   // moeda do cartão
     });
     return Object.entries(acc)
       .sort((a, b) => b[1] - a[1])
@@ -311,7 +318,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
     // Só Gasto, mesma razão do ranking por categoria acima.
     txs.filter(t => t.tipo === 'Gasto').forEach(t => {
       const c = t.of_card || t.pluggy_card;
-      if (c) acc[c] = (acc[c] || 0) + (t.valor || 0);
+      if (c) acc[c] = (acc[c] || 0) + ((t.valor_moeda ?? t.valor) || 0);
     });
     return Object.entries(acc).sort((a, b) => b[1] - a[1]).map(([numero, total]) => ({ numero, total }));
   }, [txs]);
@@ -451,7 +458,17 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
           </div>
 
           {/* Antecipar parcelas em aberto desta fatura */}
-          {txs.some(t => t.pago === false) && !escolhendoConta && (
+          {/* ⚠️ Cartão em outra moeda que a do grupo: o backend recusa a
+              antecipação (debitaria uma conta misturando moedas). Explica em
+              vez de oferecer um botão que falharia. */}
+          {antecipacaoTravada && txs.some(t => t.pago === false) && (
+            <p className="text-xs text-muted-foreground text-center leading-relaxed px-2">
+              {cartao?.of_conta_id
+                ? 'As parcelas deste cartão são pagas pelo próprio banco.'
+                : 'Antecipar pela Sora ainda não está disponível pra cartão em outra moeda.'}
+            </p>
+          )}
+          {!antecipacaoTravada && txs.some(t => t.pago === false) && !escolhendoConta && (
             <button
               onClick={() => setEscolhendoConta(true)}
               disabled={antecipando}
@@ -479,7 +496,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
                   className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/40 transition-all text-left disabled:opacity-60"
                 >
                   <span className="text-sm font-medium text-foreground truncate">{c.nome}</span>
-                  <span className="text-xs text-muted-foreground tabular flex-shrink-0">{fmt(c.saldo || 0)}</span>
+                  <span className="text-xs text-muted-foreground tabular flex-shrink-0">{fmtBase(c.saldo || 0)}</span>
                 </button>
               ))}
             </div>
@@ -687,7 +704,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
                         <p className="text-[11px] text-muted-foreground">{data}</p>
                       </div>
                       <p className="text-sm font-semibold text-foreground tabular flex-shrink-0">
-                        {fmt(tx.valor)}
+                        {fmt(tx.valor_moeda ?? tx.valor)}
                       </p>
                     </div>
                   );
