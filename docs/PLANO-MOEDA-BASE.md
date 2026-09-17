@@ -1,6 +1,6 @@
 # Moeda principal (base) configurável — plano aprovado
 
-> **Status:** EM ANDAMENTO. Fases **0, 4, 1 e 2 feitas** (16–17/09/2026). Próxima: **Fase 5**.
+> **Status:** EM ANDAMENTO. Fases **0, 4, 1 e 2 feitas**; **Fase 5 em andamento** (5a, 5b e 5c feitas — 17/09/2026).
 > **Decidido pelo dono:** as duas primeiras moedas são **USD (dólar)** e
 > **NOK (coroa norueguesa)**; no MVP a moeda base **trava** depois que o grupo
 > tem lançamento.
@@ -136,7 +136,59 @@ em dólar.
   compara com BRL (armadilha 10) — só faz sentido trocar junto com a conversão
   do backend pra base.
 
-### ⏭️ Próximo: Fase 5 — subsistemas que cravam real
+### 🔄 Fase 5 — subsistemas que cravam real (em andamento, 17/09/2026)
+
+**5a — backend converte pra BASE (feito, `sora-backend` 5f2e15a).**
+- `camposTransacao(v, moeda, tabela, base)` e `somarSaldos(ws, tabela, base)`
+  com base opcional (default BRL); `taxasParaBase`, `saldoNaBase`,
+  `comSaldoNaBase` (payload ganha `moeda_base`/`saldo_base`/`taxa_base`;
+  `saldo_brl`/`taxa_brl` seguem em real, sem renomear — armadilha 6).
+- ⚠️ **Invariante escrita no `services/moeda.js`:** `transacoes.moeda` NULL = na
+  base; preenchida = conta de outra moeda. A coluna `taxa_brl` passa a guardar a
+  taxa PARA A BASE (em grupo em real, é a mesma coisa). Medido: nenhuma linha
+  com `moeda = 'BRL'`.
+- `moedaBaseDoGrupo` com **cache de 10 min por grupo** (egress) e
+  `esquecerMoedaBase(grupoId)`. ⚠️ **A Fase 6 (escolher a moeda) TEM de trocar a
+  base por uma rota do backend que chame `esquecerMoedaBase`** — gravando direto
+  pelo Supabase, esta instância converteria pela base antiga por até 10 min.
+- Pontos migrados: lançamento do painel e do zap, mover de conta, confirmar e
+  criar/editar conta fixa, cron de câmbio das contas fixas, "Paguei", rateio, a
+  pagar no cartão, Oráculo, "ver saldos", `/api/wallets` e `/api/dashboard`.
+  ⚠️ **Conta que não existe é lida como a BASE, não como real** (o 'Dinheiro' que
+  ainda vai nascer).
+- ⚠️ **Conta nova sem moeda nascia em real** — o default da coluna é 'BRL' e 8
+  caminhos do backend criam carteira sem mandar moeda. [`sql/169`](../../sora-backend/sql/169_wallet_moeda_da_base.sql)
+  troca o default por um gatilho que usa a base do grupo. **Obrigatória antes
+  da Fase 6.** O POST do painel já manda a base na criação.
+- `evals/moedaBase.eval.js` (`npm run eval:moeda-base`): em BRL compara com
+  cópia congelada das funções antigas (3.582 casos) e passa pela rota real; em
+  USD/NOK cobre conversão, cache, rotas, cron, "Paguei", rateio e cartões.
+  Mutation-testado.
+
+**5b — painel soma na BASE (feito, `sora-frontend` 80a89b4).** `saldoNaBase`,
+`somarSaldosNaBase`, `taxaParaBase`, `ehEstrangeira(m, base)`; SSR manda os
+mesmos campos. Dashboard, Resumo, Transações, Previstos/Extrato, Relatórios e
+Contas somam na base; Nova transação e Conta fixa comparam com a base e o "≈"
+sai nela; conta nova abre na base. `eval:moeda` §7 prova igualdade com
+`saldoBRL` em toda forma de payload.
+
+**5c — investimentos (feito).** Cotação **em real** (B3, cripto) vira a base no
+"Atualizar preços", no job das 03:00 e na cotação do modal (`precoBase`).
+⚠️ **Cotação em OUTRA moeda segue sem conversão, como sempre foi** —
+`fatorCotacaoParaBase`. Defeito anterior medido: um "MELI" (40 cotas, aportado
+R$ 2.729,20) aparece como **R$ 73.157,60** porque o preço em dólar da Nasdaq entra
+como real (provavelmente o cliente comprou o BDR MELI34). Corrigir muda o número
+desse cliente — **espera decisão do dono**.
+
+**Pendentes da Fase 5 que dependem de decisão do dono:**
+- **Open Finance em grupo fora do real.** A Celcoin só fala real, e o subsistema
+  de fatura inteiro soma `transacoes.valor` como se fosse a moeda do CARTÃO. Pra
+  um cartão brasileiro num grupo em dólar funcionar, a fatura teria de somar o
+  nativo em todos os pontos (`valorFatura`, `faturaVista`, parcelas previstas,
+  faturas publicadas, telas) — é suportar cartão em moeda estrangeira, que hoje
+  não existe (0 na base).
+- **Negócios** (`lancamentos_negocio` em centavos, DRE, Simples/DAS, Hotmart):
+  o módulo é brasileiro por natureza.
 
 ---
 

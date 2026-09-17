@@ -660,9 +660,10 @@ export const api = {
       req<any[]>(`/api/investimentos/buscar-ticker?q=${encodeURIComponent(q)}`),
     buscarCripto: (q: string) =>
       req<any[]>(`/api/investimentos/buscar-cripto?q=${encodeURIComponent(q)}`),
-    /** Cotação atual JÁ em reais (converte USD→BRL etc.). */
+    /** Cotação atual JÁ em reais (converte USD→BRL etc.) e na moeda base do grupo (`precoBase`). */
     cotacao: (ticker: string, tipo: 'acao' | 'cripto') =>
-      req<{ precoBRL?: number; moeda?: string; precoOriginal?: number; moedaOriginal?: string; taxa?: number; variacaoDia?: number }>(
+      req<{ precoBRL?: number; moeda?: string; precoOriginal?: number; moedaOriginal?: string; taxa?: number; variacaoDia?: number;
+            precoBase?: number; moedaBase?: string; taxaBase?: number }>(
         `/api/investimentos/cotacao?ticker=${encodeURIComponent(ticker)}&tipo=${tipo}`),
     atualizarPrecos: (phone: string) =>
       req<{ atualizados: number; total: number }>(`/api/investimentos/atualizar-precos/${phone}`, { method: 'POST' }),

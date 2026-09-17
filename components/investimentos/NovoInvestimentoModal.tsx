@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, ChevronLeft, Shield } from 'lucide-react';
 import { api } from '@/lib/api';
 import AutocompleteTicker, { TickerResult } from './AutocompleteTicker';
+import { useMoedaBase, useSimboloMoeda } from '@/lib/moeda-base';
 
 const TIPOS = [
   { v: 'Ações',           emoji: '📈', desc: 'Brasileiras e internacionais', autoTicker: true },
@@ -43,6 +44,8 @@ interface Props {
 }
 
 export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Props) {
+  const moedaBase = useMoedaBase();
+  const simbolo = useSimboloMoeda();
   const [step, setStep] = useState<1 | 2>(1);
   const [tipoSel, setTipoSel] = useState<typeof TIPOS[number] | null>(null);
 
@@ -85,19 +88,23 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
     const tk = r.cripto ? (r.id || r.ticker.toLowerCase()) : r.ticker;
     setTicker(tk);
     if (!nome) setNome(r.nome);
-    // Busca a cotação atual (já em R$) e preenche o preço automaticamente.
+    // Busca a cotação atual (já na moeda base do grupo) e preenche o preço.
     setCotacaoInfo(null);
     setBuscandoCotacao(true);
     try {
       const c = await api.investimentos.cotacao(tk, r.cripto ? 'cripto' : 'acao');
-      if (c?.precoBRL) {
-        setPrecoUnitario(fmtPrecoInput(c.precoBRL));
+      // ⚠️ `precoBase` é o preço NA MOEDA DO GRUPO (migration 168). Backend
+      //    antigo não o manda: aí só dá pra usar o `precoBRL` num grupo em real
+      //    — num grupo em dólar ele preencheria reais como se fossem dólares.
+      const preco = c?.precoBase ?? (moedaBase === 'BRL' ? c?.precoBRL : undefined);
+      if (preco) {
+        setPrecoUnitario(fmtPrecoInput(preco));
         const q = parseFloat(quantidade) || 0;
-        if (q > 0) setValorAportado((q * c.precoBRL).toFixed(2));
+        if (q > 0) setValorAportado((q * preco).toFixed(2));
         setCotacaoInfo(
-          c.moedaOriginal
-            ? `Cotação: R$ ${c.precoBRL.toFixed(2)} · convertido de ${c.precoOriginal?.toFixed(2)} ${c.moedaOriginal} (câmbio ${c.taxa?.toFixed(2)})`
-            : `Cotação atual: R$ ${fmtPrecoInput(c.precoBRL)}`
+          c.moedaOriginal && c.moedaOriginal !== moedaBase
+            ? `Cotação: ${simbolo} ${preco.toFixed(2)} · convertido de ${c.precoOriginal?.toFixed(2)} ${c.moedaOriginal} (câmbio ${(c.taxaBase ?? c.taxa)?.toFixed(2)})`
+            : `Cotação atual: ${simbolo} ${fmtPrecoInput(preco)}`
         );
       } else {
         setCotacaoInfo('Não achei a cotação automática — preencha o preço manualmente.');
@@ -267,7 +274,7 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
                     <input type="number" step="any" value={quantidade} onChange={e => setQuantidade(e.target.value)} onBlur={calcValorAportado} className="input tabular" />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Preço médio (R$)</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Preço médio ({simbolo})</label>
                     <input type="number" step="any" value={precoUnitario} onChange={e => setPrecoUnitario(e.target.value)} onBlur={calcValorAportado} className="input tabular" />
                   </div>
                 </div>
@@ -307,7 +314,7 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
               {/* Valor + Data (sempre) */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Valor aportado (R$) *</label>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Valor aportado ({simbolo}) *</label>
                   <input type="number" step="any" value={valorAportado} onChange={e => setValorAportado(e.target.value)} className="input tabular text-right font-bold" />
                 </div>
                 <div>
