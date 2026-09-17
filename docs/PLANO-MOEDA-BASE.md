@@ -136,7 +136,7 @@ em dólar.
   compara com BRL (armadilha 10) — só faz sentido trocar junto com a conversão
   do backend pra base.
 
-### 🔄 Fase 5 — subsistemas que cravam real (em andamento, 17/09/2026)
+### ✅ Fase 5 — subsistemas que cravam real (17/09/2026)
 
 **5a — backend converte pra BASE (feito, `sora-backend` 5f2e15a).**
 - `camposTransacao(v, moeda, tabela, base)` e `somarSaldos(ws, tabela, base)`
@@ -280,9 +280,41 @@ importados também num grupo em dólar/coroa.
   aprendeu o `not(col, 'in', …)` da reconciliação (sem ele apagava a caixinha
   que acabara de entrar) e a paginação (`range`).
 
-**⏭️ Próximo:** Fase 3 (textos do WhatsApp com "R$" cravado) e Fase 6 (escolher
-a moeda no onboarding — hoje nenhum grupo sai do real, então tudo da Fase 5 é
-inerte até ela existir).
+### ✅ Fase 3 — textos do WhatsApp (17/09/2026)
+
+Os 370 `R$` cravados viraram `services/moeda.formatar`. A porta única é
+**`formatadorDoGrupo(grupoId)`** (`const fmt = await formatadorDoGrupo(id)`), e
+a base é cacheada 10 min — chamar por item não custa ida de rede.
+
+- **Três moedas convivem no mesmo texto, e é de propósito:** o **grupo** (todo
+  total, porque `transacoes.valor` já está na base), a **conta** (saldo é
+  NATIVO — conta em coroa responde em coroa) e o **cartão** (fatura, limite e
+  parcela ficam na moeda dele). Foi o erro mais fácil de cometer: formatar o
+  saldo de uma conta em dólar com o símbolo do grupo.
+- ⚠️ **O formato mudou pra TODO MUNDO, inclusive em real:** `R$ 1234.56` virava
+  `toFixed(2)` com ponto em dezenas de linhas; agora sai `R$ 1.234,56`. É
+  correção de um defeito antigo, não regressão.
+- ⚠️ **O símbolo é concatenado À MÃO** em `formatar`, nunca `style: 'currency'`:
+  o Intl insere um **espaço não separável (U+00A0)** entre símbolo e número, e
+  caractere invisível dentro de **parâmetro de template da Meta** é risco que só
+  aparece em produção. Medido no corpo do resumo: a única diferença pro texto
+  antigo é justamente esse NBSP virando espaço comum.
+- ⚠️ **O PROMPT DA IA DO RESUMO TAMBÉM FALA A MOEDA DO GRUPO** — few-shot
+  inclusive. A instrução manda a IA *não* repetir valores, mas o 3º exemplo
+  mostra ela citando um ("um IOF de R$120"): com os exemplos em real, um grupo
+  em coroa receberia a frase falando em reais. **Provado byte a byte:** com a
+  base em BRL o prompt sai idêntico ao do commit anterior, nas 8 mensagens.
+- **Ficam em real de propósito:** `data/faq.js`, `routes/webhook.js` e
+  `services/ia.js` (são os **preços da Sora**, cobrados em real) e a aba
+  Negócios inteira (decisão já registrada acima).
+- **Sobrou um `console.log`** em `services/reconciliarPrevisto.js` com `R$`
+  cravado — é log de servidor, ninguém lê pelo WhatsApp; formatá-lo exigiria uma
+  consulta de moeda só pra isso.
+- Suíte do backend inteira verde (55 evals) + `eval:moeda-base` §9 com o texto
+  no formato novo.
+
+**⏭️ Próximo:** Fase 6 (escolher a moeda no onboarding). Hoje **nenhum grupo sai
+do real**, então tudo das Fases 3 e 5 é inerte até ela existir.
 
 **Pendentes anotados, fora da moeda base:** `fotografarPatrimonio` soma
 `wallets.saldo` cru (conta estrangeira entra sem conversão no gráfico de

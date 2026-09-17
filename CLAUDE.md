@@ -2527,6 +2527,15 @@ nisso. Plano completo aprovado; a Fase 1 está feita.
   cartão com `useDinheiro({ moeda: cartao.moeda })`; soma de cartões com
   `valorDoCartaoNaBase` / `faturaNaBase` (`lib/moeda.ts`). Pagar/antecipar
   cartão fora da base é travado — `cartaoForaDaBase`, espelho do backend.
+- **Moeda (WhatsApp/backend):** `const fmt = await formatadorDoGrupo(grupoId)`
+  de `services/moeda.js` — **nunca** `R$ ${v.toFixed(2)}` num texto novo (além
+  de cravar o real, `toFixed` usa PONTO decimal: "R$ 1234.56"). ⚠️ **Três moedas
+  convivem no mesmo texto:** total é do **GRUPO** (`transacoes.valor` já está na
+  base), saldo é da **CONTA** (`formatar(v, conta.moeda)` — saldo é nativo) e
+  fatura/limite/parcela são do **CARTÃO** (`c.moeda || base`). ⚠️ O símbolo é
+  concatenado à mão de propósito: `style: 'currency'` insere U+00A0, e
+  caractere invisível em parâmetro de template da Meta só quebra em produção.
+  Preço da Sora (FAQ, webhook, `ia.js`) e a aba Negócios continuam em real.
 - **Plano guard:** sempre usar `podeUsar(plano, feature)` de `lib/plans.ts`
 - **IA local-first:** preferir parsers/banco locais (regex, lookup) antes de chamar a OpenAI (gpt-4o-mini); sempre manter fallback local
 - **Skill `ai-prompting` (auto):** ao mexer na IA/interpretador (`ia.js`, `interpretador.js`, `categorizar.js`, system prompt, mapear frase→ação, "não entendi", structured outputs/JSON mode, evals/bateria de perguntas), usar a skill `ai-prompting` **sem o usuário precisar pedir**. (Espelha a regra de usar `ui-ux-pro-max` em todo design novo.)
