@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ValoresProvider, COOKIE_VALORES } from '@/lib/valores-ocultos';
+import { MoedaBaseProvider } from '@/lib/moeda-base';
+import { contextoSSR } from '@/lib/ssr';
 
 // =============================================================================
 // Shell ÚNICO das abas do painel.
@@ -51,11 +53,19 @@ import { ValoresProvider, COOKIE_VALORES } from '@/lib/valores-ocultos';
 // ⚠️ Fica NESTE layout, e não no `app/layout.tsx`: ler cookie torna o segmento
 // dinâmico, e as rotas do painel já são (`ƒ`). Subir isso pro layout raiz
 // arrastaria a landing junto, que não usa a preferência.
+//
+// ⚠️ A MOEDA BASE DO GRUPO TAMBÉM É LIDA AQUI, pelo mesmo motivo: lida só no
+// cliente, o primeiro paint sairia com "R$" e trocaria pro símbolo do grupo
+// depois da hidratação. `contextoSSR` é `React.cache` — as abas que já o chamam
+// na página dividem esta MESMA leitura, sem ida extra ao banco.
 export default async function AppShellLayout({ children }: { children: React.ReactNode }) {
-  const ocultos = (await cookies()).get(COOKIE_VALORES)?.value === '1';
+  const [jar, ctx] = await Promise.all([cookies(), contextoSSR()]);
+  const ocultos = jar.get(COOKIE_VALORES)?.value === '1';
   return (
-    <ValoresProvider inicial={ocultos}>
-      <DashboardLayout>{children}</DashboardLayout>
-    </ValoresProvider>
+    <MoedaBaseProvider moeda={ctx?.moedaBase}>
+      <ValoresProvider inicial={ocultos}>
+        <DashboardLayout>{children}</DashboardLayout>
+      </ValoresProvider>
+    </MoedaBaseProvider>
   );
 }

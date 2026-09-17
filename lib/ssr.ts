@@ -1,6 +1,7 @@
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { headers } from 'next/headers';
+import { cache } from 'react';
 import { normalizarMoeda, type Moeda } from '@/lib/moeda';
 
 // Helper de SSR das abas: resolve a sessão no servidor (cookie → JWT + phone) e
@@ -37,7 +38,15 @@ export function ehErroDaColunaBase(e: { message?: string } | null | undefined): 
   return /moeda_base/i.test(e?.message || '');
 }
 
-export async function contextoSSR(): Promise<CtxSSR | null> {
+/**
+ * ⚠️ `React.cache`: memoizado POR REQUISIÇÃO. O layout do painel lê a moeda
+ * base daqui e 11 abas chamam de novo na página — sem o cache seriam duas
+ * leituras de `users` (e dois `getSession`) na mesma carga. O escopo é a
+ * requisição, então não vaza nada entre usuários.
+ */
+export const contextoSSR = cache(contextoSSRSemCache);
+
+async function contextoSSRSemCache(): Promise<CtxSSR | null> {
   try {
     if (!BASE) return null;
     const supabase = await createSupabaseServer();

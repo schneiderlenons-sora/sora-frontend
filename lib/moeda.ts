@@ -62,6 +62,70 @@ export function formatarMoeda(valor: number | null | undefined, m?: string | nul
   return `${MOEDAS[cod].simbolo} ${txt}`;
 }
 
+// ── Dinheiro do PAINEL, na moeda base do grupo (migration 168) ──────────────
+//
+// ⚠️ NÃO É O `formatarMoeda` ACIMA, e não pode ser. Medido: o painel inteiro
+// formata com `Intl.NumberFormat('pt-BR', { style: 'currency' })`, que produz
+// `-R$⍽1.250,50` — sinal ANTES do símbolo e ESPAÇO INQUEBRÁVEL (U+00A0) entre
+// o símbolo e o número. O `formatarMoeda` produz `R$ -1.250,50` com espaço
+// comum. Trocar os 43 arquivos do painel por ele mudaria TODO valor da tela, e
+// o espaço comum deixaria o "R$" quebrar de linha sozinho em card estreito.
+// Ele fica como está: é o espelho do `formatar` do WhatsApp.
+//
+// Este usa o MESMO motor do painel e troca só o símbolo pelo do catálogo — o
+// Intl em pt-BR escreve "NOK" e "JP¥" onde a Sora escreve "kr" e "¥" (no
+// WhatsApp inclusive). Em BRL o símbolo trocado é o mesmo "R$", então a saída é
+// idêntica caractere por caractere; `eval:dinheiro` trava isso.
+//
+// ⚠️ A GRAFIA DOS NÚMEROS SEGUE O IDIOMA DO PAINEL (pt-BR), NÃO A MOEDA. Moeda
+// é do grupo; idioma é do usuário — são eixos separados. Um brasileiro com o
+// grupo em coroa lê "kr 20.000,00", não "kr 20 000,00".
+//
+// ⚠️ SEM `casas` DO CATÁLOGO AQUI: o Intl já conhece as casas de cada moeda
+// (iene e peso chileno saem sem centavos sozinhos). Passar mínimo/máximo só
+// quando a tela pede explicitamente (`maximoCasas`), senão a saída em BRL
+// deixaria de ser a de sempre.
+
+const cacheFormatadores = new Map<string, Intl.NumberFormat>();
+
+function formatadorIntl(moeda: Moeda, maximoCasas?: number): Intl.NumberFormat {
+  const chave = `${moeda}|${maximoCasas ?? ''}`;
+  let nf = cacheFormatadores.get(chave);
+  if (!nf) {
+    nf = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: moeda,
+      ...(maximoCasas !== undefined ? { maximumFractionDigits: maximoCasas } : {}),
+    });
+    cacheFormatadores.set(chave, nf);
+  }
+  return nf;
+}
+
+/** Símbolo da moeda como a Sora escreve (R$, US$, kr…). */
+export function simboloMoeda(m?: string | null): string {
+  return MOEDAS[normalizarMoeda(m)].simbolo;
+}
+
+/**
+ * Formata dinheiro no painel, na moeda informada.
+ *
+ * NÃO normaliza a entrada: `NaN` sai como antes (`R$ NaN`). Quem zerava valor
+ * inválido continua zerando antes de chamar — ver `useDinheiro({ entrada })`.
+ */
+export function formatarDinheiro(
+  valor: number,
+  m?: string | null,
+  opts: { maximoCasas?: number } = {},
+): string {
+  const cod = normalizarMoeda(m);
+  const simbolo = MOEDAS[cod].simbolo;
+  return formatadorIntl(cod, opts.maximoCasas)
+    .formatToParts(valor)
+    .map((p) => (p.type === 'currency' ? simbolo : p.value))
+    .join('');
+}
+
 /** Tipo mínimo de carteira que as telas somam. */
 type CarteiraLike = { saldo?: number | null; saldo_brl?: number | null; moeda?: string | null };
 
