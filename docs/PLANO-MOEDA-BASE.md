@@ -254,10 +254,35 @@ faturas publicadas, limite, pagamentos e parcelas previstas em real.
 - A tela de Open Finance avisa que conta e cartão entram em real e que pagar
   pela Sora não fica disponível nesses cartões.
 
-**⏭️ Próximo:** empréstimos, investimentos e caixinhas do banco em grupo fora do
-real (cada um medido à parte); Fase 3 (textos do WhatsApp com "R$" cravado);
-Fase 6 (escolher a moeda no onboarding — hoje nenhum grupo sai do real, então
-tudo da Fase 5 é inerte até ela existir).
+**5f — O resto do Open Finance em grupo fora do real (feito).** Empréstimo,
+financiamento, investimento (com as movimentações) e caixinha passam a ser
+importados também num grupo em dólar/coroa.
+- **A regra:** essas tabelas não têm coluna de valor original, e o painel soma
+  tudo como moeda do grupo. Então o item entra **CONVERTIDO** pelo câmbio do dia
+  (`comDinheiroNaBase`) e é regravado a cada sync — o valor em dólar de um CDB
+  em real muda com o câmbio, que é o certo pra quem vive em outra moeda. A
+  movimentação do investimento é histórico: congela na taxa da entrada.
+- ⚠️ **Sem câmbio o item NÃO entra** (e a caixinha existente não é apagada —
+  ela conta como "vista" na reconciliação). Gravar real como dólar é o erro que
+  isto existe pra impedir.
+- **Rentabilidade** é razão (não muda com a conversão) e **quantidade** não é
+  dinheiro. **Preço unitário** arredonda em 8 casas, não em centavo.
+- ⚠️ **A FOTO DO PATRIMÔNIO somava `wallets.saldo` CRU** — nos dois lugares
+  (`fotografarPatrimonio` do sync e o JOB 4 do cron). Num grupo em dólar a conta
+  do banco entrava como dólar; num grupo em real, a conta em coroa entrava como
+  real. Agora usa `totalDeSaldosNaBase` (sem carteira fora da base, é a soma de
+  sempre, sem ida de rede). Bug de antes da 168 — afeta o grupo com as 3 contas
+  em outra moeda.
+- Medido antes: os 632 investimentos e as 14 caixinhas do Open Finance estão
+  **todos em real**, como os 218 grupos. **Nada muda pra quem já usa.**
+- `eval:moeda-base` §8 (empréstimo, investimento, movimentação, caixinha e a
+  foto, nos dois tipos de grupo) — 11 mutações, todas detectadas. O banco falso
+  aprendeu o `not(col, 'in', …)` da reconciliação (sem ele apagava a caixinha
+  que acabara de entrar) e a paginação (`range`).
+
+**⏭️ Próximo:** Fase 3 (textos do WhatsApp com "R$" cravado) e Fase 6 (escolher
+a moeda no onboarding — hoje nenhum grupo sai do real, então tudo da Fase 5 é
+inerte até ela existir).
 
 **Pendentes anotados, fora da moeda base:** `fotografarPatrimonio` soma
 `wallets.saldo` cru (conta estrangeira entra sem conversão no gráfico de

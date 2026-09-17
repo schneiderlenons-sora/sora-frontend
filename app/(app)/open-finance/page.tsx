@@ -537,10 +537,11 @@ export default function OpenFinancePage() {
                 só fala real: contas e cartões entram em real e cada lançamento é
                 convertido pra moeda do grupo. A fatura fica em real (como no app
                 do banco) e pagar/antecipar pela Sora é travado nesses cartões.
-                Empréstimo, investimento e caixinha ainda NÃO são importados (o
-                sync nem os busca). A tela diz isso ANTES de a pessoa conectar —
-                descobrir depois leria como defeito. Em grupo em real o bloco não
-                existe e a tela fica idêntica. */}
+                Empréstimo, investimento e caixinha entram CONVERTIDOS pelo câmbio
+                do dia e são regravados a cada sync — o valor deles acompanha o
+                câmbio, que é o certo pra quem vive em outra moeda. A tela diz isso
+                ANTES de a pessoa conectar — descobrir depois leria como defeito.
+                Em grupo em real o bloco não existe e a tela fica idêntica. */}
             {moedaBase !== 'BRL' && (
               <div role="note" className="rounded-2xl border border-border bg-muted/40 p-4 flex gap-3">
                 <Info size={18} className="flex-shrink-0 mt-0.5 text-muted-foreground" aria-hidden />
@@ -557,7 +558,8 @@ export default function OpenFinancePage() {
                     próprio banco — pagar ou antecipar pela Sora não fica disponível nesses cartões.
                   </p>
                   <p>
-                    Empréstimos, investimentos e caixinhas do banco ainda não são importados neste grupo.
+                    Empréstimos, investimentos e caixinhas entram convertidos pelo câmbio do dia, então o
+                    valor deles acompanha o câmbio.
                   </p>
                 </div>
               </div>
