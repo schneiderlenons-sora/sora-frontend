@@ -534,12 +534,13 @@ export default function OpenFinancePage() {
             <GerenciarCobrancaConexao pagas={Number(perfil?.of_conexoes_pagas) || 0} />
 
             {/* ⚠️ GRUPO FORA DO REAL (migration 168). O Open Finance brasileiro
-                só fala real: as contas entram em real e cada lançamento é
-                convertido pra moeda do grupo; cartão, empréstimo, investimento
-                e caixinha ainda NÃO são importados (o sync nem os busca). A tela
-                diz isso ANTES de a pessoa conectar — descobrir depois, com o
-                cartão faltando, leria como defeito. Em grupo em real o bloco
-                não existe e a tela fica idêntica. */}
+                só fala real: contas e cartões entram em real e cada lançamento é
+                convertido pra moeda do grupo. A fatura fica em real (como no app
+                do banco) e pagar/antecipar pela Sora é travado nesses cartões.
+                Empréstimo, investimento e caixinha ainda NÃO são importados (o
+                sync nem os busca). A tela diz isso ANTES de a pessoa conectar —
+                descobrir depois leria como defeito. Em grupo em real o bloco não
+                existe e a tela fica idêntica. */}
             {moedaBase !== 'BRL' && (
               <div role="note" className="rounded-2xl border border-border bg-muted/40 p-4 flex gap-3">
                 <Info size={18} className="flex-shrink-0 mt-0.5 text-muted-foreground" aria-hidden />
@@ -548,12 +549,15 @@ export default function OpenFinancePage() {
                     Seu grupo está em {MOEDAS[moedaBase].nome.toLowerCase()}
                   </p>
                   <p>
-                    O Open Finance traz as <b className="text-foreground">contas do banco em real</b>, e cada
-                    lançamento é convertido para {MOEDAS[moedaBase].nome.toLowerCase()} pelo câmbio do dia.
+                    O Open Finance traz as <b className="text-foreground">contas e os cartões do banco em real</b>, e
+                    cada lançamento é convertido para {MOEDAS[moedaBase].nome.toLowerCase()} pelo câmbio do dia.
                   </p>
                   <p>
-                    Cartões de crédito, empréstimos, investimentos e caixinhas do banco ainda não são
-                    importados neste grupo.
+                    A fatura do cartão continua em real, igual ao app do banco. O pagamento dela chega pelo
+                    próprio banco — pagar ou antecipar pela Sora não fica disponível nesses cartões.
+                  </p>
+                  <p>
+                    Empréstimos, investimentos e caixinhas do banco ainda não são importados neste grupo.
                   </p>
                 </div>
               </div>

@@ -199,10 +199,11 @@ dólar lançada à mão num grupo em real), e cada lançamento é gravado conver
 (`inserirTransacoes(…, cambio)`).
 - ⚠️ **Não dava pra "deixar como está":** o sync gravava o lançamento sem moeda,
   e num grupo em dólar R$ 100 contariam como US$ 100 em todo o painel.
-- ⚠️ **Cartão, empréstimo, investimento e caixinha NÃO são importados** num grupo
-  fora do real — o sync nem os busca na Celcoin. Todos gravam real em tabela que
-  o painel soma como moeda do grupo. A tela de Open Finance **avisa antes** de a
-  pessoa conectar; o relatório do sync também registra.
+- ⚠️ **Empréstimo, investimento e caixinha NÃO são importados** num grupo fora
+  do real — o sync nem os busca na Celcoin. Todos gravam real em tabela que o
+  painel soma como moeda do grupo. A tela de Open Finance **avisa antes** de a
+  pessoa conectar; o relatório do sync também registra. (O **cartão** passou a
+  ser importado no 5e/C3.)
 - ⚠️ **A cobrança que ASSUME a previsão da conta fixa** (`reconciliarPrevisto`)
   passa a levar o original e a taxa do banco — antes só o `valor`, e a linha
   ficaria com o nativo da previsão.
@@ -211,10 +212,11 @@ dólar lançada à mão num grupo em real), e cada lançamento é gravado conver
 - `eval:moeda-base` §8 passa pelo `sincronizarConsentimento` real com Celcoin e
   banco falsos, nos dois tipos de grupo. Mutation-testado.
 
-**5e — Cartão numa moeda diferente da base (C1 backend + C2 painel, feito).**
+**5e — Cartão numa moeda diferente da base (C1 backend, C2 painel, C3 sync — feito).**
 Suporte ao cartão em outra moeda que a do grupo. O caso real é o cartão do Open
-Finance (só fala real) num grupo em dólar. **O sync ainda NÃO importa cartão
-nesse grupo** (5d): ligar isso é o C3, a próxima etapa.
+Finance (só fala real) num grupo em dólar, que o sync **passou a importar** (C3):
+cartão com `moeda: 'BRL'`, lançamentos convertidos (`inserirTransacoes(…, cambio)`),
+faturas publicadas, limite, pagamentos e parcelas previstas em real.
 - **A regra:** fatura, limite, pagamentos e parcelas previstas ficam NA MOEDA
   DO CARTÃO, que é o número que o app do banco mostra. A soma da fatura usa o
   original (`valor_moeda ?? valor`). Só quem SOMA cartão com outra coisa
@@ -229,22 +231,33 @@ nesse grupo** (5d): ligar isso é o C3, a próxima etapa.
   fatura, antecipar parcela) e o aviso automático de fatura do cron (só avisa,
   não pergunta a conta). Debitar uma conta pela fatura misturaria moedas, e o
   pagamento desse cartão já chega pelo banco (`registrarPagamentosDoOF`). A tela
-  explica em vez de mostrar botão. **Grupo em real NUNCA trava.** Decisão
-  tomada por mim no MVP, reversível — confirmar com o dono antes do C3.
+  explica em vez de mostrar botão. **Grupo em real NUNCA trava.** Confirmado
+  pelo dono (17/09/2026). Se um dia liberar, o caminho é converter o débito pra
+  moeda da conta — medir antes.
 - **Compra parcelada** (painel e zap) no cartão fora da base guarda o original
-  e converte `valor`, igual ao lançamento avulso.
+  e converte `valor`, igual ao lançamento avulso. O comando **"parcelas"** do
+  zap mostra cada compra na moeda do cartão e o total na do grupo.
+- ⚠️ **Editar o valor de uma linha convertida** (`PUT /transacoes/:id`) leva o
+  original junto, pela taxa CONGELADA da linha (`originalDoValorNaBase`), e o
+  saldo da conta anda pelo original. Antes só o `valor` mudava: a fatura do
+  cartão (que soma o original) ficava parada, e numa conta em coroa o saldo
+  andava o valor em real. Bug de antes da 168 (afetava as 3 contas em outra
+  moeda da base); o WhatsApp já fazia certo.
 - ⚠️ **Oráculo lia carteira sem `moeda` no select** — conta em outra moeda era
   somada como real no caixa (bug de antes da 168, corrigido junto).
 - Medido antes (17/09/2026): 232 cartões, todos em real; 218 grupos em real;
   nenhuma transação de cartão com `valor_moeda`. **Nada muda pra quem já usa.**
 - `eval:moeda-base` §9 (rotas, zap, cron, Oráculo, Agenda; o banco falso passou
   a projetar as colunas do `select`, o que pegou a classe do bug do Oráculo) —
-  25 mutações, todas detectadas. `eval:moeda` §8 e `eval:dinheiro` no painel.
+  25 mutações, todas detectadas; §8 ganhou o cartão importado (C3, mais 6
+  mutações). `eval:moeda` §8 e `eval:dinheiro` no painel.
+- A tela de Open Finance avisa que conta e cartão entram em real e que pagar
+  pela Sora não fica disponível nesses cartões.
 
-**⏭️ Próximo — C3: importar o cartão do Open Finance em grupo fora do real**
-(`polpCelcoinSync`: transações do cartão com `cambio`, faturas publicadas e
-limite em real) e atualizar o aviso da tela de Open Finance. Empréstimos,
-investimentos e caixinhas do banco vêm depois, cada um medido à parte.
+**⏭️ Próximo:** empréstimos, investimentos e caixinhas do banco em grupo fora do
+real (cada um medido à parte); Fase 3 (textos do WhatsApp com "R$" cravado);
+Fase 6 (escolher a moeda no onboarding — hoje nenhum grupo sai do real, então
+tudo da Fase 5 é inerte até ela existir).
 
 **Pendentes anotados, fora da moeda base:** `fotografarPatrimonio` soma
 `wallets.saldo` cru (conta estrangeira entra sem conversão no gráfico de
