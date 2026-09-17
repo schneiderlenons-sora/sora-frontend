@@ -7,6 +7,7 @@ import {
   IconesContas, BarraContas, Sparkline, type Conta,
 } from '@/components/dashboard/stat-visuais';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // Stats do hero — versão MOBILE (2 cards por linha).
@@ -41,9 +42,6 @@ import { useFmt } from '@/lib/valores-ocultos';
 //   branco fica em ~1.7:1 e some (regra de contraste de dado, ≥3:1).
 // =============================================================================
 
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
 interface Props {
   contas: Conta[];
   saldoTotal: number;
@@ -72,6 +70,7 @@ export default function HeroStatsMobile({
   contas, saldoTotal, gastosMes, dadosDiarios, gastoPorConta, monthName, monthNameAnt,
   varGastos, gastosAnt, maiorCat, totalGastos,
 }: Props) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto((p) => (p === k ? null : k));

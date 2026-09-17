@@ -22,9 +22,6 @@ const BRAND = 'hsl(var(--primary))';
 const mesRefSP = () =>
   new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
 
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
 type Tipo = 'Gasto' | 'Recebimento';
 
 type Recorrencia = {
@@ -73,6 +70,7 @@ type ModoLancamento = ModoLancamentoFixo;
 // de onde foi aberta — e ninguém reporta isso, só sente.
 import { MODOS } from '@/components/previstos/FormRecorrencia';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // `saldo` sempre vem (a rota faz `select('*')`) — o tipo é que não declarava,
 // e sem ele o saldo projetado somaria `undefined` e daria sempre zero.
@@ -89,6 +87,7 @@ interface Props {
 }
 
 export default function GastosFixosSection({ phone, wallets }: Props) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   // Em ref, não na lista de dependências do `carregar`: ele dispara um efeito
   // de carregamento, e uma identidade instável aqui viraria laço de requisições.
@@ -995,6 +994,7 @@ function Linha({
   onAceitarCat: (s: SugestaoCategoriaFixa) => void;
   onIgnorarCat: (id: string) => void;
 }) {
+  const fmtCru = useDinheiro();
   const [aberto, setAberto] = useState(false);
   const modo = item.modo_lancamento || 'lancar';
   const modoInfo = MODOS.find((m) => m.id === modo) || MODOS[0];
@@ -1320,6 +1320,7 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
   mexendo: boolean;
   onTirar: () => void;
 }) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const dia = String(fatura.venc || '').slice(8, 10);
   return (
@@ -1381,6 +1382,7 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
 function LinhaDivida({
   divida, idx, saindo, onTirar,
 }: { divida: any; idx: number; saindo: boolean; onTirar?: () => void }) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   void onTirar;
   const parcelas = Number(divida.parcelas_total) || 0;

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
 const skel = (h: number) => () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: h }} role="status" aria-label="Carregando gráfico" />;
@@ -44,15 +45,6 @@ const GraficoPlanejamento = dynamic(() => import('./Graficos').then(m => m.Grafi
 const BRAND       = 'hsl(var(--primary))';
 const RED         = '#ef4444';
 const BLUE        = '#3b82f6';
-
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-const fmtCompact = (v: number) => {
-  if (v >= 1_000_000) return `R$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)     return `R$${(v / 1_000).toFixed(0)}k`;
-  return `R$${v.toFixed(0)}`;
-};
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -105,6 +97,7 @@ const SAZONAIS_SUGERIDAS = [
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function RelatoriosClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const { phone: authPhone, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
@@ -1576,6 +1569,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 function PremiumStatCard({
   label, value, change, sub, icon: Icon, hue, positive, negative, accent, delay = 0,
 }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   return (
     <div className="card rounded-2xl p-5 relative overflow-hidden animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
@@ -1691,6 +1685,7 @@ function LegendaPlano() {
 
 /** O plano se explicando. Estimativa sem memória de cálculo vira palpite. */
 function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   return (
     <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5 leading-relaxed">
@@ -1710,6 +1705,7 @@ function ComoFoiCalculado({ mediaRec, mediaDes, mesesRec, mesesDes }: any) {
    ⚠️ Só mexe em mês ABERTO. A versão antiga preenchia os 12 e passava por
    cima do que de fato aconteceu; aqui os fechados são fato e ficam de fora. */
 function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const [rec, setRec] = useState('');
   const [des, setDes] = useState('');
@@ -1789,6 +1785,7 @@ function GradeMeses({ linhas, onAjustar }: any) {
 }
 
 function CardMes({ l, onAjustar }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const manual = l.manualRec || l.manualDes;
   const borda = manual ? 'color-mix(in srgb, #6366f1 45%, transparent)'
@@ -1859,6 +1856,7 @@ function SeloEstado({ l, manual }: any) {
 }
 
 function CampoMes({ rotulo, valor, auto, manual, mes, vazio, onMudar }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const [txt, setTxt] = useState('');
   const [focado, setFocado] = useState(false);
@@ -1906,6 +1904,7 @@ function CampoMes({ rotulo, valor, auto, manual, mes, vazio, onMudar }: any) {
 }
 
 function ContasSazonais({ contas, onSalvar, linhas }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const [nome, setNome]   = useState('');
   const [valor, setValor] = useState('');
@@ -2004,6 +2003,7 @@ function RitmoDoMes({
   media, mesesNaMedia, gastoDoMes, projecao, ehMesAtual, diaHoje, diasNoMes,
   variacao, mesLabel,
 }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const acima = (variacao ?? 0) > 0;
   // Faixa morta de ±5%: variação de 2% não é "acima da média", é ruído — e
@@ -2055,6 +2055,7 @@ function RitmoDoMes({
 }
 
 function BlocoNum({ label, valor, sub, cor, destaque }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   return (
     <div className={`rounded-xl p-3 ${destaque ? 'ring-1' : ''} bg-muted/30`}
@@ -2070,6 +2071,7 @@ function BlocoNum({ label, valor, sub, cor, destaque }: any) {
    LINHA DE LIMITE
    ═══════════════════════════════════════════════════════════════════════ */
 function LinhaLimite({ nome, limite, gasto, pct, filhas, theme, i }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const estourou = pct > 100;
   const perto    = pct >= 80 && pct <= 100;
@@ -2148,12 +2150,13 @@ function ChartCard({
 }
 
 function EmptyDonut({ label }: { label: string }) {
+  const fmtCru = useDinheiro();
   return (
     <div className="relative flex flex-col items-center py-4">
       <DonutVazio />
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none top-2">
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total</p>
-        <p className="text-lg font-bold text-muted-foreground tabular">R$ 0,00</p>
+        <p className="text-lg font-bold text-muted-foreground tabular">{fmtCru(0)}</p>
       </div>
       <p className="text-xs text-muted-foreground mt-4">Nenhuma {label.toLowerCase()} no período</p>
     </div>
@@ -2191,6 +2194,7 @@ function PendentesList({
   compartilhado?: boolean;
   onBaixar?:  (tx: any) => void;
 }) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const badgeBg = badgeColor === 'green'
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'

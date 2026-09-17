@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useEffect, useState } from 'react';
+import { useDinheiro } from '@/lib/moeda-base';
 
 /**
  * Barras por mês — em CSS puro.
@@ -84,9 +85,6 @@ export function fmtEixo(v: number): string {
 }
 
 
-const brl = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-
 export default function GraficoMeses({
   barras,
   cor,
@@ -124,6 +122,7 @@ export default function GraficoMeses({
    */
   destaque?: string | null;
 }) {
+  const brl = useDinheiro({ entrada: 'ouZero' });
   const trilhoRef = useRef<HTMLDivElement>(null);
   // Hover do desktop. No celular ele nunca dispara — lá quem sinaliza é o
   // `ativo`, que o toque já liga.
@@ -461,6 +460,7 @@ export function BarraDividida({
   rotuloRealizado: string;
   rotuloPrevisto: string;
 }) {
+  const brl = useDinheiro({ entrada: 'ouZero' });
   const total = Math.max(0, realizado) + Math.max(0, previsto);
   const pct = total > 0 ? (Math.max(0, realizado) / total) * 100 : 0;
 

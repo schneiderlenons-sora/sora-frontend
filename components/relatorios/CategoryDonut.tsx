@@ -14,9 +14,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import { useFmt } from '@/lib/valores-ocultos';
-
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+import { useDinheiro } from '@/lib/moeda-base';
 
 export type DonutSlice = { name: string; value: number; color: string; emoji?: string };
 
@@ -86,6 +84,7 @@ export default function CategoryDonut({
   // Valor do centro como protagonista do card.
   valorGrande?: boolean;
 }) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const total = data.reduce((s, d) => s + d.value, 0);
 

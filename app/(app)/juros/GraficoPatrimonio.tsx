@@ -6,11 +6,10 @@
 import {
   ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
-
-const brl = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
+import { useDinheiro } from '@/lib/moeda-base';
 
 export default function GraficoPatrimonio({ data }: { data: any[] }) {
+  const brl = useDinheiro({ entrada: 'finitoOuZero' });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>

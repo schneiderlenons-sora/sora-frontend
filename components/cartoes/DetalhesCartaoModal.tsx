@@ -11,13 +11,11 @@ import { marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { fmtDataBR } from '@/lib/data-br';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const MES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 // (reconhecimento de marca agora vem do sistema oficial em IconeMarca/marcaDe —
 //  removido o mapa local de iniciais que mostrava "S"/"N"/"iF" em vez do logo.)
@@ -41,6 +39,7 @@ interface Props {
 }
 
 export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, onClose, onRefresh, onExcluir }: Props) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   // ⚠️ Começa JÁ na competência da fatura (mês do vencimento), não no mês do
   // calendário: partir do mês errado fazia o modal buscar as transações de DOIS

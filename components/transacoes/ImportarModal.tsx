@@ -5,6 +5,7 @@ import { X, Loader2, Upload, FileText, AlertCircle, Check, ArrowUpRight, ArrowDo
 import { api } from '@/lib/api';
 import { categorizarDescricao } from '@/lib/categorizar';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // ─────────────────────────────────────────────────────────────
 // PARSERS
@@ -160,8 +161,6 @@ function parseCSVFallback(lines: string[], sep: string): TxParsed[] {
 // ─────────────────────────────────────────────────────────────
 // COMPONENTE
 // ─────────────────────────────────────────────────────────────
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const fmtData = (d: string) =>
   new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
@@ -189,6 +188,7 @@ type Row = {
 const CAT_IMPORTADO = '📦 Importado';
 
 export default function ImportarModal({ phone, wallets, formato, onClose, onSuccess }: Props) {
+  const fmt = useDinheiro();
   const walletsImportaveis = wallets; // bancárias e cartões — você escolhe a conta certa
 
   const [step, setStep] = useState<'upload' | 'review'>('upload');

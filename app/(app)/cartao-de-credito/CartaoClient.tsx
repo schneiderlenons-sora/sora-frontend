@@ -24,12 +24,10 @@ import {
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NOMES  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 interface Wallet {
   id:     string;
@@ -53,6 +51,7 @@ interface Wallet {
 }
 
 export default function CartaoClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useDinheiro();
   const { phone: authPhone, perfil, limiteDe } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const limiteCartoes = limiteDe('cartoes');
@@ -630,6 +629,7 @@ interface CardCartaoProps {
 }
 
 function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
+  const fmt = useDinheiro();
   const { phone } = useAuth();
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);

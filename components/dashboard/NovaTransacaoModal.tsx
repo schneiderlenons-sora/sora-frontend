@@ -11,8 +11,7 @@ import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import IconeMarca from '@/components/ui/IconeMarca';
 import { hojeSP } from '@/lib/ciclo-fatura';
-
-const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+import { useDinheiro } from '@/lib/moeda-base';
 
 // Valor sentinela do picker de conta pra "compra parcelada SEM cartão".
 const SEM_CARTAO = '__sem_cartao__';
@@ -63,6 +62,7 @@ const FALLBACK_RECEITA: CatItem[] = [
 ];
 
 export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess, onOptimisticCreate }: Props) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>('Gasto');
   const [valor,      setValor]      = useState('');
   const [descricao,  setDescricao]  = useState('');

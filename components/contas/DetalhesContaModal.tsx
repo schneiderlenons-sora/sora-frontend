@@ -7,12 +7,10 @@ import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { fmtDataBR } from '@/lib/data-br';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 interface Props {
   phone: string;
@@ -24,6 +22,7 @@ interface Props {
 // Extrato de uma CONTA bancária: entradas + saídas do mês, resumo e movimentações.
 // Espelha o DetalhesCartaoModal, mas mostra os dois fluxos (débito sai da conta).
 export default function DetalhesContaModal({ phone, conta, onClose, onExcluir }: Props) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const hoje = new Date();
   const [mesRef, setMesRef] = useState(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`);

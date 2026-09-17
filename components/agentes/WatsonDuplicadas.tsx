@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, Loader2, Trash2, Undo2, CheckCircle2, AlertTriangle, HelpCircle, CreditCard, Globe } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // A investigação do Detetive Watson, dentro do card dele.
@@ -22,9 +23,6 @@ import { api } from '@/lib/api';
 
 const COR = '#6366f1';   // mesma do agente no catálogo
 const ESPERA_DESFAZER = 10_000;
-
-const brl = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 const dataCurta = (d: string) => {
   const s = String(d || '').slice(0, 10).split('-');
@@ -211,6 +209,7 @@ function BotaoEscopo({ ativo, onClick, icon: Icon, children }: any) {
 }
 
 function Bloco({ titulo, cor, Icone, legenda, grupos, onApagar }: any) {
+  const brl = useDinheiro({ entrada: 'ouZero' });
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">

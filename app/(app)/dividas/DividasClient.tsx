@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -40,10 +41,8 @@ const STATUS_INFO: Record<string, { label: string; cor: string }> = {
   suspensa:     { label: 'Suspensa',      cor: '#64748b' },
 };
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-
 export default function DividasClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const { phone: authPhone } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const [dividas, setDividas] = useState<any[]>([]);
@@ -359,6 +358,7 @@ interface DividaCardProps {
 }
 
 function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onToggleLembrete, onTogglePrevistos }: DividaCardProps) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [menuOpen, setMenuOpen] = useState(false);
   const tipo = TIPO_INFO[divida.tipo] || TIPO_INFO.outro;
   const status = STATUS_INFO[divida.status] || STATUS_INFO.ativa;
@@ -511,7 +511,7 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
           </p>
           <p className="text-lg font-bold tabular tracking-tight mt-0.5"
              style={{ color: concluida ? '#22c55e' : tipo.cor }}>
-            {concluida ? '✓ R$ 0,00' : (ocultar ? '•••••' : fmt(saldoDevedor || divida.valor_total))}
+            {concluida ? `✓ ${fmt(0)}` : (ocultar ? '•••••' : fmt(saldoDevedor || divida.valor_total))}
           </p>
         </div>
       </div>

@@ -11,21 +11,21 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro, useComSimbolo } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 const RED   = '#ef4444';
 const BLUE  = '#3b82f6';
 
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-const fmtCompactCru = (v: number) => {
-  if (v >= 1_000_000) return `R$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000)     return `R$${(v / 1_000).toFixed(0)}k`;
-  return `R$${v.toFixed(0)}`;
+const fmtCompactCru = (v: number, simbolo: string) => {
+  if (v >= 1_000_000) return `${simbolo}${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000)     return `${simbolo}${(v / 1_000).toFixed(0)}k`;
+  return `${simbolo}${v.toFixed(0)}`;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CustomTooltip({ active, payload, label }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   if (!active || !payload?.length) return null;
   return (
@@ -46,7 +46,8 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function GraficoFrequencia({ data }: { data: any[] }) {
-  const fmtCompact = useFmt(fmtCompactCru, '');
+  const fmtCompactBase = useComSimbolo(fmtCompactCru);
+  const fmtCompact = useFmt(fmtCompactBase, '');
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} barGap={2}>
@@ -71,7 +72,8 @@ export function GraficoFrequencia({ data }: { data: any[] }) {
 }
 
 export function GraficoFluxo({ data }: { data: any[] }) {
-  const fmtCompact = useFmt(fmtCompactCru, '');
+  const fmtCompactBase = useComSimbolo(fmtCompactCru);
+  const fmtCompact = useFmt(fmtCompactBase, '');
   return (
     <ResponsiveContainer width="100%" height={340}>
       <AreaChart data={data}>
@@ -99,7 +101,8 @@ export function GraficoFluxo({ data }: { data: any[] }) {
 }
 
 export function GraficoComparativo({ data }: { data: any[] }) {
-  const fmtCompact = useFmt(fmtCompactCru, '');
+  const fmtCompactBase = useComSimbolo(fmtCompactCru);
+  const fmtCompact = useFmt(fmtCompactBase, '');
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} barGap={4}>
@@ -129,6 +132,7 @@ export function GraficoComparativo({ data }: { data: any[] }) {
    ═══════════════════════════════════════════════════════════════════════ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function TooltipPlano({ active, payload, label }: any) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   if (!active || !payload?.length) return null;
   const p0 = payload[0]?.payload || {};
@@ -204,7 +208,8 @@ function LabelHoje({ viewBox }: any) {
 }
 
 export function GraficoPlanejamento({ data, mesAtual }: { data: any[]; mesAtual: number | null }) {
-  const fmtCompact = useFmt(fmtCompactCru, '');
+  const fmtCompactBase = useComSimbolo(fmtCompactCru);
+  const fmtCompact = useFmt(fmtCompactBase, '');
   return (
     <ResponsiveContainer width="100%" height={330}>
       <ComposedChart data={data} barGap={3} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>

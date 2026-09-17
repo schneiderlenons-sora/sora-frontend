@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Wallet } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // Bloco opcional "Descontar do saldo de uma conta?" — usado nos fluxos de
 // aporte (meta/investimento), pagamento de dívida e fatura. Quando ligado e
@@ -38,7 +39,7 @@ export default function ContaDebitoSelect({
     else if (contas.length === 1) onChange(contas[0].id); // só uma conta → já seleciona
   }
 
-  const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+  const fmt = useDinheiro({ entrada: 'ouZero' });
 
   return (
     <div className="rounded-xl bg-muted/30 p-3 space-y-3">

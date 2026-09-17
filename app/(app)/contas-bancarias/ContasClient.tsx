@@ -24,11 +24,9 @@ import {
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 // ─────────────────────────────────────────────────────────────
 // CONFIGURAÇÕES
@@ -119,6 +117,7 @@ type Tab = 'ativas' | 'arquivadas';
 // PÁGINA
 // ─────────────────────────────────────────────────────────────
 export default function ContasClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useDinheiro();
   const { phone: authPhone, perfil, limiteDe } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
 
@@ -505,6 +504,7 @@ function WalletCard({
   onTransferir:  () => void;
   onVerExtrato:  () => void;
 }) {
+  const fmt = useDinheiro();
   const [gradStart, gradEnd] = bancoGrad(wallet.nome);
   const Icon  = TIPO_ICON[wallet.tipo] || WalletIcon;
   const hue   = TIPO_HUE[wallet.tipo] ?? 220;
@@ -889,7 +889,7 @@ function ContaModal({
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">
-                  R$
+                  {MOEDAS[normalizarMoeda(form.moeda)].simbolo}
                 </span>
                 <input
                   type="text"
@@ -955,6 +955,8 @@ function AjusteSaldoModal({
   onClose:   () => void;
   onSuccess: () => void;
 }) {
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const [novoSaldo, setNovoSaldo] = useState(String(wallet.saldo));
   const [salvando,  setSalvando]  = useState(false);
   const [erro,      setErro]      = useState('');
@@ -1006,7 +1008,7 @@ function AjusteSaldoModal({
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">
-                R$
+                {simbolo}
               </span>
               <input
                 type="text"
@@ -1054,6 +1056,8 @@ function TransferenciaModal({
   onClose:   () => void;
   onSuccess: () => void;
 }) {
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const [origem,  setOrigem]  = useState(wallets[0]?.id || '');
   const [destino, setDestino] = useState(wallets.find(w => w.id !== wallets[0]?.id)?.id || '');
   const [valor,   setValor]   = useState('');
@@ -1154,7 +1158,7 @@ function TransferenciaModal({
                 <div>
                   <label htmlFor="transf-valor" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Valor</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">R$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">{simbolo}</span>
                     <input id="transf-valor" type="text" inputMode="decimal" placeholder="0,00" value={valor} autoFocus
                            onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ''))}
                            className="input pl-11 py-3 tabular text-lg font-semibold" />

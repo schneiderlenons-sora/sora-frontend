@@ -7,6 +7,7 @@ import RegraForm from './RegraForm';
 import {
   Wand2, Plus, Loader2, Trash2, EyeOff, AlertCircle, CheckCircle2, Lightbulb,
 } from 'lucide-react';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // Regras — dentro do card do Detetive Watson.
@@ -30,10 +31,8 @@ const COR = '#6366f1';   // a mesma do Watson no catálogo
 
 type Sugestao = { termo: string; exemplo: string; n: number; total: number; ultima: string };
 
-const brl = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-
 export default function WatsonRegras({ phone }: { phone: string }) {
+  const brl = useDinheiro({ entrada: 'ouZero' });
   // ⚠️ As categorias sao buscadas AQUI, e nao passadas pelo drawer: este bloco
   // so monta quando o card do Watson abre, entao a leitura acontece uma vez por
   // abertura em vez de em toda renderizacao da pagina de agentes (a cota de

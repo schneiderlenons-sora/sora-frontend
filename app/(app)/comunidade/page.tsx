@@ -15,11 +15,9 @@ import {
   LogOut, Check, ArrowLeftRight, Wallet, Layers, Lock,
   Trash2, Shield,
 } from 'lucide-react';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const PAPEL_INFO: Record<string, { label: string; emoji: string; color: string }> = {
   admin:   { label: 'Admin',   emoji: '👑', color: '#f59e0b' },
@@ -50,6 +48,7 @@ interface Membro {
 }
 
 export default function ComunidadePage() {
+  const fmt = useDinheiro();
   const { phone, perfil, isPremium, recarregar } = useAuth();
 
   const { data: gruposData, mutate: mGrupos } = useApi(phone ? `grupos:${phone}` : null, () => api.grupos.listar(phone));

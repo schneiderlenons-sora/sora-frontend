@@ -6,8 +6,8 @@ import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon } fro
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { hojeSP } from '@/lib/ciclo-fatura';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
-const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtBR = (raw: string) => !raw ? '0,00' : (parseInt(raw, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Valor sentinela do <select> pra "pago por fora" (sem conta no painel).
@@ -35,6 +35,8 @@ let _seq = 0;
 const novaLinha = (valorRaw = ''): Linha => ({ key: ++_seq, walletId: '', valorRaw, quem: '' });
 
 export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, competencia, onClose, onPago }: Props) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
+  const simbolo = useSimboloMoeda();
   const { phone } = useAuth();
   const comp = competencia || ymAtual();
   const [contas, setContas] = useState<{ id: string; nome: string; saldo: number }[]>([]);
@@ -207,7 +209,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Valor</label>
                       <div className="flex items-baseline gap-1 input py-2.5">
-                        <span className="text-sm font-bold text-muted-foreground">R$</span>
+                        <span className="text-sm font-bold text-muted-foreground">{simbolo}</span>
                         <input inputMode="numeric" value={fmtBR(l.valorRaw)}
                                onChange={e => setLinha(l.key, { valorRaw: e.target.value.replace(/\D/g, '') })}
                                className="text-lg font-bold text-foreground bg-transparent border-none outline-none w-full tabular p-0" />

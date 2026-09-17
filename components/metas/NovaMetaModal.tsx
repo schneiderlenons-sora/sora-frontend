@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle, Check, Flag, Upload, Camera, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useSimboloMoeda } from '@/lib/moeda-base';
 
 const ICONES = ['🎯','🏠','🚗','✈️','💍','🎓','💼','👶','🐶','💻','📚','🛒','🎮','💎','🎁','🪙'];
 const CORES  = [
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Props) {
+  const simbolo = useSimboloMoeda();
   const ediMode = !!edicao;
 
   const [titulo,        setTitulo]        = useState(edicao?.titulo || '');
@@ -237,7 +239,7 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
                 Meta *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">R$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">{simbolo}</span>
                 <input
                   inputMode="numeric"
                   value={fmtBR(valorObjRaw)}
@@ -251,7 +253,7 @@ export default function NovaMetaModal({ phone, edicao, onClose, onSuccess }: Pro
                 Já tenho
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">R$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">{simbolo}</span>
                 <input
                   inputMode="numeric"
                   value={fmtBR(valorAtualRaw)}

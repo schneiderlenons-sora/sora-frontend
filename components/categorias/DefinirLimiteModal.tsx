@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Target, Bell, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 interface Props {
   phone: string;
@@ -16,6 +17,8 @@ interface Props {
 export default function DefinirLimiteModal({
   phone, categoria, limiteExistente, mesRef, onClose, onSuccess,
 }: Props) {
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const ediMode = !!limiteExistente?.limite_mensal;
 
   const [valorRaw, setValorRaw] = useState(
@@ -132,7 +135,7 @@ export default function DefinirLimiteModal({
               <Target size={11} /> Limite mensal *
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{simbolo}</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -178,10 +181,7 @@ export default function DefinirLimiteModal({
               <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
                 Você receberá um aviso no WhatsApp quando atingir{' '}
                 <strong className="text-foreground tabular">
-                  {valorAlerta.toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })}
+                  {fmt(valorAlerta)}
                 </strong>{' '}
                 ({alerta}% do limite).
               </p>

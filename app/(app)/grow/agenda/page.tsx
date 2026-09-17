@@ -14,15 +14,16 @@ import {
   Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
   ArrowLeftRight, TrendingUp, TrendingDown, ListChecks,
 } from 'lucide-react';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 const STORAGE_KEY = 'sora-grow-agenda-view';
-const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 // Formato compacto pra caber na célula do calendário: R$120 · R$1,2k · R$15k
-const brlCompact = (v: number) => {
+// (o símbolo é o da moeda base do grupo)
+const brlCompact = (v: number, simbolo: string) => {
   const a = Math.abs(v);
-  if (a >= 1000) return `R$${(a / 1000).toFixed(a >= 10000 ? 0 : 1).replace('.', ',')}k`;
-  return `R$${Math.round(a)}`;
+  if (a >= 1000) return `${simbolo}${(a / 1000).toFixed(a >= 10000 ? 0 : 1).replace('.', ',')}k`;
+  return `${simbolo}${Math.round(a)}`;
 };
 
 // ─── Categorias dos compromissos nativos (cor + ícone) ──────────────
@@ -265,6 +266,7 @@ function ViewLista({ eventos, onAbrir, onDelete, onNovo }: any) {
 
 // ─── Card de evento (compromisso editável OU agregado read-only) ────
 function EventoCard({ e, onAbrir, onDelete }: any) {
+  const brl = useDinheiro();
   const fam = FAMILIAS[familiaDe(e.source)];
   const FamIcon = fam.icon;
   const SrcIcon = ICONE_SOURCE[e.source] || CalendarDays;
@@ -326,6 +328,7 @@ function EventoCard({ e, onAbrir, onDelete }: any) {
 // VIEW — MÊS (calendário)
 // ═══════════════════════════════════════════════════════════════════
 function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
+  const simbolo = useSimboloMoeda();
   const hojeStr = iso(new Date());
   const [refMes, setRefMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [selecionado, setSelecionado] = useState<string>(hojeStr);
@@ -434,7 +437,7 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                 {tx && (
                   <div className="mt-auto flex items-center justify-center sm:justify-start px-0.5 pt-0.5">
                     <span className={`text-[9px] sm:text-[10px] font-bold tabular leading-none truncate ${tx.net < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      {tx.net < 0 ? '−' : '+'}{brlCompact(tx.net)}
+                      {tx.net < 0 ? '−' : '+'}{brlCompact(tx.net, simbolo)}
                     </span>
                   </div>
                 )}
@@ -471,6 +474,7 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
 // Card "Movimentações do dia" — gastos/receitas do dia selecionado
 // ═══════════════════════════════════════════════════════════════════
 function MovimentacoesDoDia({ tx, onAbrir }: any) {
+  const brl = useDinheiro();
   return (
     <div className="rounded-2xl border border-border/40 backdrop-blur-xl p-4 space-y-3" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <div className="flex items-center justify-between gap-2">

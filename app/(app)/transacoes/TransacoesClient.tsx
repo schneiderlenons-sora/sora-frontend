@@ -36,11 +36,9 @@ import {
   ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const fmtData = (d: string) => fmtDataBR(d, { day: '2-digit', month: 'short' });
 
@@ -66,6 +64,7 @@ const GRID_COLS  = '44px minmax(160px,1fr) 64px 130px 110px 100px 110px 40px';
 const GRID_MIN_W = 880;
 
 export default function TransacoesClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useDinheiro();
   const { phone: authPhone, podeUsar, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const podeImportarOFX = podeUsar('import_ofx');
@@ -1083,6 +1082,7 @@ function StatCard({
   positive?: boolean;
   negative?: boolean;
 }) {
+  const fmt = useDinheiro();
   return (
     <div className="card rounded-2xl p-5 relative overflow-hidden animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
       <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none opacity-40"
@@ -1117,6 +1117,7 @@ function TransactionRow({
   tx, index, ocultar, compartilhado, avatar, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
 }: any) {
+  const fmt = useDinheiro();
   // ⚠️ "Não considerar" (migration 146) entra AQUI, virando Transferência na
   // tela. É a mesma leitura que o pagamento de fatura nativo já tem hoje —
   // exibir a linha ignorada de outro jeito faria dois pagamentos de fatura
@@ -1434,6 +1435,7 @@ function LinhaTotais({
   ocultar: boolean;
   saldoConta?: SaldoContaInfo | null;
 }) {
+  const fmt = useDinheiro();
   if (!mostrar) return null;
 
   type Bloco = { rotulo: string; valor: number; cor: string; Icone: any; forte?: boolean };
@@ -1540,6 +1542,7 @@ function LinhaTotais({
 function PendentesCard({
   aReceber, aPagar, qtd, ocultar, delay = 0,
 }: { aReceber: number; aPagar: number; qtd: number; ocultar: boolean; delay?: number }) {
+  const fmt = useDinheiro();
   const linhas = [
     { rotulo: 'A receber', valor: aReceber, Icone: ArrowUpRight, cor: 'text-green-500' },
     { rotulo: 'A pagar', valor: aPagar, Icone: ArrowDownRight, cor: 'text-red-500' },

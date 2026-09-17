@@ -7,11 +7,10 @@
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
+import { useDinheiro } from '@/lib/moeda-base';
 
 export default function GraficoMeta({ data, gradId, cor }: { data: any[]; gradId: string; cor: string }) {
+  const fmt = useDinheiro({ entrada: 'finitoOuZero' });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>

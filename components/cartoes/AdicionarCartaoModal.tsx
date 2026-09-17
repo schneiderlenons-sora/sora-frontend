@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2, CreditCard, AlertCircle, Check } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -90,6 +91,7 @@ interface Props {
 }
 
 export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, onSuccess }: Props) {
+  const simbolo = useSimboloMoeda();
   const ediMode = !!cartaoExistente;
 
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
@@ -364,7 +366,7 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
                 Limite do cartão *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">R$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{simbolo}</span>
                 <input
                   type="text"
                   inputMode="numeric"

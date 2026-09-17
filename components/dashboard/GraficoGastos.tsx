@@ -16,18 +16,17 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro, useComSimbolo } from '@/lib/moeda-base';
 
 const BRAND  = 'hsl(var(--primary))';
 const BRAND2 = '#3dd68c';
 
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-const fmtShortCru = (v: number) =>
-  v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : v > 0 ? `R$${v}` : 'R$0';
+const fmtShortCru = (v: number, simbolo: string) =>
+  v >= 1000 ? `${simbolo}${(v / 1000).toFixed(0)}k` : v > 0 ? `${simbolo}${v}` : `${simbolo}0`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload, label }: any) {
+  const fmtCru = useDinheiro();
   // ⚠️ O hook vem ANTES do early return — Regras dos Hooks.
   const fmt = useFmt(fmtCru);
   if (!active || !payload?.length) return null;
@@ -58,7 +57,8 @@ interface Props {
 export default function GraficoGastos({ modo, barras, area }: Props) {
   // ⚠️ Eixo com máscara VAZIA, não com pontos: cinco "••••" empilhados viram
   // ruído, e o gráfico continua legível pela FORMA — que é o que o banco faz.
-  const fmtShort = useFmt(fmtShortCru, '');
+  const fmtShortBase = useComSimbolo(fmtShortCru);
+  const fmtShort = useFmt(fmtShortBase, '');
   return (
     <ResponsiveContainer width="100%" height={220}>
       {modo === 'bar' ? (

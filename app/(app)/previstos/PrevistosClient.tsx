@@ -30,9 +30,7 @@ import { criarPrevistoUnico } from '@/lib/previsto-unico';
 import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+import { useDinheiro } from '@/lib/moeda-base';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -1019,6 +1017,7 @@ function CabecalhoFluxo({
   titulo, total, legenda, aberto, onToggle,
   realizado, previsto, cor, rotuloRealizado, rotuloPrevisto,
 }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const temBarra = realizado !== undefined && previsto !== undefined
     && (Number(realizado) || 0) + (Number(previsto) || 0) > 0;
   return (
@@ -1071,6 +1070,7 @@ function CabecalhoFluxo({
 function LinhaComposicao({
   item, idx, cor, sinal, onEditar, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   // ⚠️ Só recorrência abre o formulário. Parcela de dívida e fatura de cartão
   // têm campos que ele não tem (nº de parcelas, credor, juros) — abrir o de
   // conta fixa pra elas ofereceria salvar um objeto que não é o delas.
@@ -1232,6 +1232,7 @@ function CardComposicao({
   totalCabecalho, vazio,
   onEditar, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [aberto, setAberto] = useState(!!aberturaPadrao);
   const vazias = secoes.every((s: any) => s.blocos.every((b: any) => b.itens.length === 0));
 
@@ -1322,6 +1323,7 @@ function SecaoHistorica({
   blocos, divisao, total, aproximado,
   onEditar, onNovo, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const cor = aba === 'receitas' ? VERDE : VERMELHO;
 
   // O mês em foco é o tocado no gráfico; sem toque, o do seletor do topo.
@@ -1453,6 +1455,7 @@ function SecaoCaixa({
   blocosSaida, blocosEntrada, totalSaida, totalEntrada, divisaoSaida, divisaoEntrada, aproximado,
   onEditar, onNovo, onExcluir, confirmando, onConfirmar, removendo,
 }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [anoRef, mesRef] = ymRef.split('-').map(Number);
 
   return (
@@ -1576,6 +1579,7 @@ function SecaoProjecao({
   projecao, barras, mesSel, onSelecionar, detalhe, saldoHoje, ymHoje, vermelho,
   composicao, onEditar, confirmando, onConfirmar, removendo, onExcluir,
 }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const eventos = projecao.flatMap((m: MesProjetado) =>
     m.eventos.map((e: any) => ({ ...e, ym: m.ym })));
 
@@ -1708,6 +1712,7 @@ function SecaoProjecao({
  * Agora Receitas e Despesas ABREM na própria linha do total delas.
  */
 function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [aberto, setAberto] = useState<'receitas' | 'despesas' | null>(null);
   const [ano, m] = mes.ym.split('-').map(Number);
   const emCurso = mes.ym === ymHoje;
@@ -1828,6 +1833,7 @@ function VisaoDoMes({ mes, ymHoje, composicao, onEditar }: any) {
  * assunto das abas Caixa e Despesas, que o mostram com a base certa.
  */
 function Detalhe({ blocos, cor, sinal, emCurso, onEditar }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   // ⚠️ Só a parte que AINDA vem. Uma conta semanal que caiu 2 de 5 vezes entra
   // aqui com as 3 que faltam — as 2 já estão dentro do realizado acima.
   const restante = (i: any) => {

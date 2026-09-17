@@ -16,11 +16,9 @@ import {
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 function corPctLimite(pct: number) {
   if (pct >= 100) return { bg: '#ef4444', label: 'EXCEDIDO' };
@@ -55,6 +53,7 @@ interface CategoryLimit {
 type Tab = 'geral' | 'categoria';
 
 export default function LimitesClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useDinheiro();
   const { phone: authPhone } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const hoje = new Date();
@@ -594,6 +593,7 @@ interface CardProps {
 }
 
 function LimiteCategoriaCard({ limite, categoria, gasto, ocultar, delay, onToggle, onEditar, onExcluir }: CardProps) {
+  const fmt = useDinheiro();
   const ativo = limite.ativo !== false;
   const { fg, bg } = normalizaCor(categoria?.cor);
   const pct = limite.limite_mensal > 0 ? (gasto / limite.limite_mensal) * 100 : 0;
@@ -629,7 +629,7 @@ function LimiteCategoriaCard({ limite, categoria, gasto, ocultar, delay, onToggl
 
       {/* Valor */}
       <p className="text-2xl font-bold text-foreground tabular tracking-tight mb-1">
-        {ocultar ? '••••••' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(limite.limite_mensal)}
+        {ocultar ? '••••••' : fmt(limite.limite_mensal)}
       </p>
       <p className="text-[11px] text-muted-foreground mb-3">limite mensal</p>
 
@@ -648,7 +648,7 @@ function LimiteCategoriaCard({ limite, categoria, gasto, ocultar, delay, onToggl
       <div className="flex items-center justify-between text-xs mb-3">
         <span className="text-muted-foreground">
           <span className="font-bold text-foreground tabular">
-            {ocultar ? '•••' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(gasto)}
+            {ocultar ? '•••' : fmt(gasto)}
           </span>
           {' '}gasto
         </span>
@@ -659,7 +659,7 @@ function LimiteCategoriaCard({ limite, categoria, gasto, ocultar, delay, onToggl
         <div className="rounded-lg p-2 bg-red-100 dark:bg-red-950/50 mb-3 animate-pulse">
           <p className="text-[11px] font-bold text-red-700 dark:text-red-400 inline-flex items-center gap-1.5">
             <AlertCircle size={11} /> Excedido em{' '}
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorExc)}
+            {fmt(valorExc)}
           </p>
         </div>
       )}

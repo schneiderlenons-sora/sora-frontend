@@ -8,8 +8,8 @@ import { useApi } from '@/lib/useApi';
 import { Plane, Plus, MapPin, Wallet, CheckCircle2, X, Sparkles, Trash2 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
 import { Capa, Segmented, Campo, ModalShell, Vazio, ErroCard } from '@/components/grow/colecao';
+import { useDinheiro } from '@/lib/moeda-base';
 
-const fmtBRL = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n || 0);
 const fmtDia = (d?: string) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') : '';
 
 const ST_VIAGEM = [
@@ -47,6 +47,7 @@ function countdown(ini?: string, fim?: string, status?: string) {
 }
 
 export default function ViagensPage() {
+  const fmtBRL = useDinheiro({ entrada: 'ouZero', maximoCasas: 0 });
   const { phone } = useAuth();
   const [aba, setAba] = useState<'viagens' | 'bucket'>('viagens');
 

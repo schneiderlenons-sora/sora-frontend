@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2 } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
 import { hojeSP } from '@/lib/ciclo-fatura';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 // =============================================================================
 // EXTRATO FUTURO — a tela que o cliente pediu, e um pouco mais.
@@ -26,9 +27,6 @@ import { hojeSP } from '@/lib/ciclo-fatura';
 // A aritmética não mora aqui: vem de `lib/extrato-futuro.ts`, que tem eval
 // travando que ela não diverge da aba Projeção.
 // =============================================================================
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
@@ -123,6 +121,8 @@ export default function ExtratoFuturo({
   baixaAutomatica?: boolean;
   onBaixaAutomatica?: (v: boolean) => void;
 }) {
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const extrato: Extrato = useMemo(() => montarExtrato(dados), [dados]);
   const [aberta, setAberta] = useState<string | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
@@ -369,7 +369,7 @@ export default function ExtratoFuturo({
                     <span className={`flex-shrink-0 text-sm font-semibold tabular ${
                       l.tipo === 'Recebimento' ? 'text-emerald-500' : 'text-foreground'
                     }`}>
-                      {l.tipo === 'Recebimento' ? '+' : '−'} {fmt(l.valor).replace('R$', '').trim()}
+                      {l.tipo === 'Recebimento' ? '+' : '−'} {fmt(l.valor).replace(simbolo, '').trim()}
                       {l.estimado && <span className="ml-0.5 text-muted-foreground">≈</span>}
                     </span>
                   </button>

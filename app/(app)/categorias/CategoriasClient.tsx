@@ -19,14 +19,12 @@ import {
 import CategoryDonut from '@/components/relatorios/CategoryDonut';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
 const MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 // Cor da barra baseada em % usado do limite
 function corPctLimite(pct: number): string {
@@ -94,6 +92,7 @@ type Filtro = 'todas' | 'com_limite' | 'sem_limite' | 'com_subs' | 'sem_subs';
 type TipoTab = 'todas' | 'despesa' | 'receita';
 
 export default function CategoriasClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmt = useDinheiro();
   const { phone: authPhone } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const hoje = new Date();
@@ -725,6 +724,7 @@ function CategoriaRow({
   onEditar, onExcluir, onAddSub, onDefinirLimite,
   onEditarSub, onExcluirSub, onMudarCor, gastoSubFn, delay,
 }: CategoriaRowProps) {
+  const fmt = useDinheiro();
   const { pai, filhos, gastoTotal, limite } = item;
   const { fg: cor, bg: corBg } = normalizaCor(pai.cor, pai.nome);
   const [pickerOpen, setPickerOpen] = useState(false);

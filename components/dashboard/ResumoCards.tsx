@@ -16,6 +16,7 @@ import {
 } from '@/components/dashboard/stat-visuais';
 import { saldoBRL } from '@/lib/moeda';
 import { useFmt } from '@/lib/valores-ocultos';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // Os stat cards abaixo do card de hábitos.
@@ -36,8 +37,6 @@ import { useFmt } from '@/lib/valores-ocultos';
 // =============================================================================
 
 const BRAND = 'hsl(var(--primary))';
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 // Casa uma transação a uma carteira (por id ou por nome) — mesma regra do CartaoClient.
 const mesmaCarteira = (t: any, w: any) =>
@@ -73,6 +72,7 @@ export default function ResumoCards({
   dadosDiarios?: { dia: string; valor: number }[];
   monthName?: string;
 }) {
+  const fmtCru = useDinheiro({ entrada: 'ouZero' });
   const fmt = useFmt(fmtCru);
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
@@ -257,7 +257,7 @@ export default function ResumoCards({
       <StatCard
         className="order-2 lg:order-4"
         label="Cartões"
-        value={cartaoTop ? fmt(cartaoTop.fatura) : 'R$ 0,00'}
+        value={cartaoTop ? fmt(cartaoTop.fatura) : fmtCru(0)}
         valueColor="#7c3aed"
         icon={CreditCard} iconColor="#7c3aed"
         sub={cartaoTop ? `Maior fatura · ${cartaoTop.nome}` : 'Nenhum cartão'}

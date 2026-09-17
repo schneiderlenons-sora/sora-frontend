@@ -4,15 +4,13 @@ import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Receipt, Zap, Calendar, ArrowDownRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const TIPOS_PAGAMENTO = [
   { v: 'parcela',       l: 'Parcela',         desc: 'Pagamento mensal regular',     icon: Receipt },
   { v: 'antecipacao',   l: 'Antecipação',     desc: 'Adiantar uma ou mais parcelas', icon: Zap     },
   { v: 'juros_atraso',  l: 'Juros de atraso', desc: 'Multa por parcela atrasada',    icon: Calendar},
 ] as const;
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 interface Props {
   phone:    string;
@@ -22,6 +20,8 @@ interface Props {
 }
 
 export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }: Props) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
+  const simbolo = useSimboloMoeda();
   const valorPadrao = divida.valor_parcela || 0;
   const [valorRaw, setValorRaw] = useState<string>(
     valorPadrao ? String(Math.round(valorPadrao * 100)) : ''
@@ -145,7 +145,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">Valor pago</p>
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-2xl font-bold text-muted-foreground">R$</span>
+              <span className="text-2xl font-bold text-muted-foreground">{simbolo}</span>
               <input
                 inputMode="numeric"
                 value={fmtBR(valorRaw)}

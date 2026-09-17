@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { X, TrendingUp, Shield, Info, Loader2 } from 'lucide-react';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // Atrelar investimentos a uma meta (migration 147).
@@ -20,12 +21,11 @@ import { X, TrendingUp, Shield, Info, Loader2 } from 'lucide-react';
 // =============================================================================
 
 const BRAND = 'hsl(var(--primary))';
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 export default function AtrelarInvestimentos({
   phone, meta, onClose, onSuccess,
 }: { phone: string; meta: any; onClose: () => void; onSuccess: () => void }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [montado, setMontado] = useState(false);
   const [salvando, setSalvando] = useState<string | null>(null);
   useEffect(() => { setMontado(true); }, []);
@@ -160,6 +160,7 @@ function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode
 }
 
 function Linha({ inv, on = false, salvando, onToggle }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   return (
     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30" style={{ minHeight: 56 }}>
       <div className="min-w-0 flex-1">

@@ -13,6 +13,7 @@ import { calcularDataFim, hojeSP, type Frequencia } from '@/lib/frequencia-recor
 import Link from 'next/link';
 import { criarPrevistoUnico } from '@/lib/previsto-unico';
 import { categorizarDescricao, ajustarPorDirecao } from '@/lib/categorizar';
+import { useDinheiro } from '@/lib/moeda-base';
 
 /**
  * Formulário de conta fixa — frequência, duração e antecedência do aviso.
@@ -33,9 +34,6 @@ import { categorizarDescricao, ajustarPorDirecao } from '@/lib/categorizar';
  */
 
 const BRAND = 'hsl(var(--primary))';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -247,6 +245,7 @@ export default function FormRecorrencia({
    *  componente não remonta e o efeito que lê a URL não roda de novo. */
   onVerExtrato?: () => void;
 }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const editando = !!editItem;
 
   // SSR não tem `document` — sem esta guarda o portal quebra na hidratação.

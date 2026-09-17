@@ -84,8 +84,10 @@ export function useValores(): Ctx {
  * digitável (o Planejamento anual dos Relatórios), o componente continua
  * chamando o formatador CRU de propósito.
  *
- * `f` precisa ser estável (declarado no módulo, como em todas as telas) — uma
- * função nova a cada render refaria o memo à toa.
+ * `f` precisa ser estável — uma função nova a cada render refaria o memo à
+ * toa. Nas telas ele vem do `useDinheiro()` (lib/moeda-base), que devolve a
+ * MESMA função enquanto a moeda base não muda; um formatador compacto declarado
+ * no módulo entra pelo `useComSimbolo`, que tem a mesma garantia.
  */
 export function useFmt<T extends (...args: never[]) => string>(f: T, mascara: string = MASCARA): T {
   const { ocultos } = useValores();

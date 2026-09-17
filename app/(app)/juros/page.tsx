@@ -3,14 +3,13 @@
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Percent, TrendingUp, CreditCard, Sparkles, ArrowUpRight, Info } from 'lucide-react';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const GraficoPatrimonio = dynamic(() => import('./GraficoPatrimonio'), {
   ssr: false,
   loading: () => <div className="w-full h-full rounded-xl bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />,
 });
 
-const brl = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const pct = (v: number) => `${(Number.isFinite(v) ? v : 0).toFixed(1).replace('.', ',')}%`;
 
 const inputCls =
@@ -45,6 +44,8 @@ function Resultado({ label, valor, destaque, sub, subCor }: {
 }
 
 export default function CalculadoraJurosPage() {
+  const brl = useDinheiro({ entrada: 'finitoOuZero' });
+  const simbolo = useSimboloMoeda();
   const [modo, setModo] = useState<'investir' | 'divida'>('investir');
 
   // ── Investir (juros compostos) ──
@@ -123,8 +124,8 @@ export default function CalculadoraJurosPage() {
           <div className="grid lg:grid-cols-5 gap-6 items-start">
             {/* Inputs */}
             <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4">
-              <Campo label="Valor inicial" sufixo="R$" value={inicial} onChange={setInicial} step="100" />
-              <Campo label="Aporte mensal" sufixo="R$" value={aporte} onChange={setAporte} step="50" />
+              <Campo label="Valor inicial" sufixo={simbolo} value={inicial} onChange={setInicial} step="100" />
+              <Campo label="Aporte mensal" sufixo={simbolo} value={aporte} onChange={setAporte} step="50" />
               <div>
                 <Campo label="Taxa de juros" sufixo="%" value={taxa} onChange={setTaxa} step="0.1" />
                 <div className="inline-flex p-0.5 rounded-lg bg-muted/40 border border-border/60 mt-2">
@@ -172,7 +173,7 @@ export default function CalculadoraJurosPage() {
           <div className="grid lg:grid-cols-5 gap-6 items-start">
             {/* Inputs dívida */}
             <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4">
-              <Campo label="Valor da dívida / compra" sufixo="R$" value={valorD} onChange={setValorD} step="100" />
+              <Campo label="Valor da dívida / compra" sufixo={simbolo} value={valorD} onChange={setValorD} step="100" />
               <Campo label="Taxa de juros ao mês" sufixo="%" value={taxaD} onChange={setTaxaD} step="0.1" />
               <Campo label="Número de parcelas" sufixo="x" value={parcelas} onChange={setParcelas} step="1" min="1" />
               <div className="flex items-start gap-2 text-xs text-muted-foreground rounded-xl bg-muted/20 border border-border/60 p-3">

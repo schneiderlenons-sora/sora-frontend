@@ -5,6 +5,7 @@ import { X, Loader2, AlertCircle, Check, Target, Bell, Info, ChevronDown } from 
 import { api } from '@/lib/api';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme } from '@/lib/categorias';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -30,6 +31,8 @@ export default function LimiteCategoriaModal({
   phone, mesRef, categorias, categoriaAlvo, limiteExistente,
   onClose, onSuccess,
 }: Props) {
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const ediMode = !!limiteExistente;
 
   const [categoriaNome, setCategoriaNome] = useState<string>(
@@ -257,7 +260,7 @@ export default function LimiteCategoriaModal({
               Limite mensal *
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{simbolo}</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -314,7 +317,7 @@ export default function LimiteCategoriaModal({
                 <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
                   📱 Aviso ao atingir{' '}
                   <strong className="text-foreground tabular">
-                    {valorAlerta.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {fmt(valorAlerta)}
                   </strong>.
                 </p>
               )}

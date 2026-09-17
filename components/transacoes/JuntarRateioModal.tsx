@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
 import { X, Loader2, Merge, AlertTriangle } from 'lucide-react';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // Juntar de volta um lançamento dividido (migration 152).
@@ -22,8 +23,6 @@ import { X, Loader2, Merge, AlertTriangle } from 'lucide-react';
 // =============================================================================
 
 const BRAND = 'hsl(var(--primary))';
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 export default function JuntarRateioModal({
   phone, tx, partes, onClose, onSuccess,
@@ -35,6 +34,7 @@ export default function JuntarRateioModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [montado, setMontado] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');

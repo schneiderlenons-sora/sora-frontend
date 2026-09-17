@@ -8,12 +8,12 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from 'recharts';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 
 export function GraficoDistribuicao({ data, strokePie, isDark }: { data: any[]; strokePie: string; isDark: boolean }) {
+  const fmt = useDinheiro({ entrada: 'finitoOuZero' });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
@@ -31,6 +31,8 @@ export function GraficoDistribuicao({ data, strokePie, isDark }: { data: any[]; 
 }
 
 export function GraficoPatrimonio({ data }: { data: any[] }) {
+  const fmt = useDinheiro({ entrada: 'finitoOuZero' });
+  const simbolo = useSimboloMoeda();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
@@ -44,7 +46,7 @@ export function GraficoPatrimonio({ data }: { data: any[] }) {
         <XAxis dataKey="data" tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
           tickFormatter={(v) => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
         <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--fg-muted))' }} axisLine={false} tickLine={false}
-          tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+          tickFormatter={(v) => `${simbolo}${(v / 1000).toFixed(0)}k`} />
         <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{ background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 12 }} />
         {/* `valor` = o investido, mapeado no cliente (migration 140). Antes era
             `patrimonio_total`, que soma o saldo das contas e contradizia o card
@@ -59,6 +61,7 @@ export function GraficoPatrimonio({ data }: { data: any[] }) {
 }
 
 export function GraficoSimulacao({ data }: { data: any[] }) {
+  const fmt = useDinheiro({ entrada: 'finitoOuZero' });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>

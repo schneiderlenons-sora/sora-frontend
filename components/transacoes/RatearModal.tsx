@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
 import { X, Plus, Trash2, Loader2, SplitSquareHorizontal, AlertTriangle } from 'lucide-react';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 // =============================================================================
 // Dividir um lançamento em várias categorias (migration 151).
@@ -25,8 +26,6 @@ import { X, Plus, Trash2, Loader2, SplitSquareHorizontal, AlertTriangle } from '
 // =============================================================================
 
 const BRAND = 'hsl(var(--primary))';
-const fmt = (c: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c / 100);
 
 type Parte = { categoria: string; valorRaw: string };
 
@@ -40,6 +39,9 @@ const mascara = (raw: string) =>
 export default function RatearModal({
   phone, tx, onClose, onSuccess,
 }: { phone: string; tx: any; onClose: () => void; onSuccess: () => void }) {
+  const dinheiro = useDinheiro();
+  const simbolo = useSimboloMoeda();
+  const fmt = (c: number) => dinheiro(c / 100);
   const [montado, setMontado] = useState(false);
   const [cats, setCats] = useState<string[]>([]);
   const [partes, setPartes] = useState<Parte[]>([
@@ -128,7 +130,7 @@ export default function RatearModal({
                 {cats.map((c) => <option key={c} value={c}>{nomeCategoria(c)}</option>)}
               </select>
               <div className="relative" style={{ width: 128 }}>
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">R$</span>
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{simbolo}</span>
                 <input
                   className="input w-full text-right tabular" inputMode="numeric"
                   value={p.valorRaw ? mascara(p.valorRaw) : ''}

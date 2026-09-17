@@ -1,6 +1,6 @@
 # Moeda principal (base) configurável — plano aprovado
 
-> **Status:** EM ANDAMENTO. Fases **0 e 4 feitas** (16/09/2026). Próxima: **Fase 1**.
+> **Status:** EM ANDAMENTO. Fases **0, 4 e 1 feitas** (16–17/09/2026). Próxima: **Fase 2**.
 > **Decidido pelo dono:** as duas primeiras moedas são **USD (dólar)** e
 > **NOK (coroa norueguesa)**; no MVP a moeda base **trava** depois que o grupo
 > tem lançamento.
@@ -49,14 +49,63 @@
   volta USD→NOK→USD. A tolerância do `moedaBaseDoGrupo` foi testada **contra o
   banco real sem a migration**: devolve BRL e a 2ª chamada faz **zero** idas.
 
-### ⏭️ Próximo: Fase 1 — o formatador único no painel
+### ✅ Fase 1 — o formatador único no painel (17/09/2026)
 
-Ponto de partida já decidido pelo que a Fase 0 revelou: a moeda tem de chegar
-**no servidor**, igual ao cookie de valores ocultos, senão o primeiro paint sai
-com `R$` e troca pro símbolo certo depois da hidratação. O caminho é o
-`app/(app)/layout.tsx` ler a base e passar a um `MoedaProvider` — e, como as 11
-abas também chamam `contextoSSR`, envolvê-lo em `React.cache()` pra layout e
-página dividirem UMA leitura por requisição.
+- **A moeda chega pelo SERVIDOR**, igual ao cookie de valores ocultos:
+  `app/(app)/layout.tsx` lê `contextoSSR().moedaBase` e passa ao
+  `MoedaBaseProvider` (`lib/moeda-base.tsx`). Lida só no cliente, o HTML sairia
+  com `R$` e trocaria depois da hidratação. `contextoSSR` virou `React.cache`:
+  layout e página dividem UMA leitura por requisição.
+- ⚠️ **NÃO é o `formatarMoeda` — o plano estava errado aqui.** Medido: o painel
+  inteiro formatava com `Intl.NumberFormat('pt-BR', {style:'currency'})`, que dá
+  `-R$⍽1.250,50` (sinal antes, espaço INQUEBRÁVEL); o `formatarMoeda` dá
+  `R$ -1.250,50` com espaço comum. Adotá-lo mudaria todo valor da tela. O novo
+  `formatarDinheiro` (`lib/moeda.ts`) usa o mesmo Intl e troca só o símbolo pelo
+  do catálogo (o Intl escreve "NOK"/"JP¥"; a Sora, "kr"/"¥").
+- **Hooks:** `useDinheiro({ entrada, maximoCasas })`, `useSimboloMoeda()` e
+  `useComSimbolo(f)` (compacto de eixo). ⚠️ `entrada` reproduz o que cada tela
+  fazia com valor inválido — `cru` (`format(v)`), `ouZero` (`v || 0`),
+  `finitoOuZero` (`Number.isFinite(v) ? v : 0`). Não unificar: divergem em NaN e
+  Infinity.
+- **47 arquivos migrados.** 39 formatadores de módulo por codemod AST (resolve
+  cada referência pelo SÍMBOLO do TypeScript, insere o hook no topo de cada
+  componente que usa — 82 inserções — e recusa referência fora de componente);
+  o resto à mão: `RatearModal` (centavos), `ContaDebitoSelect` (formatador
+  interno), 3 `Intl` inline dos limites, 4 `toLocaleString`, 4 compactos de
+  eixo/calendário, 5 textos `R$ 0,00` e 20 prefixos/rótulos de campo.
+- **Removidos 2 compactos MORTOS** (`fmtShort` do dashboard, `fmtCompact` dos
+  relatórios) — o lint antes/depois confirmou que não eram usados.
+- **Prova de regressão zero:** `eval:dinheiro` §7 renderiza os hooks e compara
+  cada modo com a expressão EXATA que ele substituiu, em 26 valores (NaN,
+  Infinity, −0…), com e sem provider — mutation-testado (8 e 6 falhas). tsc,
+  build e os 18 evals do front passam; lint dos 50 arquivos tocados **idêntico**
+  ao de antes (704 → 702, só os dois mortos).
+- ⚠️ **Fica em real DE PROPÓSITO:** preço da Sora (Comunidade, Configurações,
+  Open Finance, /planos), admin, landing/venda, Wrapped e onboarding (fora do
+  provider — lá o hook devolve BRL, igual a antes) e **Negócios** (painel irmão,
+  sem o provider; Fase 5).
+- ⚠️ **Pendentes medidos, NÃO criados por esta fase:**
+  - **Saldo de carteira em moeda ESTRANGEIRA em modais** — `ContaDebitoSelect`,
+    `TransferenciaModal` e o "Novo saldo" do ajuste formatam `wallet.saldo`
+    (NATIVO, migration 144) com o formatador do painel. Já era assim com `R$`.
+    Exceção feita: o prefixo do **cheque especial** no cadastro de conta usa o
+    símbolo DA CONTA, igual ao "Saldo inicial" logo acima — o backend soma os
+    dois (`disponivel = saldo + cheque_especial`), então são a mesma unidade.
+  - **`NovoInvestimentoModal`** crava `R$` junto da cotação, que vem em BRL do
+    serviço de cotações → Fase 5 (investimentos).
+  - **`saldo_brl`** continua em reais: com a base em coroa o "≈" das contas
+    estrangeiras sairia com símbolo de coroa e número de real. **Nenhum grupo
+    pode ter base ≠ BRL antes da Fase 5** (e hoje não há como escolher — a
+    escolha é a Fase 6).
+
+### ❓ Decisão em aberto — grafia dos números
+
+O §3/§5.9 previa a grafia **seguir o locale da moeda** (NOK: `20 000,00 kr`).
+Implementado: **grafia pt-BR com o símbolo da moeda** (`kr 20.000,00`), porque
+moeda é do GRUPO e idioma é do USUÁRIO — eixos separados. Trocar é uma linha em
+`formatarDinheiro`, mas é decisão do dono.
+
+### ⏭️ Próximo: Fase 2 — entrada de valor
 
 ---
 

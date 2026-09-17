@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Target, Bell } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -21,6 +22,8 @@ export default function EditarLimiteGeralModal({
   alertaAtivoInicial = true, alertaPctInicial = 80,
   onClose, onSuccess,
 }: Props) {
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const [valorRaw, setValorRaw]   = useState(String(Math.round((valorInicial || 0) * 100)));
   const [ativo,    setAtivo]      = useState(ativoInicial);
   const [alerta,   setAlerta]     = useState(alertaAtivoInicial);
@@ -107,7 +110,7 @@ export default function EditarLimiteGeralModal({
               Valor do limite mensal *
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">{simbolo}</span>
               <input
                 type="text"
                 inputMode="numeric"
@@ -162,10 +165,10 @@ export default function EditarLimiteGeralModal({
                 <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
                   📱 A Sora te avisará quando você atingir{' '}
                   <strong className="text-foreground tabular">
-                    {valorAlerta.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {fmt(valorAlerta)}
                   </strong>{' '}
                   ({pct}% de{' '}
-                  {valorBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}).
+                  {fmt(valorBruto)}).
                 </p>
               )}
             </div>

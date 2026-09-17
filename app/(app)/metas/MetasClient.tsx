@@ -12,6 +12,7 @@ import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 import {
   Plus, Sparkles, Pencil, Trash2, ArrowUpRight, ArrowDownLeft,
   AlertCircle, Loader2, Check, X as XIcon, Flag, Calendar, Target as TargetIcon, TrendingUp as TrendingUpIcon, Shield as ShieldIcon } from 'lucide-react';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 // recharts sob demanda: fora do bundle inicial da página.
 const GraficoMeta = dynamic(() => import('./GraficoMeta'), {
   ssr: false,
@@ -20,8 +21,6 @@ const GraficoMeta = dynamic(() => import('./GraficoMeta'), {
 
 const BRAND = 'hsl(var(--primary))';
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtData = (d: string) =>
   new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 const fmtMesCurto = (d: Date) =>
@@ -264,6 +263,7 @@ interface CardProps {
 }
 
 function CardMeta({ meta, delay, onEditar, onExcluir, onAplicar, onResgatar, onAtrelar }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   // ⚠️ `valor_total` = guardado (aportes) + investimentos atrelados, somado pelo
   // servidor na LEITURA (migration 147) — nunca gravado em `metas.valor_atual`,
   // que é coluna de aporte. Cai em `valor_atual` enquanto a migration não roda,
@@ -551,6 +551,8 @@ interface AporteProps {
 }
 
 function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AporteProps) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
+  const simbolo = useSimboloMoeda();
   const [valorRaw, setValorRaw] = useState('');
   const [obs,      setObs]      = useState('');
   const [walletId, setWalletId] = useState<string | null>(null);
@@ -626,7 +628,7 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
               {ehAporte ? 'Valor a aplicar' : 'Valor a resgatar'}
             </p>
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-2xl font-bold text-muted-foreground">R$</span>
+              <span className="text-2xl font-bold text-muted-foreground">{simbolo}</span>
               <input
                 inputMode="numeric"
                 value={fmtBR(valorRaw)}

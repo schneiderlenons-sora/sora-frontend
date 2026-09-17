@@ -15,6 +15,7 @@ import {
   PiggyBank, Landmark, ChevronRight, ChevronDown, CalendarClock, Percent,
   Archive, Layers,
 } from 'lucide-react';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 // recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
 // inicial. Skeleton com a mesma altura do container (evita CLS).
 const skel = () => <div className="w-full h-full rounded-xl bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />;
@@ -120,8 +121,6 @@ function textoVencimento(iso?: string | null): { txt: string; perto: boolean } |
   return { txt: `vence em ${data} · ${Math.floor(dias / 365)} ano${dias >= 730 ? 's' : ''}`, perto: false };
 }
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const fmtPct = (v: number) => `${v >= 0 ? '+' : ''}${(v || 0).toFixed(2)}%`;
 
 type Tab = 'resumo' | 'carteira' | 'caixinhas' | 'reserva' | 'simulador' | 'aportes';
@@ -467,6 +466,7 @@ function PaywallPremium() {
 // TAB RESUMO
 // ─────────────────────────────────────────────────────────────
 function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, proventos = 0, onVerCaixinhas }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   // Aportado > 0 e lucro exatamente zero = todas as posições entraram com
   // aportado igual ao valor atual, ou seja, a Sora não conhece nenhum custo de
   // compra. Não é "rendeu zero", é "não dá pra calcular".
@@ -667,6 +667,7 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
 // TAB CARTEIRA
 // ─────────────────────────────────────────────────────────────
 function TabCarteira({ invs, onDelete, onAdd }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [busca, setBusca] = useState('');
   const [classe, setClasse] = useState<'todas' | Classe>('todas');
   const [ordem, setOrdem] = useState<'valor' | 'rent' | 'venc'>('valor');
@@ -803,7 +804,7 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
           <Archive size={14} className="text-muted-foreground flex-shrink-0" />
           <span className="text-xs text-muted-foreground flex-1">
             <strong className="text-foreground tabular">{resgatados.length}</strong>{' '}
-            {resgatados.length === 1 ? 'aplicação já resgatada' : 'aplicações já resgatadas'} (R$ 0,00)
+            {resgatados.length === 1 ? 'aplicação já resgatada' : 'aplicações já resgatadas'} ({fmt(0)})
           </span>
           <span className="text-xs font-semibold text-primary">{verResgatados ? 'ocultar' : 'mostrar'}</span>
         </button>
@@ -892,6 +893,7 @@ function ChipCarencia({ ate }: { ate: string }) {
 
 /* ── Card de uma posição (ou de um grupo de aplicações iguais) ───────── */
 function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const varios = g.itens.length > 1;
   const idx = textoIndexador(g);
   const rentPct = g.rent * 100;
@@ -1087,6 +1089,7 @@ function textoRendimento(c: any): string | null {
 }
 
 function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   return (
     <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
 
@@ -1159,6 +1162,7 @@ function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number })
 // ⚠️ O estado vem em ÍCONE + PALAVRA ("Na reserva" / "Fora"), não só na cor do
 // interruptor: cor sozinha não comunica pra quem não distingue contraste.
 function LinhaReserva({ inv, on = false, onToggle }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const [salvando, setSalvando] = useState(false);
   return (
     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30" style={{ minHeight: 56 }}>
@@ -1197,6 +1201,7 @@ function LinhaReserva({ inv, on = false, onToggle }: any) {
 }
 
 function TabReserva({ reserva, invs, onChangeMeses, onToggleReserva }: any) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const pct = reserva.percentual || 0;
   const status =
     pct >= 100 ? { label: 'Reserva completa ✓', color: '#22c55e' } :
@@ -1320,6 +1325,8 @@ const PRESETS = [
 ];
 
 function TabSimulador() {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
+  const simbolo = useSimboloMoeda();
   const [inicial,    setInicial]    = useState('1000');
   const [mensal,     setMensal]     = useState('500');
   const [taxa,       setTaxa]       = useState('11');
@@ -1358,8 +1365,8 @@ function TabSimulador() {
         <div className="card rounded-2xl p-5 space-y-4">
           <p className="text-sm font-bold text-foreground">Parâmetros</p>
 
-          <Input label="Valor inicial (R$)" value={inicial} onChange={setInicial} />
-          <Input label="Aporte mensal (R$)" value={mensal} onChange={setMensal} />
+          <Input label={`Valor inicial (${simbolo})`} value={inicial} onChange={setInicial} />
+          <Input label={`Aporte mensal (${simbolo})`} value={mensal} onChange={setMensal} />
 
           <div className="grid grid-cols-2 gap-3">
             <Input label="Taxa (%)" value={taxa} onChange={setTaxa} />
@@ -1450,6 +1457,7 @@ function TabAportes({ aportes, invs, onAportar, onResgatar }: {
   aportes: any[]; invs: any[];
   onAportar: () => void; onResgatar: () => void;
 }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const hoje = new Date();
   const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   const anoAtual = String(hoje.getFullYear());

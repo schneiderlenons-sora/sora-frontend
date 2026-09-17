@@ -39,6 +39,19 @@ export function useSimboloMoeda(): string {
 }
 
 /**
+ * Formato COMPACTO de eixo/célula ("R$1,2k") com o símbolo da moeda base.
+ *
+ * Cada tela tem o seu compacto (k, M, casas diferentes) e ele continua
+ * declarado no módulo, agora recebendo o símbolo em vez de cravar "R$". `f`
+ * precisa ser estável (do módulo): a função devolvida só muda quando o símbolo
+ * muda, e é essa identidade que o `useFmt` memoiza.
+ */
+export function useComSimbolo(f: (v: number, simbolo: string) => string): (v: number) => string {
+  const simbolo = useSimboloMoeda();
+  return useMemo(() => (v: number) => f(v, simbolo), [f, simbolo]);
+}
+
+/**
  * Como a tela tratava valor inválido ANTES, preservado caso a caso:
  *   - `'cru'`          → `format(v)`: NaN sai "R$ NaN" (padrão)
  *   - `'ouZero'`       → `format(v || 0)`

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, ArrowDownCircle, ArrowUpCircle, Check, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useDinheiro } from '@/lib/moeda-base';
 
 // =============================================================================
 // Aporte e RESGATE de investimento — o mesmo modal, dois sentidos.
@@ -20,9 +21,6 @@ import { api } from '@/lib/api';
 
 const BRAND = 'hsl(var(--primary))';
 const COR_RESGATE = '#f97316';
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 type Investimento = {
   id: string; nome: string;
@@ -50,6 +48,7 @@ export default function MovimentoModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
   const ehAporte = tipo === 'aporte';
   const cor = ehAporte ? BRAND : COR_RESGATE;
 
@@ -228,7 +227,7 @@ export default function MovimentoModal({
                 <div className="flex items-center gap-2">
                   <input id="mov-valor" inputMode="decimal" autoFocus
                          value={valor} onChange={(e) => { setValor(e.target.value); setErro(''); }}
-                         placeholder="R$ 0,00"
+                         placeholder={fmt(0)}
                          className="flex-1 px-3.5 rounded-xl bg-background border border-border text-sm tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
                          style={{ minHeight: 48 }} />
                   {!ehAporte && disponivel > 0 && (

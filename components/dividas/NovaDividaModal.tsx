@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users, Ticket, Trophy } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useSimboloMoeda } from '@/lib/moeda-base';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
 async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> {
@@ -51,6 +52,7 @@ interface Props {
 }
 
 export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: Props) {
+  const simbolo = useSimboloMoeda();
   const ediMode = !!edicao;
 
   const [titulo,          setTitulo]          = useState(edicao?.titulo || '');
@@ -303,7 +305,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                 Valor total *
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">R$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">{simbolo}</span>
                 <input
                   inputMode="numeric"
                   value={fmtBR(valorTotalRaw)}
@@ -336,7 +338,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                 <span className="ml-1 text-[9px] font-normal normal-case text-muted-foreground/60">(auto)</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">R$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">{simbolo}</span>
                 <input
                   inputMode="numeric"
                   value={fmtBR(valorParcelaRaw)}

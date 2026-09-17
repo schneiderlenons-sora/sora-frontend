@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { nomeCategoria } from '@/lib/categorias';
 import SeletorCategoria, { type CatItem } from '@/components/transacoes/SeletorCategoria';
 import RegraForm from '@/components/agentes/RegraForm';
+import { useSimboloMoeda } from '@/lib/moeda-base';
 
 type Wallet = { id: string; nome: string; tipo?: string };
 
@@ -25,6 +26,7 @@ interface Props {
 // (Open Finance traz muita coisa como "Outros"). Também ajusta tipo, valor,
 // descrição, conta, data e status. Usa PUT /api/transacoes/:id.
 export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSaved, onOptimisticSave }: Props) {
+  const simbolo = useSimboloMoeda();
   const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>(tx.tipo === 'Recebimento' ? 'Recebimento' : 'Gasto');
   const [categoria,  setCategoria]  = useState<string>(tx.categoria || '');
   const [valor,      setValor]      = useState<string>(String(tx.valor ?? ''));
@@ -217,7 +219,7 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
           {/* Valor + Data */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Valor (R$)</label>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Valor ({simbolo})</label>
               <input type="number" step="any" value={valor} onChange={e => setValor(e.target.value)} className="input w-full tabular" />
             </div>
             <div>

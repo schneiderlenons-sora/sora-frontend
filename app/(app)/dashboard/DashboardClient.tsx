@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
+import { useDinheiro } from '@/lib/moeda-base';
 // ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
 // (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
 // também usam gráfico), o dashboard chegava a baixar 3 cópias — 864 KB antes
@@ -65,12 +66,6 @@ const BRAND2 = '#3dd68c';
 const mesAtual    = new Date().toISOString().slice(0, 7);
 const mesAnterior = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
   .toISOString().slice(0, 7);
-
-const fmtCru = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-const fmtShort = (v: number) =>
-  v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : v > 0 ? `R$${v}` : 'R$0';
 
 function pct(atual: number, anterior: number) {
   if (!anterior) return 0;
@@ -147,6 +142,7 @@ async function fetchDashboard(phone: string, mes: string, mesAnt: string) {
 
 // ─────────────────────────────────────────────────────────────
 export default function DashboardClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
+  const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const { phone: authPhone, perfil, temAcessoGrow } = useAuth();
   // SSR: usa o phone vindo do servidor até a sessão hidratar no cliente, pra a

@@ -2518,7 +2518,11 @@ nisso. Plano completo aprovado; a Fase 1 está feita.
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects
 - **Tailwind v4:** `border: 1px solid <color> !important` (border shorthand, não split)
 - **Cores:** Brand `#61D17B` (Sora green). Dark mode via classe `.dark`.
-- **Moeda:** `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`
+- **Moeda (painel):** `useDinheiro()` / `useSimboloMoeda()` de `lib/moeda-base.tsx` —
+  **nunca** `Intl.NumberFormat(... currency: 'BRL')` nem `R$` cravado numa tela
+  nova. O grupo pode ter outra moeda base (`grupos.moeda_base`, migration 168);
+  o formatador sai idêntico ao Intl antigo em BRL (`eval:dinheiro`). Preço da
+  Sora continua em real. Plano: `docs/PLANO-MOEDA-BASE.md`.
 - **Plano guard:** sempre usar `podeUsar(plano, feature)` de `lib/plans.ts`
 - **IA local-first:** preferir parsers/banco locais (regex, lookup) antes de chamar a OpenAI (gpt-4o-mini); sempre manter fallback local
 - **Skill `ai-prompting` (auto):** ao mexer na IA/interpretador (`ia.js`, `interpretador.js`, `categorizar.js`, system prompt, mapear frase→ação, "não entendi", structured outputs/JSON mode, evals/bateria de perguntas), usar a skill `ai-prompting` **sem o usuário precisar pedir**. (Espelha a regra de usar `ui-ux-pro-max` em todo design novo.)
