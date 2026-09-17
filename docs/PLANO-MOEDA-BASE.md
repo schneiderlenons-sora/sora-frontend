@@ -192,14 +192,35 @@ brasileira (DRE, Simples/DAS, Hotmart). Nada a fazer: o painel de Negócios fica
 fora do `MoedaBaseProvider` (hooks devolvem BRL) e o "+" de nova transação
 pessoal já é escondido lá (`BottomNav`, `ehNegocios`).
 
-**❓ Pendente — Open Finance em grupo fora do real.** A ideia do dono ("a conta do
-banco entra como conta em real, igual à conta em dólar num grupo em real") é o
-modelo certo, mas não sai sem código: o sync grava cada lançamento sem moeda, e
-num grupo em dólar R$ 100 contariam como US$ 100. Pra conta corrente basta o sync
-gravar convertido (`camposTransacao` com a base). O CARTÃO é o ponto sensível: a
-fatura soma `transacoes.valor` como se fosse a moeda do cartão em todos os
-pontos (`valorFatura`, `faturaVista`, parcelas previstas, faturas publicadas,
-telas) — hoje não existe cartão em moeda estrangeira (0 na base).
+**5d — Open Finance em grupo fora do real: CONTAS (feito, decisão do dono).**
+A conta do banco entra como conta **em real** dentro do grupo (igual à conta em
+dólar lançada à mão num grupo em real), e cada lançamento é gravado convertido:
+`valor` na base, original em `valor_moeda`, taxa em `taxa_brl`
+(`inserirTransacoes(…, cambio)`).
+- ⚠️ **Não dava pra "deixar como está":** o sync gravava o lançamento sem moeda,
+  e num grupo em dólar R$ 100 contariam como US$ 100 em todo o painel.
+- ⚠️ **Cartão, empréstimo, investimento e caixinha NÃO são importados** num grupo
+  fora do real — o sync nem os busca na Celcoin. Todos gravam real em tabela que
+  o painel soma como moeda do grupo. A tela de Open Finance **avisa antes** de a
+  pessoa conectar; o relatório do sync também registra.
+- ⚠️ **A cobrança que ASSUME a previsão da conta fixa** (`reconciliarPrevisto`)
+  passa a levar o original e a taxa do banco — antes só o `valor`, e a linha
+  ficaria com o nativo da previsão.
+- Conta de OF em moeda ESTRANGEIRA num grupo em real (Wise via OF) passa a
+  converter também — medido: 0 hoje.
+- `eval:moeda-base` §8 passa pelo `sincronizarConsentimento` real com Celcoin e
+  banco falsos, nos dois tipos de grupo. Mutation-testado.
+
+**⏭️ Próximo, com calma (pedido do dono): o CARTÃO do Open Finance em grupo
+fora do real.** A fatura soma `transacoes.valor` como se fosse a moeda do cartão
+em todos os pontos (`valorFatura`, `faturaVista`, parcelas previstas, faturas
+publicadas, `DetalhesCartaoModal`, `CartaoClient`, agenda, a pagar) — é suportar
+cartão em moeda estrangeira, que hoje não existe (0 na base). Empréstimos,
+investimentos e caixinhas do banco vêm depois, cada um medido à parte.
+
+**Pendentes anotados, fora da moeda base:** `fotografarPatrimonio` soma
+`wallets.saldo` cru (conta estrangeira entra sem conversão no gráfico de
+patrimônio — já era assim).
 
 ---
 

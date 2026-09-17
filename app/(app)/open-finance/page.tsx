@@ -16,10 +16,12 @@ import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import IconeMarca from '@/components/ui/IconeMarca';
+import { useMoedaBase } from '@/lib/moeda-base';
+import { MOEDAS } from '@/lib/moeda';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
   Clock, ShieldCheck, Search, ExternalLink, X,
-  Wrench, FileUp, Sparkles, ArrowRight, Scale,
+  Wrench, FileUp, Sparkles, ArrowRight, Scale, Info,
 } from 'lucide-react';
 
 const BRAND = '#61D17B';
@@ -73,6 +75,7 @@ function quando(iso: string) {
 
 export default function OpenFinancePage() {
   const { perfil, phone, plano, loading: carregandoPerfil } = useAuth();
+  const moedaBase = useMoedaBase();
   // ⚠️ O acesso depende do PLANO, que chega junto com o perfil. Enquanto ele não
   // carrega não dá pra decidir — sem isto, quem TEM acesso via a tela de "só na
   // assinatura" piscar antes do conteúdo.
@@ -529,6 +532,32 @@ export default function OpenFinancePage() {
                 de /configuracoes era escondido pra ele). Medido: os 13
                 pagantes eram todos vitalícios. */}
             <GerenciarCobrancaConexao pagas={Number(perfil?.of_conexoes_pagas) || 0} />
+
+            {/* ⚠️ GRUPO FORA DO REAL (migration 168). O Open Finance brasileiro
+                só fala real: as contas entram em real e cada lançamento é
+                convertido pra moeda do grupo; cartão, empréstimo, investimento
+                e caixinha ainda NÃO são importados (o sync nem os busca). A tela
+                diz isso ANTES de a pessoa conectar — descobrir depois, com o
+                cartão faltando, leria como defeito. Em grupo em real o bloco
+                não existe e a tela fica idêntica. */}
+            {moedaBase !== 'BRL' && (
+              <div role="note" className="rounded-2xl border border-border bg-muted/40 p-4 flex gap-3">
+                <Info size={18} className="flex-shrink-0 mt-0.5 text-muted-foreground" aria-hidden />
+                <div className="space-y-1 text-xs text-muted-foreground leading-relaxed">
+                  <p className="text-sm font-semibold text-foreground">
+                    Seu grupo está em {MOEDAS[moedaBase].nome.toLowerCase()}
+                  </p>
+                  <p>
+                    O Open Finance traz as <b className="text-foreground">contas do banco em real</b>, e cada
+                    lançamento é convertido para {MOEDAS[moedaBase].nome.toLowerCase()} pelo câmbio do dia.
+                  </p>
+                  <p>
+                    Cartões de crédito, empréstimos, investimentos e caixinhas do banco ainda não são
+                    importados neste grupo.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Ação principal */}
             <div className="flex flex-col sm:flex-row gap-2">
