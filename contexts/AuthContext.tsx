@@ -54,7 +54,9 @@ interface Perfil {
   grow_trial_inicio?: string | null;
   grow_trial_fim?:    string | null;
   painel_ativo?:    Painel;
-  grupo_ativo:      { id: string; nome: string } | null;
+  /** `moeda_base` (migration 168): a moeda em que o grupo vive. Ausente
+   *  enquanto a migration não roda — quem lê trata como 'BRL'. */
+  grupo_ativo:      { id: string; nome: string; moeda_base?: string | null } | null;
   // ── Onboarding wizard ────────────────────────────────────────────
   onboarding_completed?: boolean;
   onboarding_step?:      number;

@@ -1,10 +1,62 @@
 # Moeda principal (base) configurável — plano aprovado
 
-> **Status:** planejado, NÃO iniciado. Levantamento e medições de 15/09/2026.
+> **Status:** EM ANDAMENTO. Fases **0 e 4 feitas** (16/09/2026). Próxima: **Fase 1**.
 > **Decidido pelo dono:** as duas primeiras moedas são **USD (dólar)** e
 > **NOK (coroa norueguesa)**; no MVP a moeda base **trava** depois que o grupo
 > tem lançamento.
-> Trabalho pausado a pedido — retomar por aqui.
+
+---
+
+## 0. Progresso
+
+### ✅ Fase 0 — a coluna e a propagação (16/09/2026)
+
+- `sql/168_moeda_base_grupo.sql` — `grupos.moeda_base text not null default 'BRL'`,
+  sem CHECK. **Precisa rodar à mão.** Tudo abaixo funciona antes dela.
+- `lib/ssr.ts` (`contextoSSR`) devolve `moedaBase`; `/api/me` traz
+  `grupo_ativo.moeda_base`; `Perfil` no `AuthContext` tipado.
+- ⚠️ **As duas leituras são TOLERANTES**: tentam com a coluna e, se o erro for
+  dela (`column grupos_1.moeda_base does not exist` — mensagem MEDIDA), refazem
+  sem. O "não existe" **expira em 10 min**, nunca dura o processo: com flag
+  permanente a instância que já estava no ar ignoraria a migration até o
+  próximo deploy.
+- ⚠️ **No `contextoSSR` o embed usa o alias `grupo`, não `grupo_ativo`** — com o
+  mesmo nome o objeto substituiria o uuid e o `grupoId` das 11 abas quebraria.
+- **Mudança em relação ao plano: `middlewares/auth.js` NÃO foi tocado.** Ele roda
+  em toda requisição e nenhuma rota do backend formata dinheiro pro painel (quem
+  formata é o painel). O WhatsApp tem leitura própria. Seria egress no caminho
+  mais quente sem consumidor. Quando o backend precisar, `moedaBaseDoGrupo()`.
+- **Achado de passagem:** `routes/webhook.js` (`obterContexto`) e
+  `routes/users.js` (`GET /api/user/:phone`) embutiam `grupos` por
+  `users_grupo_ativo_fkey`, nome que **não existe** (o certo é
+  `fk_users_grupo_ativo`, medido). Os dois caminhos estavam MORTOS (nenhum
+  chamador), então não era bug vivo — mas o plano contava com o embed do
+  webhook. Corrigidos.
+
+### ✅ Fase 4 — câmbio com pivô (16/09/2026)
+
+- `services/moeda.js`: `taxaEntre(de, para, tabela)`, `paraBase(valor, moeda,
+  base, tabela)` e `moedaBaseDoGrupo(grupoId)`. O BRL virou pivô:
+  `USD→NOK = 5,1435 ÷ 0,5515 = 9,33`.
+- ⚠️ **Faltando qualquer ponta, a taxa é `null` — nunca 1.** Também com cotação
+  zero ou NaN no destino (divisão por zero).
+- **`paraBRL` continua existindo e intocado** — 13 arquivos o chamam; some quando
+  a Fase 5 migrar os consumidores. A conversão **não** foi espelhada no
+  `lib/moeda.ts`, de propósito: a regra da casa é o painel receber valores já
+  convertidos, numa fonte só.
+- `eval:moeda` ganhou a seção do pivô: **regressão zero** (`paraBase(…, 'BRL')`
+  bit a bit igual a `paraBRL` em 7 casos), null nas pontas faltando, e ida e
+  volta USD→NOK→USD. A tolerância do `moedaBaseDoGrupo` foi testada **contra o
+  banco real sem a migration**: devolve BRL e a 2ª chamada faz **zero** idas.
+
+### ⏭️ Próximo: Fase 1 — o formatador único no painel
+
+Ponto de partida já decidido pelo que a Fase 0 revelou: a moeda tem de chegar
+**no servidor**, igual ao cookie de valores ocultos, senão o primeiro paint sai
+com `R$` e troca pro símbolo certo depois da hidratação. O caminho é o
+`app/(app)/layout.tsx` ler a base e passar a um `MoedaProvider` — e, como as 11
+abas também chamam `contextoSSR`, envolvê-lo em `React.cache()` pra layout e
+página dividirem UMA leitura por requisição.
 
 ---
 
