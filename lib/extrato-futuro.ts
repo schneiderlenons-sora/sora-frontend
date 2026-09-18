@@ -65,6 +65,8 @@ export type LinhaExtrato = {
   recorrenciaId?: string | null;
   competencia?: string | null;
   transacaoId?: string | null;
+  /** Só em linha de FATURA — é por ele que a tela escolhe a conta que paga. */
+  cartaoId?: string | null;
   adiada?: boolean;
   /**
    * Já está DENTRO do `saldoInicial` — aparece na lista, mas não move o saldo.
@@ -167,7 +169,7 @@ export function montarExtrato(params: {
   transacoes: TransacaoExtrato[];
   recorrencias: (ItemRecorrente & { id?: string; carteira?: string | null })[];
   dividas: (ItemParcelado & { id?: string; carteira?: string | null })[];
-  faturas: (FaturaProjetada & { carteira?: string | null })[];
+  faturas: (FaturaProjetada & { carteira?: string | null; cartao_id?: string | null })[];
   quitacoes?: Quitacao[];
   ajustes?: Ajuste[];
   /** Só considera estas carteiras. Vazio/ausente = todas. */
@@ -352,6 +354,7 @@ export function montarExtrato(params: {
       valor: restante,
       descricao: ('Fatura ' + (f.nome || '')).trim(),
       carteira: f.carteira ?? null,
+      cartaoId: f.cartao_id ?? null,
       origem: 'fatura',
       estado: 'previsto',
       estimado: false,

@@ -10,6 +10,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useConexoesOF } from '@/lib/conexao-of';
 import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
 import { mutate as mutateGlobal } from 'swr';
@@ -640,6 +641,10 @@ interface CardCartaoProps {
 }
 
 function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
+  // Conexão do banco encerrada? (ver lib/conexao-of.ts — o caso do BTG). Só
+  // busca pra cartão que vem do Open Finance; o SWR divide a lista entre os cards.
+  const conexoes = useConexoesOF(!!cartao.of_conta_id);
+  const conexaoEncerrada = conexoes.encerrada(cartao as never);
   // ⚠️ Tudo neste card está NA MOEDA DO CARTÃO (migration 168): fatura, limite,
   // pago e rollover — é o número que o app do banco mostra. Num grupo em real
   // (todo cartão hoje) é a mesma moeda do grupo e nada muda.
@@ -841,6 +846,20 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
           <p className="text-[11px] text-muted-foreground tabular mt-0.5">
             ≈ {fmtBase(valorDoCartaoNaBase(restante, cartao, moedaBase) as number)}
           </p>
+        )}
+
+        {/* ⚠️ Valor PARADO não pode parecer valor de hoje. */}
+        {conexaoEncerrada && (
+          <div className="mt-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+            <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">Conexão com o banco encerrada</p>
+            <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+              Este cartão parou de atualizar e o valor pode estar desatualizado.{' '}
+              <a href="/open-finance" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
+                Reconecte o banco
+              </a>{' '}
+              autorizando o cartão de crédito.
+            </p>
+          </div>
         )}
 
         {/* Período do ciclo — explica de onde vem o valor (compras de X a Y),

@@ -1245,6 +1245,54 @@ manuais em contas do banco, 1 já duplicada).
 - Travado em `eval:saldo-conta-banco` (zap + rotas do painel, sempre em par
   conta do banco × manual); 9 mutações, 9 mortas.
 
+## Conexão ENCERRADA agora é dita na tela (set/2026) — `lib/conexao-of.ts`
+
+Relato: *"a fatura do BTG não bate com o que o banco fechou"*. Não era cálculo:
+o cliente **desconectou** o BTG em 09/09 e reconectou em 12/09, e o
+consentimento novo trouxe só a conta corrente. O cartão ficou preso ao
+consentimento morto (sem transação desde 05/09, sem a fatura que fechou 15/09)
+e a tela seguia exibindo o valor como se fosse de hoje. Medido na base:
+**19 carteiras de OF (9 cartões) em 7 grupos** nesse estado.
+
+- Conta com `of_conta_id` cujo `of_consent_id` **não está** em `of_conexoes`
+  (desconectar move a linha pro histórico) = conexão encerrada.
+- ⚠️ **Só afirma com a lista em mãos**: se a busca falhar, nada é marcado —
+  alarme falso faria o cliente reconectar banco que funciona. Carteira sem
+  `of_consent_id` (legado) nunca é marcada.
+- Aparece no card do cartão (aviso + link pra reconectar), no card da conta
+  (no lugar do "Saldo do banco") e como selo **"Desatualizado"** nos cartões de
+  Previstos. Resolve o pendente "cartão de OF com conexão morta".
+
+## Extrato Futuro: período e FATURAS com conta de pagamento (set/2026)
+
+- ⚠️ **As faturas NUNCA entravam no extrato**: o código passava
+  `Array.isArray(fatData) ? fatData : []`, e a API devolve `{ faturas }`. Hoje
+  entra a lista já convertida pra moeda do grupo. **Dívidas seguem fora DE
+  PROPÓSITO** (decisão pendente: a parcela já paga no mês seria projetada de
+  novo) — agora explícito, não por acidente.
+- **De qual conta sai a fatura:** `wallets.conta_pagamento_id` (migration
+  **170**, por ID — renomear não desliga). Escolhida tocando na linha da fatura;
+  sem conta, a fatura só aparece em "Todas as contas", e o filtro por conta
+  **avisa** quantas ficaram de fora. `PUT /wallets/:id` só aceita conta de débito
+  do mesmo grupo (`eval:saldo-conta-banco` §7).
+- **Período:** este mês / 30 / 60 / 90 dias / 6 meses ou data livre, **sempre a
+  partir de hoje** (o saldo de partida é o de agora). Meses além dos dois de
+  chave canônica vêm numa chave `useSWR` só — `useApi` cobriria a página no
+  LoadingGate a cada troca.
+
+## Dashboard: lançamentos de cada categoria (set/2026) — `CategoriaDetalhe`
+
+Pedido de cliente: ver quais lançamentos formam o total de uma categoria em
+"Principais gastos". **Mouse**: painel ao lado depois de 280ms (sem a espera,
+descer pela lista abriria sete). **Toque/clique**: expande embaixo — no toque
+não existe hover, então é o caminho principal no celular.
+- ⚠️ **Buscado só quando abre**: o `txsMes` do dashboard vem SEM descrição
+  (colunas enxutas pelo egress), e carregá-la pra todo mundo a cada visita
+  custaria mais do que buscar uma categoria sob demanda.
+- ⚠️ **A lista tem de fechar com o total**: mesma regra do
+  `resumoTransacoes.ehTransferencia` (tira transferência, pagamento de fatura,
+  ajuste e "não considerar") e mesma categoria EXATA do `por_categoria`.
+
 ## "Paguei" dos Previstos debita o saldo (set/2026)
 
 Relato de cliente com conta manual: o saldo "criava dinheiro". A baixa

@@ -20,6 +20,7 @@ import AvatarMembro from '@/components/ui/AvatarMembro';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import { api } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
+import CategoriaDetalhe from '@/components/dashboard/CategoriaDetalhe';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
@@ -151,6 +152,8 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const phone = authPhone || phoneInicial || '';
 
   const [modalOpen, setModalOpen] = useState(false);
+  // Qual categoria do "Principais gastos" está com os lançamentos abertos.
+  const [catAberta, setCatAberta] = useState<string | null>(null);
   const [chartMode, setChartMode] = useState<'area'|'bar'>('area');
   // Qual mini-stat do hero está expandido (mobile mostra valor truncado; toque
   // abre o valor completo num painel abaixo). Um por vez.
@@ -734,6 +737,18 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                   const nome = nomeCategoria(c.categoria);
                   return (
                     <div key={i} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
+                      {/* Passar o mouse (desktop) ou tocar (qualquer aparelho)
+                          mostra QUAIS lançamentos formam o valor. */}
+                      <CategoriaDetalhe
+                        phone={phone}
+                        mes={mesAtual}
+                        categoria={c.categoria}
+                        nome={nome}
+                        total={c.total}
+                        fmt={fmt}
+                        aberta={catAberta === c.categoria}
+                        onToggle={() => setCatAberta((a) => (a === c.categoria ? null : c.categoria))}
+                      >
                       <div className="flex items-center justify-between text-xs mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           {/* Usa logo oficial pra marcas conhecidas (Shein, iFood, Uber…) */}
@@ -759,6 +774,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                         <div className="h-full rounded-full transition-all duration-500"
                              style={{ width: `${c.pct}%`, background: c.color }} />
                       </div>
+                      </CategoriaDetalhe>
                     </div>
                   );
                 })}

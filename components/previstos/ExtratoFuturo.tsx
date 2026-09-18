@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2 } from 'lucide-react';
+import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2, CreditCard } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
@@ -96,9 +96,18 @@ export type Sugestao = {
   motivo?: string;
 };
 
+const PERIODOS = [
+  { id: 'mes', rotulo: 'Este mês' },
+  { id: '30d', rotulo: '30 dias' },
+  { id: '60d', rotulo: '60 dias' },
+  { id: '90d', rotulo: '90 dias' },
+  { id: '6m', rotulo: '6 meses' },
+];
+
 export default function ExtratoFuturo({
   dados, carteiras, carteirasBanco, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
   baixaAutomatica, onBaixaAutomatica, abrirNovo,
+  periodo, ate, onPeriodo, contasPagamento, onContaFatura, erroContaFatura,
 }: {
   dados: Parameters<typeof montarExtrato>[0];
   carteiras: string[];
@@ -120,10 +129,25 @@ export default function ExtratoFuturo({
   abrirNovo?: boolean;
   baixaAutomatica?: boolean;
   onBaixaAutomatica?: (v: boolean) => void;
+  /** Período: '30d' | '60d' | '90d' | '6m' | 'mes' ou uma data 'YYYY-MM-DD'. */
+  periodo?: string;
+  /** Último dia do período, já resolvido — valor do campo "Até". */
+  ate?: string;
+  onPeriodo?: (p: string) => void;
+  /** Contas de débito que podem pagar uma fatura. */
+  contasPagamento?: { id: string; nome: string }[];
+  onContaFatura?: (cartaoId: string, contaId: string | null) => Promise<void>;
+  erroContaFatura?: string | null;
 }) {
   const fmt = useDinheiro();
   const simbolo = useSimboloMoeda();
   const extrato: Extrato = useMemo(() => montarExtrato(dados), [dados]);
+  // Faturas do período que ficam FORA do extrato de uma conta por não terem
+  // conta de pagamento — a mesma regra que `montarExtrato` usa pra incluí-las.
+  const faturasSemConta = useMemo(() => (dados.faturas || []).filter((f) =>
+    f.nos_previstos !== false && !f.carteira && Number(f.restante) > 0 && f.venc
+    && String(f.venc).slice(0, 10) >= dados.de && String(f.venc).slice(0, 10) <= dados.ate).length,
+  [dados]);
   const [aberta, setAberta] = useState<string | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
   // ⚠️ Efeito e nao valor inicial: o estado inicial vem do SERVIDOR, e ler a
@@ -295,6 +319,29 @@ export default function ExtratoFuturo({
         </div>
       )}
 
+      {/* ── Período (pedido de cliente) ─────────────────────────────────────
+          Sempre a partir de HOJE: o saldo de partida é o de agora. */}
+      {onPeriodo && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 items-center">
+          {PERIODOS.map((p) => (
+            <Chip key={p.id} ativo={periodo === p.id} onClick={() => onPeriodo(p.id)}>{p.rotulo}</Chip>
+          ))}
+          <label className={`flex-shrink-0 flex items-center gap-1.5 pl-3 pr-1 rounded-full text-xs font-medium min-h-[36px] ${
+            periodo && /^\d{4}-/.test(periodo) ? 'bg-primary text-white' : 'bg-muted/50 text-muted-foreground'
+          }`}>
+            Até
+            <input
+              type="date"
+              value={ate || ''}
+              min={hojeSP()}
+              onChange={(e) => { if (e.target.value) onPeriodo(e.target.value); }}
+              aria-label="Ver o extrato até esta data"
+              className="bg-transparent text-xs h-8 rounded-full px-1 outline-none"
+            />
+          </label>
+        </div>
+      )}
+
       {/* ── Filtro por conta ──────────────────────────────────────────────── */}
       {carteiras.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -303,6 +350,26 @@ export default function ExtratoFuturo({
             <Chip key={c} ativo={carteiraAtiva === c} onClick={() => onCarteira(c)}>{c}</Chip>
           ))}
         </div>
+      )}
+
+      {/* ⚠️ A fatura sem conta de pagamento NÃO entra no extrato de uma conta
+          (não dá pra saber de onde sai o dinheiro). Dizer isso, em vez de a
+          fatura simplesmente não aparecer, é o que evita o "não está
+          considerando o cartão" do relato. */}
+      {carteiraAtiva && faturasSemConta > 0 && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 flex items-start gap-2">
+          <CreditCard size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed flex-1">
+            {faturasSemConta === 1 ? '1 fatura de cartão não aparece' : `${faturasSemConta} faturas de cartão não aparecem`} aqui
+            porque ainda não {faturasSemConta === 1 ? 'tem' : 'têm'} conta de pagamento.{' '}
+            <button type="button" onClick={() => onCarteira(null)} className="font-semibold underline">
+              Escolher em Todas as contas
+            </button>
+          </p>
+        </div>
+      )}
+      {erroContaFatura && (
+        <p role="alert" className="text-xs text-red-500 px-1">{erroContaFatura}</p>
       )}
 
       {/* ── Saldo de partida ──────────────────────────────────────────────── */}
@@ -335,7 +402,9 @@ export default function ExtratoFuturo({
               // previsão podia ser tocada, então a linha que o cron lançou (e
               // que pode estar com data ou valor errados, ou nem ter sido paga)
               // era intocável. Basta saber QUAL ocorrência ela resolve.
-              const podeAgir = !!l.recorrenciaId;
+              // Fatura: tocar escolhe a conta que paga (migration 170).
+              const ehFatura = l.origem === 'fatura' && !!l.cartaoId && !!onContaFatura;
+              const podeAgir = !!l.recorrenciaId || ehFatura;
               const sug = previsto && l.recorrenciaId && l.competencia
                 ? sugestaoDe.get(l.recorrenciaId + ':' + l.competencia) : undefined;
               return (
@@ -361,9 +430,15 @@ export default function ExtratoFuturo({
                         {l.descricao}
                         {l.adiada && <span className="ml-1.5 text-[10px] font-semibold text-amber-500">adiada</span>}
                       </span>
-                      <span className="block text-[11px] text-muted-foreground truncate">
-                        {l.carteira || 'Sem conta'} · {previsto ? 'previsto' : 'pago'}
-                      </span>
+                      {ehFatura && !l.carteira ? (
+                        <span className="block text-[11px] font-medium text-amber-600 dark:text-amber-400 truncate">
+                          Sem conta de pagamento · toque para escolher
+                        </span>
+                      ) : (
+                        <span className="block text-[11px] text-muted-foreground truncate">
+                          {ehFatura ? `Paga pela ${l.carteira}` : (l.carteira || 'Sem conta')} · {previsto ? 'previsto' : 'pago'}
+                        </span>
+                      )}
                     </span>
 
                     <span className={`flex-shrink-0 text-sm font-semibold tabular ${
@@ -411,7 +486,31 @@ export default function ExtratoFuturo({
                       `backdrop-blur`, e um `position: fixed` dentro deles fica
                       preso/atrás do conteúdo (memória `feedback-modal-portal`).
                       Aqui não há fixed nenhum, então o problema não existe. */}
-                  {aberta === id && podeAgir && previsto && (
+                  {/* ── De qual conta sai a fatura ──────────────────────── */}
+                  {aberta === id && ehFatura && (
+                    <div className="px-3 pb-3 pt-2 border-t border-border/30 bg-muted/20 space-y-2">
+                      <label className="block text-xs text-muted-foreground" htmlFor={`conta-${id}`}>
+                        De qual conta sai o pagamento desta fatura?
+                      </label>
+                      <select
+                        id={`conta-${id}`}
+                        value={(contasPagamento || []).find((c) => c.nome === l.carteira)?.id || ''}
+                        onChange={async (e) => {
+                          await onContaFatura!(l.cartaoId!, e.target.value || null);
+                          setAberta(null);
+                        }}
+                        className="w-full h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+                      >
+                        <option value="">Nenhuma (só em Todas as contas)</option>
+                        {(contasPagamento || []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Vale pras próximas faturas deste cartão também — e ela passa a aparecer no extrato dessa conta.
+                      </p>
+                    </div>
+                  )}
+
+                  {aberta === id && !!l.recorrenciaId && previsto && (
                     <div className="px-3 pb-3 pt-1 border-t border-border/30 bg-muted/20 space-y-2">
                       <div className="grid grid-cols-3 gap-2">
                         <AcaoBtn
@@ -565,7 +664,7 @@ export default function ExtratoFuturo({
                       o valor, ou diz que ainda NÃO pagou (o único caso que
                       hoje não tem resposta nenhuma e deixa o saldo errado
                       para sempre). */}
-                  {aberta === id && podeAgir && !previsto && (
+                  {aberta === id && !!l.recorrenciaId && !previsto && (
                     <div className="px-3 pb-3 pt-2 border-t border-border/30 bg-muted/20 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-[11px] font-medium text-muted-foreground">

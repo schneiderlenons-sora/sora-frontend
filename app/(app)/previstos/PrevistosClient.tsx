@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   LineChart, AlertTriangle,
@@ -16,6 +17,7 @@ import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
+import { useConexoesOF } from '@/lib/conexao-of';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
 } from '@/lib/saldo-projetado';
@@ -77,7 +79,7 @@ type ItemComposicao = {
    * `estimativa` = ciclo em aberto, o valor ainda muda; `banco` = o emissor já
    * fechou e publicou a fatura, o valor é o oficial. Cartão manual não tem selo.
    */
-  selo?: 'estimativa' | 'banco';
+  selo?: 'estimativa' | 'banco' | 'desatualizado';
   /** Presente = dá pra editar por aqui (só recorrência tem). */
   rec?: any;
   semAviso?: boolean;
@@ -217,13 +219,51 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     // saldo atual/previsto da conta filtrada: uma cópia aqui divergiria de lá.
     return saldoInicialDaConta(wallets, carteiraExtrato, moedaBase);
   }, [carteiraExtrato, wallets, saldoHoje, moedaBase]);
+  // Cartão cuja conexão foi encerrada: o valor parou (ver lib/conexao-of.ts).
+  // ⚠️ Fica AQUI, antes do `if (carregando) return`: hook depois de return
+  // condicional muda a contagem de hooks entre renders.
+  const conexoesOF = useConexoesOF(wallets.some((w) => w.of_conta_id));
+  const cartaoParado = useCallback(
+    (cartaoId: string) => conexoesOF.encerrada(wallets.find((w) => w.id === cartaoId)),
+    [conexoesOF, wallets],
+  );
+
   const [quitandoRec, setQuitandoRec] = useState<string | null>(null);
   const ligado = !!phone && aba === 'extrato';
   const ymProx = somarMeses(ymHoje, 1);
 
+  // ── PERÍODO do extrato (pedido de cliente, set/2026) ──────────────────────
+  // Era fixo em "hoje + 60 dias". Começa SEMPRE hoje: o saldo de partida é o
+  // saldo de AGORA, e um período que começasse no passado mostraria o saldo de
+  // hoje em dias que já passaram. Teto de 1 ano (a lista é gerada dia a dia).
+  const [periodoExtrato, setPeriodoExtrato] = useState<string>('60d');
+  const ateExtrato = useMemo(() => {
+    const hoje = hojeSP();
+    const [ay, am, ad] = hoje.split('-').map(Number);
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const teto = iso(new Date(ay, am - 1, ad + 365));
+    if (/^\d{4}-\d{2}-\d{2}$/.test(periodoExtrato)) {
+      return periodoExtrato < hoje ? hoje : (periodoExtrato > teto ? teto : periodoExtrato);
+    }
+    if (periodoExtrato === 'mes') return iso(new Date(ay, am, 0));
+    const dias = { '30d': 30, '60d': 60, '90d': 90, '6m': 182 }[periodoExtrato] ?? 60;
+    return iso(new Date(ay, am - 1, ad + dias));
+  }, [periodoExtrato]);
+  // Meses que o período cobre além dos dois que já vinham (e que têm chave
+  // canônica compartilhada com a aba Transações).
+  // Contas baratas de string — sem memo (o React Compiler recusava os dois).
+  const ymFimExtrato = ateExtrato.slice(0, 7);
+  const mesesExtras: string[] = [];
+  for (let m = somarMeses(ymHoje, 2); m <= ymFimExtrato && mesesExtras.length < 12; m = somarMeses(m, 1)) mesesExtras.push(m);
+  const ymAteOcorr = ymFimExtrato > somarMeses(ymHoje, 3) ? ymFimExtrato : somarMeses(ymHoje, 3);
+
   const { data: ocorrData, mutate: recarregarOcorr } = useApi(
-    ligado ? chave.ocorrencias(phone, ymHoje) : null,
-    () => api.previstos.ocorrencias(phone, ymHoje, somarMeses(ymHoje, 3)),
+    // Chave canônica no período padrão (a aba Transações usa a mesma); período
+    // maior ganha chave própria, senão devolveria a janela curta do cache.
+    ligado
+      ? (ymAteOcorr === somarMeses(ymHoje, 3) ? chave.ocorrencias(phone, ymHoje) : `${chave.ocorrencias(phone, ymHoje)}:${ymAteOcorr}`)
+      : null,
+    () => api.previstos.ocorrencias(phone, ymHoje, ymAteOcorr),
   );
   // Duas listagens porque a janela do extrato cruza o mês. As chaves são as
   // CANÔNICAS de `lib/chaves-swr.ts`, então se a aba Transações já carregou o
@@ -236,15 +276,45 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     ligado ? chave.transacoes(phone, { mes: ymProx, limit: 500 }) : null,
     () => api.transacoes.listar(phone, { mes: ymProx, limit: 500 }),
   );
+  // Meses além dos dois primeiros, só quando o período pede. ⚠️ `useSWR`
+  // direto e não `useApi`: o useApi registra no LoadingGate e cobriria a
+  // página inteira a cada troca de período.
+  const { data: txExtra, mutate: mutTxExtra } = useSWR(
+    ligado && mesesExtras.length ? `d:tx-extrato:${phone}:${mesesExtras.join(',')}` : null,
+    async () => {
+      const rs = await Promise.all(mesesExtras.map((m) => api.transacoes.listar(phone, { mes: m, limit: 500 })));
+      return rs.flatMap((r) => r?.transacoes ?? []);
+    },
+    { revalidateOnFocus: false },
+  );
+
+  // ── De qual CONTA sai cada fatura (migration 170) ─────────────────────────
+  // Sem isso a fatura não tinha em que conta cair no extrato — o cliente
+  // pediu justamente pra dizer "pago pelo banco X".
+  const contaQuePaga = useCallback((cartaoId?: string | null) => {
+    if (!cartaoId) return null;
+    const cartao = wallets.find((w) => w.id === cartaoId);
+    const conta = cartao?.conta_pagamento_id ? wallets.find((w) => w.id === cartao.conta_pagamento_id) : null;
+    return conta?.nome ?? null;
+  }, [wallets]);
+  const [erroContaFatura, setErroContaFatura] = useState<string | null>(null);
+  async function definirContaFatura(cartaoId: string, contaId: string | null) {
+    setErroContaFatura(null);
+    try {
+      await api.wallets.editar(cartaoId, { conta_pagamento_id: contaId });
+      await mutWal?.();
+    } catch (e) {
+      setErroContaFatura((e as Error)?.message || 'Não consegui salvar a conta de pagamento.');
+    }
+  }
 
   const dadosExtrato = useMemo(() => {
     const hoje = hojeSP();
-    const [ay, am, ad] = hoje.split('-').map(Number);
-    const fim = new Date(ay, am - 1, ad + 60);
-    const ate = `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}`;
+    const ate = ateExtrato;
     const txs = [
       ...((txA as any)?.transacoes ?? []),
       ...((txB as any)?.transacoes ?? []),
+      ...(txExtra ?? []),
     ];
     return {
       de: hoje,
@@ -252,13 +322,26 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       saldoInicial: saldoPartida,
       transacoes: txs,
       recorrencias: recorrencias as any[],
-      dividas: (Array.isArray(divData) ? divData : []) as any[],
-      faturas: (Array.isArray(fatData) ? fatData : []) as any[],
+      // ⚠️ DÍVIDAS FICAM DE FORA DE PROPÓSITO (decisão pendente do dono): a
+      // parcela JÁ PAGA no mês ainda seria projetada, contando em dobro. Antes
+      // isto era `Array.isArray(divData) ? divData : []` — sempre [], porque a
+      // API devolve `{ dividas }`. Agora está explícito, não acidental.
+      dividas: [] as any[],
+      // ⚠️ FATURAS ENTRAM (pedido de cliente). O mesmo defeito as deixava
+      // sempre fora: a API devolve `{ faturas }`, não uma lista. Usa a lista
+      // JÁ CONVERTIDA pra moeda do grupo (a mesma da seção "Cartões") e leva a
+      // conta que paga — sem ela, a fatura só aparece em "Todas as contas".
+      faturas: (faturas as FaturaCartao[]).map((f) => ({ ...f, carteira: contaQuePaga(f.cartao_id) })),
       quitacoes: (ocorrData as any)?.quitacoes ?? [],
       ajustes: (ocorrData as any)?.ajustes ?? [],
       carteiras: carteiraExtrato ? [carteiraExtrato] : undefined,
     };
-  }, [txA, txB, saldoPartida, recorrencias, divData, fatData, ocorrData, carteiraExtrato]);
+  }, [txA, txB, txExtra, ateExtrato, saldoPartida, recorrencias, faturas, contaQuePaga, ocorrData, carteiraExtrato]);
+
+  const contasPagamento = useMemo(
+    () => wallets.filter((w) => w.tipo !== 'Crédito' && !w.arquivada).map((w) => ({ id: String(w.id), nome: String(w.nome) })),
+    [wallets],
+  );
 
   const carteirasDebito = useMemo(
     () => wallets.filter((w: any) => w.tipo !== 'Crédito').map((w: any) => w.nome).filter(Boolean),
@@ -303,7 +386,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         });
         // O PUT mexe no SALDO da conta — sem recarregar as carteiras o saldo
         // de partida do extrato ficava velho até a próxima revalidação.
-        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutWal?.()]);
+        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
       } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
       finally { setQuitandoRec(null); }
       return;
@@ -319,7 +402,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         // ⚠️ A baixa agora DEBITA o saldo da conta manual e cria a linha paga:
         // o extrato precisa das duas coisas juntas. Com só uma, a linha paga
         // sairia "já no saldo" contra um saldo que ainda não a descontou.
-        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutWal?.()]);
+        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
         return;
       } else if (acao === 'pular') {
         await api.previstos.ajuste({ ...base, status: 'pulado' });
@@ -359,7 +442,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     if (!phone || !(p.valor > 0)) return;
     // Fonte única com o modo "Uma vez só" do modal de conta fixa.
     await criarPrevistoUnico(phone, p);
-    await Promise.all([mutTxA?.(), mutTxB?.()]);
+    await Promise.all([mutTxA?.(), mutTxB?.(), mutTxExtra?.()]);
   }
 
   // ── Fecha o mês em… (a manchete) ─────────────────────────────────────────
@@ -568,8 +651,10 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     // ciclo está aberto o valor é ESTIMATIVA, e quando o banco publica a fatura
     // (`of_bill_id` da competência, migration 118) o sync troca pelo oficial. O
     // selo diz em qual dos dois estados o número está.
-    selo: f.of ? (f.of_bill_id ? 'banco' as const : 'estimativa' as const) : undefined,
-  }), []);
+    selo: f.of
+      ? (cartaoParado(f.cartao_id) ? 'desatualizado' as const : f.of_bill_id ? 'banco' as const : 'estimativa' as const)
+      : undefined,
+  }), [cartaoParado]);
 
   /** Quantas vezes a recorrência AINDA cai neste mês. */
   const aindaVezes = useCallback((r: any) => vezesQueAindaVem(itemPrevistoDe(r)), []);
@@ -805,6 +890,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           abrirNovo={abrirNovoPrevisto}
           carteiraAtiva={carteiraExtrato}
           onCarteira={setCarteiraExtrato}
+          periodo={periodoExtrato}
+          ate={ateExtrato}
+          onPeriodo={setPeriodoExtrato}
+          contasPagamento={contasPagamento}
+          onContaFatura={definirContaFatura}
+          erroContaFatura={erroContaFatura}
           onAcao={acaoExtrato}
           ocupado={quitandoRec}
           sugestoes={(ocorrData as any)?.sugestoes ?? []}
@@ -1145,16 +1236,20 @@ function LinhaComposicao({
                   className={`flex-shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-px rounded-md ${
                     item.selo === 'banco'
                       ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                      : item.selo === 'desatualizado'
+                        ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                        : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
                   }`}
                   title={item.selo === 'banco'
                     ? 'O banco já fechou esta fatura: é o valor oficial.'
-                    : 'Fatura em aberto: o valor muda até o banco fechar, e a Sora troca pelo oficial sozinha.'}
+                    : item.selo === 'desatualizado'
+                      ? 'A conexão com o banco foi encerrada: este valor parou de atualizar. Reconecte em Open Finance.'
+                      : 'Fatura em aberto: o valor muda até o banco fechar, e a Sora troca pelo oficial sozinha.'}
                 >
                   {item.selo === 'banco'
                     ? <BadgeCheck size={10} aria-hidden />
                     : <CircleDashed size={10} aria-hidden />}
-                  {item.selo === 'banco' ? 'Fechada pelo banco' : 'Estimativa'}
+                  {item.selo === 'banco' ? 'Fechada pelo banco' : item.selo === 'desatualizado' ? 'Desatualizado' : 'Estimativa'}
                 </span>
               )}
               <span className="min-w-0 text-[11px] text-muted-foreground truncate">

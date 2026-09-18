@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import useSWR from 'swr';
+import { useConexoesOF } from '@/lib/conexao-of';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
@@ -172,13 +172,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   // LoadingGate e cobriria a página inteira por causa de uma linha secundária.
   // Falhou → a linha sai sem a hora, e o resto da tela não sente.
   const temContaDoBanco = wallets.some((w) => w.of_conta_id);
-  const { data: conexoesOF } = useSWR(temContaDoBanco ? 'of:conexoes:contas' : null,
-    () => api.openFinance.conexoes(), { revalidateOnFocus: false });
-  const sincPorConsent = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const c of conexoesOF?.conexoes || []) if (c.external_id && c.ultima_sync) m[c.external_id] = c.ultima_sync;
-    return m;
-  }, [conexoesOF]);
+  const conexoes = useConexoesOF(temContaDoBanco);
 
   // ── Helpers ────────────────────────────────────────────────
   // Cartões de crédito NÃO aparecem aqui — eles têm a aba própria (Cartão de
@@ -429,7 +423,8 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
                 onAjustar={() => setAjusteOpen(w)}
                 onTransferir={() => setTransferOpen(true)}
                 onVerExtrato={() => setContaDetalhe(w)}
-                sincronizadoEm={w.of_consent_id ? sincPorConsent[w.of_consent_id] ?? null : null}
+                sincronizadoEm={conexoes.sincronizadoEm(w)}
+                conexaoEncerrada={conexoes.encerrada(w)}
               />
             ))}
 
@@ -530,7 +525,7 @@ function tempoDesde(iso: string): string {
 function WalletCard({
   wallet, index, ocultar, compartilhado,
   onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir, onVerExtrato,
-  sincronizadoEm = null,
+  sincronizadoEm = null, conexaoEncerrada = false,
 }: {
   wallet:        Wallet;
   index:         number;
@@ -544,6 +539,8 @@ function WalletCard({
   onTransferir:  () => void;
   onVerExtrato:  () => void;
   sincronizadoEm?: string | null;
+  /** O consentimento desta conta não existe mais — o saldo parou de vir. */
+  conexaoEncerrada?: boolean;
 }) {
   const fmt = useDinheiro();
   const doBanco = !!wallet.of_conta_id;
@@ -661,7 +658,13 @@ function WalletCard({
         {/* ⚠️ A CONTA DO BANCO DIZ DE ONDE VEM O NÚMERO. Sem isto, quem
             lançava à mão via o saldo parado e concluía "a Sora não sincroniza"
             (relato de set/2026, com vídeo) — o saldo estava certo, é o do banco. */}
-        {doBanco && (
+        {doBanco && conexaoEncerrada && (
+          <p className="mt-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <Landmark size={11} className="flex-shrink-0" aria-hidden />
+            <span>Conexão encerrada · o saldo parou de atualizar. Reconecte em Open Finance.</span>
+          </p>
+        )}
+        {doBanco && !conexaoEncerrada && (
           <p className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-1">
             <Landmark size={11} className="flex-shrink-0" aria-hidden />
             <span>
