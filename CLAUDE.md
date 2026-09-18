@@ -2408,6 +2408,26 @@ dia 14 no ar):
   requisição), `wallets.*` (5,6 mil), três leituras de `transacoes` (~4,2 mil
   cada). Nada com a concentração dos investimentos.
 
+### ⚠️ A correção acima NÃO pulava nada — medido em 18/09
+
+Leitura de 38h depois do reset: **31.880 SELECT × 31.879 UPDATE** de
+investimentos (1:1) e mais um par 4.912 × 4.912. Requisições caíram só 7%
+(137 → 128 mil/dia). Os movimentos (INSERT) funcionaram; o "pular o UPDATE"
+não. Duas causas, as duas de **formato**:
+- ⚠️ **`investimentos.data_compra` é `timestamptz`**: o sync escreve
+  `"2026-01-15"` e o banco devolve `"2026-01-15T00:00:00+00:00"`. Texto
+  diferente → "mudou" em toda linha com data de compra.
+- **`rentabilidade` em float cru** (`0,1111111…`) contra as 6 casas guardadas.
+- Hoje `mesmoValor` trata data pura × meia-noite UTC como a mesma data (horário
+  real segue estrito) e rentabilidade/valor atual saem na escala da coluna.
+  **Simulado nas 633 linhas reais: antiga regravava 633, nova 0.** Projeção:
+  ~23 mil UPDATEs/dia a menos (~128 → ~105 mil requisições/dia).
+- ⚠️ **LIÇÃO:** o eval comparava data pura com data pura e **passou com a
+  economia zerada em produção**. Teste de comparação tem de usar o valor **como
+  o banco devolve**, não como o código escreve — ler uma linha real antes.
+- **Próxima alavanca:** as ~20 mil leituras/dia restantes são UMA por
+  investimento por sync; ler em lote por conexão as reduziria a centenas.
+
 ## ⚠️ Erro de tipo BARRA o deploy (set/2026)
 
 `next.config.ts` **não tem mais** `typescript: { ignoreBuildErrors: true }`.
