@@ -403,6 +403,27 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Categorias v3 — taxonomia refeita** (migrations **084/085/086/087**): `criar_categorias_padrao` redefinida com a taxonomia nova (despesas + receitas), `unique(grupo_id, nome)` força nome único no grupo, e a **087 remapeia transações** das categorias antigas pras novas. A aba `/categorias` mostra **despesas E receitas juntas** com filtro (o botão de alternar saiu). ⚠️ O **categorizador é acoplado aos NOMES** (`categorizar.js`/`.ts` + `ia.js`) — renomear categoria exige mexer lá. Memória `project-categorias-v3`. Gotcha da 087: `for r in (values …) as t(...)` é inválido em PL/pgSQL — usar `for r in select … from (values …) as t(...)`.
 - **Marcas personalizadas** (migration **083** `marcas_personalizadas`): o usuário sobe a logo de uma loja e ela casa por nome na transação (igual iFood/Nike). `MarcasCustomContext` + `CategoriaIcon` (prioridade máxima no ícone) + gerenciador "Minhas marcas" na aba Categorias, com **zoom/enquadramento livre** da imagem dentro do círculo. Memória `project-marcas-personalizadas`.
 - **Import OFX robusto** (`components/transacoes/ImportarModal.tsx`): o parser agora fatia por `<STMTTRN>` (SGML sem tag de fechamento) e trata decimal com vírgula. Alguns bancos (ex.: **Mercado Pago**) exportam um "OFX" que na prática é PDF/extrato — o painel avisa isso na tela de importação. Nubank funciona.
+- **Importar PLANILHA — CSV ou Excel** (`lib/importar-tabela.ts`, set/2026, `eval:importar-tabela`).
+  Relato: cliente vindo do GestorMoney (arquivo **.xlsx**) não conseguia importar.
+  Três causas: (1) o menu "Importar" era `absolute` dentro do cabeçalho com
+  `overflow-hidden` — no desktop só aparecia a ponta do "Importar OFX"; hoje vai
+  pro body por **portal**, ancorado pela posição medida do botão. (2) no Android
+  o `accept=".csv"` vira filtro por MIME e o gerenciador do Redmi marca CSV como
+  outro tipo → arquivo **cinza, impossível de tocar**; hoje o `accept` lista os
+  MIMEs junto (o conteúdo é validado depois). (3) só lia CSV — agora lê **.xlsx**
+  (`read-excel-file`, import dinâmico: quem não importa Excel não baixa).
+  - ⚠️ **O parser antigo importava ERRADO em silêncio:** `"1234.56"` (ponto
+    decimal, comum em exportação de app) virava **123456**, e coluna **"Tipo" =
+    Despesa com valor positivo** entrava como **receita**. Os dois estão travados
+    no eval, junto com a **regressão zero** contra a cópia congelada do parser
+    antigo nos extratos de banco que já funcionavam.
+  - Cabeçalho é **procurado** nas 20 primeiras linhas (app exporta título e
+    período antes da tabela); entrada/saída em colunas separadas; "Tipo" só
+    decide o sinal se o CONTEÚDO for despesa/receita (não "Pix"/"Cartão").
+  - ⚠️ Data do Excel chega como **meia-noite UTC** — ler com `getDate()` local
+    jogaria tudo pro dia anterior no Brasil. Conferido com `.xlsx` real.
+  - CSV salvo pelo Excel em português vem em **Windows-1252**: tenta UTF-8 estrito
+    e cai pro 1252 (antes, "Descrição" virava "Descri��o").
 - **Dívidas com imagem** (migration **088** `divida_imagem`): mesma organização por foto que já existia em metas.
 - **Fix do checkup de hábitos** (`app/grow/habitos/page.tsx`): marcar rápido 2 hábitos perdia um. Causa: otimista com `revalidate:false` sem reconciliar. Fix = **revalidação debounced (600ms)** no `finally` do toggle. Esse é o padrão pra qualquer toggle rápido.
 

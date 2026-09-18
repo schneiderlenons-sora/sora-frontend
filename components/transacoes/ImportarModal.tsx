@@ -6,18 +6,12 @@ import { api } from '@/lib/api';
 import { categorizarDescricao } from '@/lib/categorizar';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { useDinheiro } from '@/lib/moeda-base';
+// Planilha (CSV ou Excel) sai de um parser só — ver lib/importar-tabela.ts.
+import { parseCSV, parseTabela, ehPlanilhaExcel, type TxParsed, type Celula } from '@/lib/importar-tabela';
 
 // ─────────────────────────────────────────────────────────────
 // PARSERS
 // ─────────────────────────────────────────────────────────────
-
-interface TxParsed {
-  data:        string;          // YYYY-MM-DD
-  observacao:  string;
-  valor:       number;          // positivo
-  tipo:        'Gasto' | 'Recebimento';
-  fitid?:      string;          // id único do OFX (dedup)
-}
 
 function parseOFXDate(s: string): string | null {
   if (!s) return null;
@@ -65,97 +59,13 @@ export function parseOFX(text: string): TxParsed[] {
   return txns;
 }
 
-function parseFlexDate(s: string): string | null {
-  if (!s) return null;
-  const t = s.trim();
-  // DD/MM/YYYY ou DD-MM-YYYY
-  let m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  // YYYY-MM-DD ou YYYY/MM/DD
-  m = t.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-  return null;
-}
-
-function parseCSVLine(line: string, sep: string): string[] {
-  const out: string[] = [];
-  let cur = '';
-  let inQuote = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQuote = !inQuote; continue; }
-    if (ch === sep && !inQuote) { out.push(cur); cur = ''; continue; }
-    cur += ch;
-  }
-  out.push(cur);
-  return out.map(s => s.trim());
-}
-
-export function parseCSV(text: string): TxParsed[] {
-  const lines = text.replace(/^﻿/, '').trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-
-  // Detecta separador olhando o cabeçalho
-  const first = lines[0];
-  const sep = (first.match(/;/g)?.length || 0) > (first.match(/,/g)?.length || 0) ? ';' : ',';
-
-  const headers = parseCSVLine(first, sep).map(h => h.toLowerCase());
-  const findCol = (re: RegExp) => headers.findIndex(h => re.test(h));
-
-  const colData  = findCol(/\b(data|date|dt)\b/);
-  const colDesc  = findCol(/(descri|histor|memo|name|titulo|estabel)/);
-  const colValor = findCol(/(valor|amount|amt|montante|debit|credit|saida|entrada)/);
-
-  if (colData < 0 || colValor < 0) {
-    // Tenta heurística baseada em posição: 1ª coluna = data, última numérica = valor
-    return parseCSVFallback(lines, sep);
-  }
-
-  const txns: TxParsed[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i], sep);
-    if (cols.length < Math.max(colData, colValor) + 1) continue;
-
-    const data = parseFlexDate(cols[colData]);
-    if (!data) continue;
-
-    const valorRaw = cols[colValor];
-    const valor = parseFloat(
-      valorRaw.replace(/R\$|\s/g, '').replace(/\./g, '').replace(',', '.')
-    );
-    if (isNaN(valor) || valor === 0) continue;
-
-    const desc = colDesc >= 0 ? cols[colDesc] : 'Transação importada';
-    txns.push({
-      data,
-      observacao: (desc || 'Transação').slice(0, 200),
-      valor: Math.abs(valor),
-      tipo: valor < 0 ? 'Gasto' : 'Recebimento',
-    });
-  }
-  return txns;
-}
-
-function parseCSVFallback(lines: string[], sep: string): TxParsed[] {
-  // Fallback: assume col 0 = data, col -1 = valor
-  const txns: TxParsed[] = [];
-  for (const line of lines) {
-    const cols = parseCSVLine(line, sep);
-    if (cols.length < 2) continue;
-    const data = parseFlexDate(cols[0]);
-    if (!data) continue;
-    const last = cols[cols.length - 1].replace(/R\$|\s/g, '').replace(/\./g, '').replace(',', '.');
-    const valor = parseFloat(last);
-    if (isNaN(valor) || valor === 0) continue;
-    const desc = cols.slice(1, -1).join(' - ').slice(0, 200) || 'Transação importada';
-    txns.push({
-      data,
-      observacao: desc,
-      valor: Math.abs(valor),
-      tipo: valor < 0 ? 'Gasto' : 'Recebimento',
-    });
-  }
-  return txns;
+// ⚠️ CSV salvo pelo Excel em português vem em WINDOWS-1252, não UTF-8. Lido
+// como UTF-8, "Descrição" virava "Descri��o" e todo acento das descrições
+// quebrava. Tenta UTF-8 ESTRITO primeiro; se não for, é 1252.
+async function lerTexto(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch { return new TextDecoder('windows-1252').decode(buf); }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -204,7 +114,20 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   const [categorias, setCategorias] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const aceitarExt = formato === 'ofx' ? '.ofx,.OFX' : '.csv,.CSV,.txt';
+  // ⚠️ EXTENSÃO SOZINHA NÃO BASTA NO ANDROID. O `accept` vira filtro por tipo
+  // de arquivo, e o gerenciador do Redmi (e outros) marca CSV como
+  // "text/comma-separated-values" ou "application/vnd.ms-excel" — sem o tipo na
+  // lista o arquivo aparece CINZA e não dá pra tocar (relato de set/2026). OFX
+  // costuma nem ter tipo registrado, daí o octet-stream. Aceitar a mais é
+  // seguro: o conteúdo é validado depois, com mensagem clara.
+  const aceitarExt = formato === 'ofx'
+    ? '.ofx,.OFX,.qfx,application/x-ofx,application/ofx,application/vnd.intu.qfx,application/octet-stream'
+    : [
+        '.csv', '.CSV', '.txt', '.xlsx', '.XLSX',
+        'text/csv', 'text/comma-separated-values', 'application/csv', 'text/plain',
+        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ].join(',');
+  const nomeFormato = formato === 'ofx' ? 'OFX' : 'planilha';
   const walletNome = wallets.find(w => w.id === walletId)?.nome || 'Dinheiro';
 
   // Carrega categorias pra o seletor da revisão
@@ -223,10 +146,28 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
 
     setAnalisando(true);
     try {
-      const text = await file.text();
-      const txs = formato === 'ofx' ? parseOFX(text) : parseCSV(text);
+      if (formato === 'csv' && /\.xls$/i.test(file.name)) {
+        setErroParse('Esse é o formato antigo do Excel (.xls). Abra no Excel ou no Google Planilhas e salve como .xlsx ou CSV.');
+        setAnalisando(false);
+        return;
+      }
+      let txs: TxParsed[];
+      if (formato === 'ofx') {
+        txs = parseOFX(await lerTexto(file));
+      } else if (ehPlanilhaExcel(file.name)) {
+        // Carregado só aqui: quem nunca importa Excel não baixa o leitor.
+        const { default: readXlsxFile } = await import('read-excel-file/browser');
+        const folhas = await readXlsxFile(file);
+        // Usa a aba com MAIS lançamentos — app que exporta resumo numa aba e
+        // extrato em outra não pode cair na aba errada.
+        txs = folhas.map((f) => parseTabela(f.data as unknown as Celula[][])).sort((a, b) => b.length - a.length)[0] || [];
+      } else {
+        txs = parseCSV(await lerTexto(file));
+      }
       if (txs.length === 0) {
-        setErroParse(`Nenhuma transação detectada. Verifique se o arquivo é um ${formato.toUpperCase()} válido.`);
+        setErroParse(formato === 'ofx'
+          ? 'Nenhuma transação detectada. Verifique se o arquivo é um OFX válido.'
+          : 'Nenhuma transação detectada. A planilha precisa de uma coluna de DATA e uma de VALOR (ou de Entrada e Saída).');
         setAnalisando(false);
         return;
       }
@@ -321,7 +262,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
             </div>
             <div className="min-w-0">
               <h2 className="text-base font-bold text-foreground leading-tight">
-                {step === 'upload' ? `Importar ${formato.toUpperCase()}` : 'Revisar transações'}
+                {step === 'upload' ? `Importar ${nomeFormato}` : 'Revisar transações'}
               </h2>
               <p className="text-xs text-muted-foreground truncate">
                 {step === 'upload' ? 'Passo 1 de 2 · Conta + arquivo' : 'Passo 2 de 2 · Edite ou remova antes de confirmar'}
@@ -367,7 +308,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
 
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                2. Escolha o arquivo {formato.toUpperCase()}
+                2. Escolha o arquivo {formato === 'ofx' ? 'OFX' : 'CSV ou Excel'}
               </label>
               <button onClick={() => walletId ? fileRef.current?.click() : setErroParse('Selecione a conta primeiro.')}
                 disabled={analisando || !walletId}
@@ -379,7 +320,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                 )}
                 <div className="text-center">
                   <p className="text-sm font-semibold text-foreground">{analisando ? 'Analisando…' : 'Clique para escolher o arquivo'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{formato === 'ofx' ? 'Aceita .ofx' : 'Aceita .csv ou .txt'} (até 5 MB)</p>
+                  <p className="text-xs text-muted-foreground mt-1">{formato === 'ofx' ? 'Aceita .ofx' : 'Aceita .csv, .txt ou .xlsx (Excel)'} (até 5 MB)</p>
                 </div>
               </button>
               <input ref={fileRef} type="file" accept={aceitarExt} hidden
@@ -389,7 +330,9 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
             <div className="rounded-xl p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60">
               <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 mb-1.5">Onde baixo esse arquivo?</p>
               <p className="text-[11px] text-blue-700/90 dark:text-blue-300/90 leading-relaxed">
-                No app do seu banco: extrato → <strong>"Exportar/Compartilhar"</strong> → <strong>{formato === 'ofx' ? 'OFX' : 'CSV/Excel'}</strong>. Transações que você já tem na conta são detectadas e marcadas como duplicadas no próximo passo.
+                No app do seu banco: extrato → <strong>"Exportar/Compartilhar"</strong> → <strong>{formato === 'ofx' ? 'OFX' : 'CSV/Excel'}</strong>.
+                {formato === 'csv' && <> Vindo de <strong>outro app de finanças</strong>? Exporte em Excel ou CSV — reconhecemos colunas de data, descrição, valor e tipo (despesa/receita).</>}
+                {' '}Transações que você já tem na conta são detectadas e marcadas como duplicadas no próximo passo.
               </p>
             </div>
 

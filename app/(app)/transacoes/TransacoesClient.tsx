@@ -83,6 +83,16 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [modalOpen,setModalOpen]= useState(false);
   const { ocultos: ocultar } = useValores();
   const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const botaoImportarRef = useRef<HTMLButtonElement>(null);
+  const [ancoraMenu, setAncoraMenu] = useState<{ top: number; right: number } | null>(null);
+  // Rolar ou redimensionar com o menu aberto o deixaria descolado do botão.
+  useEffect(() => {
+    if (!importMenuOpen) return;
+    const fechar = () => setImportMenuOpen(false);
+    window.addEventListener('resize', fechar);
+    window.addEventListener('scroll', fechar, { passive: true });
+    return () => { window.removeEventListener('resize', fechar); window.removeEventListener('scroll', fechar); };
+  }, [importMenuOpen]);
   const [importarFormato, setImportarFormato] = useState<'ofx' | 'csv' | null>(null);
   const [importToast, setImportToast] = useState<string>('');
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
@@ -524,7 +534,16 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
               <div className="relative">
                 <button
-                  onClick={() => podeImportar ? setImportMenuOpen(v => !v) : alert('Importação de OFX/CSV está disponível no plano Premium.')}
+                  ref={botaoImportarRef}
+                  aria-haspopup="menu"
+                  aria-expanded={importMenuOpen}
+                  onClick={() => {
+                    if (!podeImportar) { alert('Importação de OFX/CSV está disponível no plano Premium.'); return; }
+                    // Mede o botão na hora de abrir: o menu mora no body.
+                    const r = botaoImportarRef.current?.getBoundingClientRect();
+                    if (r) setAncoraMenu({ top: r.bottom + 8, right: window.innerWidth - r.right });
+                    setImportMenuOpen((v) => !v);
+                  }}
                   className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
                   title={podeImportar ? 'Importar extrato' : 'Disponível no plano Premium'}
                   aria-label="Importar"
@@ -533,14 +552,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   <span className="hidden sm:inline">Importar</span>
                   <ChevronDown size={12} className="hidden sm:block" />
                 </button>
-                {importMenuOpen && podeImportar && (
+                {/* ⚠️ O MENU VAI PRO BODY (portal). Ele era `absolute` dentro do
+                    cabeçalho, que tem `overflow-hidden`: no desktop só aparecia a
+                    ponta do "Importar OFX" e as outras opções ficavam cortadas
+                    (relato com print, set/2026). No mobile é bottom sheet; no
+                    desktop, dropdown ancorado no botão pela posição medida. */}
+                {/* Só abre por clique, então nunca renderiza no servidor. */}
+                {importMenuOpen && podeImportar && typeof document !== 'undefined' && createPortal(
                   <>
                     {/* Backdrop pra fechar (escurece no mobile, invisível no desktop) */}
                     <div className="fixed inset-0 z-40 bg-black/30 sm:bg-transparent" onClick={() => setImportMenuOpen(false)} />
-                    {/* Bottom sheet no mobile (fixed → escapa do overflow-hidden do hero);
-                        dropdown normal no desktop. */}
-                    <div className="fixed inset-x-3 bottom-3 z-50 card p-1.5 animate-fade-in
-                                    sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-52">
+                    <div role="menu" aria-label="Importar"
+                         style={ancoraMenu ? ({ '--menu-top': `${ancoraMenu.top}px`, '--menu-right': `${ancoraMenu.right}px` } as React.CSSProperties) : undefined}
+                         className="fixed inset-x-3 bottom-3 z-50 card p-1.5 animate-fade-in
+                                    sm:inset-x-auto sm:bottom-auto sm:w-60 sm:top-[var(--menu-top)] sm:right-[var(--menu-right)]">
                       <button
                         onClick={() => { setImportarFormato('ofx'); setImportMenuOpen(false); }}
                         disabled={!podeImportarOFX}
@@ -555,7 +580,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         className="w-full flex items-center gap-2.5 px-3 py-3 sm:py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FileText size={14} className="text-muted-foreground" />
-                        <span>Importar extrato (CSV)</span>
+                        <span>Importar planilha (CSV ou Excel)</span>
                       </button>
                       <button
                         disabled
@@ -567,7 +592,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         <span className="ml-auto text-[9px] uppercase tracking-wider font-bold bg-muted px-1.5 py-0.5 rounded-full">Em breve</span>
                       </button>
                     </div>
-                  </>
+                  </>,
+                  document.body,
                 )}
               </div>
 
