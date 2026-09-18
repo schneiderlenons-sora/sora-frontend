@@ -313,6 +313,40 @@ a base é cacheada 10 min — chamar por item não custa ida de rede.
 - Suíte do backend inteira verde (55 evals) + `eval:moeda-base` §9 com o texto
   no formato novo.
 
+### ✅ Fase 3b — a ENTRADA pelo WhatsApp (17/09/2026)
+
+A Fase 3 cuidou da saída. A armadilha §5.4 é a entrada, e medindo 17 formas de
+falar ela se mostrou **pior do que o plano registrava**:
+
+| o que a pessoa escreve | o que acontecia |
+|---|---|
+| `gastei US$ 50 no mercado` | virava `gastei us50…` → **BUSCAR** → *"nenhum gasto encontrado para mercado"* |
+| `gastei US$ 1.250,00 no mercado` | → **RESUMO** do mês |
+| `gastei kr 50 no mercado` | → **BUSCAR** (sem cifrão, nada casava) |
+| `gastei 50 dólares no mercado` | salvava com observação **"dólares"**, categoria **Outros** e **carteira_nome "mercado"** |
+
+- ⚠️ **A moeda DEPOIS do número era pior que o prefixo.** O prefixo falhava
+  barulhento (resposta errada); o sufixo falhava **salvando**, e ainda inventava
+  uma conta chamada "mercado" — a família do bug da conta-fantasma.
+- ⚠️ **O VALOR nunca esteve errado** (era 50 nos dois casos). Por isso o
+  conserto não muda número nenhum de ninguém: conserta descrição, categoria e
+  conta. É o que torna a mudança segura pros 218 grupos em real.
+- **Não é decisão de moeda, é limpeza de ruído:** o número dito continua sendo
+  NATIVO da carteira onde a transação cai (`camposTransacao`) — "R$" e "reais"
+  já eram descartados assim desde sempre.
+- **Uma linha na NORMALIZAÇÃO**, nunca regra por regra: são dezenas de regexes
+  esperando número nu (a lição do conserto do áudio de set/2026).
+- ⚠️ **"peso" e "franco" ficam FORA** da lista de sufixo: são palavras comuns em
+  português e "peso" é campo do Grow. Os **símbolos** delas seguem saindo.
+- ⚠️ **O interpretador não pode importar `MOEDAS`** (`services/moeda.js`
+  instancia o Supabase no import, e ele é de propósito sem banco). A lista é
+  espelhada à mão e travada em `eval:moeda-base` §10, que percorre o catálogo:
+  **moeda nova sem avisar o interpretador reprova** (mutação confirmada).
+- **7 mutações, 7 mortas** — incluindo a do catálogo. E uma asserção minha que
+  **não mordia** foi trocada, não mantida: a que protege a descrição é
+  `"gastei 50 na kr modas"` continuar saindo com o "kr".
+- `interpretador.eval.js` segue **161/161**.
+
 **⏭️ Próximo:** Fase 6 (escolher a moeda no onboarding). Hoje **nenhum grupo sai
 do real**, então tudo das Fases 3 e 5 é inerte até ela existir.
 
@@ -560,6 +594,10 @@ skill `ui-ux-pro-max` — botão cinza lê como "quebrou").
    Perda silenciosa de três ordens de grandeza. **Ataca no MVP** (USD).
    Junto: a normalização tira o prefixo `R$` e a palavra "reais" (foi o bug do
    áudio de set/2026) — precisa do símbolo e das palavras da moeda base.
+   **✅ Resolvida na Fase 3b (17/09/2026)** — e a metade do `parseValor` caiu
+   sozinha: a grafia dos números segue o IDIOMA (decisão de 17/09), então
+   `1,250.50` não é entrada esperada de ninguém. O que atacava de verdade era o
+   símbolo, e medindo saiu bem pior do que este item dizia (ver Fase 3b).
 5. **Máscara `/100` em moeda sem centavos** — valor 100× menor. Dormente em
    USD/NOK, viva em JPY/CLP.
 6. **Renomear `saldo_brl`** — o cache do SWR em localStorage guarda payloads
