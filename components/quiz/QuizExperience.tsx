@@ -16,6 +16,7 @@ import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase from '@/components/landing/DriveShowcase';
 import Personalizacao from '@/components/landing/Personalizacao';
 import { PLANOS_INFO } from '@/lib/stripe';
+import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { partesPreco } from '@/lib/landing-precos';
 import {
   ArrowRight, ArrowLeft, Check, CheckCheck, BadgeCheck, Send, Bell, Target, Sparkles, TrendingUp,
@@ -621,11 +622,21 @@ function Etapa5() {
   const { inteiro, decimal } = partesPreco(precoMes, ',');
   const totalAnual = (premium.anual * 12).toFixed(2).replace('.', ',');
 
+  // Básico — preço e recursos das fontes únicas (lib/stripe + lib/planos-display),
+  // as mesmas da landing e da /planos: mudou lá, muda aqui.
+  const basico = PLANOS_INFO.basico;
+  const precoBasico = anual ? basico.anual : basico.mensal;
+  const partesBasico = partesPreco(precoBasico, ',');
+  const totalAnualBasico = (basico.anual * 12).toFixed(2).replace('.', ',');
+  const recursosBasico = PLANOS_DISPLAY.find((p) => p.id === 'basico')?.features ?? [];
+  const maiorDesconto = Math.max(premium.descAnual, basico.descAnual);
+
   // InitiateCheckout NÃO dispara aqui — o /signup já dispara ele (+ AddToCart
   // de novo) ao chegar no passo de pagamento; disparar nos 2 lados duplicaria.
-  function assinar() {
-    try { trackAddToCart({ name: 'Plano premium', value: precoMes, currency: 'BRL' }); } catch { /* noop */ }
-    window.location.href = `/signup?plano=premium${anual ? '&ciclo=anual' : ''}`;
+  function assinar(plano: 'premium' | 'basico' = 'premium') {
+    const valor = plano === 'premium' ? precoMes : precoBasico;
+    try { trackAddToCart({ name: `Plano ${plano}`, value: valor, currency: 'BRL' }); } catch { /* noop */ }
+    window.location.href = `/signup?plano=${plano}${anual ? '&ciclo=anual' : ''}`;
   }
   return (
     <div className="space-y-6">
@@ -660,6 +671,29 @@ function Etapa5() {
 
       <Depoimentos />
 
+      {/* Mensal × Anual — vale pros DOIS planos. Fica fora dos cards porque
+          escolher o ciclo dentro de um só daria a entender que o outro não tem. */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-zinc-100 border border-zinc-200">
+          <button onClick={() => setAnual(false)} aria-pressed={!anual}
+                  className="px-5 h-11 rounded-xl text-[13px] font-bold transition-all"
+                  style={{ background: !anual ? '#0a3d24' : 'transparent', color: !anual ? '#fff' : '#52525b', minWidth: 44 }}>
+            Mensal
+          </button>
+          <button onClick={() => setAnual(true)} aria-pressed={anual}
+                  className="relative px-5 h-11 rounded-xl text-[13px] font-bold transition-all"
+                  style={{ background: anual ? '#0a3d24' : 'transparent', color: anual ? '#fff' : '#52525b', minWidth: 44 }}>
+            Anual
+            {!anual && (
+              <span className="absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white whitespace-nowrap"
+                    style={{ background: BRAND }}>
+                até -{maiorDesconto}%
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Card da oferta mensal (Premium — assinatura Stripe) */}
       <div className="relative overflow-hidden rounded-3xl p-6 text-white shadow-2xl"
            style={{ background: 'linear-gradient(160deg,#0f4c2e 0%, #0a3d24 60%, #16231b 100%)' }}>
@@ -672,27 +706,6 @@ function Etapa5() {
               <Zap size={11} /> Plano Premium
             </span>
             <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/10">Sem fidelidade</span>
-          </div>
-
-          {/* Mensal × Anual — mesmo par de opções da landing (/#pricing), com o
-              desconto do anual como badge, pra quem chegou aqui já saber comparar. */}
-          <div className="mt-4 inline-flex items-center gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <button onClick={() => setAnual(false)} aria-pressed={!anual}
-                    className="px-4 h-11 rounded-xl text-[13px] font-bold transition-all"
-                    style={{ background: !anual ? '#fff' : 'transparent', color: !anual ? '#0a3d24' : 'rgba(255,255,255,0.65)', minWidth: 44 }}>
-              Mensal
-            </button>
-            <button onClick={() => setAnual(true)} aria-pressed={anual}
-                    className="relative px-4 h-11 rounded-xl text-[13px] font-bold transition-all"
-                    style={{ background: anual ? '#fff' : 'transparent', color: anual ? '#0a3d24' : 'rgba(255,255,255,0.65)', minWidth: 44 }}>
-              Anual
-              {!anual && (
-                <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white whitespace-nowrap"
-                      style={{ background: BRAND }}>
-                  -{premium.descAnual}%
-                </span>
-              )}
-            </button>
           </div>
 
           <div className="mt-4 flex items-end gap-1.5">
@@ -736,7 +749,7 @@ function Etapa5() {
             ))}
           </ul>
 
-          <button onClick={assinar}
+          <button onClick={() => assinar('premium')}
                   className="mt-5 w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-black font-black text-[17px]
                              shadow-[0_14px_34px_-8px_rgba(97,206,112,0.7)] transition-all active:scale-[0.98] hover:brightness-105"
                   style={{ background: 'linear-gradient(135deg,#61CE70,#b6f54f)', minHeight: 58, touchAction: 'manipulation' }}>
@@ -747,6 +760,42 @@ function Etapa5() {
             <span className="flex items-center gap-1"><Wallet size={13} /> Cartão · cancele quando quiser</span>
           </div>
         </div>
+      </div>
+
+      {/* Card do BÁSICO — a opção mais em conta. Claro e com botão de contorno de
+          propósito: o Premium segue sendo a ação principal da tela, e o Básico
+          não disputa com ele (uma CTA primária por tela). */}
+      <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest bg-zinc-100 text-zinc-600">
+            Plano Básico
+          </span>
+          <span className="text-[11px] font-bold px-2 py-1 rounded-lg bg-zinc-100 text-zinc-600">Sem fidelidade</span>
+        </div>
+        <p className="mt-3 text-[14px] text-zinc-500">Pra começar a se organizar.</p>
+        <div className="mt-2 flex items-end gap-1.5" style={{ color: HEAD }}>
+          <span className="text-zinc-400 text-base mb-1">R$</span>
+          <span className="text-5xl font-black leading-none tabular-nums">{partesBasico.inteiro}{partesBasico.decimal}</span>
+          <span className="text-zinc-500 text-lg font-bold mb-1.5">/mês</span>
+        </div>
+        <p className="text-zinc-500 text-[13px] mt-1.5">
+          {anual
+            ? <>cobrado <b className="text-zinc-700">R$ {totalAnualBasico} por ano</b> · cancele quando quiser</>
+            : <>cobra todo mês · cancele quando quiser, sem multa.</>}
+        </p>
+        <ul className="mt-4 space-y-2">
+          {recursosBasico.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-[13.5px] text-zinc-700">
+              <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: ACCENT }} /> {f}
+            </li>
+          ))}
+        </ul>
+        <button onClick={() => assinar('basico')}
+                className="mt-5 w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-[15px]
+                           border-2 transition-all active:scale-[0.98] hover:bg-zinc-50"
+                style={{ borderColor: HEAD, color: HEAD, minHeight: 52, touchAction: 'manipulation' }}>
+          Começar com o Básico
+        </button>
       </div>
 
       {/* Aparência (Personalização) — seção EXATA do forsora.com, full-bleed,
