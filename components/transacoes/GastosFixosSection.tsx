@@ -196,6 +196,19 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     finally { setRemovendo(null); }
   }, []);
 
+  // ── DESFAZER O "SÓ ESTE MÊS" ────────────────────────────────────────
+  // O pulo não tinha volta por tela nenhuma (a rota DELETE existia, nenhum
+  // botão a chamava) — quem pulou sem querer via a conta sumir da previsão.
+  const despularMes = useCallback(async (id: string) => {
+    setRemovendo(id);
+    try {
+      await api.previstos.removerAjuste({ recorrencia_id: id, competencia: mesRefSP() });
+      setPuladas((s) => { const n = new Set(s); n.delete(id); return n; });
+      mutateRef.current((k: unknown) => typeof k === 'string' && k.startsWith(`d:ocorrencias:${phone}:`));
+    } catch { /* silencioso: a linha continua pulada */ }
+    finally { setRemovendo(null); }
+  }, [phone]);
+
   // ── "JÁ RECEBI" / "JÁ PAGUEI" ANTES DO DIA ──────────────────────────
   //
   // Pedido de cliente (set/2026): o vale cai todo dia 20, mas este mês caiu
@@ -766,7 +779,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               <ul className="divide-y divide-border/50">
                 {g.itens.map((item, idx) => (
                   <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)}
-                    pulado={puladas.has(item.id)} onPularMes={pularMes}
+                    pulado={puladas.has(item.id)} onPularMes={pularMes} onDespularMes={despularMes}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
                     onEditar={() => setFormTarget(item)}
@@ -933,7 +946,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               <ul className="divide-y divide-border/50">
                 {g.itens.map((item, idx) => (
                   <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)}
-                    pulado={puladas.has(item.id)} onPularMes={pularMes}
+                    pulado={puladas.has(item.id)} onPularMes={pularMes} onDespularMes={despularMes}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
                     onEditar={() => setFormTarget(item)}
@@ -1048,7 +1061,7 @@ function LinhaConta({ icone, rotulo, valor, dica, cor }: {
 // Linha de uma recorrência (gasto ou receita, fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function Linha({
-  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, pulado, onPularMes,
+  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, pulado, onPularMes, onDespularMes,
   sugCat, onAceitarCat, onIgnorarCat, jaPassou,
   podeAntecipar, emAntecipar, ocupadoAntecipar, erroAntecipar, onPedirAntecipar, onAntecipar,
 }: {
@@ -1070,6 +1083,8 @@ function Linha({
   /** Ocorrência pulada neste mês (ajuste `pulado`). */
   pulado?:     boolean;
   onPularMes:  (id: string) => void;
+  /** Desfaz o "só este mês" — a ocorrência volta a ser prevista. */
+  onDespularMes?: (id: string) => void;
   item:        Recorrencia;
   idx:         number;
   confirmando: string | null;
@@ -1204,6 +1219,17 @@ function Linha({
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-px sm:py-0.5 rounded-md font-semibold
                                  bg-muted text-muted-foreground">
                   pulado este mês
+                  {onDespularMes && (
+                    <button
+                      type="button"
+                      onClick={() => onDespularMes(item.id)}
+                      disabled={saindo}
+                      className="ml-1 underline underline-offset-2 font-semibold text-primary hover:opacity-80 -my-2 py-2"
+                      aria-label={`Voltar a prever ${item.descricao} este mês`}
+                    >
+                      desfazer
+                    </button>
+                  )}
                 </span>
               )}
               {item.carteira && <span className="truncate">· {item.carteira}</span>}

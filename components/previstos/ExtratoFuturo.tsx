@@ -75,7 +75,7 @@ export type AcaoOcorrencia = {
    * chegou a nomear: a conta NÃO foi paga. Hoje a Sora afirma que foi, o saldo
    * fica errado para sempre e a dívida fica invisível.
    */
-  acao: 'quitar' | 'pular' | 'adiar' | 'corrigir' | 'nao-paguei';
+  acao: 'quitar' | 'pular' | 'adiar' | 'corrigir' | 'nao-paguei' | 'despular';
   data?: string;
   valor?: number;
   /**
@@ -768,6 +768,47 @@ export default function ExtratoFuturo({
               </span>
             </p>
           )}
+        </div>
+      )}
+
+      {/* ── PULADAS NO PERÍODO ────────────────────────────────────────────
+          ⚠️ O "Pular" não tinha volta: a conta sumia do extrato e nenhuma tela
+          desfazia (relato: "minha conta fixa não aparece na previsão" — tinha
+          sido pulada com um toque). Fora do saldo, mas visível, com volta. */}
+      {extrato.puladas.length > 0 && (
+        <div className="rounded-2xl border border-border/40 overflow-hidden"
+             style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+          <p className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1.5">
+            <SkipForward size={12} /> Puladas neste período · fora do saldo
+          </p>
+          <div className="divide-y divide-border/30">
+            {extrato.puladas.map((p) => (
+              <div key={p.recorrenciaId + p.competencia} className="flex items-center gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-foreground truncate">{p.descricao}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {diaMes(p.data)}{p.carteira ? ` · ${p.carteira}` : ''} · {p.tipo === 'Recebimento' ? '+' : '−'} {fmt(p.valor)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={ocupado === p.recorrenciaId}
+                  onClick={() => onAcao({
+                    acao: 'despular',
+                    linha: {
+                      data: p.data, tipo: p.tipo, valor: p.valor, descricao: p.descricao,
+                      carteira: p.carteira, origem: 'recorrencia', estado: 'previsto', estimado: false,
+                      recorrenciaId: p.recorrenciaId, competencia: p.competencia,
+                    },
+                  })}
+                  className="flex-shrink-0 h-11 px-3 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1.5
+                             bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-60 active:scale-[0.97] transition-all"
+                >
+                  <Undo2 size={14} /> {ocupado === p.recorrenciaId ? '...' : 'Voltar a prever'}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

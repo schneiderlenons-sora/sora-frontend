@@ -1267,9 +1267,12 @@ e a tela seguia exibindo o valor como se fosse de hoje. Medido na base:
 
 - ⚠️ **As faturas NUNCA entravam no extrato**: o código passava
   `Array.isArray(fatData) ? fatData : []`, e a API devolve `{ faturas }`. Hoje
-  entra a lista já convertida pra moeda do grupo. **Dívidas seguem fora DE
-  PROPÓSITO** (decisão pendente: a parcela já paga no mês seria projetada de
-  novo) — agora explícito, não por acidente.
+  entra a lista já convertida pra moeda do grupo. **Dívidas entram desde
+  18/09** (relato de cliente): a data sai de `proximoVencimento`, a mesma do
+  card — não reprojeta parcela paga adiantado nem a 1ª no mês da contratação.
+- **Pulada tem volta:** o extrato lista "Puladas neste período" com "Voltar a
+  prever", e o selo "pulado este mês" do card de contas fixas tem "desfazer"
+  (`removerAjuste` existia e nenhuma tela chamava).
 - **De qual conta sai a fatura:** `wallets.conta_pagamento_id` (migration
   **170**, por ID — renomear não desliga). Escolhida tocando na linha da fatura;
   sem conta, a fatura só aparece em "Todas as contas", e o filtro por conta
@@ -1371,6 +1374,18 @@ como saldo de uma conta com R$ 5.217,71).
   `pulado`) pula a conta. Medido: 2 duplicatas já na base, e 4 das 24 contas de
   20/09 seriam lançadas de novo. Semanal fica de fora (a chave é mensal);
   aviso antecipado também (pode ser do mês seguinte).
+
+## Selo "EM ATRASO" da dívida anda nos DOIS sentidos (set/2026)
+
+Relato: *"mudei o vencimento do dia 15 pro 20 e continua em atraso"*. O cron
+de lembrete gravava `status='em_atraso'` e nada o tirava. Regra única:
+`vencidaNoMes`/`statusDeAtraso` em `services/vencimentoDivida.js`
+(`eval:vencimento-divida`), usada pelo cron (a cada passada, só grava se
+mudar) e pelo `PUT /dividas/:id`. Consertou também: pagamento adiantado virava
+atraso (`pago < venc`) e dívida cadastrada depois do vencimento do mês nascia
+atrasada. Medido: **26 dívidas** marcadas em atraso sem estar. ⚠️ Dívida do
+Open Finance fica de fora (o status vem do sync). O formulário mostra a data
+da próxima parcela sob "Data início" (= data da contratação).
 
 ## Ajuste de saldo NÃO é receita nem despesa (set/2026)
 

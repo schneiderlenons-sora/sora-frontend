@@ -1,5 +1,6 @@
 import { venceEm, type RecorrenciaQuando } from './frequencia-recorrencia';
 import type { ItemRecorrente, ItemParcelado, FaturaProjetada } from './previstos';
+import { proximoVencimento, ocorrencia } from './vencimento-divida';
 
 // =============================================================================
 // EXTRATO FUTURO — "quanto eu preciso ter na conta em cada data?"
@@ -103,6 +104,14 @@ export type Extrato = {
    */
   pior: { data: string; saldo: number } | null;
   temEstimativa: boolean;
+  /**
+   * Ocorrências PULADAS dentro do período — não entram no saldo, mas a tela as
+   * lista com "voltar a prever". Antes o "Pular" não tinha volta: a conta
+   * sumia do extrato e nenhuma tela desfazia (relato: "minha conta fixa não
+   * aparece na previsão" — ela tinha sido pulada com um toque).
+   */
+  puladas: { recorrenciaId: string; competencia: string; data: string; descricao: string;
+    valor: number; tipo: 'Gasto' | 'Recebimento'; carteira: string | null }[];
 };
 
 export type Quitacao = { recorrenciaId: string; competencia: string };
@@ -168,7 +177,10 @@ export function montarExtrato(params: {
   saldoInicial: number;
   transacoes: TransacaoExtrato[];
   recorrencias: (ItemRecorrente & { id?: string; carteira?: string | null })[];
-  dividas: (ItemParcelado & { id?: string; carteira?: string | null })[];
+  dividas: (ItemParcelado & {
+    id?: string; carteira?: string | null;
+    data_inicio?: string | null; ultimo_pagamento?: string | null; proximo_vencimento?: string | null;
+  })[];
   faturas: (FaturaProjetada & { carteira?: string | null; cartao_id?: string | null })[];
   quitacoes?: Quitacao[];
   ajustes?: Ajuste[];
@@ -187,6 +199,7 @@ export function montarExtrato(params: {
   const naCarteira = (c?: string | null) => !filtro || (c ? filtro.has(c) : false);
 
   const porDia = new Map<string, LinhaExtrato[]>();
+  const puladas: Extrato['puladas'] = [];
   const push = (l: LinhaExtrato) => {
     if (l.data < de || l.data > ate) return;
     if (!naCarteira(l.carteira)) return;
@@ -285,7 +298,16 @@ export function montarExtrato(params: {
       // isto, no dia do vencimento a conta saía DUAS vezes do saldo.
       if (jaMaterializada(r.descricao, Number(r.valor), comp)) continue;
       const aj = rid ? ajustePor.get(chave) : undefined;
-      if (aj && aj.status === 'pulado') continue;      // pulada de propósito
+      if (aj && aj.status === 'pulado') {              // pulada de propósito
+        if (rid && dia >= de && dia <= ate && naCarteira(r.carteira)) {
+          puladas.push({
+            recorrenciaId: rid, competencia: comp, data: dia,
+            descricao: r.descricao || (r.tipo === 'Gasto' ? 'Conta fixa' : 'Receita fixa'),
+            valor: cent(r.valor), tipo: r.tipo, carteira: r.carteira ?? null,
+          });
+        }
+        continue;
+      }
       const data = aj && aj.status === 'movido' && aj.novaData
         ? String(aj.novaData).slice(0, 10) : dia;
       const valor = aj && aj.novoValor != null ? cent(aj.novoValor) : cent(r.valor);
@@ -305,10 +327,14 @@ export function montarExtrato(params: {
     }
   }
 
-  // ── 3. Dívidas — uma parcela por mês, ENQUANTO SOBRAR parcela ─────────────
-  const meses: string[] = [];
-  for (const d of dias) { const m = ym(d); if (meses[meses.length - 1] !== m) meses.push(m); }
-
+  // ── 3. Dívidas — pela MESMA regra do card (`proximoVencimento`) ─────────
+  //
+  // ⚠️ Antes era "uma parcela por mês a partir do mês corrente", e por isso as
+  // dívidas ficavam FORA do extrato (sempre []): a parcela que a pessoa já
+  // pagou adiantado no mês seria projetada de novo, e a 1ª parcela de uma
+  // dívida recém-contratada (`data_inicio`) aparecia no mês da compra. O card
+  // da dívida já resolvia os dois com `proximoVencimento`; o extrato passou a
+  // partir da mesma data — a tela da dívida e o extrato não podem discordar.
   for (const d of params.dividas || []) {
     if (d.status === 'quitada') continue;
     if (!(Number(d.valor_parcela) > 0)) continue;
@@ -320,15 +346,17 @@ export function montarExtrato(params: {
     // Mesma aritmética de `linhasDoMes`: `k` é a distância em meses e a parcela
     // some quando `k` alcança o que resta.
     const restantes = total > 0 ? Math.max(0, total - pagas) : Infinity;
-    for (let k = 0; k < meses.length; k++) {
-      if (k >= restantes) break;
-      const m = meses[k];
-      const [ano, mes] = m.split('-').map(Number);
+    // `de` é o "hoje" do extrato (a janela sempre começa hoje).
+    const prox = proximoVencimento(d, de);
+    if (!prox) continue;
+    const [py, pm] = prox.data.split('-').map(Number);
+    let data = prox.data;
+    for (let k = 0; data <= ate && k < restantes; k++) {
       // ⚠️ Clamp ao ÚLTIMO DIA do mês: dívida que vence 31 vence em 28/02.
-      const ultimo = new Date(ano, mes, 0).getDate();
-      const dd = String(Math.min(diaVenc, ultimo)).padStart(2, '0');
+      if (k > 0) data = ocorrencia(py, pm - 1 + k, diaVenc);
+      if (data > ate) break;
       push({
-        data: m + '-' + dd,
+        data,
         tipo: 'Gasto',
         valor: cent(d.valor_parcela),
         descricao: d.titulo || 'Parcela',
@@ -431,5 +459,5 @@ export function montarExtrato(params: {
     if (!pior || saldo < pior.saldo) pior = { data: dia, saldo };
   }
 
-  return { saldoInicial: cent(saldoInicial), dias: saida, pior, temEstimativa };
+  return { saldoInicial: cent(saldoInicial), dias: saida, pior, temEstimativa, puladas };
 }

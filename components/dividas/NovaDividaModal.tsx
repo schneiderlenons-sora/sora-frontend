@@ -5,6 +5,7 @@ import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart,
 import { api } from '@/lib/api';
 import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
+import { proximoVencimento } from '@/lib/vencimento-divida';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
 async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> {
@@ -520,6 +521,22 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
               />
             </div>
           </div>
+          {/* ⚠️ "Data início" é a data da CONTRATAÇÃO: a 1ª parcela nunca vence
+              nela (regra de `proximoVencimento`). Um cliente pôs 20/09 achando
+              que era a 1ª parcela e a dívida pulou pra outubro sem aviso —
+              dizer a data que vai valer, ANTES de salvar, resolve isso. */}
+          {(() => {
+            const prox = diaVencimento ? proximoVencimento({
+              dia_vencimento: Number(diaVencimento), data_inicio: dataInicio || null, status: 'ativa',
+              ultimo_pagamento: (edicao as { ultimo_pagamento?: string | null } | undefined)?.ultimo_pagamento ?? null,
+            }) : null;
+            return (
+              <p className="-mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                Data início = quando a dívida foi feita.
+                {prox && <> A próxima parcela fica para <strong className="text-foreground">{prox.data.slice(8, 10)}/{prox.data.slice(5, 7)}/{prox.data.slice(0, 4)}</strong>.</>}
+              </p>
+            );
+          })()}
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">

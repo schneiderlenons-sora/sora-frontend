@@ -322,11 +322,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       saldoInicial: saldoPartida,
       transacoes: txs,
       recorrencias: recorrencias as any[],
-      // ⚠️ DÍVIDAS FICAM DE FORA DE PROPÓSITO (decisão pendente do dono): a
-      // parcela JÁ PAGA no mês ainda seria projetada, contando em dobro. Antes
-      // isto era `Array.isArray(divData) ? divData : []` — sempre [], porque a
-      // API devolve `{ dividas }`. Agora está explícito, não acidental.
-      dividas: [] as any[],
+      // ⚠️ DÍVIDAS ENTRAM (relato de cliente, set/2026: "a dívida não aparece no
+      // extrato"). Ficavam fora porque a projeção antiga reprojetava a parcela
+      // já paga; agora `montarExtrato` usa `proximoVencimento` — a mesma
+      // regra do card, que já respeita pagamento adiantado e `data_inicio`.
+      // A lista é a mesma de `dividas` acima (a API devolve `{ dividas }`).
+      dividas: dividas as any[],
       // ⚠️ FATURAS ENTRAM (pedido de cliente). O mesmo defeito as deixava
       // sempre fora: a API devolve `{ faturas }`, não uma lista. Usa a lista
       // JÁ CONVERTIDA pra moeda do grupo (a mesma da seção "Cartões") e leva a
@@ -336,7 +337,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       ajustes: (ocorrData as any)?.ajustes ?? [],
       carteiras: carteiraExtrato ? [carteiraExtrato] : undefined,
     };
-  }, [txA, txB, txExtra, ateExtrato, saldoPartida, recorrencias, faturas, contaQuePaga, ocorrData, carteiraExtrato]);
+  }, [txA, txB, txExtra, ateExtrato, saldoPartida, recorrencias, dividas, faturas, contaQuePaga, ocorrData, carteiraExtrato]);
 
   const contasPagamento = useMemo(
     () => wallets.filter((w) => w.tipo !== 'Crédito' && !w.arquivada).map((w) => ({ id: String(w.id), nome: String(w.nome) })),
@@ -406,6 +407,10 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         return;
       } else if (acao === 'pular') {
         await api.previstos.ajuste({ ...base, status: 'pulado' });
+      } else if (acao === 'despular') {
+        // Desfaz o "Pular" — a ocorrência volta a ser prevista. Antes não havia
+        // volta pela tela (a rota existia, nenhum botão a chamava).
+        await api.previstos.removerAjuste(base);
       } else if (acao === 'adiar') {
         // ⚠️ A DATA VEM DA TELA. Antes eram 7 dias fixos — um placeholder que
         // adivinhava por todo mundo. Sem `a.data` não há o que mover: melhor
