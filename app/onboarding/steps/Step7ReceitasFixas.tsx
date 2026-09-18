@@ -5,6 +5,7 @@ import { TrendingUp, Plus, Trash2, Loader2, Landmark, AlertCircle, CircleDashed 
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import StepNav from '../components/StepNav';
+import { useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -19,6 +20,7 @@ type Receita = {
 
 export default function Step7ReceitasFixas() {
   const { phone } = useAuth();
+  const simbolo = useSimboloMoeda();
 
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
@@ -132,7 +134,7 @@ export default function Step7ReceitasFixas() {
                 <input type="text" value={r.descricao} onChange={(e) => atualizar(i, { descricao: e.target.value })} placeholder="Ex.: Salário, Freela"
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                 <input type="text" inputMode="decimal" value={r.valor} onChange={(e) => atualizar(i, { valor: e.target.value })}
-                  placeholder={r.variavel ? 'Estimativa' : 'R$ 0,00'}
+                  placeholder={r.variavel ? 'Estimativa' : `${simbolo} 0,00`}
                   aria-label={r.variavel ? 'Valor estimado (opcional)' : 'Valor'}
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm tabular-nums placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                 <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-background border border-border text-sm">

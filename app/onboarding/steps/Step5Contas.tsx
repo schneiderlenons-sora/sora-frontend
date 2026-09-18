@@ -11,17 +11,19 @@ import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import { salvarIntencaoOF, querOpenFinance } from '@/lib/of-intent';
 import AdicionarCartaoModal, { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import StepNav from '../components/StepNav';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 const OF_COR = '#6366f1';
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
 type TipoBanco = 'Corrente' | 'Poupança' | 'Dinheiro';
 const TIPOS_BANCO: TipoBanco[] = ['Corrente', 'Poupança', 'Dinheiro'];
 
 export default function Step5Contas() {
   const { phone, user, perfil } = useAuth();
+  // Moeda escolhida no passo 1 (Fase 6) — o saldo digitado aqui é nessa moeda.
+  const fmt = useDinheiro({ entrada: 'ouZero' });
+  const simbolo = useSimboloMoeda();
 
   // Quem tem Open Finance na FRANQUIA do plano (assinatura recorrente: Básico
   // 1 conexão, Premium 3) — e o vitalício que já contratou uma avulsa.
@@ -194,7 +196,7 @@ export default function Step5Contas() {
                     value={saldo}
                     onChange={(e) => setSaldo(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addConta()}
-                    placeholder="Saldo R$ 0,00"
+                    placeholder={`Saldo ${simbolo} 0,00`}
                     className="px-3.5 h-11 rounded-xl bg-background border border-border text-sm tabular-nums placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
                   />
                 </div>

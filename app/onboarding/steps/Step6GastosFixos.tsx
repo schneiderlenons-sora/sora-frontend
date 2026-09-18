@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { PLANOS_INFO, type PlanoId } from '@/lib/stripe';
 import { PLANO_LABEL } from '@/lib/plans';
 import StepNav from '../components/StepNav';
+import { useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -20,6 +21,7 @@ type Gasto = {
 
 export default function Step6GastosFixos() {
   const { perfil, phone } = useAuth();
+  const simbolo = useSimboloMoeda();
 
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
@@ -142,7 +144,7 @@ export default function Step6GastosFixos() {
                 <input type="text" value={g.descricao} onChange={(e) => atualizar(i, { descricao: e.target.value })} placeholder="Ex.: Aluguel, Netflix"
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                 <input type="text" inputMode="decimal" value={g.valor} onChange={(e) => atualizar(i, { valor: e.target.value })}
-                  placeholder={g.variavel ? 'Estimativa' : 'R$ 0,00'}
+                  placeholder={g.variavel ? 'Estimativa' : `${simbolo} 0,00`}
                   aria-label={g.variavel ? 'Valor estimado (opcional)' : 'Valor'}
                   className="px-3 py-2.5 rounded-xl bg-background border border-border text-sm tabular-nums placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
                 <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-background border border-border text-sm">

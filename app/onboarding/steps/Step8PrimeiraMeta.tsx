@@ -5,6 +5,7 @@ import { Target, ShieldCheck, Plane, Home, GraduationCap, Sparkles } from 'lucid
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import StepNav from '../components/StepNav';
+import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -25,6 +26,8 @@ const SUGESTOES: Sugestao[] = [
 
 export default function Step8PrimeiraMeta() {
   const { perfil } = useAuth();
+  const fmt = useDinheiro();
+  const simbolo = useSimboloMoeda();
   const [escolhida, setEscolhida] = useState<Sugestao | null>(null);
   const [titulo,    setTitulo]    = useState('');
   const [valor,     setValor]     = useState('');
@@ -135,7 +138,7 @@ export default function Step8PrimeiraMeta() {
               inputMode="decimal"
               value={valor}
               onChange={(e) => setValor(e.target.value)}
-              placeholder="R$ 10.000"
+              placeholder={`${simbolo} 10.000`}
               className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-sm tabular-nums
                          placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
             />
@@ -162,7 +165,7 @@ export default function Step8PrimeiraMeta() {
             <p className="text-xs text-foreground leading-tight">
               Pra bater essa meta, separa{' '}
               <strong className="tabular-nums" style={{ color: BRAND }}>
-                R$ {aporteSugerido.toFixed(2).replace('.', ',')}
+                {fmt(aporteSugerido)}
               </strong>{' '}
               por mês.
             </p>

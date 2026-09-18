@@ -630,6 +630,18 @@ export const api = {
   grupos: {
     listar: (phone: string) =>
       req<any[]>(`/api/grupos/${phone}`),
+    // Moeda base do grupo ATIVO (Fase 6). `travada` vem com o porquê escrito:
+    // a tela EXPLICA em vez de mostrar seletor cinza.
+    moedaBase: () =>
+      req<{
+        moeda: string;
+        opcoes: { codigo: string; nome: string; simbolo: string }[];
+        travada: boolean;
+        motivo: 'nao_dono' | 'tem_dados' | null;
+        explicacao: string | null;
+      }>('/api/grupos/moeda-base'),
+    definirMoedaBase: (moeda: string) =>
+      req<{ ok: boolean; moeda: string }>('/api/grupos/moeda-base', { method: 'PUT', body: JSON.stringify({ moeda }) }),
     convidar: (phone: string, grupo_id: string) =>
       req<{ codigo: string }>('/api/grupos/convidar', { method: 'POST', body: JSON.stringify({ phone, grupo_id }) }),
     aceitar: (phone: string, codigo: string) =>

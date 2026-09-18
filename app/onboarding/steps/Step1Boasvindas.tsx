@@ -3,6 +3,7 @@
 import { Sparkles } from 'lucide-react';
 import { useOnboarding } from '../OnboardingContext';
 import StepNav from '../components/StepNav';
+import EscolhaMoeda from '../components/EscolhaMoeda';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -63,6 +64,8 @@ export default function Step1Boasvindas() {
           A Sora vai te chamar por esse nome no painel e no WhatsApp.
         </p>
       </div>
+
+      <EscolhaMoeda />
 
       <StepNav podeAvancar={state.nome.trim().length >= 2} semPular semVoltar />
     </>

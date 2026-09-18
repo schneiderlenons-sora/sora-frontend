@@ -347,8 +347,41 @@ falar ela se mostrou **pior do que o plano registrava**:
   `"gastei 50 na kr modas"` continuar saindo com o "kr".
 - `interpretador.eval.js` segue **161/161**.
 
-**⏭️ Próximo:** Fase 6 (escolher a moeda no onboarding). Hoje **nenhum grupo sai
-do real**, então tudo das Fases 3 e 5 é inerte até ela existir.
+### ✅ Fase 6 — escolher a moeda no onboarding (17/09/2026)
+
+O passo 1 do onboarding pergunta *"Em que moeda você controla seu dinheiro?"*
+(Real · Dólar americano · Coroa norueguesa). **É a primeira fase visível** —
+tudo das Fases 1–5 passa a valer de verdade pra quem escolhe dólar ou coroa.
+
+- **Rotas:** `GET` e `PUT /api/grupos/moeda-base` (grupo ATIVO). Regra em
+  `services/moeda.js`: `motivoMoedaTravada` + `definirMoedaBase`.
+- **Trava (decisão do dono):** só o **dono** do grupo escolhe, e só com o grupo
+  **sem dinheiro** — nenhuma linha em transações, recorrências, dívidas, metas,
+  investimentos ou limites de categoria, e nenhuma conta com saldo, limite ou
+  vinda do banco. Medido na base: **104 grupos vazios, 114 travados**.
+- **Travada, a tela EXPLICA** (moeda atual + cadeado + o porquê), nunca um
+  seletor cinza — `read-only-distinction`.
+- **Salva no toque** (otimista, volta se o servidor recusar), por isso o saldo do
+  passo 5, os fixos e a meta já saem com o símbolo certo. O onboarding ganhou o
+  próprio `MoedaBaseProvider` (`app/onboarding/MoedaOnboarding.tsx`) — ele fica
+  fora do layout do painel, e os passos 5–8 tinham "R$" cravado.
+- **As contas vazias vão junto:** o trigger da 169 criou o "Dinheiro" na base
+  antiga; ao trocar, contas na base antiga (ou sem moeda) passam pra nova. Conta
+  aberta em outra moeda de propósito fica como está.
+- ⚠️ **CONSULTA `head` ENGOLE O ERRO.** A lista da trava nasceu com `limites`,
+  tabela que **não existe** (o nome é `category_limits`) — e o PostgREST
+  respondeu **204, sem `error`, com `count: null`**. A regra "falha de leitura
+  trava" estava sendo furada em silêncio. Hoje `count == null` também trava, e
+  o banco falso do eval imita esse 204.
+- ⚠️ `esquecerMoedaBase` é chamado na troca — sem ele a instância converteria
+  pela base antiga por 10 min.
+- `eval:moeda-base` §11 passa pela **rota real** (9 formas de dinheiro travando,
+  as duas falhas de leitura, não-dono, moeda não oferecida). **6 mutações, 6
+  mortas.**
+
+**Fora do escopo (de propósito):** quem JÁ passou do onboarding não vê o seletor
+em lugar nenhum — a escolha é do cadastro. Se um cliente atual (grupo vazio)
+precisar trocar, é pela rota, ou vira uma tela em Configurações depois.
 
 **Pendentes anotados, fora da moeda base:** `fotografarPatrimonio` soma
 `wallets.saldo` cru (conta estrangeira entra sem conversão no gráfico de
