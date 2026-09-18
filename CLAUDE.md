@@ -1194,6 +1194,36 @@ setembro enquanto o app do Mercado Pago a mostra em "3 de agosto".
   "Antecipar" nelas e o filtro "pendente" de /transacoes ainda as conta.
 - Travado em `eval:consulta-parcela` §6 e `eval:reconciliar-parcelas` §6.
 
+## Conta do Open Finance: saldo NUNCA à mão, e a tela diz isso (set/2026)
+
+Relato com vídeo: *"a Sora não sincroniza"* — o cliente lançava pelo app e o
+saldo da conta não mudava. A conta era do Open Finance e o painel estava
+**certo** (o saldo é o do banco). O defeito era outro: **nada avisava**, e o
+**WhatsApp mexia** no saldo da conta do banco (5 arquivos sem trava), então o
+mesmo lançamento andava o saldo por um canal e não pelo outro — e o do zap
+voltava sozinho no sync seguinte. De quebra, o lançamento manual vira
+**duplicata** quando o banco traz a mesma movimentação (medido no cliente: 5
+manuais em contas do banco, 1 já duplicada).
+
+- **`services/saldoCarteira.js` é a porta única** (`moverSaldo`, `gravarSaldo`):
+  pula conta com `of_conta_id` e, se o objeto não trouxer a coluna, **lê**.
+  ⚠️ Código novo que mexe em saldo passa por ela — nunca `update({ saldo })`
+  direto. Usada no zap (salvar, apagar, mover de conta, pagar parcelas,
+  confirmar recorrência, transferir, `contaDebito`) e no painel (transferir).
+- **"Adicionar/alterar saldo" pelo zap numa conta do banco RECUSA explicando** —
+  o ajuste seria desfeito no sync e deixaria um lançamento de Ajuste sem
+  dinheiro por trás. No painel, o POST (é o "Ajustar") e o PUT ignoram o
+  `saldo` de conta do banco; o resto da edição vale.
+- **A tela explica:** selo **"Banco"** no seletor de contas e aviso ANTES de
+  salvar no `NovaTransacaoModal` (aviso, não bloqueio); no card da conta,
+  **"Saldo do banco · atualizado há X"** (`of_consent_id` ↔
+  `of_conexoes.external_id`, lido com `useSWR` direto — `useApi` cobriria a
+  página no LoadingGate); sem **"Ajustar"** e sem campo de saldo na edição.
+- O zap acrescenta à confirmação: *"… está conectada ao seu banco: o saldo vem
+  de lá … se aparecer repetida, é só apagar esta."*
+- Travado em `eval:saldo-conta-banco` (zap + rotas do painel, sempre em par
+  conta do banco × manual); 9 mutações, 9 mortas.
+
 ## "Paguei" dos Previstos debita o saldo (set/2026)
 
 Relato de cliente com conta manual: o saldo "criava dinheiro". A baixa

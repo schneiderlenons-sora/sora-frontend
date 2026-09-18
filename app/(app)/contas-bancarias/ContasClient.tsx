@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import useSWR from 'swr';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
@@ -20,7 +21,7 @@ import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
   Archive, ArchiveRestore, ArrowLeftRight, DollarSign,
-  Shield, Star, Sparkles, AlertCircle, ChevronRight,
+  Shield, Star, Sparkles, AlertCircle, ChevronRight, Landmark,
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
@@ -101,6 +102,11 @@ interface Wallet {
   moeda_base?: string | null;
   padrao?: boolean;
   arquivada?: boolean;
+  // Open Finance: preenchido = o saldo é o do BANCO (regra de ouro — a Sora
+  // nunca o ajusta à mão). `of_consent_id` liga a conta à conexão, que é onde
+  // mora a hora da última sincronização.
+  of_conta_id?: string | null;
+  of_consent_id?: string | null;
   dono?: { id: string; name: string; phone?: string; avatar_url?: string | null; avatar_preset?: string | null; avatar_cor?: string | null } | null;
 }
 
@@ -160,6 +166,19 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   }, [walletsRaw, perfil?.wallet_padrao_id]);
 
   const carregar = useCallback(() => mWallets(), [mWallets]);
+
+  // "Saldo do banco · atualizado há 3 h". Só busca quando existe conta do
+  // banco. ⚠️ `useSWR` direto, NÃO `useApi`: o useApi registra no
+  // LoadingGate e cobriria a página inteira por causa de uma linha secundária.
+  // Falhou → a linha sai sem a hora, e o resto da tela não sente.
+  const temContaDoBanco = wallets.some((w) => w.of_conta_id);
+  const { data: conexoesOF } = useSWR(temContaDoBanco ? 'of:conexoes:contas' : null,
+    () => api.openFinance.conexoes(), { revalidateOnFocus: false });
+  const sincPorConsent = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of conexoesOF?.conexoes || []) if (c.external_id && c.ultima_sync) m[c.external_id] = c.ultima_sync;
+    return m;
+  }, [conexoesOF]);
 
   // ── Helpers ────────────────────────────────────────────────
   // Cartões de crédito NÃO aparecem aqui — eles têm a aba própria (Cartão de
@@ -410,6 +429,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
                 onAjustar={() => setAjusteOpen(w)}
                 onTransferir={() => setTransferOpen(true)}
                 onVerExtrato={() => setContaDetalhe(w)}
+                sincronizadoEm={w.of_consent_id ? sincPorConsent[w.of_consent_id] ?? null : null}
               />
             ))}
 
@@ -493,11 +513,24 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
 }
 
 // ─────────────────────────────────────────────────────────────
+// "há 5 min", "há 3 h", "há 2 dias" — quando a conexão sincronizou pela última vez.
+function tempoDesde(iso: string): string {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (!Number.isFinite(min)) return '';
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `há ${h} h`;
+  const d = Math.round(h / 24);
+  return `há ${d} ${d === 1 ? 'dia' : 'dias'}`;
+}
+
 // CARD DE CONTA — HORIZONTAL, INSPIRADO NA REFERÊNCIA MAS MAIS POLIDO
 // ─────────────────────────────────────────────────────────────
 function WalletCard({
   wallet, index, ocultar, compartilhado,
   onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir, onVerExtrato,
+  sincronizadoEm = null,
 }: {
   wallet:        Wallet;
   index:         number;
@@ -510,8 +543,10 @@ function WalletCard({
   onAjustar:     () => void;
   onTransferir:  () => void;
   onVerExtrato:  () => void;
+  sincronizadoEm?: string | null;
 }) {
   const fmt = useDinheiro();
+  const doBanco = !!wallet.of_conta_id;
   const moedaBase = useMoedaBase();
   const [gradStart, gradEnd] = bancoGrad(wallet.nome);
   const Icon  = TIPO_ICON[wallet.tipo] || WalletIcon;
@@ -623,6 +658,18 @@ function WalletCard({
               : `≈ ${fmt(saldoNaBase(wallet, moedaBase) ?? 0)}`}
           </p>
         )}
+        {/* ⚠️ A CONTA DO BANCO DIZ DE ONDE VEM O NÚMERO. Sem isto, quem
+            lançava à mão via o saldo parado e concluía "a Sora não sincroniza"
+            (relato de set/2026, com vídeo) — o saldo estava certo, é o do banco. */}
+        {doBanco && (
+          <p className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-1">
+            <Landmark size={11} className="flex-shrink-0" aria-hidden />
+            <span>
+              Saldo do banco
+              {sincronizadoEm ? ` · atualizado ${tempoDesde(sincronizadoEm)}` : ' · atualiza sozinho'}
+            </span>
+          </p>
+        )}
         <div className="flex items-center gap-0.5 mt-2 text-[11px] font-medium text-muted-foreground group-hover/saldo:text-foreground transition-colors">
           <span>Ver extrato — entradas e saídas</span>
           <ChevronRight size={12} className="group-hover/saldo:translate-x-0.5 transition-transform" />
@@ -655,8 +702,10 @@ function WalletCard({
       </button>
 
       {/* ─── Ações ─── */}
-      <div className="grid grid-cols-4 gap-1 -mx-1">
-        <ActionButton icon={DollarSign}    label="Ajustar"    onClick={onAjustar} />
+      {/* Conta do banco não tem "Ajustar": o saldo é o do banco, e a linha
+          "Saldo do banco" acima já diz isso. */}
+      <div className={`grid ${doBanco ? 'grid-cols-3' : 'grid-cols-4'} gap-1 -mx-1`}>
+        {!doBanco && <ActionButton icon={DollarSign} label="Ajustar" onClick={onAjustar} />}
         <ActionButton icon={ArrowLeftRight} label="Transferir" onClick={onTransferir} />
         <ActionButton icon={Pencil}        label="Editar"     onClick={onEditar} />
         <ActionButton
@@ -867,7 +916,17 @@ function ContaModal({
               )}
             </div>
 
-            {/* Saldo inicial */}
+            {/* Saldo inicial — numa conta do banco ele NÃO é editável: explica
+                em vez de mostrar campo desabilitado (read-only-distinction). */}
+            {editando?.of_conta_id ? (
+              <div className="rounded-2xl p-3.5 bg-muted/40 border border-border flex items-start gap-2.5">
+                <Landmark size={15} className="text-muted-foreground flex-shrink-0 mt-0.5" aria-hidden />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <strong className="text-foreground">O saldo desta conta vem do seu banco</strong> pelo Open Finance
+                  e se atualiza sozinho a cada sincronização. Aqui você pode mudar o nome e os outros dados.
+                </p>
+              </div>
+            ) : (
             <div>
               <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
                 Saldo inicial
@@ -890,6 +949,7 @@ function ContaModal({
                 Você pode atualizar o saldo a qualquer momento
               </p>
             </div>
+            )}
 
             {/* Cheque especial (limite de saldo negativo) */}
             <div>

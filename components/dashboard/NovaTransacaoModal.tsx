@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock, Undo2 } from 'lucide-react';
+import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock, Undo2, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
 // Conta em moeda estrangeira (migration 144): o valor digitado está na moeda
 // DA CONTA, e é o backend que converte. Aqui só rotulamos o campo.
@@ -419,6 +419,12 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
                         }`}>
                           {ehCartao ? <><CreditCard size={9} /> Cartão</> : <><Wallet size={9} /> {w.tipo}</>}
                         </span>
+                        {/* Conectada pelo Open Finance: dá pra ver ANTES de escolher. */}
+                        {w.of_conta_id && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-0.5 ml-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            <Landmark size={9} /> Banco
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -443,6 +449,22 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
                     </div>
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* ⚠️ CONTA DO BANCO: avisa ANTES de salvar. O lançamento é gravado,
+                mas o saldo não anda (é o do banco) e a mesma movimentação chega
+                pelo sync — sem este aviso o cliente concluía "não sincroniza" e
+                ainda ficava com a duplicata (relato de set/2026). Aviso, não
+                bloqueio: às vezes lançar antes do banco é justamente o que se quer. */}
+            {walletSel?.of_conta_id && (
+              <div role="note" className="mt-2 rounded-xl p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 flex items-start gap-2.5">
+                <Landmark size={14} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" aria-hidden />
+                <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                  <strong>{walletSel.nome}</strong> está conectada ao seu banco:{' '}
+                  {walletSel.tipo === 'Crédito' ? 'a fatura vem de lá' : 'o saldo vem de lá'} e não muda com este lançamento.
+                  A movimentação também deve chegar sozinha na próxima sincronização — se aparecer repetida, é só apagar esta.
+                </p>
               </div>
             )}
           </div>
