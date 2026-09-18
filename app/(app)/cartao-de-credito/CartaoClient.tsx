@@ -784,16 +784,48 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
           </div>
         </div>
 
-        <span
-          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 flex-shrink-0 ${
-            paga
-              ? 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400'
-              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
-          }`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: paga ? '#16a34a' : '#d97706' }} />
-          {paga ? 'Paga' : 'Em aberto'}
-        </span>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <span
+            className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
+              paga
+                ? 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: paga ? '#16a34a' : '#d97706' }} />
+            {paga ? 'Paga' : 'Em aberto'}
+          </span>
+
+          {/* Ações. ⚠️ SEMPRE VISÍVEIS NO CELULAR: não existe hover no toque, e
+              o usuário tinha de adivinhar que precisava segurar o dedo no card.
+              No desktop seguem aparecendo no hover — e ficam EMBAIXO do selo,
+              não por cima (antes cobriam o "Em aberto"). `lg:absolute` tira do
+              fluxo no desktop, então lá o card fica com a altura de sempre.
+              z-10 pra ficar acima do clique do card. */}
+          <div onKeyDown={(e) => e.stopPropagation()}
+               className="flex items-center gap-1.5 z-10 transition-opacity
+                          lg:absolute lg:top-9 lg:right-0 lg:gap-1
+                          lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEditar(); }}
+              aria-label={`Editar ${cartao.nome}`}
+              title="Editar"
+              className="w-11 h-11 lg:w-8 lg:h-8 flex items-center justify-center rounded-xl lg:rounded-lg bg-card/80 backdrop-blur-sm border border-border hover:bg-muted active:scale-95 transition-all shadow-sm"
+            >
+              <Pencil size={15} className="text-muted-foreground" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onExcluir(); }}
+              aria-label={`Excluir ${cartao.nome}`}
+              title="Excluir"
+              className="w-11 h-11 lg:w-8 lg:h-8 flex items-center justify-center rounded-xl lg:rounded-lg bg-card/80 backdrop-blur-sm border border-border hover:bg-red-50 dark:hover:bg-red-950/40 active:scale-95 transition-all shadow-sm group/excluir"
+            >
+              <Trash2 size={15} className="text-muted-foreground group-hover/excluir:text-red-500" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Fatura atual — mostra o VALOR QUE FALTA (já diminui com pagamentos). */}
@@ -939,23 +971,6 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
         </div>
       )}
 
-      {/* Ações (aparecem no hover) — z-10 para ficar acima do click do card */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEditar(); }}
-          className="p-1.5 rounded-lg bg-card/80 backdrop-blur-sm border border-border hover:bg-muted transition-colors shadow-sm"
-          title="Editar"
-        >
-          <Pencil size={13} className="text-muted-foreground" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onExcluir(); }}
-          className="p-1.5 rounded-lg bg-card/80 backdrop-blur-sm border border-border hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shadow-sm"
-          title="Excluir"
-        >
-          <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
-        </button>
-      </div>
     </div>
     {pagarOpen && (
       <PagarFaturaModal
