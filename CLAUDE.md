@@ -1348,6 +1348,30 @@ como saldo de uma conta com R$ 5.217,71).
 > muda os números da aba e exige decidir a parcela de dívida JÁ paga no mês
 > (hoje `linhasDoMes` a projeta mesmo assim).
 
+## "O que tenho pra pagar", dívidas no resumo e "Já recebi" (set/2026)
+
+- **WhatsApp "o que tenho pra pagar essa semana/hoje/amanhã/esse mês/nos
+  próximos N dias?"** → ação `a_pagar` (`services/aPagarPeriodo.js` +
+  `handlers/aPagar.js`, `eval:a-pagar`). Lista por dia: contas fixas (datas
+  pelo `venceHoje` do cron), parcela de dívida (`proximoVencimento`), fatura
+  atual (`faturaVista`) e gasto pendente fora de cartão. Some o que tem baixa
+  no mês, o pulado; o adiado vai pra data nova. A janela começa HOJE; dívida
+  atrasada vira aviso no rodapé. ⚠️ O detector roda ANTES de todas as regras
+  do `interpretarRapido`, exige pergunta e recusa frase com valor/"paguei".
+- **Resumo do mês ganhou o bloco "Dívidas em aberto"** (`services/resumoDividas.js`):
+  mesma conta de saldo do "minhas dívidas", atrasadas primeiro, 6 listadas,
+  total de todas. Só texto — não mexe no "saldo real".
+- **"Já recebi / Já paguei" no card de contas fixas** (`GastosFixosSection`):
+  a mesma baixa do Extrato (`/previstos/quitar`). Só aparece em conta que ainda
+  vence no mês, modo "lançar", não semanal e de valor fixo. O Extrato Futuro
+  passou a dizer "Recebi" nas receitas.
+- ⚠️ **O CRON RELANÇAVA O QUE JÁ TINHA SIDO RESOLVIDO.** O dedup do 1A só via
+  lançamento DO DIA; baixa antecipada e "pular" eram ignorados. Hoje
+  `resolvidasNoMes` (transação com `recorrencia_id` + `competencia`, ou ajuste
+  `pulado`) pula a conta. Medido: 2 duplicatas já na base, e 4 das 24 contas de
+  20/09 seriam lançadas de novo. Semanal fica de fora (a chave é mensal);
+  aviso antecipado também (pode ser do mês seguinte).
+
 ## Ajuste de saldo NÃO é receita nem despesa (set/2026)
 
 ⚠️ **Inverte a nota da migration 135** ("o ajuste continua contando, de

@@ -589,9 +589,24 @@ export const COMANDOS: Comando[] = [
     id: 'resumo',
     titulo: 'Resumo do mês',
     exemplo: 'resumo',
-    descricao: 'Recebe um relatório completo: receitas, gastos, saldo, top categorias e quanto saiu de cada conta/cartão.',
+    descricao: 'Recebe um relatório completo: receitas, gastos, saldo, top categorias, quanto saiu de cada conta/cartão e as dívidas em aberto.',
     categoria: 'analises',
     destaque: true,
+  },
+  {
+    id: 'a-pagar-periodo',
+    titulo: 'O que tenho pra pagar',
+    exemplo: 'o que eu tenho pra pagar essa semana?',
+    descricao:
+      'Lista, dia a dia, o que vence no período: contas fixas, parcelas de dívidas, faturas de cartão e gastos agendados, com o total. O que você já pagou ou pulou no mês não aparece.',
+    variantes: [
+      'o que tenho pra pagar hoje?',
+      'o que tenho pra pagar amanhã?',
+      'o que falta pagar esse mês?',
+      'o que tenho pra pagar semana que vem?',
+      'quais contas vencem nos próximos 15 dias?',
+    ],
+    categoria: 'analises',
   },
   {
     id: 'gasto-por-periodo',

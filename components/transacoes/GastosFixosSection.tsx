@@ -196,6 +196,48 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     finally { setRemovendo(null); }
   }, []);
 
+  // ── "JÁ RECEBI" / "JÁ PAGUEI" ANTES DO DIA ──────────────────────────
+  //
+  // Pedido de cliente (set/2026): o vale cai todo dia 20, mas este mês caiu
+  // dia 18 — e não havia onde dizer isso no painel. O Extrato Futuro já tinha
+  // o "Paguei", só que escondido atrás de outra aba e com texto de pagamento.
+  //
+  // ⚠️ É A MESMA ROTA do Extrato (`/previstos/quitar`, services/quitacao.js):
+  // cria a transação AMARRADA à ocorrência do mês e credita/debita a conta
+  // manual. É esse vínculo que faz o cron NÃO lançar de novo no dia 20 — sem
+  // ele o saldo receberia o vale duas vezes (jobs/index.js, "resolvidasNoMes").
+  //
+  // ⚠️ Pede CONFIRMAÇÃO (mostra valor, data e conta): um toque acidental
+  // mexeria no saldo. Desfazer continua existindo pelo Extrato ("Ainda não
+  // recebi"), que devolve o valor.
+  const [antecipando, setAntecipando] = useState<string | null>(null);
+  const [ocupadoAntecipar, setOcupadoAntecipar] = useState<string | null>(null);
+  const [erroAntecipar, setErroAntecipar] = useState<{ id: string; msg: string } | null>(null);
+  const anteciparOcorrencia = useCallback(async (item: Recorrencia) => {
+    setOcupadoAntecipar(item.id);
+    setErroAntecipar(null);
+    try {
+      await api.previstos.quitar({
+        recorrencia_id: item.id,
+        competencia: mesRefSP(),
+        data: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+        valor: Number(item.valor) || undefined,
+        carteira_nome: item.carteira ?? null,
+      });
+      setPagas((s) => new Set(s).add(item.id));
+      setAntecipando(null);
+      // A baixa cria a transação e mexe no saldo: lista, saldos, resumo e o
+      // Extrato precisam revalidar. ⚠️ `mutate` do useSWRConfig, não o de
+      // 'swr' — aquele fala com o cache padrão e não com o do app.
+      const pref = [`d:tx:${phone}:`, `d:wallets:${phone}`, `d:resumo:${phone}:`, `d:ocorrencias:${phone}:`];
+      mutateRef.current((k: unknown) => typeof k === 'string' && pref.some((p) => k.startsWith(p)));
+    } catch (e) {
+      setErroAntecipar({ id: item.id, msg: (e as Error)?.message || 'Não consegui registrar agora. Tente de novo.' });
+    } finally {
+      setOcupadoAntecipar(null);
+    }
+  }, [phone]);
+
   const carregar = useCallback(async () => {
     if (!phone) { setCarreg(false); return; }
     try {
@@ -451,6 +493,25 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const hojeISO = useMemo(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }), []);
   const jaPassou = useCallback(
     (dia?: number | null) => !!dia && Number(dia) < hoje, [hoje]);
+
+  /**
+   * A linha oferece "Já recebi / Já paguei"? Só quando é seguro:
+   *  · ainda VAI vencer neste mês, sem baixa e sem "pular";
+   *  · modo "lançar" — é o modo em que a Sora lançaria sozinha no dia. Nos
+   *    outros quem traz o lançamento é o banco (Open Finance), e registrar à
+   *    mão criaria a duplicata que a baixa existe pra evitar;
+   *  · não semanal — a baixa é por MÊS, e numa conta semanal ela esconderia as
+   *    outras semanas;
+   *  · valor fixo — conta variável tem o valor real diferente da estimativa,
+   *    e o Extrato Futuro (que pede o valor) é o lugar dela.
+   */
+  const podeAntecipar = useCallback((i: Recorrencia) =>
+    !pagas.has(i.id) && !puladas.has(i.id) && !jaPassou(i.dia_vencimento)
+    && (i.modo_lancamento || 'lancar') === 'lancar'
+    && (i.frequencia || 'mensal') !== 'semanal'
+    && !i.valor_variavel && Number(i.valor) > 0
+    && ocorrenciasNoMes(i, mesRefSP()) > 0,
+  [pagas, puladas, jaPassou]);
 
   /** Ainda a vencer primeiro; dentro de cada bloco, por dia. */
   const ordenar = useCallback((lista: Recorrencia[]) => [...lista].sort((a, b) => {
@@ -713,7 +774,13 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     sugCat={sugCats[item.id]}
                     onAceitarCat={aceitarCategoria}
                     onIgnorarCat={ignorarCategoria}
-                    jaPassou={jaPassou(item.dia_vencimento)} />
+                    jaPassou={jaPassou(item.dia_vencimento)}
+                    podeAntecipar={podeAntecipar(item)}
+                    emAntecipar={antecipando === item.id}
+                    ocupadoAntecipar={ocupadoAntecipar === item.id}
+                    erroAntecipar={erroAntecipar?.id === item.id ? erroAntecipar.msg : null}
+                    onPedirAntecipar={(v: boolean) => { setErroAntecipar(null); setAntecipando(v ? item.id : null); }}
+                    onAntecipar={() => anteciparOcorrencia(item)} />
                 ))}
               </ul>
             </div>
@@ -874,7 +941,13 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     sugCat={sugCats[item.id]}
                     onAceitarCat={aceitarCategoria}
                     onIgnorarCat={ignorarCategoria}
-                    jaPassou={jaPassou(item.dia_vencimento)} />
+                    jaPassou={jaPassou(item.dia_vencimento)}
+                    podeAntecipar={podeAntecipar(item)}
+                    emAntecipar={antecipando === item.id}
+                    ocupadoAntecipar={ocupadoAntecipar === item.id}
+                    erroAntecipar={erroAntecipar?.id === item.id ? erroAntecipar.msg : null}
+                    onPedirAntecipar={(v: boolean) => { setErroAntecipar(null); setAntecipando(v ? item.id : null); }}
+                    onAntecipar={() => anteciparOcorrencia(item)} />
                 ))}
               </ul>
             </div>
@@ -977,7 +1050,16 @@ function LinhaConta({ icone, rotulo, valor, dica, cor }: {
 function Linha({
   item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, pulado, onPularMes,
   sugCat, onAceitarCat, onIgnorarCat, jaPassou,
+  podeAntecipar, emAntecipar, ocupadoAntecipar, erroAntecipar, onPedirAntecipar, onAntecipar,
 }: {
+  /** Oferece "Já recebi / Já paguei" (ocorrência deste mês, antes do dia). */
+  podeAntecipar?:    boolean;
+  /** A confirmação da antecipação está aberta nesta linha. */
+  emAntecipar?:      boolean;
+  ocupadoAntecipar?: boolean;
+  erroAntecipar?:    string | null;
+  onPedirAntecipar?: (abrir: boolean) => void;
+  onAntecipar?:      () => void;
   /** Vencimento já passou neste mês? Só muda a APRESENTAÇÃO — a conta segue
    *  igual, e o "Total previsto" continua sendo o custo do mês inteiro. */
   jaPassou?:   boolean;
@@ -1115,7 +1197,7 @@ function Linha({
               {pago && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-px sm:py-0.5 rounded-md font-semibold
                                  bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
-                  <Check size={9} /> pago
+                  <Check size={9} /> {ehGasto ? 'pago' : 'recebido'}
                 </span>
               )}
               {pulado && !pago && (
@@ -1125,6 +1207,20 @@ function Linha({
                 </span>
               )}
               {item.carteira && <span className="truncate">· {item.carteira}</span>}
+              {/* Visível SEMPRE (não só no hover): no celular não existe hover,
+                  e é justamente lá que a pessoa vê o vale cair antes. */}
+              {podeAntecipar && !emAntecipar && !emConfirm && (
+                <button
+                  type="button"
+                  onClick={() => onPedirAntecipar?.(true)}
+                  // `-my-2 py-2` dá alvo de toque maior sem engordar a linha.
+                  className="inline-flex items-center gap-0.5 px-1.5 py-2 -my-2 sm:py-1 sm:-my-1 rounded-md font-semibold
+                             bg-primary/10 text-primary hover:bg-primary/20 transition-colors active:scale-[0.97]"
+                  aria-label={`${ehGasto ? 'Já paguei' : 'Já recebi'} ${item.descricao} este mês`}
+                >
+                  <Check size={9} /> {ehGasto ? 'Já paguei' : 'Já recebi'}
+                </button>
+              )}
             </div>
 
             {emConfirm ? (
@@ -1180,6 +1276,44 @@ function Linha({
               </div>
             )}
           </div>
+
+          {/* Confirmação do "Já recebi / Já paguei": diz O QUE vai acontecer
+              (valor, data e conta) antes de mexer no saldo. */}
+          {emAntecipar && (
+            <div className="mt-2 p-2.5 rounded-xl bg-primary/[0.07] border border-primary/20 space-y-2 animate-fade-in">
+              <p className="text-[11.5px] sm:text-xs text-foreground leading-snug">
+                {ehGasto ? 'Registrar o pagamento de ' : 'Registrar o recebimento de '}
+                <strong className="font-semibold tabular-nums">{fmt(item.valor)}</strong>
+                {' '}hoje{item.carteira ? <> em <strong className="font-semibold">{item.carteira}</strong></> : null}?
+                <span className="block text-[10.5px] text-muted-foreground mt-0.5">
+                  {ehGasto ? 'Ela sai' : 'Ela entra'} no saldo agora e não é lançada de novo no dia {item.dia_vencimento}.
+                </span>
+              </p>
+              {erroAntecipar && (
+                <p role="alert" className="text-[11px] font-medium text-red-600 dark:text-red-400">{erroAntecipar}</p>
+              )}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onAntecipar?.()}
+                  disabled={ocupadoAntecipar}
+                  className="h-9 px-3 rounded-lg bg-primary text-white text-xs font-semibold inline-flex items-center gap-1.5
+                             hover:opacity-90 disabled:opacity-60 transition-opacity active:scale-[0.98]"
+                >
+                  {ocupadoAntecipar ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  {ehGasto ? 'Confirmar pagamento' : 'Confirmar recebimento'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPedirAntecipar?.(false)}
+                  disabled={ocupadoAntecipar}
+                  className="h-9 px-3 rounded-lg bg-muted/70 text-foreground text-xs font-semibold hover:bg-muted transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 3. Pílula com o rótulo por extenso — SÓ com o painel aberto.
               Fechado, quem mostra o estado é o símbolo lá em cima, e esta faixa

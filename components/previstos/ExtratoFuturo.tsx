@@ -398,6 +398,9 @@ export default function ExtratoFuturo({
             {dia.linhas.map((l, j) => {
               const id = `${dia.data}:${j}`;
               const previsto = l.estado === 'previsto';
+              // Receita não se "paga": a mesma baixa, com as palavras de quem
+              // RECEBEU (pedido de cliente — o vale que caiu antes do dia).
+              const receita = l.tipo === 'Recebimento';
               // ⚠️ PAGA TAMBÉM É ACIONÁVEL — é o ponto da Fase C. Antes só a
               // previsão podia ser tocada, então a linha que o cron lançou (e
               // que pode estar com data ou valor errados, ou nem ter sido paga)
@@ -436,7 +439,7 @@ export default function ExtratoFuturo({
                         </span>
                       ) : (
                         <span className="block text-[11px] text-muted-foreground truncate">
-                          {ehFatura ? `Paga pela ${l.carteira}` : (l.carteira || 'Sem conta')} · {previsto ? 'previsto' : 'pago'}
+                          {ehFatura ? `Paga pela ${l.carteira}` : (l.carteira || 'Sem conta')} · {previsto ? 'previsto' : receita ? 'recebido' : 'pago'}
                         </span>
                       )}
                     </span>
@@ -514,7 +517,7 @@ export default function ExtratoFuturo({
                     <div className="px-3 pb-3 pt-1 border-t border-border/30 bg-muted/20 space-y-2">
                       <div className="grid grid-cols-3 gap-2">
                         <AcaoBtn
-                          icone={<Check size={15} />} rotulo="Paguei"
+                          icone={<Check size={15} />} rotulo={receita ? 'Recebi' : 'Paguei'}
                           ativo={quitando === id}
                           ocupado={ocupado === l.recorrenciaId}
                           onClick={() => {
@@ -602,7 +605,7 @@ export default function ExtratoFuturo({
                         <div className="pt-1 space-y-2 animate-[slide-up_250ms_ease-out_both]">
                           <div className={doBanco.has(l.carteira || '') ? '' : 'grid grid-cols-2 gap-2'}>
                             <label className="text-[11px] font-medium text-muted-foreground">
-                              Paguei em
+                              {receita ? 'Recebi em' : 'Paguei em'}
                               <input
                                 type="date" value={quitacao.data} max={hojeSP()}
                                 onChange={(e) => setQuitacao({ ...quitacao, data: e.target.value })}
@@ -611,7 +614,7 @@ export default function ExtratoFuturo({
                             </label>
                             {!doBanco.has(l.carteira || '') && (
                               <label className="text-[11px] font-medium text-muted-foreground">
-                                Valor pago
+                                {receita ? 'Valor recebido' : 'Valor pago'}
                                 <input
                                   type="text" inputMode="decimal" value={quitacao.valor}
                                   onChange={(e) => setQuitacao({ ...quitacao, valor: e.target.value })}
@@ -630,7 +633,9 @@ export default function ExtratoFuturo({
                               o motivo fica escrito ao lado (não só o cinza). */}
                           {quitacao.data > hojeSP() && (
                             <p role="alert" className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                              A data do pagamento não pode ser no futuro. Se ainda não pagou, use “Adiar”.
+                              {receita
+                                ? 'A data do recebimento não pode ser no futuro. Se ainda não recebeu, use “Adiar”.'
+                                : 'A data do pagamento não pode ser no futuro. Se ainda não pagou, use “Adiar”.'}
                             </p>
                           )}
                           <button
@@ -650,7 +655,7 @@ export default function ExtratoFuturo({
                                        bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60
                                        active:scale-[0.98] transition-all"
                           >
-                            {ocupado === l.recorrenciaId ? '...' : 'Confirmar pagamento'}
+                            {ocupado === l.recorrenciaId ? '...' : (receita ? 'Confirmar recebimento' : 'Confirmar pagamento')}
                           </button>
                         </div>
                       )}
@@ -668,7 +673,7 @@ export default function ExtratoFuturo({
                     <div className="px-3 pb-3 pt-2 border-t border-border/30 bg-muted/20 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <label className="text-[11px] font-medium text-muted-foreground">
-                          Paguei em
+                          {receita ? 'Recebi em' : 'Paguei em'}
                           <input
                             type="date" defaultValue={l.data} max={hojeSP()}
                             // Linha paga com data no futuro diz que um dinheiro
@@ -679,7 +684,7 @@ export default function ExtratoFuturo({
                           />
                         </label>
                         <label className="text-[11px] font-medium text-muted-foreground">
-                          Valor pago
+                          {receita ? 'Valor recebido' : 'Valor pago'}
                           <input
                             type="text" inputMode="decimal" defaultValue={String(l.valor).replace('.', ',')}
                             onBlur={(e) => {
@@ -699,10 +704,12 @@ export default function ExtratoFuturo({
                                    disabled:opacity-50 active:scale-[0.98] transition-all"
                       >
                         <Undo2 size={15} />
-                        {ocupado === l.recorrenciaId ? '...' : 'Ainda não paguei esta conta'}
+                        {ocupado === l.recorrenciaId ? '...' : (receita ? 'Ainda não recebi' : 'Ainda não paguei esta conta')}
                       </button>
                       <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-                        Ela volta a aparecer como previsto e o valor é devolvido ao saldo.
+                        {receita
+                          ? 'Ela volta a aparecer como prevista e o valor sai do saldo.'
+                          : 'Ela volta a aparecer como previsto e o valor é devolvido ao saldo.'}
                         {' '}Em conta conectada ao banco, o saldo continua sendo o do banco.
                       </p>
                     </div>
