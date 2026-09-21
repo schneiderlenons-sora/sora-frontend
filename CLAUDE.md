@@ -1375,6 +1375,43 @@ como saldo de uma conta com R$ 5.217,71).
   20/09 seriam lançadas de novo. Semanal fica de fora (a chave é mensal);
   aviso antecipado também (pode ser do mês seguinte).
 
+## Conciliação: previsão × cobrança do banco, banda larga (set/2026)
+
+Relato de cliente (Vander): a Internet prevista em R$169,90 vinha do banco por
+R$177,53 (o plano reajustou), e a previsão ficava **para sempre** em aberto,
+convivendo na tela com a transação real já paga (a cobrança "MP\*MP" que a
+pagou). Ele via as duas ao mesmo tempo, achava — com razão — que estava
+duplicado, e pediu uma "conciliação bancária": um link entre previsão e
+pagamento, automático quando possível, manual quando não.
+
+- ⚠️ **`sora-backend/src/services/casarPrevisao.js`** já casava por
+  carteira+data+valor (nunca por descrição — é o motivo do "O NOME NÃO ENTRA NO
+  CASAMENTO" no cabeçalho do arquivo), mas só numa banda apertada de ±R$1. Um
+  reajuste de plano (R$7,63) já era demais.
+- **Fonte única, aritmética canônica:** duas bandas. A apertada (±R$1) continua
+  a ÚNICA elegível a `baixa_automatica` — essa garantia não muda. Quando ela não
+  acha nada, uma segunda passada tenta 30% do valor previsto (nunca menos que
+  R$1), e o resultado **é sempre sugestão**, nunca automático — mesmo numa conta
+  que não é `valor_variavel`. `TOLERANCIA_AMPLA_PCT`, travado em
+  `npm run eval:casar-previsao` (mutação testada nas 4 condições novas).
+- ⚠️ **`motivo` é texto CRU mostrado ao cliente** — `ExtratoFuturo.tsx` renderiza
+  `Confira antes: {motivo}.` sem dicionário de tradução. As quatro frases (uma
+  por causa de não-automático) precisam ler natural depois de dois-pontos; a
+  banda larga diz "o valor veio um pouco diferente do previsto".
+- **Resolve o caso sem mexer na descrição feia do banco.** A "conciliação" dele
+  não depende de "MP\*MP" virar algo legível — o casamento nunca olhou pra
+  descrição. Deixar a descrição bonita é problema separado (cosmético, sem
+  padrão medido na base além deste relato — `RE_DESC_GENERICA` só reescreve
+  descrição 100% genérica tipo "Pix" sozinho, não código de adquirente).
+- ⚠️ **PENDENTE — vínculo manual de verdade.** O backend já aceita
+  (`services/quitacao.js:vincularTransacao`, roteado por qualquer `transacao_id`
+  passado a `quitar()` — não só o da sugestão automática), mas **não existe UI**
+  pra buscar e escolher uma transação fora da sugestão. Pra previsão que nem a
+  banda larga alcança (>30% de diferença, carteira errada, fora da janela de
+  5 dias), a única saída hoje continua sendo "pular". Decisão consciente: não
+  construído nesta rodada — precisa de um picker de transações (buscar por
+  período/valor), componente que não existe ainda no painel.
+
 ## Selo "EM ATRASO" da dívida anda nos DOIS sentidos (set/2026)
 
 Relato: *"mudei o vencimento do dia 15 pro 20 e continua em atraso"*. O cron
