@@ -58,7 +58,9 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   // Carrega o catálogo de categorias do grupo pro seletor.
   useEffect(() => {
     api.categorias.listar(phone)
-      .then((cs: any[]) => setCats((cs || []).filter(c => c?.nome)))
+      .then((cs: any[]) => setCats((cs || [])
+        .filter(c => c?.nome)
+        .sort((a, b) => nomeCategoria(a.nome).localeCompare(nomeCategoria(b.nome), 'pt-BR'))))
       .catch(() => { /* sem catálogo o seletor ainda mostra a categoria atual */ });
   }, [phone]);
 

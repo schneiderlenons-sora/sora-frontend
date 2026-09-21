@@ -298,9 +298,11 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     return { ...base, estado: 'pronto' as const, previsto: r.saldoPrevisto, ate: r.ate, estimado: r.temEstimativa };
   }, [contaFiltrada, wallets, txMesAtual, recsConta, ocorrConta, erroTxMes, erroRecs, erroOcorr, moedaBase]);
 
-  // ── Categorias únicas para filtro ──────────────────────────
+  // ── Categorias únicas para filtro (ordem alfabética, igual ao
+  //    seletor de categoria da edição de transação) ──────────────
   const categorias = useMemo(() =>
-    Array.from(new Set(txs.map(t => t.categoria).filter(Boolean))),
+    Array.from(new Set(txs.map(t => t.categoria).filter(Boolean)))
+      .sort((a, b) => nomeCategoria(a).localeCompare(nomeCategoria(b), 'pt-BR')),
     [txs]);
 
   // ── Membros que aparecem nas transações (pro filtro "por membro") ──

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, Upload, FileText, AlertCircle, Check, ArrowUpRight, ArrowDownRight, Pencil, Trash2, ArrowLeft, Copy } from 'lucide-react';
 import { api } from '@/lib/api';
 import { categorizarDescricao } from '@/lib/categorizar';
+import { nomeCategoria } from '@/lib/categorias';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { useDinheiro } from '@/lib/moeda-base';
 // Planilha (CSV ou Excel) sai de um parser só — ver lib/importar-tabela.ts.
@@ -134,7 +135,9 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   useEffect(() => {
     if (!phone) return;
     api.categorias.listar(phone)
-      .then((cs: any[]) => setCategorias([CAT_IMPORTADO, ...(cs || []).map(c => c.nome).filter(Boolean)]))
+      .then((cs: any[]) => setCategorias([CAT_IMPORTADO, ...(cs || [])
+        .map(c => c.nome).filter(Boolean)
+        .sort((a, b) => nomeCategoria(a).localeCompare(nomeCategoria(b), 'pt-BR'))]))
       .catch(() => setCategorias([CAT_IMPORTADO]));
   }, [phone]);
 

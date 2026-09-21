@@ -51,7 +51,9 @@ export default function EditarLoteModal({
   // justamente um dos motivos de editar em lote.
   useEffect(() => {
     api.categorias.listar(phone)
-      .then((r: any) => setCats((Array.isArray(r) ? r : r?.categorias || []).map((c: any) => c.nome).filter(Boolean)))
+      .then((r: any) => setCats((Array.isArray(r) ? r : r?.categorias || [])
+        .map((c: any) => c.nome).filter(Boolean)
+        .sort((a: string, b: string) => nomeCategoria(a).localeCompare(nomeCategoria(b), 'pt-BR'))))
       .catch(() => { /* sem catálogo, o seletor fica vazio e os outros campos seguem */ });
   }, [phone]);
 

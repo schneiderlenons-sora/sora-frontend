@@ -76,7 +76,8 @@ export default function WatsonRegras({ phone }: { phone: string }) {
           const lista = (c.value || []) as { id?: string; nome?: string }[];
           setCategorias(lista
             .filter((x) => x?.nome)
-            .map((x) => ({ id: String(x.id ?? x.nome), nome: String(x.nome) })));
+            .map((x) => ({ id: String(x.id ?? x.nome), nome: String(x.nome) }))
+            .sort((a, b) => nomeCategoria(a.nome).localeCompare(nomeCategoria(b.nome), 'pt-BR')));
         }
         if (r.status === 'rejected') setErro('Não consegui carregar suas regras.');
       } finally {

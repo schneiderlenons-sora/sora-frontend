@@ -55,7 +55,9 @@ export default function RatearModal({
   useEffect(() => { setMontado(true); }, []);
   useEffect(() => {
     api.categorias.listar(phone)
-      .then((r: any) => setCats((Array.isArray(r) ? r : r?.categorias || []).map((c: any) => c.nome).filter(Boolean)))
+      .then((r: any) => setCats((Array.isArray(r) ? r : r?.categorias || [])
+        .map((c: any) => c.nome).filter(Boolean)
+        .sort((a: string, b: string) => nomeCategoria(a).localeCompare(nomeCategoria(b), 'pt-BR'))))
       .catch(() => {});
   }, [phone]);
 

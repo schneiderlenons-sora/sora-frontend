@@ -112,6 +112,7 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
         if (cancelado) return;
         const todas = cats || [];
         // Monta árvore: raiz + filhos por parent_id
+        const porNome = (a: { nome: string }, b: { nome: string }) => a.nome.localeCompare(b.nome, 'pt-BR');
         const construir = (tipoFiltro: 'despesa' | 'receita'): CatItem[] => {
           const raiz = todas.filter((c: any) => !c.parent_id && (c.tipo || 'despesa') === tipoFiltro);
           return raiz.map((p: any) => ({
@@ -120,8 +121,9 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
             nome: p.nome,
             filhos: todas
               .filter((c: any) => c.parent_id === p.id)
-              .map((f: any) => ({ id: f.id, emoji: f.icone || '📦', nome: f.nome })),
-          }));
+              .map((f: any) => ({ id: f.id, emoji: f.icone || '📦', nome: f.nome }))
+              .sort(porNome),
+          })).sort(porNome);
         };
         setCatsDespesa(construir('despesa'));
         setCatsReceita(construir('receita'));

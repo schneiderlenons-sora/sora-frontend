@@ -323,7 +323,8 @@ export default function FormRecorrencia({
     api.categorias.listar(phone, tipo === 'Recebimento' ? 'receita' : 'despesa')
       .then((cs: { nome?: string }[]) => {
         const nomes = (cs || []).map((c) => c.nome).filter(Boolean) as string[];
-        setCats(Array.from(new Set([editItem?.categoria, ...nomes].filter(Boolean) as string[])));
+        setCats(Array.from(new Set([editItem?.categoria, ...nomes].filter(Boolean) as string[]))
+          .sort((a, b) => nomeCategoria(a).localeCompare(nomeCategoria(b), 'pt-BR')));
       })
       .catch(() => { /* mantém ao menos a atual */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -83,7 +83,10 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
   const { data: resumoRaw,  mutate: mRes }  = useApi(phone ? chave.resumo(phone, mesRef) : null, () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
   const { data: limitesRaw, mutate: mLim }  = useApi(phone ? chave.limites(phone, mesRef) : null, () => api.limites.listar(phone, mesRef), { fallbackData: initialData?.limites });
 
-  useEffect(() => { if (catsRaw   !== undefined) setCategorias((catsRaw as any) || []); }, [catsRaw]);
+  useEffect(() => { if (catsRaw !== undefined) setCategorias(
+    ((catsRaw as any) || []).slice()
+      .sort((a: Categoria, b: Categoria) => nomeCategoria(a.nome).localeCompare(nomeCategoria(b.nome), 'pt-BR'))
+  ); }, [catsRaw]);
   useEffect(() => { if (resumoRaw !== undefined) setResumo((resumoRaw as any) || { gastos: 0, por_categoria: [] }); }, [resumoRaw]);
   useEffect(() => {
     if (limitesRaw === undefined) return;
