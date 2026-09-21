@@ -2467,6 +2467,31 @@ não. Duas causas, as duas de **formato**:
 - **Próxima alavanca:** as ~20 mil leituras/dia restantes são UMA por
   investimento por sync; ler em lote por conexão as reduziria a centenas.
 
+### ✅ Confirmado em produção — medido em 20/09
+
+Primeira leitura desde o reset de 18/09 14:49 (58,8h, cobrindo sexta à tarde a
+domingo — **inclui fim de semana**, tráfego mais baixo que dia útil).
+
+**A prova isolada** (proporção, não sofre com variação de tráfego):
+```
+UPDATE investimentos ÷ SELECT investimentos
+  18/09 (antes desta correção) ....  31.879 / 31.880  = 100,0%
+  20/09 (depois) ..................   4.657 / 42.514  =  11,0%
+```
+89% dos upserts de investimento agora pulam a escrita quando nada mudou —
+bate com o simulado de 633/633 → 0/633 do dia 18.
+
+**Total geral:** 137.481 (16/09) → ~128.000 (18/09, -7%) → **~83.965/dia**
+agora (-34% vs. 18/09, -39% vs. o início) — melhor que a projeção de ~105 mil,
+mas parte pode ser o fim de semana no meio da janela; a proporção acima é a
+prova que não depende disso.
+
+**Dois itens novos no ranking, nenhum é bug:** `medicamentos` (~1.440/dia — o
+cron de lembrete que roda A CADA MINUTO, `jobs/index.js:790`, pro horário
+exato) e `bug_reports` "meus" (~1.600/dia — a Sidebar checando resposta do
+suporte a cada 2min, `Sidebar.tsx:234`, já feito econômico de propósito).
+Só ficaram visíveis porque o item que dominava sumiu.
+
 ## ⚠️ Erro de tipo BARRA o deploy (set/2026)
 
 `next.config.ts` **não tem mais** `typescript: { ignoreBuildErrors: true }`.
