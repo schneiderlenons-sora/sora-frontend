@@ -32,15 +32,22 @@ const dataCurta = (iso: string) =>
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-export default function MeusChamados({ recarregarRef }: { recarregarRef?: React.MutableRefObject<(() => void) | null> }) {
-  const [lista, setLista]   = useState<ChamadoResumo[]>([]);
+export default function MeusChamados({ recarregarRef, tipoFiltro }: {
+  recarregarRef?: React.MutableRefObject<(() => void) | null>;
+  /** Só mostra chamados desse tipo (a tela agora separa "Relatar um
+   *  problema" de "Propor melhoria" em abas — sem isso a lista de uma
+   *  aba mostrava chamado da outra). Omitido = mostra todos. */
+  tipoFiltro?: 'problema' | 'melhoria';
+}) {
+  const [listaCompleta, setListaCompleta] = useState<ChamadoResumo[]>([]);
+  const lista = tipoFiltro ? listaCompleta.filter((c) => (c.tipo || 'problema') === tipoFiltro) : listaCompleta;
   const [carregando, setCarregando] = useState(true);
   const [aberto, setAberto] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     try {
       const r = await api.bug.meusChamados();
-      setLista(r.chamados || []);
+      setListaCompleta(r.chamados || []);
     } catch { /* sem chamados / migration pendente */ }
     finally { setCarregando(false); }
   }, []);

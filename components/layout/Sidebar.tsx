@@ -93,7 +93,7 @@ const ICONES_APP: Record<string, IconeLucide> = {
   Receipt, Flag, Target, BarChart2, Tag, TrendingUp, Percent, ListChecks,
   CalendarDays, GraduationCap, Activity, Heart, Home: HomeIcon, Plane,
   Clapperboard, BookOpen, Users, Zap, Bug, Palette, Gift, Lightbulb, Share2,
-  Megaphone, Shield, CalendarClock,
+  Megaphone, Shield, CalendarClock, Sparkles,
 };
 
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
@@ -541,8 +541,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
             fora da própria tela avisava que havia resposta — a pessoa teria
             de adivinhar que devia abrir "Relatar um problema". Sem este
             número, responder pelo painel continua sendo um bilhete numa
-            gaveta fechada. */}
-        {!locked && chamadosNaoLidos > 0 && href === '/reportar-bug' && (
+            gaveta fechada. ⚠️ `startsWith`, não `===`: a página ganhou abas
+            por querystring (`?aba=problema`) e dois itens da sidebar levam
+            a ela — comparação exata deixaria o badge sumir dos dois. */}
+        {!locked && chamadosNaoLidos > 0 && href.startsWith('/reportar-bug') && (
           <span
             aria-label={`${chamadosNaoLidos} ${chamadosNaoLidos === 1 ? 'resposta nova' : 'respostas novas'} do suporte`}
             className="flex-shrink-0 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full
