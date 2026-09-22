@@ -1412,6 +1412,52 @@ pagamento, automático quando possível, manual quando não.
   construído nesta rodada — precisa de um picker de transações (buscar por
   período/valor), componente que não existe ainda no painel.
 
+## Agenda: a IA reescrevia a DATA do compromisso (set/2026)
+
+Relato de cliente: marcou consulta pra **25/09** pelo WhatsApp e a Sora salvou
+**24/09** — respondendo "Marquei!" com cara de sucesso.
+
+⚠️ **O parser local NÃO tinha bug** — perdi uma rodada inteira procurando ali.
+`parseDataPt` acerta "25/09" em qualquer fuso de servidor (é noon-anchored de
+propósito). O erro estava no caminho que só roda **quando o parser local não
+reconhece a frase**.
+
+- **Como se chega lá:** `pareceCompromisso` exige verbo no começo ("marca…") OU
+  uma palavra do catálogo (consulta/médico/dentista/reunião…). **"Dr.Aluísio
+  Cardiologista, 25/09 às 10:00" não tem nenhum dos dois** — "cardiologista"
+  não está na lista. Aí `handleGrow` percorre a cascata inteira sem casar nada
+  e cai no **fallback de IA** (`interpretarGrowComando` em `ia.js`), que traduz
+  a frase num comando canônico e **reexecuta `handleGrow` com ele**.
+- **A causa:** a IA devolveu `"marca Dr.Aluísio Cardiologista QUINTA 10h"` —
+  converteu a data numérica em dia da semana e **errou a conta** (25/09/2026 é
+  SEXTA). O parser local então calculou a próxima quinta, 24/09, corretamente.
+  Cada peça certa, resultado errado.
+- ⚠️ **O prompt pedia isso sem querer:** *"mantenha o dia em palavras
+  (amanhã/terça/dia 20)"* + o único exemplo de agenda usando **"quinta"**. Pra
+  uma entrada JÁ numérica, "manter em palavras" só se faz convertendo — e
+  converter dd/mm em dia da semana é aritmética de calendário, onde LLM falha.
+- ⚠️ **PROMPT NÃO É GARANTIA, e isso foi MEDIDO:** `"Dr. Aluísio"` (com espaço)
+  devolvia `"dia 25"` ✓ e `"Dr.Aluísio"` (sem espaço) devolvia `"quinta"` ✗ —
+  a mesma data, **um caractere** de diferença. Por isso a correção tem 3
+  camadas, e a que garante é código:
+  1. regra explícita de COPIAR a data como veio (número→número, palavra→palavra);
+  2. few-shot com data **numérica** (antes o modelo só tinha exemplo com dia da semana);
+  3. **`preservarDataOriginal`** (`handlers/grow.js`): data explícita escrita
+     pela pessoa (25/09, "dia 25") **vence** o comando da IA. Cobre também a IA
+     **PERDER** a data — sem isso o `dataISO = dt ? dt.iso : isoD(new Date())`
+     joga o compromisso pra **hoje**, em silêncio.
+- ⚠️ **Data RELATIVA fica de fora da trava de propósito** ("amanhã", "terça"):
+  ali a IA só repassa a palavra e quem faz a conta é o parser local. Trava
+  ampla demais brigaria com o caminho que funciona — travado no eval §5.
+- Medido depois: **14/14** no modelo real. `npm run eval:agenda-data-ia`
+  (5 mutações, 5 mortas). O eval **não chama a OpenAI**: o comando que a IA
+  devolveu entra como dado fixo, pra ser determinístico e de graça.
+
+> **Lacuna conhecida (não corrigida):** o catálogo de palavras da agenda é
+> curto — "cardiologista", "oftalmologista" etc. não estão nele, e é por isso
+> que a frase cai no fallback de IA em vez do parser local. Ampliar a lista
+> reduziria o uso da IA nesse caminho, mas não era a causa do bug.
+
 ## Selo "EM ATRASO" da dívida anda nos DOIS sentidos (set/2026)
 
 Relato: *"mudei o vencimento do dia 15 pro 20 e continua em atraso"*. O cron
