@@ -1375,6 +1375,47 @@ como saldo de uma conta com R$ 5.217,71).
   20/09 seriam lançadas de novo. Semanal fica de fora (a chave é mensal);
   aviso antecipado também (pode ser do mês seguinte).
 
+## Conta paga ANTES do vencimento continuava "a vencer" (set/2026)
+
+Relato de cliente: pagou **Luz, Gás e Internet no dia 21** — antes dos
+vencimentos (28, 26 e 25) — e as três seguiram aparecendo no card **"Ainda
+vence este mês"** do painel E no **"📌 Ainda neste mês"** do resumo do
+WhatsApp.
+
+⚠️ **As transações estavam CERTAS no banco** (com `recorrencia_id` +
+`competencia`). Quem não perguntava eram as telas: as duas só comparavam
+`dia_vencimento` com o dia de hoje e **nunca checavam se a conta já tinha sido
+paga**. A lógica de `modo_lancamento` que existe ali parte da premissa "no dia
+do vencimento o cron já rodou e quem responde é a transação" — o que vale do
+vencimento em diante, e ignora a **baixa antecipada** que o próprio projeto
+adicionou ("Já paguei", migration 165).
+
+- ⚠️ **A regra JÁ EXISTIA — só que dentro do cron.** Nasceu no JOB 1A pra não
+  relançar o que já fora resolvido, e nunca foi propagada. Era a **3ª cópia
+  divergente** da mesma pergunta. Hoje é **fonte única** em
+  `services/resolvidasNoMes.js`, e cron + resumo do WhatsApp + rota do painel
+  chamam o mesmo lugar.
+- **`GET /api/recorrencias/:phone` devolve `resolvida_no_mes` pronta** — o
+  painel só filtra. Refazer a consulta no front criaria a 4ª cópia, que é
+  exatamente como este bug nasceu.
+- **Resolvida = paga OU pulada:** transação com `recorrencia_id` +
+  `competencia` do mês, ou `previsao_ajustes.status = 'pulado'`. ⚠️ **"movido"
+  (adiada) NÃO entra** — adiar muda a data, a conta continua a pagar.
+- ⚠️ **SEMANAL fica de fora**: a chave é mensal, e a 1ª semana paga bloquearia
+  as outras três do mês.
+- ⚠️ **Degrada pro lado de MOSTRAR**: falha de leitura → conjunto vazio → tudo
+  continua aparecendo. O contrário sumiria com as contas fixas da base inteira
+  sem ninguém entender. E o `catch` **descarta o parcial** (`clear()`): metade
+  escondida é pior que tudo-ou-nada.
+- **Medido na conta do cliente:** a lista caiu de **4 itens para 1** — saíram
+  exatamente Internet, Gás e Luz; ficou "Claro Controle Celular", que ele de
+  fato não pagou.
+- `npm run eval:resolvidas-no-mes` (6 mutações, 6 mortas). ⚠️ **Dois casos do
+  eval nasceram FRACOS e só a mutação mostrou**: a "falha de leitura" não
+  exercitava o `catch` (o mock resolvia vazio em vez de lançar) e a guarda de
+  competência vazia passava por acidente. Teste que não mata a mutação não
+  está testando a linha.
+
 ## Conciliação: previsão × cobrança do banco, banda larga (set/2026)
 
 Relato de cliente (Vander): a Internet prevista em R$169,90 vinha do banco por

@@ -416,6 +416,14 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     // `modo_lancamento` logo abaixo (no dia do vencimento o cron já rodou e
     // quem responde é a transação, não a recorrência).
     return lista
+      // ⚠️ CONTA JÁ PAGA NÃO "AINDA VENCE". `resolvida_no_mes` vem do servidor
+      // (services/resolvidasNoMes.js), a MESMA regra do cron e do resumo do
+      // WhatsApp — refazer a conta aqui criaria uma 4ª cópia divergente.
+      // Relato de set/2026: o cliente pagou luz, gás e internet no dia 21,
+      // ANTES do vencimento (25, 26 e 28), e as três seguiram neste card: a
+      // lógica abaixo só compara DIA, e nunca perguntava se já tinha sido
+      // paga. Cobre também a conta "pulada" no mês.
+      .filter((r: any) => !r.resolvida_no_mes)
       .map((r: any) => {
         const item = itemPrevistoDe(r);
         const naoMensal = !!r.frequencia && r.frequencia !== 'mensal';
