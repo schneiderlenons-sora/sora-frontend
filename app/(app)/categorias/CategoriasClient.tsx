@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ehPagamentoFatura } from '@/lib/categorizar';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -749,20 +750,39 @@ function CategoriaRow({
   // pro lado pra ver o que existia. Regra `overflow-menu`: ação que não cabe
   // vai pro "mais", nunca espremida. No desktop sobra espaço e os três seguem
   // visíveis.
+  // ⚠️ O MENU VAI PRO BODY POR PORTAL, ancorado na posição medida do botão.
+  // Bug real (set/2026, iPad): os itens "Definir limite", "Nova subcategoria"
+  // e "Excluir" não recebiam toque nenhum. A causa NÃO era o toque — era
+  // EMPILHAMENTO. O wrapper da linha tem `animate-fade-in`, cujo keyframe usa
+  // `transform` e o atalho aplica `animation-fill-mode: both`: o transform FICA
+  // aplicado pra sempre depois da animação, e transform não-none cria stacking
+  // context. Com isso o menu `absolute z-30` ficava preso DENTRO da linha e não
+  // subia acima das linhas seguintes, que pintam depois na ordem do DOM — elas
+  // cobriam o menu e engoliam o toque. Medido numa bancada com Playwright:
+  // `elementFromPoint` no centro de cada item devolvia a linha de baixo, não o
+  // botão. Só "Editar categoria" (o 1º, ainda sobre a área da própria linha)
+  // escapava — exatamente os 3 que o cliente listou.
+  // O portal resolve junto o `overflow-hidden` do card da lista, que cortava o
+  // menu da ÚLTIMA categoria. Mesmo padrão do menu de ações em
+  // TransacoesClient.tsx. z-index NÃO resolveria: dentro de um stacking
+  // context ele não alcança os irmãos de fora.
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const btnMenuRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (!menuOpen || !btnMenuRef.current) { setMenuPos(null); return; }
+    const r = btnMenuRef.current.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+  }, [menuOpen]);
+
   useEffect(() => {
     if (!menuOpen) return;
-    function onDoc(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
     function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') setMenuOpen(false); }
-    document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onEsc);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onEsc);
-    };
+    return () => document.removeEventListener('keydown', onEsc);
   }, [menuOpen]);
 
   // % em relação ao total OU ao limite (preferimos limite se houver)
@@ -772,8 +792,14 @@ function CategoriaRow({
     : 0;
   const corBarra = limite?.limite_mensal ? corPctLimite(pctLimite) : cor;
 
+  // ⚠️ `relative z-30` enquanto o seletor de cor está aberto. O
+  // `animate-fade-in` deixa um `transform` permanente (fill-mode: both), que
+  // faz desta linha um stacking context — sem elevar a linha inteira, o
+  // seletor `absolute` fica preso nela e as linhas de baixo o cobrem,
+  // engolindo o toque. Mesmo bug do menu de ações (que foi pro portal).
   return (
-    <div className="animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
+    <div className={`animate-fade-in ${pickerOpen ? 'relative z-30' : ''}`}
+         style={{ animationDelay: `${delay}ms` }}>
       {/* ⚠️ SEM SCROLL HORIZONTAL. Antes a linha vivia num `overflow-x-auto`
           com `min-w-[520px]`: no celular metade da informação ficava fora da
           tela e só aparecia arrastando pro lado — inclusive os botões de ação,
@@ -900,8 +926,9 @@ function CategoriaRow({
             </button>
           </div>
 
-          <div className="relative lg:hidden flex-shrink-0" ref={menuRef}>
+          <div className="lg:hidden flex-shrink-0">
             <button
+              ref={btnMenuRef}
               onClick={() => setMenuOpen(v => !v)}
               className="p-2 -mr-1 rounded-lg hover:bg-muted active:bg-muted transition-colors"
               aria-label={`Ações de ${pai.nome}`}
@@ -910,12 +937,17 @@ function CategoriaRow({
             >
               <MoreVertical size={16} className="text-muted-foreground" />
             </button>
-            {menuOpen && (
-              <div
-                role="menu"
-                className="absolute z-30 top-full right-0 mt-1 py-1 min-w-[184px] rounded-2xl bg-card shadow-2xl border border-border animate-fade-in"
-                onClick={e => e.stopPropagation()}
-              >
+            {mounted && menuOpen && menuPos && createPortal(
+              <>
+                {/* Backdrop fecha o menu. Substitui o antigo listener de
+                    `mousedown` no document: aqui o alvo do toque é sempre o
+                    backdrop ou o item, sem depender de `contains()`. */}
+                <div className="fixed inset-0 z-[60]" onClick={() => setMenuOpen(false)} />
+                <div
+                  role="menu"
+                  className="fixed z-[61] py-1 min-w-[184px] rounded-2xl bg-card shadow-2xl border border-border animate-fade-in"
+                  style={{ top: menuPos.top, right: menuPos.right }}
+                >
                 <button role="menuitem" onClick={() => { setMenuOpen(false); onEditar(); }}
                         className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-foreground hover:bg-muted transition-colors text-left">
                   <Pencil size={14} className="text-muted-foreground" /> Editar categoria
@@ -933,7 +965,9 @@ function CategoriaRow({
                         className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left">
                   <Trash2 size={14} /> Excluir
                 </button>
-              </div>
+                </div>
+              </>,
+              document.body,
             )}
           </div>
         </div>
