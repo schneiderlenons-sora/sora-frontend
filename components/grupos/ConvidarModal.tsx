@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 import { X, Loader2, Check, Copy, RefreshCw, MessageCircle, Share2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+// Origem real quando disponivel (preview da Vercel tem host proprio); a env
+// cobre o SSR e o dominio oficial.
+const APP_URL = typeof window !== 'undefined'
+  ? window.location.origin
+  : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.forsora.com');
+
 interface Props {
   phone:    string;
   grupoId:  string;
@@ -34,23 +40,33 @@ export default function ConvidarModal({ phone, grupoId, grupoNome, onClose }: Pr
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(codigo);
+      // O LINK, não o código: colado em qualquer lugar ele já é clicável.
+      await navigator.clipboard.writeText(linkConvite || codigo);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     } catch {}
   }
 
+  // ⚠️ O QR E O LINK APONTAM PRA PÁGINA, NUNCA PRO CÓDIGO CRU. Código solto não
+  // é URL: a câmera do celular cai na BUSCA NA WEB, e o convidado foi parar num
+  // anúncio de papelão (relato de 23/09/2026 — o código casou com um código de
+  // produto). A página /convite resolve o código e ainda funciona pra quem
+  // ainda não tem conta.
+  const linkConvite = codigo ? `${APP_URL}/convite/${encodeURIComponent(codigo)}` : '';
+  const qrUrl = linkConvite
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(linkConvite)}`
+    : '';
+
+  // ⚠️ O LINK VEM PRIMEIRO. A mensagem antiga mandava o convidado achar sozinho
+  // "Comunidade → Entrar em grupo" — e quem não tinha conta batia no paywall
+  // antes de chegar lá. Um toque no link resolve os dois casos.
   const mensagemWA = encodeURIComponent(
     `🌱 Você foi convidado para o grupo "${grupoNome}" na Sora!\n\n` +
-    `Pra entrar:\n` +
-    `1️⃣ Acesse https://www.forsora.com e entre na sua conta\n` +
-    `2️⃣ Vá em *Comunidade → Entrar em grupo*\n` +
-    `3️⃣ Use o código *${codigo}*\n\n` +
-    `O código expira em 7 dias.`
+    `É só tocar no link:\n${linkConvite}\n\n` +
+    `Não precisa pagar nada pra participar — quem assina é quem te convidou.\n` +
+    `O convite expira em 7 dias.\n\n` +
+    `(Se preferir digitar, o código é *${codigo}*.)`
   );
-  const qrUrl = codigo
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=${encodeURIComponent(codigo)}`
-    : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
@@ -91,7 +107,7 @@ export default function ConvidarModal({ phone, grupoId, grupoNome, onClose }: Pr
                   {copiado ? (
                     <><Check size={12} className="text-green-600" /> Copiado!</>
                   ) : (
-                    <><Copy size={12} /> Copiar código</>
+                    <><Copy size={12} /> Copiar link</>
                   )}
                 </button>
               </div>
@@ -103,7 +119,7 @@ export default function ConvidarModal({ phone, grupoId, grupoNome, onClose }: Pr
                   <img src={qrUrl} alt={`QR ${codigo}`} className="block" width={180} height={180} />
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2">
-                  Compartilhe o código ou aponte a câmera no QR
+                  Aponte a câmera no QR ou mande o link — os dois abrem o convite
                 </p>
               </div>
 
@@ -127,7 +143,8 @@ export default function ConvidarModal({ phone, grupoId, grupoNome, onClose }: Pr
                       try {
                         await navigator.share({
                           title: `Convite Sora — ${grupoNome}`,
-                          text: `Use o código ${codigo} para entrar no meu grupo Sora!`,
+                          text: `Entre no meu grupo "${grupoNome}" na Sora — não precisa pagar nada.`,
+                          url: linkConvite || undefined,
                         });
                       } catch {}
                     } else {

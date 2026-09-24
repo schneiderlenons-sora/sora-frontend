@@ -144,6 +144,13 @@ function SignupWizard() {
         }
       }
 
+      // ⚠️ CONVITE DE GRUPO tem prioridade sobre a escolha de plano: quem
+      // chegou por um convite não veio comprar — quem paga é quem convidou. Sem
+      // este desvio, criar a conta pelo link do convite terminava na tabela de
+      // preços e o código se perdia (relato de 23/09/2026).
+      const next = searchParams.get('next');
+      if (next && next.startsWith('/convite/')) { router.push(next); return; }
+
       if (vitalicioMode) {
         // Vitalício: checkout transparente (Mercado Pago) na nossa própria
         // página, sem sair do site. Preserva o tier (kit/completa). AddToCart

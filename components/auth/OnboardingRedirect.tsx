@@ -34,6 +34,9 @@ export default function OnboardingRedirect() {
       // A demonstração É o onboarding de quem vem do app — mandar pro
       // wizard no meio dela desfaria a tela inteira.
       '/tour',
+      // O convite resolve o código e SÓ DEPOIS manda pro painel; o wizard no
+      // meio disso perderia o código e o convidado ficaria fora do grupo.
+      '/convite',
       '/vincular-whatsapp',
       '/oferta',
       '/checkout-vitalicio',
