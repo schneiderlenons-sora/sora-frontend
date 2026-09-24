@@ -47,7 +47,36 @@ type Conexao = {
 };
 type Inst = { id: number | string; name?: string; institution_name?: string; logo_url?: string; image_url?: string; primary_color?: string;
   // Quais documentos o banco exige. A Polp devolve ["cpf"], ["cpf","cnpj"]…
-  credentials?: string[] };
+  credentials?: string[];
+  /** PERSONAL | BUSINESS | BOTH. ⚠️ É ELE que diz quais documentos mandar —
+   *  `credentials` é DERIVADO dele e não distingue 'aceita os dois' de
+   *  'exige os dois'. Ver docs/celcoin/institutions.txt. */
+  type?: string };
+
+// ⚠️ QUAL DOCUMENTO CADA BANCO PEDE — a regra é do doc da Celcoin, não nossa:
+//   PERSONAL  → só o CPF (CNPJ é PROIBIDO).
+//   BUSINESS  → CPF do operador/representante E o CNPJ da empresa.
+//   BOTH      → só CPF (pessoal) OU CPF + CNPJ (empresarial).
+//
+// Ou seja: o CPF entra em TODOS os casos. A tela tratava CPF e CNPJ como
+// excludentes (escolheu "Empresa" → mandava só o CNPJ), e a Celcoin recusava
+// com 422 "O campo cpf é obrigatório para esta instituição" — relato de
+// 23/09/2026, cliente com conta PJ que não conseguia conectar de jeito nenhum.
+//
+// ⚠️ O campo credentials NÃO basta pra decidir: ele é derivado do type e vem
+// ["cpf","cnpj"] tanto em BUSINESS (exige os dois) quanto em BOTH (o CNPJ é
+// opcional). Era essa ambiguidade que a tela lia como "escolha um".
+function docsDaInstituicao(i: Inst | null) {
+  const t = String(i?.type || '').toUpperCase();
+  const creds = i?.credentials || [];
+  // Sem o type (trilho legado / payload antigo), cai no credentials.
+  const aceitaCnpj = t ? (t === 'BUSINESS' || t === 'BOTH') : creds.includes('cnpj');
+  return {
+    aceitaCnpj,
+    soEmpresa: t === 'BUSINESS',   // não existe conexão pessoal aqui
+    podeEscolher: t ? t === 'BOTH' : aceitaCnpj,
+  };
+}
 
 const nomeInst = (i: Inst) => i.name || i.institution_name || `Banco ${i.id}`;
 const logoInst = (i: Inst) => i.logo_url || i.image_url || null;
@@ -236,15 +265,26 @@ export default function OpenFinancePage() {
   async function conectar() {
     if (!instSel) return;
     const nome = nomeInst(instSel);
+    const { aceitaCnpj } = docsDaInstituicao(instSel);
+    // Barra ANTES de gastar uma chamada: sem CPF a Celcoin devolve 422 e o
+    // usuário só vê um erro técnico de API, sem saber o que faltou preencher.
+    if (!cpf.replace(/\D/g, '')) {
+      setErro(aceitaCnpj && ehPj
+        ? 'Informe também o CPF de quem responde pela empresa no banco — ele autoriza o acesso.'
+        : 'Informe seu CPF pra continuar.');
+      return;
+    }
     setConectando(true); setErro('');
     try {
       const r = await api.openFinance.conectar({
         institution_id: instSel.id,
-        // ⚠️ Manda só o documento que ESTE banco aceita e que o usuário
-        // escolheu. Enviar CNPJ pra banco que só tem CPF (ou os dois juntos)
-        // faz a Polp recusar o consentimento.
-        cpf:  (!ehPj && cpf.replace(/\D/g, '')) || undefined,
-        cnpj: (ehPj && cnpj.replace(/\D/g, '')) || undefined,
+        // ⚠️ O CPF VAI SEMPRE — inclusive em conta PJ, onde ele identifica o
+        // OPERADOR/REPRESENTANTE e acompanha o CNPJ. Mandar só o CNPJ é o que
+        // devolvia 422 "O campo cpf é obrigatório para esta instituição".
+        // O CNPJ, ao contrário, só pode ir quando o banco aceita (PROIBIDO em
+        // instituição PERSONAL) e o usuário marcou empresa.
+        cpf:  cpf.replace(/\D/g, '') || undefined,
+        cnpj: (ehPj && aceitaCnpj && cnpj.replace(/\D/g, '')) || undefined,
         instituicao_nome: nome,
       });
       // Abre o modal JÁ: se a URL veio no create, mostra o botão; senão o
@@ -872,18 +912,17 @@ export default function OpenFinancePage() {
                   </div>
                   <p className="font-semibold text-foreground">{nomeInst(instSel)}</p>
                 </div>
-                {/* ⚠️ O BANCO DIZ QUAL DOCUMENTO PEDE. `credentials` vem da Polp
-                    por instituição: ["cpf"], ["cpf","cnpj"]… Mostrar sempre só
-                    CPF deixava conta PJ inconectável — o cliente escolhia o
-                    banco, digitava o CPF e recebia erro sem entender por quê
-                    (relato real). Quando o banco aceita os dois, ele escolhe. */}
+                {/* ⚠️ O BANCO DIZ QUAL DOCUMENTO PEDE — e em conta PJ ele pede os
+                    DOIS. Ver `docsDaInstituicao` acima: PERSONAL = só CPF,
+                    BUSINESS = CPF do representante + CNPJ, BOTH = CPF sozinho ou
+                    CPF + CNPJ. O CPF nunca sai de cena; era escondê-lo ao marcar
+                    "Empresa" que produzia o 422 da Celcoin. */}
                 {(() => {
-                  const creds = instSel?.credentials || [];
-                  const aceitaCnpj = creds.includes('cnpj');
-                  const aceitaCpf = creds.length === 0 || creds.includes('cpf');
+                  const { aceitaCnpj, soEmpresa, podeEscolher } = docsDaInstituicao(instSel);
+                  const comoEmpresa = aceitaCnpj && (soEmpresa || ehPj);
                   return (
                     <>
-                      {aceitaCnpj && (
+                      {podeEscolher && (
                         <div className="inline-flex p-1 rounded-xl bg-muted/60" role="group" aria-label="Tipo de conta">
                           {([[false, 'Pessoa física'], [true, 'Empresa (PJ)']] as const).map(([v, label]) => (
                             <button key={label} type="button" role="switch" aria-checked={ehPj === v}
@@ -895,25 +934,31 @@ export default function OpenFinancePage() {
                           ))}
                         </div>
                       )}
-                      {(!aceitaCnpj || !ehPj) && aceitaCpf && (
-                        <div>
-                          <label htmlFor="of-cpf" className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                            CPF <span className="font-medium normal-case tracking-normal opacity-70">(se o banco pedir)</span>
-                          </label>
-                          <input id="of-cpf" value={cpf} onChange={e => setCpf(e.target.value)} inputMode="numeric" placeholder="000.000.000-00"
-                            className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm tabular-nums focus:outline-none focus:border-primary" />
-                        </div>
+                      {soEmpresa && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Este banco atende <strong className="text-foreground">apenas contas empresariais</strong>.
+                        </p>
                       )}
-                      {aceitaCnpj && ehPj && (
+                      {/* ⚠️ SEMPRE VISÍVEL. Em PJ ele identifica quem autoriza. */}
+                      <div>
+                        <label htmlFor="of-cpf" className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                          {comoEmpresa ? 'CPF do representante' : 'CPF'}
+                        </label>
+                        <input id="of-cpf" value={cpf} onChange={e => setCpf(e.target.value)} inputMode="numeric" placeholder="000.000.000-00"
+                          className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm tabular-nums focus:outline-none focus:border-primary" />
+                        {comoEmpresa && (
+                          <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                            O banco exige o CPF de quem responde pela empresa — é essa pessoa que autoriza o acesso.
+                          </p>
+                        )}
+                      </div>
+                      {comoEmpresa && (
                         <div>
                           <label htmlFor="of-cnpj" className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
                             CNPJ da empresa
                           </label>
                           <input id="of-cnpj" value={cnpj} onChange={e => setCnpj(e.target.value)} inputMode="numeric" placeholder="00.000.000/0000-00"
                             className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm tabular-nums focus:outline-none focus:border-primary" />
-                          <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
-                            Autorize com o acesso de quem responde pela empresa no banco.
-                          </p>
                         </div>
                       )}
                     </>
