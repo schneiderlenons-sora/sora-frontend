@@ -1263,6 +1263,42 @@ e a tela seguia exibindo o valor como se fosse de hoje. Medido na base:
   (no lugar do "Saldo do banco") e como selo **"Desatualizado"** nos cartões de
   Previstos. Resolve o pendente "cartão de OF com conexão morta".
 
+### As mensagens de conexão se contradiziam (set/2026)
+
+Relato do mesmo cliente do BTG, com dois prints lado a lado: o card do cartão
+dizia **"Conexão com o banco encerrada · Reconecte o banco"** enquanto a aba
+Open Finance, na mesma conta, dizia **"Conectado · há 3 min · não precisa
+reconectar"**. Ele apontou a contradição — e estava certo.
+
+- ⚠️ **AS DUAS ERAM VERDADE.** O BANCO estava conectado; o que morreu foi o
+  consentimento ao qual AQUELE cartão estava preso. O erro era o **SUJEITO**
+  da frase: o título falava do banco quando o fato é sobre a carteira. Hoje é
+  **"Este cartão parou de atualizar"** / **"Esta conta parou de atualizar"** —
+  sem a palavra "banco" no título, não há contradição com a linha da conexão.
+- ⚠️ **Não manda mais só "reconecte".** Ele já havia reconectado **duas**
+  vezes. Reconectar não traz o cartão quando o banco não o libera, e repetir a
+  instrução joga o cliente num laço — **cada volta cria um consentimento novo,
+  que a Polp cobra**. O texto passou a dar a segunda saída.
+- ⚠️ **Depois das 48h sobrava o SILÊNCIO.** O aviso "o cartão pode levar
+  algumas horas" some às 48h de propósito (em conexão velha sem cartão a
+  explicação quase sempre é "essa pessoa não tem cartão nesse banco"), mas
+  **nada entrava no lugar** — e era o silêncio que empurrava pra reconexão em
+  looping. Agora entra uma linha **MUDA, não âmbar**, afirmando só o fato:
+  "esta conexão trouxe apenas contas, sem cartão de crédito". Muda porque pra
+  maioria das conexões velhas sem cartão isso é normal, e alarme ali é ruído.
+- **Medido na conta dele (24/09):** BTG reconectado em 23/09 22:58,
+  sincronizando **sem erro** (último sync 20:15), trazendo **só a conta
+  corrente**. O cartão não vem do banco, e a carteira antiga **já não existe**
+  na base — zero carteiras com "EQI" em toda a base.
+- ⚠️ **`wallets` não guarda a instituição** (29 colunas, nenhuma), então não dá
+  pra saber, no front, se a conexão viva é do MESMO banco da carteira órfã.
+  Adicionar a coluna não resolveria: carteira órfã nunca mais é sincronizada,
+  então ficaria nula justamente nas linhas que precisam dela. Por isso o fix
+  é de **texto**, não de dado.
+- ⚠️ **A coluna é `of_conexoes.instituicao`**, não `instituicao_nome` — ler o
+  nome errado devolve `undefined` e o diagnóstico mostra o `provider`
+  ("polp-celcoin") no lugar do banco. Custou uma rodada de medição.
+
 ## Extrato Futuro: período e FATURAS com conta de pagamento (set/2026)
 
 - ⚠️ **As faturas NUNCA entravam no extrato**: o código passava
