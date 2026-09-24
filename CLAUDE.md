@@ -3003,6 +3003,52 @@ IPVA com `status=quitada` e `parcelas_pagas` **2 de 3**, card exibindo
 - O selo do card lê `divida.status` (`DividasClient.tsx`), então corrigir o
   backend conserta a tela sem tocar no front.
 
+## Editar categoria não gravava o PAI, e o "Dinheiro" ressuscitava (set/2026)
+
+Dois relatos do mesmo cliente, e os dois com a mesma assinatura: **o POST
+aceitava o campo, o PUT descartava em silêncio**.
+
+### 1. `parent_id` sumia na edição da categoria
+
+*"Criei uma categoria Carro, mas não consigo colocar Prestação do veículo como
+subcategoria dela. Eu altero mas ele não grava."* Medido: as duas na RAIZ.
+
+- ⚠️ **Os DOIS lados estavam quebrados e um escondia o outro.** O PUT de
+  `routes/categorias.js` nem desestruturava `parent_id`; e o
+  `NovaCategoriaModal` **não enviava o campo** no modo edição — embora o
+  seletor *"É subcategoria de"* **apareça** ali (linha 276). A pessoa escolhe,
+  salva, e nada acontece. Mesma família do `is_reserva_emergencia` da 147.
+- ⚠️ **`'parent_id' in req.body`, não `if (parent_id)`** — mandar `null` é
+  como se TIRA a categoria de baixo do pai, e um `if` truthy descartaria isso.
+  No front, `?? null` e nunca `|| undefined` (undefined some do JSON).
+- ⚠️ **Três guardas contra o TERCEIRO NÍVEL:** não pode ser pai de si mesma, o
+  destino precisa ser raiz, e quem tem filhas não vira filha. Um neto quebraria
+  o `nomesDoLimite` (que soma a categoria + as filhas **diretas**), a árvore do
+  painel e o categorizador.
+- O erro do update passou a ser **lido** — era `const { data }` sem `error`, e
+  a falha respondia **200 com null**: o modal fechava dizendo que salvou.
+- O **seletor de cor** do painel não manda `parent_id`, então segue intacto.
+
+### 2. A conta "Dinheiro" voltava depois de apagada
+
+*"Não consigo remover a conta dinheiro."* ⚠️ **Não era a exclusão — era a
+RECRIAÇÃO.** A rota `DELETE /wallets/:id` não tem trava nenhuma pra ela.
+
+- Quem tem **várias contas e nenhuma padrão** cai no **"Caso 5"** do
+  `handlers/transacoes.js`: a Sora grava o lançamento em `'Dinheiro'` só pra
+  **ter onde pousar**, PERGUNTA de qual conta foi, e move ao responder. Só que
+  o pouso criava a carteira de verdade (o upsert logo abaixo) e ela ficava na
+  tela pra sempre. Medido: **6 contas, `wallet_padrao_id` nulo** — ou seja,
+  TODO lançamento sem conta citada a ressuscitava.
+- ⚠️ **Não dá pra parar de criar a carteira no pouso.** A transação ficaria
+  apontando pra um nome que não é wallet de ninguém enquanto a pergunta não é
+  respondida — a **conta-fantasma** do CLAUDE.md, e **permanente** se a pessoa
+  nunca responder. Por isso a limpeza é em `moverCarteira`, **depois** de a
+  transação sair em segurança.
+- ⚠️ **Três condições estreitas**: a carteira precisa estar **sem lançamento**,
+  **zerada** e **não ser a única do grupo**. Quem usa "Dinheiro" como conta de
+  verdade tem saldo ou lançamento e nunca é tocado.
+
 ## Modo manual grátis + demo do app Android (set/2026)
 
 A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
