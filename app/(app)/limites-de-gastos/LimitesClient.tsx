@@ -12,13 +12,33 @@ import { gastoComFilhas, indexarGastos, chaveCategoria } from '@/lib/limite-cate
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import {
   Plus, Sparkles, Pencil, Trash2, Target, Bell, BellOff,
-  AlertCircle, Wallet, ChevronRight,
+  AlertCircle, Wallet, ChevronRight, CalendarDays, CalendarRange, TrendingUp,
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro } from '@/lib/moeda-base';
+import useSWR from 'swr';
+import dynamic from 'next/dynamic';
+
+// ⚠️ recharts (~288 KB + d3) NUNCA entra no bundle da página. Ele mora em
+// componente próprio e vem por dynamic + ssr:false, com skeleton da MESMA
+// altura (260px) — skeleton de altura diferente dá salto de layout quando o
+// dado chega. Regra do CLAUDE.md, não preferência.
+const GraficoAno = dynamic(() => import('@/components/limites/GraficoAno'), {
+  ssr: false,
+  loading: () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: 260 }} />,
+});
 
 const BRAND = 'hsl(var(--primary))';
+
+const MESES_CURTOS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+/** '2026-09' → 'Setembro de 2026'. Sem `new Date`: a string já é o mês. */
+const rotuloMes = (ym: string) => {
+  const [a, m] = String(ym || '').split('-').map(Number);
+  const nomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  return m ? `${nomes[m - 1]} de ${a}` : ym;
+};
 
 function corPctLimite(pct: number) {
   if (pct >= 100) return { bg: '#ef4444', label: 'EXCEDIDO' };
@@ -60,6 +80,11 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
   const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 
   const [tab, setTab] = useState<Tab>('geral');
+  // Pedido de cliente (set/2026): "limites mensais e anuais — o de vocês é
+  // somente mensal". Gasto sazonal (IPVA, seguro, viagem) estoura um mês e
+  // cabe no ano; sem teto anual não há como planejar isso. Migration 171.
+  const [periodo, setPeriodo] = useState<'mensal' | 'anual'>('mensal');
+  const anoRef = mesRef.slice(0, 4);
   const { ocultos: ocultar } = useValores();
 
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -68,6 +93,10 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
 
   // Limite geral
   const [metaMensal,        setMetaMensal]        = useState(0);
+  // Teto do ANO (migration 171). Fica 0 enquanto a migration não rodar — a
+  // rota devolve as colunas anuais em consulta tolerante, então a aba nunca
+  // quebra por causa disso, só não mostra o teto.
+  const [metaAnual,         setMetaAnual]         = useState(0);
   const [geralAtivo,        setGeralAtivo]        = useState(true);
   const [geralAlertaAtivo,  setGeralAlertaAtivo]  = useState(true);
   const [geralAlertaPct,    setGeralAlertaPct]    = useState(80);
@@ -83,6 +112,32 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
   const { data: resumoRaw,  mutate: mRes }  = useApi(phone ? chave.resumo(phone, mesRef) : null, () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
   const { data: limitesRaw, mutate: mLim }  = useApi(phone ? chave.limites(phone, mesRef) : null, () => api.limites.listar(phone, mesRef), { fallbackData: initialData?.limites });
 
+  // ⚠️ `useSWR` DIRETO, não `useApi`. O `useApi` registra no LoadingGate, e a
+  // baleia cobriria a página inteira só por alguém tocar em "Anual". Só busca
+  // quando o modo anual está aberto — quem nunca usa não paga a requisição.
+  const { data: ano, isLoading: anoCarregando, mutate: mAno } = useSWR(
+    phone && periodo === 'anual' ? chave.limitesAno(phone, anoRef) : null,
+    () => api.limites.ano(phone, anoRef),
+  );
+
+  const mesesGrafico = useMemo(
+    () => (ano?.meses || []).map((m, i) => ({
+      mes: MESES_CURTOS[i] || m.mes,
+      realizado: m.realizado || 0,
+      previsto: m.previsto || 0,
+    })),
+    [ano],
+  );
+
+  // Média dos meses QUE JÁ TIVERAM gasto — dividir por 12 em março daria uma
+  // média três vezes menor que a real e faria o ano parecer folgado.
+  const mediaMes = useMemo(() => {
+    const comGasto = (ano?.meses || []).filter((m) => (m.realizado || 0) > 0);
+    return comGasto.length
+      ? comGasto.reduce((s, m) => s + m.realizado, 0) / comGasto.length
+      : 0;
+  }, [ano]);
+
   useEffect(() => { if (catsRaw !== undefined) setCategorias(
     ((catsRaw as any) || []).slice()
       .sort((a: Categoria, b: Categoria) => nomeCategoria(a.nome).localeCompare(nomeCategoria(b.nome), 'pt-BR'))
@@ -92,13 +147,17 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
     if (limitesRaw === undefined) return;
     const ls: any = limitesRaw;
     setMetaMensal(ls?.meta_mensal || 0);
+    setMetaAnual(ls?.meta_anual || 0);
     setGeralAtivo(ls?.meta_mensal_ativo ?? true);
     setGeralAlertaAtivo(ls?.meta_mensal_alerta_ativo ?? true);
     setGeralAlertaPct(ls?.meta_mensal_alerta_pct ?? 80);
     setLimites(Array.isArray(ls?.categorias) ? ls.categorias : []);
   }, [limitesRaw]);
 
-  const carregar = useCallback(() => Promise.all([mCats(), mRes(), mLim()]), [mCats, mRes, mLim]);
+  // ⚠️ `mAno()` entra aqui: sem ele, salvar um teto ANUAL fecharia o modal
+  // com a tela mostrando os números velhos, e a pessoa acharia que não salvou.
+  const carregar = useCallback(
+    () => Promise.all([mCats(), mRes(), mLim(), mAno()]), [mCats, mRes, mLim, mAno]);
 
   // ── Métricas ───────────────────────────────────────────────
   const gastoTotal = resumo?.gastos || 0;
@@ -204,10 +263,52 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
                 onClick={() => tab === 'geral' ? setEditGeralOpen(true) : setCatModal({})}
                 className="btn btn-primary px-4 py-2.5 text-sm gap-2 shadow-glow-sm"
               >
-                <Plus size={16} /> {tab === 'geral' ? 'Editar limite geral' : 'Novo limite'}
+                <Plus size={16} /> {tab === 'geral'
+                  ? (periodo === 'anual' ? 'Editar teto do ano' : 'Editar limite geral')
+                  : (periodo === 'anual' ? 'Novo teto anual' : 'Novo limite')}
               </button>
             </div>
           </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════
+            PERÍODO — mês × ano
+            ────────────────────────────────────────────────────
+            ⚠️ Fica ACIMA das abas de propósito: ele muda o HORIZONTE, e as
+            duas abas (geral / por categoria) continuam significando a mesma
+            coisa nos dois. Pôr "Anual" como uma terceira aba misturaria duas
+            perguntas diferentes ("o quê" e "em quanto tempo") na mesma fila.
+
+            `role="radiogroup"` e não um grupo de botões soltos: são opções
+            MUTUAMENTE exclusivas, e é isso que o leitor de tela precisa ouvir.
+        ═══════════════════════════════════════════════════════ */}
+        <div className="flex items-center gap-2 animate-fade-in" style={{ animationDelay: '40ms' }}>
+          <div role="radiogroup" aria-label="Período do orçamento"
+               className="inline-flex items-center gap-1 bg-muted/40 rounded-2xl p-1.5">
+            {([
+              { v: 'mensal' as const, l: 'Mensal', icon: CalendarDays },
+              { v: 'anual'  as const, l: 'Anual',  icon: CalendarRange },
+            ]).map(({ v, l, icon: Icon }) => {
+              const ativo = periodo === v;
+              return (
+                <button
+                  key={v} role="radio" aria-checked={ativo} onClick={() => setPeriodo(v)}
+                  // min-h-[44px] é o alvo de toque mínimo; sem ele o controle
+                  // fica com ~36px e vira mira no celular.
+                  className={`flex items-center gap-2 px-4 min-h-[44px] rounded-xl text-sm font-semibold transition-all ${
+                    ativo ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {/* Ícone + rótulo: o estado ativo não é dito só pela cor. */}
+                  <Icon size={14} />
+                  <span>{l}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-xs text-muted-foreground tabular">
+            {periodo === 'anual' ? anoRef : rotuloMes(mesRef)}
+          </span>
         </div>
 
         {/* ═══════════════════════════════════════════════════════
@@ -243,9 +344,190 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
         </div>
 
         {/* ═══════════════════════════════════════════════════════
+            ORÇAMENTO DO ANO
+            ────────────────────────────────────────────────────
+            Um bloco só pras duas abas: no modo anual a diferença entre
+            "geral" e "por categoria" é só QUAL lista aparece embaixo do
+            gráfico — o gráfico do ano vale pros dois, e duplicá-lo faria o
+            usuário perder o contexto ao trocar de aba.
+        ═══════════════════════════════════════════════════════ */}
+        {periodo === 'anual' && (
+          <div className="space-y-5 animate-fade-in" style={{ animationDelay: '120ms' }}>
+
+            {/* ── Gráfico: realizado × previsto nos 12 meses ── */}
+            <div className="card rounded-3xl p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <TrendingUp size={18} style={{ color: BRAND }} />
+                    Orçamento de {anoRef}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Quanto saiu em cada mês, comparado ao teto que você definiu.
+                  </p>
+                </div>
+                {ano && (
+                  <div className="flex items-center gap-5">
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Realizado</p>
+                      <p className="text-lg font-bold tabular" style={{ color: BRAND }}>{fmt(ano.total.realizado)}</p>
+                    </div>
+                    {ano.total.previsto > 0 && (
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Previsto</p>
+                        <p className="text-lg font-bold tabular text-foreground">{fmt(ano.total.previsto)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ⚠️ Skeleton da MESMA altura do gráfico (260px) — bloco de
+                  tamanho diferente vira salto de layout quando o dado chega. */}
+              {anoCarregando ? (
+                <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: 260 }} />
+              ) : !ano || !ano.meses.some((m) => m.realizado > 0 || m.previsto > 0) ? (
+                /* Empty state com SAÍDA, não um eixo vazio (`empty-data-state`). */
+                <div className="flex flex-col items-center justify-center text-center gap-2 px-4"
+                     style={{ height: 260 }}>
+                  <CalendarRange size={28} className="text-muted-foreground/60" />
+                  <p className="text-sm font-semibold text-foreground">Nada lançado em {anoRef} ainda</p>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    Assim que houver gastos no ano, eles aparecem aqui mês a mês, comparados ao teto.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <GraficoAno meses={mesesGrafico} media={mediaMes} />
+                  {/* ⚠️ Resumo em TEXTO do que o gráfico mostra: leitor de tela
+                      não lê barra (`screen-reader-summary`). */}
+                  <p className="sr-only">
+                    Gastos de {anoRef} por mês. Total realizado {fmt(ano.total.realizado)}
+                    {ano.total.previsto > 0 ? `, de um teto previsto de ${fmt(ano.total.previsto)}` : ''}.
+                    Média mensal {fmt(mediaMes)}.
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* ── Teto GERAL do ano ── */}
+            {tab === 'geral' && (
+              <div className="card rounded-3xl p-6 sm:p-8">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Target size={16} style={{ color: BRAND }} /> Teto geral do ano
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-lg">
+                  Um limite para o ano inteiro, independente do mensal. Serve pra gasto
+                  que estoura um mês e ainda cabe no ano — IPVA, seguro, viagem.
+                </p>
+                <div className="mt-5 flex flex-wrap items-end gap-6">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Gasto no ano</p>
+                    <p className="text-3xl font-bold tabular text-foreground mt-0.5">
+                      {fmt(ano?.total.realizado || 0)}
+                    </p>
+                  </div>
+                  {metaAnual > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Teto</p>
+                      <p className="text-xl font-bold tabular text-muted-foreground mt-0.5">{fmt(metaAnual)}</p>
+                    </div>
+                  )}
+                </div>
+
+                {metaAnual > 0 ? (
+                  <div className="mt-5">
+                    <BarraLimite gasto={ano?.total.realizado || 0} teto={metaAnual} />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditGeralOpen(true)}
+                    className="mt-5 btn btn-outline px-4 min-h-[44px] text-sm gap-2"
+                  >
+                    <Plus size={15} /> Definir teto do ano
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── Tetos por categoria no ano ── */}
+            {tab === 'categoria' && (
+              <div className="card rounded-3xl p-5 sm:p-6">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
+                  <Wallet size={16} style={{ color: BRAND }} /> Por categoria em {anoRef}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  &ldquo;Teto do ano&rdquo; é um limite próprio; &ldquo;soma dos meses&rdquo; é o total dos
+                  limites mensais que você já definiu ao longo de {anoRef}.
+                </p>
+
+                {anoCarregando ? (
+                  <div className="space-y-2">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className="h-14 rounded-xl bg-muted/40 animate-pulse" />
+                    ))}
+                  </div>
+                ) : !ano?.categorias.length ? (
+                  <div className="text-center py-10 px-4">
+                    <Wallet size={28} className="text-muted-foreground/60 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-foreground">Nenhuma categoria com gasto em {anoRef}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Defina um teto anual e acompanhe o consumo ao longo do ano.
+                    </p>
+                    <button onClick={() => setCatModal({})} className="mt-4 btn btn-outline px-4 min-h-[44px] text-sm gap-2">
+                      <Plus size={15} /> Novo teto anual
+                    </button>
+                  </div>
+                ) : (
+                  /* `content-visibility` nas linhas: virtualização nativa do
+                     browser, sem lib — a lista pode ter dezenas de categorias. */
+                  <ul className="divide-y divide-border/50">
+                    {ano.categorias.map((c) => {
+                      const teto = c.teto_ano || c.teto_meses;
+                      const pct  = teto > 0 ? (c.realizado / teto) * 100 : 0;
+                      return (
+                        <li key={c.categoria}
+                            className="py-3 flex items-center gap-3 [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
+                          <CategoriaIcon nome={c.categoria} size={30} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {nomeCategoria(c.categoria)}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground tabular">
+                              {teto > 0
+                                ? `${fmt(c.realizado)} de ${fmt(teto)}${c.teto_ano ? '' : ' (soma dos meses)'}`
+                                : fmt(c.realizado)}
+                            </p>
+                          </div>
+                          {teto > 0 && (
+                            <div className="w-24 sm:w-40 flex-shrink-0">
+                              <BarraLimite gasto={c.realizado} teto={teto} compacta />
+                            </div>
+                          )}
+                          {!c.teto_ano && (
+                            <button
+                              onClick={() => setCatModal({ categoriaAlvo: c.categoria })}
+                              aria-label={`Definir teto anual para ${nomeCategoria(c.categoria)}`}
+                              className="flex-shrink-0 w-11 h-11 rounded-xl inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {/* ═══════════════════════════════════════════════════════
             TAB GERAL
         ═══════════════════════════════════════════════════════ */}
-        {tab === 'geral' && (
+        {periodo === 'mensal' && tab === 'geral' && (
           <div className="space-y-5 animate-fade-in" style={{ animationDelay: '120ms' }}>
 
             {/* Card principal do limite geral */}
@@ -450,7 +732,7 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
         {/* ═══════════════════════════════════════════════════════
             TAB CATEGORIA
         ═══════════════════════════════════════════════════════ */}
-        {tab === 'categoria' && (
+        {periodo === 'mensal' && tab === 'categoria' && (
           <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
             {limites.length === 0 ? (
               <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
@@ -510,10 +792,14 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
       {editGeralOpen && phone && (
         <EditarLimiteGeralModal
           phone={phone}
-          valorInicial={metaMensal}
+          // ⚠️ O valor INICIAL segue o período aberto: abrir o modal no modo
+          // anual mostrando o teto mensal faria a pessoa "confirmar" um número
+          // que não é o daquele campo e sobrescrever o teto do ano com ele.
+          valorInicial={periodo === 'anual' ? metaAnual : metaMensal}
           ativoInicial={geralAtivo}
           alertaAtivoInicial={geralAlertaAtivo}
           alertaPctInicial={geralAlertaPct}
+          periodo={periodo}
           onClose={() => setEditGeralOpen(false)}
           onSuccess={carregar}
         />
@@ -522,10 +808,13 @@ export default function LimitesClient({ phoneInicial, initialData }: { phoneInic
       {catModal && phone && (
         <LimiteCategoriaModal
           phone={phone}
-          mesRef={mesRef}
+          // No anual a chave é o ANO — o backend corta pra 4 dígitos, mas
+          // mandar já certo deixa o payload legível no diagnóstico.
+          mesRef={periodo === 'anual' ? anoRef : mesRef}
           categorias={categorias}
           categoriaAlvo={catModal.categoriaAlvo}
           limiteExistente={catModal.edicao}
+          periodo={periodo}
           onClose={() => setCatModal(null)}
           onSuccess={carregar}
         />
@@ -690,6 +979,40 @@ function LimiteCategoriaCard({ limite, categoria, gasto, ocultar, delay, onToggl
             <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+// Barra de consumo de um teto. ⚠️ Status por ICONE + ROTULO, nunca so pela
+// cor: quem nao distingue verde de vermelho tem de conseguir ler o estado
+// (regra `color-not-only`). Os numeros sao tabulares pra nao dancar.
+function BarraLimite({ gasto, teto, compacta }: { gasto: number; teto: number; compacta?: boolean }) {
+  const fmt = useDinheiro();
+  const { ocultos } = useValores();
+  const pct = teto > 0 ? (gasto / teto) * 100 : 0;
+  const { bg, label } = corPctLimite(pct);
+  const restante = teto - gasto;
+  return (
+    <div>
+      <div className="h-2 rounded-full bg-muted overflow-hidden"
+           role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}
+           aria-label={`${Math.round(pct)}% do teto`}>
+        {/* Largura em % anima por transform-free width com duracao curta; a
+            barra nasce em 0 e cresce, entao o movimento diz "isto e progresso". */}
+        <div className="h-full rounded-full transition-[width] duration-500 ease-out"
+             style={{ width: `${Math.min(pct, 100)}%`, background: bg }} />
+      </div>
+      <div className="flex items-center justify-between gap-2 mt-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: bg }}>
+          {label} · {Math.round(pct)}%
+        </span>
+        {!compacta && !ocultos && (
+          <span className="text-[11px] text-muted-foreground tabular">
+            {restante >= 0 ? `${fmt(restante)} disponível` : `${fmt(-restante)} acima`}
+          </span>
+        )}
       </div>
     </div>
   );

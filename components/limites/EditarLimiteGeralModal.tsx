@@ -14,13 +14,16 @@ interface Props {
   ativoInicial?:        boolean;
   alertaAtivoInicial?:  boolean;
   alertaPctInicial?:    number;
+  /** 'anual' grava o teto do ANO (meta_anual). Omitido = mensal, que e o
+   *  que todo chamador antigo espera. Migration 171. */
+  periodo?: 'mensal' | 'anual';
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export default function EditarLimiteGeralModal({
   phone, valorInicial = 0, ativoInicial = true,
-  alertaAtivoInicial = true, alertaPctInicial = 80,
+  alertaAtivoInicial = true, alertaPctInicial = 80, periodo = 'mensal',
   onClose, onSuccess,
 }: Props) {
   const fmt = useDinheiro();

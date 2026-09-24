@@ -24,12 +24,16 @@ interface Props {
   categorias:      Categoria[];
   categoriaAlvo?:  string | null;  // nome — usado em modo edição (trava o select)
   limiteExistente?: any | null;     // category_limit row
+  /** 'anual' grava o teto do ANO: o backend troca a chave de gravacao de
+   *  '2026-09' para '2026', e por isso um teto mensal e um anual da MESMA
+   *  categoria nao se sobrescrevem. Migration 171. */
+  periodo?: 'mensal' | 'anual';
   onClose:   () => void;
   onSuccess: () => void;
 }
 
 export default function LimiteCategoriaModal({
-  phone, mesRef, categorias, categoriaAlvo, limiteExistente,
+  phone, mesRef, categorias, categoriaAlvo, limiteExistente, periodo = 'mensal',
   onClose, onSuccess,
 }: Props) {
   const fmt = useDinheiro();

@@ -578,10 +578,25 @@ export const api = {
   },
 
   // ── LIMITES ───────────────────────────────────────────────────
+  // ── LIMITES — teto MENSAL e teto ANUAL (migration 171) ─────────
+  //
+  // ⚠️ `periodo: 'anual'` muda a CHAVE de gravação: o backend guarda o teto do
+  // ano com `mes_referencia` = '2026' (em vez de '2026-09'), e é isso que faz
+  // um teto mensal e um anual da MESMA categoria conviverem sem sobrescrever um
+  // ao outro. Omitir o campo continua gravando mensal — todo payload antigo
+  // chega assim.
   limites: {
     listar: (phone: string, mes?: string) =>
       req<any>(`/api/limites/${phone}${mes ? `?mes=${mes}` : ''}`),
-    setGeral: (body: { phone: string; valor: number; ativo?: boolean; alerta_ativo?: boolean; alerta_pct?: number }) =>
+    /** Os 12 meses do ano (realizado × previsto) numa chamada só. */
+    ano: (phone: string, ano?: string) =>
+      req<{
+        ano: string;
+        meses: { mes: string; realizado: number; previsto: number }[];
+        categorias: { categoria: string; realizado: number; teto_ano: number; teto_meses: number }[];
+        total: { realizado: number; previsto: number };
+      }>(`/api/limites/${phone}/ano${ano ? `?ano=${ano}` : ''}`),
+    setGeral: (body: { phone: string; valor: number; ativo?: boolean; alerta_ativo?: boolean; alerta_pct?: number; periodo?: 'mensal' | 'anual' }) =>
       req('/api/limites/geral', { method: 'POST', body: JSON.stringify(body) }),
     setCategoria: (body: any) =>
       req('/api/limites/categoria', { method: 'POST', body: JSON.stringify(body) }),

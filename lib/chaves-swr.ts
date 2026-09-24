@@ -62,6 +62,9 @@ export const chave = {
   /** `api.limites.listar(phone, mes)` */
   limites: (p: string, mes: string) => `d:limites:${p}:${mes}`,
 
+  /** `api.limites.ano(phone, ano)` — os 12 meses do orçamento anual. */
+  limitesAno: (p: string, ano: string) => `d:limites-ano:${p}:${ano}`,
+
   /** `api.transacoes.resumo(phone, mes, { criado_por })` */
   resumo: (p: string, mes: string, criadoPor?: string) =>
     `d:resumo:${p}:${mes}:${criadoPor || T}`,
