@@ -427,7 +427,8 @@ export const COMANDOS: Comando[] = [
     id: 'fatura',
     titulo: 'Ver fatura do mês',
     exemplo: 'fatura nubank',
-    descricao: 'Mostra o valor total da fatura atual do cartão. Quando a fatura fecha (e quando vence), a Sora te avisa sozinha e já oferece pagar — é só responder de qual conta.',
+    descricao: 'Mostra a fatura do cartão com o período do ciclo, as compras e o total — o mesmo valor que aparece no painel. Dá pra pedir outro mês: "fatura do nubank de outubro", "a do mês que vem", "a fatura passada". Quando a fatura fecha (e quando vence), a Sora te avisa sozinha e já oferece pagar — é só responder de qual conta.',
+    variantes: ['fatura do nubank', 'quanto está a fatura do inter', 'relatório da fatura do mercado pago de outubro', 'extrato do cartão c6', 'fatura do nubank do mês que vem'],
     categoria: 'cartoes',
   },
   {

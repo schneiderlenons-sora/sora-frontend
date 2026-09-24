@@ -2694,6 +2694,61 @@ regra virava `buscar` ou `resumo` — nunca `null`, então **nunca alcançava a 
   gatilho de `RE_TAREFA_NL`. Leitura defensável e melhor que o resumo de antes; se
   incomodar, tratar em `RE_NAO_TAREFA` do `grow.js`, não nesta regra.
 
+## Consultar a fatura pelo WhatsApp: o catálogo prometia, o código não tinha (set/2026)
+
+Relato com print: *"Estou tentando puxar o relatório do mês que vem de um cartão
+e não está indo."*
+
+⚠️ **A Central da Sora ANUNCIAVA o comando** (`id: 'fatura'`, "Ver fatura do
+mês", exemplo `fatura nubank`) e ele **nunca existiu**. O webhook só tinha
+`pagar_fatura` (que é AÇÃO) e `set_fatura_dia`. Medido no interpretador antes
+do fix:
+
+```
+fatura nubank ............................................ null → cai pra IA
+fatura do nubank ......................................... null → cai pra IA
+qual a fatura do nubank .................................. null → cai pra IA
+Relatório da fatura do mercado pago credito do mês de outubro
+                                       → {"acao":"resumo","periodo":"mes"}
+```
+
+- ⚠️ **A frase do cliente caía no CATCH-ALL.** `/\b(resumo|relat[oó]rio)\b/`
+  reivindica qualquer frase com "relatório" e devolve o resumo geral do mês
+  corrente — **perdendo o cartão E o mês**. Mesma família do catch-all de
+  "gasto", corrigido dias antes. Por isso a regra nova roda **ANTES** dele.
+- ⚠️ **E a IA não salvava:** o prompt de `ia.js` não tinha ação nenhuma de
+  consultar fatura (só `set_fatura_dia`), então as frases curtas caíam pra IA e
+  morriam lá. As duas portas estavam fechadas ao mesmo tempo.
+- **`handlers/faturaCartao.js`** responde com o ciclo, as compras e o total.
+  ⚠️ **O valor sai de `faturaVista.valorExibido`, a fonte única do painel** —
+  nunca de soma local. Somar aqui recriaria as divergências "zap × painel" que
+  o projeto já pagou caro pra fechar (fatura publicada, simulada, parcelas
+  previstas, rollover). A injeção de `parcelasPrevistas: lerPrevistas` é a
+  mesma da rota `/wallets/faturas`; sem ela, cartão cujo emissor manda parcela
+  sem "N/M" (Mercado Pago) sai MENOR que o do banco.
+- ⚠️ **Só COMPRA entra na lista.** Pagamento de fatura é `Gasto` +
+  `transferencia` e apareceria como gasto novo; crédito/estorno viraria linha
+  negativa no meio. Os dois já estão embutidos no TOTAL — mesma escolha do
+  ranking do `DetalhesCartaoModal`.
+- ⚠️ **O MÊS É RESOLVIDO NO CÓDIGO, NUNCA PELA IA** (`competenciaPedida`, lendo
+  a frase original no `case` do webhook). Pedir a competência a um LLM é
+  aritmética de calendário — exatamente o que fez a Sora salvar 24/09 quando o
+  cliente disse 25/09 (seção da Agenda). A janela é `dist <= 6`: mês citado a
+  mais de 6 meses à frente é lido como passado.
+- ⚠️ **A guarda de "faturamento" é aberta por `extrato`, não por `fatura`.** O
+  limite de palavra já barra "faturamento" sozinho; quem fura é
+  "extrato do faturamento da loja", que sem a guarda vira `fatura_cartao` com
+  termo "faturamento loja" e leva quem tem a aba Negócios pro lugar errado.
+- ⚠️ **O 1º caso do eval passou POR ACIDENTE e só a mutação mostrou:** usava
+  "qual o meu faturamento esse mês", frase em que a regra nem dispara, então
+  remover a guarda não quebrava nada. Caso que não mata a mutação não está
+  testando a linha. Travado em `npm run eval` (161 → 171 casos, 7 mutações,
+  7 mortas), com as três regressões possíveis no mesmo bloco: `resumo`,
+  `pagar_fatura` e `buscar` seguem intactos.
+- ⚠️ **A competência esperada é CALCULADA a partir de hoje no eval, nunca
+  cravada** — "outubro" é mês que vem em setembro e mês passado em novembro.
+
+
 ## Modo manual grátis + demo do app Android (set/2026)
 
 A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
