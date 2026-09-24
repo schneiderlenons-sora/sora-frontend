@@ -661,7 +661,7 @@ function WalletCard({
         {doBanco && conexaoEncerrada && (
           <p className="mt-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
             <Landmark size={11} className="flex-shrink-0" aria-hidden />
-            <span>Conexão encerrada · o saldo parou de atualizar. Reconecte em Open Finance.</span>
+            <span>Esta conta parou de atualizar — ficou presa numa conexão antiga. Reconecte em Open Finance.</span>
           </p>
         )}
         {doBanco && !conexaoEncerrada && (

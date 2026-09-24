@@ -703,6 +703,35 @@ export default function OpenFinancePage() {
                               </span>
                             </p>
                           )}
+                          {/* ⚠️ DEPOIS DAS 48h SOBRAVA O SILÊNCIO — e era o silêncio
+                              que empurrava o cliente pra reconexão em looping.
+                              Relato de set/2026: ele desconectou e reconectou o BTG
+                              duas vezes porque o cartão nunca veio, e nada na tela
+                              dizia que a conexão só tinha trazido a conta. Cada
+                              reconexão é um consentimento novo, que a Polp cobra.
+
+                              ⚠️ MUDO, NÃO ÂMBAR, e o texto AFIRMA só o que é fato
+                              ("trouxe apenas contas"). Para a maioria das conexões
+                              velhas sem cartão a explicação verdadeira é "essa
+                              pessoa não tem cartão nesse banco" — medido: as 3 sem
+                              cartão tinham 10+ dias. Alarme ali seria ruído; a
+                              frase factual responde "cadê meu cartão?" sem assustar
+                              quem nunca teve um. */}
+                          {!c.outro_grupo
+                            && (c.contas_vinculadas ?? 0) > 0
+                            && (c.cartoes_vinculados ?? 0) === 0
+                            && Date.now() - new Date(c.created_at).getTime() >= 48 * 3600 * 1000 && (
+                            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground flex items-start gap-1">
+                              <Landmark size={11} className="mt-0.5 flex-shrink-0" aria-hidden />
+                              <span>
+                                Esta conexão trouxe apenas contas, sem cartão de crédito. Se você tem
+                                cartão neste banco, reconecte marcando <b>cartão de crédito</b> na tela
+                                do banco — e, se já tentou e ele não vem, o banco não está liberando
+                                esse dado.{' '}
+                                <a href="/reportar-bug" className="font-semibold underline">Fale com a gente</a>.
+                              </span>
+                            </p>
+                          )}
                           {/* ⚠️ Sem este aviso a conexão apareceria listada e as contas dela não,
                               o que confunde tanto quanto ela sumir. Diz ONDE ela vive e evita a
                               reconexão — que geraria consentimento e cobrança em dobro. */}

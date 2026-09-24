@@ -848,16 +848,31 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
           </p>
         )}
 
-        {/* ⚠️ Valor PARADO não pode parecer valor de hoje. */}
+        {/* ⚠️ Valor PARADO não pode parecer valor de hoje.
+            ⚠️ O SUJEITO É O CARTÃO, NUNCA "O BANCO" — e essa palavra foi a
+            causa de um relato (set/2026): o título dizia "Conexão com o banco
+            encerrada" enquanto a aba Open Finance, na mesma tela, mostrava
+            "Conectado · há 3 min". O cliente apontou que as duas mensagens se
+            contradiziam, e ele estava certo. As duas eram verdade: o BANCO
+            está conectado, mas ESTE cartão ficou preso ao consentimento
+            antigo, porque a conexão nova não o trouxe.
+            ⚠️ E não manda mais só "reconecte": ele tinha reconectado DUAS
+            vezes, e reconectar não traz o cartão quando o banco não o libera.
+            Repetir a mesma instrução é jogar o cliente num laço. */}
         {conexaoEncerrada && (
           <div className="mt-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
-            <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">Conexão com o banco encerrada</p>
+            <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">Este cartão parou de atualizar</p>
             <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
-              Este cartão parou de atualizar e o valor pode estar desatualizado.{' '}
+              Ele ficou preso numa conexão antiga, então o valor abaixo é o último que o banco
+              enviou.{' '}
               <a href="/open-finance" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
                 Reconecte o banco
               </a>{' '}
-              autorizando o cartão de crédito.
+              autorizando o cartão de crédito junto. Se você já reconectou e ele continua assim,
+              o banco não está liberando este cartão —{' '}
+              <a href="/reportar-bug" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
+                fale com a gente
+              </a>.
             </p>
           </div>
         )}

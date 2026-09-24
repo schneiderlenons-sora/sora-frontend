@@ -1248,7 +1248,7 @@ function LinhaComposicao({
                   title={item.selo === 'banco'
                     ? 'O banco já fechou esta fatura: é o valor oficial.'
                     : item.selo === 'desatualizado'
-                      ? 'A conexão com o banco foi encerrada: este valor parou de atualizar. Reconecte em Open Finance.'
+                      ? 'Este cartão ficou preso numa conexão antiga: o valor parou de atualizar. Reconecte em Open Finance autorizando o cartão.'
                       : 'Fatura em aberto: o valor muda até o banco fechar, e a Sora troca pelo oficial sozinha.'}
                 >
                   {item.selo === 'banco'
