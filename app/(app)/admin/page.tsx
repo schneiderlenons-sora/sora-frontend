@@ -9,7 +9,7 @@ import AfiliadosPainel from '@/components/admin/AfiliadosPainel';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake, AlertCircle,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -248,6 +248,29 @@ async function adminFetch(path: string, init?: RequestInit) {
   if (!res.ok) throw new Error(data?.erro || `Erro ${res.status}`);
   return data;
 }
+
+// ⚠️ QUANTO CABE NA RESPOSTA AO RELATO — orçamento, não chute.
+//
+// A Meta limita o corpo do template em 1024 chars JÁ HIDRATADO (com {{1}} e
+// {{2}} substituídos). É limite de PLATAFORMA: não existe plano nem ajuste que
+// aumente. Estourar devolve "(#132005) Translated text too long" — e só
+// DEPOIS de tentar enviar, que foi o relato de 24/09/2026.
+//
+// Do total, nem tudo é nosso pra gastar (medido em `routes/admin.js`):
+//   139  corpo fixo do template `comunicado_sora`
+//    81  ponteiro `comPonteiro()` que o backend gruda no fim do texto
+//    ~40 folga pro primeiro nome ({{1}}) e para emoji, que conta mais de 1
+//
+// ⚠️ MEXEU NO CORPO DO TEMPLATE NA META OU NO `comPonteiro`? ajuste aqui —
+// são eles que definem a sobra, e um número velho volta a deixar o envio
+// falhar só no fim.
+const LIMITE_RESPOSTA = 1024 - 139 - 81 - 40;   // = 764
+
+// Mesmo teto de 1024 pro comunicado em MASSA, que usa o `atualizacao_sora`
+// ("Eaí, {{1}}! Nova atualização no ar! / {{2}} / Qualquer dúvida, é só
+// responder aqui. 💚"). Corpo fixo mais curto, então sobra mais — e aqui
+// estourar é pior: o disparo é em background e falharia em TODO mundo.
+const LIMITE_COMUNICADO = 1024 - 75 - 40;   // = 909
 
 export default function AdminPage() {
   const { perfil, loading } = useAuth();
@@ -570,25 +593,45 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                 </div>
 
                 {/* Compositor de resposta (pelo WhatsApp da Sora, via template) */}
-                {respId === b.id && (
+                {respId === b.id && (() => {
+                  // ⚠️ O LIMITE É DA META E NÃO DÁ PRA AUMENTAR: 1024 chars no
+                  // corpo do template JÁ HIDRATADO (com {{1}} e {{2}} trocados).
+                  // Estourar devolve "(#132005) Translated text too long" —
+                  // relato de 24/09/2026, e o envio só falhava DEPOIS de tentar.
+                  // O orçamento abaixo desconta o que não é digitado por nós.
+                  const usado = respMsg.trim().length;
+                  const restante = LIMITE_RESPOSTA - usado;
+                  const estourou = restante < 0;
+                  return (
                   <div className="pt-2 space-y-2 border-t border-border/60 mt-1">
                     <textarea
                       value={respMsg} onChange={(e) => setRespMsg(e.target.value)} rows={3} autoFocus
                       placeholder={`Resposta pra ${b.nome?.split(' ')[0] || 'o cliente'}…`}
-                      className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary"
+                      aria-invalid={estourou}
+                      className={`w-full rounded-xl bg-background p-3 text-sm resize-none focus:outline-none ${
+                        estourou ? 'border border-red-500 focus:border-red-500' : 'border border-border focus:border-primary'}`}
                     />
                     <div className="flex items-center gap-2">
-                      <button onClick={() => responderRelato(b.id)} disabled={enviandoResp || !respMsg.trim()}
+                      <button onClick={() => responderRelato(b.id)} disabled={enviandoResp || !respMsg.trim() || estourou}
                               className="h-10 px-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50">
                         {enviandoResp ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar pela Sora
                       </button>
                       <button onClick={() => { setRespId(null); setRespMsg(''); }} className="h-10 px-3 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
+                      {/* Ícone + número, nunca só a cor (acessibilidade). */}
+                      <span className={`ml-auto text-[11px] font-semibold tabular-nums inline-flex items-center gap-1 ${
+                        estourou ? 'text-red-500' : restante <= 80 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                        {estourou && <AlertCircle size={12} />}
+                        {estourou ? `${-restante} a mais` : `${restante} restantes`}
+                      </span>
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-snug">
-                      Vai pelo WhatsApp oficial da Sora (template) — alcança mesmo se o cliente não falou com a Sora nas últimas 24h. Quebras de linha viram espaço.
+                      {estourou
+                        ? `O WhatsApp recusa acima de ${LIMITE_RESPOSTA} caracteres (limite da Meta, não dá pra aumentar). Encurte ou mande em duas respostas.`
+                        : 'Vai pelo WhatsApp oficial da Sora (template) — alcança mesmo se o cliente não falou com a Sora nas últimas 24h. Quebras de linha viram espaço.'}
                     </p>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -867,6 +910,9 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
 
   async function enviarTeste() {
     if (!texto.trim()) { flash('⚠️ Escreva a mensagem primeiro.'); return; }
+    // ⚠️ Barra ANTES de enviar: acima do teto a Meta recusa com 132005 e, no
+    // disparo em massa, isso falharia em TODO mundo — em background, sem ninguém vendo.
+    if (texto.trim().length > LIMITE_COMUNICADO) { flash(`⚠️ Mensagem ${texto.trim().length - LIMITE_COMUNICADO} caracteres acima do limite do WhatsApp.`); return; }
     setBusy('teste');
     try {
       const d = await post({ modo: 'teste', texto: texto.trim(), testePhone: testePhone.replace(/\D/g, '') });
@@ -881,6 +927,9 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
 
   async function disparar() {
     if (!texto.trim()) { flash('⚠️ Escreva a mensagem primeiro.'); return; }
+    // ⚠️ Barra ANTES de enviar: acima do teto a Meta recusa com 132005 e, no
+    // disparo em massa, isso falharia em TODO mundo — em background, sem ninguém vendo.
+    if (texto.trim().length > LIMITE_COMUNICADO) { flash(`⚠️ Mensagem ${texto.trim().length - LIMITE_COMUNICADO} caracteres acima do limite do WhatsApp.`); return; }
     if (planos.length === 0) { flash('⚠️ Marque ao menos um plano.'); return; }
     // Conta primeiro pra confirmar com o número real.
     setBusy('disparar');
@@ -933,7 +982,12 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4}
                     placeholder="Não repita a saudação — o template já diz “Oi, <nome>!”. Comece pelo aviso: Novidade! Agora a Sora…"
                     className="w-full rounded-xl bg-background border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary" />
-          <p className="text-[11px] text-muted-foreground text-right tabular-nums">{chars} caracteres</p>
+          <p className={`text-[11px] text-right tabular-nums font-semibold ${
+            chars > LIMITE_COMUNICADO ? 'text-red-500' : chars > LIMITE_COMUNICADO - 100 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+            {chars > LIMITE_COMUNICADO
+              ? `${chars - LIMITE_COMUNICADO} caracteres a mais — o WhatsApp recusa (limite da Meta)`
+              : `${LIMITE_COMUNICADO - chars} caracteres restantes`}
+          </p>
         </div>
 
         {/* Quem recebe */}
@@ -983,7 +1037,7 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
                      placeholder="Número de teste (vazio = o seu)"
                      className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm tabular-nums placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary" />
             </div>
-            <button onClick={enviarTeste} disabled={!!busy || !texto.trim()}
+            <button onClick={enviarTeste} disabled={!!busy || !texto.trim() || chars > LIMITE_COMUNICADO}
                     className="h-11 px-4 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2 disabled:opacity-50">
               {busy === 'teste' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar teste
             </button>
@@ -997,7 +1051,7 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
             {busy === 'contar' ? <Loader2 size={14} className="animate-spin" /> : <UsersIcon size={14} />}
             {total !== null ? `${total} destinatário${total === 1 ? '' : 's'}` : 'Contar destinatários'}
           </button>
-          <button onClick={disparar} disabled={!!busy || !texto.trim() || planos.length === 0}
+          <button onClick={disparar} disabled={!!busy || !texto.trim() || planos.length === 0 || chars > LIMITE_COMUNICADO}
                   className="flex-1 h-11 px-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50">
             {busy === 'disparar' ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />} Disparar comunicado
           </button>
