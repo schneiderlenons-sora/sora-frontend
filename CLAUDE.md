@@ -2784,6 +2784,34 @@ Relatório da fatura do mercado pago credito do mês de outubro
 - ⚠️ **A competência esperada é CALCULADA a partir de hoje no eval, nunca
   cravada** — "outubro" é mês que vem em setembro e mês passado em novembro.
 
+### A lista da fatura diz QUAL parcela é a daquele mês (set/2026)
+
+Pedido do cliente logo depois de o relatório entrar no ar: *"funcionou sim, na
+minha opinião ficaria melhor se as compras que são parceladas mostrar qual
+parcela é aquele mês"*.
+
+- Medido: **2.327 dos 11.041** gastos desde 01/08 são parcela (**21%**) — e
+  `parcela_num`/`parcela_total` **já vinham estruturados** na transação. Era a
+  lista que não os selecionava.
+- **`rotuloParcela`** em `services/consultaParcela.js` (onde a regra de parcela
+  já mora), não inline no handler.
+- ⚠️ **SÓ COM `parcela_total > 1`.** Compra à vista chega ora como `1/1`, ora
+  como `null` (medido: **82 × 8.632**); rotular "1/1" encheria 8 de cada 10
+  linhas de informação inútil.
+- ⚠️ **NÃO REPETE O MARCADOR QUE JÁ VEM NO TEXTO.** Parte das descrições chega
+  do banco com ele colado (**69** na amostra) — sem a checagem a linha sairia
+  "HOTEIS.COM 12/12 · 12/12". A comparação ignora espaço (pega o
+  "CHINOCA 2 / 3"), e um número parecido que não é o marcador ("PNEU 205/55")
+  **não** suprime o rótulo.
+- ⚠️ **O corte de 28 caracteres acontece ANTES do rótulo**, nunca depois:
+  cortar o texto já montado comeria justamente o "3/9" do fim — que é a
+  informação pedida.
+- `eval:consulta-parcela` §7, 5 mutações / 5 mortas.
+- ⚠️ **Só o relatório de fatura ganhou o rótulo.** O `buscar` ("quanto gastei
+  com X") lista `emoji data - valor (categoria)` e **nem mostra a descrição**,
+  então o marcador ficaria solto ali; e o `resumo` é por CATEGORIA, sem lista
+  de compras. Não é lacuna — é onde a informação tem onde encostar.
+
 
 ## Conta PJ no Open Finance: o CPF vai JUNTO do CNPJ (set/2026)
 
