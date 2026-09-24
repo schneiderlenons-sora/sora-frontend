@@ -2749,6 +2749,69 @@ Relatório da fatura do mercado pago credito do mês de outubro
   cravada** — "outubro" é mês que vem em setembro e mês passado em novembro.
 
 
+## Conta PJ no Open Finance: o CPF vai JUNTO do CNPJ (set/2026)
+
+Relato: *"open finance nao funciona, coloquei cnpj e aparece mensagem abaixo"*
+→ `Celcoin POST /consents → 422 O campo cpf é obrigatório para esta instituição`.
+
+A regra está escrita nos docs versionados (`docs/celcoin/institutions.txt` e
+`consents__create.txt`) e é o **oposto** do que a tela assumia:
+
+```
+PERSONAL → só o CPF (CNPJ é PROIBIDO)
+BUSINESS → CPF do operador/representante E o CNPJ da empresa
+BOTH     → só CPF (pessoal) OU CPF + CNPJ (empresarial)
+```
+
+- ⚠️ **O CPF entra em TODOS os casos** — em PJ ele identifica quem *autoriza*.
+  A tela tratava CPF e CNPJ como excludentes: marcar "Empresa (PJ)" escondia o
+  campo de CPF e o payload saía `cpf: undefined`. **Nenhuma conta PJ conectava.**
+- ⚠️ **`credentials` NÃO basta pra decidir.** Ele é DERIVADO do `type` e vem
+  `["cpf","cnpj"]` tanto em BUSINESS (exige os dois) quanto em BOTH (CNPJ
+  opcional) — foi essa ambiguidade que o código leu como "escolha um". Quem
+  manda é **`institution.type`**, com `credentials` só como fallback de payload
+  antigo (`docsDaInstituicao` em `app/(app)/open-finance/page.tsx`).
+- **BUSINESS não mostra o toggle PF/PJ** (não existe conexão pessoal ali) e diz
+  isso na tela, em vez de deixar o usuário escolher uma opção que vai falhar.
+- Guarda antes da chamada: sem CPF, a tela explica o que falta em vez de gastar
+  uma requisição e devolver erro cru de API.
+- ⚠️ **O backend nunca teve culpa** — `criarConsentimento` sempre repassou os
+  dois campos. Era só a tela que não os coletava juntos.
+
+## Convite de grupo: o QR mandava o convidado pra uma busca na web (set/2026)
+
+Relato: *"Nao consigo colocar outros membros, qr code do convite abre para
+fazer compra de papelão. Pelo site pede para criar conta e efetuar pagamento."*
+Dois defeitos independentes, os dois nossos.
+
+- ⚠️ **O QR CODIFICAVA O CÓDIGO CRU** (`?data=A1B2C3`), não uma URL. Texto solto
+  num QR não é link: a câmera do celular cai na **busca na web / leitor de
+  código de produto** — e um código alfanumérico casou com um anúncio de
+  papelão. Não era bug do leitor dele; era o conteúdo do QR.
+- ⚠️ **QUEM CHEGAVA PELO SITE BATIA NO PAYWALL.** Conta nova nasce `inativo` e o
+  `PaywallRedirect` manda **toda** rota pro /planos, então o convidado nunca
+  alcançava "Comunidade → Entrar em grupo" — era despejado numa tabela de
+  preços. **Isso CONTRARIA o próprio backend:** `POST /grupos/entrar` não exige
+  plano nenhum do convidado; o limite de membros sai do plano do **DONO**
+  (`LIMITE_MEMBROS[grupo.dono.plano]`). Quem paga é quem convida.
+- **`app/convite/[codigo]/page.tsx`** é a porta: resolve o código, e deslogado
+  manda pro login/criar conta **preservando o destino**.
+- ⚠️ **O modo grátis é liberado só DEPOIS de o backend aceitar o código** —
+  nunca por um convite inválido ou por grupo que já estourou o limite. E **não
+  é brecha nova**: `POST /api/plano-gratis` não recebe argumento e já é
+  chamável por qualquer conta autenticada (é o que o app Android faz com todo
+  mundo). O paywall da web sempre foi parede **mole**, não fronteira de
+  segurança — aqui a porta é mais estreita que a que já existia.
+- ⚠️ **A rota entrou nas TRÊS allowlists** (abertura em `app/layout.tsx`,
+  `OnboardingRedirect`, `PaywallRedirect`) — mesma lição do `/tour`. Faltando a
+  do onboarding, o convidado novo era mandado pro wizard e **perdia o código**.
+- A mensagem de WhatsApp manda o **link**, não mais instruções de 3 passos
+  ("acesse o site → ache Comunidade → digite o código"), que era justamente o
+  caminho que terminava no paywall.
+- ⚠️ **`navigator.share` leva `url`**, não o código no `text`: sem isso o app de
+  destino não reconhece como link e o problema volta pela porta dos fundos.
+
+
 ## Modo manual grátis + demo do app Android (set/2026)
 
 A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
