@@ -2812,6 +2812,35 @@ Dois defeitos independentes, os dois nossos.
   destino não reconhece como link e o problema volta pela porta dos fundos.
 
 
+
+### ⚠️ Quem paga pelo convidado — DECISÃO DO DONO (set/2026)
+
+**O convidado entra de graça, em `gratis`, e NÃO herda o plano do dono.**
+Decisão consciente, tomada depois de medir; não é lacuna.
+
+- **O que ele PODE:** o painel do grupo — transações, contas, cartões, metas,
+  dívidas, limites, categorias, previstos e relatórios. Essas rotas resolvem
+  por `grupo_ativo`, então ele enxerga e edita o dinheiro compartilhado.
+- **O que ele NÃO pode:** tudo que é gated pelo plano DELE — Open Finance,
+  Drive, Saúde, Wrapped, Agenda, Agentes e, principalmente, **o WhatsApp**
+  (`SEM_WHATSAPP` em `webhook.js` devolve CTA pro /planos). Na prática o
+  convite vira funil: entra de graça no painel, e o zap é o upsell.
+- ⚠️ **NÃO EXISTE HERANÇA DE PLANO em lugar nenhum.** `dono_id` só decide o
+  **papel** (admin/escrita/leitura) em `middlewares/permissao.js` e no
+  `/api/me`. O `plano` é sempre o da própria linha de `users` — inclusive no
+  `exigirPlano`. Quem for implementar "plano do grupo" precisa mexer nos dois
+  lados, e isso foi **adiado de propósito**.
+- ⚠️ **A base NÃO prova intenção.** Medido em 24/09/2026: 18 linhas em
+  `grupo_membros`, **4 convidados, todos `premium`**. Parece "cada um paga o
+  seu", mas era o paywall obrigando — nenhuma regra deliberada exigia plano do
+  convidado, e `POST /grupos/entrar` nunca checou. Não reintroduzir a
+  exigência achando que é o comportamento histórico.
+- ⚠️ **Tensão conhecida com o texto de venda:** a Comunidade diz *"grupos com
+  até 5 pessoas… Disponível no plano Premium"* e `LIMITE_MEMBROS[dono]` dá 5
+  vagas — formato de plano-família. Com esta decisão, as 5 vagas dão acesso ao
+  **painel compartilhado**, não ao plano do dono. Se um cliente reclamar que
+  "paguei Platinum e meu cônjuge não usa o zap", é ISTO, e é esperado.
+
 ## Modo manual grátis + demo do app Android (set/2026)
 
 A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
