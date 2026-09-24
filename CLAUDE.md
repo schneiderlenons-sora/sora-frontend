@@ -2937,6 +2937,36 @@ Migration **171**.
   daquele campo e sobrescrever o teto do ano com ele.
 
 
+## Dívida quitada por engano não reabria (set/2026)
+
+Relato de cliente: *"quitei uma parcela sem querer e reabri ela diminuindo uma
+parcela. Mas ainda assim ela ficou como Quitada"*. Reproduzido na conta dele:
+IPVA com `status=quitada` e `parcelas_pagas` **2 de 3**, card exibindo
+"Quitada em 19/09/2026" e R$ 0,00.
+
+- ⚠️ **O POST SEMPRE RECALCULOU o status pelas parcelas; o PUT NUNCA.** E o
+  `statusDeAtraso`, que o PUT já chamava, **só anda entre ativa e
+  em_atraso** e devolve `quitada` intacta de propósito. Somando os dois,
+  **não existia caminho nenhum** que reabrisse uma dívida quitada por engano.
+- **`statusPorParcelas`** mora em `services/vencimentoDivida.js`, ao lado do
+  `statusDeAtraso` — é a mesma família de pergunta, e na rota não seria
+  testável. `eval:vencimento-divida` §7, 5 mutações / 5 mortas.
+- ⚠️ **DEVOLVE `null` SEM `parcelas_total`, e é isso que protege o resto da
+  base.** Dívida sem parcelas é quitada pelo botão "quitar tudo" e está
+  corretamente quitada; responder `ativa` ali **desquitaria todas elas na
+  primeira edição**, até numa troca de título.
+- ⚠️ Só roda quando a edição **mexeu nas parcelas**, respeita `status`
+  explícito no corpo e pula dívida do **Open Finance** (o status vem do
+  banco). E roda **ANTES** do bloco de atraso: reaberta, a parcela vencida
+  ainda precisa poder virar "em atraso".
+- A **`data_quitacao` sai junto** ao reabrir — deixá-la faria o card dizer
+  "Quitada em <data>" numa dívida em aberto, que foi o texto do print.
+- ⚠️ **O código sozinho não conserta o passado:** quem já tem a linha presa só
+  sairia desse estado editando as parcelas de novo. Migration **172**.
+  Medido antes: **3 linhas de 212**.
+- O selo do card lê `divida.status` (`DividasClient.tsx`), então corrigir o
+  backend conserta a tela sem tocar no front.
+
 ## Modo manual grátis + demo do app Android (set/2026)
 
 A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
@@ -3223,6 +3253,7 @@ sql/126_saldo_aplicado.sql      — `wallets.saldo_aplicado`: quanto do saldo es
 sql/127_pagamento_fatura_frases.sql — pagamento de fatura descrito com a frase de CADA banco ("PAGAMENTO DEBITO AUTOMATICO", "Obrigado pelo pagamento", "Pagamento com saldo", "PAGAMENTO ON LINE"). Sem ela a fatura JÁ PAGA segue de pé no painel e o crédito ainda ABATE (medido: 11 linhas, R$ 35.516,30).
 sql/156_plano_gratis.sql        — plano `gratis` (modo manual) no users_plano_check. **OBRIGATORIA**: sem ela a ativacao falha calada e o usuario fica inativo pra sempre.
 sql/171_limites_anuais.sql     — teto ANUAL por categoria (coluna `periodo` em category_limits) + `meta_anual*` em users. **OBRIGATORIA pro limite anual**: sem ela o teto do ano nao grava (a rota agora LE o erro e diz isso). O limite MENSAL continua intacto sem ela — nenhum select pede a coluna nova.
+sql/172_reabrir_dividas_presas.sql — reabre divida com status=quitada e parcelas faltando (relato: editou 3→2 parcelas pagas e o card seguiu "Quitada"). So mexe em divida COM parcelas e fora do Open Finance. Medido: 3 linhas de 212. O fix no codigo cobre o futuro; esta cobre o passado.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
