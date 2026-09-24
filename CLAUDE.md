@@ -2841,6 +2841,102 @@ Decisão consciente, tomada depois de medir; não é lacuna.
   **painel compartilhado**, não ao plano do dono. Se um cliente reclamar que
   "paguei Platinum e meu cônjuge não usa o zap", é ISTO, e é esperado.
 
+## O alerta de teto nunca disparava pra quem gasta em conta fixa (set/2026)
+
+Relato do dono: *"ultrapassei meu limite geral de gastos e não fui avisado"*.
+Medido na base: 13 usuários com meta definida, **1 a 823% do teto** com
+`meta_mensal_alerta_enviado` NULL — o envio nunca foi sequer tentado.
+
+⚠️ **O serviço funcionava.** Executado à mão contra os dados reais dela, montou
+o alerta certo na hora. Perdi tempo procurando erro no cálculo; o defeito era
+**quem chama**. Eram três lacunas somadas:
+
+- ⚠️ **O CRON NÃO VERIFICAVA NADA.** `verificarLimite` era chamado por **3 dos
+  12** caminhos que inserem em `transacoes` (zap, painel, sync do OF). O cron
+  de contas fixas — que gerou 10 dos lançamentos dela, todos às 11:00 — ficava
+  de fora. **Quem tem o orçamento dominado por conta fixa nunca era avisado.**
+  Hoje `inserirLancamento` (ponto único do cron) acumula os grupos e o alerta
+  roda **uma vez por grupo no fim**, nunca por lançamento: o laço percorre a
+  base inteira e chamar lá dentro seria N consultas por rodada.
+- ⚠️ **O PAINEL SÓ VERIFICAVA `tx.pago`, mas a SOMA conta pago E pendente.**
+  28 dos 38 gastos dela são pendentes: ela cruzou o gatilho num lançamento
+  `pago=false` e o gatilho não rodou. **Gatilho e soma têm de olhar o mesmo
+  conjunto** — era a assimetria que produzia o silêncio.
+- ⚠️ **A SOMA NÃO APLICAVA `ehTransferencia`**, então contava pagamento de
+  fatura, ajuste de saldo e "não considerar" — disparando por um total que a
+  tela do cliente não mostra em lugar nenhum. É a divergência "zap × painel"
+  que o projeto já pagou caro pra fechar. A coluna `ignorar_em` é pedida de
+  forma **tolerante**: pedir coluna inexistente derrubaria o SELECT inteiro e o
+  alerta sumiria pra todo mundo.
+
+> ⚠️ **LIÇÃO DE DIAGNÓSTICO:** meu teste stubou `enviarProativo` pra devolver
+> `true`, e o serviço então **gravou `meta_mensal_alerta_enviado` de verdade**
+> na linha da cliente — suprimindo o aviso dela. Pra rodar o serviço contra
+> produção sem escrever, **o stub devolve `false`**: `avisarGrupo` reporta
+> "ninguém recebeu" e o caminho da gravação nem é alcançado, mas os params do
+> template já foram montados e dá pra conferir tudo.
+
+## Limites ANUAIS — teto do ano + visão de 12 meses (set/2026)
+
+Pedido de cliente, com print do Minhas Economias: *"limites mensais e anuais —
+o de vocês é somente mensal"*. Gasto sazonal (IPVA, seguro, viagem, presentes)
+estoura um mês e cabe no ano; só com teto mensal não há como planejar isso.
+Migration **171**.
+
+- ⚠️ **O TETO ANUAL REUSA `category_limits`** — sem tabela nova e **sem mexer
+  na unique `(grupo_id, categoria, mes_referencia)`**. A chave do ano é o
+  próprio `mes_referencia` guardando só o ano (`'2026'` em vez de `'2026-09'`):
+  as duas strings são diferentes, então a constraint já os separa e um teto
+  mensal e um anual da MESMA categoria convivem sem colidir. **É a invariante
+  em que a feature inteira se apoia** — se as chaves colidissem, gravar o teto
+  do ano SOBRESCREVERIA o do mês. Travada em `eval:limites` §6 e em mutação.
+- **`ehChaveAnual` / `chaveDoPeriodo` são FONTE ÚNICA** em `services/limites.js`.
+  Rota, alerta e painel têm de concordar em qual linha é anual; três cópias
+  seriam três chances de um teto anual ser lido como mensal.
+- ⚠️ **Nenhum dos passes pede a coluna `periodo` no `select`.** Com a migration
+  171 pendente o teto anual simplesmente não existe, e o alerta **mensal** — que
+  é o que a base inteira usa — continua intacto. É a lição do `getUser` do Grow.
+  A coluna existe só pra tela não deduzir o período pelo tamanho do texto.
+- **`verificarLimiteAnual` só LÊ as transações do ano se houver algum teto
+  anual configurado.** A leitura do ano é cara e quase ninguém usa; pagá-la em
+  todo lançamento de todo mundo sairia caro no egress (o custo do Supabase é o
+  NÚMERO de idas). E aplica o mesmo `ehTransferencia` do pass mensal — somas
+  divergentes dariam dois avisos que não fecham entre si.
+- **`GET /limites/:phone/ano`** devolve os 12 meses numa chamada só. ⚠️ O
+  **"previsto" do mês é a soma dos tetos MENSAIS daquele mês, nunca o teto anual
+  ÷ 12**: são dois orçamentos diferentes e fatiar mentiria sobre o que a pessoa
+  configurou.
+- ⚠️ **`POST /geral` passou a LER o erro do update.** Sem a 171 as colunas não
+  existem e a tela fecharia dizendo que salvou. Família das migrations 121/147.
+- **Corrigido de passagem:** as rotas usavam `new Date().toISOString().slice(0,7)`,
+  que é **UTC** — no dia 31 às 21h no Brasil já era o mês seguinte, então quem
+  abrisse a aba à noite via e gravava o limite do mês errado.
+
+### A tela (`app/(app)/limites-de-gastos/`)
+
+- **O seletor de período fica ACIMA das abas, não como terceira aba:** ele muda
+  o HORIZONTE, e "geral"/"por categoria" continuam significando a mesma coisa
+  nos dois. Como terceira aba misturaria "o quê" com "em quanto tempo".
+- ⚠️ **`components/limites/GraficoAno.tsx` é arquivo próprio**, com
+  `next/dynamic` + `ssr:false` e skeleton de **260px, a mesma altura do
+  gráfico** — recharts não pode entrar no bundle da página, e skeleton de
+  altura diferente vira salto de layout.
+- ⚠️ **As duas séries não se distinguem só pela cor:** realizado é sólido,
+  previsto é contorno **tracejado**, e a legenda nomeia os dois — a leitura
+  sobrevive em escala de cinza.
+- ⚠️ **O olho de ocultar valores cobre tooltip E eixo** (`useFmt` nos dois), com
+  máscara **VAZIA** no eixo: pontinhos empilhados viram ruído e o gráfico segue
+  legível pela forma das barras.
+- ⚠️ **A média é dos meses QUE JÁ TIVERAM gasto, não ÷12.** Em março, dividir
+  por 12 daria uma média 3× menor e faria o ano parecer folgado.
+- ⚠️ **`useSWR` direto, não `useApi`** — o `useApi` registra no `LoadingGate` e
+  a baleia cobriria a página inteira só por alguém tocar em "Anual". E só busca
+  com o modo anual aberto.
+- ⚠️ **O valor inicial do modal geral segue o período aberto.** Abrir no anual
+  mostrando o teto mensal faria a pessoa "confirmar" um número que não é
+  daquele campo e sobrescrever o teto do ano com ele.
+
+
 ## Modo manual grátis + demo do app Android (set/2026)
 
 A Sora era paga desde o primeiro minuto: quem criava conta nascia `inativo` e o
@@ -3126,6 +3222,7 @@ sql/125_divida_consorcio.sql    — tipo `consorcio` no CHECK + carta de crédit
 sql/126_saldo_aplicado.sql      — `wallets.saldo_aplicado`: quanto do saldo está na aplicação automática do banco. O saldo já soma sem ela; a coluna é pra tela explicar "dos quais R$ X aplicados".
 sql/127_pagamento_fatura_frases.sql — pagamento de fatura descrito com a frase de CADA banco ("PAGAMENTO DEBITO AUTOMATICO", "Obrigado pelo pagamento", "Pagamento com saldo", "PAGAMENTO ON LINE"). Sem ela a fatura JÁ PAGA segue de pé no painel e o crédito ainda ABATE (medido: 11 linhas, R$ 35.516,30).
 sql/156_plano_gratis.sql        — plano `gratis` (modo manual) no users_plano_check. **OBRIGATORIA**: sem ela a ativacao falha calada e o usuario fica inativo pra sempre.
+sql/171_limites_anuais.sql     — teto ANUAL por categoria (coluna `periodo` em category_limits) + `meta_anual*` em users. **OBRIGATORIA pro limite anual**: sem ela o teto do ano nao grava (a rota agora LE o erro e diz isso). O limite MENSAL continua intacto sem ela — nenhum select pede a coluna nova.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
