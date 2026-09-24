@@ -168,6 +168,13 @@ export default function NovaCategoriaModal({
           icone: emoji,
           cor: hue,
           tipo,
+          // ⚠️ O SELETOR "É subcategoria de" APARECE NA EDIÇÃO (logo abaixo) e
+          // o payload não o enviava — a pessoa escolhia o pai, salvava, e nada
+          // mudava. Foi o relato de set/2026: "eu altero mas ele não grava".
+          // ⚠️ `?? null`, nunca `|| undefined`: mandar `null` é como se TIRA a
+          // categoria de baixo do pai, e `undefined` some do JSON — o backend
+          // usa `'parent_id' in body` pra distinguir "não mexer" de "soltar".
+          parent_id: parent ?? null,
         });
       } else {
         await api.categorias.criar({
