@@ -44,7 +44,56 @@ type Conexao = {
    *  reconectar — o que gera um 2º consentimento cobrado. */
   contas_vinculadas?: number;
   cartoes_vinculados?: number;
+  /** O veredito do BANCO sobre o cartão (migration 175). `null` = não sabemos
+   *  — e aí a tela não afirma nada, que é melhor do que afirmar errado. */
+  cartao_status?: CartaoStatus | null;
 };
+
+/** Ver `statusCartao` em routes/openFinance.js — os nomes têm de bater. */
+type CartaoStatus =
+  | 'ok' | 'a_caminho' | 'temporario' | 'falta_titular'
+  | 'indisponivel' | 'inexistente' | 'nao_pedido';
+
+/**
+ * O que dizer quando a conexão trouxe conta e nenhum cartão.
+ *
+ * ⚠️ O TEXTO ANTIGO MANDAVA RECONECTAR — e era o conselho errado. Relato de
+ * 25/09/2026: o cliente removeu a conexão na Sora, removeu TODAS as conexões
+ * pelo app do BTG e reconectou do zero, três vezes. A conta vinha, o cartão
+ * não. Reconectar não traz o que o banco não está liberando, e cada volta
+ * cria um consentimento novo, que a Polp cobra.
+ *
+ * Agora quem responde é o próprio banco (`GET /consents/{id}/resources`), e
+ * cada status leva a uma AÇÃO diferente — inclusive "não faça nada".
+ */
+function textoCartaoAusente(status?: CartaoStatus | null) {
+  switch (status) {
+    case 'a_caminho':
+      return 'O banco já liberou o cartão de crédito desta conexão e os dados ainda estão vindo. '
+           + 'Não precisa reconectar — ele aparece sozinho.';
+    // ⚠️ A doc da Celcoin separa este do `indisponivel` de propósito:
+    // TEMPORARILY_UNAVAILABLE pede retry/polling, não aviso de encerramento.
+    case 'temporario':
+      return 'O banco está com os dados de cartão fora do ar no momento. Isso costuma voltar '
+           + 'sozinho — reconectar não adianta.';
+    case 'falta_titular':
+      return 'O cartão está esperando a autorização dos outros titulares da conta. Enquanto todos '
+           + 'não autorizarem no app do banco, ele não vem.';
+    case 'indisponivel':
+      return 'O banco não está liberando os dados de cartão desta conexão pelo Open Finance. '
+           + 'Não é preciso reconectar: já tentamos e a resposta vem do banco.';
+    case 'inexistente':
+      return 'O banco não informou nenhum cartão de crédito nesta conexão. Se você tem cartão aqui, '
+           + 'fale com a gente — reconectar não muda essa resposta.';
+    // O único caso em que reconectar RESOLVE: o pedido saiu sem cartão (nosso).
+    case 'nao_pedido':
+      return 'Esta conexão foi criada sem a permissão de cartão de crédito. Reconecte o banco — '
+           + 'desta vez o cartão vai junto no pedido.';
+    default:
+      return 'Esta conexão trouxe apenas contas, sem cartão de crédito. Se você tem cartão neste '
+           + 'banco, fale com a gente que investigamos.';
+  }
+}
 type Inst = { id: number | string; name?: string; institution_name?: string; logo_url?: string; image_url?: string; primary_color?: string;
   // Quais documentos o banco exige. A Polp devolve ["cpf"], ["cpf","cnpj"]…
   credentials?: string[];
@@ -724,11 +773,14 @@ export default function OpenFinancePage() {
                             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground flex items-start gap-1">
                               <Landmark size={11} className="mt-0.5 flex-shrink-0" aria-hidden />
                               <span>
-                                Esta conexão trouxe apenas contas, sem cartão de crédito. Se você tem
-                                cartão neste banco, reconecte marcando <b>cartão de crédito</b> na tela
-                                do banco — e, se já tentou e ele não vem, o banco não está liberando
-                                esse dado.{' '}
-                                <a href="/reportar-bug" className="font-semibold underline">Fale com a gente</a>.
+                                {textoCartaoAusente(c.cartao_status)}{' '}
+                                {/* O link só onde a ação É falar com o suporte. Nos
+                                    casos em que o próprio banco já respondeu (a
+                                    caminho, fora do ar, falta titular), pedir contato
+                                    geraria um chamado que não tem o que resolver. */}
+                                {(!c.cartao_status || c.cartao_status === 'inexistente') && (
+                                  <a href="/reportar-bug" className="font-semibold underline">Fale com a gente</a>
+                                )}
                               </span>
                             </p>
                           )}
