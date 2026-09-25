@@ -71,12 +71,13 @@ export default function Hero() {
               {user ? t('ctaPainel') : t('ctaPrincipal')}
               <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
             </Link>
-
-            <a href="#demo"
-               className="inline-flex items-center gap-2 px-5 py-3.5 text-sm font-bold rounded-xl border border-zinc-300 dark:border-white/[0.12] bg-white/60 dark:bg-white/[0.03] backdrop-blur-sm hover:bg-white dark:hover:bg-white/[0.08] hover:-translate-y-0.5 transition-all">
-              <Sparkles size={14} style={{ color: BRAND }} />
-              {t('ctaDemo')}
-            </a>
+            {/* ⚠️ O CTA secundário "Testar Sora no zap" (âncora #demo) foi
+                REMOVIDO a pedido do dono (set/2026). A seção continua viva e
+                alcançável — o rodapé linka `#demo` e a `/financas` tem o
+                próprio botão pra ela —, então nada ficou órfão. A chave
+                `ctaDemo` segue nos catálogos pt/es pelo mesmo motivo: o
+                `HeroFinancas` não a usa, mas apagá-la é mudança de i18n sem
+                ganho, e ela volta de graça se o botão voltar. */}
           </div>
 
           {/* Trust bar */}
