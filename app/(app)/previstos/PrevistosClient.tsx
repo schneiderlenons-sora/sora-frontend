@@ -33,6 +33,7 @@ import { getCategoriaTheme } from '@/lib/categorias';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -115,6 +116,7 @@ const MESES_A_FRENTE = 6;
 type Aba = 'receitas' | 'despesas' | 'caixa' | 'projecao' | 'extrato';
 
 export default function PrevistosClient({ phoneInicial }: { phoneInicial?: string }) {
+  const temaCategoria = useTemaCategoria();
   const moedaBase = useMoedaBase();
   const { phone: authPhone } = useAuth();
   const phone = authPhone || phoneInicial || '';
@@ -607,7 +609,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       // Barbeiro) caía no mesmo ícone genérico — enquanto a outra aba, com os
       // MESMOS dados, mostrava o dente e a tesoura. O tema vem da DESCRIÇÃO e
       // o emoji da categoria vence quando ela tem um.
-      const tema = getCategoriaTheme(r.descricao || r.categoria || '');
+      const tema = temaCategoria(r.descricao || r.categoria || '');
       const emoji = (r.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0]) ?? tema.emoji;
       return {
         id: `rec:${r.id}`,

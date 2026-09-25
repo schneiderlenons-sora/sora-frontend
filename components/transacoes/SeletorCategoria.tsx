@@ -168,7 +168,12 @@ export default function SeletorCategoria({
     );
   };
 
-  const temaAtual = getCategoriaTheme(valor || 'Outros');
+  // ⚠️ `cats` ENTRA NA CHAMADA. O seletor grava só o NOME ("Barbeiro"), sem o
+  // emoji — e `getCategoriaTheme` sem a lista pula o passo que lê o ícone do
+  // usuário, cai no hash e devolve 📦, que é o ícone de "Outros". Era o
+  // relato de 25/09/2026: "mudar a categoria de uma transação e o emoji ficar
+  // com o emoji da categoria 'outros'".
+  const temaAtual = getCategoriaTheme(valor || 'Outros', cats);
 
   return (
     <div className="relative" ref={painelRef}>

@@ -32,6 +32,7 @@ import {
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
 const skel = (h: number) => () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: h }} role="status" aria-label="Carregando gráfico" />;
@@ -2207,6 +2208,7 @@ function PendentesList({
 }) {
   const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
+  const temaCategoria = useTemaCategoria();
   const badgeBg = badgeColor === 'green'
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
     : 'bg-red-500/10 text-red-500';
@@ -2233,7 +2235,7 @@ function PendentesList({
       ) : (
         <div className="divide-y divide-border/40 max-h-[400px] overflow-y-auto">
           {items.map((tx, i) => {
-            const theme = getCategoriaTheme(tx.categoria || '');
+            const theme = temaCategoria(tx.categoria || '');
             const catNome = nomeCategoria(tx.categoria);
             // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
             const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : catNome;

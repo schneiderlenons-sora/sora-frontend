@@ -8,6 +8,7 @@ import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { fmtDataBR } from '@/lib/data-br';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro } from '@/lib/moeda-base';
+import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -22,6 +23,7 @@ interface Props {
 // Extrato de uma CONTA bancária: entradas + saídas do mês, resumo e movimentações.
 // Espelha o DetalhesCartaoModal, mas mostra os dois fluxos (débito sai da conta).
 export default function DetalhesContaModal({ phone, conta, onClose, onExcluir }: Props) {
+  const temaCategoria = useTemaCategoria();
   const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const hoje = new Date();
@@ -162,7 +164,7 @@ export default function DetalhesContaModal({ phone, conta, onClose, onExcluir }:
             ) : (
               <div className="space-y-3">
                 {topCategorias.map(({ cat, total }) => {
-                  const theme = getCategoriaTheme(cat);
+                  const theme = temaCategoria(cat);
                   const pct = Math.round((total / maiorCategoria) * 100);
                   return (
                     <div key={cat}>
@@ -200,7 +202,7 @@ export default function DetalhesContaModal({ phone, conta, onClose, onExcluir }:
               <div className="space-y-2">
                 {(verTudo ? txsOrdenadas : txsOrdenadas.slice(0, 10)).map((tx, i) => {
                   const entrada = tx.tipo === 'Recebimento';
-                  const theme = getCategoriaTheme(tx.categoria || '');
+                  const theme = temaCategoria(tx.categoria || '');
                   const data = fmtDataBR(tx.data, { day: '2-digit', month: 'short' }).replace('.', '');
                   return (
                     <div key={tx.id || i} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors">

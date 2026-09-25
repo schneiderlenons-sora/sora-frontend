@@ -13,6 +13,7 @@ import { fmtDataBR } from '@/lib/data-br';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { cartaoForaDaBase } from '@/lib/moeda';
+import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, onClose, onRefresh, onExcluir }: Props) {
+  const temaCategoria = useTemaCategoria();
   // ⚠️ A fatura, as compras e as parcelas estão NA MOEDA DO CARTÃO (migration
   // 168). Saldo de conta (no seletor de antecipação) segue na moeda do grupo,
   // como sempre foi. Num grupo em real as duas são a mesma.
@@ -367,7 +369,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
     if (marcaDe(obs)) {
       return <CategoriaIcon nome={obs} size={36} rounded="rounded-lg" />;
     }
-    const theme = getCategoriaTheme(tx.categoria || '');
+    const theme = temaCategoria(tx.categoria || '');
     return (
       <div
         className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
@@ -624,7 +626,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
               <>
                 <div className="space-y-3">
                   {topCategorias.map(({ cat, total }) => {
-                    const theme = getCategoriaTheme(cat);
+                    const theme = temaCategoria(cat);
                     const nome = nomeCategoria(cat);
                     const pct = Math.round((total / maiorCategoria) * 100);
                     return (

@@ -1278,8 +1278,12 @@ export const api = {
       },
       criar: (body: Partial<ProdutoNegocio> & { empresa_id: string; nome: string }) =>
         req<{ ok: boolean; produto: ProdutoNegocio }>('/api/negocios/produtos', { method: 'POST', body: JSON.stringify(body) }),
+      // `estoque` só vem quando o controle foi LIGADO nesta chamada: o
+      // servidor reconstrói o saldo do histórico já lançado e devolve quanto
+      // entrou, pra a tela poder dizer de onde veio o número.
       editar: (id: string, body: Partial<ProdutoNegocio>) =>
-        req<{ ok: boolean; produto: ProdutoNegocio }>(`/api/negocios/produtos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+        req<{ ok: boolean; produto: ProdutoNegocio; estoque: { movimentos: number; saldo: number } | null }>(
+          `/api/negocios/produtos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       arquivar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/produtos/${id}`, { method: 'DELETE' }),
     },

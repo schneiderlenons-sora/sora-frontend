@@ -37,6 +37,7 @@ import {
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -1148,6 +1149,7 @@ function TransactionRow({
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
 }: any) {
   const fmt = useDinheiro();
+  const temaCategoria = useTemaCategoria();
   // ⚠️ "Não considerar" (migration 146) entra AQUI, virando Transferência na
   // tela. É a mesma leitura que o pagamento de fatura nativo já tem hoje —
   // exibir a linha ignorada de outro jeito faria dois pagamentos de fatura
@@ -1156,7 +1158,7 @@ function TransactionRow({
   const isIgnorada = !!tx.ignorar_em;
   const isTransfer = isIgnorada || tx.transferencia === true || tx.tipo === 'Transferência';
   const isGasto = tx.tipo === 'Gasto';
-  const theme   = getCategoriaTheme(tx.categoria || '');
+  const theme   = temaCategoria(tx.categoria || '');
   const nome    = nomeCategoria(tx.categoria);
   const desc    = tx.observacao || nome;
   // Ícone: prioriza a MARCA da descrição (ex.: "Shopee", "[Recorrente] Spotify")

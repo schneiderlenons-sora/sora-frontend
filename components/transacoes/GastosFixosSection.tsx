@@ -14,6 +14,7 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { calcularSaldoProjetado, diaHojeSP } from '@/lib/saldo-projetado';
 import { ocorrenciasNoMes } from '@/lib/frequencia-recorrencia';
+import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -88,6 +89,7 @@ interface Props {
 }
 
 export default function GastosFixosSection({ phone, wallets }: Props) {
+  const temaCategoria = useTemaCategoria();
   const fmtCru = useDinheiro();
   const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
@@ -696,7 +698,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           </p>
           <ul className="space-y-2">
             {sugestoes.map((s) => {
-              const theme = getCategoriaTheme(s.categoria || '', []);
+              const theme = temaCategoria(s.categoria || '');
               const ehGasto = s.tipo === 'Gasto';
               return (
                 <li key={s.descricao}
@@ -1103,7 +1105,8 @@ function Linha({
   const modoInfo = MODOS.find((m) => m.id === modo) || MODOS[0];
   const querLembrete = item.lembrete !== false;
   const fmt = useFmt(fmtCru);
-  const tema = getCategoriaTheme(item.descricao);
+  const temaCategoria = useTemaCategoria();
+  const tema = temaCategoria(item.descricao);
   // Emoji da categoria (se tiver) OU o do tema da descrição — ex.: "academia" → 💪
   // (antes caía no 📦 genérico do CategoriaIcon quando a recorrência era "Outros").
   const emoji = (item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0]) ?? tema.emoji;
@@ -1550,11 +1553,12 @@ function LinhaDivida({
 }: { divida: any; idx: number; saindo: boolean; onTirar?: () => void }) {
   const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
+  const temaCategoria = useTemaCategoria();
   void onTirar;
   const parcelas = Number(divida.parcelas_total) || 0;
   const pagas    = Number(divida.parcelas_pagas) || 0;
   const restantes = Math.max(0, parcelas - pagas);
-  const tema = getCategoriaTheme(divida.titulo);
+  const tema = temaCategoria(divida.titulo);
 
   return (
     <li

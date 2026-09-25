@@ -40,6 +40,12 @@ export default function ModalProduto({
   const [controlaEstoque, setControlaEstoque] = useState(!!(produto as any)?.controla_estoque);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro]         = useState('');
+  // ⚠️ Ao LIGAR o controle de estoque, o servidor traz o histórico já lançado
+  // (compras recebidas − vendas) e devolve quanto entrou. O modal para de
+  // fechar e MOSTRA o número: o relato que originou isto era justamente "não
+  // consigo deixar salvo a opção de controlar estoque" — a pessoa ligava, a
+  // tela fechava sem dizer nada e ela não tinha como saber se pegou.
+  const [importado, setImportado] = useState<{ movimentos: number; saldo: number } | null>(null);
 
   // Portal: `fixed` dentro de card com backdrop-blur fica preso no card.
   const [montado, setMontado] = useState(false);
@@ -74,8 +80,20 @@ export default function ModalProduto({
         controla_estoque: !ehServico && controlaEstoque,
         estoque_min: estoqueMin ? parseInt(estoqueMin, 10) : null,
       };
-      if (editando) await api.negocios.produtos.editar(produto!.id, body);
-      else await api.negocios.produtos.criar(body);
+      if (editando) {
+        const r: any = await api.negocios.produtos.editar(produto!.id, body);
+        // Só quando houve importação de verdade: sem movimento não há o que
+        // contar, e um aviso de "0 itens" só atrapalharia quem acabou de
+        // cadastrar o produto.
+        if (r?.estoque?.movimentos > 0) {
+          setImportado({ movimentos: r.estoque.movimentos, saldo: r.estoque.saldo });
+          setSalvando(false);
+          onSalvo();          // a lista atrás já atualiza
+          return;             // e o modal fica aberto mostrando o resultado
+        }
+      } else {
+        await api.negocios.produtos.criar(body);
+      }
       onSalvo();
     } catch (e: any) {
       setErro(e?.message || 'Não consegui salvar.');
@@ -113,6 +131,26 @@ export default function ModalProduto({
             <p className="flex items-start gap-2 text-sm text-red-500 bg-red-500/10 rounded-xl p-3">
               <AlertCircle size={15} className="flex-shrink-0 mt-0.5" /> {erro}
             </p>
+          )}
+
+          {/* Controle recém-ligado: diz o que entrou e de onde veio, pra o
+              saldo não aparecer do nada na aba Estoque. */}
+          {importado && (
+            <div className="rounded-xl p-3 text-sm" style={{ background: `${cor}1a`, color: cor }}>
+              <p className="font-bold">Controle de estoque ligado</p>
+              <p className="mt-1 text-foreground/80">
+                Trouxe {importado.movimentos} movimenta{importado.movimentos === 1 ? 'ção' : 'ções'} que
+                já estavam lançadas (compras recebidas menos vendas). Saldo atual:{' '}
+                <strong className="tabular-nums">{importado.saldo}</strong>.
+              </p>
+              <button
+                onClick={onClose}
+                className="mt-3 h-11 px-4 rounded-xl text-white text-sm font-bold"
+                style={{ background: cor }}
+              >
+                Entendi
+              </button>
+            </div>
           )}
 
           {/* Produto × serviço: muda o controle de estoque (fase 3) */}
