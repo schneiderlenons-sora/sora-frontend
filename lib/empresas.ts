@@ -7,6 +7,14 @@
 
 export type TipoEmpresa = 'digital' | 'fisico' | 'hibrido';
 
+/**
+ * Papel da pessoa DENTRO da empresa (migration 173).
+ *   admin    → convida/remove membro, renomeia, configura
+ *   operador → lança, paga, dá baixa, cadastra cliente/produto
+ *   leitura  → só vê (DRE, caixa, relatórios) — é o papel do contador
+ */
+export type PapelEmpresa = 'admin' | 'operador' | 'leitura';
+
 export interface Empresa {
   id:         string;
   user_id?:   string;
@@ -19,6 +27,32 @@ export interface Empresa {
   cnpj?:      string | null;
   ativa?:     boolean;
   created_at?: string;
+  /** Vem do GET /empresas. Opcionais porque a resposta de um backend antigo
+   *  não os traz — e aí a tela cai no comportamento de dono, que é o de hoje. */
+  papel?:     PapelEmpresa;
+  dono?:      boolean;
+}
+
+const ORDEM_PAPEL: PapelEmpresa[] = ['leitura', 'operador', 'admin'];
+
+/**
+ * O papel da pessoa cobre o mínimo exigido? Espelha `papelPermite` do backend
+ * (services/acessoEmpresa.js) — mexeu num, mexa no outro.
+ *
+ * ⚠️ SEM `papel` A RESPOSTA É `true`, DE PROPÓSITO. Quem responde de verdade é
+ * o servidor; aqui a checagem só existe pra não OFERECER um botão que vai
+ * falhar. Backend antigo (ou resposta sem o campo) tem de continuar mostrando
+ * a aba como sempre mostrou, em vez de esconder tudo de um dono legítimo.
+ */
+export function podeNaEmpresa(e?: Empresa | null, minimo: PapelEmpresa = 'operador'): boolean {
+  if (!e?.papel) return true;
+  return ORDEM_PAPEL.indexOf(e.papel) >= ORDEM_PAPEL.indexOf(minimo);
+}
+
+/** Arquivar a empresa é só do DONO — nem do admin convidado (some com o
+ *  histórico da equipe inteira e não tem desfazer). Espelha a rota DELETE. */
+export function podeArquivar(e?: Empresa | null): boolean {
+  return e?.dono !== false;
 }
 
 /** Opções do seletor de tipo — cada uma explica o que muda na prática. */
