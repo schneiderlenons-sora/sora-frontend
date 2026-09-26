@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import AvisoChamado from '@/components/suporte/AvisoChamado';
 import ThemeToggle from './ThemeToggle';
 import BarraPlayStore from '@/components/app/BarraPlayStore';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,6 +91,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
       </div>
       <BottomNav onPerfil={() => setNavOpen(true)} />
+      {/* Aviso de resposta no chamado. Mora no SHELL pra aparecer em qualquer
+          aba do painel — é notificação, não conteúdo de página. */}
+      <AvisoChamado />
       <ThemeToggle />
     </div>
   );

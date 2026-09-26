@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { api, type ChamadoResumo, type ChamadoMensagem, type ChamadoDetalhe } from '@/lib/api';
 import {
   MessageSquare, Send, Loader2, ChevronLeft, CheckCircle2, Clock,
@@ -55,6 +56,27 @@ export default function MeusChamados({ recarregarRef, tipoFiltro }: {
   useEffect(() => { carregar(); }, [carregar]);
   // Deixa o pai (a tela de relato) recarregar a lista ao enviar um relato novo.
   useEffect(() => { if (recarregarRef) recarregarRef.current = carregar; }, [recarregarRef, carregar]);
+
+  // ── `?chamado=<id>` abre direto o chamado ───────────────────────────────
+  //
+  // ⚠️ É o que faz a mini notificação levar A ALGUM LUGAR. Sem isto ela
+  // despejaria a pessoa na lista, com a resposta ainda a um toque de
+  // distância — e o contador só zera quando o chamado é ABERTO, então o aviso
+  // continuaria na tela depois do clique, parecendo quebrado.
+  //
+  // Só na primeira vez (`jaAbriuPorLink`): sem a trava, voltar da conversa
+  // para a lista reabriria o mesmo chamado em loop, porque a URL não muda.
+  const jaAbriuPorLink = useRef(false);
+  useEffect(() => {
+    if (jaAbriuPorLink.current || carregando) return;
+    const id = new URLSearchParams(window.location.search).get('chamado');
+    if (!id) return;
+    // Só abre o que existe nesta aba — um id de outra aba (problema × melhoria)
+    // abriria uma tela vazia.
+    if (!lista.some((c) => c.id === id)) return;
+    jaAbriuPorLink.current = true;
+    setAberto(id);
+  }, [carregando, lista]);
 
   if (carregando) {
     return <div className="flex justify-center py-10"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>;
@@ -127,6 +149,21 @@ function Conversa({ id, onVoltar }: { id: string; onVoltar: () => void }) {
   useEffect(() => { carregar(); }, [carregar]);
   // Rola pro fim quando a conversa cresce — a mensagem nova é o que interessa.
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [dados?.mensagens.length]);
+
+  // ⚠️ ABRIR O CHAMADO MARCA AS MENSAGENS COMO LIDAS NO SERVIDOR
+  // (`routes/bug.js`), mas quem mostra o badge da sidebar e a mini notificação
+  // é o cache SWR da chave `d:chamados:<phone>` — e ele não sabe disso. Sem
+  // invalidar, o aviso continuava na tela DEPOIS de a pessoa ler, até a
+  // revalidação de 2 min: um aviso que não some ao ser atendido lê como bug.
+  //
+  // ⚠️ O `mutate` vem de `useSWRConfig()`, nunca o importado de 'swr': aquele
+  // fala com o cache PADRÃO, e este app usa `localStorageProvider` — seria um
+  // no-op silencioso (a mesma armadilha do `mutateGlobal` no GastosFixos).
+  const { mutate } = useSWRConfig();
+  useEffect(() => {
+    if (!dados) return;
+    mutate((k) => typeof k === 'string' && k.startsWith('d:chamados:'));
+  }, [dados, mutate]);
 
   function anexar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

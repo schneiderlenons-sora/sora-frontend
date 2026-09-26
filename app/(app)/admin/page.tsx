@@ -10,6 +10,7 @@ import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
   Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake, AlertCircle,
+  ChevronRight,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -249,22 +250,19 @@ async function adminFetch(path: string, init?: RequestInit) {
   return data;
 }
 
-// ⚠️ QUANTO CABE NA RESPOSTA AO RELATO — orçamento, não chute.
+// QUANTO CABE NA RESPOSTA AO CHAMADO.
 //
-// A Meta limita o corpo do template em 1024 chars JÁ HIDRATADO (com {{1}} e
-// {{2}} substituídos). É limite de PLATAFORMA: não existe plano nem ajuste que
-// aumente. Estourar devolve "(#132005) Translated text too long" — e só
-// DEPOIS de tentar enviar, que foi o relato de 24/09/2026.
+// ⚠️ O TETO DE 764 CARACTERES ACABOU (26/09/2026). Ele existia porque a
+// resposta viajava DENTRO do template da Meta, cujo corpo hidratado não passa
+// de 1024 — limite de plataforma, sem plano que aumente (foi a pergunta do
+// dono em 24/09: "não tem como aumentar esse limite?"). A resposta era não,
+// enquanto o texto passasse por lá.
 //
-// Do total, nem tudo é nosso pra gastar (medido em `routes/admin.js`):
-//   139  corpo fixo do template `comunicado_sora`
-//    81  ponteiro `comPonteiro()` que o backend gruda no fim do texto
-//    ~40 folga pro primeiro nome ({{1}}) e para emoji, que conta mais de 1
-//
-// ⚠️ MEXEU NO CORPO DO TEMPLATE NA META OU NO `comPonteiro`? ajuste aqui —
-// são eles que definem a sobra, e um número velho volta a deixar o envio
-// falhar só no fim.
-const LIMITE_RESPOSTA = 1024 - 139 - 81 - 40;   // = 764
+// Agora ela não passa: o WhatsApp leva só a campainha (texto fixo, sem
+// variável de conteúdo) e a resposta vai pro painel, que é uma coluna `text`
+// no Postgres. O limite abaixo é só higiene de formulário — evita colar um
+// arquivo inteiro por engano —, não uma regra de plataforma.
+const LIMITE_RESPOSTA = 6000;
 
 // Mesmo teto de 1024 pro comunicado em MASSA, que usa o `atualizacao_sora`
 // ("Eaí, {{1}}! Nova atualização no ar! / {{2}} / Qualquer dúvida, é só
@@ -345,12 +343,13 @@ export default function AdminPage() {
         body: JSON.stringify({ bugId, texto: respMsg.trim() }),
       });
       const d = await r.json().catch(() => ({}));
+      // Só é erro quando a RESPOSTA não foi publicada — a campainha do
+      // WhatsApp falhando não invalida nada e volta como `aviso`.
       if (d?.erro) { flash('⚠️ ' + d.erro); return; }
-      // Entregue mas NÃO gravado: o chamado seguiria com a conversa vazia e sem
-      // ninguém saber por quê. Fecha o formulário do mesmo jeito (a mensagem
-      // FOI enviada — reenviar mandaria duas ao cliente), mas avisa.
+      // Publicada, mas sem aviso no zap (sem número, ou entrega falhou). Fecha
+      // o formulário do mesmo jeito: reescrever duplicaria a conversa.
       if (d?.aviso) { flash('⚠️ ' + d.aviso); setRespId(null); setRespMsg(''); return; }
-      flash('Resposta enviada ✓'); setRespId(null); setRespMsg('');
+      flash('Respondido ✓ — avisado no WhatsApp'); setRespId(null); setRespMsg('');
     } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
     finally { setEnviandoResp(false); }
   }
@@ -476,20 +475,30 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                 destaque />
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60 w-fit">
-          {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone], ['afiliados', 'Afiliados', Handshake]] as const).map(([id, label, Icon]) => (
-            <button key={id} onClick={() => setTab(id)}
-                    className={`inline-flex items-center gap-1.5 px-4 h-9 rounded-xl text-sm font-bold transition-all ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Icon size={14} /> {label}
-              {id === 'bugs' && ov && ov.bugsAbertos > 0 && (
-                <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-red-500">{ov.bugsAbertos}</span>
-              )}
-              {id === 'melhorias' && ov && (ov.melhoriasAbertas ?? 0) > 0 && (
-                <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-amber-500">{ov.melhoriasAbertas}</span>
-              )}
-            </button>
-          ))}
+        {/* ── Abas ────────────────────────────────────────────────────────
+            ⚠️ `w-fit` ESTOURAVA A TELA NO MOBILE. Seis abas com ícone + rótulo
+            passam de 600px; num container `w-fit` sem overflow, a barra ia além
+            da viewport, empurrava o layout e criava scroll horizontal na PÁGINA
+            inteira — a "seção admin completamente desorganizada no mobile" do
+            relato. Agora a faixa é full-width e o que rola é ELA, não a página.
+            No desktop `sm:w-fit` devolve a pílula justa de sempre. */}
+        <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60
+                          overflow-x-auto sm:w-fit [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone], ['afiliados', 'Afiliados', Handshake]] as const).map(([id, label, Icon]) => (
+              <button key={id} onClick={() => setTab(id)}
+                      aria-current={tab === id ? 'page' : undefined}
+                      className={`inline-flex items-center gap-1.5 px-3 sm:px-4 h-10 rounded-xl text-sm font-bold transition-all flex-shrink-0 ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Icon size={14} className="flex-shrink-0" /> {label}
+                {id === 'bugs' && ov && ov.bugsAbertos > 0 && (
+                  <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-red-500">{ov.bugsAbertos}</span>
+                )}
+                {id === 'melhorias' && ov && (ov.melhoriasAbertas ?? 0) > 0 && (
+                  <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-amber-500">{ov.melhoriasAbertas}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {tab === 'afiliados' ? (
@@ -500,17 +509,41 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
           <OpenFinancePainel />
         ) : tab === 'users' ? (
           <div className="space-y-3">
-            {/* Busca + filtros */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            {/* ── Busca e filtros ─────────────────────────────────────────
+                ⚠️ EM LINHAS SEPARADAS, nunca lado a lado. Antes a busca era
+                `flex-1` com os 13 filtros como irmão de flex — e um container
+                flex NÃO ENCOLHE abaixo do conteúdo por padrão (`min-width:
+                auto`), então os filtros empurravam a busca até sobrar um campo
+                em que não dava pra ler o que se digitava. Foi o relato do dono:
+                "os filtros estão cobrindo o campo de pesquisa".
+                Empilhar resolve na raiz e ainda dá a largura inteira à busca,
+                que é a ação mais usada da aba. */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome, e-mail ou número…"
-                       className="w-full h-11 pl-9 pr-3 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+                       aria-label="Buscar usuário"
+                       className="w-full h-11 pl-9 pr-10 rounded-xl bg-card border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary" />
+                {/* Limpar: 44px de alvo, dentro do campo. Sem ele, apagar uma
+                    busca longa no celular é apertar backspace 30 vezes. */}
+                {q && (
+                  <button onClick={() => setQ('')} aria-label="Limpar busca"
+                          className="absolute right-0 top-0 h-11 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground">
+                    <X size={15} />
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto">
+
+              {/* Os 13 filtros rolam na horizontal, em faixa própria.
+                  `-mx-4 px-4` no mobile: a faixa sangra até a borda da tela, e
+                  aí fica claro que há mais coisa pro lado (cortar no meio do
+                  card parece fim da lista). */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0
+                              [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {([['todos', 'Todos'], ['recorrentes', 'Recorrentes'], ['anuais', 'Anuais'], ['vitalicios', 'Vitalícios'], ['of_conectado', 'Conectados'], ['open_finance', 'OF pago'], ['android', 'Android'], ['ios', 'Apple/iOS'], ['ativos', 'Ativos'], ['pagamento_falhou', 'Pagamento falhou'], ['recuperados', 'Recuperados'], ['cancelados', 'Cancelaram'], ['nao_concluido', 'Não concluído']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setFilter(id)}
-                          className={`h-11 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                          aria-pressed={filter === id}
+                          className={`h-9 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all border flex-shrink-0 ${filter === id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                     {label}
                   </button>
                 ))}
@@ -525,9 +558,17 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                 <div className="py-12 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</div>
               ) : (
                 <div className="divide-y divide-border">
+                  {/* ⚠️ NO MOBILE A LINHA EMPILHA. Antes era uma fila só:
+                      avatar + nome/e-mail + telefone + plataforma + badges, com
+                      telefone e data em `hidden sm:block`. Num celular o
+                      StatusBadge (que pode ter 3 selos) disputava a largura com
+                      o e-mail e os dois saíam cortados — era a "seção admin
+                      desorganizada no mobile". Agora identidade em cima, selos e
+                      telefone numa segunda linha que pode quebrar; no desktop
+                      (`sm:`) volta a fila original. */}
                   {users.map((u) => (
                     <button key={u.id} onClick={() => setSel(u)}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors">
+                            className="w-full flex items-start sm:items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 active:bg-muted/60 transition-colors">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 text-white"
                            style={{ background: PLANO_META[u.plano]?.cor || '#71717a' }}>
                         {(u.name || u.email || '?').charAt(0).toUpperCase()}
@@ -535,6 +576,14 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{u.name || '—'}</p>
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        {/* Segunda linha, só no mobile: o que estava escondido. */}
+                        <div className="sm:hidden flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
+                          <StatusBadge u={u} />
+                          <span className="text-[10px] text-muted-foreground/70 tabular-nums">
+                            {u.phone || 'sem número'} · {dataCurta(u.created_at)}
+                            {u.plataforma && PLATAFORMA_CURTO[u.plataforma] ? ` · ${PLATAFORMA_CURTO[u.plataforma]}` : ''}
+                          </span>
+                        </div>
                       </div>
                       <div className="hidden sm:block text-right flex-shrink-0">
                         <p className="text-xs text-muted-foreground tabular-nums">{u.phone || 'sem número'}</p>
@@ -545,7 +594,7 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                           {PLATAFORMA_CURTO[u.plataforma]}
                         </span>
                       )}
-                      <StatusBadge u={u} />
+                      <span className="hidden sm:inline-flex"><StatusBadge u={u} /></span>
                     </button>
                   ))}
                 </div>
@@ -564,7 +613,12 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
               <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{b.nome || '—'} <span className="font-normal text-muted-foreground">· {b.phone || b.email || ''}</span></p>
+                    {/* ⚠️ Nome e contato em linhas separadas no mobile: juntos,
+                        um e-mail longo empurrava o selo de status pra fora do
+                        card. `break-all` no contato porque e-mail não tem
+                        espaço onde quebrar. */}
+                    <p className="text-sm font-semibold text-foreground truncate">{b.nome || '—'}</p>
+                    <p className="text-[11px] text-muted-foreground break-all">{b.phone || b.email || ''}</p>
                     <p className="text-[11px] text-muted-foreground">{new Date(b.created_at).toLocaleString('pt-BR')}{b.tem_imagem ? ' · 📷 com print' : ''}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap ${b.status === 'resolvido' ? 'bg-emerald-500/15 text-emerald-600' : b.status === 'em_andamento' ? 'bg-amber-500/15 text-amber-600' : 'bg-red-500/15 text-red-600'}`}>
@@ -584,21 +638,26 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                       {s === 'aberto' ? 'Aberto' : s === 'em_andamento' ? 'Em andamento' : 'Resolvido'}
                     </button>
                   ))}
-                  {b.phone && (
-                    <button onClick={() => { setRespId(respId === b.id ? null : b.id); setRespMsg(''); }}
-                            className={`h-8 px-2.5 rounded-lg text-[11px] font-bold transition-all border inline-flex items-center gap-1 ${respId === b.id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
-                      <Send size={11} /> Responder
-                    </button>
+                  {/* ⚠️ SEM `b.phone &&`. A resposta vive no PAINEL desde
+                      26/09/2026 — o WhatsApp é só a campainha. Esconder o botão
+                      de quem não tem número deixava o chamado sem resposta
+                      possível (caso real: jr.sprega@gmail.com). */}
+                  <button onClick={() => { setRespId(respId === b.id ? null : b.id); setRespMsg(''); }}
+                          className={`h-8 px-2.5 rounded-lg text-[11px] font-bold transition-all border inline-flex items-center gap-1 ${respId === b.id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                    <Send size={11} /> Responder
+                  </button>
+                  {!b.phone && (
+                    <span className="text-[10px] text-muted-foreground">
+                      sem WhatsApp — ele vê pela notificação no painel
+                    </span>
                   )}
                 </div>
 
-                {/* Compositor de resposta (pelo WhatsApp da Sora, via template) */}
+                {/* Compositor: a resposta vai pro PAINEL; o zap leva só o aviso. */}
                 {respId === b.id && (() => {
-                  // ⚠️ O LIMITE É DA META E NÃO DÁ PRA AUMENTAR: 1024 chars no
-                  // corpo do template JÁ HIDRATADO (com {{1}} e {{2}} trocados).
-                  // Estourar devolve "(#132005) Translated text too long" —
-                  // relato de 24/09/2026, e o envio só falhava DEPOIS de tentar.
-                  // O orçamento abaixo desconta o que não é digitado por nós.
+                  // O contador só aparece perto do fim — 6.000 caracteres é
+                  // higiene de formulário, não regra de plataforma, e mostrar
+                  // "5.800 restantes" numa resposta de duas linhas é ruído.
                   const usado = respMsg.trim().length;
                   const restante = LIMITE_RESPOSTA - usado;
                   const estourou = restante < 0;
@@ -614,20 +673,25 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                     <div className="flex items-center gap-2">
                       <button onClick={() => responderRelato(b.id)} disabled={enviandoResp || !respMsg.trim() || estourou}
                               className="h-10 px-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50">
-                        {enviandoResp ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar pela Sora
+                        {enviandoResp ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Responder
                       </button>
                       <button onClick={() => { setRespId(null); setRespMsg(''); }} className="h-10 px-3 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
-                      {/* Ícone + número, nunca só a cor (acessibilidade). */}
-                      <span className={`ml-auto text-[11px] font-semibold tabular-nums inline-flex items-center gap-1 ${
-                        estourou ? 'text-red-500' : restante <= 80 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                        {estourou && <AlertCircle size={12} />}
-                        {estourou ? `${-restante} a mais` : `${restante} restantes`}
-                      </span>
+                      {/* Ícone + número, nunca só a cor (acessibilidade). E só
+                          perto do limite — contador sempre visível vira ruído. */}
+                      {(estourou || restante <= 500) && (
+                        <span className={`ml-auto text-[11px] font-semibold tabular-nums inline-flex items-center gap-1 ${
+                          estourou ? 'text-red-500' : 'text-amber-500'}`}>
+                          {estourou && <AlertCircle size={12} />}
+                          {estourou ? `${-restante} a mais` : `${restante} restantes`}
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-snug">
                       {estourou
-                        ? `O WhatsApp recusa acima de ${LIMITE_RESPOSTA} caracteres (limite da Meta, não dá pra aumentar). Encurte ou mande em duas respostas.`
-                        : 'Vai pelo WhatsApp oficial da Sora (template) — alcança mesmo se o cliente não falou com a Sora nas últimas 24h. Quebras de linha viram espaço.'}
+                        ? `Máximo de ${LIMITE_RESPOSTA.toLocaleString('pt-BR')} caracteres por mensagem. Encurte ou mande em duas.`
+                        : b.phone
+                          ? 'A resposta aparece no painel do cliente. No WhatsApp ele recebe só um aviso com o link — assim ele responde onde você lê.'
+                          : 'Este cliente não tem WhatsApp cadastrado: ele vê a resposta pela notificação ao abrir a Sora.'}
                     </p>
                   </div>
                   );
@@ -814,11 +878,21 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
 function Stat({ label, value, hint, destaque, alerta, onClick }: { label: string; value: any; hint?: string; destaque?: boolean; alerta?: boolean; onClick?: () => void }) {
   return (
     <button onClick={onClick} disabled={!onClick}
-            className={`text-left rounded-2xl border p-3.5 transition-all ${onClick ? 'hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'} ${alerta ? 'border-red-300 dark:border-red-900/60' : 'border-border'}`}
+            className={`relative text-left rounded-2xl border p-3.5 transition-all ${onClick ? 'hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer' : 'cursor-default'} ${alerta ? 'border-red-300 dark:border-red-900/60' : 'border-border'}`}
             style={destaque ? { background: `color-mix(in srgb, ${BRAND} 6%, transparent)`, borderColor: `color-mix(in srgb, ${BRAND} 25%, transparent)` } : { background: 'hsl(var(--bg-card) / 0.5)' }}>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className={`text-2xl font-bold tabular-nums mt-1 ${alerta ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`} style={destaque ? { color: BRAND } : undefined}>{value}</p>
-      {hint && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+      {/* ⚠️ Seta em vez de só `hover:-translate-y`: no celular não existe hover,
+          então nada distinguia card clicável (que filtra a lista) de card
+          informativo. Metade destes cards navega. */}
+      {onClick && (
+        <ChevronRight size={13} className="absolute top-3 right-3 text-muted-foreground/50" aria-hidden />
+      )}
+      <p className={`text-[10px] font-bold uppercase tracking-widest text-muted-foreground ${onClick ? 'pr-4' : ''}`}>{label}</p>
+      <p className={`text-xl sm:text-2xl font-bold tabular-nums mt-1 ${alerta ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`} style={destaque ? { color: BRAND } : undefined}>{value}</p>
+      {/* ⚠️ QUEBRA EM DUAS LINHAS NO MOBILE, não trunca. Com 2 colunas o card
+          tem ~165px, e `truncate` cortava hints como "5 mensais · 2 anuais
+          fora · 1 excluídos" no primeiro termo — o número aparecia sem o que
+          o explica. No desktop cabe numa linha e o truncate volta. */}
+      {hint && <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 sm:line-clamp-none sm:truncate">{hint}</p>}
     </button>
   );
 }
