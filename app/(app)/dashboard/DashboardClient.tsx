@@ -35,6 +35,7 @@ import {
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { useTemMarca } from '@/contexts/MarcasCustomContext';
 // ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
 // (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
 // também usam gráfico), o dashboard chegava a baixar 3 cópias — 864 KB antes
@@ -146,6 +147,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const fmtCru = useDinheiro();
   const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
+  const temMarca = useTemMarca();
   const { phone: authPhone, perfil, temAcessoGrow } = useAuth();
   // SSR: usa o phone vindo do servidor até a sessão hidratar no cliente, pra a
   // chave do SWR já ser válida no 1º render (e o fallbackData pintar na hora).
@@ -828,7 +830,7 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                   const temEmojiProprio = /\p{Emoji}/u.test((tx.categoria || '').trim().split(' ')[0] || '');
                   const emoji = temEmojiProprio ? emojiProprio : getCategoriaTheme(tx.categoria || '', categorias).emoji;
                   // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
-                  const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : nome;
+                  const iconeNome = tx.observacao && temMarca(tx.observacao) ? tx.observacao : nome;
                   return (
                     <div key={tx.id}
                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors animate-fade-in group"

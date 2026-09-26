@@ -7,12 +7,15 @@
 // MAIOR prioridade. Sem provider, o hook devolve um matcher no-op (degrada
 // pro comportamento antigo).
 // ─────────────────────────────────────────────────────────────
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { temMarcaConhecida } from '@/components/ui/IconeMarca';
+import { indexarMarcas, acharLogo, type MarcaCustom as MarcaCustomBase } from '@/lib/marca-custom';
 
-export type MarcaCustom = { id: string; termo: string; logo_url: string };
+// Reexporta pra quem já importava daqui — a forma mora em lib/marca-custom.
+export type MarcaCustom = MarcaCustomBase;
 
 type Ctx = {
   marcas: MarcaCustom[];
@@ -22,21 +25,8 @@ type Ctx = {
 
 const MarcasCustomContext = createContext<Ctx>({ marcas: [], matchLogo: () => null, recarregar: () => {} });
 
-// Mesma normalização do IconeMarca: lowercase, sem acento, símbolos viram espaço.
-function normalizar(s: string): string {
-  return (s || '')
-    .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// `trecho` aparece como palavra inteira dentro de `texto`.
-function palavraInteira(texto: string, trecho: string): boolean {
-  const escaped = trecho.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|\\s)${escaped}(\\s|$)`).test(texto);
-}
+// A regra de casamento mora em `lib/marca-custom.ts` (pura e com eval) — aqui
+// só o React em volta dela.
 
 export function MarcasCustomProvider({ children }: { children: React.ReactNode }) {
   const { phone } = useAuth();
@@ -44,22 +34,42 @@ export function MarcasCustomProvider({ children }: { children: React.ReactNode }
   const marcas: MarcaCustom[] = (data as MarcaCustom[]) ?? [];
 
   const value = useMemo<Ctx>(() => {
-    const idx = marcas
-      .map(m => ({ logo: m.logo_url, norm: normalizar(m.termo) }))
-      .filter(m => m.norm.length >= 2)
-      // termos mais longos primeiro → match mais específico vence
-      .sort((a, b) => b.norm.length - a.norm.length);
-    const matchLogo = (nome: string) => {
-      const key = normalizar(nome);
-      if (!key) return null;
-      for (const m of idx) if (m.norm === key) return m.logo;
-      for (const m of idx) if (palavraInteira(key, m.norm)) return m.logo;
-      return null;
+    const idx = indexarMarcas(marcas);
+    return {
+      marcas,
+      matchLogo: (nome: string) => acharLogo(idx, nome),
+      recarregar: () => mutate(),
     };
-    return { marcas, matchLogo, recarregar: () => mutate() };
   }, [marcas, mutate]);
 
   return <MarcasCustomContext.Provider value={value}>{children}</MarcasCustomContext.Provider>;
 }
 
 export const useMarcasCustom = () => useContext(MarcasCustomContext);
+
+/**
+ * "Este texto tem marca?" — considerando o catálogo embutido **E** as marcas
+ * personalizadas do grupo.
+ *
+ * ⚠️ USE ESTE, NUNCA `temMarcaConhecida` SOZINHO, pra decidir se o ícone de
+ * uma linha vem da DESCRIÇÃO ou da categoria.
+ *
+ * Relato de cliente (26/09/2026): subiu a logo do "SEM PARAR", a marca ficou
+ * gravada, as 71 transações têm `observacao` exatamente "SEM PARAR" — e a
+ * logo não aparecia. A causa não era o casamento (esse funciona): era a
+ * decisão ANTERIOR a ele. As telas faziam
+ *
+ *     iconeNome = temMarcaConhecida(desc) ? desc : nomeDaCategoria
+ *
+ * e `temMarcaConhecida` só conhece o catálogo embutido (iFood, Nike, Shopee…).
+ * Como "SEM PARAR" é marca do USUÁRIO, a condição dava `false`, o ícone
+ * recebia "Pedágio" — e o `matchLogo` do CategoriaIcon nunca chegava a ver a
+ * descrição. A marca personalizada era consultada tarde demais.
+ */
+export function useTemMarca() {
+  const { matchLogo } = useMarcasCustom();
+  return useCallback(
+    (nome: string) => temMarcaConhecida(nome) || !!matchLogo(nome),
+    [matchLogo],
+  );
+}

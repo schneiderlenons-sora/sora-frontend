@@ -38,6 +38,7 @@ import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
+import { useTemMarca } from '@/contexts/MarcasCustomContext';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -1150,6 +1151,7 @@ function TransactionRow({
 }: any) {
   const fmt = useDinheiro();
   const temaCategoria = useTemaCategoria();
+  const temMarca = useTemMarca();
   // ⚠️ "Não considerar" (migration 146) entra AQUI, virando Transferência na
   // tela. É a mesma leitura que o pagamento de fatura nativo já tem hoje —
   // exibir a linha ignorada de outro jeito faria dois pagamentos de fatura
@@ -1163,7 +1165,7 @@ function TransactionRow({
   const desc    = tx.observacao || nome;
   // Ícone: prioriza a MARCA da descrição (ex.: "Shopee", "[Recorrente] Spotify")
   // e só cai no emoji da categoria quando a descrição não tem marca conhecida.
-  const iconeNome = temMarcaConhecida(desc) ? desc : nome;
+  const iconeNome = temMarca(desc) ? desc : nome;
 
   return (
     <div

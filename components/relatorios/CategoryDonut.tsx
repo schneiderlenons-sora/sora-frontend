@@ -15,6 +15,7 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro } from '@/lib/moeda-base';
+import { useTemMarca } from '@/contexts/MarcasCustomContext';
 
 export type DonutSlice = { name: string; value: number; color: string; emoji?: string };
 
@@ -96,6 +97,7 @@ export default function CategoryDonut({
     : outerRadius + 9;
   const [active, setActive] = useState<number | null>(null);
   const reduce = useReduce();
+  const temMarca = useTemMarca();
   const sel = active !== null ? data[active] : null;
 
   return (
@@ -197,7 +199,7 @@ export default function CategoryDonut({
                 className={`w-full flex items-center gap-2 text-xs rounded-lg px-2 py-2 text-left transition-colors ${on ? 'bg-muted/70' : 'hover:bg-muted/40'}`}
                 style={on ? { boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${d.color} 45%, transparent)` } : undefined}
               >
-                {d.emoji && temMarcaConhecida(d.name)
+                {d.emoji && temMarca(d.name)
                   ? <CategoriaIcon nome={d.name} icone={d.emoji} color={d.color} size={18} />
                   : <span className="text-base flex-shrink-0">{d.emoji ?? '•'}</span>}
                 <span className="flex-1 truncate text-foreground/80">{d.name}</span>

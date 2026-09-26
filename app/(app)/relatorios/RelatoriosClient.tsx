@@ -33,6 +33,7 @@ import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
+import { useTemMarca } from '@/contexts/MarcasCustomContext';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
 // saem do bundle inicial. Skeleton com altura própria pra não gerar CLS.
 const skel = (h: number) => () => <div className="w-full rounded-xl bg-muted/40 animate-pulse" style={{ height: h }} role="status" aria-label="Carregando gráfico" />;
@@ -101,6 +102,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   const fmtCru = useDinheiro();
   const moedaBase = useMoedaBase();
   const fmt = useFmt(fmtCru);
+  const temMarca = useTemMarca();
   const { phone: authPhone, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const hoje = new Date();
@@ -1157,7 +1159,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
                       <div key={i} className="animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
-                            {temMarcaConhecida(cat.name)
+                            {temMarca(cat.name)
                               ? <CategoriaIcon nome={cat.name} icone={cat.emoji} color={cat.color} size={22} />
                               : <span className="text-base">{cat.emoji}</span>}
                             <span className="text-sm font-medium text-foreground">{cat.name}</span>
@@ -2085,6 +2087,7 @@ function BlocoNum({ label, valor, sub, cor, destaque }: any) {
 function LinhaLimite({ nome, limite, gasto, pct, filhas, theme, i }: any) {
   const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
+  const temMarca = useTemMarca();
   const estourou = pct > 100;
   const perto    = pct >= 80 && pct <= 100;
   // Status é ÍCONE + TEXTO, nunca a cor sozinha.
@@ -2095,7 +2098,7 @@ function LinhaLimite({ nome, limite, gasto, pct, filhas, theme, i }: any) {
     <div className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 min-w-0">
-          {temMarcaConhecida(nome)
+          {temMarca(nome)
             ? <CategoriaIcon nome={nome} icone={theme.emoji} color={theme.color} size={22} />
             : <span className="text-base flex-shrink-0">{theme.emoji}</span>}
           <span className="text-sm font-medium text-foreground truncate">{nome}</span>
@@ -2209,6 +2212,7 @@ function PendentesList({
   const fmtCru = useDinheiro();
   const fmt = useFmt(fmtCru);
   const temaCategoria = useTemaCategoria();
+  const temMarca = useTemMarca();
   const badgeBg = badgeColor === 'green'
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
     : 'bg-red-500/10 text-red-500';
@@ -2238,7 +2242,7 @@ function PendentesList({
             const theme = temaCategoria(tx.categoria || '');
             const catNome = nomeCategoria(tx.categoria);
             // Ícone: prioriza a marca da descrição (ex.: "Shopee", "Spotify")
-            const iconeNome = tx.observacao && temMarcaConhecida(tx.observacao) ? tx.observacao : catNome;
+            const iconeNome = tx.observacao && temMarca(tx.observacao) ? tx.observacao : catNome;
             return (
               <div key={tx.id || i}
                    className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors animate-fade-in"
