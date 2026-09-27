@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
   ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
-  Bell, ChevronDown, Link2, EyeOff, TrendingUp, Wallet as WalletIcon,
+  Bell, ChevronDown, Link2, EyeOff, TrendingUp, Wallet as WalletIcon, Clock,
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
 import { mutate as mutateGlobal, useSWRConfig } from 'swr';
@@ -70,6 +70,8 @@ type ModoLancamento = ModoLancamentoFixo;
 // ajuste numa delas faria a mesma opção ter nomes diferentes conforme a tela
 // de onde foi aberta — e ninguém reporta isso, só sente.
 import { MODOS } from '@/components/previstos/FormRecorrencia';
+import SeletorPagamento from '@/components/previstos/SeletorPagamento';
+import { podeDarBaixa, baixaPrecisaVincular } from '@/lib/baixa-previsto';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { faturaNaBase } from '@/lib/moeda';
@@ -228,16 +230,27 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const [antecipando, setAntecipando] = useState<string | null>(null);
   const [ocupadoAntecipar, setOcupadoAntecipar] = useState<string | null>(null);
   const [erroAntecipar, setErroAntecipar] = useState<{ id: string; msg: string } | null>(null);
-  const anteciparOcorrencia = useCallback(async (item: Recorrencia) => {
+  // Conta cuja baixa precisa AMARRAR um lançamento existente: o seletor abre
+  // aqui e o vínculo sai por `vincularOcorrencia` logo abaixo.
+  const [vinculando, setVinculando] = useState<Recorrencia | null>(null);
+
+  const anteciparOcorrencia = useCallback(async (item: Recorrencia, transacaoId?: string) => {
     setOcupadoAntecipar(item.id);
     setErroAntecipar(null);
     try {
       await api.previstos.quitar({
         recorrencia_id: item.id,
         competencia: mesRefSP(),
-        data: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
-        valor: Number(item.valor) || undefined,
-        carteira_nome: item.carteira ?? null,
+        // ⚠️ Com `transacao_id` o backend AMARRA a cobrança existente e ignora
+        // data/valor/carteira — é o caminho de quem recebe o lançamento pelo
+        // banco. Sem ele, cria a transação como sempre fez.
+        ...(transacaoId
+          ? { transacao_id: transacaoId }
+          : {
+            data: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+            valor: Number(item.valor) || undefined,
+            carteira_nome: item.carteira ?? null,
+          }),
       });
       setPagas((s) => new Set(s).add(item.id));
       setAntecipando(null);
@@ -510,23 +523,51 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     (dia?: number | null) => !!dia && Number(dia) < hoje, [hoje]);
 
   /**
-   * A linha oferece "Já recebi / Já paguei"? Só quando é seguro:
-   *  · ainda VAI vencer neste mês, sem baixa e sem "pular";
-   *  · modo "lançar" — é o modo em que a Sora lançaria sozinha no dia. Nos
-   *    outros quem traz o lançamento é o banco (Open Finance), e registrar à
-   *    mão criaria a duplicata que a baixa existe pra evitar;
-   *  · não semanal — a baixa é por MÊS, e numa conta semanal ela esconderia as
-   *    outras semanas;
-   *  · valor fixo — conta variável tem o valor real diferente da estimativa,
-   *    e o Extrato Futuro (que pede o valor) é o lugar dela.
+   * A linha oferece dar baixa ("Já paguei" / "Já recebi")?
+   *
+   * ⚠️ O VENCIMENTO SAIU DA CONDIÇÃO (26/09/2026). Antes exigia
+   * `!jaPassou(dia)` — "só quando ainda VAI vencer neste mês" —, porque o
+   * botão nasceu pra ANTECIPAR. Só que ele virou a única porta de baixa, e a
+   * condição escondia justamente o caso comum: a conta venceu, a pessoa pagou,
+   * e é AÍ que ela quer marcar.
+   *
+   * MEDIDO na conta do cliente que reclamou: das 9 contas fixas ativas dele,
+   * **0 ofereciam o botão** — todas já tinham vencido, e 7 ainda estavam em
+   * modo `prever`/`nao_lancar`. Ele descreveu o efeito assim: "tem coisas que
+   * já paguei mas não consigo flegar como pago". Sem saída, acabou usando
+   * "pular" em contas que PAGOU — e pular significa "não vai acontecer".
+   *
+   * ⚠️ RELANÇAR NÃO É RISCO: `resolvidasNoMes` já impede o cron de lançar o
+   * que tem baixa, e a baixa recusa data futura no backend.
+   *
+   * O que CONTINUA de fora:
+   *  · com baixa ou "pulado" — não há o que marcar;
+   *  · semanal — a baixa é por MÊS, e numa semanal esconderia as outras semanas;
+   *  · valor variável — o valor real difere da estimativa, e o Extrato Futuro
+   *    (que pergunta o valor) é o lugar dela.
+   *
+   * ⚠️ O MODO TAMBÉM SAIU, mas com consequência: em `prever`/`nao_lancar` quem
+   * traz o lançamento é o BANCO, então criar transação ali seria duplicata.
+   * Nesses modos a baixa abre o SELETOR (`precisaVincular` abaixo) e amarra a
+   * cobrança que já chegou, em vez de criar outra.
    */
   const podeAntecipar = useCallback((i: Recorrencia) =>
-    !pagas.has(i.id) && !puladas.has(i.id) && !jaPassou(i.dia_vencimento)
-    && (i.modo_lancamento || 'lancar') === 'lancar'
-    && (i.frequencia || 'mensal') !== 'semanal'
-    && !i.valor_variavel && Number(i.valor) > 0
-    && ocorrenciasNoMes(i, mesRefSP()) > 0,
-  [pagas, puladas, jaPassou]);
+    podeDarBaixa(i, {
+      paga: pagas.has(i.id),
+      pulada: puladas.has(i.id),
+      ocorrenciasNoMes: ocorrenciasNoMes(i, mesRefSP()),
+    }),
+  [pagas, puladas]);
+
+  /**
+   * Nesta conta a baixa tem de AMARRAR um lançamento, não criar um.
+   *
+   * ⚠️ É o que separa "a Sora lança" de "o banco lança". Em `lancar` a Sora é
+   * a fonte do lançamento e criar está certo; em `prever`/`nao_lancar` a
+   * cobrança vem do Open Finance e criar geraria a duplicata que a própria
+   * baixa existe pra evitar.
+   */
+  const precisaVincular = useCallback((i: Recorrencia) => baixaPrecisaVincular(i), []);
 
   /** Ainda a vencer primeiro; dentro de cada bloco, por dia. */
   const ordenar = useCallback((lista: Recorrencia[]) => [...lista].sort((a, b) => {
@@ -613,8 +654,16 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
             <Repeat size={18} style={{ color: BRAND }} />
           </div>
           <div className="min-w-0">
+            {/* ⚠️ O MÊS ENTRA NO TÍTULO. Era só "Previstos do mês", e este
+                card mostra SEMPRE o mês corrente — ele não acompanha o filtro
+                de mês da aba de Transações, logo acima. Relato de cliente:
+                "fui dar uma olhada no mês de outubro, e os previstos do mês
+                aparecem como pago, ou já passou" — ele estava vendo setembro
+                com a tela toda dizendo outubro. Nomear o mês desfaz o engano
+                sem precisar acoplar este card ao filtro (que mudaria o
+                significado de "já venceu" e de toda a projeção do mês). */}
             <h3 className="font-semibold text-foreground leading-tight flex items-center gap-2">
-              Previstos do mês
+              Previstos de {new Date().toLocaleDateString('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' })}
               {!carregando && itens.length + dividas.length > 0 && (
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
                       style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}>
@@ -674,6 +723,22 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           editItem={formTarget === 'novo' ? null : formTarget}
           onCancel={() => setFormTarget(null)}
           onSaved={() => { setFormTarget(null); carregar(); }}
+        />
+      )}
+
+      {/* Conciliação manual: "qual lançamento pagou esta previsão?".
+          ⚠️ Também por portal, e pelo mesmo motivo do form acima. */}
+      {/* `phone &&`: sem ele não há o que buscar — e é o mesmo guard que o
+          resto da seção usa antes de qualquer chamada. */}
+      {vinculando && phone && (
+        <SeletorPagamento
+          phone={phone}
+          titulo={vinculando.descricao || 'Conta fixa'}
+          valorPrevisto={Number(vinculando.valor) || 0}
+          tipo={vinculando.tipo === 'Recebimento' ? 'Recebimento' : 'Gasto'}
+          competencia={mesRefSP()}
+          onEscolher={(txId) => anteciparOcorrencia(vinculando, txId)}
+          onFechar={() => setVinculando(null)}
         />
       )}
 
@@ -791,11 +856,14 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     onIgnorarCat={ignorarCategoria}
                     jaPassou={jaPassou(item.dia_vencimento)}
                     podeAntecipar={podeAntecipar(item)}
+                    precisaVincular={precisaVincular(item)}
                     emAntecipar={antecipando === item.id}
                     ocupadoAntecipar={ocupadoAntecipar === item.id}
                     erroAntecipar={erroAntecipar?.id === item.id ? erroAntecipar.msg : null}
                     onPedirAntecipar={(v: boolean) => { setErroAntecipar(null); setAntecipando(v ? item.id : null); }}
-                    onAntecipar={() => anteciparOcorrencia(item)} />
+                    onAntecipar={() => (precisaVincular(item)
+                      ? setVinculando(item)
+                      : anteciparOcorrencia(item))} />
                 ))}
               </ul>
             </div>
@@ -958,11 +1026,14 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                     onIgnorarCat={ignorarCategoria}
                     jaPassou={jaPassou(item.dia_vencimento)}
                     podeAntecipar={podeAntecipar(item)}
+                    precisaVincular={precisaVincular(item)}
                     emAntecipar={antecipando === item.id}
                     ocupadoAntecipar={ocupadoAntecipar === item.id}
                     erroAntecipar={erroAntecipar?.id === item.id ? erroAntecipar.msg : null}
                     onPedirAntecipar={(v: boolean) => { setErroAntecipar(null); setAntecipando(v ? item.id : null); }}
-                    onAntecipar={() => anteciparOcorrencia(item)} />
+                    onAntecipar={() => (precisaVincular(item)
+                      ? setVinculando(item)
+                      : anteciparOcorrencia(item))} />
                 ))}
               </ul>
             </div>
@@ -1065,10 +1136,13 @@ function LinhaConta({ icone, rotulo, valor, dica, cor }: {
 function Linha({
   item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, pulado, onPularMes, onDespularMes,
   sugCat, onAceitarCat, onIgnorarCat, jaPassou,
-  podeAntecipar, emAntecipar, ocupadoAntecipar, erroAntecipar, onPedirAntecipar, onAntecipar,
+  podeAntecipar, precisaVincular, emAntecipar, ocupadoAntecipar, erroAntecipar, onPedirAntecipar, onAntecipar,
 }: {
   /** Oferece "Já recebi / Já paguei" (ocorrência deste mês, antes do dia). */
   podeAntecipar?:    boolean;
+  /** Em `prever`/`nao_lancar` a baixa AMARRA um lançamento existente (o banco
+   *  é quem o traz) em vez de criar um — muda o texto do botão e o destino. */
+  precisaVincular?:  boolean;
   /** A confirmação da antecipação está aberta nesta linha. */
   emAntecipar?:      boolean;
   ocupadoAntecipar?: boolean;
@@ -1170,18 +1244,25 @@ function Linha({
               {/* Ícone + TEXTO no desktop, nunca só a cor — quem não distingue
                   tons precisa LER que já passou. No mobile fica só o ✓, com
                   `aria-label` mantendo o nome acessível. */}
-              {jaPassou && (
-                /* ⚠️ SEM CAIXA NO MOBILE: so o ✓ verde. A pilula existia pra
-                   segurar o texto "ja passou"; sem o texto ela virava moldura de
-                   um icone de 9px, que so somava ruido numa linha ja apertada.
-                   No desktop, onde o texto aparece, a caixa volta (`sm:`).
-                   O nome acessivel fica no aria-label nos dois casos — icone
-                   sozinho nao e rotulo. */
+              {jaPassou && !pago && (
+                /* ⚠️ ERA UM ✓ VERDE — IGUALZINHO AO DE "pago" LOGO ABAIXO, e
+                   foi exatamente isso que um cliente relatou: "os previstos do
+                   mês aparecem como pago, ou já passou. Não está fazendo muito
+                   sentido". Dois estados opostos ("já saiu da conta" × "venceu
+                   e ninguém marcou") usavam o mesmo sinal visual.
+
+                   Hoje é ÂMBAR com RELÓGIO: venceu é pendência, não conquista.
+                   E some quando `pago` — os dois nunca mais aparecem juntos.
+
+                   ⚠️ SEM CAIXA NO MOBILE: só o ícone. A pílula existia pra
+                   segurar o texto; sem ele virava moldura de um ícone de 9px.
+                   No desktop, onde o texto aparece, a caixa volta (`sm:`). O
+                   nome acessível fica no aria-label — ícone não é rótulo. */
                 <span className="flex-shrink-0 inline-flex items-center gap-0.5 sm:gap-1 rounded-md leading-none
-                                 text-[9px] sm:text-[10px] font-medium text-emerald-600 dark:text-emerald-400
-                                 sm:px-1.5 sm:py-px sm:bg-emerald-500/[0.13] sm:text-emerald-700 sm:dark:text-emerald-400"
-                      aria-label="já passou" title="já passou">
-                  <Check size={11} className="sm:w-[9px] sm:h-[9px]" /> <span className="hidden sm:inline">já passou</span>
+                                 text-[9px] sm:text-[10px] font-medium text-amber-600 dark:text-amber-400
+                                 sm:px-1.5 sm:py-px sm:bg-amber-500/[0.13]"
+                      aria-label="venceu e não foi marcada como paga" title="venceu — marque se já pagou">
+                  <Clock size={11} className="sm:w-[9px] sm:h-[9px]" /> <span className="hidden sm:inline">venceu</span>
                 </span>
               )}
             </div>
@@ -1241,7 +1322,11 @@ function Linha({
               {podeAntecipar && !emAntecipar && !emConfirm && (
                 <button
                   type="button"
-                  onClick={() => onPedirAntecipar?.(true)}
+                  // ⚠️ Quem AMARRA pula a confirmação e vai direto ao seletor:
+                  // aquela tela fala de valor, data e conta do lançamento que
+                  // a Sora criaria — e aqui não se cria nada, escolhe-se um
+                  // que já existe. Confirmar antes de escolher é confirmar o quê?
+                  onClick={() => (precisaVincular ? onAntecipar?.() : onPedirAntecipar?.(true))}
                   // `-my-2 py-2` dá alvo de toque maior sem engordar a linha.
                   className="inline-flex items-center gap-0.5 px-1.5 py-2 -my-2 sm:py-1 sm:-my-1 rounded-md font-semibold
                              bg-primary/10 text-primary hover:bg-primary/20 transition-colors active:scale-[0.97]"

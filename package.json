@@ -26,7 +26,8 @@
     "eval:saldo-conta": "npx tsx lib/saldo-conta.eval.mjs",
     "eval:ajuste-saldo": "npx tsx lib/ajuste-saldo.eval.mjs",
     "eval:ofertas-plano": "npx tsx lib/ofertas-plano.eval.mjs",
-    "eval:marca-custom": "npx tsx lib/marca-custom.eval.mjs"
+    "eval:marca-custom": "npx tsx lib/marca-custom.eval.mjs",
+    "eval:baixa-previsto": "npx tsx lib/baixa-previsto.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",
