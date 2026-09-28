@@ -6,7 +6,8 @@ import { api } from '@/lib/api';
 
 const BRAND = 'hsl(var(--primary))';
 
-// Paleta de 12 cores vibrantes em HSL (hue)
+// Paleta de 12 cores vibrantes em HSL (hue) — sempre renderizadas a
+// S65%/L50% (ver `corPreview` abaixo e `getCategoriaTheme` em lib/categorias).
 export const PALETA_CORES = [
   { hue: 142, label: 'Verde'    },
   { hue: 215, label: 'Azul'     },
@@ -20,6 +21,36 @@ export const PALETA_CORES = [
   { hue: 290, label: 'Magenta'  },
   { hue: 235, label: 'Índigo'   },
   { hue: 35,  label: 'Âmbar'    },
+];
+
+// Paleta SÓBRIA — pedido de cliente (26/09/2026): "na barra lateral há
+// diversas opções de cores mas são muito 'gritantes'. Se puderem deixar
+// algumas opções um pouco mais 'sóbrias', ficaria legal."
+//
+// ⚠️ POR QUE É HEX, E NÃO MAIS ENTRADAS DE `hue`: a paleta vibrante inteira
+// passa pela MESMA fórmula fixa (`hsl(hue 65% 50%)`, em `corPreview` abaixo e
+// em `getCategoriaTheme`/`normalizaCor` no resto do app) — é essa saturação
+// de 65% cravada que o cliente achou "gritante", não o tom em si. Um hue novo
+// sairia da mesma fôrma. `cor` no banco já aceita string hex além de number
+// (`getCategoriaTheme` trata os dois desde a introdução de marcas
+// personalizadas), então cada cor sóbria carrega a PRÓPRIA saturação/brilho
+// já reduzidos — é o único jeito de essas cores serem realmente mais suaves,
+// em toda tela que lê a categoria (ícone, chip, gráfico), não só aqui.
+//
+// Medido (script à parte): nenhuma é lida como cinza por `isHexGrayscale`
+// (que descartaria a cor e cairia no hash do nome) e todas ficam entre
+// ~15–29% de saturação — contra os 65% fixos das vibrantes.
+export const PALETA_SOBRIAS = [
+  { hex: '#5B6B85', label: 'Chumbo'    },
+  { hex: '#4B5567', label: 'Grafite'   },
+  { hex: '#5E7052', label: 'Musgo'     },
+  { hex: '#3D6870', label: 'Petróleo'  },
+  { hex: '#A5715A', label: 'Terracota' },
+  { hex: '#7D4A54', label: 'Vinho'     },
+  { hex: '#8C7350', label: 'Areia'     },
+  { hex: '#54628C', label: 'Ardósia'   },
+  { hex: '#71703F', label: 'Oliva'     },
+  { hex: '#6B5240', label: 'Café'      },
 ];
 
 // Emojis comuns para o picker rápido (os das categorias predefinidas vêm primeiro)
@@ -144,15 +175,22 @@ export default function NovaCategoriaModal({
   const [nome,     setNome]     = useState(edicao?.nome || '');
   const [tipo,     setTipo]     = useState<'despesa' | 'receita'>(tipoInicial);
   const [emoji,    setEmoji]    = useState<string>(edicao?.icone || '📦');
-  const [hue,      setHue]      = useState<number>(edicao?.cor ?? 142);
+  // ⚠️ `number | string`: número = paleta vibrante (hue, fórmula fixa
+  // S65%/L50%); string começando em `#` = paleta sóbria (hex com a própria
+  // saturação/brilho). `getCategoriaTheme`/`normalizaCor` já leem os dois —
+  // é o mesmo campo `cor` que marcas personalizadas usam pra cor customizada.
+  const [cor,      setCor]      = useState<number | string>(edicao?.cor ?? 142);
   const [parent,   setParent]   = useState<string | null>(parentId ?? edicao?.parent_id ?? null);
   const [verMais,  setVerMais]  = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState('');
 
   const ehSubcategoria = !!parent || !!parentId;
-  const corPreview = `hsl(${hue} 65% 50%)`;
-  const corBg = `hsl(${hue} 75% 50% / 0.15)`;
+  const corEhHex = typeof cor === 'string' && cor.trim().startsWith('#');
+  // Sóbria: o hex JÁ carrega a saturação/brilho certos, usa como está.
+  // Vibrante: o hue passa pela fórmula fixa de sempre.
+  const corPreview = corEhHex ? (cor as string) : `hsl(${cor} 65% 50%)`;
+  const corBg = corEhHex ? `${cor}26` : `hsl(${cor} 75% 50% / 0.15)`;
 
   async function handleSalvar() {
     setErro('');
@@ -166,7 +204,7 @@ export default function NovaCategoriaModal({
         await api.categorias.editar(edicao.id, {
           nome: nome.trim(),
           icone: emoji,
-          cor: hue,
+          cor,
           tipo,
           // ⚠️ O SELETOR "É subcategoria de" APARECE NA EDIÇÃO (logo abaixo) e
           // o payload não o enviava — a pessoa escolhia o pai, salvava, e nada
@@ -181,7 +219,7 @@ export default function NovaCategoriaModal({
           phone,
           nome: nome.trim(),
           icone: emoji,
-          cor: hue,
+          cor,
           tipo,
           parent_id: parent || undefined,
         });
@@ -339,31 +377,70 @@ export default function NovaCategoriaModal({
           </div>
 
           {/* Cor */}
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-              Cor
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {PALETA_CORES.map(({ hue: h, label }) => {
-                const ativa = h === hue;
-                return (
-                  <button
-                    key={h}
-                    onClick={() => setHue(h)}
-                    title={label}
-                    className={`relative w-9 h-9 rounded-full transition-all ${
-                      ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : 'hover:scale-110'
-                    }`}
-                    style={{
-                      background: `hsl(${h} 65% 50%)`,
-                      // @ts-ignore
-                      '--tw-ring-color': `hsl(${h} 65% 50%)`,
-                    } as any}
-                  >
-                    {ativa && <Check size={14} className="text-white absolute inset-0 m-auto" />}
-                  </button>
-                );
-              })}
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                Cor
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {PALETA_CORES.map(({ hue: h, label }) => {
+                  const ativa = h === cor;
+                  return (
+                    <button
+                      key={h}
+                      onClick={() => setCor(h)}
+                      title={label}
+                      aria-label={label}
+                      aria-pressed={ativa}
+                      className={`relative w-9 h-9 rounded-full transition-all ${
+                        ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : 'hover:scale-110'
+                      }`}
+                      style={{
+                        background: `hsl(${h} 65% 50%)`,
+                        // @ts-ignore
+                        '--tw-ring-color': `hsl(${h} 65% 50%)`,
+                      } as any}
+                    >
+                      {ativa && <Check size={14} className="text-white absolute inset-0 m-auto" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Sóbrias — pedido de cliente (26/09/2026): mesma paleta de
+                sempre, mas com opções de saturação mais baixa pra quem acha
+                as vibrantes "gritantes" demais. Fileira própria, não
+                misturada: são famílias visuais diferentes, e misturar as duas
+                deixaria a escolha mais difícil de escanear. */}
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                Sóbrias
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {PALETA_SOBRIAS.map(({ hex, label }) => {
+                  const ativa = cor === hex;
+                  return (
+                    <button
+                      key={hex}
+                      onClick={() => setCor(hex)}
+                      title={label}
+                      aria-label={label}
+                      aria-pressed={ativa}
+                      className={`relative w-9 h-9 rounded-full transition-all ${
+                        ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : 'hover:scale-110'
+                      }`}
+                      style={{
+                        background: hex,
+                        // @ts-ignore
+                        '--tw-ring-color': hex,
+                      } as any}
+                    >
+                      {ativa && <Check size={14} className="text-white absolute inset-0 m-auto" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

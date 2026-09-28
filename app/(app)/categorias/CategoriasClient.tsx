@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
-import NovaCategoriaModal, { PALETA_CORES } from '@/components/categorias/NovaCategoriaModal';
+import NovaCategoriaModal, { PALETA_CORES, PALETA_SOBRIAS } from '@/components/categorias/NovaCategoriaModal';
 import DefinirLimiteModal from '@/components/categorias/DefinirLimiteModal';
 import GerenciarMarcasModal from '@/components/categorias/GerenciarMarcasModal';
 import { nomeCategoria, getCategoriaTheme, isHexGrayscale, citrico } from '@/lib/categorias';
@@ -77,7 +77,7 @@ interface Categoria {
   id:         string;
   nome:       string;
   icone?:     string;
-  cor?:       number; // HSL hue
+  cor?:       number | string; // hue (vibrante) ou hex (paleta sóbria)
   parent_id?: string | null;
   tipo?:      'despesa' | 'receita';
 }
@@ -320,12 +320,13 @@ export default function CategoriasClient({ phoneInicial, initialData }: { phoneI
   }
 
   // Edição rápida de cor pelo popover do ícone — otimista (via SWR).
-  async function handleMudarCor(c: Categoria, hue: number) {
+  // `number | string`: hue da paleta vibrante OU hex da paleta sóbria.
+  async function handleMudarCor(c: Categoria, cor: number | string) {
     try {
       await mCats(
-        async () => { await api.categorias.editar(c.id, { nome: c.nome, icone: c.icone, cor: hue, tipo: c.tipo }); return undefined; },
+        async () => { await api.categorias.editar(c.id, { nome: c.nome, icone: c.icone, cor, tipo: c.tipo }); return undefined; },
         {
-          optimisticData: (cur: any) => (cur || []).map((x: any) => x.id === c.id ? { ...x, cor: hue } : x),
+          optimisticData: (cur: any) => (cur || []).map((x: any) => x.id === c.id ? { ...x, cor } : x),
           rollbackOnError: true,
           populateCache: false,
           revalidate: false,
@@ -715,7 +716,7 @@ interface CategoriaRowProps {
   onDefinirLimite: () => void;
   onEditarSub: (c: Categoria) => void;
   onExcluirSub: (c: Categoria) => void;
-  onMudarCor: (c: Categoria, hue: number) => void;
+  onMudarCor: (c: Categoria, cor: number | string) => void;
   gastoSubFn: (nome: string) => number;
   delay: number;
 }
@@ -857,6 +858,8 @@ function CategoriaRow({
                         key={h}
                         onClick={() => { onMudarCor(pai, h); setPickerOpen(false); }}
                         title={label}
+                        aria-label={label}
+                        aria-pressed={ativa}
                         className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${
                           ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : ''
                         }`}
@@ -864,6 +867,35 @@ function CategoriaRow({
                           background: `hsl(${h} 65% 50%)`,
                           // @ts-ignore
                           '--tw-ring-color': `hsl(${h} 65% 50%)`,
+                        } as any}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Sóbrias — mesmo pedido de cliente do modal de categoria
+                    (26/09/2026). Fileira própria, mesmo motivo: famílias
+                    visuais diferentes, misturar dificulta escanear. */}
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2.5 mb-2 px-0.5">
+                  Sóbrias
+                </p>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {PALETA_SOBRIAS.map(({ hex, label }) => {
+                    const ativa = pai.cor === hex;
+                    return (
+                      <button
+                        key={hex}
+                        onClick={() => { onMudarCor(pai, hex); setPickerOpen(false); }}
+                        title={label}
+                        aria-label={label}
+                        aria-pressed={ativa}
+                        className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${
+                          ativa ? 'ring-2 ring-offset-2 ring-offset-card scale-110' : ''
+                        }`}
+                        style={{
+                          background: hex,
+                          // @ts-ignore
+                          '--tw-ring-color': hex,
                         } as any}
                       />
                     );

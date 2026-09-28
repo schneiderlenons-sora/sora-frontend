@@ -8,7 +8,9 @@ import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda
 
 interface Props {
   phone: string;
-  categoria: { id?: string; nome: string; icone?: string; cor?: number };
+  // ⚠️ `number | string`: hue da paleta vibrante (fórmula fixa hsl(h 65% 50%))
+  // OU hex da paleta sóbria — ver o `corBg`/`corFg` abaixo.
+  categoria: { id?: string; nome: string; icone?: string; cor?: number | string };
   limiteExistente?: { id?: string; limite_mensal?: number; percentual_alerta?: number } | null;
   mesRef: string; // YYYY-MM
   onClose: () => void;
@@ -78,10 +80,19 @@ export default function DefinirLimiteModal({
     }
   }
 
-  const corBg = categoria.cor !== undefined
+  // ⚠️ HEX (paleta sóbria) NÃO PASSA PELA FÓRMULA hsl(...). Antes este
+  // componente assumia `cor` sempre número — com a paleta sóbria isso vinha
+  // como "#5B6B85" e virava `hsl(#5B6B85 75% 50% / 0.15)`, CSS inválido, e o
+  // card do limite caía pro fundo neutro em silêncio.
+  const corEhHex = typeof categoria.cor === 'string' && categoria.cor.startsWith('#');
+  const corBg = corEhHex
+    ? `${categoria.cor}26`
+    : categoria.cor !== undefined
     ? `hsl(${categoria.cor} 75% 50% / 0.15)`
     : 'hsl(var(--bg-muted))';
-  const corFg = categoria.cor !== undefined
+  const corFg = corEhHex
+    ? (categoria.cor as string)
+    : categoria.cor !== undefined
     ? `hsl(${categoria.cor} 65% 50%)`
     : 'hsl(var(--fg))';
 
