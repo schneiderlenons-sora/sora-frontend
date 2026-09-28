@@ -6,6 +6,7 @@ import { SWRConfig } from 'swr';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MarcasCustomProvider } from '@/contexts/MarcasCustomContext';
 import { CategoriasUserProvider } from '@/contexts/CategoriasUserContext';
+import { ConfirmProvider } from '@/contexts/ConfirmContext';
 import { localStorageProvider } from '@/lib/swr-cache';
 import PaywallRedirect from '@/components/auth/PaywallRedirect';
 import OnboardingRedirect from '@/components/auth/OnboardingRedirect';
@@ -68,9 +69,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 transação. Fica ao lado das marcas porque as duas alimentam o
                 mesmo ícone — ver CategoriasUserContext. */}
             <CategoriasUserProvider>
-              <LoadingGateProvider>
-                {children}
-              </LoadingGateProvider>
+              {/* Diálogo de confirmação/aviso próprio. Fica AQUI, e não no painel,
+                  porque window.confirm/alert não aparecem em WebView (navegador
+                  embutido do WhatsApp) e o link da Sora vai por WhatsApp. */}
+              <ConfirmProvider>
+                <LoadingGateProvider>
+                  {children}
+                </LoadingGateProvider>
+              </ConfirmProvider>
             </CategoriasUserProvider>
           </MarcasCustomProvider>
         </AuthProvider>

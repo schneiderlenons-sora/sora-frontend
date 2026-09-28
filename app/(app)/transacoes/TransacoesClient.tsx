@@ -13,6 +13,7 @@ import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAvatarMembros } from '@/lib/useAvatarMembros';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConfirmar, useDecidir, useAvisar } from '@/contexts/ConfirmContext';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
@@ -68,6 +69,13 @@ const GRID_MIN_W = 880;
 export default function TransacoesClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmt = useDinheiro();
   const moedaBase = useMoedaBase();
+  // ⚠️ Diálogos PRÓPRIOS, não window.confirm/alert: o painel é aberto pelo
+  // navegador embutido do WhatsApp (link que a Sora manda), e ali o nativo é
+  // descartado em silêncio — confirm() devolve false e o clique morre. Foi o
+  // relato "o botão de excluir não funciona". Ver contexts/ConfirmContext.
+  const confirmar = useConfirmar();
+  const decidir = useDecidir();
+  const avisar = useAvisar();
   const { phone: authPhone, podeUsar, perfil } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const podeImportarOFX = podeUsar('import_ofx');
@@ -342,7 +350,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       mR(); // o resumo do mês também deixa de contar a transação
       setRowMenuOpen(null);
     } catch (e: any) {
-      alert(e?.message || 'Não consegui ocultar a transação.');
+      await avisar({ titulo: 'Não consegui ocultar', mensagem: e?.message || 'Tente de novo em instantes.' });
     }
   }
 
@@ -350,14 +358,46 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     const id = typeof tx === 'string' ? tx : tx?.id;
     const ehParcela = tx && typeof tx !== 'string' && !!tx.parcela_grupo && (tx.parcela_total || 0) > 1;
     let excluirTodas = false;
+
+    // O que está sendo apagado, dito na confirmação: "Excluir esta transação?"
+    // sem dizer QUAL obriga a lembrar de qual linha o menu saiu.
+    const objeto = tx && typeof tx !== 'string'
+      ? [tx.observacao || nomeCategoria(tx.categoria), fmt(Number(tx.valor) || 0)].filter(Boolean).join(' · ')
+      : '';
+    // ⚠️ Linha do banco (Open Finance) volta no próximo sync — apagar não
+    // adianta. Ocultar é o caminho certo, e a confirmação avisa antes.
+    const doBanco = tx && typeof tx !== 'string' && !!tx.of_tx_id;
+
     if (ehParcela) {
-      if (!confirm(`Excluir a parcela ${tx.parcela_num}/${tx.parcela_total}?`)) return;
-      excluirTodas = confirm(
-        `Excluir TODAS as ${tx.parcela_total} parcelas dessa compra?\n\n` +
-        `OK = todas  ·  Cancelar = só esta (${tx.parcela_num}/${tx.parcela_total})`
-      );
+      // ⚠️ UMA pergunta com três saídas. Eram DOIS confirm() em sequência em que
+      // "Cancelar" do segundo NÃO cancelava — significava "só esta". Quem
+      // desistia no segundo apagava uma parcela sem querer.
+      const r = await decidir({
+        titulo: `Excluir a parcela ${tx.parcela_num}/${tx.parcela_total}?`,
+        mensagem: `${objeto ? objeto + '. ' : ''}Essa compra tem ${tx.parcela_total} parcelas. Você pode excluir só esta ou a compra inteira. Não dá pra desfazer.`,
+        confirmar: `Só esta (${tx.parcela_num}/${tx.parcela_total})`,
+        alternativa: `Todas as ${tx.parcela_total}`,
+        perigo: true,
+      });
+      if (r === 'cancelar') return;
+      excluirTodas = r === 'alternativa';
     } else {
-      if (!confirm('Excluir esta transação?')) return;
+      const ok = await confirmar({
+        titulo: 'Excluir esta transação?',
+        mensagem: (
+          <>
+            {objeto && <strong className="text-foreground">{objeto}</strong>}
+            {objeto && <br />}
+            {doBanco
+              ? 'Ela veio do seu banco: se você excluir, pode voltar na próxima sincronização. Para tirá-la da vista, use Ocultar. '
+              : ''}
+            Não dá pra desfazer.
+          </>
+        ),
+        confirmar: 'Excluir',
+        perigo: true,
+      });
+      if (!ok) return;
     }
     setRowMenuOpen(null);
     // Remoção otimista via SWR — some da lista na hora, reverte se a API falhar.
@@ -378,7 +418,9 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       );
       mR(); // os totais do resumo mudam após excluir
     } catch (e: any) {
-      alert('Erro ao excluir: ' + (e.message || ''));
+      // ⚠️ Antes era alert() — some no WebView do WhatsApp, e aí a FALHA também
+      // era invisível: o item voltava à lista (rollback) sem nenhuma explicação.
+      await avisar({ titulo: 'Não consegui excluir', mensagem: e?.message || 'Tente de novo em instantes.' });
     }
   }
 
@@ -421,7 +463,13 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   async function handleExcluirSelecionados() {
     const ids = Array.from(selecionados);
     if (!ids.length) return;
-    if (!confirm(`Excluir ${ids.length} transação${ids.length > 1 ? 'ões' : ''} selecionada${ids.length > 1 ? 's' : ''}?`)) return;
+    const plural = ids.length > 1;
+    if (!(await confirmar({
+      titulo: `Excluir ${ids.length} transaç${plural ? 'ões' : 'ão'}?`,
+      mensagem: `${plural ? 'As selecionadas serão apagadas' : 'A selecionada será apagada'}. Não dá pra desfazer.`,
+      confirmar: 'Excluir',
+      perigo: true,
+    }))) return;
     const alvo = new Set(ids);
     try {
       await mTx(
@@ -442,7 +490,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       setSelecionados(new Set());
       mR();
     } catch (e: any) {
-      alert('Erro ao excluir: ' + (e.message || ''));
+      await avisar({ titulo: 'Não consegui excluir', mensagem: e?.message || 'Tente de novo em instantes.' });
     }
   }
 
@@ -542,7 +590,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   aria-haspopup="menu"
                   aria-expanded={importMenuOpen}
                   onClick={() => {
-                    if (!podeImportar) { alert('Importação de OFX/CSV está disponível no plano Premium.'); return; }
+                    if (!podeImportar) { void avisar({ titulo: 'Importação é do plano Premium', mensagem: 'Importação de OFX/CSV está disponível no plano Premium.' }); return; }
                     // Mede o botão na hora de abrir: o menu mora no body.
                     const r = botaoImportarRef.current?.getBoundingClientRect();
                     if (r) setAncoraMenu({ top: r.bottom + 8, right: window.innerWidth - r.right });
@@ -602,7 +650,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               </div>
 
               <button
-                onClick={() => podeExportar ? exportarCSV() : alert('Exportação de dados está disponível no plano Premium.')}
+                onClick={() => podeExportar ? exportarCSV() : void avisar({ titulo: 'Exportação é do plano Premium', mensagem: 'Exportação de dados está disponível no plano Premium.' })}
                 className="btn-outline p-2.5 sm:px-3 sm:py-2 text-sm gap-2"
                 title={podeExportar ? 'Exportar CSV' : 'Disponível no plano Premium'}
                 aria-label="Exportar"
@@ -1012,7 +1060,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 populateCache: false,
                 revalidate: true,
               },
-            ).then(() => { mR(); mW(); }).catch((e: any) => alert('Erro ao salvar: ' + (e.message || '')));
+            ).then(() => { mR(); mW(); }).catch((e: any) => { void avisar({ titulo: 'Não consegui salvar', mensagem: e?.message || 'Tente de novo em instantes.' }); });
           }}
         />
       )}
@@ -1082,7 +1130,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 populateCache: false,
                 revalidate: true,
               },
-            ).then(() => { mR(); mW(); }).catch((e: any) => alert('Erro ao salvar: ' + (e.message || '')));
+            ).then(() => { mR(); mW(); }).catch((e: any) => { void avisar({ titulo: 'Não consegui salvar', mensagem: e?.message || 'Tente de novo em instantes.' }); });
           }}
         />
       )}
