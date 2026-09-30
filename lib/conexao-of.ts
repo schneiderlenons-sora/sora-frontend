@@ -24,6 +24,7 @@
 import { useCallback, useMemo } from 'react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
+import { estadoConexao, podeAnunciarFrescor, type EstadoConexao } from '@/lib/status-conexao-of';
 
 type Carteira = { of_conta_id?: unknown; of_consent_id?: string | null } | null | undefined;
 
@@ -42,13 +43,30 @@ export function useConexoesOF(ativo: boolean) {
   }, [data]);
   const pronto = !!data && !error;
 
-  const encerrada = useCallback(
-    (w: Carteira) => pronto && !!w?.of_conta_id && !!w?.of_consent_id && !mapa[String(w.of_consent_id)],
+  // A decisão inteira mora em `lib/status-conexao-of.ts` (puro, com eval): a
+  // tela só pergunta em que pé está.
+  const estado = useCallback(
+    (w: Carteira): EstadoConexao => estadoConexao({
+      doBanco: !!w?.of_conta_id,
+      pronto,
+      consentId: w?.of_consent_id,
+      conexao: w?.of_consent_id ? mapa[String(w.of_consent_id)] : undefined,
+    }),
     [pronto, mapa],
   );
+
+  const encerrada = useCallback((w: Carteira) => estado(w) === 'encerrada', [estado]);
+
+  // ⚠️ DEVOLVE `null` QUANDO A ÚLTIMA SINCRONIZAÇÃO FALHOU, mesmo havendo data
+  // guardada. Essa data é a do último SUCESSO, e era ela que fazia o card
+  // anunciar "atualizado há 2 h" com o saldo parado havia horas (relato de
+  // 30/09/2026). Sem data, a tela cai no texto que diz a verdade.
   const sincronizadoEm = useCallback(
-    (w: Carteira) => (w?.of_consent_id ? mapa[String(w.of_consent_id)]?.ultima_sync ?? null : null),
-    [mapa],
+    (w: Carteira) => (podeAnunciarFrescor(estado(w)) && w?.of_consent_id
+      ? mapa[String(w.of_consent_id)]?.ultima_sync ?? null
+      : null),
+    [estado, mapa],
   );
-  return { encerrada, sincronizadoEm };
+
+  return { encerrada, sincronizadoEm, estado };
 }

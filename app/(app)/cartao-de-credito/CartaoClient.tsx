@@ -645,6 +645,10 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
   // busca pra cartão que vem do Open Finance; o SWR divide a lista entre os cards.
   const conexoes = useConexoesOF(!!cartao.of_conta_id);
   const conexaoEncerrada = conexoes.encerrada(cartao as never);
+  // Em que pé está a conexão — ver `lib/status-conexao-of.ts`. A fatura deste
+  // card vem do banco; se a última sincronização falhou, o valor é de antes
+  // dela e a tela precisa dizer isso.
+  const estadoConexao = conexoes.estado(cartao as never);
   // ⚠️ Tudo neste card está NA MOEDA DO CARTÃO (migration 168): fatura, limite,
   // pago e rollover — é o número que o app do banco mostra. Num grupo em real
   // (todo cartão hoje) é a mesma moeda do grupo e nada muda.
@@ -873,6 +877,34 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
               <a href="/reportar-bug" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
                 fale com a gente
               </a>.
+            </p>
+          </div>
+        )}
+
+        {/* ⚠️ A AUTORIZAÇÃO VENCEU — aqui reconectar resolve de verdade. */}
+        {estadoConexao === 'expirada' && (
+          <div className="mt-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+            <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">A autorização deste banco expirou</p>
+            <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+              A fatura abaixo parou no dia em que a autorização venceu.{' '}
+              <a href="/open-finance" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
+                Reconecte o banco
+              </a>{' '}
+              para voltar a atualizar.
+            </p>
+          </div>
+        )}
+
+        {/* ⚠️ A ÚLTIMA SINCRONIZAÇÃO FALHOU. O card mostrava o valor antigo sem
+            nenhum aviso — mesmo defeito que levou o cliente do Santander a
+            achar que a Sora tinha parado de funcionar (30/09/2026).
+            ⚠️ Sem CTA de reconectar: falha de sincronização não se resolve
+            assim, e reconectar cria consentimento novo que nos é cobrado. */}
+        {estadoConexao === 'falhando' && (
+          <div className="mt-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+            <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">A última atualização com o banco falhou</p>
+            <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+              A fatura abaixo pode estar defasada. A Sora tenta de novo sozinha — não precisa reconectar.
             </p>
           </div>
         )}

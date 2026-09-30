@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useConexoesOF } from '@/lib/conexao-of';
+import type { EstadoConexao } from '@/lib/status-conexao-of';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
@@ -425,6 +426,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
                 onVerExtrato={() => setContaDetalhe(w)}
                 sincronizadoEm={conexoes.sincronizadoEm(w)}
                 conexaoEncerrada={conexoes.encerrada(w)}
+                estadoConexao={conexoes.estado(w)}
               />
             ))}
 
@@ -525,7 +527,7 @@ function tempoDesde(iso: string): string {
 function WalletCard({
   wallet, index, ocultar, compartilhado,
   onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir, onVerExtrato,
-  sincronizadoEm = null, conexaoEncerrada = false,
+  sincronizadoEm = null, conexaoEncerrada = false, estadoConexao = 'indefinido',
 }: {
   wallet:        Wallet;
   index:         number;
@@ -541,6 +543,8 @@ function WalletCard({
   sincronizadoEm?: string | null;
   /** O consentimento desta conta não existe mais — o saldo parou de vir. */
   conexaoEncerrada?: boolean;
+  /** Em que pé está a conexão — ver `lib/status-conexao-of.ts`. */
+  estadoConexao?: EstadoConexao;
 }) {
   const fmt = useDinheiro();
   const doBanco = !!wallet.of_conta_id;
@@ -664,7 +668,27 @@ function WalletCard({
             <span>Esta conta parou de atualizar — ficou presa numa conexão antiga. Reconecte em Open Finance.</span>
           </p>
         )}
-        {doBanco && !conexaoEncerrada && (
+        {/* ⚠️ A AUTORIZAÇÃO VENCEU: aqui reconectar RESOLVE, e é a única
+            situação em que a tela pede isso. */}
+        {doBanco && estadoConexao === 'expirada' && (
+          <p className="mt-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <Landmark size={11} className="flex-shrink-0" aria-hidden />
+            <span>A autorização deste banco expirou — o saldo parou no dia. Reconecte em Open Finance.</span>
+          </p>
+        )}
+        {/* ⚠️ A ÚLTIMA ATUALIZAÇÃO FALHOU. Relato de 30/09/2026: o card dizia
+            "atualizado há 2 h" com a sincronização quebrada havia horas, e o
+            cliente concluiu — com razão — que o app estava errado.
+            ⚠️ E NÃO MANDA RECONECTAR: falha de sincronização não se resolve
+            reconectando, e cada reconexão cria um consentimento novo que o
+            agregador nos cobra. Diz o fato e para por aí. */}
+        {doBanco && estadoConexao === 'falhando' && (
+          <p className="mt-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <Landmark size={11} className="flex-shrink-0" aria-hidden />
+            <span>A última atualização com o banco falhou — este saldo pode estar defasado. Tentamos de novo sozinhos.</span>
+          </p>
+        )}
+        {doBanco && (estadoConexao === 'ok' || estadoConexao === 'indefinido') && (
           <p className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-1">
             <Landmark size={11} className="flex-shrink-0" aria-hidden />
             <span>
