@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle, Check, Smile } from 'lucide-react';
 import { api } from '@/lib/api';
+import { primeiroEmoji } from '@/lib/emoji-valido';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -149,6 +150,14 @@ const EMOJI_EXTENDIDOS = Array.from(new Set([
   '💴', '💶', '💷', '🧧', '💱', '💹',
   // Símbolos / geral
   '⚠️', 'ℹ️', '❓', '🔆', '💠', '🏆', '🎗️', '📣',
+
+  // ── OBRAS E REFORMAS (pedido de cliente, 26/09/2026) ──
+  // O catálogo tinha ferramenta solta (🔧 🔨 🛠️) mas nada de obra: faltavam
+  // tijolo, pedreiro, material, pintura e a casa em reforma.
+  '🧱', '👷', '👷‍♀️', '🚧', '🪚', '🪓', '⛏️', '⚒️',
+  '🪵', '🪟', '🚪', '🪜', '🪞', '🧰', '🔩', '🪛',
+  '🏚️', '🏗️', '🖌️', '🎨', '🪣', '📏', '📐', '🧑‍🔧',
+  '🔌', '💡', '🚰', '🧯', '🗜️', '⚙️',
 ]));
 
 interface Props {
@@ -182,6 +191,11 @@ export default function NovaCategoriaModal({
   const [cor,      setCor]      = useState<number | string>(edicao?.cor ?? 142);
   const [parent,   setParent]   = useState<string | null>(parentId ?? edicao?.parent_id ?? null);
   const [verMais,  setVerMais]  = useState(false);
+  // Campo "ou cole outro emoji". Guardado à parte do `emoji` porque enquanto a
+  // pessoa digita o texto pode ainda não ser um emoji válido — e o ícone da
+  // categoria não pode acompanhar rascunho.
+  const [emojiLivre, setEmojiLivre] = useState('');
+  const [erroEmoji, setErroEmoji]   = useState('');
   const [loading,  setLoading]  = useState(false);
   const [erro,     setErro]     = useState('');
 
@@ -362,7 +376,10 @@ export default function NovaCategoriaModal({
                 return (
                   <button
                     key={e}
-                    onClick={() => setEmoji(e)}
+                    // Escolher na grade descarta o rascunho do campo livre —
+                    // senão um "casa" mal digitado deixaria o erro em vermelho
+                    // embaixo de uma escolha que deu certo.
+                    onClick={() => { setEmoji(e); setEmojiLivre(''); setErroEmoji(''); }}
                     className={`aspect-square rounded-lg flex items-center justify-center text-2xl transition-all ${
                       ativo
                         ? 'bg-primary/15 ring-2 ring-primary/40 scale-110'
@@ -374,6 +391,46 @@ export default function NovaCategoriaModal({
                 );
               })}
             </div>
+
+            {/* ⚠️ QUALQUER EMOJI — a outra metade do pedido ("ou colocar a
+                opção de nós mesmo carregar o emoji"). Por maior que fique, a
+                lista nunca cobre o tema de todo mundo; este campo cobre.
+                A validação mora em `lib/emoji-valido.ts` (com eval): `icone`
+                é renderizado cru em dezenas de telas, e uma palavra colada
+                aqui não daria erro — entortaria todas elas em silêncio. */}
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="text"
+                value={emojiLivre}
+                onChange={e => {
+                  const v = e.target.value;
+                  setEmojiLivre(v);
+                  const achado = primeiroEmoji(v);
+                  if (achado) { setEmoji(achado); setErroEmoji(''); }
+                  else if (v.trim()) setErroEmoji('Isso não parece um emoji.');
+                  else setErroEmoji('');
+                }}
+                placeholder="Ou cole outro emoji aqui"
+                aria-label="Usar outro emoji"
+                // `inputMode` abre direto o teclado de emoji no celular em vez
+                // do alfabético — sem isso a pessoa tem de caçar a carinha.
+                inputMode="text"
+                maxLength={24}
+                // h-11 = 44px, o mínimo de alvo de toque. A classe `.input`
+                // sozinha dá ~36px, que basta pros campos de texto ao lado mas
+                // é apertado pra um campo que se usa com o polegar.
+                className="input flex-1 h-11 text-sm"
+              />
+              {/* O que ficou salvo, do tamanho em que vai aparecer na lista —
+                  é o retorno que confirma que deu certo. */}
+              <div className="w-11 h-11 rounded-lg bg-muted/40 border border-border flex items-center justify-center text-2xl flex-shrink-0"
+                   aria-live="polite" aria-label={`Ícone escolhido: ${emoji}`}>
+                {emoji}
+              </div>
+            </div>
+            <p className={`text-[11px] mt-1 leading-snug ${erroEmoji ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+              {erroEmoji || 'Vale qualquer emoji do teclado do seu celular ou computador.'}
+            </p>
           </div>
 
           {/* Cor */}
