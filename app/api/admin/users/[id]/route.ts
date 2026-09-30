@@ -45,6 +45,46 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ ok: true });
   }
 
+  // ── Cancelar o VITALÍCIO (reembolso) e deixar no grátis ──────────
+  //
+  // Antes disso a única saída pra um vitalício reembolsado era APAGAR a conta:
+  // o `PlanoEditor` troca `users.plano`, mas a flag `vitalicio` continuava de
+  // pé — e ela não é enfeite, é lida em três lugares que passariam a mentir:
+  //
+  //   1. `lib/ofertas-plano.ts` → `if (p.vitalicio) return NADA`. A pessoa
+  //      ficaria no grátis SEM NENHUMA oferta na tela, sem como voltar a
+  //      comprar. É o pior dos efeitos: parece bloqueio, não cancelamento.
+  //   2. `/admin` → badge "Vitalício", filtro de vitalícios e a contagem.
+  //   3. `overview` → receita vitalícia, que somaria um dinheiro devolvido.
+  //
+  // ⚠️ `vitalicio_valor` SAI JUNTO. A ação existe pro caso de reembolso: o
+  // valor voltou pro cliente, então mantê-lo inflaria a receita do painel com
+  // venda que deixou de existir.
+  // ⚠️ NÃO mexe em assinatura do Stripe — vitalício é pagamento único (Mercado
+  // Pago). Quem tiver assinatura recorrente se resolve em `stripe_sync`.
+  if (action === 'cancelar_vitalicio') {
+    const limpeza = {
+      plano: 'gratis',
+      vitalicio: false,
+      vitalicio_em: null,
+      vitalicio_valor: null,
+      plano_intervalo: null,
+      plano_valido_ate: null,
+    };
+    const { error } = await supabaseAdmin.from('users').update(limpeza).eq('id', id);
+    if (error) {
+      // Fallback: `vitalicio_valor` vem da migration 065 e pode não existir.
+      // Sem ele o cancelamento ainda vale — mesmo desenho do `ativarVitalicio`.
+      const { vitalicio_valor: _ignorado, ...minimo } = limpeza;
+      const { error: e2 } = await supabaseAdmin.from('users').update(minimo).eq('id', id);
+      // ⚠️ O erro é LIDO e devolvido. Responder 200 aqui deixaria o painel
+      // dizendo "feito" com o cliente ainda vitalício no banco — a família de
+      // bug das migrations 121/147.
+      if (e2) return NextResponse.json({ erro: e2.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, plano: 'gratis' });
+  }
+
   // ── Excluir/incluir no MRR (cortesia, acesso grátis, conta do dono) ──
   if (action === 'set_mrr_excluir') {
     const excluir = !!body.excluir;

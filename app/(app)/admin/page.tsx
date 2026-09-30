@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
+import { useConfirmar } from '@/contexts/ConfirmContext';
 import OpenFinancePainel from '@/components/admin/OpenFinancePainel';
 import AfiliadosPainel from '@/components/admin/AfiliadosPainel';
 import {
@@ -17,11 +18,11 @@ const BRAND = 'hsl(var(--primary))';
 const money = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 const dataCurta = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }) : '—');
 
-type Plano = 'basico' | 'premium' | 'platinum' | 'inativo' | 'kit';
+type Plano = 'basico' | 'premium' | 'platinum' | 'inativo' | 'kit' | 'gratis';
 type User = {
   id: string; name: string | null; email: string | null; phone: string | null;
   plano: Plano; plano_intervalo?: string | null; plano_valido_ate?: string | null;
-  vitalicio?: boolean | null; vitalicio_em?: string | null;
+  vitalicio?: boolean | null; vitalicio_em?: string | null; vitalicio_valor?: number | null;
   stripe_customer_id?: string | null; onboarding_completed?: boolean; welcomed_at?: string | null;
   mrr_excluir?: boolean | null; assinatura_cancelada?: boolean | null;
   recuperacao_signup_em?: string | null; recuperacao_enviada_em?: string | null;
@@ -76,6 +77,10 @@ const PLANO_META: Record<Plano, { label: string; cor: string; icon?: any }> = {
   premium: { label: 'Premium', cor: '#10b981', icon: Sparkles },
   platinum: { label: 'Platinum', cor: '#a78bfa', icon: Crown },
   kit:     { label: 'Kit',     cor: '#8b5cf6', icon: Gem },
+  // ⚠️ Cinza-azulado, NUNCA o vermelho do inativo: `gratis` é gente usando o
+  // app no modo manual, não paywall. Pintar os dois igual esconderia na lista
+  // justamente a diferença entre "nunca entrou" e "usa de graça".
+  gratis:  { label: 'Grátis',  cor: '#64748b' },
   inativo: { label: 'Inativo', cor: '#ef4444' },
 };
 
@@ -273,6 +278,8 @@ const LIMITE_COMUNICADO = 1024 - 75 - 40;   // = 909
 export default function AdminPage() {
   const { perfil, loading } = useAuth();
   const router = useRouter();
+  // Diálogo próprio em vez de `window.confirm` — ver contexts/ConfirmContext.
+  const confirmar = useConfirmar();
   const admin = isAdminEmail(perfil?.email);
 
   const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance' | 'afiliados'>('users');
@@ -323,7 +330,36 @@ export default function AdminPage() {
       if (action === 'stripe_sync' && d.plano) setSel({ ...sel, plano: d.plano });
       if (action === 'set_phone') setSel({ ...sel, phone: String(extra.phone) });
       if (action === 'set_mrr_excluir') setSel({ ...sel, mrr_excluir: extra.excluir as boolean });
+      // Espelha na hora o que a rota limpou, senão o painel seguiria exibindo
+      // o badge "Vitalício" e o botão de cancelar num cliente já cancelado.
+      if (action === 'cancelar_vitalicio') {
+        setSel({ ...sel, plano: 'gratis' as Plano, vitalicio: false, vitalicio_em: null, plano_valido_ate: null });
+      }
     } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
+  }
+
+  // Confirmação nomeando o cliente e dizendo o que sai e o que FICA — é
+  // ação de dinheiro, e "cancelar" sem dizer o que acontece com os dados
+  // assusta mais do que informa.
+  async function cancelarVitalicio() {
+    if (!sel) return;
+    const ok = await confirmar({
+      titulo: 'Cancelar o vitalício?',
+      mensagem: (
+        <>
+          <b className="text-foreground">{sel.name || sel.email}</b> passa para o plano grátis e perde
+          os recursos pagos (WhatsApp, Open Finance, Drive e afins).
+          <br /><br />
+          Os dados, os lançamentos e o login <b className="text-foreground">continuam intactos</b> — e ela
+          volta a ver as ofertas, podendo assinar de novo quando quiser.
+          {sel.vitalicio_valor ? ' O valor também sai da receita do painel.' : ''}
+        </>
+      ),
+      confirmar: 'Cancelar vitalício',
+      cancelar: 'Voltar',
+      perigo: true,
+    });
+    if (ok) await acao('cancelar_vitalicio');
   }
 
   async function apagar() {
@@ -805,6 +841,20 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                   <Zap size={14} /> Sincronizar com o Stripe
                 </button>
 
+                {/* ⚠️ REEMBOLSO DE VITALÍCIO — a saída que faltava.
+                    Sem isto, a única forma de tirar o acesso de um vitalício
+                    reembolsado era APAGAR a conta inteira (e com ela o
+                    histórico financeiro do cliente). Trocar só o plano no
+                    editor acima não resolve: a flag `vitalicio` continuaria de
+                    pé e `ofertas-plano.ts` devolve NADA pra quem a tem — a
+                    pessoa ficaria no grátis sem nenhuma forma de recomprar. */}
+                {sel.vitalicio && (
+                  <button onClick={cancelarVitalicio}
+                          className="w-full h-10 rounded-xl border border-amber-300 dark:border-amber-900/60 text-sm font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 inline-flex items-center justify-center gap-2">
+                    <Undo2 size={14} /> Cancelar vitalício (reembolso) → grátis
+                  </button>
+                )}
+
                 {/* Excluir do MRR — cortesia / acesso grátis. Só faz sentido em
                     plano pago; num inativo não conta mesmo.
                     ⚠️ A LINHA INTEIRA é UM botão. Não pode ser <label> com um
@@ -920,13 +970,22 @@ function PlanoEditor({ atual, onAplicar }: { atual: Plano; onAplicar: (plano: Pl
   const [dias, setDias] = useState(30);
   return (
     <div className="flex gap-2">
+      {/* ⚠️ `gratis` e `kit` FALTAVAM AQUI. A rota sempre os aceitou, mas sem a
+          opção no select não havia como rebaixar ninguém pro modo manual pelo
+          painel — a única saída era apagar a conta. `gratis` vem primeiro
+          porque é o destino de quem cancela ou é reembolsado. */}
       <select value={plano} onChange={(e) => setPlano(e.target.value as Plano)} className="flex-1 h-10 rounded-xl bg-card border border-border text-sm px-2 focus:outline-none focus:border-primary">
+        <option value="gratis">Grátis (modo manual)</option>
         <option value="basico">Básico</option>
         <option value="premium">Premium</option>
         <option value="platinum">Platinum</option>
-        <option value="inativo">Inativo</option>
+        <option value="kit">Kit (vitalício, sem WhatsApp)</option>
+        <option value="inativo">Inativo (paywall)</option>
       </select>
-      {plano !== 'inativo' && (
+      {/* ⚠️ `gratis` entra junto de `inativo`: nenhum dos dois tem validade, e
+          um grátis com `plano_valido_ate` viraria inativo sozinho quando a
+          data passasse (o `exigirPlano` expira qualquer plano != inativo). */}
+      {plano !== 'inativo' && plano !== 'gratis' && (
         <input type="number" value={dias} onChange={(e) => setDias(Number(e.target.value))} className="w-16 h-10 rounded-xl bg-card border border-border text-sm text-center tabular-nums focus:outline-none focus:border-primary" title="dias de validade" />
       )}
       <button onClick={() => onAplicar(plano, dias)} className="h-10 px-4 rounded-xl text-sm font-bold text-white inline-flex items-center gap-1.5" style={{ background: BRAND }}>
