@@ -718,7 +718,10 @@ export const api = {
       req<{ caixinhas: any[]; total: number }>(`/api/investimentos/caixinhas/${phone}`),
     reserva: (phone: string) =>
       req<any>(`/api/investimentos/reserva/${phone}`),
-    atualizarReserva: (phone: string, body: { meses_objetivo: number }) =>
+    /** ⚠️ Campos OPCIONAIS: o servidor só grava o que vier. Mandar
+     *  `meses_objetivo` junto do toggle devolveria a meta de quem escolheu 12
+     *  meses para o default. */
+    atualizarReserva: (phone: string, body: { meses_objetivo?: number; incluir_dividas?: boolean }) =>
       req(`/api/investimentos/reserva/${phone}`, { method: 'POST', body: JSON.stringify(body) }),
 
     /** Aportes, resgates e proventos que o BANCO reporta (migration 139).

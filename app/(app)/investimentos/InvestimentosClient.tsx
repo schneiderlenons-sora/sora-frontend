@@ -354,6 +354,15 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
               if (!phone) return;
               try { await api.investimentos.atualizarReserva(phone, { meses_objetivo: n }); carregar(); } catch {}
             }}
+            // Contar (ou não) as parcelas de dívida no custo mensal. Otimista
+            // no card, porque o número inteiro depende dela — esperar a rede
+            // faria o toggle andar e o valor só mudar depois.
+            onToggleDividas={async (novo: boolean) => {
+              if (!phone) return;
+              mRes((prev: any) => (prev ? { ...prev, incluirDividas: novo } : prev), false);
+              try { await api.investimentos.atualizarReserva(phone, { incluir_dividas: novo }); }
+              finally { mRes(); }
+            }}
           />
         )}
 
@@ -1200,7 +1209,7 @@ function LinhaReserva({ inv, on = false, onToggle }: any) {
   );
 }
 
-function TabReserva({ reserva, invs, onChangeMeses, onToggleReserva }: any) {
+function TabReserva({ reserva, invs, onChangeMeses, onToggleReserva, onToggleDividas }: any) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const pct = reserva.percentual || 0;
   const status =
@@ -1248,6 +1257,72 @@ function TabReserva({ reserva, invs, onChangeMeses, onToggleReserva }: any) {
           Com seu gasto médio de <strong className="text-foreground tabular">{fmt(reserva.gastoMedioMensal || 0)}</strong>,
           sua meta é <strong className="text-foreground tabular">{fmt(reserva.valorObjetivo || 0)}</strong>.
         </p>
+
+        {/* ═══ De onde vem esse custo mensal ═══════════════════════════════════
+            ⚠️ A COMPOSIÇÃO É O QUE TORNA O NÚMERO DEFENSÁVEL. Relato de cliente
+            (26/09/2026): "não está considerando o que tem em dívidas e
+            parcelas" — ele tinha R$ 6.296,91/mês de financiamento fora da
+            conta. Agora entra; mas uma meta que sobe sem explicação assusta
+            tanto quanto uma meta errada, então a tela mostra as duas parcelas
+            do cálculo e lista as dívidas somadas, nome por nome. */}
+        {(reserva.parcelasDividas || 0) > 0 && (
+          <div className="mt-4 rounded-2xl border border-border/60 bg-muted/20 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground">Seu custo mensal</p>
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Gastos lançados (média de 6 meses)</span>
+                    <span className="tabular text-foreground">{fmt(reserva.gastoTransacoes || 0)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Parcelas de dívidas</span>
+                    <span className="tabular text-foreground">+ {fmt(reserva.parcelasDividas || 0)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 pt-1 border-t border-border/60 font-bold">
+                    <span className="text-foreground">Total por mês</span>
+                    <span className="tabular text-foreground">{fmt(reserva.gastoMedioMensal || 0)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {!!reserva.dividasNoCusto?.length && (
+              <ul className="mt-3 pt-3 border-t border-border/60 space-y-1">
+                {reserva.dividasNoCusto.map((d: any) => (
+                  <li key={d.id} className="flex justify-between gap-3 text-[11px]">
+                    <span className="text-muted-foreground truncate">{d.titulo}</span>
+                    <span className="tabular text-muted-foreground flex-shrink-0">{fmt(d.valor)}/mês</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
+              Se a renda parar, essas parcelas continuam. Por isso elas entram na meta.
+              {reserva.dividasJaNosGastos > 0 && (
+                <> Outras {reserva.dividasJaNosGastos} já aparecem nos seus lançamentos e não foram contadas duas vezes.</>
+              )}
+            </p>
+
+            {/* A linha INTEIRA é um botão — nunca <button> dentro de <label>,
+                que reencaminha o clique e dispara o toggle duas vezes. */}
+            <button
+              type="button" role="switch" aria-checked={reserva.incluirDividas !== false}
+              onClick={() => onToggleDividas(reserva.incluirDividas === false)}
+              className="w-full mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-3 text-left"
+            >
+              <span className="text-[11px] font-semibold text-foreground">
+                Contar parcelas de dívidas na meta
+              </span>
+              <span className="w-10 h-6 rounded-full transition-colors flex-shrink-0 relative"
+                    style={{ background: reserva.incluirDividas !== false ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}>
+                <span className="absolute top-1 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: reserva.incluirDividas !== false ? 'translateX(22px)' : 'translateX(2px)' }} />
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="mt-5 pt-5 border-t border-border/60">
           <p className="text-xs font-semibold text-foreground mb-3">Meses de cobertura objetivo</p>
