@@ -528,6 +528,15 @@ export const api = {
     /** `lancamentos` = quantos casam hoje; `fora` = quantos ainda mudariam. */
     listar: (phone: string) =>
       req<Regra[]>(`/api/regras/${phone}`),
+    /**
+     * Só as regras que RENOMEIAM, com `termo` + `renomear_para`.
+     *
+     * ⚠️ Use esta, não a `listar`, fora da tela de gestão: a `listar` varre
+     * todas as transações do grupo pra contar o uso de cada regra, e isso é
+     * caro demais pra rodar no painel inteiro.
+     */
+    renomes: (phone: string) =>
+      req<{ termo: string; renomear_para: string }[]>(`/api/regras/${phone}?simples=1`),
     /** Cria do zero. `descricao` é o texto COMO O BANCO ESCREVE — o servidor só
      *  normaliza caixa e acento, sem tirar palavra nenhuma. */
     criar: (body: NovaRegra & { phone: string }) =>

@@ -8,11 +8,15 @@
 // pro comportamento antigo).
 // ─────────────────────────────────────────────────────────────
 import { createContext, useContext, useMemo, useCallback } from 'react';
+import useSWR from 'swr';
 import { useAuth } from './AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { temMarcaConhecida } from '@/components/ui/IconeMarca';
-import { indexarMarcas, acharLogo, type MarcaCustom as MarcaCustomBase } from '@/lib/marca-custom';
+import {
+  indexarMarcas, indexarRenomes, acharLogo,
+  type MarcaCustom as MarcaCustomBase, type RegraRenome,
+} from '@/lib/marca-custom';
 
 // Reexporta pra quem já importava daqui — a forma mora em lib/marca-custom.
 export type MarcaCustom = MarcaCustomBase;
@@ -33,14 +37,30 @@ export function MarcasCustomProvider({ children }: { children: React.ReactNode }
   const { data, mutate } = useApi(phone ? `marcas:${phone}` : null, () => api.marcas.listar(phone!));
   const marcas: MarcaCustom[] = (data as MarcaCustom[]) ?? [];
 
+  // Renomes das regras — é o que faz a logo sobreviver a "mude a descrição
+  // para X" (ver o cabeçalho de `lib/marca-custom.ts`).
+  //
+  // ⚠️ SÓ BUSCA QUEM TEM MARCA. Sem marca personalizada não há logo pra
+  // resgatar, e este provider embrulha o painel inteiro.
+  // ⚠️ `?simples=1` — a rota normal varre TODAS as transações do grupo pra
+  // contar o uso de cada regra. Aqui só interessam `termo` e `renomear_para`.
+  // ⚠️ `useSWR` direto, NÃO `useApi`: o useApi registra no LoadingGate e a
+  // baleia cobriria a tela inteira por causa de uma lista acessória.
+  const { data: renomesRaw } = useSWR(
+    phone && marcas.length ? `regras-renome:${phone}` : null,
+    () => api.regras.renomes(phone!),
+    { revalidateOnFocus: false },
+  );
+
   const value = useMemo<Ctx>(() => {
     const idx = indexarMarcas(marcas);
+    const renomes = indexarRenomes((renomesRaw as RegraRenome[]) || []);
     return {
       marcas,
-      matchLogo: (nome: string) => acharLogo(idx, nome),
+      matchLogo: (nome: string) => acharLogo(idx, nome, renomes),
       recarregar: () => mutate(),
     };
-  }, [marcas, mutate]);
+  }, [marcas, renomesRaw, mutate]);
 
   return <MarcasCustomContext.Provider value={value}>{children}</MarcasCustomContext.Provider>;
 }
