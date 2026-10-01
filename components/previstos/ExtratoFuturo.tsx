@@ -1,8 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2, CreditCard } from 'lucide-react';
+import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2, CreditCard, Link2, History } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
+import { totalPendente, type Pendencia } from '@/lib/previstos-atrasados';
+import SeletorPagamento from '@/components/previstos/SeletorPagamento';
+
+/** Os status que a LINHA do extrato sabe informar por si — nenhum campo novo. */
+type StatusFiltro = 'todos' | 'aberto' | 'pagos' | 'adiados' | 'conciliar';
+const FILTROS_STATUS: { id: StatusFiltro; rotulo: string }[] = [
+  { id: 'todos', rotulo: 'Tudo' },
+  { id: 'aberto', rotulo: 'Em aberto' },
+  { id: 'pagos', rotulo: 'Pagos' },
+  { id: 'adiados', rotulo: 'Adiados' },
+  { id: 'conciliar', rotulo: 'A conciliar' },
+];
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
@@ -29,6 +41,17 @@ import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 // =============================================================================
 
 const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+const BRAND = '#61D17B';
+const NOME_MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+/** '2026-09' → 'Setembro' (ou 'Setembro/2025' quando não é o ano corrente). */
+function mesPorExtenso(ym: string, hoje = hojeSP()) {
+  const [a, m] = String(ym).split('-').map(Number);
+  const nome = NOME_MES[(m || 1) - 1] || ym;
+  const rotulo = nome.charAt(0).toUpperCase() + nome.slice(1);
+  return String(a) === hoje.slice(0, 4) ? rotulo : `${rotulo}/${a}`;
+}
 
 const DIA_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 function rotuloDia(iso: string) {
@@ -108,6 +131,7 @@ export default function ExtratoFuturo({
   dados, carteiras, carteirasBanco, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
   baixaAutomatica, onBaixaAutomatica, abrirNovo,
   periodo, ate, onPeriodo, contasPagamento, onContaFatura, erroContaFatura,
+  pendencias, onConciliar, onPularPendencia, phone,
 }: {
   dados: Parameters<typeof montarExtrato>[0];
   carteiras: string[];
@@ -129,6 +153,13 @@ export default function ExtratoFuturo({
   abrirNovo?: boolean;
   baixaAutomatica?: boolean;
   onBaixaAutomatica?: (v: boolean) => void;
+  /** Contas fixas de meses ANTERIORES que ficaram em aberto. */
+  pendencias?: Pendencia[];
+  /** Amarra um lançamento existente à previsão daquele mês. */
+  onConciliar?: (p: Pendencia, transacaoId: string) => void | Promise<void>;
+  onPularPendencia?: (p: Pendencia) => void | Promise<void>;
+  /** Só pro seletor de pagamento buscar os lançamentos do mês. */
+  phone?: string;
   /** Período: '30d' | '60d' | '90d' | '6m' | 'mes' ou uma data 'YYYY-MM-DD'. */
   periodo?: string;
   /** Último dia do período, já resolvido — valor do campo "Até". */
@@ -175,6 +206,40 @@ export default function ExtratoFuturo({
 
   const pior = extrato.pior;
   const apertado = pior && pior.saldo < 0;
+
+  // Qual pendência está escolhendo o lançamento que a pagou.
+  const [conciliando, setConciliando] = useState<Pendencia | null>(null);
+  const totaisPendentes = useMemo(() => totalPendente(pendencias || []), [pendencias]);
+
+  // ── FILTRO POR STATUS ────────────────────────────────────────────────────
+  // Pedido do cliente (Vander): "além de poder criar um filtro por status nas
+  // previsões". A aba só filtrava por período e por conta, então o que já foi
+  // pago ficava misturado com o que ainda vai vencer.
+  //
+  // ⚠️ Os status são os que a LINHA já carrega (`jaNoSaldo` = quitada,
+  // `adiada`, e a sugestão de baixa pendente). Nenhum campo novo: filtrar por
+  // algo que a linha não sabe dizer exigiria outra fonte de verdade.
+  const [status, setStatus] = useState<StatusFiltro>('todos');
+  const diasFiltrados = useMemo(() => {
+    if (status === 'todos') return extrato.dias;
+    const passa = (l: LinhaExtrato) => {
+      const temSugestao = !!(l.recorrenciaId && l.competencia
+        && sugestaoDe.get(l.recorrenciaId + ':' + l.competencia));
+      if (status === 'pagos')    return l.estado === 'realizado' || !!l.jaNoSaldo;
+      if (status === 'aberto')   return l.estado === 'previsto' && !l.jaNoSaldo;
+      if (status === 'adiados')  return !!l.adiada;
+      if (status === 'conciliar') return temSugestao;
+      return true;
+    };
+    return extrato.dias
+      .map((d) => ({ ...d, linhas: d.linhas.filter(passa) }))
+      .filter((d) => d.linhas.length > 0);
+  }, [extrato.dias, status, sugestaoDe]);
+
+  // ⚠️ O SALDO NÃO É RECALCULADO PELO FILTRO. Ele vem do extrato inteiro: um
+  // "saldo" que ignora metade das linhas não seria saldo de nada. O filtro
+  // esconde linhas pra procurar, não muda o dinheiro.
+  const filtrando = status !== 'todos';
 
   return (
     <div className="space-y-4">
@@ -381,8 +446,98 @@ export default function ExtratoFuturo({
         <span className="font-semibold tabular">{fmt(extrato.saldoInicial)}</span>
       </div>
 
+      {/* ── EM ABERTO DE MESES ANTERIORES ─────────────────────────────────
+          ⚠️ FORA DO SALDO, DE PROPÓSITO. O saldo de partida é o saldo ATUAL
+          das contas, que já reflete tudo que aconteceu — somar uma pendência
+          de setembro cobraria duas vezes o mesmo dinheiro. Por isso este bloco
+          fica acima do extrato, como pendência a conciliar, e não como linha.
+
+          Pedido do cliente (Vander, 01/10/2026): "conseguir apontar que um
+          determinado pagamento se refere a uma previsão NAQUELE MÊS". Até aqui
+          a conta de setembro sem baixa sumia da tela em 1º de outubro. */}
+      {!!pendencias?.length && (
+        <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 overflow-hidden"
+             style={{ background: 'color-mix(in srgb, #f59e0b 5%, transparent)' }}>
+          <div className="px-4 py-3 border-b border-amber-200/60 dark:border-amber-900/40">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+              <History size={12} /> Em aberto de meses anteriores
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {totaisPendentes.quantidade === 1 ? 'Uma conta' : `${totaisPendentes.quantidade} contas`} que
+              venceram antes deste mês e não foram marcadas como pagas.
+              {totaisPendentes.aPagar > 0 && <> Somam <strong className="text-foreground tabular">{fmt(totaisPendentes.aPagar)}</strong>.</>}
+              {' '}Não entram no saldo acima — aponte o lançamento que pagou cada uma.
+            </p>
+          </div>
+          <ul className="divide-y divide-amber-200/50 dark:divide-amber-900/30">
+            {pendencias.map((p) => {
+              const ocupadaAgora = ocupado === p.recorrenciaId + ':' + p.competencia;
+              return (
+                <li key={p.recorrenciaId + ':' + p.competencia} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{p.descricao}</p>
+                      <p className="text-[11px] text-muted-foreground tabular">
+                        {mesPorExtenso(p.competencia)} · {p.estimado && '≈ '}{fmt(p.valor)}
+                        {p.carteira ? ` · ${p.carteira}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {onConciliar && phone && (
+                        <button type="button" onClick={() => setConciliando(p)} disabled={ocupadaAgora}
+                          className="h-9 px-3 rounded-lg text-xs font-bold text-white inline-flex items-center gap-1.5 disabled:opacity-50"
+                          style={{ background: BRAND }}>
+                          <Link2 size={13} /> Já paguei
+                        </button>
+                      )}
+                      {onPularPendencia && (
+                        <button type="button" onClick={() => onPularPendencia(p)} disabled={ocupadaAgora}
+                          className="h-9 px-3 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground border border-border disabled:opacity-50">
+                          Não vou pagar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* ── FILTRO POR STATUS ─────────────────────────────────────────────
+          Pedido do mesmo cliente: "poder criar um filtro por status nas
+          previsões". O que já foi pago ficava misturado com o que ainda vence. */}
+      <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Filtrar por status">
+        {FILTROS_STATUS.map((f) => (
+          <button key={f.id} type="button" onClick={() => setStatus(f.id)} aria-pressed={status === f.id}
+            className={`h-9 px-3 rounded-full text-[11px] font-bold border transition-all ${
+              status === f.id
+                ? 'border-primary text-primary bg-primary/10'
+                : 'border-border text-muted-foreground hover:text-foreground'}`}>
+            {f.rotulo}
+          </button>
+        ))}
+      </div>
+
+      {/* ⚠️ DIZ QUE ESTÁ FILTRANDO. Sem este aviso, quem esquece o filtro ligado
+          lê o extrato pela metade achando que é o extrato inteiro — e o saldo
+          de partida logo acima continua sendo o do período TODO. */}
+      {filtrando && (
+        <p className="text-[11px] text-muted-foreground px-1" role="status">
+          Mostrando só <strong className="text-foreground">{FILTROS_STATUS.find((f) => f.id === status)?.rotulo.toLowerCase()}</strong>.
+          O saldo acima continua considerando tudo.{' '}
+          <button type="button" onClick={() => setStatus('todos')} className="font-semibold underline">Ver tudo</button>
+        </p>
+      )}
+
       {/* ── O extrato ─────────────────────────────────────────────────────── */}
-      {extrato.dias.map((dia, i) => (
+      {filtrando && !diasFiltrados.length && (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Nada com esse status no período.
+        </p>
+      )}
+      {diasFiltrados.map((dia, i) => (
         <div key={dia.data} className="animate-[slide-up_400ms_ease-out_both]" style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
           <div className="flex items-baseline justify-between px-1 pb-1.5">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -775,6 +930,22 @@ export default function ExtratoFuturo({
           ⚠️ O "Pular" não tinha volta: a conta sumia do extrato e nenhuma tela
           desfazia (relato: "minha conta fixa não aparece na previsão" — tinha
           sido pulada com um toque). Fora do saldo, mas visível, com volta. */}
+      {/* "Qual lançamento pagou esta previsão?" — o mesmo seletor do card de
+          contas fixas, agora também aqui. ⚠️ A COMPETÊNCIA É A DA PENDÊNCIA,
+          não a de hoje: é isso que amarra um pagamento de outubro à previsão
+          de setembro, que é o pedido literal do cliente. */}
+      {conciliando && phone && onConciliar && (
+        <SeletorPagamento
+          phone={phone}
+          titulo={conciliando.descricao}
+          valorPrevisto={conciliando.valor}
+          tipo={conciliando.tipo}
+          competencia={conciliando.competencia}
+          onEscolher={(txId) => { const p = conciliando; setConciliando(null); onConciliar(p, txId); }}
+          onFechar={() => setConciliando(null)}
+        />
+      )}
+
       {extrato.puladas.length > 0 && (
         <div className="rounded-2xl border border-border/40 overflow-hidden"
              style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>

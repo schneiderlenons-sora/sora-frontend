@@ -25,6 +25,10 @@ import {
   projetarMeses, primeiroMesNoVermelho, ymHojeSP, somarMeses, distanciaMeses,
   linhasDoMes, type MesProjetado, type LinhaMes,
 } from '@/lib/previstos';
+import {
+  pendenciasAnteriores, totalPendente, MESES_PADRAO as MESES_ATRASADOS,
+  type Pendencia,
+} from '@/lib/previstos-atrasados';
 import GraficoMeses, { BarraDividida, type BarraMes } from '@/components/previstos/GraficoMeses';
 import FormRecorrencia, { type RecorrenciaForm } from '@/components/previstos/FormRecorrencia';
 import { descreveQuando, descreveFim, ocorrenciasNoMes, hojeSP } from '@/lib/frequencia-recorrencia';
@@ -259,6 +263,32 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   for (let m = somarMeses(ymHoje, 2); m <= ymFimExtrato && mesesExtras.length < 12; m = somarMeses(m, 1)) mesesExtras.push(m);
   const ymAteOcorr = ymFimExtrato > somarMeses(ymHoje, 3) ? ymFimExtrato : somarMeses(ymHoje, 3);
 
+  // ── PENDÊNCIAS DE MESES ANTERIORES ───────────────────────────────────────
+  //
+  // Pedido do cliente (Vander, 01/10/2026): "conseguir apontar que um
+  // determinado pagamento se refere a uma previsão NAQUELE MÊS". O extrato
+  // começa sempre em hoje, então a conta de setembro sem baixa some em 1º de
+  // outubro — e o pagamento atrasado não tem a que se amarrar.
+  //
+  // ⚠️ CHAVE PRÓPRIA, e `useSWR` em vez de `useApi`: a chave canônica de
+  // ocorrências é compartilhada com a aba Transações, e alargar a janela dela
+  // faria aquela aba refazer a requisição. E o `useApi` registraria no
+  // LoadingGate, cobrindo a página inteira por causa de uma lista acessória.
+  const ymPassadoDe = somarMeses(ymHoje, -MESES_ATRASADOS);
+  const { data: ocorrPassado, mutate: recarregarPassado } = useSWR(
+    ligado ? `d:previstos-passado:${phone}:${ymPassadoDe}` : null,
+    () => api.previstos.ocorrencias(phone, ymPassadoDe, somarMeses(ymHoje, -1)),
+    { revalidateOnFocus: false },
+  );
+
+  const pendencias = useMemo(() => pendenciasAnteriores({
+    recorrencias: recorrencias as any,
+    quitacoes: (ocorrPassado as any)?.quitacoes ?? [],
+    ajustes: (ocorrPassado as any)?.ajustes ?? [],
+    hojeYm: ymHoje,
+    meses: MESES_ATRASADOS,
+  }), [recorrencias, ocorrPassado, ymHoje]);
+
   const { data: ocorrData, mutate: recarregarOcorr } = useApi(
     // Chave canônica no período padrão (a aba Transações usa a mesma); período
     // maior ganha chave própria, senão devolveria a janela curta do cache.
@@ -422,6 +452,43 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       }
       await recarregarOcorr();
     } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+    finally { setQuitandoRec(null); }
+  }
+
+  // ── CONCILIAR UMA PENDÊNCIA DE MÊS ANTERIOR ──────────────────────────────
+  //
+  // ⚠️ AMARRA, NUNCA CRIA. A rota `quitar` com `transacao_id` aponta a cobrança
+  // que JÁ existe pra aquela competência — é o pedido literal do cliente
+  // ("apontar que um determinado pagamento se refere a uma previsão NAQUELE
+  // MÊS"). Criar uma transação nova aqui seria a duplicata que a baixa existe
+  // pra evitar, e ainda com data de um mês fechado.
+  //
+  // ⚠️ A COMPETÊNCIA É A DA PENDÊNCIA, não a de hoje. É isso que faz o
+  // pagamento de outubro quitar a previsão de setembro — o backend sempre
+  // aceitou qualquer competência; faltava a tela mandar.
+  async function conciliarPendencia(p: Pendencia, transacaoId: string) {
+    if (!phone) return;
+    setQuitandoRec(p.recorrenciaId + ':' + p.competencia);
+    try {
+      await api.previstos.quitar({
+        recorrencia_id: p.recorrenciaId, competencia: p.competencia,
+        transacao_id: transacaoId,
+      });
+      await Promise.all([recarregarPassado(), recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.()]);
+    } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+    finally { setQuitandoRec(null); }
+  }
+
+  // "Essa eu não vou pagar" — tira da lista sem inventar um pagamento.
+  async function pularPendencia(p: Pendencia) {
+    if (!phone) return;
+    setQuitandoRec(p.recorrenciaId + ':' + p.competencia);
+    try {
+      await api.previstos.ajuste({
+        recorrencia_id: p.recorrenciaId, competencia: p.competencia, status: 'pulado',
+      });
+      await recarregarPassado();
+    } catch { /* idem */ }
     finally { setQuitandoRec(null); }
   }
 
@@ -906,6 +973,10 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           onAcao={acaoExtrato}
           ocupado={quitandoRec}
           sugestoes={(ocorrData as any)?.sugestoes ?? []}
+          pendencias={pendencias}
+          onConciliar={conciliarPendencia}
+          onPularPendencia={pularPendencia}
+          phone={phone}
           onNovoPrevisto={novoPrevistoAvulso}
           baixaAutomatica={!!(cfgData as any)?.baixa_automatica}
           onBaixaAutomatica={temOpenFinance ? alternarBaixaAuto : undefined}
