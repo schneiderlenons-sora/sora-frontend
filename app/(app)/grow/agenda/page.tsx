@@ -12,12 +12,29 @@ import {
   MapPin, ChevronLeft, ChevronRight, List, CalendarRange, CalendarX,
   User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag, ArrowUpRight,
   Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
-  ArrowLeftRight, TrendingUp, TrendingDown, ListChecks,
+  ArrowLeftRight, TrendingUp, TrendingDown, ListChecks, Filter,
 } from 'lucide-react';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
 const STORAGE_KEY = 'sora-grow-agenda-view';
+
+// ─── Filtro de origem que SOBREVIVE À VISITA ────────────────────────
+//
+// PEDIDO DE CLIENTE (30/09/2026): "seria mais prático se a agenda pudesse ser
+// filtrada para sempre mostrar apenas os compromissos, pois sempre que abro ela
+// no painel preciso tirar a seleção de finanças, tarefas, saúde e etc para que
+// eu possa ver apenas meus compromissos, isto tanto em 'próximos' quanto no
+// calendário".
+//
+// O filtro já valia nas duas visões — ele morria no `useState` a cada visita.
+// Agora fica guardado, e o botão "Só compromissos" faz num toque o que ele
+// vinha fazendo com cinco.
+//
+// ⚠️ A CHAVE LEVA O `userId`. É a mesma regra de `lib/of-intent.ts`: num
+// computador compartilhado, a próxima pessoa a entrar não pode herdar o filtro
+// de quem usou antes — ela veria uma agenda vazia sem entender por quê.
+const chaveFiltro = (userId?: string | null) => `sora-grow-agenda-filtro:${userId || 'anon'}`;
 // Formato compacto pra caber na célula do calendário: R$120 · R$1,2k · R$15k
 // (o símbolo é o da moeda base do grupo)
 const brlCompact = (v: number, simbolo: string) => {
@@ -97,7 +114,8 @@ function matrizMes(ano: number, mes: number): Date[] {
 const ordenarDia = (a: any, b: any) => (a.hora || '99:99').localeCompare(b.hora || '99:99');
 
 export default function AgendaPage() {
-  const { phone } = useAuth();
+  const { phone, user } = useAuth();
+  const userId = user?.id ?? null;
   const router = useRouter();
   const [view, setView]       = useState<'lista' | 'mes'>('lista');
   const [ocultas, setOcultas] = useState<Set<FamKey>>(new Set());
@@ -109,6 +127,32 @@ export default function AgendaPage() {
     try { const s = localStorage.getItem(STORAGE_KEY) as any; if (s === 'lista' || s === 'mes') setView(s); } catch {}
   }, []);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, view); } catch {} }, [view]);
+
+  // ── Filtro de origem, lembrado entre as visitas ───────────────────
+  // ⚠️ `filtroLido` existe pra o efeito de GRAVAR não rodar antes do de LER:
+  // sem ele, o primeiro render (com o Set vazio) sobrescreveria no storage o
+  // filtro que a pessoa tinha salvo, e o recurso nunca funcionaria.
+  const [filtroLido, setFiltroLido] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const cru = localStorage.getItem(chaveFiltro(userId));
+      if (cru) {
+        const arr = JSON.parse(cru);
+        if (Array.isArray(arr)) {
+          // Só chaves que ainda existem: família removida numa versão futura
+          // não pode deixar um filtro fantasma escondendo eventos.
+          setOcultas(new Set(arr.filter((f: string) => f in FAMILIAS) as FamKey[]));
+        }
+      }
+    } catch { /* storage bloqueado: segue sem filtro salvo */ }
+    setFiltroLido(true);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!filtroLido || !userId) return;
+    try { localStorage.setItem(chaveFiltro(userId), JSON.stringify([...ocultas])); } catch {}
+  }, [ocultas, filtroLido, userId]);
 
   // ── Feed via SWR: mesma key do dashboard (GrowResumo) → cache compartilhado,
   // navegação instantânea entre o painel e a agenda.
@@ -139,6 +183,17 @@ export default function AgendaPage() {
 
   function toggleFamilia(f: FamKey) {
     setOcultas(prev => { const n = new Set(prev); n.has(f) ? n.delete(f) : n.add(f); return n; });
+  }
+
+  // "Só compromissos": tudo oculto menos a família `compromisso`.
+  const apenasCompromissos = useMemo(
+    () => (Object.keys(FAMILIAS) as FamKey[]).every(f => (f === 'compromisso' ? !ocultas.has(f) : ocultas.has(f))),
+    [ocultas],
+  );
+  function soCompromissos() {
+    setOcultas(apenasCompromissos
+      ? new Set()
+      : new Set((Object.keys(FAMILIAS) as FamKey[]).filter(f => f !== 'compromisso')));
   }
   function abrirNovo(data?: string) { setEditando(null); setDataPrefill(data || null); setModalOpen(true); }
   function abrirEvento(e: any) {
@@ -187,6 +242,22 @@ export default function AgendaPage() {
 
       {/* Filtro / legenda por origem */}
       <div className="flex items-center gap-1.5 flex-wrap animate-fade-in" style={{ animationDelay: '100ms' }}>
+        {/* ⚠️ ATALHO DO PEDIDO (30/09/2026): "preciso tirar a seleção de
+            finanças, tarefas, saúde e etc para ver apenas meus compromissos".
+            Eram cinco toques a cada visita; agora é um — e a escolha fica
+            guardada. Alterna: tocar de novo devolve tudo, senão quem ligou por
+            curiosidade teria de reativar cinco filtros na mão. */}
+        <button
+          onClick={soCompromissos}
+          aria-pressed={apenasCompromissos}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all border"
+          style={apenasCompromissos
+            ? { background: 'hsl(var(--primary) / .1)', color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary) / .3)' }
+            : { background: 'transparent', color: 'hsl(var(--muted-foreground))', borderColor: 'hsl(var(--border))' }}
+        >
+          <Filter size={12} /> {apenasCompromissos ? 'Mostrar tudo' : 'Só compromissos'}
+        </button>
+        <span className="w-px h-5 bg-border mx-0.5" aria-hidden />
         {(Object.keys(FAMILIAS) as FamKey[]).map(f => {
           const fam = FAMILIAS[f]; const Icon = fam.icon; const on = !ocultas.has(f);
           return (
