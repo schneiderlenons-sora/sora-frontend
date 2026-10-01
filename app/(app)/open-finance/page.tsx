@@ -19,6 +19,9 @@ import IconeMarca from '@/components/ui/IconeMarca';
 import { useMoedaBase } from '@/lib/moeda-base';
 import { MOEDAS } from '@/lib/moeda';
 import {
+  docsDaInstituicao, conexaoEmpresarial, documentosDoConsentimento, textoDoQueFalta,
+} from '@/lib/open-finance-docs';
+import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
   Clock, ShieldCheck, Search, ExternalLink, X,
   Wrench, FileUp, Sparkles, ArrowRight, Scale, Info,
@@ -115,17 +118,10 @@ type Inst = { id: number | string; name?: string; institution_name?: string; log
 // ⚠️ O campo credentials NÃO basta pra decidir: ele é derivado do type e vem
 // ["cpf","cnpj"] tanto em BUSINESS (exige os dois) quanto em BOTH (o CNPJ é
 // opcional). Era essa ambiguidade que a tela lia como "escolha um".
-function docsDaInstituicao(i: Inst | null) {
-  const t = String(i?.type || '').toUpperCase();
-  const creds = i?.credentials || [];
-  // Sem o type (trilho legado / payload antigo), cai no credentials.
-  const aceitaCnpj = t ? (t === 'BUSINESS' || t === 'BOTH') : creds.includes('cnpj');
-  return {
-    aceitaCnpj,
-    soEmpresa: t === 'BUSINESS',   // não existe conexão pessoal aqui
-    podeEscolher: t ? t === 'BOTH' : aceitaCnpj,
-  };
-}
+// ⚠️ A REGRA MORA EM `lib/open-finance-docs.ts` (pura, com eval). Ela já
+// falhou duas vezes nos dois sentidos — 422 de CPF em set/2026 e 422 de CNPJ
+// em out/2026 — sempre porque "esta conexão é empresarial?" era respondida de
+// um jeito na tela e de outro no envio. Aqui só se consulta.
 
 const nomeInst = (i: Inst) => i.name || i.institution_name || `Banco ${i.id}`;
 const logoInst = (i: Inst) => i.logo_url || i.image_url || null;
@@ -314,13 +310,14 @@ export default function OpenFinancePage() {
   async function conectar() {
     if (!instSel) return;
     const nome = nomeInst(instSel);
-    const { aceitaCnpj } = docsDaInstituicao(instSel);
-    // Barra ANTES de gastar uma chamada: sem CPF a Celcoin devolve 422 e o
-    // usuário só vê um erro técnico de API, sem saber o que faltou preencher.
-    if (!cpf.replace(/\D/g, '')) {
-      setErro(aceitaCnpj && ehPj
-        ? 'Informe também o CPF de quem responde pela empresa no banco — ele autoriza o acesso.'
-        : 'Informe seu CPF pra continuar.');
+    // Fonte ÚNICA: os mesmos documentos que a tela mostra são os que vão no
+    // payload. Era a divergência entre esses dois pontos que descartava o CNPJ
+    // já digitado em instituição que só atende empresa.
+    const docs = documentosDoConsentimento({ inst: instSel, ehPj, cpf, cnpj });
+    // Barra ANTES de gastar uma chamada: a Celcoin devolve 422 e o usuário só
+    // veria um erro técnico de API, sem saber o que faltou preencher.
+    if (docs.falta) {
+      setErro(textoDoQueFalta(docs.falta, docs.empresarial));
       return;
     }
     setConectando(true); setErro('');
@@ -328,12 +325,12 @@ export default function OpenFinancePage() {
       const r = await api.openFinance.conectar({
         institution_id: instSel.id,
         // ⚠️ O CPF VAI SEMPRE — inclusive em conta PJ, onde ele identifica o
-        // OPERADOR/REPRESENTANTE e acompanha o CNPJ. Mandar só o CNPJ é o que
-        // devolvia 422 "O campo cpf é obrigatório para esta instituição".
-        // O CNPJ, ao contrário, só pode ir quando o banco aceita (PROIBIDO em
-        // instituição PERSONAL) e o usuário marcou empresa.
-        cpf:  cpf.replace(/\D/g, '') || undefined,
-        cnpj: (ehPj && aceitaCnpj && cnpj.replace(/\D/g, '')) || undefined,
+        // OPERADOR/REPRESENTANTE e acompanha o CNPJ. O CNPJ só acompanha
+        // conexão EMPRESARIAL (proibido em instituição PERSONAL). Quem decide
+        // isso é `documentosDoConsentimento`, a mesma função que o formulário
+        // consulta pra saber se mostra o campo.
+        cpf:  docs.cpf,
+        cnpj: docs.cnpj,
         instituicao_nome: nome,
       });
       // Abre o modal JÁ: se a URL veio no create, mostra o botão; senão o
@@ -999,8 +996,11 @@ export default function OpenFinancePage() {
                     CPF + CNPJ. O CPF nunca sai de cena; era escondê-lo ao marcar
                     "Empresa" que produzia o 422 da Celcoin. */}
                 {(() => {
-                  const { aceitaCnpj, soEmpresa, podeEscolher } = docsDaInstituicao(instSel);
-                  const comoEmpresa = aceitaCnpj && (soEmpresa || ehPj);
+                  const { soEmpresa, podeEscolher } = docsDaInstituicao(instSel);
+                  // ⚠️ A MESMA função que o envio usa. Se o campo aparece
+                  // aqui, o valor digitado nele vai no payload — não existe
+                  // mais um critério pra mostrar e outro pra mandar.
+                  const comoEmpresa = conexaoEmpresarial(instSel, ehPj);
                   return (
                     <>
                       {podeEscolher && (

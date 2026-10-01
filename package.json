@@ -29,7 +29,8 @@
     "eval:marca-custom": "npx tsx lib/marca-custom.eval.mjs",
     "eval:baixa-previsto": "npx tsx lib/baixa-previsto.eval.mjs",
     "eval:status-conexao": "npx tsx lib/status-conexao-of.eval.mjs",
-    "eval:emoji": "npx tsx lib/emoji-valido.eval.mjs"
+    "eval:emoji": "npx tsx lib/emoji-valido.eval.mjs",
+    "eval:of-docs": "npx tsx lib/open-finance-docs.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",
