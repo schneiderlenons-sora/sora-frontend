@@ -17,6 +17,10 @@ const BRAND = '#61D17B';
 const DEFAULTS: AvisosPrefs = {
   avisos_ativos: true, resumo_semanal: true, resumo_mensal: true,
   habito_lembrete_ativo: false, habito_lembrete_horario: '21:00',
+  // Nasce desligado, como todo aviso opt-in. 08:00 é o começo do dia útil —
+  // tarefa em aberto se resolve DURANTE o dia, não antes de dormir (ao
+  // contrário do checkup de hábitos, que é de noite).
+  tarefa_lembrete_ativo: false, tarefa_lembrete_horario: '08:00',
   agenda_briefing_ativo: false, agenda_briefing_horario: '07:00',
   lembretes_ativos: true, lembretes_dividas: true,
 };

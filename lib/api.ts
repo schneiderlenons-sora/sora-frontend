@@ -107,6 +107,8 @@ export type AvisosPrefs = {
   resumo_mensal: boolean;
   habito_lembrete_ativo: boolean;  // "checkup de hábitos"
   habito_lembrete_horario: string; // 'HH:MM'
+  tarefa_lembrete_ativo: boolean;  // tarefas em aberto, uma vez por dia (migration 177)
+  tarefa_lembrete_horario: string; // 'HH:MM'
   agenda_briefing_ativo: boolean;  // briefing matinal
   agenda_briefing_horario: string; // 'HH:MM'
   lembretes_ativos: boolean;       // contas/recorrências/parcelas/fatura

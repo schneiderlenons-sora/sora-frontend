@@ -25,6 +25,7 @@ export type ChaveAviso =
   | 'resumo_semanal'
   | 'resumo_mensal'
   | 'habito_lembrete_ativo'
+  | 'tarefa_lembrete_ativo'
   | 'agenda_briefing_ativo';
 
 export type Cadencia = 'Diário' | 'Semanal' | 'Mensal' | 'Quando acontece' | 'Sob demanda';
@@ -37,7 +38,7 @@ export interface AvisoAgente {
   /** Coluna em `users`. `null` = ainda sem interruptor próprio. */
   chave: ChaveAviso | null;
   /** Campo de horário que acompanha o toggle (só 2 avisos têm). */
-  chaveHorario?: 'habito_lembrete_horario' | 'agenda_briefing_horario';
+  chaveHorario?: 'habito_lembrete_horario' | 'agenda_briefing_horario' | 'tarefa_lembrete_horario';
   /** Aviso ainda não construído — o agente pode estar ativo com os outros. */
   emBreve?: boolean;
   /** Exemplo real da mensagem, na voz do agente — é o que vende o agente. */
@@ -215,6 +216,15 @@ export const AGENTES: Agente[] = [
         chave: 'habito_lembrete_ativo',
         chaveHorario: 'habito_lembrete_horario',
         exemplo: 'Você marcou quase tudo hoje. Quase. Falta a leitura — dois toques e o dia fecha.',
+      },
+      {
+        id: 'tarefas',
+        titulo: 'Tarefas em aberto',
+        desc: 'Uma vez por dia, o que ainda está em aberto — atrasadas primeiro.',
+        cadencia: 'Diário',
+        chave: 'tarefa_lembrete_ativo',
+        chaveHorario: 'tarefa_lembrete_horario',
+        exemplo: 'Três tarefas em aberto, uma atrasada há dois dias. Ligar pro gastro continua te esperando.',
       },
       {
         id: 'compromissos',
