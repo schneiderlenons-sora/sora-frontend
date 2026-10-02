@@ -16,6 +16,7 @@ import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import IconeMarca from '@/components/ui/IconeMarca';
+import AvisoCobertura, { type Cobertura } from '@/components/open-finance/AvisoCobertura';
 import { useMoedaBase } from '@/lib/moeda-base';
 import { MOEDAS } from '@/lib/moeda';
 import {
@@ -164,6 +165,11 @@ export default function OpenFinancePage() {
   });
 
   const [conexoes, setConexoes] = useState<Conexao[]>([]);
+  /** Conexão além do direito do plano (migration 179). `null` = em dia, ou o
+   *  servidor não soube dizer — e aí a tela fica idêntica à de sempre. */
+  const [cobertura, setCobertura] = useState<Cobertura | null>(null);
+  /** Pro botão do aviso levar ao card de contratar, que fica mais abaixo. */
+  const contratarRef = useRef<HTMLDivElement | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [flash, setFlash] = useState('');
@@ -204,7 +210,11 @@ export default function OpenFinancePage() {
   }
 
   const carregar = useCallback(async () => {
-    try { const d = await api.openFinance.conexoes(); setConexoes(d.conexoes || []); }
+    try {
+      const d = await api.openFinance.conexoes();
+      setConexoes(d.conexoes || []);
+      setCobertura((d as any).cobertura || null);
+    }
     catch (e: any) { setErro(e.message || 'Não consegui carregar as conexões.'); }
     finally { setCarregando(false); }
   }, []);
@@ -475,6 +485,17 @@ export default function OpenFinancePage() {
           </div>
         )}
 
+        {/* ⚠️ ACIMA DE TUDO e fora do ramo `liberado`: quem está nesta
+            situação quase sempre é vitalício ou sem plano, e pra esses o ramo
+            de baixo mostra o convite de conectar — onde um aviso de prazo
+            passaria despercebido. */}
+        {cobertura && (
+          <AvisoCobertura
+            cobertura={cobertura}
+            onContratar={() => contratarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+          />
+        )}
+
         {indefinido ? (
           /* Perfil a caminho: skeleton do card, pra não piscar "sem acesso". */
           <div className="rounded-3xl border border-border bg-card p-6 sm:p-8 space-y-4 animate-pulse" aria-busy="true">
@@ -536,8 +557,15 @@ export default function OpenFinancePage() {
                 )}
               </div>
 
+              {/* ⚠️ `contratarRef` está nas DUAS instâncias de ContratarConexao
+                  (aqui e no ramo `liberado`): só uma monta por vez, e o botão do
+                  aviso de cobertura precisa alcançar a que estiver na tela — senão
+                  ele fica morto justamente pro vitalício, que é o caso mais comum
+                  do aviso. */}
               {perfil?.vitalicio ? (
-                <ContratarConexao primeiraCompra />
+                <div ref={contratarRef}>
+                  <ContratarConexao primeiraCompra />
+                </div>
               ) : (
                 <a href="/planos"
                    className="inline-flex items-center justify-center gap-2 h-12 px-5 rounded-2xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.99]"
@@ -607,7 +635,9 @@ export default function OpenFinancePage() {
                     </a>
                   </div>
                 )}
-                <ContratarConexao atual={perfil?.of_conexoes_pagas || 0} />
+                <div ref={contratarRef}>
+                  <ContratarConexao atual={perfil?.of_conexoes_pagas || 0} />
+                </div>
               </div>
             )}
 

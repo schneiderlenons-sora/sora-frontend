@@ -864,6 +864,86 @@ não está salvando e atualizando"* — patrimônio R$ 0,00 com a conta saudáve
   CHECK, senão a gravação falha calada. A lista da 121 espelha `TIPOS` em
   `NovoInvestimentoModal.tsx` — mexeu num, mexa no outro.
 
+## Conexão de banco ALÉM do direito: avisa e dá 2 dias (out/2026)
+
+Relato do cliente vitalício (`tfsm89@gmail.com`): *"às vezes ele cancelou o
+pagamento do Open Finance"*. Era isso — e o buraco é muito maior que o caso dele.
+
+⚠️ **A FRANQUIA SÓ ERA CHECADA AO CONECTAR.** Depois disso nada reavaliava:
+cancelar a assinatura da conexão avulsa zera `of_conexoes_pagas` (webhook do
+Stripe), cair pra `inativo` zera a franquia — e as conexões seguiam **vivas e
+cobradas pela Polp**, sem nada dizer isso em lugar nenhum.
+
+**Medido com o CÓDIGO REAL** (`acessoOpenFinance` + `estadoExcedente`, nunca uma
+regra paralela) em 02/10/2026, 79 conexões / 43 usuários:
+
+```
+10 contas usando 20 conexões além do direito
+  davidmquinlan@mac.com    VITALICIO  lim=0  usando=5   EXCEDE 5  (5 vivas)
+  edipolima7@gmail.com     premium    lim=3  usando=6   EXCEDE 3  (2 mortas + 1 viva)
+  andremanzotti@gmail.com  inativo    lim=0  usando=3   EXCEDE 3
+  fernanda@vitamed…        inativo    lim=0  usando=2   EXCEDE 2  (as DUAS mortas)
+  gilbertojun@gmail.com    VITALICIO  lim=0  usando=2   EXCEDE 2
+  … e mais 5 com 1 cada
+5 das 20 são conexões MORTAS — custo puro, ninguém perde acesso a nada
+```
+
+⚠️ **Um dos 10 é PREMIUM PAGANTE** (6 conexões, direito a 3): o único que perde
+conexão **viva** estando em dia com a mensalidade. Vitalício tem franquia **zero**
+por decisão (pagou uma vez; cada conexão é mensalidade nossa no agregador).
+
+**A regra (decisão do dono): AVISAR E DAR 48h, nunca cortar na hora.**
+
+| Peça | Papel |
+|---|---|
+| `services/excedenteConexoes.js` | **aritmética canônica** — estado, prazo e QUAL conexão sai. `eval:excedente-conexoes` |
+| `services/desconectarConexao.js` | **fonte única** do desconectar (rota + cron) |
+| **JOB 1R** (`jobs/index.js`, ~10:00 SP) | grava o marco, avisa no WhatsApp, e depois de 48h corta. `eval:excedente-cron` (ponta a ponta) |
+| `GET /openfinance/conexoes` → `cobertura` | o que a tela exibe. `eval:cobertura-rota` |
+| `components/open-finance/AvisoCobertura.tsx` | o aviso com prazo, nomeando os bancos |
+| `sql/179_of_excedente.sql` | `of_excedente_desde` + `of_excedente_avisado` |
+
+- ⚠️ **SEM DADO NÃO SE AFIRMA NADA.** Limite não lido, lista de conexões ausente
+  ou `select` que erra ⇒ `estado: 'indefinido'`, e **nada é desligado**. É esta
+  linha que impede um soluço de rede de cortar o banco de um pagante. Travado em
+  7 variações no eval.
+- ⚠️ **O PRAZO NUNCA É RETROATIVO.** Conexão excedente há um ano ainda recebe os
+  48h inteiros a partir do **primeiro aviso gravado** — é por isso que o marco
+  mora numa coluna e não é derivado de `created_at`. O marco é gravado **ANTES**
+  de avisar: gravando depois, uma falha de envio reiniciaria o relógio todo dia
+  e o prazo nunca venceria.
+- ⚠️ **MORTA SAI ANTES DE VIVA.** Conexão que não autoriza/não sincroniza é custo
+  puro e desligá-la pode resolver o excedente **sem ninguém perder nada** (foi o
+  caso de 2 das 10 contas). Entre duas do mesmo estado sai a **mais nova** —
+  quem conectou primeiro vinha usando aquele banco há mais tempo.
+- ⚠️ **O CORTE EXIGE A REVOGAÇÃO** (`exigirRevogacao: true`): só apaga a linha se
+  a Polp confirmar. Apagar sem revogar perderia o rastro e **a cobrança
+  continuaria** — que é justamente o que o corte existe pra parar. Falhou? Não
+  faz nada e tenta no passe seguinte. Na **rota** do usuário a ordem é a
+  inversa (apaga primeiro): quando a pessoa toca em "Desconectar", o banco tem
+  de sair da tela mesmo com o provedor fora do ar.
+- ⚠️ **CONEXÃO DE OUTRO MEMBRO DO GRUPO NÃO CONTA.** A lista da aba inclui as do
+  grupo (pra mostrar banco de outro membro) e a franquia é do **PLANO DA PESSOA**
+  — contar as dos outros acusaria excedente inexistente. Mesma razão pela qual
+  `POST /conectar` conta por `user_id`.
+- ⚠️ **Conexão sem `user_id`** (legado) é ignorada: não se mexe no que não se
+  sabe de quem é.
+- **Kill switch:** `OF_EXCEDENTE_CORTAR=0` mantém o aviso e **não desliga nada**.
+- **A tela nomeia os bancos** que sairiam, na mesma ordem que o servidor usará.
+  "Uma conexão será desligada" obrigaria a pessoa a adivinhar qual — e a
+  desconectar a errada. Âmbar enquanto há prazo, **vermelho** quando vence: são
+  estados diferentes, e a mesma cor nos dois faz nenhum dos dois ser lido.
+- ⚠️ **O `ref` do botão está nas DUAS instâncias de `ContratarConexao`** (ramo
+  `liberado` e painel de boas-vindas): só uma monta por vez, e o vitalício —
+  o caso mais comum do aviso — cai no segundo. Com o `ref` só no primeiro, o
+  botão ficava morto justamente pra ele.
+- **Mutação:** 9/10 no serviço e 11/12 no cron. As duas sobreviventes são
+  **equivalentes** (redundâncias defensivas que o próprio código documenta), não
+  teste fraco — e uma delas só foi reconhecida depois de o eval ganhar a asserção
+  que faltava ("não ESCREVE nada a partir de leitura que falhou").
+- ⚠️ **Nada acontece até a 179 rodar** (o `select` erra e o job não age) — então
+  é a migration que dá a partida no relógio.
+
 ## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
 
 Relato de cliente: *"bancos do Open Finance ficam com o nome 'Banco' e não
@@ -3364,6 +3444,7 @@ sql/127_pagamento_fatura_frases.sql — pagamento de fatura descrito com a frase
 sql/156_plano_gratis.sql        — plano `gratis` (modo manual) no users_plano_check. **OBRIGATORIA**: sem ela a ativacao falha calada e o usuario fica inativo pra sempre.
 sql/171_limites_anuais.sql     — teto ANUAL por categoria (coluna `periodo` em category_limits) + `meta_anual*` em users. **OBRIGATORIA pro limite anual**: sem ela o teto do ano nao grava (a rota agora LE o erro e diz isso). O limite MENSAL continua intacto sem ela — nenhum select pede a coluna nova.
 sql/172_reabrir_dividas_presas.sql — reabre divida com status=quitada e parcelas faltando (relato: editou 3→2 parcelas pagas e o card seguiu "Quitada"). So mexe em divida COM parcelas e fora do Open Finance. Medido: 3 linhas de 212. O fix no codigo cobre o futuro; esta cobre o passado.
+sql/179_of_excedente.sql       — conexao de Open Finance ALEM do direito do plano: `of_excedente_desde` (marco do prazo de 48h) + `of_excedente_avisado` (dedup do aviso). **OBRIGATORIA pro JOB 1R agir**: sem ela o select erra e o cron nao avisa nem desliga nada — ou seja, o comportamento fica igual ao de hoje. Medido antes: 10 contas usando 20 conexoes alem do direito.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

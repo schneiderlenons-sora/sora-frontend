@@ -289,8 +289,11 @@ export const api = {
     conectar: (body: { institution_id: number | string; cpf?: string; cnpj?: string; instituicao_nome?: string }) =>
       req<{ ok: boolean; externalId: string; status?: string; urlToAuthenticate?: string | null }>(
         '/api/open-finance/conectar', { method: 'POST', body: JSON.stringify(body) }),
+    /** `cobertura` = conexão além do que o plano cobre (migration 179).
+     *  Vem `null` quando está tudo em dia OU quando o servidor não conseguiu
+     *  ler o direito — nos dois casos a tela não afirma nada. */
     conexoes: () =>
-      req<{ conexoes: any[] }>('/api/open-finance/conexoes'),
+      req<{ conexoes: any[]; cobertura?: any }>('/api/open-finance/conexoes'),
     sincronizar: (externalId: string) =>
       req<{ ok: boolean; novas?: number; erro?: string; pendente?: string; urlToAuthenticate?: string | null; contas?: any[] }>(
         `/api/open-finance/conexoes/${externalId}/sincronizar`, { method: 'POST' }),
