@@ -93,7 +93,7 @@ const ICONES_APP: Record<string, IconeLucide> = {
   Receipt, Flag, Target, BarChart2, Tag, TrendingUp, Percent, ListChecks,
   CalendarDays, GraduationCap, Activity, Heart, Home: HomeIcon, Plane,
   Clapperboard, BookOpen, Users, Zap, Bug, Palette, Gift, Lightbulb, Share2,
-  Megaphone, Shield, CalendarClock, Sparkles,
+  Megaphone, Shield, CalendarClock, Sparkles, MessageCircle,
 };
 
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {

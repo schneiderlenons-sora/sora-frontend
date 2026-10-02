@@ -58,6 +58,7 @@ export type Feature =
   | 'wrapped'                // Retrospectiva anual
   | 'grow_agenda'            // Aba Agenda do Grow
   | 'agentes'                // Watson, Oráculo e os outros
+  | 'whatsapp_sora'          // a aba que leva pro WhatsApp da Sora
   | 'drive_painel'           // A ABA Drive (arquivos já guardados)
   // Features disponíveis em todos os planos pagos (e inativo p/ onboarding):
   | 'metas'
@@ -115,6 +116,11 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   // jeito. Listá-lo aqui sugeriria um acesso que não existe.
   grow_agenda:        ['inativo', 'basico', 'premium', 'platinum'],
   agentes:            ['inativo', 'basico', 'kit', 'premium', 'platinum'],
+  // A aba que leva pro WhatsApp da Sora. Fora: 'gratis' e 'kit' — são
+  // exatamente os dois planos que NÃO atendem pelo zap (o mapa de bloqueio do
+  // webhook.js é o mesmo). Mostrar a porta a quem bate e não é atendido seria
+  // pior do que não mostrar.
+  whatsapp_sora:      ['inativo', 'basico', 'premium', 'platinum'],
   // ⚠️ SEPARADA DA `drive` DE PROPÓSITO. `drive` é Premium e vale pro
   // WhatsApp (receber e buscar arquivo); a ABA sempre foi aberta a todo plano
   // pago "pra não trancar dados de Básico" — quem já guardou arquivo lá

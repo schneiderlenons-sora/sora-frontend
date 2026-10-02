@@ -25,7 +25,11 @@ export default function ComandosWhatsapp() {
     [podeUsar]
   );
 
-  const phoneSora = perfil?.phone || '';
+  // ⚠️ AQUI MORAVA O BUG: `const phoneSora = perfil?.phone` — ou seja, o
+  // telefone DO USUÁRIO, com nome de telefone da Sora. Os botões "Testar no
+  // WhatsApp" abriam a conversa do cliente CONSIGO MESMO. Relato de
+  // 02/10/2026: "os atalhos que tem remetem para o número do usuário".
+  // O número da Sora agora vem de `lib/sora-whatsapp.ts`, fonte única.
 
   return (
     <>
@@ -108,12 +112,11 @@ export default function ComandosWhatsapp() {
           <CategoriaView
             id={view.id}
             onVoltar={() => setView({ tipo: 'home' })}
-            phoneSora={phoneSora}
           />
         )}
 
         {view.tipo === 'busca' && (
-          <BuscaView resultados={resultados} query={query} phoneSora={phoneSora} />
+          <BuscaView resultados={resultados} query={query} />
         )}
       </div>
     </>
@@ -134,7 +137,7 @@ function HomeGrid({ onSelect }: { onSelect: (id: CategoriaCmdId) => void }) {
 
 // ─── Categoria expandida ──────────────────────────────────────────────────────
 
-function CategoriaView({ id, onVoltar, phoneSora }: { id: CategoriaCmdId; onVoltar: () => void; phoneSora: string }) {
+function CategoriaView({ id, onVoltar }: { id: CategoriaCmdId; onVoltar: () => void }) {
   const cat = CATEGORIAS.find((c) => c.id === id);
   const comandos = COMANDOS.filter((c) => c.categoria === id);
   const { podeUsar, perfil } = useAuth();
@@ -218,7 +221,7 @@ function CategoriaView({ id, onVoltar, phoneSora }: { id: CategoriaCmdId; onVolt
       {/* Comandos */}
       <div className="space-y-3">
         {comandos.map((cmd) => (
-          <ComandoCard key={cmd.id} comando={cmd} cor={cat.cor} phoneSora={phoneSora} />
+          <ComandoCard key={cmd.id} comando={cmd} cor={cat.cor} />
         ))}
       </div>
     </div>
@@ -227,7 +230,7 @@ function CategoriaView({ id, onVoltar, phoneSora }: { id: CategoriaCmdId; onVolt
 
 // ─── Resultados de busca ──────────────────────────────────────────────────────
 
-function BuscaView({ resultados, query, phoneSora }: { resultados: ReturnType<typeof buscar>; query: string; phoneSora: string }) {
+function BuscaView({ resultados, query }: { resultados: ReturnType<typeof buscar>; query: string }) {
   return (
     <div className="space-y-5 animate-fade-in">
       <div>
@@ -256,7 +259,6 @@ function BuscaView({ resultados, query, phoneSora }: { resultados: ReturnType<ty
                 key={cmd.id}
                 comando={cmd}
                 cor={cat?.cor || BRAND}
-                phoneSora={phoneSora}
                 mostrarCategoria
               />
             );

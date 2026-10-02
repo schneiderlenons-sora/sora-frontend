@@ -90,6 +90,13 @@ export type GrupoNav = {
 export const NAV_TOPO: ItemNav[] = [
   { href: '/dashboard', label: 'Dashboard', icone: 'LayoutDashboard' },
   { href: '/negocios',  label: 'Negócios',  icone: 'Briefcase', gate: 'negocios', badge: 'Platinum' },
+  // ⚠️ FORA DE QUALQUER GRUPO, logo abaixo de Negócios. Dois clientes no mesmo
+  // dia (02/10/2026) perguntaram "cadê o WhatsApp da Sora? qual o número?" —
+  // o painel inteiro nunca dizia. Enterrar isso num grupo colapsado seria
+  // esconder de novo a porta de entrada do produto.
+  // `badge: 'Básico'` porque é o MENOR plano que tem a feature — dizer
+  // "Premium" mandaria a pessoa pagar mais do que precisa.
+  { href: '/whatsapp',  label: 'WhatsApp',  icone: 'MessageCircle', gate: 'whatsapp_sora', badge: 'Básico' },
 ];
 
 export const GRUPOS: GrupoNav[] = [

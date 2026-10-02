@@ -3,17 +3,16 @@
 import { useState } from 'react';
 import { Copy, Check, MessageCircle, ChevronRight } from 'lucide-react';
 import { CATEGORIAS, type Comando } from '@/lib/sora-commands';
+import { linkSora } from '@/lib/sora-whatsapp';
 
 interface Props {
   comando:          Comando;
   cor:              string;
-  /** Telefone da Sora (do perfil do usuário). Se vazio, usa wa.me sem número. */
-  phoneSora?:       string;
   /** Mostra um chip com o nome da categoria (útil em resultados de busca). */
   mostrarCategoria?: boolean;
 }
 
-export default function ComandoCard({ comando, cor, phoneSora, mostrarCategoria }: Props) {
+export default function ComandoCard({ comando, cor, mostrarCategoria }: Props) {
   const [copiado, setCopiado] = useState(false);
   const [expandido, setExpandido] = useState(false);
 
@@ -29,11 +28,14 @@ export default function ComandoCard({ comando, cor, phoneSora, mostrarCategoria 
     }
   }
 
-  // wa.me com texto pré-preenchido. Se não tem phoneSora, abre WhatsApp Web
-  // sem número (usuário escolhe destino).
-  const waLink = phoneSora
-    ? `https://wa.me/${phoneSora}?text=${encodeURIComponent(comando.exemplo)}`
-    : `https://wa.me/?text=${encodeURIComponent(comando.exemplo)}`;
+  // ⚠️ ABRE A CONVERSA COM A SORA, com o comando já escrito.
+  //
+  // Isto estava quebrado desde sempre: o link vinha de uma prop `phoneSora`
+  // que NENHUMA tela passava. Sempre `undefined`, virava
+  // `https://wa.me/?text=...` — WhatsApp aberto sem destinatário nenhum, com o
+  // comando pronto e nenhuma conversa pra enviar. Relato de cliente
+  // (02/10/2026): "os atalhos que tem remetem para o número do usuário".
+  const waLink = linkSora(comando.exemplo);
 
   const temVariantes = comando.variantes && comando.variantes.length > 0;
 
