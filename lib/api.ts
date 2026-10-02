@@ -461,6 +461,33 @@ export const api = {
       pagamentos?: { wallet_id?: string; valor: number; descricao?: string; externa?: boolean }[];
     }) =>
       req<{ ok: boolean; debito: any; debitos?: any[] }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
+    /**
+     * Os pagamentos já lançados numa fatura — a base do "desfazer".
+     *
+     * `conta` é `null` quando o lançamento não existe mais (ou nunca existiu,
+     * no pagamento externo); a tela diz isso em vez de inventar uma conta.
+     */
+    faturaPagamentos: (phone: string, cartao_id: string, competencia?: string) => {
+      const q = new URLSearchParams({ cartao_id }); if (competencia) q.set('competencia', competencia);
+      return req<{
+        pagamentos: {
+          id: string; competencia: string; valor: number; data: string;
+          transacao_id: string | null; conta: string | null; transacao_existe: boolean;
+        }[];
+      }>(`/api/wallets/fatura/pagamentos/${phone}?${q}`);
+    },
+    /**
+     * Desfaz um pagamento lançado por engano: apaga o registro, apaga o
+     * lançamento e devolve o saldo da conta — numa operação só.
+     *
+     * ⚠️ Recusa (409) em cartão do Open Finance e quando a sobra da fatura já
+     * rolou pra seguinte. O `codigo` diz qual dos dois.
+     */
+    desfazerPagamentoFatura: (id: string) =>
+      req<{
+        ok: boolean; jaDesfeito?: boolean; valor?: number; competencia?: string;
+        saldoDevolvido?: boolean; valorDevolvido?: number; conta?: string | null;
+      }>(`/api/wallets/fatura/pagamento/${id}`, { method: 'DELETE' }),
     // Status da fatura: { fatura, pago, restante, ciclo, rollover? } (migration 096).
     faturaStatus: (phone: string, cartao_id: string, competencia?: string) => {
       const q = new URLSearchParams({ cartao_id }); if (competencia) q.set('competencia', competencia);

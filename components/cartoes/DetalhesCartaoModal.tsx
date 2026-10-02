@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Calendar, CalendarClock, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2 } from 'lucide-react';
 import { api, type ParcelaPrevista } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
@@ -14,6 +14,7 @@ import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { cartaoForaDaBase } from '@/lib/moeda';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
+import PagamentosDaFatura from '@/components/cartoes/PagamentosDaFatura';
 
 const BRAND = 'hsl(var(--primary))';
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -99,6 +100,14 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
   const [faturaApi, setFaturaApi] = useState<number | null>(null);
   const [pagoApi, setPagoApi] = useState<number | null>(null);
   const [restanteApi, setRestanteApi] = useState<number | null>(null);
+  // Gatilho de recarga: desfazer um pagamento muda "pago" e "restante" no
+  // servidor, e sem isto o modal seguiria mostrando o número antigo — a mesma
+  // mentira que o recurso existe pra corrigir.
+  const [versao, setVersao] = useState(0);
+  const recarregarFatura = useCallback(() => {
+    setVersao((v) => v + 1);
+    onRefresh?.();
+  }, [onRefresh]);
 
   useEffect(() => {
     if (!phone || !cartao?.id || !mesRef) return;
@@ -121,7 +130,10 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
       .catch(() => { /* informativo — nunca impede o modal de abrir */ });
     return () => { cancelado = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phone, cartao?.id, mesRef]);
+    // ⚠️ `versao` nas deps: é o que faz a fatura ser relida depois de desfazer
+    // um pagamento. Sem ela a tela seguiria mostrando o "pago" antigo — a
+    // mesma informação errada que o recurso existe pra corrigir.
+  }, [phone, cartao?.id, mesRef, versao]);
 
   // Ciclo da fatura exibida — período que agrupa as compras dessa fatura.
   const ciclo = useMemo(
@@ -565,6 +577,18 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
                 <p className="text-[11px] text-muted-foreground">
                   {fmtDataPagto()}
                 </p>
+              )}
+              {/* Os pagamentos lançados nesta fatura, com "Desfazer". Até aqui
+                  eles eram invisíveis: não havia tela que os listasse nem jeito
+                  de reverter um lançado por engano. */}
+              {phone && cartao?.id && (
+                <PagamentosDaFatura
+                  phone={phone}
+                  cartaoId={cartao.id}
+                  competencia={mesRef}
+                  moeda={cartao.moeda}
+                  onDesfeito={recarregarFatura}
+                />
               )}
               <div className="flex items-center justify-between" hidden={pagamentoMinimo == null}>
                 <span className="text-xs text-muted-foreground">Pagamento mínimo</span>
