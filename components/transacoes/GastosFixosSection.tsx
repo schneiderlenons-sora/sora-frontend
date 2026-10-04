@@ -18,10 +18,13 @@ import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
 const BRAND = 'hsl(var(--primary))';
 
-/** Mês corrente em SP ('YYYY-MM'). Nunca `toISOString()` — é UTC, e depois
- *  das 21h no Brasil o mês pode virar. */
-const mesRefSP = () =>
-  new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
+/** 'outubro' a partir de 'YYYY-MM'.
+ *
+ *  ⚠️ `new Date('2026-10')` seria lido como UTC e, à noite no Brasil, cairia
+ *  no mês ANTERIOR — o título diria "setembro" numa tela de outubro. Por isso
+ *  o dia 15 fica cravado: longe das duas bordas, nenhum fuso desloca o mês. */
+const nomeDoMes = (ym: string) =>
+  new Date(`${ym}-15T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' });
 
 type Tipo = 'Gasto' | 'Recebimento';
 
@@ -72,6 +75,10 @@ type ModoLancamento = ModoLancamentoFixo;
 import { MODOS } from '@/components/previstos/FormRecorrencia';
 import SeletorPagamento from '@/components/previstos/SeletorPagamento';
 import { podeDarBaixa, baixaPrecisaVincular } from '@/lib/baixa-previsto';
+import {
+  mesAtualSP, posicaoDoMes, venceuNoMes, estadoDasOcorrencias, valorNoMes,
+  type EstadoOcorrencia,
+} from '@/lib/previstos-mes';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { faturaNaBase } from '@/lib/moeda';
@@ -88,9 +95,20 @@ type Sugestao = {
 interface Props {
   phone?:  string;
   wallets: Wallet[];
+  /** Mês exibido ('YYYY-MM'), vindo do filtro da página.
+   *
+   *  ⚠️ ERA O BUG: este card usava SEMPRE o mês de hoje, em seis pontos — e a
+   *  pessoa navegava para novembro com a tela inteira escrita "Novembro"
+   *  enquanto o card seguia mostrando outubro. Opcional pra não quebrar quem
+   *  monta o componente sem o filtro; sem ele, cai no mês corrente. */
+  mesRef?: string;
 }
 
-export default function GastosFixosSection({ phone, wallets }: Props) {
+export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp }: Props) {
+  // O mês que este card inteiro enxerga. Daqui pra baixo NÃO existe mais
+  // `mesRefSP()` — todo ponto que precisa de competência usa este valor.
+  const mesRef = (mesRefProp || '').slice(0, 7) || mesAtualSP();
+  const posMes = posicaoDoMes(mesRef);
   const temaCategoria = useTemaCategoria();
   const fmtCru = useDinheiro();
   const moedaBase = useMoedaBase();
@@ -151,36 +169,41 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // ⚠️ LEITURA TOLERANTE: falhar aqui devolve o comportamento anterior (nada
   // marcado como pago) em vez de derrubar o card. Mesmo padrão das outras
   // fontes desta seção.
-  const [pagas, setPagas] = useState<Set<string>>(new Set());
-  const [puladas, setPuladas] = useState<Set<string>>(new Set());
+  // ⚠️ UM MAPA, NÃO DOIS CONJUNTOS. "Pago" e "a previsão já virou lançamento"
+  // eram a mesma coisa aqui, e era exatamente o bug do relato: em modo
+  // `prever`/`nao_lancar` a transação nasce PENDENTE de propósito, e o card
+  // a exibia com "✓ pago" numa conta que nem tinha vencido. A regra (com qual
+  // valor ela entra, o que vence o quê) mora em `lib/previstos-mes`, testada.
+  const [estados, setEstados] = useState<Map<string, EstadoOcorrencia>>(new Map());
   useEffect(() => {
     if (!phone) return;
     let vivo = true;
-    const mes = mesRefSP();
-    api.previstos.ocorrencias(phone, mes, mes)
+    // Zera ao trocar de mês: sem isto o mês novo herdaria por um instante os
+    // selos do anterior — que é a cara do bug que esta mudança corrige.
+    setEstados(new Map());
+    api.previstos.ocorrencias(phone, mesRef, mesRef)
       .then((r: any) => {
         if (!vivo) return;
-        const achadas = new Set<string>();
-        for (const q of (r?.quitacoes || [])) {
-          // A janela pedida já é só este mês, mas conferir a competência
-          // impede que um alargamento futuro do range marque como paga a
-          // ocorrência de OUTRO mês.
-          if (q?.recorrenciaId && q.competencia === mes) achadas.add(String(q.recorrenciaId));
-        }
-        setPagas(achadas);
-        // "Pulado" é a outra forma de uma ocorrência sair do mês sem que a
-        // regra deixe de existir — é o que o botão "Só este mês" grava.
-        const saltadas = new Set<string>();
-        for (const a of (r?.ajustes || [])) {
-          if (a?.recorrenciaId && a.competencia === mes && a.status === 'pulado') {
-            saltadas.add(String(a.recorrenciaId));
-          }
-        }
-        setPuladas(saltadas);
+        setEstados(estadoDasOcorrencias(mesRef, r?.quitacoes, r?.ajustes));
       })
       .catch(() => {});
     return () => { vivo = false; };
-  }, [phone]);
+  }, [phone, mesRef]);
+
+  const pagas   = useMemo(() => new Set(
+    [...estados].filter(([, e]) => e.situacao === 'paga').map(([id]) => id)), [estados]);
+  const lancadas = useMemo(() => new Set(
+    [...estados].filter(([, e]) => e.situacao === 'lancada').map(([id]) => id)), [estados]);
+  const puladas = useMemo(() => new Set(
+    [...estados].filter(([, e]) => e.situacao === 'pulada').map(([id]) => id)), [estados]);
+
+  /** Otimista: marca a conta como paga sem esperar o servidor. */
+  const marcarPaga = useCallback((id: string, valor?: number | null) => {
+    setEstados((m) => new Map(m).set(id, {
+      situacao: 'paga', valor: valor ?? m.get(id)?.valor ?? null,
+      transacaoId: m.get(id)?.transacaoId ?? null,
+    }));
+  }, []);
 
   // ── SAIR SÓ DESTE MÊS ───────────────────────────────────────────────
   //
@@ -191,10 +214,10 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const pularMes = useCallback(async (id: string) => {
     setRemovendo(id);
     try {
-      await api.previstos.ajuste({ recorrencia_id: id, competencia: mesRefSP(), status: 'pulado' });
+      await api.previstos.ajuste({ recorrencia_id: id, competencia: mesRef, status: 'pulado' });
       // Otimista: a linha sai do total na hora. O carregamento seguinte
       // confirma pelo servidor.
-      setPuladas((s) => new Set(s).add(id));
+      setEstados((m) => new Map(m).set(id, { situacao: 'pulada', valor: null, transacaoId: null }));
       setConfirm(null);
     } catch { /* silencioso: a linha continua como estava */ }
     finally { setRemovendo(null); }
@@ -206,8 +229,8 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   const despularMes = useCallback(async (id: string) => {
     setRemovendo(id);
     try {
-      await api.previstos.removerAjuste({ recorrencia_id: id, competencia: mesRefSP() });
-      setPuladas((s) => { const n = new Set(s); n.delete(id); return n; });
+      await api.previstos.removerAjuste({ recorrencia_id: id, competencia: mesRef });
+      setEstados((m) => { const n = new Map(m); n.delete(id); return n; });
       mutateRef.current((k: unknown) => typeof k === 'string' && k.startsWith(`d:ocorrencias:${phone}:`));
     } catch { /* silencioso: a linha continua pulada */ }
     finally { setRemovendo(null); }
@@ -240,7 +263,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
     try {
       await api.previstos.quitar({
         recorrencia_id: item.id,
-        competencia: mesRefSP(),
+        competencia: mesRef,
         // ⚠️ Com `transacao_id` o backend AMARRA a cobrança existente e ignora
         // data/valor/carteira — é o caminho de quem recebe o lançamento pelo
         // banco. Sem ele, cria a transação como sempre fez.
@@ -252,7 +275,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
             carteira_nome: item.carteira ?? null,
           }),
       });
-      setPagas((s) => new Set(s).add(item.id));
+      marcarPaga(item.id, Number(item.valor) || null);
       setAntecipando(null);
       // A baixa cria a transação e mexe no saldo: lista, saldos, resumo e o
       // Extrato precisam revalidar. ⚠️ `mutate` do useSWRConfig, não o de
@@ -449,11 +472,15 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // ⚠️ `!pagas.has(i.id)`: conta já quitada neste mês SAI do total. Era a
   // segunda metade da queixa — o selo sem tirar do total ainda mostraria
   // "R$ 15.104,91/mês" incluindo o que a pessoa acabou de pagar.
+  // ⚠️ `valorNoMes` decide por linha: paga e pulada pesam 0; LANÇADA continua
+  // pesando (ainda vai sair do bolso) e usa o valor REAL do lançamento, não a
+  // estimativa da regra — foi o que fez o total passar a bater com o extrato do
+  // banco (medido: regra R$ 1.962,78 × lançamento real R$ 2.051,68).
   const totalGastos   = useMemo(
-    () => itens.filter((i) => i.tipo === 'Gasto' && !pagas.has(i.id) && !puladas.has(i.id))
-      .reduce((s, i) => s + ((i.valor || 0) * ocorrenciasNoMes(i, mesRefSP())), 0)
+    () => itens.filter((i) => i.tipo === 'Gasto')
+      .reduce((s, i) => s + valorNoMes(estados.get(i.id), i.valor, ocorrenciasNoMes(i, mesRef)), 0)
       + totalDividas + totalCartoes,
-    [itens, totalDividas, totalCartoes, pagas, puladas]);
+    [itens, totalDividas, totalCartoes, estados, mesRef]);
   const temVariavel   = useMemo(() => itens.some((i) => i.valor_variavel), [itens]);
 
   /** ⚠️ Fatura JÁ CADASTRADA como conta fixa contaria DUAS VEZES.
@@ -517,10 +544,13 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
   // `diaHojeSP` vem de lib/saldo-projetado (já testado, fuso de SP): com
   // `getDate()` local a virada do dia sairia errada pra quem não está em SP.
   const hoje = useMemo(() => diaHojeSP(), []);
+  // ⚠️ `venceuNoMes` troca "dia < hoje" por uma pergunta que sabe QUAL mês está
+  // na tela: em mês futuro nada venceu, em mês passado tudo venceu. Com a
+  // comparação antiga, o dia 20 de julho apareceria como "ainda vai vencer".
   // Data inteira pra quem tem vencimento com mês (cartão). Ver o filtro abaixo.
   const hojeISO = useMemo(() => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }), []);
   const jaPassou = useCallback(
-    (dia?: number | null) => !!dia && Number(dia) < hoje, [hoje]);
+    (dia?: number | null) => venceuNoMes(dia, mesRef, undefined, hoje), [hoje, mesRef]);
 
   /**
    * A linha oferece dar baixa ("Já paguei" / "Já recebi")?
@@ -551,13 +581,17 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
    * Nesses modos a baixa abre o SELETOR (`precisaVincular` abaixo) e amarra a
    * cobrança que já chegou, em vez de criar outra.
    */
+  // ⚠️ MÊS FUTURO NÃO OFERECE BAIXA. A baixa grava a transação com a data de
+  // HOJE, e o backend recusa data futura — oferecer o botão em novembro daria
+  // erro na cara da pessoa. Em mês passado continua valendo: é justamente onde
+  // mora a conta atrasada que ela quer marcar.
   const podeAntecipar = useCallback((i: Recorrencia) =>
-    podeDarBaixa(i, {
-      paga: pagas.has(i.id),
+    posMes !== 'futuro' && podeDarBaixa(i, {
+      paga: pagas.has(i.id) || lancadas.has(i.id),
       pulada: puladas.has(i.id),
-      ocorrenciasNoMes: ocorrenciasNoMes(i, mesRefSP()),
+      ocorrenciasNoMes: ocorrenciasNoMes(i, mesRef),
     }),
-  [pagas, puladas]);
+  [pagas, lancadas, puladas, mesRef, posMes]);
 
   /**
    * Nesta conta a baixa tem de AMARRAR um lançamento, não criar um.
@@ -663,7 +697,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
                 sem precisar acoplar este card ao filtro (que mudaria o
                 significado de "já venceu" e de toda a projeção do mês). */}
             <h3 className="font-semibold text-foreground leading-tight flex items-center gap-2">
-              Previstos de {new Date().toLocaleDateString('pt-BR', { month: 'long', timeZone: 'America/Sao_Paulo' })}
+              Previstos de {nomeDoMes(mesRef)}
               {!carregando && itens.length + dividas.length > 0 && (
                 <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md tabular-nums"
                       style={{ background: `color-mix(in srgb, ${BRAND} 10%, transparent)`, color: BRAND }}>
@@ -736,7 +770,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
           titulo={vinculando.descricao || 'Conta fixa'}
           valorPrevisto={Number(vinculando.valor) || 0}
           tipo={vinculando.tipo === 'Recebimento' ? 'Recebimento' : 'Gasto'}
-          competencia={mesRefSP()}
+          competencia={mesRef}
           onEscolher={(txId) => anteciparOcorrencia(vinculando, txId)}
           onFechar={() => setVinculando(null)}
         />
@@ -845,7 +879,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </p>
               <ul className="divide-y divide-border/50">
                 {g.itens.map((item, idx) => (
-                  <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)}
+                  <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)} lancado={lancadas.has(item.id)} valorReal={estados.get(item.id)?.valor ?? null}
                     pulado={puladas.has(item.id)} onPularMes={pularMes} onDespularMes={despularMes}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
@@ -1015,7 +1049,7 @@ export default function GastosFixosSection({ phone, wallets }: Props) {
               </p>
               <ul className="divide-y divide-border/50">
                 {g.itens.map((item, idx) => (
-                  <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)}
+                  <Linha key={item.id} item={item} idx={idx} pago={pagas.has(item.id)} lancado={lancadas.has(item.id)} valorReal={estados.get(item.id)?.valor ?? null}
                     pulado={puladas.has(item.id)} onPularMes={pularMes} onDespularMes={despularMes}
                     confirmando={confirmando} removendo={removendo}
                     onPedir={setConfirm} onCancelar={cancelar}
@@ -1134,7 +1168,7 @@ function LinhaConta({ icone, rotulo, valor, dica, cor }: {
 // Linha de uma recorrência (gasto ou receita, fixa ou variável)
 // ─────────────────────────────────────────────────────────────
 function Linha({
-  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, pulado, onPularMes, onDespularMes,
+  item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, lancado, valorReal, pulado, onPularMes, onDespularMes,
   sugCat, onAceitarCat, onIgnorarCat, jaPassou,
   podeAntecipar, precisaVincular, emAntecipar, ocupadoAntecipar, erroAntecipar, onPedirAntecipar, onAntecipar,
 }: {
@@ -1156,6 +1190,10 @@ function Linha({
    *  `recorrencia_id` + `competencia`). Só muda a APRESENTAÇÃO; quem tira
    *  do total é `totalGastos` lá em cima. */
   pago?:       boolean;
+  /** A previsão deste mês já virou lançamento, mas AINDA NÃO FOI PAGA. */
+  lancado?:    boolean;
+  /** Valor do lançamento real, quando existe. */
+  valorReal?:  number | null;
   /** Ocorrência pulada neste mês (ajuste `pulado`). */
   pulado?:     boolean;
   onPularMes:  (id: string) => void;
@@ -1185,8 +1223,14 @@ function Linha({
   // (antes caía no 📦 genérico do CategoriaIcon quando a recorrência era "Outros").
   const emoji = (item.categoria?.match(/^\p{Extended_Pictographic}/u)?.[0]) ?? tema.emoji;
   const ehGasto = item.tipo === 'Gasto';
-  const ehVariavel = !!item.valor_variavel;
-  const semEstimativa = ehVariavel && !(item.valor > 0);
+  const regraVariavel = !!item.valor_variavel;
+  // ⚠️ O VALOR DO LANÇAMENTO VENCE O DA REGRA — e tem de vencer AQUI também,
+  // não só no total. Com o total somando R$ 2.051,68 e a linha exibindo os
+  // R$ 1.962,78 da regra, as linhas não fechariam com o número do cabeçalho.
+  const valorExibido = valorReal != null && Number.isFinite(valorReal) ? valorReal : item.valor;
+  // Com valor real em mãos a estimativa deixa de ser estimativa: o "~" sai.
+  const mostrarTil = regraVariavel && valorReal == null;
+  const semEstimativa = mostrarTil && !(valorExibido > 0);
   const emConfirm = confirmando === item.id;
   const saindo = removendo === item.id;
   return (
@@ -1274,7 +1318,7 @@ function Linha({
             ) : (
               <p className={`flex-shrink-0 text-[12.5px] sm:text-sm font-bold tabular-nums inline-flex items-center gap-0.5 leading-none ${ehGasto ? 'text-red-500' : 'text-emerald-500'}`}>
                 {ehGasto ? <ArrowDownRight size={11} /> : <ArrowUpRight size={11} />}
-                {ehVariavel ? '~' : ''}{fmt(item.valor)}
+                {mostrarTil ? '~' : ''}{fmt(valorExibido)}
               </p>
             )}
           </div>
@@ -1297,6 +1341,17 @@ function Linha({
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-px sm:py-0.5 rounded-md font-semibold
                                  bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
                   <Check size={9} /> {ehGasto ? 'pago' : 'recebido'}
+                </span>
+              )}
+              {/* ⚠️ NÃO É VERDE E NÃO DIZ "PAGO". Esta conta tem lançamento no
+                  mês mas segue em aberto — era ela que aparecia como paga e fez
+                  o cliente escrever "aparecem pagos sendo que nem paguei nada
+                  ainda". O rótulo afirma só o que se sabe: o lançamento existe. */}
+              {lancado && !pago && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-px sm:py-0.5 rounded-md font-semibold
+                                 bg-amber-500/12 text-amber-700 dark:text-amber-400"
+                      title="O lançamento deste mês já existe e ainda está em aberto — não foi pago.">
+                  <Clock size={11} className="sm:w-[9px] sm:h-[9px]" /> a pagar
                 </span>
               )}
               {pulado && !pago && (

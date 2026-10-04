@@ -437,6 +437,13 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         // sairia "já no saldo" contra um saldo que ainda não a descontou.
         await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
         return;
+      } else if (acao === 'ajustar-valor') {
+        // ⚠️ `status: 'valor'` mantém a previsão ABERTA e só troca o número —
+        // a coluna `novo_valor` e o `extrato-futuro` já a respeitavam, faltava
+        // poder gravá-la sem pular nem adiar. Exige a migration 181 (o CHECK
+        // recusa 'valor' sem ela, e a rota devolve 409 explicando).
+        if (!(Number(a.valor) > 0)) return;
+        await api.previstos.ajuste({ ...base, status: 'valor', novo_valor: Number(a.valor) });
       } else if (acao === 'pular') {
         await api.previstos.ajuste({ ...base, status: 'pulado' });
       } else if (acao === 'despular') {

@@ -668,7 +668,7 @@ export const api = {
     }) => req<any>('/api/previstos/quitar', { method: 'POST', body: JSON.stringify(body) }),
     ajuste: (body: {
       recorrencia_id: string; competencia: string;
-      status: 'pulado' | 'movido'; nova_data?: string; novo_valor?: number;
+      status: 'pulado' | 'movido' | 'valor'; nova_data?: string; novo_valor?: number;
     }) => req<any>('/api/previstos/ajuste', { method: 'POST', body: JSON.stringify(body) }),
     removerAjuste: (body: { recorrencia_id: string; competencia: string }) =>
       req<any>('/api/previstos/ajuste', { method: 'DELETE', body: JSON.stringify(body) }),

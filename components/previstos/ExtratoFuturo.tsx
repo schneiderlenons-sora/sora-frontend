@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2, CreditCard, Link2, History } from 'lucide-react';
+import { Check, Clock, CalendarClock, SkipForward, TriangleAlert, Wallet, Plus, Undo2, CreditCard, Link2, History, Pencil } from 'lucide-react';
 import { montarExtrato, type Extrato, type LinhaExtrato } from '@/lib/extrato-futuro';
 import { totalPendente, type Pendencia } from '@/lib/previstos-atrasados';
 import SeletorPagamento from '@/components/previstos/SeletorPagamento';
@@ -17,6 +17,7 @@ const FILTROS_STATUS: { id: StatusFiltro; rotulo: string }[] = [
 ];
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { parseValorBR, nomeMesCurto } from '@/lib/formato-br';
 
 // =============================================================================
 // EXTRATO FUTURO — a tela que o cliente pediu, e um pouco mais.
@@ -64,6 +65,7 @@ const VAZIO = {
   tipo: 'Gasto' as 'Gasto' | 'Recebimento', carteira: '',
 };
 
+
 /** Os saltos que cobrem quase todo "adiar" real. */
 const ATALHOS_ADIAR = [
   { dias: 7,  rotulo: '+7 dias' },
@@ -98,7 +100,7 @@ export type AcaoOcorrencia = {
    * chegou a nomear: a conta NÃO foi paga. Hoje a Sora afirma que foi, o saldo
    * fica errado para sempre e a dívida fica invisível.
    */
-  acao: 'quitar' | 'pular' | 'adiar' | 'corrigir' | 'nao-paguei' | 'despular';
+  acao: 'quitar' | 'pular' | 'adiar' | 'corrigir' | 'nao-paguei' | 'despular' | 'ajustar-valor';
   data?: string;
   valor?: number;
   /**
@@ -180,6 +182,14 @@ export default function ExtratoFuturo({
     && String(f.venc).slice(0, 10) >= dados.de && String(f.venc).slice(0, 10) <= dados.ate).length,
   [dados]);
   const [aberta, setAberta] = useState<string | null>(null);
+  /** Linha cujo VALOR está sendo ajustado, e o texto digitado.
+   *
+   *  ⚠️ Pedido de cliente: "previsões de contas contínuas podem ter variação,
+   *  como plano de saúde, luz, combustível". Antes, mudar o valor de UM mês só
+   *  dava pela porta errada — editar a regra (muda todos os meses) ou pular
+   *  (some do extrato). Aqui a previsão continua aberta e só muda de valor. */
+  const [ajustando, setAjustando] = useState<string | null>(null);
+  const [valorAjuste, setValorAjuste] = useState('');
   const [novoAberto, setNovoAberto] = useState(false);
   // ⚠️ Efeito e nao valor inicial: o estado inicial vem do SERVIDOR, e ler a
   // URL ali daria hydration mismatch (mesma regra do `ehDesktop` da Sidebar).
@@ -670,7 +680,11 @@ export default function ExtratoFuturo({
 
                   {aberta === id && !!l.recorrenciaId && previsto && (
                     <div className="px-3 pb-3 pt-1 border-t border-border/30 bg-muted/20 space-y-2">
-                      <div className="grid grid-cols-3 gap-2">
+                      {/* ⚠️ 2 COLUNAS NO MOBILE, 4 A PARTIR DE sm. Com os quatro
+                          botões numa linha só, cada alvo cairia a ~80px num
+                          iPhone e o rótulo quebraria no meio. Em 2×2 todos
+                          mantêm os 44pt de toque. */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <AcaoBtn
                           icone={<Check size={15} />} rotulo={receita ? 'Recebi' : 'Paguei'}
                           ativo={quitando === id}
@@ -694,7 +708,70 @@ export default function ExtratoFuturo({
                           icone={<SkipForward size={15} />} rotulo="Pular"
                           onClick={() => { onAcao({ linha: l, acao: 'pular' }); setAberta(null); }}
                         />
+                        <AcaoBtn
+                          icone={<Pencil size={15} />} rotulo="Valor"
+                          ativo={ajustando === id}
+                          onClick={() => {
+                            if (ajustando === id) { setAjustando(null); return; }
+                            setAjustando(id); setAdiando(null); setQuitando(null);
+                            setValorAjuste(String(l.valor).replace('.', ','));
+                          }}
+                        />
                       </div>
+
+                      {/* ── QUANTO VAI SER, SÓ NESTE MÊS ───────────────────── */}
+                      {ajustando === id && (
+                        <div className="rounded-lg border border-border/40 bg-background/60 p-3 space-y-2">
+                          <label className="block text-[11px] font-semibold text-muted-foreground"
+                                 htmlFor={`vl-${id}`}>
+                            Valor desta conta em {nomeMesCurto(l.competencia || l.data)}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground flex-shrink-0">{simbolo}</span>
+                            <input
+                              id={`vl-${id}`}
+                              type="text" inputMode="decimal" value={valorAjuste}
+                              onChange={(e) => setValorAjuste(e.target.value)}
+                              /* ⚠️ 16px no mobile: abaixo disso o iOS dá ZOOM ao
+                                 focar e a tela salta de lugar. */
+                              className="flex-1 min-w-0 h-11 px-3 rounded-lg border border-border/60 bg-background
+                                         text-base sm:text-sm tabular outline-none focus:border-primary"
+                              placeholder="0,00"
+                              autoFocus
+                            />
+                          </div>
+                          {/* Diz o que NÃO vai acontecer — é a dúvida real de quem
+                              mexe no valor de uma conta que se repete. */}
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Vale só para este mês. A conta fixa continua em{' '}
+                            <b className="text-foreground tabular">{fmt(l.valor)}</b> nos outros.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={!(parseValorBR(valorAjuste) > 0) || ocupado === l.recorrenciaId}
+                              onClick={() => {
+                                const v = parseValorBR(valorAjuste);
+                                if (!(v > 0)) return;
+                                onAcao({ linha: l, acao: 'ajustar-valor', valor: v });
+                                setAjustando(null); setAberta(null);
+                              }}
+                              className="h-11 px-4 rounded-lg text-sm font-bold text-white disabled:opacity-40
+                                         active:scale-[0.98] transition-all"
+                              style={{ background: 'linear-gradient(135deg, #61D17B, #3FA85A)' }}
+                            >
+                              {ocupado === l.recorrenciaId ? '...' : 'Salvar valor'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAjustando(null)}
+                              className="h-11 px-3 rounded-lg text-sm font-semibold text-muted-foreground hover:text-foreground"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* ── PARA QUANDO ─────────────────────────────────────
                           ⚠️ Atalhos + data livre, nesta ordem. "Adiar" na

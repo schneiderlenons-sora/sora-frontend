@@ -756,7 +756,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         {/* ═══════════════════════════════════════════════════════
             GASTOS FIXOS (recorrências)
         ═══════════════════════════════════════════════════════ */}
-        <GastosFixosSection phone={phone} wallets={wallets} />
+        <GastosFixosSection phone={phone} wallets={wallets} mesRef={mesRef} />
 
         {/* ═══════════════════════════════════════════════════════
             BARRA DE FILTROS
