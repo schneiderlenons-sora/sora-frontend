@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Repeat, Plus, Trash2, Loader2, Check, X, Calendar,
-  ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil,
+  ArrowDownRight, ArrowUpRight, Sparkles, CircleDashed, Pencil, Circle,
   Bell, ChevronDown, Link2, EyeOff, TrendingUp, Wallet as WalletIcon, Clock,
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
@@ -1382,12 +1382,29 @@ function Linha({
                   // a Sora criaria — e aqui não se cria nada, escolhe-se um
                   // que já existe. Confirmar antes de escolher é confirmar o quê?
                   onClick={() => (precisaVincular ? onAntecipar?.() : onPedirAntecipar?.(true))}
+                  // ⚠️ ESTE BOTÃO ERA LIDO COMO SELO, e o cliente reportou duas
+                  // vezes "aparecem pagos sendo que nem paguei". Ele tinha
+                  // `<Check/>` + fundo verde translúcido + "Já paguei" — ou seja,
+                  // o MESMO desenho do selo de estado "✓ pago" que fica na linha
+                  // ao lado, e um texto que em português é AFIRMAÇÃO na primeira
+                  // pessoa. Três coisas mudaram juntas, porque qualquer uma
+                  // sozinha deixava a leitura ambígua:
+                  //   · `Circle` vazio no lugar do `Check` — check é o símbolo de
+                  //     concluído, e era ele que dizia "já está pago";
+                  //   · BORDA em vez de fundo preenchido — chip preenchido lê
+                  //     como status, botão com contorno lê como ação;
+                  //   · "Marcar pago", imperativo, no lugar de "Já paguei".
+                  // Regra `read-only-distinction` da skill ui-ux-pro-max, e a
+                  // mesma lição do olho de ocultar valores: o ícone mostra o
+                  // ESTADO; o que o clique faz vai no rótulo.
+                  //
                   // `-my-2 py-2` dá alvo de toque maior sem engordar a linha.
-                  className="inline-flex items-center gap-0.5 px-1.5 py-2 -my-2 sm:py-1 sm:-my-1 rounded-md font-semibold
-                             bg-primary/10 text-primary hover:bg-primary/20 transition-colors active:scale-[0.97]"
-                  aria-label={`${ehGasto ? 'Já paguei' : 'Já recebi'} ${item.descricao} este mês`}
+                  className="inline-flex items-center gap-1 px-2 py-2 -my-2 sm:py-1 sm:-my-1 rounded-md font-semibold
+                             border border-primary/40 text-primary bg-transparent
+                             hover:bg-primary/10 transition-colors active:scale-[0.97]"
+                  aria-label={`Marcar ${item.descricao} como ${ehGasto ? 'paga' : 'recebida'} neste mês`}
                 >
-                  <Check size={9} /> {ehGasto ? 'Já paguei' : 'Já recebi'}
+                  <Circle size={9} /> {ehGasto ? 'Marcar pago' : 'Marcar recebido'}
                 </button>
               )}
             </div>
