@@ -743,6 +743,14 @@ export const api = {
       req<{ precoBRL?: number; moeda?: string; precoOriginal?: number; moedaOriginal?: string; taxa?: number; variacaoDia?: number;
             precoBase?: number; moedaBase?: string; taxaBase?: number }>(
         `/api/investimentos/cotacao?ticker=${encodeURIComponent(ticker)}&tipo=${tipo}`),
+    /** "quanto este investimento vale hoje" — mexe SÓ no valor atual.
+     *
+     *  ⚠️ Rota PRÓPRIA, não o PUT genérico: aqui o `valor_aportado` não é nem
+     *  aceito no corpo. Ele é quanto a pessoa colocou do bolso, e tocá-lo
+     *  apagaria o lucro em vez de registrá-lo. */
+    atualizarValor: (id: string, valor_atual: number) =>
+      req<{ ok: boolean; investimento: any; temporario: boolean }>(
+        `/api/investimentos/${id}/valor`, { method: 'PUT', body: JSON.stringify({ valor_atual }) }),
     atualizarPrecos: (phone: string) =>
       req<{ atualizados: number; total: number }>(`/api/investimentos/atualizar-precos/${phone}`, { method: 'POST' }),
     /** Caixinhas/cofrinhos do Open Finance (saldos reservados — fora do saldo da conta). */

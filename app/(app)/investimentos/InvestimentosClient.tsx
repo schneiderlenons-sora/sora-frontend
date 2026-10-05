@@ -7,11 +7,12 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useTheme } from 'next-themes';
 import NovoInvestimentoModal from '@/components/investimentos/NovoInvestimentoModal';
+import AtualizarValorModal from '@/components/investimentos/AtualizarValorModal';
 import MovimentoModal from '@/components/investimentos/MovimentoModal';
 import { fmtDataBR } from '@/lib/data-br';
 import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
-  Trash2, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
+  Trash2, Pencil, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
   PiggyBank, Landmark, ChevronRight, ChevronDown, CalendarClock, Percent,
   Archive, Layers,
 } from 'lucide-react';
@@ -187,6 +188,9 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
   const carregar = useCallback(() => Promise.all([mInvs(), mAp(), mPat(), mRes(), mCaix()]), [mInvs, mAp, mPat, mRes, mCaix]);
 
+  /** Investimento cujo valor está sendo atualizado à mão. */
+  const [editandoValor, setEditandoValor] = useState<any | null>(null);
+
   async function handleAtualizar() {
     if (!phone || atualizando) return;
     setAtualizando(true);
@@ -332,7 +336,7 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
         {/* TAB: CARTEIRA */}
         {tab === 'carteira' && (
-          <TabCarteira invs={invs} onDelete={handleDelete} onAdd={() => setNovoOpen(true)} />
+          <TabCarteira invs={invs} onDelete={handleDelete} onEditarValor={setEditandoValor} onAdd={() => setNovoOpen(true)} />
         )}
 
         {/* TAB: RESERVA */}
@@ -379,6 +383,14 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
       {novoOpen && phone && (
         <NovoInvestimentoModal phone={phone} onClose={() => setNovoOpen(false)} onSuccess={carregar} />
+      )}
+
+      {editandoValor && (
+        <AtualizarValorModal
+          investimento={editandoValor}
+          onClose={() => setEditandoValor(null)}
+          onSuccess={carregar}
+        />
       )}
 
       {movimento && phone && (
@@ -675,7 +687,7 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
 // ─────────────────────────────────────────────────────────────
 // TAB CARTEIRA
 // ─────────────────────────────────────────────────────────────
-function TabCarteira({ invs, onDelete, onAdd }: any) {
+function TabCarteira({ invs, onDelete, onEditarValor, onAdd }: any) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const [busca, setBusca] = useState('');
   const [classe, setClasse] = useState<'todas' | Classe>('todas');
@@ -869,7 +881,7 @@ function TabCarteira({ invs, onDelete, onAdd }: any) {
                   <CardPosicao key={g.chave} g={g} cor={c.cor}
                                expandido={!!aberto[g.chave]}
                                onExpandir={() => setAberto(a => ({ ...a, [g.chave]: !a[g.chave] }))}
-                               onDelete={onDelete} />
+                               onDelete={onDelete} onEditarValor={onEditarValor} />
                 ))}
               </div>
             </section>
@@ -901,7 +913,7 @@ function ChipCarencia({ ate }: { ate: string }) {
 }
 
 /* ── Card de uma posição (ou de um grupo de aplicações iguais) ───────── */
-function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
+function CardPosicao({ g, cor, expandido, onExpandir, onDelete, onEditarValor }: any) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const varios = g.itens.length > 1;
   const idx = textoIndexador(g);
@@ -1025,10 +1037,22 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
             <ChevronDown size={15} className={`text-muted-foreground transition-transform ${expandido ? 'rotate-180' : ''}`} />
           </button>
         ) : (
-          <button onClick={() => onDelete(g.itens[0].id)} aria-label={`Excluir ${g.nome}`}
-                  className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-500/10 flex-shrink-0 transition-colors">
-            <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
-          </button>
+          <>
+            {/* ⚠️ O BOTÃO QUE FALTAVA. Sem ele, renda fixa (CDB, LCI, Tesouro)
+                não tinha caminho nenhum: "Atualizar cotações" só funciona com
+                ticker, e "Aportar" é dinheiro novo — usá-lo para lançar
+                rendimento infla o investido e deixa a rentabilidade em 0%. */}
+            <button onClick={() => onEditarValor(g.itens[0])}
+                    aria-label={`Atualizar o valor de ${g.nome}`}
+                    title="Atualizar quanto vale hoje"
+                    className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-primary/10 flex-shrink-0 transition-colors">
+              <Pencil size={13} className="text-muted-foreground hover:text-primary" />
+            </button>
+            <button onClick={() => onDelete(g.itens[0].id)} aria-label={`Excluir ${g.nome}`}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-500/10 flex-shrink-0 transition-colors">
+              <Trash2 size={13} className="text-muted-foreground hover:text-red-500" />
+            </button>
+          </>
         )}
       </div>
 
@@ -1067,6 +1091,11 @@ function CardPosicao({ g, cor, expandido, onExpandir, onDelete }: any) {
                   )}
                 </div>
                 <span className="text-xs tabular font-semibold text-foreground flex-shrink-0">{fmt(i.valor_atual || 0)}</span>
+                <button onClick={() => onEditarValor(i)} aria-label={`Atualizar o valor desta aplicação de ${g.nome}`}
+                        title="Atualizar quanto vale hoje"
+                        className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-primary/10 flex-shrink-0 transition-colors">
+                  <Pencil size={12} className="text-muted-foreground hover:text-primary" />
+                </button>
                 <button onClick={() => onDelete(i.id)} aria-label="Excluir aplicação"
                         className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-500/10 flex-shrink-0 transition-colors">
                   <Trash2 size={12} className="text-muted-foreground hover:text-red-500" />
