@@ -103,6 +103,27 @@ async function gravarConexoesPagas(userId: string, sub: Stripe.Subscription) {
     // Migration 111 pendente: não pode derrubar o webhook inteiro.
     console.error('[stripe/webhook] conexão OF (migration 111?):', e instanceof Error ? e.message : e);
   }
+
+  // ── QUANDO ESSA ASSINATURA ACABA (migration 183) ──────────────────────────
+  //
+  // ⚠️ É O ÚNICO MOMENTO EM QUE DÁ PRA AVISAR ANTES. Quando a pessoa cancela,
+  // o Stripe marca `cancel_at_period_end` e o período ainda corre — e manda
+  // isso neste evento. Guardando a data, o cron consegue dizer "sua conexão
+  // com o banco termina em 3 dias" ENQUANTO ela ainda pode reativar sem
+  // perder nada. Depois que o período acaba, qualquer aviso já é tarde.
+  //
+  // ⚠️ GRAVAÇÃO SEPARADA E TOLERANTE: sem a 183 este bloco falha sozinho e o
+  // resto do webhook (que concede o acesso) segue intacto.
+  try {
+    const fim = (sub as unknown as { current_period_end?: number }).current_period_end;
+    await supabaseAdmin.from('users').update({
+      // Só há fim conhecido quando ela JÁ cancelou. Reativando, volta a null e
+      // o aviso some junto — senão avisaríamos quem voltou a pagar.
+      of_assinatura_fim: sub.cancel_at_period_end && fim
+        ? new Date(fim * 1000).toISOString() : null,
+      of_fim_avisado_em: null,
+    }).eq('id', userId);
+  } catch { /* migration 183 pendente — segue sem aviso prévio */ }
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
