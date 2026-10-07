@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon } from 'lucide-react';
+import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { hojeSP } from '@/lib/ciclo-fatura';
@@ -41,7 +41,9 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
   const moeda = useMoedaBase();
   const { phone } = useAuth();
   const comp = competencia || ymAtual();
-  const [contas, setContas] = useState<{ id: string; nome: string; saldo: number }[]>([]);
+  // `ofConta`: a conta vem do Open Finance? É o que decide o aviso abaixo —
+  // nela o saldo é o do banco e NÃO anda com este pagamento.
+  const [contas, setContas] = useState<{ id: string; nome: string; saldo: number; ofConta: boolean }[]>([]);
   // Status da fatura: já pago / restante (migration 096). Default = valorFatura.
   const [status, setStatus] = useState<{ fatura: number; pago: number; restante: number } | null>(null);
   const restante = status ? status.restante : valorFatura;
@@ -73,7 +75,8 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
     if (!phone) return;
     api.wallets.listar(phone)
       .then((ws: any[]) => {
-        const cs = (ws || []).filter(w => w.tipo !== 'Crédito').map(w => ({ id: w.id, nome: w.nome, saldo: w.saldo || 0 }));
+        const cs = (ws || []).filter(w => w.tipo !== 'Crédito')
+          .map(w => ({ id: w.id, nome: w.nome, saldo: w.saldo || 0, ofConta: !!w.of_conta_id }));
         setContas(cs);
         // Uma conta só → já seleciona na primeira linha.
         if (cs.length === 1) setLinhas(ls => ls.map((l, i) => (i === 0 && !l.walletId ? { ...l, walletId: cs[0].id } : l)));
@@ -204,6 +207,29 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
                       {contas.map(c => <option key={c.id} value={c.id}>{c.nome} — {fmt(c.saldo)}</option>)}
                       <option value={EXTERNA}>Pago por outra pessoa (fora do painel)</option>
                     </select>
+
+                    {/* ⚠️ CONTA DO BANCO: o aviso FALTAVA AQUI, e o de lançar
+                        transação já existia desde set/2026. Relato de out/2026:
+                        o cliente pagou DUAS faturas escolhendo a conta do
+                        Santander (que é do Open Finance), viu o saldo não
+                        mexer e perguntou se o Open Finance tinha sido
+                        desativado. Medido na conta dele: a conexão estava viva
+                        e sincronizando, e o saldo (R$ 5,50) era o do banco —
+                        tudo certo, mas nada na tela tinha dito isso.
+
+                        Aviso, nunca bloqueio: registrar o pagamento aqui é o
+                        certo — é o que marca a fatura como paga. */}
+                    {contas.find(c => c.id === l.walletId)?.ofConta && (
+                      <div role="note" className="mt-2 rounded-xl p-3 bg-emerald-50 dark:bg-emerald-950/30
+                                                  border border-emerald-200 dark:border-emerald-900/60 flex items-start gap-2.5">
+                        <Landmark size={14} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" aria-hidden />
+                        <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                          Esta conta é conectada ao seu banco: <strong>o saldo dela vem de lá</strong> e não
+                          muda com este pagamento. A fatura fica quitada normalmente, e a saída aparece no
+                          saldo quando o banco trouxer o débito — costuma levar um ou dois dias.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Valor + quem pagou (nome). Nome aparece quando dividido OU externo. */}
