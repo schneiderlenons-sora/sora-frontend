@@ -919,10 +919,100 @@ simples, e é **mais da metade** da base.
   aba tem caminho próprio pela CoinGecko) e os códigos de CRI/debênture que o
   Open Finance traz (`BRXPLGD08M14`), que nenhum dos dois provedores cota.
 
+### Cripto: a CoinGecko também recusa o Render → Mercado Bitcoin
+
+Achado **testando** a correção da brapi, simulando o botão "Atualizar cotações"
+nas 21 contas com ativo cotável. As 8 posições de Cripto da base **nunca**
+atualizavam, e três exibiam número absurdo de uma atualização parcial antiga:
+
+```
+Ethereum   R$     0,45   com R$   452,20 aportados
+Bitcoin    R$     2,31   com R$ 4.200,00 aportados
+Pepe       valor = aportado, nunca mexeu
+```
+
+⚠️ **NÃO SE ESCOLHE FONTE PELA REPUTAÇÃO.** Sondando cinco fontes gratuitas
+**de dentro do Render**, de uma vez — o único jeito de escolher sem adivinhar:
+
+```
+CoinGecko ........  429  "You've exceeded the Rate Limit"
+brapi (cripto) ...  403  "requer o plano Startup (R$ 119,99/mês)"
+Binance ..........  451  "restricted location"   (a região do Render)
+CoinCap ..........  fetch failed (a API saiu do ar)
+Mercado Bitcoin ..  200  BTC R$ 419.000 · ETH R$ 12.935 · PEPE R$ 0,0000205
+```
+
+A CoinGecko é a melhor API de cripto que existe e nos recusa; a Binance é a
+maior corretora do mundo e bloqueia a região. Quem decide é **quem responde 200
+deste IP** — e foi a corretora brasileira, que de quebra cota em **real nativo**,
+sem passar por câmbio.
+
+- **`services/cotacaoCripto.js`** + cascata `FONTES_CRIPTO` em `cotacoes.js`,
+  mesmo desenho do `FONTES_CAMBIO`. ⚠️ **A CoinGecko fica PRIMEIRO** mesmo
+  recusando: cobre muito mais moeda e volta sozinha quando o limite passa
+  (medido: ela alterna entre 200 e 429 ao longo do dia).
+- ⚠️ **Preço tem de ser número POSITIVO pra valer**; 0 ou `null` segue pra
+  próxima fonte. "Esta moeda não vale nada" iria direto pro patrimônio.
+- ⚠️ **O ticker de cripto na base é o id da CoinGecko** (`bitcoin`, `ethereum`,
+  `pepe`) — foi dela que a busca sempre veio. A corretora usa a **sigla**
+  (`BTC`), então sem traduzir toda chamada daria 404. Mapa curto + palpite "já é
+  a sigla", que resolve a posição gravada como `BTC`. Lista longa de moedas
+  envelhece mal (lição da lista de ETFs).
+- ⚠️ **`"Bitcoin - NuBanck"` existe no campo `nome` e não pode virar chamada de
+  API** — o palpite só aceita 2 a 10 caracteres alfanuméricos.
+- ⚠️ **404 é RESPOSTA** (`COIN_NOT_FOUND`), não falha: tratar como erro de rede
+  faria tentar pra sempre uma moeda que a corretora nunca vai listar. E resposta
+  de **erro com corpo válido** (500 com cara de ticker) **não** vira preço.
+- **Busca de cripto segue quebrada** quando a CoinGecko recusa (`listarCriptos`
+  usa `/coins/list`). **Não corrigido de propósito:** a lista v4 do Mercado
+  Bitcoin devolve centenas de recebíveis tokenizados (`CONSRC23-BRL`,
+  `FGTS06-BRL`) junto das moedas, e não há campo que os separe — a busca ficaria
+  pior que vazia. Só afeta **adicionar** cripto nova, não as posições existentes.
+- `eval:cotacao-cripto` (10 seções, 16/16 mutações mortas).
+
+### O estado final, medido nas 21 contas (07/10/2026)
+
+Simulando a rota real de dentro do Render, **sem gravar nada**
+(`diag-cotacao?simular=<email>`):
+
+```
+161 posições cotaram
+ 26 não cotaram  →  25 são LINHAS VAZIAS (quantidade 0, R$ 0,00)
+                    1 tem dinheiro: MELI
+```
+
+As 25 vazias são 18 **direitos de subscrição** (`MXRF12`, `HGLG12`, `ABCB2`…,
+expirados), 6 **códigos de CRI/debênture** que o Open Finance importa
+(`BRXPLGD08M14`) e 1 **ticker renomeado** (`CVBI11` virou `PCIP11`; a posição
+real de 25 cotas está no código novo e cota R$ 78,45). Nenhuma delas é cotável
+em lugar nenhum, e nenhuma tem valor a perder.
+
+⚠️ **A única lacuna com dinheiro é ATIVO INTERNACIONAL.** `MELI` (40 cotas) não
+casa com `ehTickerBR` (sem dígito no fim), então vai pro Yahoo — que está
+bloqueado. A brapi não cobre bolsa de fora no plano atual. Resolver exige um
+**terceiro provedor pra ação estrangeira**, medido de dentro do Render antes de
+escolher; é decisão de produto, não aritmética.
+
+**Tempo:** o maior grupo (44 posições) sai em **5,5s**, contra os ~23s que teria
+sem o disjuntor.
+
 **Diagnóstico:** `GET /api/investimentos/diag-cotacao?key=<API_SECRET_TOKEN>&ticker=X&q=termo`
 mede numa chamada só, de dentro do Render: o **fluxo real** (o número que o
-cliente vê), a busca, a brapi, o Yahoo pela lib e o Yahoo cru. Use SEMPRE isso
-antes de concluir qualquer coisa sobre cotação — foi ele que encerrou o caso.
+cliente vê), a busca, a brapi, o Yahoo pela lib e o Yahoo cru. Tem mais dois
+modos, e os três encerraram um caso cada:
+
+- **`&simular=<email>`** roda a MESMA cadeia da rota de "Atualizar cotações"
+  (lê os investimentos do grupo → cotação → câmbio → calcula o valor) e devolve
+  o número **sem gravar uma linha**. ⚠️ É o que distingue *"a função responde"*
+  de *"o recurso funciona"* — e o jeito de provar o botão **sem entrar na conta
+  de um cliente**, que é o que um JWT de usuário exigiria.
+- **`&cripto=bitcoin,ethereum`** compara a cotação pela Sora com a CoinGecko
+  crua e sonda cinco fontes gratuitas de cripto. Foi ela que mostrou que a
+  CoinGecko também nos recusa.
+
+⚠️ **Use SEMPRE um destes antes de concluir qualquer coisa sobre cotação.** As
+três causas desta rodada (Yahoo, token da brapi, CoinGecko) eram INVISÍVEIS
+localmente e nenhuma estava no nosso código.
 
 ## Investimento não salvava — CHECK de `tipo` + erro engolido (ago/2026)
 
