@@ -106,11 +106,17 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
             ? `Cotação: ${simbolo} ${preco.toFixed(2)} · convertido de ${c.precoOriginal?.toFixed(2)} ${c.moedaOriginal} (câmbio ${(c.taxaBase ?? c.taxa)?.toFixed(2)})`
             : `Cotação atual: ${simbolo} ${fmtPrecoInput(preco)}`
         );
+      } else if (c?.motivo === 'falha_temporaria') {
+        // ⚠️ DUAS FRASES, NÃO UMA. A de antes servia pros dois casos, e um
+        // cliente que selecionou "PETR4.SA" na lista — ou seja, o papel EXISTE
+        // e tem cotação — leu "não achei a cotação" como defeito permanente.
+        // Medido depois, no mesmo ticker e na mesma conta: voltou R$ 54,16.
+        setCotacaoInfo('A busca de cotação falhou agora. Toque no ativo de novo para tentar — ou preencha o preço à mão.');
       } else {
-        setCotacaoInfo('Não achei a cotação automática — preencha o preço manualmente.');
+        setCotacaoInfo('Este ativo não tem cotação automática — preencha o preço manualmente.');
       }
     } catch {
-      setCotacaoInfo('Não achei a cotação automática — preencha o preço manualmente.');
+      setCotacaoInfo('A busca de cotação falhou agora. Toque no ativo de novo para tentar — ou preencha o preço à mão.');
     } finally {
       setBuscandoCotacao(false);
     }

@@ -741,7 +741,10 @@ export const api = {
     /** Cotação atual JÁ em reais (converte USD→BRL etc.) e na moeda base do grupo (`precoBase`). */
     cotacao: (ticker: string, tipo: 'acao' | 'cripto') =>
       req<{ precoBRL?: number; moeda?: string; precoOriginal?: number; moedaOriginal?: string; taxa?: number; variacaoDia?: number;
-            precoBase?: number; moedaBase?: string; taxaBase?: number }>(
+            precoBase?: number; moedaBase?: string; taxaBase?: number;
+            /** Por que não veio: 'sem_cotacao' (o papel não tem) ou
+             *  'falha_temporaria' (deu erro agora — vale tentar de novo). */
+            motivo?: 'sem_cotacao' | 'falha_temporaria' }>(
         `/api/investimentos/cotacao?ticker=${encodeURIComponent(ticker)}&tipo=${tipo}`),
     /** "quanto este investimento vale hoje" — mexe SÓ no valor atual.
      *

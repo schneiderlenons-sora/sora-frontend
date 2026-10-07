@@ -36,6 +36,10 @@ export default function AtualizarValorModal({
   const aportado = Number(investimento.valor_aportado) || 0;
 
   const [texto, setTexto] = useState(String(atual.toFixed(2)).replace('.', ','));
+  /** Código do ativo. Editável aqui porque, sem isto, quem cadastrou sem ele
+   *  só tinha a saída de EXCLUIR e recadastrar — perdendo o histórico. */
+  const [ticker, setTicker] = useState(String(investimento.ticker || '').trim());
+  const tickerOriginal = String(investimento.ticker || '').trim();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -52,6 +56,12 @@ export default function AtualizarValorModal({
     setErro('');
     try {
       await api.investimentos.atualizarValor(investimento.id, novo);
+      // ⚠️ Só chama o PUT genérico quando o código MUDOU: ele é outra rota e
+      // outro risco, e não há razão de tocá-lo quando a pessoa só quis
+      // atualizar o valor. `null` (não undefined) para poder APAGAR o código.
+      if (ticker !== tickerOriginal) {
+        await api.investimentos.editar(investimento.id, { ticker: ticker || null });
+      }
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -136,11 +146,34 @@ export default function AtualizarValorModal({
           use <b className="text-foreground">Aportar</b>.
         </p>
 
+        {/* ── Código do ativo ────────────────────────────────────────────
+            ⚠️ ESTE CAMPO RESOLVE UM BECO SEM SAÍDA. Quem cadastrou uma ação sem
+            o código (porque digitou o nome em vez de escolher na busca, ou
+            porque a cotação falhou naquele momento) ficava com o investimento
+            parado para sempre: não havia edição em lugar nenhum do painel, e a
+            única saída era excluir e recadastrar, perdendo o histórico. */}
+        <div>
+          <label htmlFor="av-ticker" className="block text-xs font-semibold text-muted-foreground mb-1.5">
+            Código do ativo <span className="font-normal">(opcional)</span>
+          </label>
+          <input
+            id="av-ticker" type="text" value={ticker}
+            onChange={(e) => setTicker(e.target.value.toUpperCase())}
+            className="w-full h-11 px-3 rounded-xl border border-border bg-background
+                       text-base sm:text-sm outline-none focus:border-primary"
+            placeholder="PETR4.SA"
+          />
+          <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+            Com o código preenchido, o botão <b className="text-foreground">Atualizar cotações</b> passa
+            a buscar o preço deste ativo sozinho. Deixe em branco para renda fixa.
+          </p>
+        </div>
+
         {/* Ativo com cotação: avisa que o valor digitado é provisório. */}
-        {investimento.ticker && String(investimento.ticker).trim() !== '' && (
+        {ticker.trim() !== '' && (
           <p className="text-[11px] leading-relaxed rounded-xl border border-amber-300/60 dark:border-amber-900/60
                         bg-amber-50 dark:bg-amber-950/30 p-2.5 text-amber-800 dark:text-amber-200">
-            Este ativo tem cotação ({investimento.ticker}). O valor que você informar vale até
+            Este ativo tem cotação ({ticker}). O valor que você informar vale até
             a próxima vez que você tocar em <b>Atualizar cotações</b>, que busca o preço do dia.
           </p>
         )}
