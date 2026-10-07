@@ -175,6 +175,37 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const temContaDoBanco = wallets.some((w) => w.of_conta_id);
   const conexoes = useConexoesOF(temContaDoBanco);
 
+  // ── SOLTAR A CONTA DO BANCO ────────────────────────────────
+  //
+  // ⚠️ Terminada a conexao, a carteira segue com `of_conta_id` — e o saldo
+  // dela nunca e movido por lancamento manual (regra de ouro). Sem esta saida a
+  // conta fica congelada pra sempre, e o jeito era criar OUTRA com o mesmo nome,
+  // partindo o historico. Soltar preserva tudo e so devolve o controle.
+  const [soltando, setSoltando] = useState<string | null>(null);
+  const soltarDoBanco = useCallback(async (w: any) => {
+    if (!w?.id || soltando) return;
+    // ⚠️ CONFIRMA: e uma via de mao unica na pratica. Reconectar o banco
+    // depois cria outra carteira (o sync casa por of_conta_id, que acabou de
+    // sair), entao a pessoa precisa saber disso ANTES.
+    const ok = window.confirm(
+      `Usar "${w.nome}" manualmente?
+
+` +
+      `Todo o historico e o saldo atual continuam como estao, e a conta volta a aceitar ajuste de saldo e lancamentos normais.
+
+` +
+      `Se voce reconectar este banco depois, ele vai criar uma conta nova — esta aqui seguira manual.`
+    );
+    if (!ok) return;
+    setSoltando(w.id);
+    try {
+      await api.wallets.soltar(w.id);
+      await carregar();
+    } catch (e: any) {
+      alert(e?.message || "Nao consegui soltar a conta agora.");
+    } finally { setSoltando(null); }
+  }, [carregar, soltando]);
+
   // ── Helpers ────────────────────────────────────────────────
   // Cartões de crédito NÃO aparecem aqui — eles têm a aba própria (Cartão de
   // crédito). Esta aba é só de contas bancárias, pra não confundir.
@@ -426,6 +457,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
                 onVerExtrato={() => setContaDetalhe(w)}
                 sincronizadoEm={conexoes.sincronizadoEm(w)}
                 conexaoEncerrada={conexoes.encerrada(w)}
+                onSoltar={soltarDoBanco}
                 estadoConexao={conexoes.estado(w)}
               />
             ))}
@@ -527,7 +559,7 @@ function tempoDesde(iso: string): string {
 function WalletCard({
   wallet, index, ocultar, compartilhado,
   onEditar, onDeletar, onTornarPadrao, onArquivar, onAjustar, onTransferir, onVerExtrato,
-  sincronizadoEm = null, conexaoEncerrada = false, estadoConexao = 'indefinido',
+  sincronizadoEm = null, conexaoEncerrada = false, estadoConexao = 'indefinido', onSoltar,
 }: {
   wallet:        Wallet;
   index:         number;
@@ -543,6 +575,8 @@ function WalletCard({
   sincronizadoEm?: string | null;
   /** O consentimento desta conta não existe mais — o saldo parou de vir. */
   conexaoEncerrada?: boolean;
+  /** Solta a conta do banco: ela volta a ser manual, com o histórico intacto. */
+  onSoltar?: (w: any) => void;
   /** Em que pé está a conexão — ver `lib/status-conexao-of.ts`. */
   estadoConexao?: EstadoConexao;
 }) {
@@ -663,10 +697,30 @@ function WalletCard({
             lançava à mão via o saldo parado e concluía "a Sora não sincroniza"
             (relato de set/2026, com vídeo) — o saldo estava certo, é o do banco. */}
         {doBanco && conexaoEncerrada && (
-          <p className="mt-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
-            <Landmark size={11} className="flex-shrink-0" aria-hidden />
-            <span>Esta conta parou de atualizar — ficou presa numa conexão antiga. Reconecte em Open Finance.</span>
-          </p>
+          <div className="mt-1.5 space-y-1.5">
+            <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-start gap-1">
+              <Landmark size={11} className="flex-shrink-0 mt-0.5" aria-hidden />
+              <span>Esta conta parou de atualizar — ficou presa numa conexão antiga.</span>
+            </p>
+            {/* ⚠️ A SEGUNDA SAÍDA, QUE FALTAVA. Antes o texto só dizia
+                "reconecte", e quem não ia reconectar ficava num limbo: o saldo
+                congela no último valor do banco e o lançamento manual não o
+                move (regra de ouro: conta de OF tem saldo do banco). A única
+                saída era criar OUTRA conta com o mesmo nome — partindo o
+                histórico. Medido em 07/10/2026: 16 carteiras assim, com
+                R$ 18.103,97 congelados e 2.370 transações presas, inclusive um
+                "BTG Banking" (321 lançamentos) convivendo com um
+                "BTG Banking (OF)" (540) — alguém que já tinha feito isso. */}
+            {onSoltar && (
+              <button
+                type="button"
+                onClick={() => onSoltar(wallet)}
+                className="text-[11px] font-semibold text-primary hover:underline underline-offset-2 -my-1 py-1"
+              >
+                Usar esta conta manualmente
+              </button>
+            )}
+          </div>
         )}
         {/* ⚠️ A AUTORIZAÇÃO VENCEU: aqui reconectar RESOLVE, e é a única
             situação em que a tela pede isso. */}

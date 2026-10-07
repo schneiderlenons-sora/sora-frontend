@@ -435,6 +435,14 @@ export const api = {
       req<any[]>(`/api/wallets/${phone}`),
     salvar: (body: any) =>
       req('/api/wallets', { method: 'POST', body: JSON.stringify(body) }),
+    /** Devolve uma conta ÓRFÃ do Open Finance ao uso manual.
+     *
+     *  ⚠️ Terminada a conexão, a carteira continua com `of_conta_id` — e o
+     *  saldo dela nunca é mexido por lançamento manual (regra de ouro). Sem
+     *  isto a conta fica congelada para sempre, e a única saída era criar
+     *  OUTRA com o mesmo nome, partindo o histórico em duas. */
+    soltar: (id: string) =>
+      req<{ ok: boolean; wallet: any }>(`/api/wallets/${id}/soltar`, { method: 'POST' }),
     /**
      * Edita a conta POR ID — é o único caminho que RENOMEIA de verdade.
      *
