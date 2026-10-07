@@ -835,6 +835,95 @@ mesmo tendo sido pagas por débito automático.
   (o sync nunca reescreve linha existente).
 - Travado em `eval:pagamento-fatura` §4C.
 
+## Cotação: o Yahoo RECUSA o IP do Render (out/2026) — `BRAPI_TOKEN`
+
+Relato de cliente premium: *"ainda não está funcionando"* depois de a feature de
+lançar lucro ter entrado. Perdi uma rodada inteira testando a função — e ela
+passava, sempre. **O defeito não estava no código, estava na MÁQUINA.**
+
+Medido com `GET /api/investimentos/diag-cotacao?key=<API_SECRET_TOKEN>`, que roda
+DENTRO do Render:
+
+```
+Yahoo pela lib ...  429 "Failed to get crumb, status 429"  em 391ms
+Yahoo cru .......   429 "Too Many Requests"                em  57ms
+brapi ...........   200 · PETR4 R$ 54,33                   em 170ms
+```
+
+- ⚠️ **O 429 EM 57ms É A PROVA.** Limite de volume chega depois de muitas
+  chamadas; recusa em 57ms, na primeira, é **bloqueio de faixa de IP** — o Yahoo
+  barra nuvem, e o Render é nuvem. O recurso estava morto em produção para
+  **todos** os usuários (busca de ativo, cadastro, "Atualizar cotações" e o cron
+  das 03:00) enquanto passava em qualquer teste local.
+- ⚠️ **A LIÇÃO É DE MEDIÇÃO, e é a mesma do `pg_stat_statements`:** teste de
+  função não substitui teste de CAMINHO, e teste na máquina errada não é
+  medição. O `eval:cotacao-caminho` existe por isso — ele intercepta
+  `yahoo-finance2` e o `fetch` e trava QUEM é chamado, não só a conta.
+- **`services/cotacaoBrapi.js`** é a fonte da B3. O **Yahoo FICA** como
+  alternativa: é a única fonte de ativo de fora da B3, e volta sozinho, sem
+  deploy, quando o bloqueio passar.
+- ⚠️ **A BUSCA DE TICKER ESTAVA NO MESMO BARCO** (`yahooFinance.search`) — é o
+  mesmo 429, recusa de IP e não de endpoint. Sem ela o cliente não consegue nem
+  **achar** o papel pra cadastrar; o campo de digitar o ticker à mão, que
+  adicionamos antes, era remendo de sintoma.
+- ⚠️ **A busca devolve o ticker COM `.SA`**, de propósito: é o formato que os
+  ~700 investimentos da base já usam (padrão Yahoo). Devolver `PETR4` puro
+  criaria uma segunda grafia do mesmo papel, e aí o mesmo ativo teria duas
+  linhas que nunca se reconhecem. (Já há ticker gravado sem o sufixo —
+  `ehTickerBR` aceita os dois.)
+- ⚠️ **CONTRA 429 NÃO SE INSISTE.** O retry de 3 tentativas nasceu pra soluço de
+  rede, que passa; bloqueio não passa em 300ms. Insistir gastava 1,2s do usuário
+  **parado na tela** esperando o preço e batia três vezes na porta de quem já nos
+  recusou. `ehBloqueio` separa os dois, e erro de rede comum **segue** com as 3
+  tentativas — travado no eval, porque estreitar demais a guarda mataria o retry
+  que resolveu um relato real.
+- ⚠️ **`ehBloqueio` lê a MENSAGEM, não só o status:** o erro real é
+  `Failed to get crumb, status 429` e `err.response` chega **indefinido** (o 429
+  aconteceu na etapa do crumb, dentro da lib). Olhar só `err.response.status`
+  deixaria passar justamente o caso que motivou tudo isso.
+- ⚠️ **`bloqueio_ip` responde "falhou agora, tente de novo", NUNCA "este ativo
+  não tem cotação".** O papel tem; quem recusou foi o provedor. A segunda frase
+  mentiria sobre o ativo e mandaria o cliente preencher à mão para sempre.
+- ⚠️ **O eval novo achou um REGEX CORROMPIDO** no `ehBloqueio`: o `\b` não
+  sobreviveu às camadas de escape e virou um **byte de backspace** no arquivo —
+  que o motor de regex aceita como literal, então o `429` nunca casava e nada
+  acusava. Mesma família dos regexes quebrados do `ExtratoFuturo`. Hoje a
+  checagem é `/(^|[^0-9])(429|403)([^0-9]|$)/`, **sem uma barra invertida**.
+
+### ⚠️ `BRAPI_TOKEN` NÃO É OPCIONAL — medido: 58% da base depende dele
+
+O grátis da brapi atende **só ação simples** (4 letras + 1 dígito). Medido nos
+194 investimentos com ticker da base, em 07/10/2026:
+
+```
+da B3 ......... 180
+  ação ........  75   R$ 161.471,76   funciona SEM token
+  FII/ETF/BDR .. 105   R$ 119.738,39   PRECISA do token
+de fora .......  14   Yahoo (429 hoje) — token não resolve
+```
+
+Conferido um a um contra a API viva: **FII (XPML11, TRXF11, MXRF11), ETF
+(BOVA11, SMAL11), BDR (AAPL34, MELI34) e até UNIT de banco (SANB11, BPAC11,
+TAEE11) voltam todos `MISSING_TOKEN`.** Não é só FII — é tudo que não é ação
+simples, e é **mais da metade** da base.
+
+- **Onde entra:** `BRAPI_TOKEN` no Render → serviço → Environment. A chave sai
+  de brapi.dev (criar conta → painel). Sem ela o serviço funciona pela metade —
+  melhor que zero, mas não é o estado final.
+- ⚠️ **Sem token o motivo vira `bloqueio_ip`**, não "sem cotação": a brapi
+  recusa e a chamada cai no Yahoo, que dá 429. É confuso de ler no log, e é por
+  isso que `MISSING_TOKEN` é **logado à parte** em `cotacoes.js` — senão a falta
+  de configuração vira "não achei a cotação" na cara do cliente e ninguém
+  descobre.
+- **Fora de alcance (não é o token):** cripto por nome (`BITCOIN`, `PEPE` — a
+  aba tem caminho próprio pela CoinGecko) e os códigos de CRI/debênture que o
+  Open Finance traz (`BRXPLGD08M14`), que nenhum dos dois provedores cota.
+
+**Diagnóstico:** `GET /api/investimentos/diag-cotacao?key=<API_SECRET_TOKEN>&ticker=X&q=termo`
+mede numa chamada só, de dentro do Render: o **fluxo real** (o número que o
+cliente vê), a busca, a brapi, o Yahoo pela lib e o Yahoo cru. Use SEMPRE isso
+antes de concluir qualquer coisa sobre cotação — foi ele que encerrou o caso.
+
 ## Investimento não salvava — CHECK de `tipo` + erro engolido (ago/2026)
 
 Relato de cliente premium: *"tentei incluir valores nos investimentos, porém
@@ -3340,6 +3429,7 @@ WHATSAPP_PHONE_NUMBER_ID , WHATSAPP_WABA_ID , WHATSAPP_VERIFY_TOKEN
 WHATSAPP_API_VERSION     (opcional, default v21.0)
 ZAPI_INSTANCE, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN (Z-API LEGADO — não usar mais)
 OPENAI_API_KEY (IA — gpt-4o-mini + Whisper)
+BRAPI_TOKEN              (cotação da B3 — o Yahoo recusa o IP do Render. SEM ela, FII/ETF/BDR/UNIT não cotam: 58% da base)
 API_SECRET_TOKEN (autenticação entre frontend e backend)
 SUPABASE_URL, SUPABASE_KEY
 SORA_CAPA_URL (capa 1200x630 da Sora; default ${APP_URL}/sora-capa.png)
