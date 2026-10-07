@@ -68,6 +68,9 @@ export type LinhaExtrato = {
   transacaoId?: string | null;
   /** Só em linha de FATURA — é por ele que a tela escolhe a conta que paga. */
   cartaoId?: string | null;
+  /** Id da dívida — é o que deixa a tela escolher de qual conta sai a parcela
+   *  (migration 182), do mesmo jeito que `cartaoId` faz com a fatura. */
+  dividaId?: string | null;
   adiada?: boolean;
   /**
    * Já está DENTRO do `saldoInicial` — aparece na lista, mas não move o saldo.
@@ -361,6 +364,7 @@ export function montarExtrato(params: {
         valor: cent(d.valor_parcela),
         descricao: d.titulo || 'Parcela',
         carteira: d.carteira ?? null,
+        dividaId: d.id ?? null,
         origem: 'divida',
         estado: 'previsto',
         estimado: false,

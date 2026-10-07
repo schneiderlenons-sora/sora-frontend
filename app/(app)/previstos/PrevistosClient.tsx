@@ -157,7 +157,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   const {
     data: recData, mutate: recarregarRec,
   } = useApi(phone ? chave.recorrencias(phone) : null, () => api.recorrencias.listar(phone));
-  const { data: divData }  = useApi(phone ? chave.dividas(phone) : null, () => api.dividas.listar(phone));
+  const { data: divData, mutate: mutDiv } = useApi(phone ? chave.dividas(phone) : null, () => api.dividas.listar(phone));
   const { data: fatData }  = useApi(phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
   const { data: walData, mutate: mutWal } = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone));
   const { data: resData }  = useApi(phone ? chave.resumo(phone, ymRef) : null, () => api.transacoes.resumo(phone, ymRef));
@@ -329,6 +329,26 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     const conta = cartao?.conta_pagamento_id ? wallets.find((w) => w.id === cartao.conta_pagamento_id) : null;
     return conta?.nome ?? null;
   }, [wallets]);
+  // ── De qual CONTA sai cada PARCELA DE DÍVIDA (migration 182) ─────────────
+  //
+  // Relato: a parcela do IPVA saía como "Sem conta · previsto" e não havia onde
+  // escolher — o lápis levava ao modal de dívida, que não tinha o campo. Mesmo
+  // desenho da fatura logo acima: o vínculo é por ID, então renomear a conta
+  // não o desliga.
+  const contaDaDivida = useCallback((d: { conta_pagamento_id?: string | null }) => {
+    if (!d?.conta_pagamento_id) return null;
+    return wallets.find((w) => w.id === d.conta_pagamento_id)?.nome ?? null;
+  }, [wallets]);
+  async function definirContaDivida(dividaId: string, contaId: string | null) {
+    setErroContaFatura(null);
+    try {
+      await api.dividas.editar(dividaId, { conta_pagamento_id: contaId });
+      await mutDiv?.();
+    } catch (e) {
+      setErroContaFatura((e as Error)?.message || 'Não consegui salvar a conta de pagamento.');
+    }
+  }
+
   const [erroContaFatura, setErroContaFatura] = useState<string | null>(null);
   async function definirContaFatura(cartaoId: string, contaId: string | null) {
     setErroContaFatura(null);
@@ -359,7 +379,9 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       // já paga; agora `montarExtrato` usa `proximoVencimento` — a mesma
       // regra do card, que já respeita pagamento adiantado e `data_inicio`.
       // A lista é a mesma de `dividas` acima (a API devolve `{ dividas }`).
-      dividas: dividas as any[],
+      // ⚠️ `carteira` RESOLVIDA aqui, como já era feito com as faturas: o motor
+      // do extrato lê `d.carteira` e sempre recebia null — daí o "Sem conta".
+      dividas: (dividas as any[]).map((d) => ({ ...d, carteira: contaDaDivida(d) })),
       // ⚠️ FATURAS ENTRAM (pedido de cliente). O mesmo defeito as deixava
       // sempre fora: a API devolve `{ faturas }`, não uma lista. Usa a lista
       // JÁ CONVERTIDA pra moeda do grupo (a mesma da seção "Cartões") e leva a
@@ -369,7 +391,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       ajustes: (ocorrData as any)?.ajustes ?? [],
       carteiras: carteiraExtrato ? [carteiraExtrato] : undefined,
     };
-  }, [txA, txB, txExtra, ateExtrato, saldoPartida, recorrencias, dividas, faturas, contaQuePaga, ocorrData, carteiraExtrato]);
+  }, [txA, txB, txExtra, ateExtrato, saldoPartida, recorrencias, dividas, faturas, contaQuePaga, contaDaDivida, ocorrData, carteiraExtrato]);
 
   const contasPagamento = useMemo(
     () => wallets.filter((w) => w.tipo !== 'Crédito' && !w.arquivada).map((w) => ({ id: String(w.id), nome: String(w.nome) })),
@@ -976,6 +998,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           onPeriodo={setPeriodoExtrato}
           contasPagamento={contasPagamento}
           onContaFatura={definirContaFatura}
+          onContaDivida={definirContaDivida}
           erroContaFatura={erroContaFatura}
           onAcao={acaoExtrato}
           ocupado={quitandoRec}

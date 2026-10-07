@@ -132,7 +132,7 @@ const PERIODOS = [
 export default function ExtratoFuturo({
   dados, carteiras, carteirasBanco, carteiraAtiva, onCarteira, onAcao, ocupado, sugestoes, onNovoPrevisto,
   baixaAutomatica, onBaixaAutomatica, abrirNovo,
-  periodo, ate, onPeriodo, contasPagamento, onContaFatura, erroContaFatura,
+  periodo, ate, onPeriodo, contasPagamento, onContaFatura, onContaDivida, erroContaFatura,
   pendencias, onConciliar, onPularPendencia, phone,
 }: {
   dados: Parameters<typeof montarExtrato>[0];
@@ -170,6 +170,8 @@ export default function ExtratoFuturo({
   /** Contas de débito que podem pagar uma fatura. */
   contasPagamento?: { id: string; nome: string }[];
   onContaFatura?: (cartaoId: string, contaId: string | null) => Promise<void>;
+  /** De qual conta sai a PARCELA da dívida (migration 182). */
+  onContaDivida?: (dividaId: string, contaId: string | null) => Promise<void>;
   erroContaFatura?: string | null;
 }) {
   const fmt = useDinheiro();
@@ -572,7 +574,10 @@ export default function ExtratoFuturo({
               // era intocável. Basta saber QUAL ocorrência ela resolve.
               // Fatura: tocar escolhe a conta que paga (migration 170).
               const ehFatura = l.origem === 'fatura' && !!l.cartaoId && !!onContaFatura;
-              const podeAgir = !!l.recorrenciaId || ehFatura;
+              // Dívida: tocar escolhe a conta que paga a parcela (migration 182).
+              // Era a linha que saía "Sem conta" sem nenhuma porta pra mudar isso.
+              const ehDivida = l.origem === 'divida' && !!l.dividaId && !!onContaDivida;
+              const podeAgir = !!l.recorrenciaId || ehFatura || ehDivida;
               const sug = previsto && l.recorrenciaId && l.competencia
                 ? sugestaoDe.get(l.recorrenciaId + ':' + l.competencia) : undefined;
               return (
@@ -674,6 +679,33 @@ export default function ExtratoFuturo({
                       </select>
                       <p className="text-[11px] text-muted-foreground">
                         Vale pras próximas faturas deste cartão também — e ela passa a aparecer no extrato dessa conta.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ── De qual conta sai a PARCELA DA DÍVIDA (migration 182) ──
+                      Relato: a parcela do IPVA saía "Sem conta · previsto" e não
+                      havia onde mudar isso — o lápis levava ao modal de dívida,
+                      que não tinha o campo. Espelha o bloco da fatura acima. */}
+                  {aberta === id && ehDivida && (
+                    <div className="px-3 pb-3 pt-2 border-t border-border/30 bg-muted/20 space-y-2">
+                      <label className="block text-xs text-muted-foreground" htmlFor={`contadiv-${id}`}>
+                        De qual conta sai esta parcela?
+                      </label>
+                      <select
+                        id={`contadiv-${id}`}
+                        value={(contasPagamento || []).find((c) => c.nome === l.carteira)?.id || ''}
+                        onChange={async (e) => {
+                          await onContaDivida!(l.dividaId!, e.target.value || null);
+                          setAberta(null);
+                        }}
+                        className="w-full h-11 px-3 rounded-lg bg-background border border-border/50 text-sm"
+                      >
+                        <option value="">Nenhuma (só em Todas as contas)</option>
+                        {(contasPagamento || []).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Vale pras próximas parcelas desta dívida também — e ela passa a aparecer no extrato dessa conta.
                       </p>
                     </div>
                   )}

@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 import { proximoVencimento } from '@/lib/vencimento-divida';
+import useSWR from 'swr';
+import { chave } from '@/lib/chaves-swr';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
 async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> {
@@ -72,6 +74,23 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   const [taxaJuros,       setTaxaJuros]       = useState<string>(edicao?.taxa_juros?.toString() || '');
   const [indexador,       setIndexador]       = useState<string>(edicao?.indexador || '');
   const [diaVencimento,   setDiaVencimento]   = useState<string>(edicao?.dia_vencimento?.toString() || '');
+  /** De qual conta sai a parcela (migration 182). */
+  const [contaPagamento,  setContaPagamento]  = useState<string>(edicao?.conta_pagamento_id || '');
+
+  // ⚠️ `useSWR` direto, não `useApi`: o `useApi` registra no LoadingGate e a
+  // baleia cobriria a página inteira só por alguém abrir este modal. A chave é
+  // a canônica, então quem já passou por uma tela com contas não paga a
+  // requisição de novo.
+  const { data: walData } = useSWR(
+    phone ? chave.wallets(phone) : null,
+    () => api.wallets.listar(phone),
+    { revalidateOnFocus: false },
+  );
+  // Só conta de DÉBITO paga parcela — cartão de crédito não.
+  const contasDebito = useMemo(
+    () => (((walData as any)?.wallets || []) as any[]).filter((w) => w.tipo !== 'Crédito'),
+    [walData],
+  );
   const [dataInicio,      setDataInicio]      = useState(edicao?.data_inicio || new Date().toISOString().slice(0, 10));
   const [observacao,      setObservacao]      = useState(edicao?.observacao || '');
   const [imagem,          setImagem]          = useState<string | null>(edicao?.imagem_url || null);
@@ -136,6 +155,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         taxa_juros:     taxaJuros ? parseFloat(taxaJuros) : undefined,
         indexador:      indexador || undefined,
         dia_vencimento: diaVencimento ? parseInt(diaVencimento, 10) : undefined,
+        conta_pagamento_id: contaPagamento || null,
         data_inicio:    dataInicio || undefined,
         observacao:     observacao.trim() || undefined,
         imagem_url:     imagem || null,
@@ -508,6 +528,29 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                   <option key={d} value={d}>Dia {d}</option>
                 ))}
               </select>
+            </div>
+            {/* ⚠️ O CAMPO QUE FALTAVA. Relato (out/2026): a parcela saía "Sem
+                conta · previsto" no Extrato, e ao tocar no lápis a pessoa caía
+                aqui — num formulário sem lugar nenhum pra dizer de qual conta
+                ela sai. "Não consigo nunca vincular uma dívida a uma Conta
+                Bancária, furando assim minhas previsões por conta."
+                A FATURA já tinha o equivalente desde a migration 170. */}
+            <div>
+              <label htmlFor="div-conta" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                Conta de pagamento
+              </label>
+              <select
+                id="div-conta"
+                value={contaPagamento}
+                onChange={e => setContaPagamento(e.target.value)}
+                className="input"
+              >
+                <option value="">— (só em "Todas as contas")</option>
+                {contasDebito.map((w) => <option key={w.id} value={w.id}>{w.nome}</option>)}
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                Põe a parcela no extrato dessa conta. Sem escolher, ela só aparece em "Todas as contas".
+              </p>
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
