@@ -20,7 +20,7 @@ import {
   ArrowUpRight, ArrowDownRight, ShieldX, Gem, Palette,
   RotateCcw, Wallet, Briefcase, Sprout, Users,
 } from 'lucide-react';
-import { PALETAS, getPaletaSalva, aplicarPaleta } from '@/lib/theme-colors';
+import { PALETAS, GRUPOS_PALETA, getPaletaSalva, aplicarPaleta } from '@/lib/theme-colors';
 import { limparCacheSWR } from '@/lib/swr-cache';
 import { limparPerfilCache } from '@/lib/perfil-cache';
 import { fmtDataBR } from '@/lib/data-br';
@@ -134,22 +134,32 @@ function SecaoAparencia() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
-          {PALETAS.map(p => {
-            const ativo = sel === p.id;
-            return (
-              <button key={p.id} onClick={() => escolher(p.id)} aria-pressed={ativo}
-                className={`relative flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.98] ${
-                  ativo ? 'border-transparent ring-2 shadow-sm' : 'border-border hover:bg-muted/40'
-                }`}
-                style={ativo ? ({ ['--tw-ring-color']: p.hex, background: `${p.hex}14` } as any) : undefined}>
-                <span className="w-9 h-9 rounded-full flex-shrink-0 shadow-inner ring-1 ring-black/5" style={{ background: p.hex }} />
-                <span className="text-sm font-semibold text-foreground flex-1 truncate">{p.nome}</span>
-                {ativo && <Check size={16} className="flex-shrink-0" style={{ color: p.hex }} />}
-              </button>
-            );
-          })}
-        </div>
+        {/* Agrupado por tom: 12 amostras soltas viram parede de cor, e quem
+            veio atrás das sóbrias não as acharia no meio das vibrantes. */}
+        {GRUPOS_PALETA.map(g => (
+          <fieldset key={g.tom} className="mt-6 border-0 p-0 m-0">
+            <legend className="p-0 mb-3">
+              <span className="block text-xs font-bold uppercase tracking-wider text-foreground/70">{g.titulo}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{g.descricao}</span>
+            </legend>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {PALETAS.filter(p => p.tom === g.tom).map(p => {
+                const ativo = sel === p.id;
+                return (
+                  <button key={p.id} onClick={() => escolher(p.id)} aria-pressed={ativo}
+                    className={`relative flex items-center gap-3 p-3 rounded-2xl border transition-all text-left active:scale-[0.98] ${
+                      ativo ? 'border-transparent ring-2 shadow-sm' : 'border-border hover:bg-muted/40'
+                    }`}
+                    style={ativo ? ({ ['--tw-ring-color']: p.hex, background: `${p.hex}14` } as any) : undefined}>
+                    <span className="w-9 h-9 rounded-full flex-shrink-0 shadow-inner ring-1 ring-black/5" style={{ background: p.hex }} />
+                    <span className="text-sm font-semibold text-foreground flex-1 truncate">{p.nome}</span>
+                    {ativo && <Check size={16} className="flex-shrink-0" style={{ color: p.hex }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
 
         <p className="text-xs text-muted-foreground mt-5 flex items-center gap-1.5">
           <Info size={13} className="flex-shrink-0" /> A mudança é instantânea e fica salva neste dispositivo.
