@@ -3558,9 +3558,45 @@ nisso. Plano completo aprovado; a Fase 1 está feita.
     continuar aparecendo, sem mensagem nenhuma.
   - ⚠️ O host é **www**: o app redireciona apex→www, e se divergirem a
     verificação falha em silêncio.
-- **Falta (só o dono faz):** conta de desenvolvedor, keystore, Bubblewrap, ficha
-  da loja, conta de teste pro revisor. E a **decisão de pagamento** — vender
-  assinatura dentro do app exige Play Billing.
+### Estado em out/2026 — app construído, publicando
+
+**Procedimento completo, gotchas e decisões: `docs/ANDROID-TWA.md`.** O
+essencial pra não errar:
+
+- ⚠️ **MUDANÇA NO APP NÃO EXIGE PACOTE NOVO.** A TWA é uma casca que abre
+  `www.forsora.com`; todo push no `master` já chega no app Android na próxima
+  abertura. Medido: **96 commits** entre o build de 14/09 e 08/10, **nenhum**
+  tocando em `manifest.json`, ícones ou `sw.js` — nenhum precisava de upload.
+  Build novo só pra ícone/splash/permissão/`startUrl`/`versionCode`.
+- **O build mora em `C:\Users\jenif\sora-android`** (fora do repo: o Android
+  Gradle Plugin quebra com acento no caminho, e o repo está em "Área de
+  Trabalho"). ⚠️ **Existe UM só `twa-manifest.json` que vale, o de lá.** O
+  `.gitignore` ignora `/twa-manifest.json` porque `bubblewrap init` já largou
+  uma cópia aqui por engano; ela nunca esteve no git, chegou a divergir (repo
+  em `versionCode 1`, build em `3`) e foi apagada. Se reaparecer, apague.
+- ⚠️ **`appVersionCode` nunca repete**, nem após exclusão ou reprovação. O 3
+  está usado; o próximo é o 4.
+- ✅ **assetlinks no ar e correto** (conferido 08/10): responde 200 com as DUAS
+  impressões — `CE:38:9C…` (upload, CN=Sora) e `32:DA:85…` (Play App Signing).
+  ⚠️ Publicar numa faixa **aberta TRAVA a chave de assinatura pra sempre**.
+- ⚠️ **`backgroundColor: #44AC74` é o 1º QUADRO DO VÍDEO de abertura**, não o
+  fundo do tema. Já quase foi "corrigido" pro `#09090B` por parecer
+  divergência do `manifest.json` — trocar faria a abertura piscar preto→verde.
+  Mudou o vídeo? Remedir e trocar nos três: `twa-manifest.json`, o
+  `#sora-abertura` do `globals.css` e o `poster` do `app/layout.tsx`.
+- **`playBilling: false`** (out/2026): o app não vende nada por dentro, e a
+  permissão de billing brigaria com a declaração "Compras no app: Não".
+- ⚠️ **A keystore está no OneDrive** (`...\Sora\android.keystore`, alias
+  `android`). Perdê-la = **nunca mais atualizar o app**. Manter cópia fora.
+- **Falta (só o dono faz):** ficha da loja (⚠️ os screenshots de
+  `public/screenshots` são DESKTOP), conta de teste pro revisor, e os
+  formulários — Segurança dos Dados (⚠️ **declarar SAÚDE**: o Grow tem
+  consultas, medicamentos e macros) e Recursos Financeiros (marcar só "gestão
+  de finanças pessoais"; "investimento" faz o Google pedir registro na CVM).
+- **Lacunas conhecidas:** não existe URL **pública** de exclusão de conta (o
+  Google exige uma alcançável sem login — hoje só em Configurações e por
+  e-mail), e a política de privacidade não nomeia OpenAI, Mercado Pago,
+  Meta/Pixel nem Polp/Celcoin, que é justamente o cruzamento que o Google faz.
 
 ## Convenções de código
 
