@@ -3072,6 +3072,105 @@ parcela é aquele mês"*.
   de compras. Não é lacuna — é onde a informação tem onde encostar.
 
 
+## Alterar lançamento + descrição na confirmação (out/2026)
+
+Três sugestões de um cliente (Fábio, 05/10/2026) para o lançamento por WhatsApp.
+
+### 001 — ALTERAR o lançamento, não só excluir
+
+Antes a única saída era apagar e lançar de novo: troca o id, perde a data
+original e, se a pessoa esquecer de relançar, some com o gasto.
+
+`altera a transação ABC123 para 50` muda **valor, categoria, descrição, conta,
+data ou tipo**. Sem campo citado, mostra o estado atual e ensina o formato —
+a intenção está clara, só falta o quê, e "não entendi" ali faria desistir.
+
+- ⚠️ **A ARITMÉTICA DO SALDO JÁ EXISTIA**, dentro do `PUT /api/transacoes/:id`.
+  Escrever uma segunda cópia seria repetir o erro que este projeto já pagou
+  caro (5 cópias do vencimento de dívida, 3 do "resolvida no mês", 7 do valor
+  da fatura). Foi extraída pra **`services/alterarTransacao.js`** e o PUT passou
+  a chamar de lá. ⚠️ **`eval:alterar-transacao` §1 compara os dois, caso a caso,
+  contra uma CÓPIA CONGELADA da lógica antiga** — 36 cenários, regressão zero.
+  Sem essa parte seria reescrita no escuro de código que mexe no dinheiro de
+  601 carteiras.
+- ⚠️ **GATILHO ESTREITO**, e é o ponto. `altera/muda/corrige/edita/troca/ajusta`
+  são os verbos mais comuns do idioma, e duas regras amplas demais já custaram
+  caro aqui ("gasto" e "relatório"). A frase só é reivindicada quando aponta
+  **uma** transação: id curto, ou `última` + a palavra transação/lançamento.
+  Sem alvo → `null` → segue o caminho normal. O eval trava **22 frases vizinhas**
+  que não podem ser roubadas.
+- ⚠️ **MEDIDO ANTES DE ESCREVER:** das 8 frases de alteração, 7 caíam na IA e
+  morriam lá, e `"corrige o último lançamento para 80"` era **sequestrada** por
+  `alterar_saldo` — a Sora ia acertar o saldo de uma conta chamada "último
+  lançamento". Por isso o detector roda **ANTES** da regra de saldo.
+- ⚠️ **O id exige dígito.** Um id curto mistura letras e números; aceitar 6
+  caracteres quaisquer faria "mercado", "padaria", "nubank" e "cartão" virarem
+  id. E vale o **ÚLTIMO** da frase — "altera" também tem 6 letras.
+- ⚠️ **A conta citada passa pelo `resolverCarteiraReal`**, e quando não existe a
+  Sora **pergunta e lista as contas** em vez de criar. Criar conta a partir de um
+  nome digitado torto é como nascem as duplicadas ("Nubnak").
+- ⚠️ **A confirmação mostra DE → PARA.** "Alterado!" sozinho obriga a abrir o
+  painel pra conferir — que é justamente o que se quer evitar.
+- Peças: `services/alterarTransacao.js` (aritmética) · `services/alterarTexto.js`
+  (parser local-first) · `handlers/alterarTx.js` (orquestra) ·
+  `lib/sora-commands.ts` (a Central **anuncia** o comando — já houve o inverso,
+  o "fatura" prometido e inexistente, em set/2026).
+
+### 002 — a DESCRIÇÃO entra na confirmação
+
+Ela só mostrava a **categoria**, e categoria é um balde: "Alimentação" não diz
+se foi o almoço ou o mercado. Sem a descrição, conferir o lançamento exigia
+abrir o painel.
+
+- ⚠️ **A linha SOME quando repete a categoria** (`"uber 18"` → descrição "uber",
+  categoria "Uber"): ali ela não informa nada e só alonga a mensagem. Mas **só
+  quando é IGUAL** — "Uber Eats" aparece, e "Mercado" dentro de "Mercado Livre"
+  também. A comparação ignora emoji e acento.
+
+### 003 — a GRAFIA que a pessoa escreveu
+
+`"Gastei 25 com Corrida de Uber"` gravava **`corrida de uber`**.
+
+- ⚠️ **NÃO É CAPITALIZAR A INICIAL** — isso daria "Corrida de uber", e o exemplo
+  do cliente tem DUAS maiúsculas. Ele mesmo dá o critério: *"igual à forma que o
+  usuário lançou"*. O que a Sora fazia era **MINUSCULIZAR**: `interpretarRapido`
+  abre com `message.toLowerCase()` (dezenas de regexes dependem disso) e a
+  descrição é uma fatia desse texto.
+- **`grafiaOriginal`** (`services/descricaoTx.js`) reencontra o trecho na
+  mensagem original e devolve a fatia **como veio**. De brinde o **acento volta**
+  ("refeicao" → "Refeição"), porque a busca é por chave sem acento. Quando a
+  descrição não saiu do texto (a IA resume "50 no zé delivery" como "bebida"),
+  sobra a inicial maiúscula — que já é o que o cliente pediu nesse caso.
+- ⚠️ **Duas guardas no recorte**, e elas não são decoração: texto **colado** de
+  alguns sistemas traz o acento SEPARADO da letra (`e` + U+0301), aí a chave tem
+  1 caractere onde o original tem 2, os índices deixam de valer e a fatia sai
+  curta. Medido: sem as guardas, `"Café da esquin"` — cortado. Cada guarda
+  sozinha cobre o caso (são redes para o mesmo buraco); remover **as duas** mata
+  o eval.
+
+### Testes — e os três defeitos que só a mutação achou
+
+5 evals novos, **41/43 mutações mortas**; suíte 91/91; interpretador 171/171.
+As 2 sobreviventes são as guardas do recorte, provadas **equivalentes**.
+
+- ⚠️ **A guarda do valor bloqueava alteração combinada:** `"altera ABC123 valor
+  80 categoria Mercado"` perdia o 80 **em silêncio** e confirmava as duas coisas.
+  Hoje `valor N` explícito sempre vale; só o `"para N"` do fim cede ao campo
+  nomeado (em `"categoria 123"` o 123 é o NOME).
+- ⚠️ **A âncora do verbo não estava testada.** Meus exemplos de "verbo no meio"
+  usavam formas conjugadas ("mudou", "alterou") que o regex nem casa. A frase que
+  realmente depende dela é a **NEGAÇÃO**: sem âncora, `"não altera a transação
+  ABC123"` vira um comando de alterar — o oposto exato do pedido.
+- ⚠️ **O caso do texto colado aceitava resultado TRUNCADO** (só checava que
+  começava com "Caf").
+
+**Diagnóstico:** `GET /webhook/meta/diag?key=<WHATSAPP_VERIFY_TOKEN ou
+API_SECRET_TOKEN>&frase=...` roda o interpretador **dentro do Render**, com o
+código no ar, e devolve a ação escolhida — sem mandar mensagem nem tocar no
+banco. É a única forma de conferir uma regra nova do WhatsApp sem pedir a um
+cliente que digite a frase. (Nasceu da lição da cotação: função que passa no
+teste e recurso que funciona em produção são coisas diferentes.)
+
 ## Conta PJ no Open Finance: o CPF vai JUNTO do CNPJ (set/2026)
 
 Relato: *"open finance nao funciona, coloquei cnpj e aparece mensagem abaixo"*
