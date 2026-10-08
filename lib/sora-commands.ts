@@ -300,6 +300,26 @@ export const COMANDOS: Comando[] = [
     categoria: 'lancamentos',
   },
   {
+    // Pedido de cliente (Fábio, 05/10/2026): até aqui só dava pra EXCLUIR e
+    // lançar de novo, o que troca o id e perde a data original.
+    //
+    // ⚠️ O catálogo é o que a Central da Sora ANUNCIA. Já aconteceu de um
+    // comando ser prometido aqui e não existir no código (o "fatura", set/2026);
+    // aqui é o inverso — ele existe e precisa ser anunciado, senão ninguém usa.
+    id: 'alterar-transacao',
+    titulo: 'Alterar um lançamento',
+    exemplo: 'altera a transação ABC123 para 50',
+    descricao: 'Corrige valor, categoria, descrição, conta ou data de um lançamento — sem precisar apagar e lançar de novo.',
+    variantes: [
+      'altera ABC123 categoria Mercado',
+      'altera ABC123 descrição Corrida de Uber',
+      'altera ABC123 conta Nubank',
+      'altera ABC123 data 05/10',
+      'corrige o último lançamento para 80',
+    ],
+    categoria: 'lancamentos',
+  },
+  {
     id: 'apagar-ultimo',
     titulo: 'Apagar último lançamento',
     exemplo: 'apagar último',
