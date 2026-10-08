@@ -6,6 +6,9 @@ import { api } from '@/lib/api';
 import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 import { proximoVencimento } from '@/lib/vencimento-divida';
+// Quais contas podem pagar a parcela — a regra ja falhou dentro deste
+// componente (lista sempre vazia); hoje mora em lib e tem eval proprio.
+import { contasQuePagam } from '@/lib/contas-debito';
 import useSWR from 'swr';
 import { chave } from '@/lib/chaves-swr';
 
@@ -87,10 +90,17 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
     { revalidateOnFocus: false },
   );
   // Só conta de DÉBITO paga parcela — cartão de crédito não.
-  const contasDebito = useMemo(
-    () => (((walData as any)?.wallets || []) as any[]).filter((w) => w.tipo !== 'Crédito'),
-    [walData],
-  );
+  //
+  // ⚠️ A REGRA MORA EM `lib/contas-debito.ts` PORQUE ELA JÁ FALHOU AQUI. Este
+  // código lia `walData.wallets`, e `api.wallets.listar` devolve um **ARRAY**:
+  // `undefined → []`, e o seletor ficava com a opção "—" e nada mais, para
+  // todos os usuários. Medido antes de corrigir: **1 de 170 dívidas ativas**
+  // tinha conta vinculada, e essa veio pelo OUTRO caminho (tocar na linha do
+  // Extrato). O campo nasceu morto.
+  //
+  // Dentro do componente a regra só era exercitada por quem abrisse o modal —
+  // por isso ela saiu daqui e ganhou `eval:contas-debito`.
+  const contasDebito = useMemo(() => contasQuePagam(walData), [walData]);
   const [dataInicio,      setDataInicio]      = useState(edicao?.data_inicio || new Date().toISOString().slice(0, 10));
   const [observacao,      setObservacao]      = useState(edicao?.observacao || '');
   const [imagem,          setImagem]          = useState<string | null>(edicao?.imagem_url || null);

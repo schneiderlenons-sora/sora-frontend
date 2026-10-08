@@ -33,7 +33,8 @@
     "eval:of-docs": "npx tsx lib/open-finance-docs.eval.mjs",
     "eval:previstos-atrasados": "npx tsx lib/previstos-atrasados.eval.mjs",
     "eval:previstos-mes": "npx tsx lib/previstos-mes.eval.mjs",
-    "eval:formato-br": "npx tsx lib/formato-br.eval.mjs"
+    "eval:formato-br": "npx tsx lib/formato-br.eval.mjs",
+    "eval:contas-debito": "npx tsx lib/contas-debito.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

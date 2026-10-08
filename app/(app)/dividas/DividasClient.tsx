@@ -614,6 +614,35 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
         </div>
       )}
 
+      {/* ⚠️ O ESTADO EXISTIA E A TELA NÃO DIZIA. Relato (out/2026): a dívida
+          não aparecia no Extrato nem nos Previstos do mês, e o card só mostrava
+          "ATIVA" — nada indicava que ela tinha sido tirada da previsão. A
+          pessoa olha a dívida, vê que está ativa, e não tem como ligar uma
+          coisa à outra.
+
+          Medido na base: 7 de 170 dívidas ativas (4,1%) estão assim, em 4
+          grupos. É uso legítimo na maioria ("LIMITE ESTILO", "LIMITE DA CONTA"
+          — cheque especial que ninguém quer prever), então o estado fica; o
+          que faltava era ele ser VISÍVEL e ter a volta à mão.
+
+          ⚠️ MUDO, não alarmante: quem tirou de propósito não precisa de alerta
+          âmbar todo mês. O que precisa existir é o fato escrito e o caminho de
+          volta — mesma escolha da linha "esta conexão trouxe apenas contas" do
+          Open Finance. */}
+      {divida.nos_previstos === false && !concluida && (
+        <button
+          onClick={onTogglePrevistos}
+          className="w-full mb-2 rounded-xl p-2.5 bg-muted/40 hover:bg-muted/70 transition-colors flex items-center gap-2 text-left"
+          style={{ border: '1px solid hsl(var(--border) / 0.6)' }}
+        >
+          <EyeOff size={13} className="text-muted-foreground flex-shrink-0" />
+          <span className="flex-1 min-w-0 text-[11px] leading-snug text-muted-foreground">
+            Fora dos previstos — esta parcela não entra no Extrato nem no total do mês.
+          </span>
+          <span className="text-[11px] font-semibold text-primary flex-shrink-0">Voltar</span>
+        </button>
+      )}
+
       {/* Botão Pagar (ou indicador de quitada) */}
       {concluida ? (
         <div className="rounded-xl p-2.5 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/60 flex items-center gap-2">
