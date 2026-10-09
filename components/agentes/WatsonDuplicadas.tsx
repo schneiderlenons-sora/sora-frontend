@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Search, Loader2, Trash2, Undo2, CheckCircle2, AlertTriangle, HelpCircle, CreditCard, Globe } from 'lucide-react';
+import { Search, Loader2, Trash2, Undo2, CheckCircle2, AlertTriangle, HelpCircle, CreditCard, Globe, Combine } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useDinheiro } from '@/lib/moeda-base';
 
@@ -46,6 +46,11 @@ export default function WatsonDuplicadas({ phone }: { phone: string }) {
   // Exclusão otimista: some da tela, vai pro servidor em ESPERA_DESFAZER.
   const [apagados, setApagados] = useState<Record<string, any>>({});
   const timers = useRef<Record<string, any>>({});
+
+  // Fusão (juntar previsão manual + cobrança do banco). Diferente do apagar,
+  // aqui NÃO há desfazer otimista: a fusão mexe em duas linhas (relabela uma,
+  // remove a outra), então vai ao servidor na hora e a lista recarrega.
+  const [fundindo, setFundindo] = useState<string | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -96,6 +101,34 @@ export default function WatsonDuplicadas({ phone }: { phone: string }) {
     clearTimeout(timers.current[id]);
     delete timers.current[id];
     setApagados((m) => { const n = { ...m }; delete n[id]; return n; });
+  }
+
+  // Juntar: mantém a linha do BANCO e herda o rótulo da previsão manual. O
+  // backend reconfere que são a mesma cobrança (o mesmo ehDuplicata) e recusa
+  // qualquer par que não seja "manual pendente × banco" — a tela só oferece
+  // quando é, mas a decisão de dinheiro é do servidor.
+  async function juntar(banco: any, manual: any) {
+    setFundindo(manual.id); setErro('');
+    try {
+      await api.transacoes.fundir({ manter_id: banco.id, descartar_id: manual.id, herdar_rotulo: true });
+      await investigar(); // recarrega: o par resolvido sai da lista
+    } catch (e: any) {
+      setErro(e?.message || 'Não consegui juntar agora.');
+    } finally {
+      setFundindo(null);
+    }
+  }
+
+  // Um grupo CONFIRMADO vira candidato a fusão só quando é exatamente
+  // "uma cobrança do banco + uma previsão manual pendente". Qualquer outra
+  // forma (dois do banco, grupo de 3, manual já paga) cai no apagar normal.
+  function parFundivel(g: Grupo): { banco: any; manual: any } | null {
+    const vivas = g.transacoes.filter((t) => !apagados[t.id]);
+    if (vivas.length !== 2) return null;
+    const banco = vivas.find((t) => t.of_tx_id);
+    const manual = vivas.find((t) => !t.of_tx_id && t.pago === false);
+    if (!banco || !manual || banco.id === manual.id) return null;
+    return { banco, manual };
   }
 
   const pendentes = Object.values(apagados);
@@ -183,6 +216,7 @@ export default function WatsonDuplicadas({ phone }: { phone: string }) {
           titulo="Duplicadas confirmadas" cor="#ef4444" Icone={AlertTriangle}
           legenda="Tenho prova de que é a mesma compra. O primeiro é o mais antigo — costuma ser o que vale manter."
           grupos={confVis} onApagar={apagar}
+          onFundir={juntar} parFundivel={parFundivel} fundindo={fundindo}
         />
       )}
 
@@ -208,7 +242,7 @@ function BotaoEscopo({ ativo, onClick, icon: Icon, children }: any) {
   );
 }
 
-function Bloco({ titulo, cor, Icone, legenda, grupos, onApagar }: any) {
+function Bloco({ titulo, cor, Icone, legenda, grupos, onApagar, onFundir, parFundivel, fundindo }: any) {
   const brl = useDinheiro({ entrada: 'ouZero' });
   return (
     <div className="space-y-2">
@@ -221,7 +255,9 @@ function Bloco({ titulo, cor, Icone, legenda, grupos, onApagar }: any) {
       </div>
       <p className="text-[11.5px] leading-relaxed text-muted-foreground">{legenda}</p>
 
-      {grupos.map((g: Grupo, i: number) => (
+      {grupos.map((g: Grupo, i: number) => {
+        const par = onFundir && parFundivel ? parFundivel(g) : null;
+        return (
         <div key={i} className="rounded-2xl border p-3.5 space-y-2.5"
              style={{ borderColor: `color-mix(in srgb, ${cor} 30%, transparent)`,
                       background: `color-mix(in srgb, ${cor} 5%, transparent)` }}>
@@ -251,8 +287,26 @@ function Bloco({ titulo, cor, Icone, legenda, grupos, onApagar }: any) {
               </button>
             </div>
           ))}
+
+          {/* Previsão manual pendente + a cobrança do banco: dá pra JUNTAR
+              numa linha só, mantendo o nome que o usuário deu. Mais fácil que
+              apagar a certa e torcer pra ter mantido o rótulo bom. */}
+          {par && (
+            <button
+              type="button"
+              onClick={() => onFundir(par.banco, par.manual)}
+              disabled={fundindo === par.manual.id}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[12.5px] font-semibold text-foreground transition active:scale-[0.99] disabled:opacity-60 hover:bg-foreground/5"
+              style={{ borderColor: `color-mix(in srgb, ${cor} 35%, transparent)`, minHeight: 44 }}
+            >
+              {fundindo === par.manual.id
+                ? <><Loader2 size={14} className="animate-spin" /> Juntando…</>
+                : <><Combine size={14} /> É a mesma — juntar e manter “{(par.manual.observacao || par.manual.categoria || 'meu lançamento').slice(0, 24)}”</>}
+            </button>
+          )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

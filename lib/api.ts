@@ -427,6 +427,11 @@ export const api = {
     },
     anteciparCartao: (body: { phone: string; ids: string[]; conta_nome: string }) =>
       req<{ ok: boolean; debitado: number; conta?: string }>('/api/transacoes/antecipar-cartao', { method: 'POST', body: JSON.stringify(body) }),
+    // Funde uma previsão manual pendente com a cobrança real do banco (mantém a
+    // do banco, herda o rótulo da manual). Backend recusa se os lados não forem
+    // "manual pendente × banco" ou se não baterem como a mesma cobrança.
+    fundir: (body: { manter_id: string; descartar_id: string; herdar_rotulo?: boolean }) =>
+      req<{ ok: boolean; mantida: string; removida: string }>('/api/transacoes/fundir', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   // ── CONTAS BANCÁRIAS ──────────────────────────────────────────
