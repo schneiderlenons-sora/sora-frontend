@@ -432,6 +432,13 @@ export const api = {
     // "manual pendente × banco" ou se não baterem como a mesma cobrança.
     fundir: (body: { manter_id: string; descartar_id: string; herdar_rotulo?: boolean }) =>
       req<{ ok: boolean; mantida: string; removida: string }>('/api/transacoes/fundir', { method: 'POST', body: JSON.stringify(body) }),
+    // Previsões que o sync juntou SOZINHO com a cobrança do banco (últimos 7 dias).
+    fusoesAuto: (phone: string) =>
+      req<{ fusoes: any[] }>(`/api/transacoes/fusoes-auto/${phone}`),
+    // Desfaz uma absorção automática: volta a ser previsão pendente; o próximo
+    // sync reimporta a cobrança do banco como linha separada.
+    desfazerFusao: (id: string) =>
+      req<{ ok: boolean }>('/api/transacoes/desfazer-fusao', { method: 'POST', body: JSON.stringify({ id }) }),
   },
 
   // ── CONTAS BANCÁRIAS ──────────────────────────────────────────

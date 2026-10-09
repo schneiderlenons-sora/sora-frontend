@@ -32,6 +32,7 @@ const dataCurta = (d: string) => {
 type Grupo = { motivo: string; explicacao: string; transacoes: any[] };
 
 export default function WatsonDuplicadas({ phone }: { phone: string }) {
+  const brlTopo = useDinheiro({ entrada: 'ouZero' });
   const [carregando, setCarregando] = useState(false);
   const [rodou, setRodou]           = useState(false);
   const [erro, setErro]             = useState('');
@@ -51,6 +52,26 @@ export default function WatsonDuplicadas({ phone }: { phone: string }) {
   // aqui NÃO há desfazer otimista: a fusão mexe em duas linhas (relabela uma,
   // remove a outra), então vai ao servidor na hora e a lista recarrega.
   const [fundindo, setFundindo] = useState<string | null>(null);
+
+  // Juntados AUTOMATICAMENTE pelo sync (últimos 7 dias) — com "desfazer".
+  const [autoFusoes, setAutoFusoes] = useState<any[]>([]);
+  const [desfazendoAuto, setDesfazendoAuto] = useState<string | null>(null);
+  const carregarAuto = useCallback(() => {
+    api.transacoes.fusoesAuto(phone).then((r) => setAutoFusoes(r.fusoes || [])).catch(() => {});
+  }, [phone]);
+  useEffect(() => { carregarAuto(); }, [carregarAuto]);
+
+  async function desfazerAuto(id: string) {
+    setDesfazendoAuto(id); setErro('');
+    try {
+      await api.transacoes.desfazerFusao(id);
+      setAutoFusoes((l) => l.filter((f) => f.id !== id));
+    } catch (e: any) {
+      setErro(e?.message || 'Não consegui desfazer agora.');
+    } finally {
+      setDesfazendoAuto(null);
+    }
+  }
 
   useEffect(() => {
     let vivo = true;
@@ -182,6 +203,40 @@ export default function WatsonDuplicadas({ phone }: { phone: string }) {
         )}
         {erro && <p className="text-[12px] text-red-600 dark:text-red-400">{erro}</p>}
       </div>
+
+      {/* Juntados sozinho pelo sync (previsão manual que a cobrança do banco
+          assumiu). Fica aqui pra quem quiser conferir/desfazer — o normal é
+          nem precisar olhar. */}
+      {autoFusoes.length > 0 && (
+        <div className="rounded-2xl border border-border/50 p-3.5 space-y-2.5"
+             style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+          <div className="flex items-center gap-2">
+            <Combine size={14} style={{ color: COR }} />
+            <h4 className="text-[12px] font-bold text-foreground">Juntados automaticamente</h4>
+          </div>
+          <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+            Estes previstos seus a Sora juntou com a cobrança que o banco trouxe — viraram um só, com o nome que você deu. Se algum não era a mesma coisa, é só desfazer.
+          </p>
+          {autoFusoes.map((f) => (
+            <div key={f.id} className="flex items-center gap-3 rounded-xl border border-border/50 p-2.5"
+                 style={{ background: 'hsl(var(--bg-card))' }}>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold text-foreground">
+                  {f.observacao || f.categoria || 'Lançamento'}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground tabular">
+                  {f.tipo === 'Recebimento' ? 'entrada' : 'saída'} · {brlTopo(f.valor)} · {dataCurta(f.data)} · {f.carteira_nome}
+                </p>
+              </div>
+              <button type="button" onClick={() => desfazerAuto(f.id)} disabled={desfazendoAuto === f.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold text-foreground hover:bg-foreground/10 disabled:opacity-60"
+                      style={{ minHeight: 44 }}>
+                {desfazendoAuto === f.id ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />} Desfazer
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Desfazer */}
       {pendentes.length > 0 && (
