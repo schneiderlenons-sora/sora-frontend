@@ -4,9 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  X, Smartphone, Monitor, Apple, Share, Plus, MoreVertical, Download,
-  Zap, Wifi, Bell, Check, Sparkles,
+  X, Smartphone, Monitor, Apple, Share, Plus, Download,
+  Zap, Wifi, Bell, Check, Sparkles, ExternalLink, ShieldCheck,
 } from 'lucide-react';
+import { LINK_PLAY_STORE } from '@/lib/play-store';
 
 // ════════════════════════════════════════════════════════════
 // CONTEXT — permite outras telas dispararem o modal
@@ -152,8 +153,16 @@ function Modal({ deferred, onClose }: { deferred: any; onClose: (m?: 'x' | 'inst
                 <Download size={22} className="text-primary" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-xl font-bold text-foreground leading-none">Instalar Sora</h2>
-                <p className="text-xs text-muted-foreground mt-1.5">Acesso rápido pelo celular, igual a um app nativo</p>
+                <h2 className="text-xl font-bold text-foreground leading-none">
+                  {aba === 'android' ? 'Baixar a Sora' : 'Instalar Sora'}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {aba === 'ios'
+                    ? 'Adicione à Tela de Início e use como um app'
+                    : aba === 'android'
+                      ? 'O app oficial da Sora, direto da Google Play'
+                      : 'Instale como app e abra em janela própria'}
+                </p>
               </div>
             </div>
             <button onClick={() => onClose('x')} className="p-2 rounded-xl hover:bg-muted transition-colors flex-shrink-0">
@@ -188,7 +197,7 @@ function Modal({ deferred, onClose }: { deferred: any; onClose: (m?: 'x' | 'inst
         {/* Conteúdo rolável */}
         <div key={aba} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 animate-fade-in">
           {aba === 'ios'     && <PassosIos />}
-          {aba === 'android' && <PassosAndroid podeNativo={!!deferred} onInstalar={instalarNativo} instalando={instalando} />}
+          {aba === 'android' && <BaixarAndroid onIr={() => onClose('instalado')} />}
           {aba === 'desktop' && <PassosDesktop podeNativo={!!deferred} onInstalar={instalarNativo} instalando={instalando} />}
 
           {/* Por que instalar */}
@@ -240,45 +249,43 @@ function PassosIos() {
   );
 }
 
-function PassosAndroid({ podeNativo, onInstalar, instalando }: { podeNativo: boolean; onInstalar: () => void; instalando: boolean }) {
+// ANDROID agora é o app NATIVO da Play Store (público desde out/2026), não mais
+// PWA. O botão leva direto pra loja; `onIr` marca o prompt como resolvido pra
+// não insistir depois. iOS e desktop seguem no PWA (Apple não tem loja pra isso).
+function BaixarAndroid({ onIr }: { onIr: () => void }) {
   return (
-    <Passos>
-      {podeNativo && (
-        <div className="rounded-2xl p-4 border-2 border-primary/30 bg-primary/5 mb-3">
-          <p className="text-sm font-semibold text-foreground mb-2 inline-flex items-center gap-1.5">
-            <Sparkles size={14} className="text-primary" />
-            Instalação automática disponível
-          </p>
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-            Seu Chrome suporta instalação com 1 clique. Sem precisar do passo a passo abaixo.
-          </p>
-          <button
-            onClick={onInstalar}
-            disabled={instalando}
-            className="btn btn-primary w-full py-2.5 text-sm gap-2 shadow-glow-sm"
-          >
-            <Download size={14} />
-            {instalando ? 'Instalando...' : 'Instalar agora'}
-          </button>
-        </div>
-      )}
+    <div className="space-y-3">
+      <div className="rounded-2xl p-4 border-2 border-primary/30 bg-primary/5 text-center">
+        <span className="inline-grid place-items-center w-12 h-12 rounded-2xl bg-card border border-primary/30 shadow-sm mb-3">
+          {/* Triângulo do Play monocromático, na cor da marca */}
+          <svg viewBox="0 0 24 24" width={22} height={22} fill="hsl(var(--primary))" aria-hidden>
+            <path d="M5 3.6v16.8a1.1 1.1 0 0 0 1.66.95l14.5-8.4a1.1 1.1 0 0 0 0-1.9L6.66 2.65A1.1 1.1 0 0 0 5 3.6z" />
+          </svg>
+        </span>
+        <p className="text-sm font-bold text-foreground">A Sora está na Google Play</p>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-xs mx-auto">
+          Baixe o app oficial e abra a Sora direto pelo ícone — mais rápido e sem barra de navegador.
+        </p>
+        <a
+          href={LINK_PLAY_STORE}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onIr}
+          className="btn btn-primary w-full py-2.5 text-sm gap-2 shadow-glow-sm mt-3"
+        >
+          <Download size={14} />
+          Baixar na Play Store
+          <ExternalLink size={13} className="opacity-80" />
+        </a>
+      </div>
 
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-        {podeNativo ? 'Ou faça manualmente' : 'Como instalar'}
-      </p>
-
-      <Passo numero={1} titulo="Abra o Chrome" icon={Smartphone}>
-        A Sora deve estar aberta no navegador <strong>Chrome</strong>. Outros navegadores (Samsung Internet, Brave) também funcionam.
-      </Passo>
-      <Passo numero={2} titulo="Toque no menu" icon={MoreVertical}>
-        No canto <strong>superior direito</strong> do Chrome, toque nos <strong>três pontos</strong>
-        <Inline><MoreVertical size={11} /></Inline>.
-      </Passo>
-      <Passo numero={3} titulo="Instalar aplicativo" icon={Download}>
-        Toque em <strong>Instalar aplicativo</strong> (ou <strong>Adicionar à tela inicial</strong>) e confirme em <strong>Instalar</strong>.
-      </Passo>
-      <Concluido texto="Pronto! O ícone da Sora vai aparecer na gaveta de apps e na tela inicial." />
-    </Passos>
+      <div className="flex items-start gap-2.5 rounded-xl p-3 bg-muted/30 border border-border/60">
+        <ShieldCheck size={15} className="text-primary flex-shrink-0 mt-0.5" aria-hidden />
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          App oficial, publicado pela Sora. Seus dados continuam os mesmos — é só entrar com a sua conta.
+        </p>
+      </div>
+    </div>
   );
 }
 

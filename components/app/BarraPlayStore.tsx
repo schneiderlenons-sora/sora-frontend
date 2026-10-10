@@ -1,50 +1,48 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Mail, ExternalLink } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { detectarOrigem } from '@/lib/origem-app';
-import { LINK_TESTE_PLAY } from '@/lib/play-store';
+import { LINK_PLAY_STORE } from '@/lib/play-store';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Barra de convite pro app Android — o cabeçalho colorido no topo do painel.
+// Barra "A Sora está na Play Store" — o cabeçalho no topo do painel no mobile.
+//
+// O app saiu do teste fechado e está PÚBLICO (out/2026). Antes esta barra
+// convidava a TESTAR o app e abria um card explicando o e-mail da lista de
+// testadores; agora é um aviso simples com botão que leva DIRETO pra página da
+// loja (qualquer conta Google instala). Sem card intermediário.
 //
 // QUEM VÊ:
-//   · celular ANDROID, no navegador. iPhone não instala app da Play Store, e
-//     mostrar o convite ali seria mandar a pessoa pra um link que não abre;
+//   · celular ANDROID, no navegador (iPhone não instala da Play Store);
 //   · que ainda NÃO abriu a Sora dentro do app — nem neste aparelho (origem
-//     local) nem em nenhum outro (`perfil.app_android_em`, migration 166).
+//     local) nem em outro (`perfil.app_android_em`, migration 166);
+//   · que NÃO fechou a barra antes (o "x" grava a dispensa e ela não volta).
 // Dentro do próprio app a barra nunca aparece.
 //
-// ⚠️ "BAIXAR" NÃO VAI DIRETO PRO LINK — ABRE UM CARD ANTES. O app está em teste
-// FECHADO: a Play Store só libera a instalação pra conta Google que está na
-// lista de testadores, e a lista é feita com o e-mail de CADASTRO na Sora.
-// Quem entra na Play Store com outro e-mail recebe "app não disponível" sem
-// explicação nenhuma — e conclui que o app não existe. O card mostra o e-mail
-// certo e diz como trocar de conta ANTES de a pessoa bater nesse muro.
+// ⚠️ O "X" FECHA PRA SEMPRE: a dispensa é gravada em localStorage e checada no
+// mount. É por aparelho/navegador (sem migration) — o mesmo padrão do
+// `sora-pwa-prompted-v1` do InstallPwa. Quem instala o app faz a barra sumir
+// por outro caminho (`app_android_em`), então os dois motivos de "não mostrar"
+// coexistem sem conflito.
 //
 // ⚠️ ELA EMPURRA O TOPO DO PAINEL, e três coisas dependiam de "onde começa o
-// topo": o padding do <main>, o círculo de tema (FIXO no canto superior
-// direito — ficaria em cima do botão "Baixar") e o hero de vídeo do dashboard
-// (também fixo em top: 0). Os três leem duas variáveis globais:
-//
+// topo": o padding do <main>, o círculo de tema (fixo no canto sup. direito) e
+// o hero de vídeo do dashboard (fixo em top:0). Os três leem duas variáveis:
 //   --sora-barra-altura   altura desta barra (0px sem ela)
 //   --sora-topo-safe      safe-area do topo (0px com ela, porque ESTA barra já
 //                         a absorve — senão o espaço do notch contaria 2 vezes)
+// ⚠️ SEM A BARRA OS VALORES SÃO OS DE ANTES: as variáveis só são escritas
+// enquanto ela está na tela, e os padrões em `globals.css` reproduzem a conta
+// antiga. iPhone, desktop e quem já está no app não sentem diferença.
 //
-// ⚠️ SEM A BARRA, OS VALORES SÃO EXATAMENTE OS DE ANTES: as variáveis só são
-// escritas enquanto ela está na tela, e os padrões em `globals.css` reproduzem
-// a conta antiga. iPhone, desktop e quem já está no app não sentem diferença.
-//
-// ⚠️ SEM BOTÃO DE FECHAR NA BARRA, de propósito: o pedido é que ela saia quando
-// a pessoa BAIXAR. Se incomodar, o lugar de um "agora não" é aqui.
-//
-// Teste sem celular Android: `?barraplay=1` força a exibição.
+// Teste sem celular Android: `?barraplay=1` força a exibição (ignora a dispensa).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEXTO = '#2B1700';
 const FUNDO = 'linear-gradient(135deg, #FFB547 0%, #FF9A3C 100%)';
+const CHAVE_DISPENSA = 'sora-barraplay-dispensada-v1';
 
 function IconePlay({ tamanho }: { tamanho: number }) {
   // Triângulo do Play, monocromático — sem as quatro cores da marca brigando
@@ -59,23 +57,24 @@ function IconePlay({ tamanho }: { tamanho: number }) {
 export default function BarraPlayStore() {
   const { user, perfil } = useAuth();
   const [visivel, setVisivel] = useState(false);
-  const [aberto, setAberto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const botaoRef = useRef<HTMLButtonElement>(null);
-  const continuarRef = useRef<HTMLAnchorElement>(null);
   const jaInstalou = !!perfil?.app_android_em;
 
-  // ⚠️ Decidido em EFEITO: o servidor não conhece o aparelho, e decidir no
-  // primeiro render daria hydration mismatch.
+  // ⚠️ Decidido em EFEITO: o servidor não conhece o aparelho nem o localStorage,
+  // e decidir no primeiro render daria hydration mismatch.
   useEffect(() => {
     if (!user) { setVisivel(false); return; }
+
     let forcar = false;
     try { forcar = new URLSearchParams(window.location.search).get('barraplay') === '1'; } catch { /* URL estranha */ }
     if (forcar) { setVisivel(true); return; }
 
+    let dispensada = false;
+    try { dispensada = localStorage.getItem(CHAVE_DISPENSA) === '1'; } catch { /* storage bloqueado */ }
+
     const android = /Android/i.test(navigator.userAgent);
     const dentroDoApp = detectarOrigem() === 'android';
-    setVisivel(android && !dentroDoApp && !jaInstalou && !!LINK_TESTE_PLAY);
+    setVisivel(android && !dentroDoApp && !jaInstalou && !dispensada && !!LINK_PLAY_STORE);
   }, [user, jaInstalou]);
 
   // Publica a altura real (ResizeObserver: a frase quebra em 2 linhas em tela
@@ -106,153 +105,68 @@ export default function BarraPlayStore() {
     return () => { ro.disconnect(); limpar(); };
   }, [visivel]);
 
-  // Card: Esc fecha, o foco entra no botão principal e volta pro "Baixar".
-  useEffect(() => {
-    if (!aberto) return;
-    const t = setTimeout(() => continuarRef.current?.focus(), 60);
-    const aoTeclar = (e: KeyboardEvent) => { if (e.key === 'Escape') setAberto(false); };
-    window.addEventListener('keydown', aoTeclar);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('keydown', aoTeclar);
-      botaoRef.current?.focus();
-    };
-  }, [aberto]);
+  function fechar() {
+    try { localStorage.setItem(CHAVE_DISPENSA, '1'); } catch { /* storage bloqueado: some só nesta sessão */ }
+    setVisivel(false);
+  }
 
   if (!visivel) return null;
 
-  const email = String(perfil?.email || user?.email || '').trim();
-  const ehGmail = /@(gmail|googlemail)\.com$/i.test(email);
-
   return (
-    <>
-      <div
-        ref={ref}
-        role="region"
-        aria-label="Convite para o app da Sora na Play Store"
-        className="md:hidden relative z-[35] flex-shrink-0"
-        style={{ background: FUNDO, paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        {/* Mais fina a pedido: ~56px contra os 79px da primeira versão. */}
-        <div className="flex items-center gap-2.5 px-4 py-2.5">
-          <span
-            aria-hidden
-            className="grid place-items-center w-9 h-9 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(43, 23, 0, 0.10)' }}
-          >
-            <IconePlay tamanho={16} />
-          </span>
-
-          <div className="min-w-0 flex-1">
-            <p className="text-[13.5px] font-bold leading-tight" style={{ color: TEXTO }}>
-              A Sora chegou na Play Store
-            </p>
-            <p className="text-[12px] leading-snug" style={{ color: 'rgba(43, 23, 0, 0.78)' }}>
-              Teste o app antes de todo mundo
-            </p>
-          </div>
-
-          {/* ⚠️ Botão visual de 36px, mas a ÁREA DE TOQUE continua 44px: o
-              `after:-inset-1` estende o alvo sem engordar a barra. */}
-          <button
-            ref={botaoRef}
-            type="button"
-            onClick={() => setAberto(true)}
-            aria-haspopup="dialog"
-            className="relative flex-shrink-0 inline-flex items-center justify-center h-9 px-3.5 rounded-full
-                       text-[13px] font-bold motion-safe:active:scale-[0.97] transition-transform
-                       after:content-[''] after:absolute after:-inset-1"
-            style={{ background: TEXTO, color: '#FFB547' }}
-          >
-            Baixar
-          </button>
-        </div>
-      </div>
-
-      {/* ⚠️ PORTAL: modal `fixed` renderizado dentro da árvore pode ficar preso
-          num ancestral com transform/backdrop-filter (memória do projeto). */}
-      {aberto && createPortal(
-        <div
-          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="play-card-titulo"
+    <div
+      ref={ref}
+      role="region"
+      aria-label="A Sora está disponível na Play Store"
+      className="md:hidden relative z-[35] flex-shrink-0"
+      style={{ background: FUNDO, paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      {/* ~56px de corpo, fora a safe-area do topo. */}
+      <div className="flex items-center gap-2.5 px-4 py-2.5">
+        <span
+          aria-hidden
+          className="grid place-items-center w-9 h-9 rounded-lg flex-shrink-0"
+          style={{ background: 'rgba(43, 23, 0, 0.10)' }}
         >
-          <button
-            type="button"
-            aria-label="Fechar"
-            onClick={() => setAberto(false)}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          />
+          <IconePlay tamanho={16} />
+        </span>
 
-          <div
-            className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl border border-border/60 bg-card shadow-2xl
-                       motion-safe:animate-[slide-up_280ms_cubic-bezier(0.22,1,0.36,1)_both]"
-            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
-          >
-            <div className="absolute left-1/2 -translate-x-1/2 top-2 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-[13.5px] font-bold leading-tight" style={{ color: TEXTO }}>
+            A Sora está na Play Store
+          </p>
+          <p className="text-[12px] leading-snug" style={{ color: 'rgba(43, 23, 0, 0.78)' }}>
+            Baixe o app oficial no seu Android
+          </p>
+        </div>
 
-            <div className="px-5 pt-6">
-              <span className="grid place-items-center w-12 h-12 rounded-2xl" style={{ background: FUNDO }} aria-hidden>
-                <IconePlay tamanho={22} />
-              </span>
+        {/* Download DIRETO pra loja — sem card intermediário (app público).
+            Botão visual de 36px, mas a ÁREA DE TOQUE continua 44px via
+            `after:-inset-1`, sem engordar a barra. */}
+        <a
+          href={LINK_PLAY_STORE}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative flex-shrink-0 inline-flex items-center justify-center h-9 px-3.5 rounded-full
+                     text-[13px] font-bold motion-safe:active:scale-[0.97] transition-transform
+                     after:content-[''] after:absolute after:-inset-1"
+          style={{ background: TEXTO, color: '#FFB547' }}
+        >
+          Baixar
+        </a>
 
-              <h2 id="play-card-titulo" className="mt-4 text-lg font-bold text-foreground leading-tight">
-                Antes de baixar, confira o e-mail
-              </h2>
-              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                O app está em teste e a Play Store só libera a instalação para quem já é usuário da Sora.
-                Entre na Play Store com a <strong className="text-foreground">mesma conta do seu cadastro</strong>:
-              </p>
-
-              {email && (
-                <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-3">
-                  <Mail size={16} className="text-muted-foreground flex-shrink-0" aria-hidden />
-                  <span className="text-sm font-semibold text-foreground break-all">{email}</span>
-                </div>
-              )}
-
-              <ul className="mt-3 space-y-2 text-[13px] text-muted-foreground leading-snug">
-                <li className="flex gap-2">
-                  <span aria-hidden>•</span>
-                  <span>Usa outro e-mail na Play Store? Abra a Play Store, toque na sua foto no canto superior e troque para essa conta antes de continuar.</span>
-                </li>
-                {/* Só pra quem não é Gmail: é o caso que mais falha (e-mail que
-                    não é conta Google não entra na lista de testadores). */}
-                {email && !ehGmail && (
-                  <li className="flex gap-2">
-                    <span aria-hidden>•</span>
-                    <span>Seu e-mail não é Gmail: ele precisa estar ligado a uma conta Google para a Play Store aceitar.</span>
-                  </li>
-                )}
-              </ul>
-            </div>
-
-            <div className="px-5 pt-5 flex flex-col gap-2">
-              <a
-                ref={continuarRef}
-                href={LINK_TESTE_PLAY}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setAberto(false)}
-                className="h-12 rounded-xl inline-flex items-center justify-center gap-2 text-sm font-bold
-                           motion-safe:active:scale-[0.98] transition-transform"
-                style={{ background: FUNDO, color: TEXTO }}
-              >
-                Continuar para a Play Store <ExternalLink size={15} aria-hidden />
-              </a>
-              <button
-                type="button"
-                onClick={() => setAberto(false)}
-                className="h-11 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              >
-                Agora não
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
+        {/* Fechar pra sempre. 44px de alvo mesmo com ícone de 18px. */}
+        <button
+          type="button"
+          onClick={fechar}
+          aria-label="Fechar e não mostrar mais"
+          className="relative flex-shrink-0 grid place-items-center w-9 h-9 -mr-1 rounded-full
+                     motion-safe:active:scale-[0.92] transition-transform
+                     after:content-[''] after:absolute after:-inset-1"
+          style={{ color: 'rgba(43, 23, 0, 0.72)' }}
+        >
+          <X size={18} />
+        </button>
+      </div>
+    </div>
   );
 }

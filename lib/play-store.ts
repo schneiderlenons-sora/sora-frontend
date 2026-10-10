@@ -1,20 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Links da Sora na Play Store — fonte única.
 //
-// ⚠️ ENQUANTO O APP ESTÁ EM TESTE FECHADO o link certo é o de PARTICIPAR DO
-// TESTE, não o da página da loja. A página da loja (`store/apps/details`) diz
-// "app não disponível" pra quem ainda não entrou no teste; é o link de teste
-// que mostra o botão "Tornar-se testador" e, dali, leva à instalação.
+// O app saiu do teste fechado e está PÚBLICO na loja (out/2026). O link certo
+// agora é a página da loja (`store/apps/details`), que abre pra qualquer conta
+// Google e instala direto — não mais o link de "participar do teste", que só
+// valia pra quem estava na lista de testadores.
 //
-// ⚠️ SÓ FUNCIONA PRA QUEM ESTÁ NA LISTA DE TESTADORES, e a lista é de CONTAS
-// GOOGLE. Um e-mail @hotmail que não é conta Google não consegue entrar.
-//
-// O link pode ser trocado sem mexer em código: `NEXT_PUBLIC_PLAY_TESTE_URL` na
-// Vercel (útil quando o app sair do teste fechado e o link virar o da loja).
+// O link pode ser trocado sem mexer em código: `NEXT_PUBLIC_PLAY_URL` na Vercel.
+// (A env antiga `NEXT_PUBLIC_PLAY_TESTE_URL` ainda é lida como fallback pra não
+// quebrar nada que a tenha setado — mas o padrão já é a página pública.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PACOTE_ANDROID = 'com.forsora.app';
 
-export const LINK_TESTE_PLAY: string =
-  process.env.NEXT_PUBLIC_PLAY_TESTE_URL
-  || `https://play.google.com/apps/testing/${PACOTE_ANDROID}`;
+export const LINK_PLAY_STORE: string =
+  process.env.NEXT_PUBLIC_PLAY_URL
+  || process.env.NEXT_PUBLIC_PLAY_TESTE_URL
+  || `https://play.google.com/store/apps/details?id=${PACOTE_ANDROID}`;
