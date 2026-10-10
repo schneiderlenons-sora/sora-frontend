@@ -13,6 +13,7 @@ import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase    from '@/components/landing/DriveShowcase';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import PrevistosShowcase from '@/components/landing/PrevistosShowcase';
+import InvestimentosShowcase from '@/components/landing/InvestimentosShowcase';
 import NegociosShowcase from '@/components/landing/NegociosShowcase';
 import AgentesShowcase   from '@/components/landing/AgentesShowcase';
 import WrappedShowcase from '@/components/landing/WrappedShowcase';
@@ -55,10 +56,13 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
       <FinancasChat />
       <OpenFinance />
       <PrevistosShowcase />
-      {/* Fecha o bloco "dinheiro" (pessoal → previstos → NEGÓCIO) antes de
-          virar pro Grow. A seção faz a transição de público no próprio texto. */}
-      <NegociosShowcase />
-      <CtaPlanos fraseKey="negocios" />
+      {/* Investimentos fecha o bloco financeiro (Open Finance → Previstos →
+          patrimônio): o visitante já viu entradas, contas e previsão; aqui a
+          Sora soma o que ele tem investido e busca a cotação sozinha. O CTA
+          encerra o bloco de dinheiro antes de a landing pivotar pro lado
+          Grow/produtividade (Agenda, hábitos). */}
+      <InvestimentosShowcase />
+      <CtaPlanos fraseKey="investimentos" />
       <AgendaChat />
       <HabitosSaude />
       <AgentesShowcase />
@@ -67,6 +71,11 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
       <Showcase />
       <WrappedShowcase />
       <CtaPlanos fraseKey="queroWrapped" />
+      {/* Negócios vem logo após o bloco Wrapped/Gestão Compartilhada (decisão
+          do dono): o visitante já viu o lado pessoal/compartilhado; aqui a
+          Sora mostra que também cuida do negócio. CTA próprio em seguida. */}
+      <NegociosShowcase />
+      <CtaPlanos fraseKey="negocios" />
       <ProdutividadeShowcase />
       <DriveShowcase />
       <SocialProof />

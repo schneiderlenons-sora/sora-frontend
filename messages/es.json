@@ -733,7 +733,8 @@
     "queroWrapped": "Yo también quiero mi Wrapped 🐳",
     "queroParticipar": "Quiero unirme",
     "verPlanos": "Quiero empezar a organizar",
-    "negocios": "Quiero Sora Negocios"
+    "negocios": "Quiero Sora Negocios",
+    "investimentos": "Quiero seguir mis inversiones"
   },
   "ctaFinal": {
     "badge": "La vida que quieres",
@@ -785,5 +786,30 @@
     "chipEstoque": "Stock",
     "chipEquipe": "Equipo",
     "chipDre": "DRE"
+  },
+  "investimentos": {
+    "eyebrow": "Sora Inversiones · en Premium",
+    "titulo": "Tus inversiones, sumadas y actualizadas solas",
+    "desc": "Acciones, FIIs, cripto, renta fija y el fondo de emergencia en un solo patrimonio — con la cotización del día que Sora busca por ti, sin que escribas ningún precio.",
+    "b1t": "La cotización llega sola",
+    "b1d": "Tus acciones, fondos y Bitcoin: Sora busca el precio del día en la bolsa y en las casas de cambio y actualiza tu patrimonio. No escribes cotizaciones.",
+    "b2t": "Fondo de emergencia",
+    "b2d": "Marca lo que es tu reserva y ve al instante cuántos meses de seguridad ya tienes — y cuánto falta para tu meta.",
+    "b3t": "Rentabilidad de verdad",
+    "b3d": "Cuánto rindió, no solo cuánto aportaste. Sora separa tu dinero de lo que rindió el mercado.",
+    "b4t": "Todo en un solo lugar",
+    "b4d": "Acciones, FIIs, cripto, renta fija, pensión y hasta los apartados de tu banco por Open Finance — sumados en un patrimonio único.",
+    "mockupAlt": "Billetera de Sora mostrando el patrimonio total subiendo, las posiciones con la variación del día y el fondo de emergencia protegido.",
+    "mockHeader": "Mi cartera",
+    "atualizado": "hoy",
+    "patrimonio": "Patrimonio total",
+    "tAcoes": "Acciones",
+    "tFiis": "FIIs",
+    "tCripto": "Cripto",
+    "tRenda": "Renta fija",
+    "reserva": "Fondo de emergencia",
+    "reservaMeses": "{n} meses protegidos",
+    "chipTesouro": "Renta fija",
+    "chipReserva": "Reserva"
   }
 }
