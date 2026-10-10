@@ -403,6 +403,7 @@ function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => 
           {labelCategoria(l.tipo, l.categoria)}
           {l.forma_pagamento ? ` · ${labelForma(l.forma_pagamento)}` : ''}
           {l.contraparte ? ` · ${l.contraparte}` : ''}
+          {l.criado_por_nome ? ` · por ${l.criado_por_nome}` : ''}
         </span>
       </span>
       <span className="text-right flex-shrink-0">

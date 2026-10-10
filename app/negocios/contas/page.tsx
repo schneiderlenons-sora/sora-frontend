@@ -229,6 +229,7 @@ function Grupo({
               <span className="block text-[11px] text-muted-foreground truncate">
                 {rotuloVenc(c.vencimento)} · {labelCategoria('saida', c.categoria)}
                 {c.contraparte ? ` · ${c.contraparte}` : ''}
+                {c.criado_por_nome ? ` · por ${c.criado_por_nome}` : ''}
               </span>
             </span>
             <span className="text-sm font-bold tabular text-foreground flex-shrink-0">{fmtCent(c.valor)}</span>

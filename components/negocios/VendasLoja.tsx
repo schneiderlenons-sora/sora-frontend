@@ -141,6 +141,7 @@ export default function VendasLoja({ empresaId, cor, nomeEmpresa }: {
                           <User size={10} /> {v.cliente?.nome || v.cliente_nome}
                         </span>
                       )}
+                      {v.criado_por_nome && <span className="truncate max-w-[120px]">· por {v.criado_por_nome}</span>}
                       {/* A prazo em texto, não só cor — é dinheiro que ainda não entrou */}
                       {v.status === 'pendente' && (
                         <span className="inline-flex items-center gap-1 font-bold" style={{ color: '#ef4444' }}>

@@ -27,6 +27,9 @@ export interface Lancamento {
   recorrencia?:    string | null;
   observacao?:     string | null;
   created_at?:     string;
+  /** Quem lançou (Fase 5 multiusuário). Vem resolvido do backend; ausente em
+   *  lançamento antigo ou quando a busca de nomes falha. */
+  criado_por_nome?: string | null;
 }
 
 // Conta do negócio (caixa nomeada) — migration 095.
@@ -113,6 +116,8 @@ export interface VendaNegocio {
   lancamento_id?: string | null;
   itens?:       ItemVenda[];
   cliente?:     { id: string; nome: string; telefone?: string | null } | null;
+  /** Quem registrou a venda (Fase 5) — resolvido do lançamento ligado. */
+  criado_por_nome?: string | null;
 }
 
 // ── Estoque e compras (migration 107) ─────────────────────────────────────

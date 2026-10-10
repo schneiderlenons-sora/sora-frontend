@@ -233,6 +233,7 @@ function LinhaReceber({ l, tom, onReceber, baixando, cor }: {
             {dias === 0 && <b style={{ color: '#f59e0b' }}>· hoje</b>}
           </span>
           {l.categoria && <span className="hidden sm:inline">· {labelCategoria('entrada', l.categoria)}</span>}
+          {l.criado_por_nome && <span className="hidden sm:inline">· por {l.criado_por_nome}</span>}
         </p>
       </div>
 
