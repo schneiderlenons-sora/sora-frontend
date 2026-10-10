@@ -736,7 +736,8 @@
     "comecarAgora": "Começar agora",
     "queroWrapped": "Quero meu Wrapped também 🐳",
     "queroParticipar": "Quero fazer parte",
-    "verPlanos": "Quero começar a organizar"
+    "verPlanos": "Quero começar a organizar",
+    "negocios": "Quero o Sora Negócios"
   },
   "ctaFinal": {
     "badge": "A vida que você quer",
@@ -759,5 +760,34 @@
     "titulo": "Uma equipe cuidando da sua vida, cada um com uma função",
     "desc": "Eles observam o que você registra, encontram padrões e avisam no WhatsApp quando algo merece a sua atenção — antes de virar problema.",
     "altAgente": "Ilustração do agente {nome}"
+  },
+  "negocios": {
+    "eyebrow": "Sora Negócios · no Platinum",
+    "titulo": "Seu negócio inteiro no mesmo app. E no mesmo WhatsApp.",
+    "desc": "Loja física, digital ou as duas. Uma empresa ou seis. Do caixa do dia ao DRE do mês — sem planilha e sem contador caro.",
+    "b1t": "Venda pelo WhatsApp",
+    "b1d": "\"Vendi 3 bolos na loja Centro por 90\" entra no caixa, baixa o estoque e já aparece no DRE. No balcão, sem abrir o painel.",
+    "b2t": "DRE em tempo real",
+    "b2d": "Receita, custo, despesas e lucro — com ponto de equilíbrio. O número que diz se dá pra baixar o preço.",
+    "b3t": "Sua equipe, cada um no WhatsApp",
+    "b3d": "Convide o gerente ou o financeiro pra uma empresa só — não ao seu dinheiro pessoal. E veja quem lançou cada coisa.",
+    "b4t": "Várias empresas, sem bagunça",
+    "b4d": "A aba se adapta: loja física vê caixa e estoque; digital vê integrações. Troca de empresa num toque.",
+    "mockupAlt": "Uma venda dita no WhatsApp virando lançamento no caixa e número no DRE da loja.",
+    "mockHeader": "Sora Negócios",
+    "mockEmpresas": "3 empresas",
+    "msgUser": "vendi 3 bolos na loja Centro por 90",
+    "msgSora": "Venda registrada — R$ 90,00",
+    "msgSoraSub": "3× Bolo de cenoura · Loja Centro · estoque 17",
+    "dreLabel": "DRE · Outubro",
+    "aoVivo": "ao vivo",
+    "receita": "Receita",
+    "cmv": "Custo (CMV)",
+    "lucro": "Lucro",
+    "margem": "Margem",
+    "chipCaixa": "Caixa",
+    "chipEstoque": "Estoque",
+    "chipEquipe": "Equipe",
+    "chipDre": "DRE"
   }
 }

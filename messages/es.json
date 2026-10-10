@@ -732,7 +732,8 @@
     "comecarAgora": "Empezar ahora",
     "queroWrapped": "Yo también quiero mi Wrapped 🐳",
     "queroParticipar": "Quiero unirme",
-    "verPlanos": "Quiero empezar a organizar"
+    "verPlanos": "Quiero empezar a organizar",
+    "negocios": "Quiero Sora Negocios"
   },
   "ctaFinal": {
     "badge": "La vida que quieres",
@@ -755,5 +756,34 @@
     "titulo": "Un equipo cuidando de tu vida, cada uno con una función",
     "desc": "Observan lo que registras, encuentran patrones y te avisan por WhatsApp cuando algo merece tu atención — antes de que se vuelva un problema.",
     "altAgente": "Ilustración del agente {nome}"
+  },
+  "negocios": {
+    "eyebrow": "Sora Negocios · en Platinum",
+    "titulo": "Todo tu negocio en la misma app. Y en el mismo WhatsApp.",
+    "desc": "Tienda física, digital o ambas. Una empresa o seis. De la caja del día al estado de resultados del mes — sin planilla y sin contador caro.",
+    "b1t": "Vende por WhatsApp",
+    "b1d": "\"Vendí 3 tortas en la tienda Centro por 90\" entra en la caja, descuenta el stock y ya aparece en el DRE. En el mostrador, sin abrir el panel.",
+    "b2t": "DRE en tiempo real",
+    "b2d": "Ingresos, costo, gastos y ganancia — con punto de equilibrio. El número que dice si puedes bajar el precio.",
+    "b3t": "Tu equipo, cada uno en su WhatsApp",
+    "b3d": "Invita al gerente o al financiero a una sola empresa — no a tu dinero personal. Y ve quién registró cada cosa.",
+    "b4t": "Varias empresas, sin lío",
+    "b4d": "La pestaña se adapta: la tienda física ve caja y stock; la digital ve integraciones. Cambia de empresa con un toque.",
+    "mockupAlt": "Una venta dicha por WhatsApp convirtiéndose en movimiento de caja y número en el DRE de la tienda.",
+    "mockHeader": "Sora Negocios",
+    "mockEmpresas": "3 empresas",
+    "msgUser": "vendí 3 tortas en la tienda Centro por 90",
+    "msgSora": "Venta registrada — R$ 90,00",
+    "msgSoraSub": "3× Torta de zanahoria · Tienda Centro · stock 17",
+    "dreLabel": "DRE · Octubre",
+    "aoVivo": "en vivo",
+    "receita": "Ingresos",
+    "cmv": "Costo (CMV)",
+    "lucro": "Ganancia",
+    "margem": "Margen",
+    "chipCaixa": "Caja",
+    "chipEstoque": "Stock",
+    "chipEquipe": "Equipo",
+    "chipDre": "DRE"
   }
 }

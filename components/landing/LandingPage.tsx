@@ -13,6 +13,7 @@ import ProdutividadeShowcase from '@/components/landing/ProdutividadeShowcase';
 import DriveShowcase    from '@/components/landing/DriveShowcase';
 import OpenFinance     from '@/components/landing/OpenFinance';
 import PrevistosShowcase from '@/components/landing/PrevistosShowcase';
+import NegociosShowcase from '@/components/landing/NegociosShowcase';
 import AgentesShowcase   from '@/components/landing/AgentesShowcase';
 import WrappedShowcase from '@/components/landing/WrappedShowcase';
 import Personalizacao  from '@/components/landing/Personalizacao';
@@ -54,6 +55,10 @@ export default function LandingPage({ esperaLista = false }: { esperaLista?: boo
       <FinancasChat />
       <OpenFinance />
       <PrevistosShowcase />
+      {/* Fecha o bloco "dinheiro" (pessoal → previstos → NEGÓCIO) antes de
+          virar pro Grow. A seção faz a transição de público no próprio texto. */}
+      <NegociosShowcase />
+      <CtaPlanos fraseKey="negocios" />
       <AgendaChat />
       <HabitosSaude />
       <AgentesShowcase />
