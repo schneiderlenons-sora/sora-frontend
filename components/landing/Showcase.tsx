@@ -25,6 +25,22 @@ export default function Showcase() {
         <p className="text-lg lg:text-xl font-semibold tracking-[-0.02em] max-w-2xl mx-auto">
           {t('categorias.frase')}
         </p>
+        {/* Adendo dos limites mensal + anual (migration 171): dois chips
+            comunicam o teto duplo sem imagem nova, e a linha explica o caso de
+            uso sazonal. Cor por ícone+rótulo, nunca cor sozinha. */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          {[t('categorias.chipMensal'), t('categorias.chipAnual')].map((c) => (
+            <span key={c}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ring-1 ring-zinc-200 dark:ring-white/10 text-emerald-700 dark:text-emerald-300"
+                  style={{ background: 'rgba(97,206,112,0.12)' }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#61ce70' }} />
+              {c}
+            </span>
+          ))}
+        </div>
+        <p className="mt-3 text-sm lg:text-base text-zinc-600 dark:text-white/55 leading-relaxed max-w-2xl mx-auto">
+          {t('categorias.limites')}
+        </p>
         {/* Vídeo de tela de celular (9/16) — container estreito, senão ele
             domina a seção e empurra o CTA pra fora da vista. */}
         <div className="mt-8 mx-auto w-full max-w-[300px] sm:max-w-[340px]">

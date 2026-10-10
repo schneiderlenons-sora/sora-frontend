@@ -149,8 +149,8 @@
         "a": "Cancelas directo desde el panel con 1 clic — sin llamadas, sin correos. Tus datos quedan disponibles 30 días para que los exportes (CSV/OFX). Después se eliminan de forma permanente, conforme a las leyes de protección de datos."
       },
       {
-        "q": "¿Funciona para emprendedores digitales?",
-        "a": "Sí, justo para eso existe el Plan Premium. Conecta Hotmart, Kiwify, Eduzz, Stripe por webhook y captura cada venta en tiempo real. Sora arma tu estado de resultados, calcula impuestos, hace pronósticos y genera insights automáticos."
+        "q": "¿Funciona para quien tiene tienda física o vende online?",
+        "a": "Ambos. En el Plan Premium, Sora Negócios se adapta al tipo de negocio: la tienda física tiene caja, inventario, equipo y registro de ventas por WhatsApp; el negocio digital conecta Hotmart, Kiwify, Eduzz y Stripe y captura cada venta en tiempo real. En cualquiera de los dos, Sora arma el estado de resultados gerencial (con costo de ventas y punto de equilibrio) y genera insights automáticos — y puedes tener cuantas empresas quieras, cada una en su propia pestaña."
       },
       {
         "q": "¿Puedo compartir la cuenta con familia o socio?",
@@ -296,7 +296,10 @@
     ],
     "categorias": {
       "frase": "Crea categorías y subcategorías, define límites y transforma tu relación con el dinero.",
-      "alt": "Pestaña de categorías de Sora: crear categorías, subcategorías y definir límites"
+      "alt": "Pestaña de categorías de Sora: crear categorías, subcategorías y definir límites",
+      "limites": "Define un tope por mes y también por año — ideal para gastos estacionales (seguro, impuestos, viajes). Sora te avisa antes de que te pases de cualquiera de los dos.",
+      "chipMensal": "Tope mensual",
+      "chipAnual": "Tope anual"
     },
     "compartilhada": {
       "titulo": "Mira quién está gastando qué",
