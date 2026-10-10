@@ -27,7 +27,7 @@ import type { Plano } from './plans';
 // ter: `POST /grupos/entrar` cobra o limite de membros do plano do DONO, nunca
 // do convidado. Sem esta linha o paywall o mandava pra /planos e ele nunca
 // chegava a usar o código — relato de 23/09/2026.
-export const ROTAS_LIVRES = ['/', '/login', '/signup', '/termos', '/privacidade', '/tour', '/convite'];
+export const ROTAS_LIVRES = ['/', '/login', '/signup', '/termos', '/privacidade', '/tour', '/convite', '/convite-empresa'];
 
 /**
  * Rotas de COMPRA. Na web são livres pro `inativo` (ele vai pagar ali). No app

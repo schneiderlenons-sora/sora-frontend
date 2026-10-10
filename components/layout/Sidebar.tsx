@@ -14,7 +14,7 @@ import {
   Palette, Lightbulb, Share2, Megaphone,
   // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
   HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
-  IdCard, Plug, CheckCheck, Store,
+  IdCard, Plug, CheckCheck, Store, KeyRound,
 } from 'lucide-react';
 import { gruposPara, rotaAtiva, rotasNavegaveis } from '@/lib/negocios-nav';
 import { NAV_TOPO, GRUPOS, SECOES, type ItemNav, type SubgrupoNav } from '@/lib/sidebar-nav';
@@ -99,6 +99,7 @@ const ICONES_APP: Record<string, IconeLucide> = {
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
   LayoutDashboard, Sparkles, ArrowLeftRight, Receipt, HandCoins, FileBarChart,
   TrendingUp, ShoppingCart, Package, Boxes, Users, Truck, IdCard, Plug, CheckCheck,
+  KeyRound,
 };
 
 // Opção do dropdown de troca de painel (Sora / Sora Negócios / Sora Labs).

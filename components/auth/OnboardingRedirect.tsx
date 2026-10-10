@@ -37,6 +37,9 @@ export default function OnboardingRedirect() {
       // O convite resolve o código e SÓ DEPOIS manda pro painel; o wizard no
       // meio disso perderia o código e o convidado ficaria fora do grupo.
       '/convite',
+      // Convite de EMPRESA (Negócios multiusuário): resolve o código e só
+      // depois entra — o wizard no meio perderia o convite, igual ao de grupo.
+      '/convite-empresa',
       '/vincular-whatsapp',
       '/oferta',
       '/checkout-vitalicio',

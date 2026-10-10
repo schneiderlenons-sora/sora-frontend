@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Empresa } from '@/lib/empresas';
+import type { Empresa, MembroEmpresa, ConviteEmpresa } from '@/lib/empresas';
 import type {
   Lancamento, ContaNegocio, CentroCusto, IndicadoresNegocio,
   ClienteNegocio, ClienteFicha, ProdutoNegocio, VendaNegocio,
@@ -1322,6 +1322,24 @@ export const api = {
         req<{ ok: boolean; empresa: Empresa }>(`/api/negocios/empresas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       arquivar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/empresas/${id}`, { method: 'DELETE' }),
+    },
+    // ── Acessos: a EQUIPE que opera a empresa pelo app (empresa_membros) ──
+    // Não confundir com a aba Equipe (folha/funcionários). Só admin gerencia.
+    acessos: {
+      listar: (empresaId: string) =>
+        req<{ membros: MembroEmpresa[]; convites: ConviteEmpresa[] }>(`/api/negocios/empresas/${empresaId}/membros`),
+      convidar: (empresaId: string, papel: 'admin' | 'operador' | 'leitura') =>
+        req<{ ok: boolean; codigo: string }>(`/api/negocios/empresas/${empresaId}/convite`, { method: 'POST', body: JSON.stringify({ papel }) }),
+      trocarPapel: (empresaId: string, userId: string, papel: 'admin' | 'operador' | 'leitura') =>
+        req<{ ok: boolean }>(`/api/negocios/empresas/${empresaId}/membros/${userId}`, { method: 'PATCH', body: JSON.stringify({ papel }) }),
+      remover: (empresaId: string, userId: string) =>
+        req<{ ok: boolean }>(`/api/negocios/empresas/${empresaId}/membros/${userId}`, { method: 'DELETE' }),
+      // Aceitar convite (reusa /convite-empresa/[codigo] no front). Não exige
+      // plano: aceitar cria o vínculo; operar é que depende do Platinum.
+      resolverConvite: (codigo: string) =>
+        req<{ ok: boolean; empresa_id: string; empresa_nome: string; papel: string; tem_plano: boolean }>(`/api/negocios/convite-empresa/${codigo}`),
+      aceitarConvite: (codigo: string) =>
+        req<{ ok: boolean; empresa_id: string; tem_plano: boolean }>(`/api/negocios/convite-empresa/${codigo}/aceitar`, { method: 'POST' }),
     },
     // Painel da loja física: TODOS os números numa chamada só (evita 4 idas ao
     // Render pra desenhar uma tela). Valores em CENTAVOS.

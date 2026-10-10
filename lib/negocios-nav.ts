@@ -67,6 +67,9 @@ export const GRUPOS_NEGOCIOS: GrupoNegocios[] = [
     titulo: 'Gente',
     itens: [
       { href: '/negocios/equipe',    label: 'Equipe',     icone: 'IdCard' },
+      // "Acessos" = quem OPERA a empresa pelo app (empresa_membros), não a
+      // folha. Nome diferente de propósito pra não colidir com "Equipe".
+      { href: '/negocios/acessos',   label: 'Acessos',    icone: 'KeyRound' },
     ],
   },
   {

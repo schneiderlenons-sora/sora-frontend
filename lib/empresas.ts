@@ -33,6 +33,26 @@ export interface Empresa {
   dono?:      boolean;
 }
 
+/** Um membro que acessa a empresa pelo app (empresa_membros, migration 173). */
+export interface MembroEmpresa {
+  user_id: string;
+  nome:    string;
+  phone:   string | null;
+  papel:   PapelEmpresa;
+  dono:    boolean;
+  desde?:  string;
+}
+
+/** Convite aberto por empresa (convites_empresa). */
+export interface ConviteEmpresa {
+  id:         string;
+  codigo:     string;
+  papel:      PapelEmpresa;
+  expira_em:  string;
+  usado:      boolean;
+  created_at?: string;
+}
+
 const ORDEM_PAPEL: PapelEmpresa[] = ['leitura', 'operador', 'admin'];
 
 /**
