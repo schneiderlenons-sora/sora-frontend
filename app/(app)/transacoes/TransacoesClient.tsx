@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ehPagamentoFatura, ehAjusteSaldo } from '@/lib/categorizar';
+import { ehPagamentoFatura, ehPagamentoFaturaLegado, ehAjusteSaldo } from '@/lib/categorizar';
 import { createPortal } from 'react-dom';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
@@ -195,7 +195,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // (services/resumoTransacoes.js) e o de lib/ssr-data.ts.
   const ehTransferencia = useCallback((t: any) =>
     !!t.ignorar_em
-    || t.transferencia === true || ehPagamentoFatura(t.categoria) || t.categoria === 'Transferências',
+    || t.transferencia === true || ehPagamentoFatura(t.categoria)
+    || ehPagamentoFaturaLegado(t.categoria) || t.categoria === 'Transferências',
   []);
 
   // ⚠️ AJUSTE DE SALDO TAMBÉM NÃO É RECEITA NEM DESPESA (set/2026). Com o

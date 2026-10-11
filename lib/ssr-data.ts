@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { ehPagamentoFatura, ehAjusteSaldo } from './categorizar';
+import { ehPagamentoFatura, ehPagamentoFaturaLegado, ehAjusteSaldo } from './categorizar';
 import { proximoVencimento, hojeSP } from './vencimento-divida';
 import { normalizarMoeda, casasDaMoeda } from './moeda';
 
@@ -32,7 +32,9 @@ function ehTransferencia(r: any): boolean {
   if (r.ignorar_em) return true;
   // Ajuste de saldo também não conta (espelho do backend).
   if (ehAjusteSaldo(r.categoria)) return true;
-  return r.transferencia === true || ehPagamentoFatura(r.categoria) || r.categoria === 'Transferências';
+  // Categoria legada "Cartão de Credito" (pagamento de fatura) fora do consumo.
+  return r.transferencia === true || ehPagamentoFatura(r.categoria)
+    || ehPagamentoFaturaLegado(r.categoria) || r.categoria === 'Transferências';
 }
 
 // ⚠️ ARQUIVADAS (migration 131) — sonda com cache, espelhando

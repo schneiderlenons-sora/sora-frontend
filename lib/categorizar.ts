@@ -366,3 +366,23 @@ export function ehAjusteSaldo(categoria?: string | null): boolean {
     .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   return c === 'ajuste' || c === 'ajuste recebido';
 }
+
+/**
+ * Categoria LEGADA de pagamento de fatura "Cartão de Crédito" — NÃO é consumo.
+ *
+ * ⚠️ Relato out/2026 (Vander): o pagamento da fatura estava categorizado
+ * "Cartão de Credito" e contava como gasto (em DOBRO, as compras da fatura já
+ * são lançadas uma a uma), afogando o consumo real por categoria. A string é
+ * legada (nenhum código atual a produz; fatura nova nasce como 'Fatura').
+ *
+ * ⚠️ SEPARADO de `ehPagamentoFatura` de propósito: aquele governa fluxos de
+ * SALDO/fatura; estas são débitos reais que já mexeram no saldo. Este helper só
+ * tira a linha do CONSUMO (resumo/dashboard), sem tocar em saldo. Espelho fiel
+ * de `ehPagamentoFaturaLegado` em sora-backend/src/services/categorizar.js.
+ */
+export function ehPagamentoFaturaLegado(categoria?: string | null): boolean {
+  const c = (categoria || '').toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return c === 'cartao de credito';
+}
