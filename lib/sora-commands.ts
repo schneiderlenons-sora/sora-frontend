@@ -309,10 +309,11 @@ export const COMANDOS: Comando[] = [
     id: 'alterar-transacao',
     titulo: 'Alterar um lançamento',
     exemplo: 'altera a transação ABC123 para 50',
-    descricao: 'Corrige valor, categoria, descrição, conta ou data de um lançamento — sem precisar apagar e lançar de novo.',
+    descricao: 'Corrige valor, categoria, descrição, conta ou data de um lançamento — sem precisar apagar e lançar de novo. Pode usar o atalho: só o ID + o campo + o novo valor.',
     variantes: [
+      'ABC123 valor 50',
+      'ABC123 descrição Farmácia',
       'altera ABC123 categoria Mercado',
-      'altera ABC123 descrição Corrida de Uber',
       'altera ABC123 conta Nubank',
       'altera ABC123 data 05/10',
       'corrige o último lançamento para 80',
