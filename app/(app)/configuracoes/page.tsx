@@ -479,7 +479,10 @@ function SecaoPlano() {
   const planoVisual = planoAtual === 'kit' && planoVisualBase
     ? { ...planoVisualBase, nome: 'Kit', subtitulo: 'Organize tudo pelo painel, pra sempre' }
     : planoVisualBase;
-  const ordemAtual = ORDEM_PLANO[planoAtual];
+  // Vitalício não tem plano recorrente "atual" pra GRADE: ordem 0 faz todo card
+  // virar "Assinar" (a grade é a opção de MIGRAR). O `temAssinatura` segue como
+  // era — ele alimenta o Hero, que já trata o vitalício à parte.
+  const ordemAtual = isVitalicio ? 0 : ORDEM_PLANO[planoAtual];
   const temAssinatura = planoAtual !== 'inativo';
   const validoAte = perfil?.plano_valido_ate ? new Date(perfil.plano_valido_ate) : null;
   const intervaloAssinatura = (perfil?.plano_intervalo as Intervalo | undefined) ?? 'mensal';
@@ -491,6 +494,14 @@ function SecaoPlano() {
 
   async function iniciarCheckout(planoAlvo: PlanoId) {
     setFeedback(null);
+    // ⚠️ VITALÍCIO VIRA ASSINATURA (irreversível) — mesmo aviso da /planos.
+    if (isVitalicio) {
+      const ok = window.confirm(
+        'Atenção: ao assinar um plano, seu acesso VITALÍCIO (pago uma vez, pra sempre) '
+        + 'será substituído por esta assinatura recorrente. Essa troca não tem volta — '
+        + 'cancelar a assinatura depois não devolve o vitalício.\n\nDeseja continuar?');
+      if (!ok) return;
+    }
     setLoadingPlano(planoAlvo);
     try {
       const intervalo: Intervalo = anual ? 'anual' : 'mensal';
@@ -561,11 +572,13 @@ function SecaoPlano() {
       ═══════════════════════════════════════════════════════════ */}
       {ofertas.assinaturas && (
       <Card
-        titulo={temAssinatura ? 'Mudar de plano' : 'Escolha seu plano'}
+        titulo={isVitalicio ? 'Trocar o vitalício por uma assinatura' : temAssinatura ? 'Mudar de plano' : 'Escolha seu plano'}
         subtitulo={
-          temAssinatura
-            ? 'Faça upgrade pra desbloquear mais recursos, ou downgrade quando quiser.'
-            : 'Comece quando quiser. Sem fidelidade, cancelamento a qualquer momento.'
+          isVitalicio
+            ? 'A assinatura inclui conexões de Open Finance (Premium: 3) sem a taxa de R$ 6/mês por conexão. ⚠️ Assinar substitui seu acesso vitalício — a troca não tem volta.'
+            : temAssinatura
+              ? 'Faça upgrade pra desbloquear mais recursos, ou downgrade quando quiser.'
+              : 'Comece quando quiser. Sem fidelidade, cancelamento a qualquer momento.'
         }
       >
         {/* Toggle Mensal/Anual */}
@@ -604,7 +617,7 @@ function SecaoPlano() {
             <PlanoCard
               key={p.id}
               plano={p}
-              ehAtual={p.id === planoAtual}
+              ehAtual={!isVitalicio && p.id === planoAtual}
               ordemAtual={ordemAtual}
               anual={anual}
               loading={loadingPlano === p.id}

@@ -192,10 +192,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // 1) ATIVA O PLANO JÁ a partir do metadata — NÃO depende de buscar a
   //    assinatura. Antes, se o subscriptions.retrieve falhasse, o plano nunca
   //    era setado e o cliente ficava "inativo" mesmo tendo pago (e re-pagava).
+  //
+  // ⚠️ CONVERTE O VITALÍCIO. Quem era vitalício e assina um plano recorrente
+  // DELIBERADAMENTE (passou pelo checkout) está trocando o vitalício pela
+  // assinatura — por decisão do cliente (ex.: quer Open Finance incluso em vez
+  // de pagar R$6/conexão). Sem zerar `vitalicio` aqui, o `acessoOpenFinance`
+  // continuaria dando franquia 0 (vitalício vence o plano) e a migração não
+  // resolveria nada. Só acontece neste caminho (compra deliberada de plano
+  // recorrente); a BLINDAGEM contra rebaixar vitalício por evento solto segue
+  // intacta em updateUserFromSub/handleSubscriptionDeleted.
   await supabaseAdmin.from('users').update({
     plano,
     plano_intervalo:    intervalo ?? null,
     stripe_customer_id: (session.customer as string) ?? null,
+    vitalicio:          false,
   }).eq('id', userId);
 
   // 2) Enriquece com validade + id da assinatura (best-effort — se falhar, o

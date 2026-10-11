@@ -11,7 +11,15 @@ import type { Plano } from './plans';
 //   · Kit ........................ SÓ o upgrade pra Completa (+R$ 50).
 //   · Assinante (mensal/anual) ... as assinaturas; a Completa vitalícia NÃO.
 //   · Sem plano pago (inativo, grátis) ... as assinaturas E a Completa (R$ 97).
-//   · Já vitalício completo ...... nada a vender.
+//   · Vitalício completo ......... as assinaturas (pode MIGRAR), sem a Completa.
+//
+// ⚠️ MUDANÇA out/2026: o vitalício completo PASSOU A VER a grade de assinaturas.
+// Antes via "nada a vender" — e quem quisesse trocar o vitalício por uma
+// assinatura (ex.: pra ter Open Finance incluso em vez de pagar R$6/conexão)
+// não tinha por onde: a tela escondia os planos e o jeito era cancelar o
+// vitalício à mão antes. Agora ele vê os planos e, ao assinar, o webhook
+// converte a conta (tira o vitalício) — self-service, sem remendo. A Completa
+// vitalícia ele não vê (já tem). Relato: Yoshima/Davidson.
 //
 // ⚠️ NO APP ANDROID NADA É VENDIDO. Política do Google Play: assinatura dentro
 // do app exige Play Billing, e link ou texto persuasivo pra outro meio de
@@ -40,7 +48,9 @@ export function ofertasDoPlano(p: {
   // Kit vem antes do `vitalicio`: a conta Kit também tem a flag, e é justamente
   // a que ainda tem pra onde subir.
   if (p.plano === 'kit') return { assinaturas: false, upgradeKit: true, completaVitalicia: false };
-  if (p.vitalicio) return NADA;
+  // Vitalício completo: vê as assinaturas (pode migrar), mas NÃO a Completa — já
+  // tem o vitalício. Ao assinar, o webhook converte a conta (zera `vitalicio`).
+  if (p.vitalicio) return { assinaturas: true, upgradeKit: false, completaVitalicia: false };
   const semPlanoPago = p.plano === 'inativo' || p.plano === 'gratis';
   return { assinaturas: true, upgradeKit: false, completaVitalicia: semPlanoPago };
 }

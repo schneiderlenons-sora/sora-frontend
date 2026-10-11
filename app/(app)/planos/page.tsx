@@ -147,6 +147,18 @@ function PlanosContent() {
 
   async function assinar(plano: PlanoId, intervaloForcado?: Intervalo) {
     setErro('');
+    // ⚠️ VITALÍCIO VIRA ASSINATURA — e é irreversível. Quem tem acesso vitalício
+    // e assina um plano recorrente TROCA o vitalício pela assinatura (o webhook
+    // zera `vitalicio`). Sem este aviso, um toque sem querer custaria o acesso
+    // "pra sempre" que a pessoa pagou. Cancelar a assinatura depois NÃO devolve
+    // o vitalício.
+    if (isVitalicio) {
+      const ok = window.confirm(
+        'Atenção: ao assinar um plano, seu acesso VITALÍCIO (pago uma vez, pra sempre) '
+        + 'será substituído por esta assinatura recorrente. Essa troca não tem volta — '
+        + 'cancelar a assinatura depois não devolve o vitalício.\n\nDeseja continuar?');
+      if (!ok) return;
+    }
     setLoading(plano);
     try {
       const intervalo: Intervalo = intervaloForcado ?? (anual ? 'anual' : 'mensal');
@@ -201,8 +213,14 @@ function PlanosContent() {
     }
   }
 
-  const ordemAtual = ORDEM[planoAtual];
-  const temAssinatura = planoAtual !== 'inativo' && !!perfil;
+  // ⚠️ VITALÍCIO não tem assinatura recorrente (o plano dele veio do pagamento
+  // único, não do Stripe). Pra GRADE de assinaturas, ele é tratado como quem
+  // ainda não assina: ordem 0 (todo card vira "Assinar", nenhum "Atual"/portal)
+  // e `temAssinatura` false (o botão "Gerenciar assinatura" abriria o portal do
+  // Stripe, que ele não tem). O cartão de status "Você é Vitalício" continua
+  // aparecendo acima; a grade é a opção de MIGRAR.
+  const ordemAtual = isVitalicio ? 0 : ORDEM[planoAtual];
+  const temAssinatura = !isVitalicio && planoAtual !== 'inativo' && !!perfil;
 
   return (
     <>
@@ -400,8 +418,26 @@ function PlanosContent() {
           )}
         </div>
 
-        {/* Assinaturas recorrentes — nem pra vitalício (Kit inclusive: o caminho
-            dele é o upgrade) nem dentro do app Android. */}
+        {/* Nota de MIGRAÇÃO pro vitalício: a grade abaixo é opção de troca, não
+            uma cobrança nova. Deixa claro que assinar substitui o vitalício —
+            e que conexões de Open Finance entram inclusas no plano. */}
+        {isVitalicio && (
+          <div className="max-w-2xl mx-auto rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm text-foreground/80 leading-relaxed">
+            <p>
+              <span className="font-bold text-foreground">Quer trocar o vitalício por uma assinatura?</span>{' '}
+              Útil, por exemplo, pra quem vai conectar vários bancos: a assinatura
+              já inclui conexões de Open Finance (Premium: 3) sem a taxa de R$ 6/mês por conexão.
+            </p>
+            <p className="mt-1.5 text-muted-foreground">
+              Escolha um plano abaixo. ⚠️ Assinar <span className="font-semibold">substitui</span> seu
+              acesso vitalício — a troca não tem volta.
+            </p>
+          </div>
+        )}
+
+        {/* Assinaturas recorrentes — grade de Básico/Premium/Platinum. Vitalício
+            VÊ a grade (pode migrar; o webhook converte a conta ao assinar); só
+            o app Android não vende (Play Billing). */}
         {ofertas.assinaturas && (
         <>
         {/* Toggle mensal/anual */}
@@ -439,7 +475,10 @@ function PlanosContent() {
           {PLANOS.map((p) => {
             const info       = PLANOS_INFO[p.id];
             const preco      = anual ? info.anual : info.mensal;
-            const ehAtual    = planoAtual === p.id;
+            // Vitalício não tem plano recorrente "atual": nenhum card é marcado
+            // como Atual, pra Premium ficar assinável (senão virava "Gerenciar
+            // assinatura" e ela não conseguiria migrar pro Premium).
+            const ehAtual    = !isVitalicio && planoAtual === p.id;
             const ehIntencao = planoIntencaoValido === p.id && planoAtual === 'inativo';
             const podeSubir  = ORDEM[p.id] > ordemAtual;
             const podeDescer = ORDEM[p.id] < ordemAtual && ordemAtual > 0;
