@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEhAndroid } from '@/lib/useOrigem';
+import { useEhAppNativo } from '@/lib/useOrigem';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
@@ -42,7 +42,9 @@ const ORDEM: Record<Plano, number> = {
 
 function PlanosContent() {
   const { perfil, plano: planoAtual, recarregar, isVitalicio } = useAuth();
-  const ehAndroid = useEhAndroid();
+  // ⚠️ Venda escondida SÓ dentro do app nativo (Play policy) — não em qualquer
+  // Chrome de quem instalou o app. Ver useEhAppNativo (relato Lushima).
+  const ehAndroid = useEhAppNativo();
   const searchParams = useSearchParams();
   const [anual, setAnual]         = useState(false);
   const [loadingPlano, setLoading] = useState<string | null>(null);

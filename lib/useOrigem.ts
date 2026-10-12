@@ -4,6 +4,36 @@ import { useEffect, useState } from 'react';
 import { detectarOrigem, esquecerOrigem, PARAM_ANDROID, type Origem } from './origem-app';
 
 /**
+ * `true` SÓ quando a sessão está rodando DENTRO do app nativo (TWA) agora.
+ *
+ * ⚠️ POR QUE NÃO BASTA `useEhAndroid`: a origem 'android' é PERSISTIDA
+ * (localStorage), e o TWA compartilha a storage com o Chrome da mesma origem.
+ * Resultado: quem abriu o app UMA vez ficava marcado 'android' também no
+ * Chrome — e a trava de venda do Google Play (ofertasDoPlano) escondia os planos
+ * no navegador comum, impedindo o upgrade (relato Lushima, out/2026, vitalícia
+ * que não conseguia migrar). A política do Play só proíbe vender DENTRO do app;
+ * no Chrome do Android a venda é permitida.
+ *
+ * O sinal confiável de "estou no app agora" é a JANELA STANDALONE (o TWA sempre
+ * abre sem barra de navegador). Chrome em aba comum nunca é standalone. Assim a
+ * venda é escondida só no app de verdade (Play ok) e volta a aparecer no Chrome.
+ */
+export function useEhAppNativo(): boolean {
+  const origem = useOrigem();            // 'web' até montar (origem persistida)
+  const [standalone, setStandalone] = useState(false);
+  useEffect(() => {
+    try {
+      setStandalone(
+        window.matchMedia('(display-mode: standalone)').matches
+        || window.matchMedia('(display-mode: fullscreen)').matches
+        || (window.navigator as { standalone?: boolean }).standalone === true,
+      );
+    } catch { /* sem matchMedia (ambiente estranho): fica false, lado seguro = mostra a venda no site */ }
+  }, []);
+  return origem === 'android' && standalone;
+}
+
+/**
  * A origem desta sessão, para componentes.
  *
  * ⚠️ COMEÇA SEMPRE EM 'web' E SÓ MUDA DEPOIS DE MONTAR. O servidor não tem

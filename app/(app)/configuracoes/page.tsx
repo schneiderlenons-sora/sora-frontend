@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEhAndroid } from '@/lib/useOrigem';
+import { useEhAppNativo } from '@/lib/useOrigem';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
@@ -459,7 +459,9 @@ const ORDEM_PLANO: Record<Plano, number> = {
 
 function SecaoPlano() {
   const { perfil, plano: planoAtual, recarregar, isVitalicio } = useAuth();
-  const ehAndroid = useEhAndroid();
+  // Venda escondida só DENTRO do app nativo (Play policy), não no Chrome de quem
+  // instalou o app (relato Lushima — vitalícia não via os planos). Ver useEhAppNativo.
+  const ehAndroid = useEhAppNativo();
   const [anual, setAnual] = useState(false);
   const [loadingPlano, setLoadingPlano] = useState<string | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
