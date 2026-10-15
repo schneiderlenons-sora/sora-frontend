@@ -98,6 +98,17 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
    *  ainda não rodou, o PUT falha e o estado volta. */
   async function togglePrevistos(d: any) {
     const novo = d.nos_previstos === false;   // estava fora → passa a mostrar
+    // ⚠️ DESLIGAR pede confirmação: tirar a dívida dos previstos a faz sumir do
+    // Extrato e do total do mês EM SILÊNCIO — e foi exatamente a confusão do
+    // relato (Vander achou que a parcela da Creta tinha sumido). Ligar de volta
+    // não precisa confirmar.
+    if (!novo) {
+      const titulo = d.titulo || d.credor || 'esta dívida';
+      const ok = window.confirm(
+        `Tirar "${titulo}" dos previstos?\n\nA parcela deixa de aparecer no Extrato Futuro e no total do mês `
+        + `(a dívida continua na aba Dívidas). Você pode voltar a qualquer momento no botão "Voltar" do card.`);
+      if (!ok) return;
+    }
     setDividas(prev => prev.map(x => x.id === d.id ? { ...x, nos_previstos: novo } : x));
     try {
       await api.dividas.editar(d.id, { nos_previstos: novo });
