@@ -17,6 +17,8 @@ import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 import PagamentosDaFatura from '@/components/cartoes/PagamentosDaFatura';
 
 const BRAND = 'hsl(var(--primary))';
+// 'YYYY-MM-DD' → 'DD/MM' (rótulo do período da fatura).
+const ddmm = (iso?: string) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 const MES_NOMES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const MES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
@@ -633,10 +635,19 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
 
           {/* Gastos por categoria */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">Gastos por categoria</p>
               <span className="text-xs text-muted-foreground">{txs.length} transaç{txs.length === 1 ? 'ão' : 'ões'}</span>
             </div>
+            {/* ⚠️ RÓTULO DO PERÍODO: este ranking é da FATURA (ciclo real de
+                fechamento), que CRUZA meses — não do mês-calendário. Sem isto o
+                cliente estranha "Combustível R$ 602,99 aqui × R$ 150 no
+                relatório" (relato Vander): é a MESMA categoria em janelas
+                diferentes. `porCiclo=false` (cartão sem fechamento) cai no
+                mês-calendário e o rótulo coincide com o mês — segue correto. */}
+            <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+              Período da fatura · {ddmm(ciclo.ini)} a {ddmm(ciclo.fim)}
+            </p>
 
             {loading ? (
               <div className="py-6 flex items-center justify-center">
