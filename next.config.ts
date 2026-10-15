@@ -22,6 +22,14 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 // avisava isso em TODO build ("Unrecognized key(s) in object: 'eslint'"). Era
 // config morta gerando ruído — o lint do build não existe mais nesta versão.
 const nextConfig = {
+  // ⚠️ pdf.js (importação de fatura/extrato em PDF) fica EXTERNO no servidor: ele
+  // é usado só na API route `/api/importar/pdf` (Node), e seu `build/pdf.js`
+  // tem um `require("canvas")` preguiçoso (só pra RENDER, nunca na extração de
+  // texto). Bundlar derruba o build tentando resolver o canvas (que não
+  // instalamos); externo, ele é exigido de node_modules em runtime e o require
+  // do canvas nunca dispara. Ver lib/importar-pdf.ts.
+  serverExternalPackages: ['pdfjs-dist'],
+
   // O Android exige o assetlinks exatamente em /.well-known/assetlinks.json.
   // A rota real e /api/assetlinks (pra ler variavel de ambiente); o rewrite
   // faz a ponte. O matcher do middleware ignora caminhos com ponto, entao

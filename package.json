@@ -36,7 +36,8 @@
     "eval:formato-br": "npx tsx lib/formato-br.eval.mjs",
     "eval:contas-debito": "npx tsx lib/contas-debito.eval.mjs",
     "eval:paletas": "npx tsx lib/theme-colors.eval.mjs",
-    "eval:conexao-encerramento": "npx tsx lib/conexao-of-encerramento.eval.mjs"
+    "eval:conexao-encerramento": "npx tsx lib/conexao-of-encerramento.eval.mjs",
+    "eval:importar-pdf": "npx tsx lib/importar-pdf.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",
@@ -50,6 +51,7 @@
     "next": "16.2.6",
     "next-intl": "^4.13.4",
     "next-themes": "^0.4.6",
+    "pdfjs-dist": "^3.11.174",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "read-excel-file": "^9.3.10",

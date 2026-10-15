@@ -9,6 +9,9 @@ import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { useDinheiro } from '@/lib/moeda-base';
 // Planilha (CSV ou Excel) sai de um parser só — ver lib/importar-tabela.ts.
 import { parseCSV, parseTabela, ehPlanilhaExcel, type TxParsed, type Celula } from '@/lib/importar-tabela';
+// PDF (fatura/extrato): a extração de texto roda no servidor (/api/importar/pdf,
+// pdf.js em Node); aqui só interpretamos as linhas. Ver lib/importar-pdf.ts.
+import { parsePdfLinhas } from '@/lib/importar-pdf';
 
 // ─────────────────────────────────────────────────────────────
 // PARSERS
@@ -79,7 +82,7 @@ const fmtData = (d: string) =>
 interface Props {
   phone:   string;
   wallets: any[];
-  formato: 'ofx' | 'csv';
+  formato: 'ofx' | 'csv' | 'pdf';
   onClose:   () => void;
   onSuccess: (qtd: number) => void;
 }
@@ -123,12 +126,14 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   // seguro: o conteúdo é validado depois, com mensagem clara.
   const aceitarExt = formato === 'ofx'
     ? '.ofx,.OFX,.qfx,application/x-ofx,application/ofx,application/vnd.intu.qfx,application/octet-stream'
+    : formato === 'pdf'
+    ? '.pdf,.PDF,application/pdf'
     : [
         '.csv', '.CSV', '.txt', '.xlsx', '.XLSX',
         'text/csv', 'text/comma-separated-values', 'application/csv', 'text/plain',
         'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ].join(',');
-  const nomeFormato = formato === 'ofx' ? 'OFX' : 'planilha';
+  const nomeFormato = formato === 'ofx' ? 'OFX' : formato === 'pdf' ? 'PDF' : 'planilha';
   const walletNome = wallets.find(w => w.id === walletId)?.nome || 'Dinheiro';
 
   // Carrega categorias pra o seletor da revisão
@@ -144,7 +149,14 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   async function handleFile(file: File) {
     setArquivoNome(file.name);
     setErroParse('');
-    if (file.size > 5 * 1024 * 1024) { setErroParse('Arquivo muito grande (máx. 5 MB).'); return; }
+    // PDF sobe pro servidor (limite da Vercel ~4,5 MB); OFX/planilha são lidos aqui.
+    const limiteMB = formato === 'pdf' ? 4 : 5;
+    if (file.size > limiteMB * 1024 * 1024) {
+      setErroParse(formato === 'pdf'
+        ? 'PDF muito grande (máx. 4 MB). Se for maior, exporte em OFX ou planilha.'
+        : 'Arquivo muito grande (máx. 5 MB).');
+      return;
+    }
     if (!walletId) { setErroParse('Selecione a conta destino antes de escolher o arquivo.'); return; }
 
     setAnalisando(true);
@@ -155,7 +167,19 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
         return;
       }
       let txs: TxParsed[];
-      if (formato === 'ofx') {
+      if (formato === 'pdf') {
+        // Extração no servidor (pdf.js em Node); o parse e a revisão são aqui.
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/importar/pdf', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setErroParse(data.erro || 'Não consegui ler o PDF. Tente OFX ou planilha.');
+          setAnalisando(false);
+          return;
+        }
+        txs = parsePdfLinhas(Array.isArray(data.linhas) ? data.linhas : []);
+      } else if (formato === 'ofx') {
         txs = parseOFX(await lerTexto(file));
       } else if (ehPlanilhaExcel(file.name)) {
         // Carregado só aqui: quem nunca importa Excel não baixa o leitor.
@@ -168,9 +192,12 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
         txs = parseCSV(await lerTexto(file));
       }
       if (txs.length === 0) {
-        setErroParse(formato === 'ofx'
-          ? 'Nenhuma transação detectada. Verifique se o arquivo é um OFX válido.'
-          : 'Nenhuma transação detectada. A planilha precisa de uma coluna de DATA e uma de VALOR (ou de Entrada e Saída).');
+        setErroParse(
+          formato === 'ofx'
+            ? 'Nenhuma transação detectada. Verifique se o arquivo é um OFX válido.'
+          : formato === 'pdf'
+            ? 'Não consegui ler lançamentos neste PDF. Alguns bancos geram PDF como imagem (escaneado) ou num layout que não dá pra ler — nesses casos, exporte em OFX ou planilha (CSV/Excel).'
+            : 'Nenhuma transação detectada. A planilha precisa de uma coluna de DATA e uma de VALOR (ou de Entrada e Saída).');
         setAnalisando(false);
         return;
       }
@@ -311,7 +338,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
 
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                2. Escolha o arquivo {formato === 'ofx' ? 'OFX' : 'CSV ou Excel'}
+                2. Escolha o arquivo {formato === 'ofx' ? 'OFX' : formato === 'pdf' ? 'PDF' : 'CSV ou Excel'}
               </label>
               <button onClick={() => walletId ? fileRef.current?.click() : setErroParse('Selecione a conta primeiro.')}
                 disabled={analisando || !walletId}
@@ -323,7 +350,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                 )}
                 <div className="text-center">
                   <p className="text-sm font-semibold text-foreground">{analisando ? 'Analisando…' : 'Clique para escolher o arquivo'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{formato === 'ofx' ? 'Aceita .ofx' : 'Aceita .csv, .txt ou .xlsx (Excel)'} (até 5 MB)</p>
+                  <p className="text-xs text-muted-foreground mt-1">{formato === 'ofx' ? 'Aceita .ofx' : formato === 'pdf' ? 'Aceita .pdf (fatura/extrato)' : 'Aceita .csv, .txt ou .xlsx (Excel)'} (até 5 MB)</p>
                 </div>
               </button>
               <input ref={fileRef} type="file" accept={aceitarExt} hidden
@@ -333,8 +360,9 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
             <div className="rounded-xl p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60">
               <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 mb-1.5">Onde baixo esse arquivo?</p>
               <p className="text-[11px] text-blue-700/90 dark:text-blue-300/90 leading-relaxed">
-                No app do seu banco: extrato → <strong>"Exportar/Compartilhar"</strong> → <strong>{formato === 'ofx' ? 'OFX' : 'CSV/Excel'}</strong>.
+                No app do seu banco: extrato/fatura → <strong>"Exportar/Compartilhar"</strong> → <strong>{formato === 'ofx' ? 'OFX' : formato === 'pdf' ? 'PDF' : 'CSV/Excel'}</strong>.
                 {formato === 'csv' && <> Vindo de <strong>outro app de finanças</strong>? Exporte em Excel ou CSV — reconhecemos colunas de data, descrição, valor e tipo (despesa/receita).</>}
+                {formato === 'pdf' && <> ⚠️ O PDF é <strong>lido de forma aproximada</strong> (cada banco diagrama diferente) — <strong>confira os lançamentos</strong> no próximo passo antes de salvar. Se vier incompleto, prefira <strong>OFX</strong> ou <strong>CSV/Excel</strong>, que são mais exatos. PDF <strong>escaneado (imagem)</strong> não dá pra ler.</>}
                 {' '}Transações que você já tem na conta são detectadas e marcadas como duplicadas no próximo passo.
               </p>
             </div>

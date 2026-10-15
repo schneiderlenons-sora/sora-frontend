@@ -103,7 +103,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     window.addEventListener('scroll', fechar, { passive: true });
     return () => { window.removeEventListener('resize', fechar); window.removeEventListener('scroll', fechar); };
   }, [importMenuOpen]);
-  const [importarFormato, setImportarFormato] = useState<'ofx' | 'csv' | null>(null);
+  const [importarFormato, setImportarFormato] = useState<'ofx' | 'csv' | 'pdf' | null>(null);
   const [importToast, setImportToast] = useState<string>('');
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
   const [editTx, setEditTx] = useState<any | null>(null);
@@ -636,13 +636,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         <span>Importar planilha (CSV ou Excel)</span>
                       </button>
                       <button
-                        disabled
-                        title="Em breve"
-                        className="w-full flex items-center gap-2.5 px-3 py-3 sm:py-2 rounded-lg text-sm text-muted-foreground/60 cursor-not-allowed"
+                        onClick={() => { setImportarFormato('pdf'); setImportMenuOpen(false); }}
+                        disabled={!podeImportarCSV}
+                        className="w-full flex items-center gap-2.5 px-3 py-3 sm:py-2 rounded-lg hover:bg-muted text-sm text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <FileText size={14} />
-                        <span>Importar PDF</span>
-                        <span className="ml-auto text-[9px] uppercase tracking-wider font-bold bg-muted px-1.5 py-0.5 rounded-full">Em breve</span>
+                        <FileText size={14} className="text-muted-foreground" />
+                        <span>Importar PDF (fatura/extrato)</span>
                       </button>
                     </div>
                   </>,
