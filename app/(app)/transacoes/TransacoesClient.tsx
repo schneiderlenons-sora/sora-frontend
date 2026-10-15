@@ -9,6 +9,10 @@ import EditarTransacaoModal from '@/components/transacoes/EditarTransacaoModal';
 import EditarLoteModal, { type PatchLote } from '@/components/transacoes/EditarLoteModal';
 import RatearModal from '@/components/transacoes/RatearModal';
 import JuntarRateioModal from '@/components/transacoes/JuntarRateioModal';
+import {
+  ConciliarSugestoes, ConciliarSheet, SeloConciliar,
+  type ParConciliavel, idPar, lerDispensados, dispensarPar,
+} from '@/components/transacoes/ConciliarBanco';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAvatarMembros } from '@/lib/useAvatarMembros';
@@ -155,6 +159,50 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const txs: any[]     = txData?.transacoes ?? [];
   const wallets: any[] = wData ?? [];
   const resumo: any    = rData ?? { receitas: 0, gastos: 0, por_categoria: [] };
+
+  // ── Conciliar previsto manual × cobrança IGUAL do banco ────────────────────
+  // ⚠️ `useSWR` direto, não `useApi`: é sugestão secundária, e o `useApi`
+  // registraria no LoadingGate — a baleia cobriria a aba inteira esperando um
+  // extra. Falha = lista vazia (o servidor já responde 200 com `[]`).
+  const { data: concData, mutate: mConc } = useSWR(
+    phone && !verArquivadas ? chave.conciliaveis(phone) : null,
+    () => api.transacoes.conciliaveis(phone),
+    { revalidateOnFocus: false, dedupingInterval: 10000 },
+  );
+  const [dispensados, setDispensados] = useState<Set<string>>(new Set());
+  useEffect(() => { setDispensados(lerDispensados()); }, []);   // localStorage só no client
+  const paresConciliar: ParConciliavel[] = useMemo(
+    () => (concData?.pares ?? []).filter((p) => !dispensados.has(idPar(p))),
+    [concData, dispensados],
+  );
+  const parPorPrevisto = useMemo(
+    () => new Map(paresConciliar.map((p) => [p.previsto.id, p] as const)),
+    [paresConciliar],
+  );
+  const [parAberto, setParAberto] = useState<ParConciliavel | null>(null);
+
+  async function conciliarPar(p: ParConciliavel) {
+    // Quem fica é a linha do BANCO, herdando nome e categoria do previsto; o
+    // servidor reconfere a prova e recusa se não for a mesma cobrança.
+    await api.transacoes.fundir({ manter_id: p.banco.id, descartar_id: p.previsto.id, herdar_rotulo: true });
+    setParAberto(null);
+    // A fusão JÁ aconteceu: daqui pra baixo é só a tela alcançar o servidor.
+    mConc((cur) => cur ? { pares: cur.pares.filter((x) => idPar(x) !== idPar(p)) } : cur, { revalidate: true });
+    mTx((cur: any) => cur ? {
+      ...cur,
+      transacoes: (cur.transacoes || [])
+        .filter((t: any) => t.id !== p.previsto.id)
+        .map((t: any) => (t.id === p.banco.id ? {
+          ...t,
+          observacao: p.previsto.observacao || t.observacao,
+          categoria: p.previsto.categoria || t.categoria,
+        } : t)),
+      total: Math.max(0, (cur.total || 1) - 1),
+    } : cur, { revalidate: true });
+    mR();
+    setImportToast(`✓ Conciliado: “${(p.previsto.observacao || '').trim() || 'lançamento'}” agora é um só, pago pelo banco.`);
+    setTimeout(() => setImportToast(''), 5000);
+  }
 
   // Revalida tudo (usado após criar/importar transação).
   const carregar = useCallback(() => { mTx(); mW(); mR(); }, [mTx, mW, mR]);
@@ -758,6 +806,10 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         ═══════════════════════════════════════════════════════ */}
         <GastosFixosSection phone={phone} wallets={wallets} mesRef={mesRef} />
 
+        {/* Previsto manual cuja cobrança IGUAL já chegou do banco. Só existe
+            quando há par — sem par, não ocupa espaço nenhum. */}
+        <ConciliarSugestoes pares={paresConciliar} onAbrir={setParAberto} />
+
         {/* ═══════════════════════════════════════════════════════
             BARRA DE FILTROS
         ═══════════════════════════════════════════════════════ */}
@@ -986,6 +1038,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                       <TransactionRow
                         key={tx.id}
                         tx={tx}
+                        onConciliar={parPorPrevisto.has(tx.id) ? () => setParAberto(parPorPrevisto.get(tx.id)!) : undefined}
                         index={i}
                         ocultar={ocultar}
                         compartilhado={compartilhado}
@@ -1135,10 +1188,22 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         />
       )}
 
-      {/* Toast simples de feedback */}
+      {parAberto && (
+        <ConciliarSheet
+          par={parAberto}
+          onFechar={() => setParAberto(null)}
+          onConciliar={conciliarPar}
+          onDispensar={(p) => { dispensarPar(p); setDispensados((s) => new Set(s).add(idPar(p))); }}
+        />
+      )}
+
+      {/* Toast simples de feedback.
+          ⚠️ Sem `style={{ bottom }}` inline: ele ANULAVA as classes responsivas
+          e o toast nascia a 24px do fundo no celular — ATRÁS da barra inferior
+          (62px), invisível. As classes já dão a altura certa nos dois tamanhos. */}
       {importToast && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl animate-fade-in"
-             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
+        <div role="status" aria-live="polite"
+             className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:bottom-6 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md text-center px-4 py-3 rounded-2xl bg-green-600 text-white text-sm font-semibold shadow-2xl animate-fade-in">
           {importToast}
         </div>
       )}
@@ -1196,6 +1261,7 @@ function StatCard({
 function TransactionRow({
   tx, index, ocultar, compartilhado, avatar, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
+  onConciliar,
 }: any) {
   const fmt = useDinheiro();
   const temaCategoria = useTemaCategoria();
@@ -1368,6 +1434,10 @@ function TransactionRow({
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
                 <CheckCircle2 size={9} /> {isGasto ? 'Pago' : 'Recebido'}
               </span>
+            ) : onConciliar ? (
+              // Previsto cuja cobrança IGUAL já chegou do banco: no lugar de
+              // "Pendente" (que ficaria falso — o banco já cobrou), a ação.
+              <SeloConciliar onClick={onConciliar} />
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
                 <Clock size={9} /> {isGasto ? 'Pendente' : 'A receber'}

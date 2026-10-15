@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConfirmar } from '@/contexts/ConfirmContext';
 import { useEhAppNativo } from '@/lib/useOrigem';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import { supabase } from '@/lib/supabase';
@@ -459,6 +460,7 @@ const ORDEM_PLANO: Record<Plano, number> = {
 
 function SecaoPlano() {
   const { perfil, plano: planoAtual, recarregar, isVitalicio } = useAuth();
+  const confirmar = useConfirmar();
   // Venda escondida só DENTRO do app nativo (Play policy), não no Chrome de quem
   // instalou o app (relato Lushima — vitalícia não via os planos). Ver useEhAppNativo.
   const ehAndroid = useEhAppNativo();
@@ -498,10 +500,15 @@ function SecaoPlano() {
     setFeedback(null);
     // ⚠️ VITALÍCIO VIRA ASSINATURA (irreversível) — mesmo aviso da /planos.
     if (isVitalicio) {
-      const ok = window.confirm(
-        'Atenção: ao assinar um plano, seu acesso VITALÍCIO (pago uma vez, pra sempre) '
-        + 'será substituído por esta assinatura recorrente. Essa troca não tem volta — '
-        + 'cancelar a assinatura depois não devolve o vitalício.\n\nDeseja continuar?');
+      // Diálogo próprio: window.confirm some no navegador do WhatsApp.
+      const ok = await confirmar({
+        titulo: 'Trocar o vitalício pela assinatura?',
+        mensagem: 'Seu acesso VITALÍCIO (pago uma vez, pra sempre) será substituído por esta '
+          + 'assinatura recorrente. Essa troca não tem volta — cancelar a assinatura depois '
+          + 'não devolve o vitalício.',
+        confirmar: 'Continuar para o pagamento',
+        cancelar: 'Manter o vitalício',
+      });
       if (!ok) return;
     }
     setLoadingPlano(planoAlvo);

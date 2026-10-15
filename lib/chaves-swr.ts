@@ -80,6 +80,9 @@ export const chave = {
    */
   ocorrencias: (p: string, ymHoje: string) => `d:ocorrencias:${p}:${ymHoje}`,
 
+  /** `api.transacoes.conciliaveis(phone)` — previsto manual × cobrança igual do banco. */
+  conciliaveis: (p: string) => `d:conciliaveis:${p}`,
+
   /** `api.transacoes.listar(phone, { mes, limit, criado_por, arquivadas })` */
   transacoes: (
     p: string,

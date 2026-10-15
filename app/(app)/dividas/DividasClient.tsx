@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConfirmar } from '@/contexts/ConfirmContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import NovaDividaModal from '@/components/dividas/NovaDividaModal';
@@ -44,6 +45,7 @@ const STATUS_INFO: Record<string, { label: string; cor: string }> = {
 export default function DividasClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const { phone: authPhone } = useAuth();
+  const confirmar = useConfirmar();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const [dividas, setDividas] = useState<any[]>([]);
   const [resumo,  setResumo]  = useState<any>({
@@ -104,9 +106,13 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
     // não precisa confirmar.
     if (!novo) {
       const titulo = d.titulo || d.credor || 'esta dívida';
-      const ok = window.confirm(
-        `Tirar "${titulo}" dos previstos?\n\nA parcela deixa de aparecer no Extrato Futuro e no total do mês `
-        + `(a dívida continua na aba Dívidas). Você pode voltar a qualquer momento no botão "Voltar" do card.`);
+      // Diálogo próprio: window.confirm some no navegador do WhatsApp.
+      const ok = await confirmar({
+        titulo: `Tirar "${titulo}" dos previstos?`,
+        mensagem: 'A parcela deixa de aparecer no Extrato Futuro e no total do mês (a dívida '
+          + 'continua na aba Dívidas). Você pode voltar a qualquer momento no botão "Voltar" do card.',
+        confirmar: 'Tirar dos previstos',
+      });
       if (!ok) return;
     }
     setDividas(prev => prev.map(x => x.id === d.id ? { ...x, nos_previstos: novo } : x));

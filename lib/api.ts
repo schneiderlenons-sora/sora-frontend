@@ -89,6 +89,12 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
  *  banco reconciliar · `nao_lancar` não cria nada (o card só soma o custo fixo). */
 export type ModoLancamentoFixo = 'lancar' | 'prever' | 'nao_lancar';
 
+/** Uma ponta do par "previsto manual × cobrança do banco" (GET /conciliaveis). */
+export type ParConciliavelTx = {
+  id: string; valor: number; tipo: string; observacao: string | null;
+  categoria: string | null; carteira_nome: string | null; data: string;
+};
+
 export type SugestaoCategoriaFixa = {
   id: string;
   descricao: string;
@@ -432,6 +438,11 @@ export const api = {
     // "manual pendente × banco" ou se não baterem como a mesma cobrança.
     fundir: (body: { manter_id: string; descartar_id: string; herdar_rotulo?: boolean }) =>
       req<{ ok: boolean; mantida: string; removida: string }>('/api/transacoes/fundir', { method: 'POST', body: JSON.stringify(body) }),
+    // Previstos manuais pendentes cuja cobrança IGUAL já chegou do banco — o par
+    // que o botão "Conciliar com o banco" oferece. Mesma régua do automático
+    // (prova do Watson + 1-pra-1 sem disputa); quem junta é o `fundir`.
+    conciliaveis: (phone: string) =>
+      req<{ pares: { previsto: ParConciliavelTx; banco: ParConciliavelTx }[] }>(`/api/transacoes/conciliaveis/${phone}`),
     // Previsões que o sync juntou SOZINHO com a cobrança do banco (últimos 7 dias).
     fusoesAuto: (phone: string) =>
       req<{ fusoes: any[] }>(`/api/transacoes/fusoes-auto/${phone}`),
