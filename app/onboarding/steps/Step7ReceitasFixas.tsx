@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import StepNav from '../components/StepNav';
 import { useSimboloMoeda } from '@/lib/moeda-base';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -59,7 +60,7 @@ export default function Step7ReceitasFixas() {
   async function salvar() {
     if (!phone || !liberado) return;
     try {
-      const num = (v: string) => parseFloat(String(v).replace(',', '.'));
+      const num = (v: string) => parseNumeroDigitado(v);
       // Fixa exige valor; variável não (o valor é só estimativa opcional).
       const validos = receitas.filter((r) => r.descricao.trim() && (r.variavel || num(r.valor) > 0));
       if (validos.length === 0) return;
@@ -89,7 +90,7 @@ export default function Step7ReceitasFixas() {
     }
   }
 
-  const temAlgum = receitas.some((r) => r.descricao.trim() && (r.variavel || parseFloat(String(r.valor).replace(',', '.')) > 0));
+  const temAlgum = receitas.some((r) => r.descricao.trim() && (r.variavel || parseNumeroDigitado(r.valor) > 0));
 
   return (
     <>

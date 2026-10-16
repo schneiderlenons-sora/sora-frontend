@@ -12,6 +12,7 @@ import { parseCSV, parseTabela, ehPlanilhaExcel, type TxParsed, type Celula } fr
 // PDF (fatura/extrato): a extração de texto roda no servidor (/api/importar/pdf,
 // pdf.js em Node); aqui só interpretamos as linhas. Ver lib/importar-pdf.ts.
 import { parsePdfLinhas } from '@/lib/importar-pdf';
+import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 
 // ─────────────────────────────────────────────────────────────
 // PARSERS
@@ -437,8 +438,17 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                               .map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <div className="flex gap-2">
-                            <input inputMode="decimal" value={String(r.valor).replace('.', ',')}
-                              onChange={e => patchRow(i, { valor: Math.abs(parseFloat(e.target.value.replace(',', '.')) || 0) })}
+                            {/* ⚠️ Lido ao SAIR do campo, não a cada tecla: controlado e
+                                reconvertido por tecla, "12," virava "12" na hora — a
+                                vírgula sumia e era impossível digitar centavos. `key`
+                                recria o campo se o valor mudar por fora. */}
+                            <input type="text" inputMode="decimal" key={`${i}:${r.valor}`}
+                              defaultValue={numeroParaCampo(r.valor, 2)}
+                              onBlur={e => {
+                                const v = parseNumeroDigitado(e.target.value);
+                                if (Number.isFinite(v) && Math.abs(v) !== r.valor) patchRow(i, { valor: Math.abs(v) });
+                                else e.target.value = numeroParaCampo(r.valor, 2);   // inválido: volta ao valor atual
+                              }}
                               className="w-full px-3 h-10 rounded-xl bg-background border border-border text-sm tabular focus:outline-none focus:border-primary" />
                             <button onClick={() => patchRow(i, { tipo: ehGasto ? 'Recebimento' : 'Gasto' })}
                               className={`px-2 h-10 rounded-xl text-xs font-bold flex-shrink-0 ${ehGasto ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-green-500/15 text-green-600 dark:text-green-400'}`}>

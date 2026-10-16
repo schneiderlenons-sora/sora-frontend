@@ -5,6 +5,7 @@ import { X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { fmtDataBR } from '@/lib/data-br';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -53,7 +54,7 @@ export default function ModalCustos({ periodo, onClose }: { periodo: string; onC
         phone,
         categoria,
         descricao: descricao.trim(),
-        valor: parseFloat(valor.replace(',', '.')) || 0,
+        valor: parseNumeroDigitado(valor) || 0,
         data,
         fornecedor: fornecedor.trim() || undefined,
       });

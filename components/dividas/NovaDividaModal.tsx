@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users, Ticket, Trophy } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 import { proximoVencimento } from '@/lib/vencimento-divida';
 // Quais contas podem pagar a parcela — a regra ja falhou dentro deste
@@ -74,7 +75,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   );
   const [parcelasTotal,   setParcelasTotal]   = useState<string>(edicao?.parcelas_total?.toString() || '');
   const [parcelasPagas,   setParcelasPagas]   = useState<string>(edicao?.parcelas_pagas?.toString() || '0');
-  const [taxaJuros,       setTaxaJuros]       = useState<string>(edicao?.taxa_juros?.toString() || '');
+  const [taxaJuros,       setTaxaJuros]       = useState<string>(numeroParaCampo(edicao?.taxa_juros));
   const [indexador,       setIndexador]       = useState<string>(edicao?.indexador || '');
   const [diaVencimento,   setDiaVencimento]   = useState<string>(edicao?.dia_vencimento?.toString() || '');
   /** De qual conta sai a parcela (migration 182). */
@@ -108,8 +109,8 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   // ── Consórcio (migration 125) ────────────────────────────────────────────
   // O que separa consórcio de financiamento: existe uma CARTA (dinheiro a
   // receber) e uma CONTEMPLAÇÃO que divide a cota em antes e depois.
-  const [ccCredito,     setCcCredito]     = useState<string>(edicao?.consorcio_credito?.toString() || '');
-  const [ccLance,       setCcLance]       = useState<string>(edicao?.consorcio_lance?.toString() || '');
+  const [ccCredito,     setCcCredito]     = useState<string>(numeroParaCampo(edicao?.consorcio_credito, 2));
+  const [ccLance,       setCcLance]       = useState<string>(numeroParaCampo(edicao?.consorcio_lance, 2));
   const [ccGrupo,       setCcGrupo]       = useState<string>(edicao?.consorcio_grupo || '');
   const [ccCota,        setCcCota]        = useState<string>(edicao?.consorcio_cota || '');
   const [ccContemplado, setCcContemplado] = useState<boolean>(!!edicao?.consorcio_contemplado);
@@ -162,7 +163,8 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         valor_parcela:  valorParcelaRaw ? valorDasUnidades(parseInt(valorParcelaRaw, 10), moeda) : undefined,
         parcelas_total: parcelasTotal ? parseInt(parcelasTotal, 10) : undefined,
         parcelas_pagas: parseInt(parcelasPagas || '0', 10),
-        taxa_juros:     taxaJuros ? parseFloat(taxaJuros) : undefined,
+        // Vírgula OU ponto (lib/formato-br). Inválido vira undefined/null, nunca NaN no banco.
+        taxa_juros:     taxaJuros && Number.isFinite(parseNumeroDigitado(taxaJuros, { dinheiro: false })) ? parseNumeroDigitado(taxaJuros, { dinheiro: false }) : undefined,
         indexador:      indexador || undefined,
         dia_vencimento: diaVencimento ? parseInt(diaVencimento, 10) : undefined,
         conta_pagamento_id: contaPagamento || null,
@@ -172,8 +174,8 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         // Só manda os campos do consórcio quando o tipo é consórcio — assim
         // trocar de tipo não deixa carta órfã numa dívida que não é cota.
         ...(ehConsorcio ? {
-          consorcio_credito:       ccCredito ? parseFloat(ccCredito) : null,
-          consorcio_lance:         ccLance ? parseFloat(ccLance) : null,
+          consorcio_credito:       ccCredito && Number.isFinite(parseNumeroDigitado(ccCredito)) ? parseNumeroDigitado(ccCredito) : null,
+          consorcio_lance:         ccLance && Number.isFinite(parseNumeroDigitado(ccLance)) ? parseNumeroDigitado(ccLance) : null,
           consorcio_grupo:         ccGrupo.trim() || null,
           consorcio_cota:          ccCota.trim() || null,
           consorcio_contemplado:   ccContemplado,
@@ -429,7 +431,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                 <label htmlFor="cc-credito" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
                   Valor da carta de crédito
                 </label>
-                <input id="cc-credito" type="number" step="any" inputMode="decimal"
+                <input id="cc-credito" type="text" inputMode="decimal" autoComplete="off"
                   value={ccCredito} onChange={e => setCcCredito(e.target.value)}
                   placeholder="Quanto você vai receber" className="input tabular text-right" />
                 <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">
@@ -487,7 +489,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                     <label htmlFor="cc-lance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
                       Lance dado
                     </label>
-                    <input id="cc-lance" type="number" step="any" inputMode="decimal"
+                    <input id="cc-lance" type="text" inputMode="decimal" autoComplete="off"
                       value={ccLance} onChange={e => setCcLance(e.target.value)}
                       placeholder="0,00" className="input tabular text-right" />
                   </div>
@@ -504,11 +506,12 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                 {ehConsorcio ? 'Taxa de administração (%)' : 'Taxa de juros (% a.m.)'}
               </label>
               <input
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 value={taxaJuros}
                 onChange={e => setTaxaJuros(e.target.value)}
-                placeholder="Ex: 1.99"
+                placeholder="Ex: 1,99"
                 className="input tabular text-right"
               />
             </div>

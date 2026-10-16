@@ -7,6 +7,8 @@ import { nomeCategoria } from '@/lib/categorias';
 import SeletorCategoria, { type CatItem } from '@/components/transacoes/SeletorCategoria';
 import RegraForm from '@/components/agentes/RegraForm';
 import { useSimboloMoeda } from '@/lib/moeda-base';
+import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
+import { diaDe } from '@/lib/data-br';
 
 type Wallet = { id: string; nome: string; tipo?: string };
 
@@ -29,10 +31,14 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   const simbolo = useSimboloMoeda();
   const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>(tx.tipo === 'Recebimento' ? 'Recebimento' : 'Gasto');
   const [categoria,  setCategoria]  = useState<string>(tx.categoria || '');
-  const [valor,      setValor]      = useState<string>(String(tx.valor ?? ''));
+  // Valor em formato BR ("2911,60"); o conversor aceita vírgula OU ponto.
+  const [valor,      setValor]      = useState<string>(numeroParaCampo(tx.valor, 2));
   const [observacao, setObservacao] = useState<string>(tx.observacao || '');
   const [carteira,   setCarteira]   = useState<string>(tx.carteira_nome || tx.wallet_nome || '');
-  const [data,       setData]       = useState<string>((tx.data || '').slice(0, 10));
+  // ⚠️ `diaDe`, nunca `.slice(0, 10)`: transação do banco guarda o INSTANTE, e
+  // às 22h em Brasília o dia em UTC já é o seguinte — o campo mostrava (e
+  // salvar GRAVAVA) a data de amanhã. Ver lib/data-br.ts.
+  const [data,       setData]       = useState<string>(diaDe(tx.data));
   const [pago,       setPago]       = useState<boolean>(tx.pago !== false);
 
   // ⚠️ Guarda a CATEGORIA INTEIRA, não só o nome. O seletor precisa de `tipo`
@@ -67,8 +73,11 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   async function salvar() {
     if (salvando) return;
     setErro('');
-    const v = parseFloat(String(valor).replace(',', '.'));
-    if (isNaN(v) || v <= 0) { setErro('Informe um valor válido.'); return; }
+    // ⚠️ Conversor ÚNICO (vírgula ou ponto). O antigo `parseFloat(x.replace(',', '.'))`
+    // lia "2.911,60" como 2,911 — e o campo numérico do navegador em inglês
+    // não aceitava vírgula (relato Vander, out/2026).
+    const v = parseNumeroDigitado(valor);
+    if (isNaN(v) || v <= 0) { setErro('Informe um valor válido (ex.: 2.911,60).'); return; }
 
     const querRegra = aplicarTodas && mudouCategoria && !!estabelecimento;
     const payload = {
@@ -222,7 +231,10 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Valor ({simbolo})</label>
-              <input type="number" step="any" value={valor} onChange={e => setValor(e.target.value)} className="input w-full tabular" />
+              {/* Texto + teclado decimal, NÃO type="number": o campo numérico
+                  segue o idioma do NAVEGADOR (em inglês, só aceita ponto). */}
+              <input type="text" inputMode="decimal" autoComplete="off" placeholder="0,00"
+                     value={valor} onChange={e => setValor(e.target.value)} className="input w-full tabular" />
             </div>
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Data</label>

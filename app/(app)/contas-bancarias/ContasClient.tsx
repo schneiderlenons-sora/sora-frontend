@@ -27,6 +27,7 @@ import {
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -258,9 +259,9 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
       phone,
       nome:   form.nome.trim(),
       tipo:   form.tipo,
-      saldo:  parseFloat((form.saldo || '0').replace(',', '.')) || 0,
+      saldo:  parseNumeroDigitado(form.saldo || '0') || 0,
       limite: 0,
-      cheque_especial: Math.abs(parseFloat((form.cheque || '0').replace(',', '.')) || 0),
+      cheque_especial: Math.abs(parseNumeroDigitado(form.cheque || '0') || 0),
       // ⚠️ O `saldo` acima está NA MOEDA DA CONTA, não em reais. Uma conta
       // Nomad com US$ 6.834,56 guarda 6834.56 — o equivalente em real é
       // derivado pelo backend (`saldo_base`) e muda com o câmbio, como deve.
@@ -1107,18 +1108,21 @@ function AjusteSaldoModal({
 }) {
   const fmt = useDinheiro();
   const simbolo = useSimboloMoeda();
-  const [novoSaldo, setNovoSaldo] = useState(String(wallet.saldo));
+  const [novoSaldo, setNovoSaldo] = useState(numeroParaCampo(wallet.saldo, 2));
   const [salvando,  setSalvando]  = useState(false);
   const [erro,      setErro]      = useState('');
 
   async function handleSalvar() {
+    // ⚠️ Conversor único: o antigo lia "1.500,00" como 1,5 e gravava esse saldo.
+    const saldoNovo = parseNumeroDigitado(novoSaldo);
+    if (!Number.isFinite(saldoNovo)) { setErro('Informe um saldo válido (ex.: 1.500,00).'); return; }
     setSalvando(true); setErro('');
     try {
       await api.wallets.salvar({
         phone,
         nome:  wallet.nome,
         tipo:  wallet.tipo,
-        saldo: parseFloat(novoSaldo.replace(',', '.')),
+        saldo: saldoNovo,
       });
       onSuccess();
       onClose();
@@ -1129,7 +1133,7 @@ function AjusteSaldoModal({
     }
   }
 
-  const diff = parseFloat(novoSaldo.replace(',', '.')) - wallet.saldo;
+  const diff = parseNumeroDigitado(novoSaldo) - wallet.saldo;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -1217,7 +1221,7 @@ function TransferenciaModal({
 
   const contaOrigem  = wallets.find(w => w.id === origem);
   const contaDestino = wallets.find(w => w.id === destino);
-  const v            = parseFloat((valor || '0').replace(',', '.')) || 0;
+  const v            = parseNumeroDigitado(valor || '0') || 0;
   const saldoOrigem  = contaOrigem?.saldo || 0;
   // Cheque especial: pode transferir até saldo + limite (deixa a conta negativa).
   const chequeOrigem = Math.abs(contaOrigem?.cheque_especial || 0);

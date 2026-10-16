@@ -5,6 +5,7 @@ import { X, Loader2, AlertCircle, Check, ChevronLeft, Shield } from 'lucide-reac
 import { api } from '@/lib/api';
 import AutocompleteTicker, { TickerResult } from './AutocompleteTicker';
 import { useMoedaBase, useSimboloMoeda } from '@/lib/moeda-base';
+import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 
 const TIPOS = [
   { v: 'Ações',           emoji: '📈', desc: 'Brasileiras e internacionais', autoTicker: true },
@@ -80,9 +81,14 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
 
   // Preço pro input: 2 casas pra valores >= 1, mais casas pra cripto barata.
   function fmtPrecoInput(v: number): string {
-    if (v >= 1) return v.toFixed(2);
-    return v.toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+    if (v >= 1) return v.toFixed(2).replace('.', ',');
+    return v.toFixed(8).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
   }
+
+  // Vírgula OU ponto (lib/formato-br). Valor investido é DINHEIRO; quantidade,
+  // preço unitário (cripto tem 8 casas) e taxas não — "0,125" é fração, não 125.
+  const numD = (s: string) => parseNumeroDigitado(s);
+  const numQ = (s: string) => parseNumeroDigitado(s, { dinheiro: false });
 
   async function onTickerPick(r: TickerResult) {
     const tk = r.cripto ? (r.id || r.ticker.toLowerCase()) : r.ticker;
@@ -99,8 +105,8 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
       const preco = c?.precoBase ?? (moedaBase === 'BRL' ? c?.precoBRL : undefined);
       if (preco) {
         setPrecoUnitario(fmtPrecoInput(preco));
-        const q = parseFloat(quantidade) || 0;
-        if (q > 0) setValorAportado((q * preco).toFixed(2));
+        const q = numQ(quantidade) || 0;
+        if (q > 0) setValorAportado(numeroParaCampo(q * preco, 2));
         setCotacaoInfo(
           c.moedaOriginal && c.moedaOriginal !== moedaBase
             ? `Cotação: ${simbolo} ${preco.toFixed(2)} · convertido de ${c.precoOriginal?.toFixed(2)} ${c.moedaOriginal} (câmbio ${(c.taxaBase ?? c.taxa)?.toFixed(2)})`
@@ -123,16 +129,16 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
   }
 
   function calcValorAportado() {
-    const q = parseFloat(quantidade) || 0;
-    const p = parseFloat(precoUnitario) || 0;
-    if (q > 0 && p > 0) setValorAportado((q * p).toFixed(2));
+    const q = numQ(quantidade) || 0;
+    const p = numQ(precoUnitario) || 0;
+    if (q > 0 && p > 0) setValorAportado(numeroParaCampo(q * p, 2));
   }
 
   async function handleSalvar() {
     setErro('');
     if (!tipoSel) return;
     if (!nome.trim()) { setErro('Informe o nome.'); return; }
-    if (!valorAportado || parseFloat(valorAportado) <= 0) { setErro('Informe o valor investido.'); return; }
+    if (!(numD(valorAportado) > 0)) { setErro('Informe o valor investido (ex.: 1.500,00).'); return; }
 
     setLoading(true);
     try {
@@ -141,15 +147,15 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
         tipo:           tipoSel.v,
         nome:           nome.trim(),
         ticker:         ticker || null,
-        valor_aportado: parseFloat(valorAportado),
-        quantidade:     parseFloat(quantidade) || 1,
-        preco_unitario: parseFloat(precoUnitario) || parseFloat(valorAportado),
+        valor_aportado: numD(valorAportado),
+        quantidade:     numQ(quantidade) || 1,
+        preco_unitario: numQ(precoUnitario) || numD(valorAportado),
         data_compra:    dataCompra,
         is_reserva_emergencia: isReserva,
-        taxa_anual:     taxaAnual ? parseFloat(taxaAnual) : null,
+        taxa_anual:     taxaAnual && Number.isFinite(numQ(taxaAnual)) ? numQ(taxaAnual) : null,
         data_vencimento: dataVencimento || null,
         indexador:      indexador || null,
-        percentual_indexador: pctIndexador ? parseFloat(pctIndexador) : null,
+        percentual_indexador: pctIndexador && Number.isFinite(numQ(pctIndexador)) ? numQ(pctIndexador) : null,
       };
       await api.investimentos.criar(payload);
       onSuccess();
@@ -277,11 +283,11 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Quantidade</label>
-                    <input type="number" step="any" value={quantidade} onChange={e => setQuantidade(e.target.value)} onBlur={calcValorAportado} className="input tabular" />
+                    <input type="text" inputMode="decimal" autoComplete="off" value={quantidade} onChange={e => setQuantidade(e.target.value)} onBlur={calcValorAportado} className="input tabular" />
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Preço médio ({simbolo})</label>
-                    <input type="number" step="any" value={precoUnitario} onChange={e => setPrecoUnitario(e.target.value)} onBlur={calcValorAportado} className="input tabular" />
+                    <input type="text" inputMode="decimal" autoComplete="off" value={precoUnitario} onChange={e => setPrecoUnitario(e.target.value)} onBlur={calcValorAportado} className="input tabular" />
                   </div>
                 </div>
               )}
@@ -298,7 +304,7 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">% do indexador</label>
-                    <input type="number" step="any" value={pctIndexador} onChange={e => setPctIndexador(e.target.value)} placeholder="100" className="input tabular" />
+                    <input type="text" inputMode="decimal" autoComplete="off" value={pctIndexador} onChange={e => setPctIndexador(e.target.value)} placeholder="100" className="input tabular" />
                   </div>
                 </div>
               )}
@@ -308,7 +314,7 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Taxa anual (%)</label>
-                    <input type="number" step="any" value={taxaAnual} onChange={e => setTaxaAnual(e.target.value)} className="input tabular" />
+                    <input type="text" inputMode="decimal" autoComplete="off" value={taxaAnual} onChange={e => setTaxaAnual(e.target.value)} className="input tabular" />
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Vencimento</label>
@@ -321,7 +327,7 @@ export default function NovoInvestimentoModal({ phone, onClose, onSuccess }: Pro
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Valor aportado ({simbolo}) *</label>
-                  <input type="number" step="any" value={valorAportado} onChange={e => setValorAportado(e.target.value)} className="input tabular text-right font-bold" />
+                  <input type="text" inputMode="decimal" autoComplete="off" value={valorAportado} onChange={e => setValorAportado(e.target.value)} className="input tabular text-right font-bold" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Data</label>

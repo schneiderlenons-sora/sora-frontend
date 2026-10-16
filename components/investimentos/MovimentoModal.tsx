@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, ArrowDownCircle, ArrowUpCircle, Check, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useDinheiro } from '@/lib/moeda-base';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 
 // =============================================================================
 // Aporte e RESGATE de investimento — o mesmo modal, dois sentidos.
@@ -84,7 +85,8 @@ export default function MovimentoModal({
 
   const inv = useMemo(() => investimentos.find((i) => i.id === invId), [investimentos, invId]);
   const disponivel = Number(inv?.valor_atual) || 0;
-  const v = parseFloat((valor || '').replace(',', '.'));
+  // Vírgula OU ponto (lib/formato-br): o antigo lia "1.500,00" como 1,5.
+  const v = parseNumeroDigitado(valor);
   const excede = !ehAporte && Number.isFinite(v) && v > disponivel + 0.01;
 
   // ⚠️ Posição do Open Finance não se mexe pelo painel: o sync do banco
@@ -97,7 +99,8 @@ export default function MovimentoModal({
   // fundo. Em CDB/LCI/Tesouro o campo não aparece — metade da base é isso, e
   // um campo "quantidade de cotas" ali só geraria dúvida.
   const temCota = !!inv?.ticker || (Number(inv?.quantidade) || 0) > 0;
-  const q = parseFloat((qtd || '').replace(',', '.'));
+  // Cota não é dinheiro: "0,125" é fração, não 125.
+  const q = parseNumeroDigitado(qtd, { dinheiro: false });
   const qtdValida = Number.isFinite(q) && q > 0;
 
   // Prévia do preço médio — o mesmo número que a aba mostra como "PM".

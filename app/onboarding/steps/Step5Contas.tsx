@@ -12,6 +12,7 @@ import { salvarIntencaoOF, querOpenFinance } from '@/lib/of-intent';
 import AdicionarCartaoModal, { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import StepNav from '../components/StepNav';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
 const OF_COR = '#6366f1';
@@ -82,7 +83,7 @@ export default function Step5Contas() {
     try {
       await api.wallets.salvar({
         phone, nome: nome.trim(), tipo,
-        saldo: parseFloat(String(saldo || '0').replace(',', '.')) || 0,
+        saldo: parseNumeroDigitado(saldo || '0') || 0,
       });
       setNome(''); setSaldo(''); setTipo('Corrente'); setAddOpen(false);
       await carregar();

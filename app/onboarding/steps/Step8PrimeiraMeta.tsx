@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import StepNav from '../components/StepNav';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -34,7 +35,7 @@ export default function Step8PrimeiraMeta() {
   const [meses,     setMeses]     = useState('12');
 
   const aporteSugerido = useMemo(() => {
-    const v = parseFloat(String(valor).replace(',', '.')) || 0;
+    const v = parseNumeroDigitado(valor) || 0;
     const m = parseInt(meses) || 1;
     if (v <= 0 || m <= 0) return 0;
     return v / m;
@@ -51,7 +52,7 @@ export default function Step8PrimeiraMeta() {
     const userId  = perfil?.id;
     if (!grupoId || !userId) return;
     const t = titulo.trim();
-    const v = parseFloat(String(valor).replace(',', '.')) || 0;
+    const v = parseNumeroDigitado(valor) || 0;
     if (!t || v <= 0) return;
 
     try {

@@ -17,7 +17,7 @@ const FILTROS_STATUS: { id: StatusFiltro; rotulo: string }[] = [
 ];
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
-import { parseValorBR, nomeMesCurto } from '@/lib/formato-br';
+import { parseValorBR, nomeMesCurto, parseNumeroDigitado } from '@/lib/formato-br';
 
 // =============================================================================
 // EXTRATO FUTURO — a tela que o cliente pediu, e um pouco mais.
@@ -378,7 +378,7 @@ export default function ExtratoFuturo({
                       await onNovoPrevisto({
                         descricao: novo.descricao.trim(),
                         // Aceita "1.234,56" e "1234.56" — o brasileiro digita os dois.
-                        valor: Number(novo.valor.replace(/\./g, '').replace(',', '.')),
+                        valor: parseNumeroDigitado(novo.valor),
                         data: novo.data,
                         tipo: novo.tipo,
                         carteira: novo.carteira || null,
@@ -906,7 +906,7 @@ export default function ExtratoFuturo({
                             type="button"
                             disabled={!quitacao.data || quitacao.data > hojeSP() || ocupado === l.recorrenciaId}
                             onClick={() => {
-                              const v = Number(quitacao.valor.replace(/\./g, '').replace(',', '.'));
+                              const v = parseNumeroDigitado(quitacao.valor);
                               onAcao({
                                 linha: l, acao: 'quitar', data: quitacao.data,
                                 // Valor inválido/vazio → o previsto, que é o que a
@@ -952,7 +952,7 @@ export default function ExtratoFuturo({
                           <input
                             type="text" inputMode="decimal" defaultValue={String(l.valor).replace('.', ',')}
                             onBlur={(e) => {
-                              const v = Number(e.target.value.replace(/\./g, '').replace(',', '.'));
+                              const v = parseNumeroDigitado(e.target.value);
                               if (v > 0 && Math.abs(v - l.valor) > 0.005) onAcao({ linha: l, acao: 'corrigir', valor: v });
                             }}
                             className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm tabular text-foreground"

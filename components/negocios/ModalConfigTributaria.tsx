@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X, Loader2, Check, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -37,9 +38,10 @@ export default function ModalConfigTributaria({ onClose }: { onClose: () => void
       await api.negocios.config.salvar({
         phone,
         regime_tributario: cfg.regime_tributario,
-        aliquota_simples: parseFloat(cfg.aliquota_simples) || 0,
+        // Vírgula OU ponto (lib/formato-br) — percentual, não dinheiro.
+        aliquota_simples: parseNumeroDigitado(cfg.aliquota_simples, { dinheiro: false }) || 0,
         reservar_imposto: !!cfg.reservar_imposto,
-        pct_reserva_imposto: parseFloat(cfg.pct_reserva_imposto) || 0,
+        pct_reserva_imposto: parseNumeroDigitado(cfg.pct_reserva_imposto, { dinheiro: false }) || 0,
         ai_insights_ativo: cfg.ai_insights_ativo ?? true,
       });
       setSalvo(true);
@@ -99,11 +101,10 @@ export default function ModalConfigTributaria({ onClose }: { onClose: () => void
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Alíquota efetiva (%)</label>
               <div className="relative mt-1.5">
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="50"
-                  value={cfg.aliquota_simples ?? 0}
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={String(cfg.aliquota_simples ?? 0).replace('.', ',')}
                   onChange={e => set('aliquota_simples', e.target.value)}
                   className="w-full px-3 py-2.5 pr-10 rounded-xl bg-card border border-border text-sm font-mono tabular-nums text-foreground focus:outline-none focus:border-foreground/40"
                 />

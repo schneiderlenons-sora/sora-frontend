@@ -32,6 +32,7 @@ import {
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { parseNumeroDigitado } from '@/lib/formato-br';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 import { useTemMarca } from '@/contexts/MarcasCustomContext';
 // recharts sob demanda: os gráficos (e o CategoryDonut, que também usa recharts)
@@ -1725,7 +1726,7 @@ function PreenchimentoRapido({ plano, onAplicar, onLimpar }: any) {
   const [des, setDes] = useState('');
   const abertos = plano.linhas.filter((l: any) => l.estado !== 'realizado').length;
   const num = (s: string) => {
-    const v = parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+    const v = parseNumeroDigitado(s);   // vírgula OU ponto (antes "2911.60" virava 291160)
     return Number.isFinite(v) ? v : null;
   };
 
@@ -1879,7 +1880,7 @@ function CampoMes({ rotulo, valor, auto, manual, mes, vazio, onMudar }: any) {
     setFocado(false);
     const t = txt.trim();
     if (t === '') { setTxt(''); return; }               // saiu sem mexer
-    const v = parseFloat(t.replace(/\./g, '').replace(',', '.'));
+    const v = parseNumeroDigitado(t);   // vírgula OU ponto (antes "2911.60" virava 291160)
     onMudar(Number.isFinite(v) && v >= 0 ? v : null);
     setTxt('');
   };
@@ -1925,7 +1926,7 @@ function ContasSazonais({ contas, onSalvar, linhas }: any) {
   const [mes, setMes]     = useState(0);
 
   const add = () => {
-    const v = parseFloat(String(valor).replace(',', '.'));
+    const v = parseNumeroDigitado(valor);   // antes "1.500,00" virava 1,5
     if (!nome.trim() || !Number.isFinite(v) || v <= 0) return;
     onSalvar([...contas, { id: Math.random().toString(36).slice(2), nome: nome.trim(), valor: v, mes }]);
     setNome(''); setValor('');
