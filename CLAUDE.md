@@ -1381,6 +1381,25 @@ caminho é detectar o pagamento por outra via (débito na conta corrente do mesm
 banco no valor da fatura) — e aí medir antes, porque alarme falso de R$ 21 mil e
 "quitar" fatura que não foi paga são erros de gravidade parecida.
 
+### ✅ CORRIGIDO quando o pagamento CHEGA como transação (out/2026)
+
+Relato (Vander): Inter de outubro R$ 3.655,35, pago em 15/10 — card, Extrato
+Futuro e "fatura em aberto" seguiam cobrando. ⚠️ **O pagamento ESTAVA em
+`pagamentos_fatura`** (veio do cartão como "PAGAMENTO DE FATURA"); o ramo da
+fatura PUBLICADA do `faturaVista` só ouvia o `payments[]` do emissor.
+
+- `pagoDaPublicada`: pago = **MAIOR** entre o do banco e o que a Sora
+  registrou **DEPOIS do fechamento**. Maior, nunca soma (é o mesmo dinheiro em
+  duas fontes); só depois do fechamento porque o abatimento ANTES já está no
+  total publicado (caso MP R$ 2.243,60 — contá-lo de novo quitaria fatura de pé).
+- **Medido em 101 cartões / 276 faturas: 12 mudam, todas conferidas uma a uma**
+  (pagamento real, depois do fechamento, no valor da fatura) — ~R$ 57 mil
+  exibidos como em aberto estando pagos. Um fica com R$ 0,12 (pagou 6.130,29 de
+  6.130,41): honesto, não "quitada".
+- `eval:fatura-vista` §11 (3/4 mutações mortas; a 4ª é equivalente).
+- ⚠️ **O caso da transação que NÃO chega** (Itaú acima) segue aberto: lá não há
+  nada em `pagamentos_fatura` pra ler.
+
 ---
 
 ## Valor FÓSSIL no cartão: o sync não gravava "eu não sei" (set/2026)
