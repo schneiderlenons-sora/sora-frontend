@@ -14,7 +14,7 @@ import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, Pencil, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
   PiggyBank, Landmark, ChevronRight, ChevronDown, CalendarClock, Percent,
-  Archive, Layers,
+  Archive, Layers, CloudOff,
 } from 'lucide-react';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 // recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
@@ -140,7 +140,15 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
   // Dados via SWR — revisita instantânea (só busca com acesso ao recurso).
   const ativo = phone && temAcesso;
-  const { data: invsData,    mutate: mInvs } = useApi(ativo ? `inv:lista:${phone}` : null,      () => api.investimentos.listar(phone), { fallbackData: initialData?.invs });
+  const { data: invsData,    mutate: mInvs, error: erroInvs, isValidating: recarregandoInvs } = useApi(ativo ? `inv:lista:${phone}` : null,      () => api.investimentos.listar(phone), { fallbackData: initialData?.invs });
+  // ⚠️ FALHA DE CARREGAMENTO NÃO É CARTEIRA VAZIA. Relato (Fabricio, 15/10/2026):
+  // "passei o dia digitando meus investimentos e simplesmente sumiram" — os 77
+  // estavam no banco, intactos; a busca falhou e `invsData` indefinido virava
+  // `[]`, que a tela lia como "Nenhum investimento" / patrimônio R$ 0,00. Pra
+  // quem acabou de cadastrar tudo à mão, isso é "perdi meus dados". Sem lista
+  // válida E com erro, a tela diz que NÃO CONSEGUIU CARREGAR — nunca que está
+  // vazia. Com lista em cache (keepPreviousData), segue mostrando a lista.
+  const falhouInvs = !!erroInvs && !Array.isArray(invsData);
   const { data: aportesData, mutate: mAp }   = useApi(ativo ? `inv:aportes:${phone}` : null,    () => api.investimentos.aportes.listar(phone), { fallbackData: initialData?.aportes });
   // Movimentações que o BANCO reporta (migration 139): aportes, resgates,
   // dividendos, JCP, come-cotas. Convivem com os aportes lançados à mão.
@@ -322,25 +330,34 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
           })}
         </div>
 
+        {/* Falha ao carregar: no lugar das abas que dependem da lista (o
+            Simulador não depende e continua). Ver `falhouInvs`. */}
+        {falhouInvs && tab !== 'simulador' && (
+          <ErroCarregarInvestimentos
+            tentando={recarregandoInvs}
+            onTentar={() => { mInvs(); mAp(); mPat(); mRes(); mCaix(); }}
+          />
+        )}
+
         {/* TAB: RESUMO */}
-        {tab === 'resumo' && (
+        {!falhouInvs && tab === 'resumo' && (
           <TabResumo totais={totais} distribuicao={distribuicao} patrimonio={patrimonio}
                      totalCaixinhas={totalCaixinhas} qtdCaixinhas={caixinhas.length} proventos={totalProventos}
                      onVerCaixinhas={() => setTab('caixinhas')} />
         )}
 
         {/* TAB: CAIXINHAS */}
-        {tab === 'caixinhas' && (
+        {!falhouInvs && tab === 'caixinhas' && (
           <TabCaixinhas caixinhas={caixinhas} total={totalCaixinhas} />
         )}
 
         {/* TAB: CARTEIRA */}
-        {tab === 'carteira' && (
+        {!falhouInvs && tab === 'carteira' && (
           <TabCarteira invs={invs} onDelete={handleDelete} onEditarValor={setEditandoValor} onAdd={() => setNovoOpen(true)} />
         )}
 
         {/* TAB: RESERVA */}
-        {tab === 'reserva' && (
+        {!falhouInvs && tab === 'reserva' && (
           <TabReserva
             reserva={reserva}
             invs={invs}
@@ -374,7 +391,7 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
         {tab === 'simulador' && <TabSimulador />}
 
         {/* TAB: APORTES */}
-        {tab === 'aportes' && (
+        {!falhouInvs && tab === 'aportes' && (
           <TabAportes aportes={movimentos} invs={invs}
             onAportar={() => setMovimento({ tipo: 'aporte' })}
             onResgatar={() => setMovimento({ tipo: 'resgate' })} />
@@ -404,6 +421,32 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
         />
       )}
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// FALHA AO CARREGAR — nunca confundir com carteira vazia
+// ─────────────────────────────────────────────────────────────
+function ErroCarregarInvestimentos({ tentando, onTentar }: { tentando: boolean; onTentar: () => void }) {
+  return (
+    <div role="alert" className="card rounded-3xl p-8 sm:p-10 text-center animate-fade-in">
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-amber-500/12">
+        <CloudOff size={24} className="text-amber-600 dark:text-amber-400" aria-hidden="true" />
+      </div>
+      <h2 className="text-lg font-bold text-foreground">Não consegui carregar seus investimentos agora</h2>
+      <p className="text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto leading-relaxed">
+        Eles continuam salvos — foi só a conexão com o servidor que falhou. Tente de novo em instantes.
+      </p>
+      <button
+        type="button"
+        onClick={onTentar}
+        disabled={tentando}
+        className="btn-primary mt-5 min-h-[44px] px-5 text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-70"
+      >
+        <RefreshCw size={15} className={tentando ? 'animate-spin' : ''} aria-hidden="true" />
+        {tentando ? 'Tentando…' : 'Tentar de novo'}
+      </button>
+    </div>
   );
 }
 
