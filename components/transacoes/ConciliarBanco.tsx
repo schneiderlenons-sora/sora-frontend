@@ -111,7 +111,7 @@ export function ConciliarSugestoes({ pares, onAbrir }: {
             </span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            {n === 1 ? 'Este previsto já tem' : 'Estes previstos já têm'} a cobrança igual no banco.
+            {n === 1 ? 'Este lançamento seu já tem' : 'Estes lançamentos seus já têm'} a cobrança igual no banco.
             Concilie para não contar em dobro.
           </p>
         </div>
@@ -310,8 +310,12 @@ export function ConciliarSheet({ par, onFechar, onConciliar, onDispensar }: {
           {/* As duas pontas, ligadas */}
           <div className="mt-5">
             <Ponta
-              rotulo="Você previu"
-              status={<><Clock size={11} aria-hidden="true" /> {gasto ? 'Pendente' : 'A receber'}</>}
+              // Lançamento manual JÁ PAGO (conta do banco) não é "previsão": é
+              // o que a pessoa lançou à mão e o banco trouxe de novo.
+              rotulo={previsto.pago ? 'Você lançou' : 'Você previu'}
+              status={previsto.pago
+                ? <><Clock size={11} aria-hidden="true" /> Lançado à mão</>
+                : <><Clock size={11} aria-hidden="true" /> {gasto ? 'Pendente' : 'A receber'}</>}
               statusClasse="text-amber-700 dark:text-amber-400 bg-amber-500/12"
               titulo={titulo(previsto)}
               detalhe={[categoria, previsto.carteira_nome, fmtDataBR(previsto.data)].filter(Boolean).join(' · ')}

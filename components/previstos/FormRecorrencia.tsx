@@ -893,6 +893,21 @@ export default function FormRecorrencia({
             colunas={3}
           />
 
+          {/* ⚠️ Conta do BANCO + "Desconta sozinho": o cron trata como "Espero
+              o banco" (lançar pago aqui duplicava com a cobrança do banco — 11
+              contas fixas medidas, 13 linhas em dobro em 60 dias — e mexia no
+              saldo, que numa conta conectada vem só do banco). A tela diz isso,
+              pra o que ela mostra bater com o que acontece. */}
+          {modo === 'lancar' && !!(contaSel as { of_conta_id?: string | null } | undefined)?.of_conta_id && (
+            <p role="note" className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs leading-relaxed text-foreground/85 bg-muted/60">
+              <CircleDashed size={14} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} aria-hidden="true" />
+              <span>
+                <strong className="font-semibold">{carteira}</strong> é conectada ao banco: o saldo e a cobrança vêm de lá.
+                Nesta conta a Sora prevê no dia e o banco confirma quando cobrar — sem contar duas vezes.
+              </span>
+            </p>
+          )}
+
           {/* ── O que vai acontecer ────────────────────────────────────────
               Frequência, duração e aviso só fazem sentido lidos juntos. Sem
               esta frase a pessoa sai da tela sem saber o que combinou. */}

@@ -93,6 +93,8 @@ export type ModoLancamentoFixo = 'lancar' | 'prever' | 'nao_lancar';
 export type ParConciliavelTx = {
   id: string; valor: number; tipo: string; observacao: string | null;
   categoria: string | null; carteira_nome: string | null; data: string;
+  /** Só no lado manual: true = já lançado como PAGO (conta do banco). */
+  pago?: boolean;
 };
 
 export type SugestaoCategoriaFixa = {
