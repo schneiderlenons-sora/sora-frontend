@@ -86,6 +86,9 @@ export const chave = {
   /** `api.transacoes.transferenciasSugeridas(phone)` — par saída × entrada entre contas. */
   transferenciasSugeridas: (p: string) => `d:transf-sugeridas:${p}`,
 
+  /** `api.transacoes.pagamentosFaturaSugeridos(phone)` — saída de conta × fatura em aberto. */
+  pagamentosFaturaSugeridos: (p: string) => `d:pagfat-sugeridos:${p}`,
+
   /** `api.transacoes.listar(phone, { mes, limit, criado_por, arquivadas })` */
   transacoes: (
     p: string,

@@ -1397,8 +1397,37 @@ fatura PUBLICADA do `faturaVista` só ouvia o `payments[]` do emissor.
   exibidos como em aberto estando pagos. Um fica com R$ 0,12 (pagou 6.130,29 de
   6.130,41): honesto, não "quitada".
 - `eval:fatura-vista` §11 (3/4 mutações mortas; a 4ª é equivalente).
-- ⚠️ **O caso da transação que NÃO chega** (Itaú acima) segue aberto: lá não há
-  nada em `pagamentos_fatura` pra ler.
+- O caso da transação que **NÃO** chega pelo cartão ganhou sugestão própria —
+  ver "Conciliação de ponta a ponta" abaixo.
+
+## Conciliação de ponta a ponta + diagnóstico diário (out/2026)
+
+Relatos repetidos do Vander (e de outros) levaram a um plano em frentes. Todas
+seguem a mesma regra: **a régua mora num serviço puro com eval, a tela só
+SUGERE, o cliente confirma, o servidor reconfere, e nada mexe em saldo.**
+
+| Frente | Régua (backend) | Na tela | Medido |
+|---|---|---|---|
+| Previsto × cobrança igual do banco | `fusaoDuplicada.paresConciliaveis` | "Já chegou do banco" | 4 pares na base |
+| Transferência entre contas próprias | `transferenciaPropria.paresTransferencia` | "Movimentação entre suas contas?" | ~25 pares; falso positivo conhecido (por isso R$ 50+, par sem disputa, nunca automático) |
+| Fatura paga por débito na CONTA | `pagamentoFaturaConta.paresPagamentoFatura` | "Pagou alguma fatura?" | 7 de 171 faturas vencidas |
+| Fatura publicada + pagamento registrado | `faturaVista.pagoDaPublicada` | automático (é o mesmo dinheiro) | 12 faturas, ~R$ 57 mil |
+
+- ⚠️ **MEIO-PAR conta:** transferência em que uma ponta já está marcada e a
+  outra ainda soma como receita (caso real, R$ 5.500). A régua só pula o par
+  quando as DUAS já não contam.
+- ⚠️ **Marcar transferência usa `transferencia = true`**, não `ignorar_em`
+  (que é das regras do cliente e pode ser sobrescrito). Consequência
+  assumida: editar o VALOR depois não ajusta saldo — igual a qualquer
+  transferência do sistema (`especial` no `alterarTransacao`).
+- **Diagnóstico diário** (`services/diagnosticoFinanceiro.js` +
+  `diagnosticoFinanceiroColeta.js`, JOB 1S às 04:30, aba "Saúde financeira" no
+  /admin, migration **186**). Só LÊ dado de cliente; chama as MESMAS réguas
+  acima — nenhuma regra paralela. ~5 min e ~2.000 idas (janela de 60 dias,
+  fatura só de cartão com movimento); por isso roda em segundo plano e o
+  painel lê o último retrato. ⚠️ "Fatura paga em aberto" compara o pago com o
+  **TOTAL**, nunca com o restante (a 1ª versão acusou 10 pagamentos parciais).
+  Hoje essa verificação dá **zero** — é a trava contra regressão do caso Vander.
 
 ---
 

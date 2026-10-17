@@ -452,6 +452,16 @@ export const api = {
     // mexe em saldo; o servidor reconfere o par.
     marcarTransferencia: (body: { saida_id: string; entrada_id: string; desfazer?: boolean }) =>
       req<{ ok: boolean; transferencia: boolean }>('/api/transacoes/marcar-transferencia', { method: 'POST', body: JSON.stringify(body) }),
+    // Saída de CONTA no valor exato de uma fatura fechada em aberto: provável
+    // pagamento que nunca chegou pelo cartão. Só SUGESTÃO (pagamentoFaturaConta.js).
+    pagamentosFaturaSugeridos: (phone: string) =>
+      req<{ pares: { saida: { id: string; valor: number; observacao: string | null; carteira_nome: string | null; data: string };
+        fatura: { cartao_id: string; cartao_nome: string; competencia: string; fatura: number; restante: number; venc: string } }[] }>(
+        `/api/transacoes/pagamentos-fatura-sugeridos/${phone}`),
+    // Registra (ou, com desfazer, remove) a saída como pagamento da fatura. Não
+    // mexe em saldo; o servidor recalcula a fatura e reconfere o par.
+    vincularPagamentoFatura: (body: { transacao_id: string; cartao_id: string; competencia: string; desfazer?: boolean }) =>
+      req<{ ok: boolean; vinculado: boolean }>('/api/transacoes/vincular-pagamento-fatura', { method: 'POST', body: JSON.stringify(body) }),
     // Previsões que o sync juntou SOZINHO com a cobrança do banco (últimos 7 dias).
     fusoesAuto: (phone: string) =>
       req<{ fusoes: any[] }>(`/api/transacoes/fusoes-auto/${phone}`),

@@ -13,6 +13,9 @@ import {
   ConciliarSugestoes, ConciliarSheet, SeloConciliar,
   type ParConciliavel, idPar, lerDispensados, dispensarPar,
 } from '@/components/transacoes/ConciliarBanco';
+import PagamentoFaturaSugestoes, {
+  type ParPagamentoFatura, idParPagFat, lerPagFatDispensados,
+} from '@/components/transacoes/PagamentoFaturaSugestoes';
 import TransferenciaSugestoes, {
   type ParTransferencia, idParTransf, lerTransfDispensados,
 } from '@/components/transacoes/TransferenciaSugestoes';
@@ -197,6 +200,29 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     () => (transfData?.pares ?? []).filter((p) => !transfDispensados.has(idParTransf(p))),
     [transfData, transfDispensados],
   );
+  // ── Saída de conta que pagou uma fatura (sugestão, o cliente confirma) ──────
+  // ⚠️ Cara no servidor (calcula as faturas de cada cartão): 10 min de cache e
+  // sem revalidar ao voltar pra aba — fatura fechada não muda de minuto a minuto.
+  const { data: pagFatData, mutate: mPagFat } = useSWR(
+    phone && !verArquivadas ? chave.pagamentosFaturaSugeridos(phone) : null,
+    () => api.transacoes.pagamentosFaturaSugeridos(phone),
+    { revalidateOnFocus: false, revalidateIfStale: false, dedupingInterval: 600000 },
+  );
+  const [pagFatDispensados, setPagFatDispensados] = useState<Set<string>>(new Set());
+  useEffect(() => { setPagFatDispensados(lerPagFatDispensados()); }, []);
+  const paresPagFat: ParPagamentoFatura[] = useMemo(
+    () => (pagFatData?.pares ?? []).filter((p) => !pagFatDispensados.has(idParPagFat(p))),
+    [pagFatData, pagFatDispensados],
+  );
+  async function vincularPagFat(p: ParPagamentoFatura, desfazer = false) {
+    await api.transacoes.vincularPagamentoFatura({
+      transacao_id: p.saida.id, cartao_id: p.fatura.cartao_id, competencia: p.fatura.competencia, desfazer,
+    });
+    mTx((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (t.id === p.saida.id ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
+    mR();
+    if (desfazer) mPagFat();
+  }
+
   async function marcarTransf(p: ParTransferencia, desfazer = false) {
     await api.transacoes.marcarTransferencia({ saida_id: p.saida.id, entrada_id: p.entrada.id, desfazer });
     // As duas linhas mudam de "gasto/receita" pra "transferência" na lista e
@@ -836,6 +862,15 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         {/* Previsto manual cuja cobrança IGUAL já chegou do banco. Só existe
             quando há par — sem par, não ocupa espaço nenhum. */}
         <ConciliarSugestoes pares={paresConciliar} onAbrir={setParAberto} />
+
+        {/* Saída de conta no valor exato de uma fatura fechada em aberto:
+            provável pagamento que nunca chegou pelo cartão. Só aparece com par. */}
+        <PagamentoFaturaSugestoes
+          pares={paresPagFat}
+          onDispensar={(p) => setPagFatDispensados((s) => new Set(s).add(idParPagFat(p)))}
+          onVincular={(p) => vincularPagFat(p)}
+          onDesfazer={(p) => vincularPagFat(p, true)}
+        />
 
         {/* Saída numa conta e entrada noutra, mesmo valor e dia: provável
             transferência entre contas do próprio cliente. Só aparece com par. */}
