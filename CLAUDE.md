@@ -1429,6 +1429,30 @@ SUGERE, o cliente confirma, o servidor reconfere, e nada mexe em saldo.**
   **TOTAL**, nunca com o restante (a 1ª versão acusou 10 pagamentos parciais).
   Hoje essa verificação dá **zero** — é a trava contra regressão do caso Vander.
 
+### Conta fixa "paga" sem ter sido paga (out/2026)
+
+Relato (Vander): *"nem paguei estas contas e já apareceram como pagas"*.
+Três defeitos, todos corrigidos com eval:
+
+- ⚠️ **A sugestão e a baixa automática do Extrato NUNCA RODARAM.**
+  `baixaPrevisao.previsoesAbertas` pedia a coluna `ativo` (é `ativa`): o select
+  falhava inteiro e a função devolvia `[]` desde 11/09, sem log. Agora a lista
+  de colunas é conferida contra as colunas reais (`eval:casar-previsao` §9).
+  **Lição:** teste de função pura não pega erro de consulta.
+- **Conciliação automática de conta fixa** (`reconciliarPrevisto`) era 15% /
+  R$ 5 sem descrição: a previsão "Luz" assumiu uma compra de farmácia. Hoje
+  **2% / R$ 1 e candidata única**. Medido: 11 das 16 automáticas da base seguem.
+- **Casamento da sugestão** (`casarPrevisao`): banda larga **15%**; além de 5%
+  exige **nome ou categoria** em comum; categorias específicas **diferentes
+  barram** nas duas bandas; ordena por **valor**; automático exige valor exato,
+  nome ou categoria. Conferido contra as sugestões reais da base (9, todas
+  plausíveis, vindo de 13 com 6 absurdas).
+- **Amarrar cobrança do mês anterior** (`quitacao.pagamentoDeOutroMes`): recusa
+  lançamento de **mês anterior** e **mais de 20 dias** antes do vencimento.
+  Atrasado vale sempre (pendência); adiantado no mesmo mês também.
+  Medido: 5 de 426 ligações da base tinham essa cara (3 eram do Vander e foram
+  desfeitas; backup em scratchpad da sessão).
+
 ---
 
 ## Valor FÓSSIL no cartão: o sync não gravava "eu não sei" (set/2026)
