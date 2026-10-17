@@ -7,11 +7,12 @@ import { isAdminEmail } from '@/lib/admin';
 import { useConfirmar } from '@/contexts/ConfirmContext';
 import OpenFinancePainel from '@/components/admin/OpenFinancePainel';
 import AfiliadosPainel from '@/components/admin/AfiliadosPainel';
+import SaudeFinanceira from '@/components/admin/SaudeFinanceira';
 import {
   Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
   Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
   Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake, AlertCircle,
-  ChevronRight,
+  ChevronRight, Stethoscope,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -282,7 +283,7 @@ export default function AdminPage() {
   const confirmar = useConfirmar();
   const admin = isAdminEmail(perfil?.email);
 
-  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance' | 'afiliados'>('users');
+  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance' | 'afiliados' | 'saude'>('users');
   const [ov, setOv] = useState<Overview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [bugs, setBugs] = useState<BugReport[]>([]);
@@ -521,7 +522,7 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
         <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
           <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60
                           overflow-x-auto sm:w-fit [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone], ['afiliados', 'Afiliados', Handshake]] as const).map(([id, label, Icon]) => (
+            {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['saude', 'Saúde financeira', Stethoscope], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone], ['afiliados', 'Afiliados', Handshake]] as const).map(([id, label, Icon]) => (
               <button key={id} onClick={() => setTab(id)}
                       aria-current={tab === id ? 'page' : undefined}
                       className={`inline-flex items-center gap-1.5 px-3 sm:px-4 h-10 rounded-xl text-sm font-bold transition-all flex-shrink-0 ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -537,7 +538,9 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
           </div>
         </div>
 
-        {tab === 'afiliados' ? (
+        {tab === 'saude' ? (
+          <SaudeFinanceira />
+        ) : tab === 'afiliados' ? (
           <AfiliadosPainel />
         ) : tab === 'comunicados' ? (
           <Comunicados flash={flash} />
