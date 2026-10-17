@@ -1085,6 +1085,19 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             <EmptyState temFiltro={!!temFiltro} onLimpar={limparFiltros} onCriar={() => setModalOpen(true)} />
           ) : (
             <>
+              {/* Total do filtro ABRINDO a lista: o resultado sem rolar até o
+                  fim. Fora do `overflow-x-auto` pelo mesmo motivo do rodapé. */}
+              <LinhaTotais
+                posicao="topo"
+                mostrar={!!temFiltro}
+                qtd={txsFiltradas.length}
+                receitas={receitasTotal}
+                despesas={despesasTotal}
+                transferencias={transferenciasTotal}
+                ajustes={temAjuste ? ajustesTotal : null}
+                ocultar={ocultar}
+              />
+
               {/* UM único scroll horizontal: cabeçalho + linhas rolam JUNTOS e
                   alinhados, contidos no card (overflow-hidden) — nada vaza pra
                   página no mobile. (Antes cada linha tinha seu próprio scroll.) */}
@@ -1149,7 +1162,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   pessoa filtrou pra ver. Aqui ele ocupa a largura do card e
                   está sempre visível. */}
               <LinhaTotais
-                mostrar={!!temFiltro}
+                mostrar={!!temFiltro && txsFiltradas.length > LISTA_LONGA}
                 qtd={txsFiltradas.length}
                 receitas={receitasTotal}
                 despesas={despesasTotal}
@@ -1641,18 +1654,30 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
    embaixo seria ruído. Com filtro, esse total não existe em lugar nenhum e a
    alternativa é somar linha por linha na mão.
 
+   ⚠️ FICA NO TOPO DA LISTA, não só no fim (out/2026). Relato: pra ver o
+   resultado de um filtro ("Pix") era preciso rolar até a última linha — e de
+   novo a cada mês trocado. Hoje a linha abre a lista, logo abaixo do cabeçalho;
+   o rodapé só se repete em lista LONGA, onde quem chegou ao fim conferindo
+   linha a linha não deveria ter de voltar pra cima. Lista curta com os dois
+   seria o mesmo número duas vezes na mesma tela.
+   No topo o saldo da conta NÃO entra: o card escuro logo acima já o mostra.
+
    ⚠️ RECEITA E DESPESA NUNCA VIRAM UM NÚMERO SÓ. Um total líquido de uma lista
    com os dois esconde o tamanho de cada lado: R$ 100 de saldo pode ser
    "100 − 0" ou "10.100 − 10.000", e são situações opostas.
    ═══════════════════════════════════════════════════════════════════════ */
+/** A partir de quantas linhas o total também se repete no fim da lista. */
+const LISTA_LONGA = 8;
+
 type SaldoContaInfo =
   | { conta: string; atual: number; estado: 'carregando' | 'erro' }
   | { conta: string; atual: number; estado: 'pronto'; previsto: number; ate: string; estimado: boolean };
 
 function LinhaTotais({
-  mostrar, qtd, receitas, despesas, transferencias, ajustes, ocultar, saldoConta,
+  mostrar, qtd, receitas, despesas, transferencias, ajustes, ocultar, saldoConta, posicao = 'rodape',
 }: {
   mostrar: boolean; qtd: number;
+  posicao?: 'topo' | 'rodape';
   receitas: number; despesas: number; transferencias: number;
   /** Líquido dos ajustes de saldo; null quando a lista não tem nenhum. */
   ajustes?: number | null;
@@ -1693,8 +1718,8 @@ function LinhaTotais({
   if (!blocos.length) blocos.push({ rotulo: 'Total', valor: 0, cor: 'hsl(var(--muted-foreground))', Icone: Filter });
 
   return (
-    <div className="border-t-2 border-border/60 bg-muted/25 px-4 sm:px-5 py-3.5
-                    flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 sm:gap-x-6">
+    <div className={`${posicao === 'topo' ? 'border-b border-border/60' : 'border-t-2 border-border/60'} bg-muted/25 px-4 sm:px-5 py-3.5
+                    flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 sm:gap-x-6`}>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Filter size={13} className="text-muted-foreground flex-shrink-0" />
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
