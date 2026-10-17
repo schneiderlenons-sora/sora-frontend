@@ -443,6 +443,15 @@ export const api = {
     // (prova do Watson + 1-pra-1 sem disputa); quem junta é o `fundir`.
     conciliaveis: (phone: string) =>
       req<{ pares: { previsto: ParConciliavelTx; banco: ParConciliavelTx }[] }>(`/api/transacoes/conciliaveis/${phone}`),
+    // Saída numa conta e entrada noutra, mesmo valor e dia: provável dinheiro do
+    // cliente mudando de conta (contando como gasto E receita). Só SUGESTÃO —
+    // régua em services/transferenciaPropria.js; quem marca é o cliente.
+    transferenciasSugeridas: (phone: string) =>
+      req<{ pares: { saida: ParConciliavelTx; entrada: ParConciliavelTx }[] }>(`/api/transacoes/transferencias-sugeridas/${phone}`),
+    // Marca (ou, com desfazer, desmarca) as DUAS pontas como transferência. Não
+    // mexe em saldo; o servidor reconfere o par.
+    marcarTransferencia: (body: { saida_id: string; entrada_id: string; desfazer?: boolean }) =>
+      req<{ ok: boolean; transferencia: boolean }>('/api/transacoes/marcar-transferencia', { method: 'POST', body: JSON.stringify(body) }),
     // Previsões que o sync juntou SOZINHO com a cobrança do banco (últimos 7 dias).
     fusoesAuto: (phone: string) =>
       req<{ fusoes: any[] }>(`/api/transacoes/fusoes-auto/${phone}`),

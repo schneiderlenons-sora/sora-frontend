@@ -83,6 +83,9 @@ export const chave = {
   /** `api.transacoes.conciliaveis(phone)` — previsto manual × cobrança igual do banco. */
   conciliaveis: (p: string) => `d:conciliaveis:${p}`,
 
+  /** `api.transacoes.transferenciasSugeridas(phone)` — par saída × entrada entre contas. */
+  transferenciasSugeridas: (p: string) => `d:transf-sugeridas:${p}`,
+
   /** `api.transacoes.listar(phone, { mes, limit, criado_por, arquivadas })` */
   transacoes: (
     p: string,

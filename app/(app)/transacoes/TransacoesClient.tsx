@@ -13,6 +13,9 @@ import {
   ConciliarSugestoes, ConciliarSheet, SeloConciliar,
   type ParConciliavel, idPar, lerDispensados, dispensarPar,
 } from '@/components/transacoes/ConciliarBanco';
+import TransferenciaSugestoes, {
+  type ParTransferencia, idParTransf, lerTransfDispensados,
+} from '@/components/transacoes/TransferenciaSugestoes';
 import GastosFixosSection from '@/components/transacoes/GastosFixosSection';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useAvatarMembros } from '@/lib/useAvatarMembros';
@@ -180,6 +183,30 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     [paresConciliar],
   );
   const [parAberto, setParAberto] = useState<ParConciliavel | null>(null);
+
+  // ── Transferência entre contas próprias (sugestão, o cliente confirma) ──────
+  // Mesmo motivo do `useSWR` direto acima: sugestão secundária fora do LoadingGate.
+  const { data: transfData, mutate: mTransf } = useSWR(
+    phone && !verArquivadas ? chave.transferenciasSugeridas(phone) : null,
+    () => api.transacoes.transferenciasSugeridas(phone),
+    { revalidateOnFocus: false, dedupingInterval: 10000 },
+  );
+  const [transfDispensados, setTransfDispensados] = useState<Set<string>>(new Set());
+  useEffect(() => { setTransfDispensados(lerTransfDispensados()); }, []);
+  const paresTransf: ParTransferencia[] = useMemo(
+    () => (transfData?.pares ?? []).filter((p) => !transfDispensados.has(idParTransf(p))),
+    [transfData, transfDispensados],
+  );
+  async function marcarTransf(p: ParTransferencia, desfazer = false) {
+    await api.transacoes.marcarTransferencia({ saida_id: p.saida.id, entrada_id: p.entrada.id, desfazer });
+    // As duas linhas mudam de "gasto/receita" pra "transferência" na lista e
+    // saem dos totais: lista e resumo revalidam. A sugestão NÃO é revalidada
+    // aqui — o item marcado fica na tela com "Desfazer".
+    const ids = new Set([p.saida.id, p.entrada.id]);
+    mTx((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (ids.has(t.id) ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
+    mR();
+    if (desfazer) mTransf();
+  }
 
   async function conciliarPar(p: ParConciliavel) {
     // Quem fica é a linha do BANCO, herdando nome e categoria do previsto; o
@@ -809,6 +836,15 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         {/* Previsto manual cuja cobrança IGUAL já chegou do banco. Só existe
             quando há par — sem par, não ocupa espaço nenhum. */}
         <ConciliarSugestoes pares={paresConciliar} onAbrir={setParAberto} />
+
+        {/* Saída numa conta e entrada noutra, mesmo valor e dia: provável
+            transferência entre contas do próprio cliente. Só aparece com par. */}
+        <TransferenciaSugestoes
+          pares={paresTransf}
+          onDispensar={(p) => setTransfDispensados((s) => new Set(s).add(idParTransf(p)))}
+          onMarcar={(p) => marcarTransf(p)}
+          onDesfazer={(p) => marcarTransf(p, true)}
+        />
 
         {/* ═══════════════════════════════════════════════════════
             BARRA DE FILTROS
