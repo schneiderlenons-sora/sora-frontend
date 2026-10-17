@@ -147,6 +147,20 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const [ajusteOpen, setAjusteOpen] = useState<Wallet | null>(null);
   const [transferOpen,setTransferOpen] = useState(false);
 
+  // `?transferir=1` abre direto o "Transferir entre contas" — é pra onde o
+  // aviso do Nova Transação manda quem estava lançando uma transferência como
+  // gasto. Lido no efeito (não `useSearchParams`, que exigiria Suspense) e
+  // tirado da URL, senão um F5 reabriria o modal.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('transferir') !== '1') return;
+      setTransferOpen(true);
+      url.searchParams.delete('transferir');
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch { /* sem URL legível: só não abre sozinho */ }
+  }, []);
+
   const plano        = perfil?.plano || 'inativo';
   const limiteContas = limiteDe('contas');
   // Em grupo compartilhado (não-Pessoal), mostra de quem é cada conta.

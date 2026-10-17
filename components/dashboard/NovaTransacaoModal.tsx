@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock, Undo2, Landmark } from 'lucide-react';
+import Link from 'next/link';
+import { X, Loader2, Wallet, CreditCard, AlertCircle, Check, Repeat, Users, CalendarClock, Undo2, Landmark, ArrowLeftRight } from 'lucide-react';
 import { api } from '@/lib/api';
 // Conta em moeda estrangeira (migration 144): o valor digitado está na moeda
 // DA CONTA, e é o backend que converte. Aqui só rotulamos o campo.
@@ -12,6 +13,12 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import IconeMarca from '@/components/ui/IconeMarca';
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+
+// "Transferência", "transferi", "transferir"… — gatilho do aviso que leva ao
+// "Transferir entre contas". Relato (Vander, out/2026): procurava a categoria
+// "Transferência" em Gasto, que não existe de propósito (dinheiro entre contas
+// próprias não é despesa), e lançava como "Financeiro" — que conta como gasto.
+const RE_TRANSFERENCIA = /\btransfer[eêií]/i;
 
 // Valor sentinela do picker de conta pra "compra parcelada SEM cartão".
 const SEM_CARTAO = '__sem_cartao__';
@@ -194,6 +201,12 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
   const ehCartaoSel = walletSel?.tipo === 'Crédito' && tipo === 'Gasto';
   // "Sem cartão" = parcelei com alguém (vira parcelamento em Dívidas). Só p/ despesa.
   const semCartao   = walletId === SEM_CARTAO && tipo === 'Gasto';
+  // Só com 2+ contas (fora cartão): com uma só, "Transferir" é um caminho que
+  // não leva a lugar nenhum. Escolher a categoria "Transferências" (receita)
+  // também conta como sinal.
+  const avisoTransferencia =
+    (RE_TRANSFERENCIA.test(descricao) || /^transfer/i.test(categoria))
+    && wallets.filter(w => w.tipo !== 'Crédito').length >= 2;
   const podeParcelar = ehCartaoSel || semCartao;
 
   // Estorno = crédito na fatura (reembolso, cashback, compra cancelada). Vira um
@@ -673,6 +686,22 @@ export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess,
               onChange={e => setDescricao(e.target.value)}
               className="input"
             />
+            {/* Aviso, não bloqueio: "transferência para o João" é gasto de
+                verdade — só a pessoa sabe se o destino é conta dela. */}
+            {avisoTransferencia && (
+              <div className="mt-2 flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-xs bg-sky-500/10 text-foreground animate-fade-in"
+                   role="note">
+                <ArrowLeftRight size={14} className="text-sky-500 flex-shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <b>Mudando dinheiro entre contas suas?</b> Use{' '}
+                  <Link href="/contas-bancarias?transferir=1" onClick={onClose}
+                        className="font-semibold text-sky-600 dark:text-sky-400 underline underline-offset-2">
+                    Transferir entre contas
+                  </Link>
+                  {' '}— assim não conta como gasto nem como receita. Se foi pra outra pessoa, pode seguir aqui.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 7) Categorias (filtradas por tipo) */}
