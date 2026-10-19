@@ -18,6 +18,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 | Conciliação (previsto × banco, transferências, fatura paga) | `sora-backend/src/services/` (réguas puras com eval) | "Conciliação de ponta a ponta" + "Outubro/2026" |
 | Diagnóstico de OF de um cliente | `/api/admin/of-debug?email=<cliente>` (`&foco=saldo` / `cartoes`) | "Open Finance (Polp)" |
 | Migrations | `sora-backend/sql/` (rodar à mão no Supabase) | "Migrations SQL a rodar" |
+| **Consumo do Supabase (egress, cota do Free 5 GB/ciclo)** | `sora-backend/docs/diagnostico-egress.sql` (`pg_stat_statements`, filtrar por `"public"."`) | "Egress do Supabase" + "Egress: metade era o sync" |
 
 ## Comandos essenciais
 
