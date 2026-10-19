@@ -3813,8 +3813,9 @@ essencial pra não errar:
   `.gitignore` ignora `/twa-manifest.json` porque `bubblewrap init` já largou
   uma cópia aqui por engano; ela nunca esteve no git, chegou a divergir (repo
   em `versionCode 1`, build em `3`) e foi apagada. Se reaparecer, apague.
-- ⚠️ **`appVersionCode` nunca repete**, nem após exclusão ou reprovação. O 3
-  está usado; o próximo é o 4.
+- ⚠️ **`appVersionCode` nunca repete**, nem após exclusão ou reprovação. O build
+  local estava no **10** em 19/10/2026 (este arquivo dizia 3 — estava velho); o
+  11 é o da cobrança da Play. Conferir no Explorador de pacotes antes de subir.
 - ✅ **assetlinks no ar e correto** (conferido 08/10): responde 200 com as DUAS
   impressões — `CE:38:9C…` (upload, CN=Sora) e `32:DA:85…` (Play App Signing).
   ⚠️ Publicar numa faixa **aberta TRAVA a chave de assinatura pra sempre**.
@@ -3823,8 +3824,27 @@ essencial pra não errar:
   divergência do `manifest.json` — trocar faria a abertura piscar preto→verde.
   Mudou o vídeo? Remedir e trocar nos três: `twa-manifest.json`, o
   `#sora-abertura` do `globals.css` e o `poster` do `app/layout.tsx`.
-- **`playBilling: false`** (out/2026): o app não vende nada por dentro, e a
-  permissão de billing brigaria com a declaração "Compras no app: Não".
+- **ASSINATURA PELA GOOGLE PLAY (19/10/2026) — `docs/PLAY-BILLING.md`.** O app
+  passou a vender Básico/Premium/Platinum (mensal e anual, MESMO preço do site)
+  pela cobrança do Google — `playBilling: true` no build 11. Até o 10 o app não
+  vendia nada e a aba bloqueada levava a uma /planos VAZIA (beco sem saída).
+  - **6 produtos, um por plano+ciclo** (`sora_<plano>_<ciclo>`): a ponte da TWA
+    (androidbrowserhelper billing 1.2.0, lida no .aar) compra SEMPRE a 1ª oferta
+    do produto — mensal e anual no mesmo produto deixaria o anual incomprável.
+  - **O estado vem sempre da API do Google** (`lib/play-sync.ts`); o app e o
+    aviso automático (RTDN, `/api/play/rtdn`) só entregam o `purchaseToken`.
+  - ⚠️ **Recusar = não confirmar = o Google reembolsa em 3 dias.** Vitalício e
+    assinante do Stripe não ganham plano pela Play.
+  - ⚠️ **Só rebaixa quem ganhou pela Play** (`users.plano_fonte = 'play'`,
+    migration **187**); fim da assinatura → `gratis`, nunca `inativo`.
+    Validade = vencimento + 1 dia (o `exigirPlano` expira sozinho).
+  - **Site × Play:** assinante Play não vê o Stripe (`ofertasDoPlano`
+    `assinaturaPlay`) e o checkout responde 409; excluir conta cancela na Play.
+  - **Restauração:** `SincronizarPlay` reenvia as compras do aparelho 1×/sessão
+    (rede de segurança se a confirmação falhar logo após pagar).
+  - Regras em `lib/play-billing.ts` (`eval:play-billing`, 8/8 mutações mortas).
+  - **Fora (fase seguinte):** Kit/vitalício comprando pela Play, conexão avulsa
+    de OF no app, assinantes Play no MRR do /admin.
 - ⚠️ **A keystore está no OneDrive** (`...\Sora\android.keystore`, alias
   `android`). Perdê-la = **nunca mais atualizar o app**. Manter cópia fora.
 - **Ficha e formulários da loja (o dono faz no Play Console):** os screenshots
@@ -4037,6 +4057,7 @@ sql/183_assinatura_conexao_fim.sql — users.of_assinatura_fim + of_fim_avisado_
 sql/184_absorvido_auto.sql     — transacoes.absorvido_auto_em. **LIGA** a absorção automática do previsto manual pelo banco (sem ela, nada é absorvido — de propósito). CONFIRMAR SE RODOU.
 sql/185_davidson_conexao_anual.sql — restitui 1 conexão anual paga (davidson, até 2027-09-19). Pontual.
 sql/186_diagnostico_financeiro.sql — tabela diagnostico_financeiro: retratos do diagnóstico diário (JOB 1S + aba "Saúde financeira" do /admin). Sem ela a varredura roda mas não guarda. CONFIRMAR SE RODOU.
+sql/187_play_assinaturas.sql   — assinaturas da GOOGLE PLAY (tabela play_assinaturas + users.plano_fonte). **OBRIGATÓRIA antes de vender no app**: sem ela a compra não é registrada nem confirmada, e o Google reembolsa em 3 dias. Ver docs/PLAY-BILLING.md.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

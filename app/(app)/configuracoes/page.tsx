@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
 import { useEhAppNativo } from '@/lib/useOrigem';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
+import PlanosPlay, { useStatusPlay } from '@/components/planos/PlanosPlay';
+import { linkGerenciarPlay } from '@/lib/digital-goods';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import AvatarMembro from '@/components/ui/AvatarMembro';
@@ -472,8 +474,11 @@ function SecaoPlano() {
   // ⚠️ MESMA REGRA DA /planos (`lib/ofertas-plano.ts`). Esta tela mostrava a
   // grade de assinaturas pra TODO mundo: a conta Kit via só os planos mensais
   // aqui, sem o upgrade pra Completa que a /planos oferecia.
+  // Assinatura pela Google Play: esconde a grade do Stripe no site (cobrança em
+  // dobro) e faz o "Gerenciar" abrir a Play Store em vez do portal do Stripe.
+  const { data: statusPlay } = useStatusPlay(!!perfil);
   const ofertas = perfil
-    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid })
+    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa })
     : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
 
   // Plano fora do catálogo de assinatura (kit, inativo) cai no visual do Premium.
@@ -566,12 +571,16 @@ function SecaoPlano() {
         diasRestantes={diasRestantes}
         temAssinatura={temAssinatura}
         loadingPortal={loadingPortal}
-        onGerenciar={abrirPortal}
+        onGerenciar={statusPlay?.ativa ? () => { window.location.href = linkGerenciarPlay(statusPlay.produto); } : abrirPortal}
         criadoEm={perfil?.created_at ? new Date(perfil.created_at) : null}
         isVitalicio={!!perfil?.vitalicio}
         vitalicioEm={perfil?.vitalicio_em ? new Date(perfil.vitalicio_em) : null}
         temAssinaturaConexao={(Number(perfil?.of_conexoes_pagas) || 0) > 0}
       />
+
+      {/* ⚠️ Dentro do app a venda é pela Google Play — a grade do Stripe abaixo
+          nunca aparece ali (`ofertas` vem vazia no app). */}
+      {ehAndroid && <PlanosPlay />}
 
       {/* Kit → Completa: a ÚNICA oferta pra quem tem o Kit. */}
       {ofertas.upgradeKit && <OfertaVitalicia modo="upgrade" />}

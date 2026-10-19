@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { stripe, priceIdToPlano } from '@/lib/stripe';
 import { checkAdmin } from '@/lib/admin-server';
+import { cancelarAssinatura, playConfigurado, ErroPlay } from '@/lib/google-play';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,6 +200,27 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
       }
     } catch (e: unknown) {
       return NextResponse.json({ erro: `Não consegui cancelar a assinatura no Stripe (${e instanceof Error ? e.message : 'erro'}). Os bancos já foram desligados; a conta NÃO foi apagada — tente de novo.` }, { status: 502 });
+    }
+  }
+
+  // ⚠️ E a assinatura da GOOGLE PLAY (compra no app). Ela não passa pelo Stripe,
+  // e apagar só a linha deixaria o Google cobrando todo mês de alguém sem conta.
+  // Tolerante à migration 187 ausente (sem tabela, não há assinatura Play).
+  {
+    const { data: play, error: ePlay } = await supabaseAdmin
+      .from('play_assinaturas').select('purchase_token, product_id, estado').eq('user_id', id);
+    const vivas = ePlay ? [] : (play || []).filter((p) =>
+      p.product_id && !['SUBSCRIPTION_STATE_EXPIRED', 'SUBSCRIPTION_STATE_CANCELED', 'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED'].includes(p.estado));
+    if (vivas.length && !playConfigurado()) {
+      return NextResponse.json({ erro: 'A conta tem assinatura pela Google Play e GOOGLE_PLAY_SERVICE_ACCOUNT não está na Vercel. Nada foi apagado.' }, { status: 503 });
+    }
+    for (const p of vivas) {
+      try {
+        await cancelarAssinatura(p.product_id, p.purchase_token);
+      } catch (e: unknown) {
+        if (e instanceof ErroPlay && e.definitivo) continue;   // já não existe no Google
+        return NextResponse.json({ erro: `Não consegui cancelar a assinatura da Google Play (${e instanceof Error ? e.message : 'erro'}). A conta NÃO foi apagada — tente de novo.` }, { status: 502 });
+      }
     }
   }
 

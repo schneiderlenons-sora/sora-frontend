@@ -7,6 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
 import { useEhAppNativo } from '@/lib/useOrigem';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
+import PlanosPlay, { useStatusPlay } from '@/components/planos/PlanosPlay';
+import { linkGerenciarPlay } from '@/lib/digital-goods';
+import { detectarOrigem } from '@/lib/origem-app';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANO_LABEL, type Plano } from '@/lib/plans';
@@ -56,8 +59,11 @@ function PlanosContent() {
 
   // Sem perfil ainda não se sabe o plano: nenhuma oferta nova pisca antes de
   // saber (a grade de assinaturas segue como sempre foi).
+  // Assinatura pela Google Play (comprada no app): no SITE ela esconde a grade
+  // do Stripe — senão a pessoa pagaria o mesmo plano duas vezes.
+  const { data: statusPlay } = useStatusPlay(!!perfil);
   const ofertas = perfil
-    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid })
+    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa })
     : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
 
   useEffect(() => {
@@ -123,6 +129,10 @@ function PlanosContent() {
   const autoCheckout = useRef(false);
   useEffect(() => {
     if (autoCheckout.current) return;
+    // ⚠️ Dentro do app o Stripe NUNCA abre (política do Play). Lido na hora, e
+    // não pelo `ehAndroid`: o hook nasce `false` e só vira `true` depois de
+    // montar — nesse primeiro instante o checkout já teria disparado.
+    if (detectarOrigem() === 'android' && window.matchMedia('(display-mode: standalone)').matches) return;
     if (intent !== 'upgrade' || !planoIntencaoValido) return;
     if (planoAtual !== 'inativo') return;
     if (success || canceled) return;
@@ -443,6 +453,22 @@ function PlanosContent() {
               Escolha um plano abaixo. ⚠️ Assinar <span className="font-semibold">substitui</span> seu
               acesso vitalício — a troca não tem volta.
             </p>
+          </div>
+        )}
+
+        {/* ⚠️ DENTRO DO APP a venda é pela Google Play (política do Play). A
+            grade abaixo (Stripe) nunca aparece ali — `ofertas` já vem vazia. */}
+        {ehAndroid && <PlanosPlay />}
+
+        {/* No SITE, quem assinou pelo app vê de onde vem a cobrança e onde mexer. */}
+        {!ehAndroid && statusPlay?.ativa && (
+          <div className="max-w-xl mx-auto rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-foreground/80 text-center leading-relaxed">
+            Sua assinatura foi feita pelo app da Sora e é cobrada pela Google Play.
+            Pra trocar de plano ou cancelar, use o app ou a Play Store.
+            <a href={linkGerenciarPlay(statusPlay.produto)}
+               className="mt-3 flex items-center justify-center min-h-11 font-semibold underline" style={{ color: BRAND }}>
+              Abrir minhas assinaturas na Play Store
+            </a>
           </div>
         )}
 

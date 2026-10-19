@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Trash2, Check, Clock, ShieldCheck, Mail, LogIn, Loader2, AlertCircle, Download } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -177,11 +177,13 @@ function CardPedido({ user, loading }: { user: { id: string; email?: string } | 
   const [digitou, setDigitou] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
-  const [pedido, setPedido] = useState<Pedido | null>(null);
+  const [pedidoNovo, setPedido] = useState<Pedido | null>(null);
 
   // Mostra o pedido já feito neste aparelho — sem isso, voltar à página
-  // convidaria a mandar outro igual.
-  useEffect(() => { if (user) setPedido(lerPedido(user.id)); }, [user]);
+  // convidaria a mandar outro igual. Derivado na renderização: no servidor
+  // `user` é sempre null (a sessão chega no cliente), então o localStorage só é
+  // lido no navegador.
+  const pedido = pedidoNovo ?? (user ? lerPedido(user.id) : null);
 
   const casa = 'rounded-2xl border p-5';
 

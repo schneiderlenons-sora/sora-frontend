@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe, PRICE_IDS, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { linhaComDireito } from '@/lib/play-billing';
 
 // Checkout de ASSINATURA (planos mensais/anuais). O vitalício é pago via
 // Mercado Pago (checkout transparente) — ver app/api/mercadopago/*.
@@ -22,6 +23,17 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 });
+    }
+
+    // ⚠️ Quem já assina pela Google Play não abre checkout aqui: seriam DUAS
+    // cobranças pelo mesmo plano. A tela já esconde a grade; isto é a trava do
+    // servidor. Tolerante: sem a migration 187 (tabela ausente), segue.
+    {
+      const { data: play, error: ePlay } = await supabaseAdmin
+        .from('play_assinaturas').select('plano, intervalo, estado, expira_em').eq('user_id', user.id);
+      if (!ePlay && (play || []).some((l) => linhaComDireito(l, Date.now()))) {
+        return NextResponse.json({ erro: 'Sua assinatura atual é pela Google Play. Troque de plano pelo app da Sora ou pela Play Store.' }, { status: 409 });
+      }
     }
 
     // Busca ou cria customer no Stripe

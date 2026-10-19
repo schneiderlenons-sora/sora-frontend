@@ -37,7 +37,8 @@
     "eval:contas-debito": "npx tsx lib/contas-debito.eval.mjs",
     "eval:paletas": "npx tsx lib/theme-colors.eval.mjs",
     "eval:conexao-encerramento": "npx tsx lib/conexao-of-encerramento.eval.mjs",
-    "eval:importar-pdf": "npx tsx lib/importar-pdf.eval.mjs"
+    "eval:importar-pdf": "npx tsx lib/importar-pdf.eval.mjs",
+    "eval:play-billing": "npx tsx lib/play-billing.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

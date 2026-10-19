@@ -16,6 +16,7 @@ import ThemeColorSync from '@/components/layout/ThemeColorSync';
 import OrigemSync from '@/components/app/OrigemSync';
 import DispositivoSync from '@/components/app/DispositivoSync';
 import AppInstaladoSync from '@/components/app/AppInstaladoSync';
+import SincronizarPlay from '@/components/app/SincronizarPlay';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -64,6 +65,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           {/* Marca no servidor que a pessoa abriu a Sora DENTRO do app
               Android — é o que esconde a barra de convite da Play Store. */}
           <AppInstaladoSync />
+          {/* Reconfirma as assinaturas da Google Play do aparelho (rede de
+              segurança da compra no app — ver o componente). */}
+          <SincronizarPlay />
           <MarcasCustomProvider>
             {/* Categorias do grupo: é delas que sai o emoji/cor de cada
                 transação. Fica ao lado das marcas porque as duas alimentam o

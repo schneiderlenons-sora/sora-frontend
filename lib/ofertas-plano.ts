@@ -43,8 +43,15 @@ export function ofertasDoPlano(p: {
   /** `users.vitalicio` — pagou uma vez (Kit ou Completa). */
   vitalicio: boolean;
   android: boolean;
+  /** Tem assinatura ATIVA pela Google Play (comprada no app). */
+  assinaturaPlay?: boolean;
 }): OfertasPlano {
+  // ⚠️ No app, quem vende é a grade da Play (components/planos/PlanosPlay), não
+  // esta regra — que decide só o que sai pelo Stripe/Mercado Pago.
   if (p.android) return NADA;
+  // ⚠️ Quem já paga pela Play não vê nada do Stripe no site: seriam DUAS
+  // cobranças pelo mesmo plano. A troca de plano dele é feita no app.
+  if (p.assinaturaPlay) return NADA;
   // Kit vem antes do `vitalicio`: a conta Kit também tem a flag, e é justamente
   // a que ainda tem pra onde subir.
   if (p.plano === 'kit') return { assinaturas: false, upgradeKit: true, completaVitalicia: false };

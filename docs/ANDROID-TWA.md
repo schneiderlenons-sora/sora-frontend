@@ -4,7 +4,7 @@ A Sora na Play Store é uma **TWA**: o `.aab` é uma casca que abre
 `www.forsora.com` em tela cheia. **O conteúdo não vive dentro do pacote.**
 
 **Estado:** público na Play Store desde **10/10/2026** — pacote `com.forsora.app`,
-último `appVersionCode` usado: 3 (o próximo é 4, nunca repete).
+último `appVersionCode` no build local: **10** em 19/10/2026 (o guia dizia 3 e estava desatualizado); o build preparado é o **11**, com a cobrança da Play ligada. Nunca repete — conferir no Explorador de pacotes do Play Console.
 URL pública de exclusão de conta (Play Console → Segurança dos dados):
 **`https://www.forsora.com/excluir-conta`** (19/10/2026). Lacuna ainda aberta:
 operadores na Política de Privacidade — ver a seção "Play Store (TWA)" do
@@ -60,7 +60,7 @@ Se aparecer de novo, apague: não sincronize.
 4. Copie a cópia do repo: `cp twa-manifest.json <repo>/twa-manifest.json`.
 
 ⚠️ **`appVersionCode` nunca pode repetir**, nem se o envio for excluído ou
-reprovado. Em 08/10/2026 o 3 já estava usado; o próximo é o 4.
+reprovado. Em 19/10/2026 o build local estava no 10; o 11 é o da cobrança da Play.
 
 ## ⚠️ A keystore
 
@@ -109,13 +109,12 @@ permanentemente.
   preto→verde. Se o vídeo mudar, remedir o quadro 0 e trocar nos **três**
   lugares: aqui, o `background` de `#sora-abertura` no `globals.css` e o
   `poster` em `app/layout.tsx`.
-- **`playBilling: false`** — o app **não vende nada por dentro**: o
-  `CardPlanos` no modo android esconde preço e botão de assinar, e as rotas de
-  compra convertem pra `gratis`. É o que mantém a Sora fora da exigência de
-  Play Billing (o Google proíbe vender assinatura por fora, e proíbe até link
-  ou texto persuasivo levando a outro meio de pagamento; o Brasil não está na
-  lista de billing alternativo). Ligado, ele põe `com.android.vending.BILLING`
-  no pacote e briga com a declaração "Compras no app: Não".
+- **`playBilling: true` desde o build 11 (19/10/2026)** — o app passou a
+  VENDER as assinaturas pela cobrança do Google, a única permitida dentro do
+  app (o Brasil não tem billing alternativo, e link ou texto levando ao site/
+  Stripe continua proibido). Até o build 10 era `false` e o app não vendia
+  nada — a tela de Planos ficava vazia. Configuração e testes:
+  **`docs/PLAY-BILLING.md`**. A declaração "Compras no app" passa a ser **Sim**.
 - **`startUrl: /dashboard?fonte=android`** — o `?fonte=android` é a segunda
   fonte de detecção do `lib/origem-app.ts`. A primeira é o
   `document.referrer` (`android-app://`), que só existe na PRIMEIRA navegação.
