@@ -8,7 +8,7 @@ const COLUNA_HREFS = [
   ['#features', '#demo', '#pricing'],
   ['#', '#', '#', '#'],
   ['#', '#', '#', '#'],
-  ['/termos', '/privacidade', '/privacidade'],
+  ['/termos', '/privacidade', '/privacidade', '/excluir-conta'],
 ];
 
 export default function Footer() {

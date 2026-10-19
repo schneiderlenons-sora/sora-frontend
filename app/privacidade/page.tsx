@@ -38,7 +38,7 @@ export default function PrivacidadePage() {
           </section>
           <section>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">7. Exclusão da conta</h2>
-            <p>Você pode solicitar a exclusão da sua conta e dos dados associados a qualquer momento pelo e-mail acima ou pelas Configurações do app.</p>
+            <p>Você pode solicitar a exclusão da sua conta e dos dados associados a qualquer momento pela página <Link href="/excluir-conta" className="font-semibold underline" style={{ color: 'hsl(var(--primary))' }}>forsora.com/excluir-conta</Link> (abre sem precisar entrar na conta), pelas Configurações do app ou pelo e-mail acima. Lá explicamos o que é apagado, o que fica guardado e por quanto tempo.</p>
           </section>
           <section>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">8. Contato / Encarregado (DPO)</h2>

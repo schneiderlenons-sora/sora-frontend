@@ -1276,8 +1276,6 @@ function SecaoDados() {
   const grupoId = (perfil as any)?.grupo_ativo as string | undefined;
   const podeExportar = podeUsar('export_dados');
   const [exportando, setExportando] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
-  const [digitouConfirma, setDigitouConfirma] = useState('');
   const [mensagem, setMensagem] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
   // ── Resetar conta (limpar dados por módulo, sem excluir a conta) ──
@@ -1360,14 +1358,6 @@ function SecaoDados() {
     } finally {
       setExportando(false);
     }
-  }
-
-  async function excluirConta() {
-    if (digitouConfirma.toUpperCase() !== 'EXCLUIR') return;
-    // Atualmente sem endpoint backend de deleção total. Mostra mensagem.
-    flash('ok', 'Solicitação registrada. Entre em contato com suporte pra confirmação final.');
-    setConfirmDel(false);
-    setDigitouConfirma('');
   }
 
   return (
@@ -1499,10 +1489,13 @@ function SecaoDados() {
                 Apaga permanentemente todas as suas transações, contas, categorias, grupos, investimentos e o login.
                 Esta ação <strong>não pode ser desfeita</strong>.
               </p>
-              <button onClick={() => setConfirmDel(true)}
-                      className="btn-danger px-3 py-2 text-sm gap-2 mt-3 inline-flex items-center">
+              {/* ⚠️ Antes era um modal que dizia "Solicitação registrada" e NÃO
+                  registrava nada. A exclusão mora numa página PÚBLICA (exigência
+                  da Play Store) — este botão é o caminho de dentro do app pra ela. */}
+              <Link href="/excluir-conta"
+                    className="btn-danger px-3 py-2 text-sm gap-2 mt-3 inline-flex items-center min-h-11">
                 <Trash2 size={13} /> Solicitar exclusão
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -1550,45 +1543,6 @@ function SecaoDados() {
                       className="px-4 py-2 text-sm gap-2 inline-flex items-center rounded-lg text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
                 {resetando ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Resetar agora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de confirmação de exclusão */}
-      {confirmDel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setConfirmDel(false)}>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl border border-border animate-fade-in p-6"
-               onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mb-4">
-              <AlertCircle size={22} className="text-red-600 dark:text-red-400" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground">Excluir conta {user?.email}?</h3>
-            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              Vamos apagar <strong className="text-foreground">tudo</strong> que está vinculado a esta conta — transações, categorias, contas bancárias, cartões, investimentos, grupos. Não dá pra recuperar.
-            </p>
-            <div className="mt-4">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                Pra confirmar, digite <span className="font-mono text-red-600 dark:text-red-400">EXCLUIR</span>
-              </label>
-              <input
-                value={digitouConfirma}
-                onChange={e => setDigitouConfirma(e.target.value)}
-                className="input"
-                placeholder="EXCLUIR"
-                autoFocus
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-5">
-              <button onClick={() => { setConfirmDel(false); setDigitouConfirma(''); }} className="btn-ghost px-4 py-2 text-sm">
-                Cancelar
-              </button>
-              <button onClick={excluirConta}
-                      disabled={digitouConfirma.toUpperCase() !== 'EXCLUIR'}
-                      className="btn-danger px-4 py-2 text-sm gap-2 inline-flex items-center">
-                <Trash2 size={14} /> Excluir definitivamente
               </button>
             </div>
           </div>

@@ -22,6 +22,8 @@ const ROTAS_PUBLICAS = [
   // Vendas e funis — visitante sem conta é o público delas.
   '/oferta', '/kit', '/checkout-vitalicio', '/financas', '/chat', '/quiz', '/tour',
   '/termos', '/privacidade',
+  // Exigência da Play Store: a exclusão de conta tem de abrir SEM login.
+  '/excluir-conta',
   // Redirects de rota antiga. Públicas de propósito: elas só apontam pra
   // outra tela, e é a de destino que decide se pede login.
   '/central-sora', '/planejamento', '/avisos',

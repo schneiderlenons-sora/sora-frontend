@@ -155,6 +155,53 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     return NextResponse.json({ erro: 'Você não pode apagar a própria conta admin.' }, { status: 400 });
   }
 
+  // ── ANTES DE APAGAR: parar tudo que COBRA ───────────────────────────────
+  //
+  // ⚠️ Era isto que faltava pra a página pública /excluir-conta não prometer o
+  // que o processo não cumpre. Apagar só as linhas deixava duas cobranças vivas:
+  //   · a conexão de banco — `of_conexoes` sai em CASCATA com o usuário, sem
+  //     avisar a Polp, que segue cobrando o consentimento todo mês;
+  //   · a assinatura no Stripe — a do plano e a da conexão avulsa, que é OUTRA.
+  // Qualquer falha aqui ABORTA a exclusão: conta apagada com cobrança viva é
+  // pior que conta não apagada (essa dá pra tentar de novo).
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  const secret = process.env.ADMIN_SECRET;
+  if (!base || !secret) {
+    return NextResponse.json({ erro: 'Falta NEXT_PUBLIC_API_URL ou ADMIN_SECRET na Vercel — sem eles não dá pra desligar os bancos antes de apagar.' }, { status: 503 });
+  }
+  try {
+    const r = await fetch(`${base}/api/admin/revogar-conexoes-usuario`, {
+      method: 'POST',
+      headers: { 'x-admin-secret': secret, 'content-type': 'application/json' },
+      body: JSON.stringify({ user_id: id }),
+      cache: 'no-store',
+    });
+    const body = await r.json().catch(() => null) as { falhas?: { instituicao: string | null }[]; erro?: string } | null;
+    if (!r.ok || !body) {
+      return NextResponse.json({ erro: `Não consegui desligar os bancos (${body?.erro || r.status}). Nada foi apagado — tente de novo.` }, { status: 502 });
+    }
+    if (body.falhas?.length) {
+      const bancos = body.falhas.map(f => f.instituicao || 'banco').join(', ');
+      return NextResponse.json({ erro: `A Polp não confirmou a revogação de: ${bancos}. Nada foi apagado — tente de novo em alguns minutos.` }, { status: 502 });
+    }
+  } catch (e: unknown) {
+    // Quase sempre o Render em cold start. Tentar de novo resolve.
+    return NextResponse.json({ erro: `Backend não respondeu (${e instanceof Error ? e.message : 'erro'}). Nada foi apagado — tente de novo.` }, { status: 502 });
+  }
+
+  const { data: u } = await supabaseAdmin.from('users').select('stripe_customer_id').eq('id', id).maybeSingle();
+  if (u?.stripe_customer_id) {
+    try {
+      const subs = await stripe.subscriptions.list({ customer: u.stripe_customer_id, status: 'all', limit: 100 });
+      for (const s of subs.data) {
+        if (s.status === 'canceled' || s.status === 'incomplete_expired') continue;
+        await stripe.subscriptions.cancel(s.id);
+      }
+    } catch (e: unknown) {
+      return NextResponse.json({ erro: `Não consegui cancelar a assinatura no Stripe (${e instanceof Error ? e.message : 'erro'}). Os bancos já foram desligados; a conta NÃO foi apagada — tente de novo.` }, { status: 502 });
+    }
+  }
+
   for (const t of TABELAS_GROW) {
     try { await supabaseAdmin.from(t).delete().eq('user_id', id); } catch { /* tabela pode não ter user_id */ }
   }

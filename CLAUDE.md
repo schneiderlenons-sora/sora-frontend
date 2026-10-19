@@ -3833,11 +3833,30 @@ essencial pra não errar:
   Recursos Financeiros (só "gestão de finanças pessoais" — "investimento" faz o
   Google pedir registro na CVM). Como o app já foi aprovado, **confirmar com o
   dono** o que foi declarado antes de mexer.
-- ⚠️ **Lacunas de conformidade AINDA ABERTAS (conferido no código em 19/10/2026)**
-  — candidatas naturais pra próxima rodada:
-  - **Não existe URL PÚBLICA de exclusão de conta.** O Google exige uma página
-    alcançável **sem login**; hoje só há o fluxo em Configurações e o e-mail.
-    Só existem `app/privacidade` e `app/termos`.
+- ✅ **Exclusão de conta pública — FEITA em 19/10/2026: `www.forsora.com/excluir-conta`.**
+  É a URL que vai no Play Console (Conteúdo do app → Segurança dos dados →
+  Exclusão de dados). Abre **sem login** e diz como pedir, o que é apagado, o
+  que fica (pagamentos e o próprio pedido: até 5 anos) e o prazo (**15 dias**).
+  - ⚠️ **O botão de Configurações dizia "Solicitação registrada" e NÃO
+    REGISTRAVA NADA.** Hoje ele leva pra esta página (é o caminho "de dentro do
+    app", que o Google também exige).
+  - **O pedido vai pelo canal do "Relatar um problema"** (`POST /api/bug`):
+    grava em `bug_reports`, chega no WhatsApp do suporte e aparece no /admin
+    com o prefixo "🗑️ PEDIDO DE EXCLUSÃO DE CONTA". Sem migration. A exclusão
+    **não é imediata, de propósito**: grupo criado pela pessoa some também pros
+    outros membros, então um humano confere antes.
+  - ⚠️ **QUEM EXECUTA É O BOTÃO DE APAGAR DO /admin**
+    (`DELETE /api/admin/users/[id]`), que agora, ANTES de apagar, **revoga as
+    conexões de banco na Polp** (backend `POST /api/admin/revogar-conexoes-usuario`,
+    `exigirRevogacao: true`) e **cancela toda assinatura do customer no Stripe**
+    (plano + conexão avulsa, que é outra). Antes ele apagava só as linhas — e
+    `of_conexoes` sai em CASCATA com o usuário, sem avisar a Polp, que seguia
+    cobrando. Qualquer falha **aborta** a exclusão (conta apagada com cobrança
+    viva é pior do que conta não apagada).
+  - A rota está nas 4 allowlists (`middleware.ts`, `lib/paywall.ts`,
+    `OnboardingRedirect`, abertura do `app/layout.tsx`), no rodapé do site e na
+    Política de Privacidade (§7).
+- ⚠️ **Lacuna de conformidade AINDA ABERTA (conferido no código em 19/10/2026):**
   - **A Política de Privacidade (`app/privacidade`) não nomeia os operadores**
     OpenAI, Mercado Pago, Meta (Pixel/CAPI/WhatsApp) nem Polp/Celcoin — é
     exatamente o cruzamento que o Google faz com o formulário de Segurança dos

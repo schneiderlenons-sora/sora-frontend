@@ -43,6 +43,8 @@ export default function OnboardingRedirect() {
       '/vincular-whatsapp',
       '/oferta',
       '/checkout-vitalicio',
+      // Pedir a exclusão da conta não pode exigir terminar o wizard antes.
+      '/excluir-conta',
     ];
     if (!pathname) return;
     if (rotasPublicas.some((r) => pathname === r || pathname.startsWith(r + '/'))) return;
