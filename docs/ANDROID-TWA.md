@@ -3,6 +3,11 @@
 A Sora na Play Store é uma **TWA**: o `.aab` é uma casca que abre
 `www.forsora.com` em tela cheia. **O conteúdo não vive dentro do pacote.**
 
+**Estado:** público na Play Store desde **10/10/2026** — pacote `com.forsora.app`,
+último `appVersionCode` usado: 3 (o próximo é 4, nunca repete). Lacunas de conformidade ainda
+abertas (URL pública de exclusão de conta; operadores na Política de
+Privacidade): ver a seção "Play Store (TWA)" do `CLAUDE.md`.
+
 ## ⚠️ Mudança no app NÃO exige pacote novo
 
 Todo `git push` no `master` → deploy na Vercel → o app Android está atualizado

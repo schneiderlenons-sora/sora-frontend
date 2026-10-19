@@ -9,6 +9,16 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 - **Domínio oficial:** **https://www.forsora.com** (site + painel da Sora).
 - **Preview só quando pedido.** Às vezes o usuário pede um **preview** das alterações (painel ou landing) sem mandar pra produção — esses previews ficam na **Vercel**. Só gere preview se o usuário pedir explicitamente; o padrão é sempre deploy direto pra produção.
 
+## 📌 Onde está cada coisa (ler antes de supor)
+
+| Assunto | Fonte | Seção aqui |
+|---|---|---|
+| **Docs da Polp/Celcoin (Open Finance)** | **`sora-backend/docs/celcoin/*.txt`** (as 51 páginas da doc, uma por arquivo — `bills__transactions.txt`, `credit-cards__installments.txt`, `consents__resources.txt`, `changelog.txt`… —; índice em `_URLS.txt`; reatualiza com `node docs/celcoin/baixar.js`, conferido em 19/10/2026). ⚠️ Consultar ALI antes de supor qualquer campo da API | "DOCS DA CELCOIN SALVOS" |
+| **App Android / Play Store (TWA)** | **`docs/ANDROID-TWA.md`** (build, versão, keystore, assetlinks) + build em `C:\Users\jenif\sora-android` | "Play Store (TWA)" |
+| Conciliação (previsto × banco, transferências, fatura paga) | `sora-backend/src/services/` (réguas puras com eval) | "Conciliação de ponta a ponta" + "Outubro/2026" |
+| Diagnóstico de OF de um cliente | `/api/admin/of-debug?email=<cliente>` (`&foco=saldo` / `cartoes`) | "Open Finance (Polp)" |
+| Migrations | `sora-backend/sql/` (rodar à mão no Supabase) | "Migrations SQL a rodar" |
+
 ## Comandos essenciais
 
 ```bash
@@ -1243,8 +1253,8 @@ via em lugar nenhum do painel. Pelo mesmo motivo, somar a caixinha à parte
 
 ## Open Finance: fidelidade da fatura ao banco (ago/2026) — leitura dos docs
 
-Releitura completa dos docs da Celcoin (`polp.com.br/docs/celcoin`, renderizados
-por JS — use browser) depois de um cliente relatar **app R$ 1.035,55 × banco
+Releitura completa dos docs da Celcoin (`polp.com.br/docs/celcoin` — cópia local
+em `sora-backend/docs/celcoin/`; o HTML é legível por curl) depois de um cliente relatar **app R$ 1.035,55 × banco
 R$ 1.788,00** no Nubank. Três achados, todos com correção medida na base:
 
 ⚠️ **`simulated_bill_total_amount` NÃO é "a fatura atual".** O doc define:
@@ -1412,6 +1422,34 @@ SUGERE, o cliente confirma, o servidor reconfere, e nada mexe em saldo.**
 | Transferência entre contas próprias | `transferenciaPropria.paresTransferencia` | "Movimentação entre suas contas?" | ~25 pares; falso positivo conhecido (por isso R$ 50+, par sem disputa, nunca automático) |
 | Fatura paga por débito na CONTA | `pagamentoFaturaConta.paresPagamentoFatura` | "Pagou alguma fatura?" | 7 de 171 faturas vencidas |
 | Fatura publicada + pagamento registrado | `faturaVista.pagoDaPublicada` | automático (é o mesmo dinheiro) | 12 faturas, ~R$ 57 mil |
+| Manual JÁ PAGO × banco, em conta do banco | `fusaoDuplicada.planoFusao({ contaDoBanco })` | "Conciliar" (mesmo quadro) | 39 das 96 duplicatas, R$ 22,3 mil |
+| Previsto manual pendente × banco, sem disputa | `escolherAbsorcoes` + `absorverManuais` no sync | **automático** (Watson lista "Juntados automaticamente · desfazer", 7 dias) | só liga com a **184** |
+| Conta fixa × cobrança do banco (sugestão / baixa automática) | `casarPrevisao.casar` + `baixaPrevisao` | Extrato Futuro "dar baixa?" | 9 sugestões, todas plausíveis |
+| Conta fixa absorvida pelo banco (automático) | `reconciliarPrevisto` (2% / R$ 1, candidata única) | automático | 11 de 16 seguem |
+
+**Regras da fusão (`fusaoDuplicada.js`, `POST /fundir`):** quem FICA é sempre a
+linha do banco (`of_tx_id` — apagá-la a jogaria em `of_tx_ignoradas` e a cobrança
+some pra sempre); a descartada é a manual; a do banco herda SÓ o rótulo
+(observação/categoria) **e o `recorrencia_id`+`competencia`** — sem isso a conta
+fixa "esquece" que foi paga. A prova é o mesmo `ehDuplicata('manual-e-banco')` do
+Watson. Manual JÁ PAGO só funde em **conta do banco** (decidido pelo SERVIDOR via
+`wallets.of_conta_id`): em conta manual o pago já debitou o saldo.
+
+**Absorção automática (migration 184, interruptor `OF_ABSORVER_MANUAL=0`):** muda
+só `pago`/`of_tx_id`/`of_card` + o marco `absorvido_auto_em` — valor, data e
+rótulo ficam, o que torna o desfazer trivial. ⚠️ Sem a 184 o update falha e a
+cobrança entra separada **de propósito** (nunca fundir sem rede de desfazer). ⚠️
+`recorrente != true` no Postgres EXCLUI `NULL` — usar `IS NOT TRUE`. Falhas que
+saíam caladas (interruptor, update recusado, exceção) hoje logam.
+
+**Conta fixa em conta conectada:** com "Desconta sozinho" o cron lançava PAGO e o
+banco trazia a mesma (13 linhas em dobro em 60 dias). Hoje, em conta do banco, o
+cron lança como **previsão** (`contaConectada` em `jobs/index.js`) e o banco
+confirma via `reconciliarPrevisto`. O formulário avisa.
+
+**Watson (`duplicadas.temHoraReal`):** horário cheio (`hh:00:00`) não prova "mesmo
+instante" — exceto com milissegundo real diferente de zero (`10:00:00.123` é
+instante; `12:00:00.000` não).
 
 - ⚠️ **MEIO-PAR conta:** transferência em que uma ponta já está marcada e a
   outra ainda soma como receita (caso real, R$ 5.500). A régua só pula o par
@@ -1452,8 +1490,110 @@ Três defeitos, todos corrigidos com eval:
   Atrasado vale sempre (pendência); adiantado no mesmo mês também.
   Medido: 5 de 426 ligações da base tinham essa cara (3 eram do Vander e foram
   desfeitas; backup em scratchpad da sessão).
+- ⚠️ **PENDENTE — decisão do dono, nada foi mexido:** brunopelissoli ("LP Internet"
+  de 09/09 ligado a outubro), valterribeirosilvas (condomínio de 28/09 ligado a
+  outubro) e uma "Claro ← Pix enviado Ebanx" conciliada pela regra automática
+  antiga. Desfazer = zerar `recorrencia_id`/`competencia` da transação (mais
+  `recorrente=false` se estava true), como foi feito no Vander.
 
 ---
+
+## Outubro/2026 — o que entrou além da conciliação
+
+### Open Finance: o agregador REPROCESSA e regrava tudo com id novo
+
+Relato (Mayra): cartão duplicado. A Celcoin às vezes reprocessa as transações com
+`of_tx_id` NOVO; como o sync dedupa por `of_tx_id`, a cópia velha fica. Medido:
+**1.094 linhas extras, R$ 302.953 inflados, 39 usuários, 84 contas/cartões**.
+
+- **`services/dedupReprocesso.js`** (`planejarDedupReprocesso`, `eval:dedup-reprocesso`)
+  + `polpCelcoinSync.reconciliarReprocesso`, no sync de cartão E de conta.
+- ⚠️ **Critério de ORIGEM, nunca "mesma data+valor+descrição" solto** (apagaria
+  duas compras iguais). Só é cópia velha a linha cujo `of_tx_id` o agregador NÃO
+  manda mais **e** que tem gêmea exata (dia+valor+descrição+parcela) cujo id ESTÁ
+  no batch atual. Manual nunca. A categoria corrigida à mão passa pro sobrevivente.
+- Limpa sozinho o que está na janela de 90 dias (444 linhas) e previne o futuro.
+  Interruptor `OF_DEDUP_REPROCESSO=0`.
+- ⚠️ **Backlog >90 dias NÃO foi limpo — decisão do dono** ("se os clientes
+  reclamarem, apagamos"). Não limpar por iniciativa própria.
+
+### Conexão avulsa ANUAL não perde o que foi pago (Stripe)
+
+Relatos (gilbertojun, Davidson): pagaram 1 conexão anual (R$ 60), tentaram subir
+pra 2, a proration falhou, o Stripe cancelou a assinatura e o webhook **zerou**
+`of_conexoes_pagas` — levando a conexão já paga. Recebiam aviso de corte do JOB 1R.
+
+- **`lib/conexao-of-encerramento.ts`** (`decidirEncerramentoConexao`,
+  `eval:conexao-encerramento`): anual pré-pago mantém a quantidade PAGA até
+  `of_conexoes_pagas_ate` (migration **180**); mensal cancelado zera; sem dado ou
+  prazo vencido zera (lado seguro).
+- ⚠️ **Quantidade e prazo saem das invoices PAGAS** (`subscription_create`/`cycle`),
+  nunca da proration que falhou — creditar só o pago nunca dá conexão de graça.
+- Migrations **180** e **185** restituíram à mão os dois casos que já tinham passado.
+- **183** (`of_assinatura_fim`, `of_fim_avisado_em`): a Polp cobra por
+  CONSENTIMENTO ATIVO, não por uso — pausar o sync não para a cobrança; só cortar.
+
+### Vitalício pode migrar pra assinatura sozinho
+
+Relato (Yoshima): vitalício queria 3+ bancos; R$ 6/conexão inviabilizava.
+- `lib/ofertas-plano.ts`: vitalício agora **vê a grade de assinaturas** (não a
+  Completa, que já tem). Confirmação forte: a troca é **irreversível**.
+- Webhook `checkout.session.completed` de plano recorrente zera o vitalício —
+  senão `acessoOpenFinance` seguia dando franquia 0. Só nesse caminho deliberado.
+- ⚠️ `window.confirm` foi trocado por diálogo próprio em Planos/Configurações/
+  Dívidas: no navegador do WhatsApp o `confirm()` some e devolve `false`.
+
+### Venda escondida SÓ dentro do app nativo (`useEhAppNativo`)
+
+Relato (Lushima): os planos não apareciam nem no Chrome do Android. O TWA
+compartilha storage com o Chrome da mesma origem, e a origem `android` é
+persistida — a trava do Play escondia a venda até no navegador.
+**`useEhAppNativo` (`lib/useOrigem.ts`) = origem android E janela standalone.**
+⚠️ Toda trava de venda por política do Play usa ESTE hook, não o `ehAndroid`.
+
+### Vírgula OU ponto em todo campo de valor — `parseNumeroDigitado` (`lib/formato-br`)
+
+Relato (Vander). `<input type=number>` segue o idioma do navegador, e cada
+formulário convertia de um jeito, errando EM SILÊNCIO: `"1.500,00"` → 1,5 (~20
+lugares) e `"2911.60"` → 291160 (Extrato, investimento, relatórios).
+- Regra única: último separador é o decimal; repetido é milhar; um só é decimal,
+  **exceto** dinheiro com 1–3 dígitos + 3 (`"1.234"` = mil). Cota/preço/taxa usam
+  `{ dinheiro: false }` (`"0,125"` é fração). Lixo vira `NaN`, nunca número inventado.
+- Campos decimais viraram `type="text" inputMode="decimal"`. `eval:formato-br`.
+- ⚠️ Campo novo de valor: **use `parseNumeroDigitado`**, nunca `parseFloat`.
+
+### Falha de leitura não pode parecer "vazio"
+
+Relato (Fabricio): *"digitei meus investimentos o dia todo e sumiram"* — os 77
+estavam no banco; a BUSCA falhou e a rota respondia **200 com `[]`**. Hoje erro
+de leitura vira 500 e a tela diz "não consegui carregar — eles continuam
+salvos" com "Tentar de novo". ⚠️ Mesma família dos `const { data }` sem `error`.
+
+### Outros
+
+- **Importar PDF** (fatura/extrato): `lib/importar-pdf.ts` (puro, `eval:importar-pdf`)
+  + `app/api/importar/pdf` — extração roda no SERVIDOR (pdf.js no navegador quebra
+  no Turbopack; `serverExternalPackages: ['pdfjs-dist']`). Máx 4 MB, nada gravado,
+  sempre passa pela tela de revisão. PDF escaneado não lê.
+- **Alterar pelo zap no formato curto `<ID> <campo> <valor>`** (Fabio): sem verbo, a
+  frase criava transação nova. ID no começo (6 caracteres com dígito E letra) +
+  campo conhecido. A confirmação ensina a corrigir.
+- **Fatura legada "Cartão de Credito"** não conta como consumo
+  (`ehPagamentoFaturaLegado`, back + espelho no front) — afogava o relatório do
+  Vander (R$ 2.494,83). ⚠️ Fica FORA de `ehPagamentoFatura`, que governa SALDO.
+- **Transações: total do filtro no TOPO da lista** (Bruno) — receitas, despesas e
+  "Resultado do filtro" logo abaixo do cabeçalho; rodapé só em lista > 8 linhas.
+- **Aviso "Transferir entre contas" no Nova Transação** (Vander): descrição com
+  "transfer…" (ou categoria Transferências) + 2+ contas → link pra
+  `/contas-bancarias?transferir=1`, que abre o modal. Aviso, não bloqueio.
+  ⚠️ **"Transferências" é categoria de RECEITA de propósito** (314 grupos assim, 1
+  como despesa): não aparece em Gasto. E categoria que "sumiu" do modal quase
+  sempre é `ativa = false` — a exclusão é soft delete. Conferir antes de supor bug.
+- Detalhe da fatura mostra o **período do ciclo** no ranking (relatório agrupa por
+  mês, cartão por fatura); desligar dívida dos previstos **pede confirmação**;
+  **6 cores de tema sóbrias** (`eval:paletas`).
+- **Negócios multiusuário** (fases 3–5: Acessos, convite de empresa, "por <nome>"):
+  memória `project-negocios-multiusuario`.
 
 ## Valor FÓSSIL no cartão: o sync não gravava "eu não sei" (set/2026)
 
@@ -1785,6 +1925,12 @@ adicionou ("Já paguei", migration 165).
 
 ## Conciliação: previsão × cobrança do banco, banda larga (set/2026)
 
+> ⚠️ **SUPERADO EM OUT/2026 — os números abaixo NÃO valem mais.** A banda larga
+> era 30% sem nome e **nunca tinha rodado** (a consulta pedia a coluna `ativo`).
+> Ligada, errava feio. Regra atual: ver "Conta fixa 'paga' sem ter sido paga"
+> (15%; além de 5% exige nome OU categoria; categorias diferentes barram).
+> O histórico abaixo fica pelo raciocínio.
+
 Relato de cliente (Vander): a Internet prevista em R$169,90 vinha do banco por
 R$177,53 (o plano reajustou), e a previsão ficava **para sempre** em aberto,
 convivendo na tela com a transação real já paga (a cobrança "MP\*MP" que a
@@ -2073,8 +2219,10 @@ fatura do cartão = balance − parcelas a vencer
 - MP não publica a fatura do mês (`List Bills` para no mês passado, já pago) nem
   parcela futura como transação — por isso **MP com parcelamento fica impreciso**.
 
-**Doc da Polp:** https://polp.com.br/docs/pluggy — 37 páginas, renderizadas por
-JS (curl não lê; use browser). `List Bills` = vencimento DESC, 15/página.
+**Doc da Polp:** trilho Pluggy legado em https://polp.com.br/docs/pluggy;
+o trilho que roda hoje é o **Celcoin**, com cópia versionada em
+**`sora-backend/docs/celcoin/`** (ver "DOCS DA CELCOIN SALVOS"). O HTML é legível
+por curl. `List Bills` = vencimento DESC, 15/página.
 
 > Detalhes e o histórico do diagnóstico: memória `project-open-finance-polp`.
 
@@ -3630,10 +3778,28 @@ nisso. Plano completo aprovado; a Fase 1 está feita.
     continuar aparecendo, sem mensagem nenhuma.
   - ⚠️ O host é **www**: o app redireciona apex→www, e se divergirem a
     verificação falha em silêncio.
-### Estado em out/2026 — app construído, publicando
+### Estado em out/2026 — app PÚBLICO na Play Store (próximo foco do dono)
+
+> 🎯 **A próxima conversa vai focar na Play Store.** Comece por aqui e por
+> `docs/ANDROID-TWA.md`; as lacunas de conformidade estão no fim desta seção.
 
 **Procedimento completo, gotchas e decisões: `docs/ANDROID-TWA.md`.** O
 essencial pra não errar:
+
+- ✅ **Saiu do teste fechado em 10/10/2026** (`ca4c60a`). Pacote
+  **`com.forsora.app`**; o link é a página pública
+  `play.google.com/store/apps/details?id=com.forsora.app`, trocável sem código por
+  `NEXT_PUBLIC_PLAY_URL` (`lib/play-store.ts`).
+- **`components/app/BarraPlayStore.tsx`** (topo do painel, mobile): "A Sora está
+  na Play Store" com botão que baixa direto. Só **Android fora do app**. O X
+  dispensa PRA SEMPRE (localStorage `sora-barraplay-dispensada-v1`).
+- **`InstallPwa`** por plataforma: Android → Play Store (app nativo); iOS →
+  "Adicionar à Tela de Início" (PWA); desktop → instalar como app.
+- ⚠️ **Detecção "estou DENTRO do app" = `useEhAppNativo`** (`lib/useOrigem.ts`):
+  origem android **E** janela standalone. O `ehAndroid` persistido sozinho
+  vaza pro Chrome (o TWA compartilha a storage da origem) e escondeu os planos
+  de uma cliente no navegador. Toda trava de política do Play (não vender, não
+  mostrar preço, não linkar pagamento) usa este hook.
 
 - ⚠️ **MUDANÇA NO APP NÃO EXIGE PACOTE NOVO.** A TWA é uma casca que abre
   `www.forsora.com`; todo push no `master` já chega no app Android na próxima
@@ -3660,15 +3826,21 @@ essencial pra não errar:
   permissão de billing brigaria com a declaração "Compras no app: Não".
 - ⚠️ **A keystore está no OneDrive** (`...\Sora\android.keystore`, alias
   `android`). Perdê-la = **nunca mais atualizar o app**. Manter cópia fora.
-- **Falta (só o dono faz):** ficha da loja (⚠️ os screenshots de
-  `public/screenshots` são DESKTOP), conta de teste pro revisor, e os
-  formulários — Segurança dos Dados (⚠️ **declarar SAÚDE**: o Grow tem
-  consultas, medicamentos e macros) e Recursos Financeiros (marcar só "gestão
-  de finanças pessoais"; "investimento" faz o Google pedir registro na CVM).
-- **Lacunas conhecidas:** não existe URL **pública** de exclusão de conta (o
-  Google exige uma alcançável sem login — hoje só em Configurações e por
-  e-mail), e a política de privacidade não nomeia OpenAI, Mercado Pago,
-  Meta/Pixel nem Polp/Celcoin, que é justamente o cruzamento que o Google faz.
+- **Ficha e formulários da loja (o dono faz no Play Console):** os screenshots
+  de `public/screenshots` são DESKTOP (vale fazer de celular); Segurança dos
+  Dados (⚠️ **declarar SAÚDE**: o Grow tem consultas, medicamentos e macros);
+  Recursos Financeiros (só "gestão de finanças pessoais" — "investimento" faz o
+  Google pedir registro na CVM). Como o app já foi aprovado, **confirmar com o
+  dono** o que foi declarado antes de mexer.
+- ⚠️ **Lacunas de conformidade AINDA ABERTAS (conferido no código em 19/10/2026)**
+  — candidatas naturais pra próxima rodada:
+  - **Não existe URL PÚBLICA de exclusão de conta.** O Google exige uma página
+    alcançável **sem login**; hoje só há o fluxo em Configurações e o e-mail.
+    Só existem `app/privacidade` e `app/termos`.
+  - **A Política de Privacidade (`app/privacidade`) não nomeia os operadores**
+    OpenAI, Mercado Pago, Meta (Pixel/CAPI/WhatsApp) nem Polp/Celcoin — é
+    exatamente o cruzamento que o Google faz com o formulário de Segurança dos
+    Dados.
 
 ## Convenções de código
 
@@ -3832,6 +4004,19 @@ sql/156_plano_gratis.sql        — plano `gratis` (modo manual) no users_plano_
 sql/171_limites_anuais.sql     — teto ANUAL por categoria (coluna `periodo` em category_limits) + `meta_anual*` em users. **OBRIGATORIA pro limite anual**: sem ela o teto do ano nao grava (a rota agora LE o erro e diz isso). O limite MENSAL continua intacto sem ela — nenhum select pede a coluna nova.
 sql/172_reabrir_dividas_presas.sql — reabre divida com status=quitada e parcelas faltando (relato: editou 3→2 parcelas pagas e o card seguiu "Quitada"). So mexe em divida COM parcelas e fora do Open Finance. Medido: 3 linhas de 212. O fix no codigo cobre o futuro; esta cobre o passado.
 sql/179_of_excedente.sql       — conexao de Open Finance ALEM do direito do plano: `of_excedente_desde` (marco do prazo de 48h) + `of_excedente_avisado` (dedup do aviso). **OBRIGATORIA pro JOB 1R agir**: sem ela o select erra e o cron nao avisa nem desliga nada — ou seja, o comportamento fica igual ao de hoje. Medido antes: 10 contas usando 20 conexoes alem do direito.
+sql/173_empresa_membros.sql    — Negócios multiusuário: membros/papéis por empresa (ver memória project-negocios-multiusuario).
+sql/174_custos_orfaos.sql      — carimba empresa_id nos custos_negocio que nasceram sem ele.
+sql/175_of_conexao_diagnostico.sql — of_conexoes.produtos/recursos/recursos_em: guarda O QUE O BANCO LIBEROU na conexão (caso do cartão BTG que não vinha).
+sql/176_reserva_incluir_dividas.sql — reserva de emergência considera as parcelas de dívida.
+sql/177_tarefa_lembrete.sql    — lembrete diário de tarefas em aberto (opt-in, WhatsApp).
+sql/178_bug_avisado.sql        — marca se o relato de bug virou aviso no WhatsApp do suporte.
+sql/180_conexao_paga_validade.sql — users.of_conexoes_pagas_ate: conexão avulsa ANUAL vale até o fim do período pago (webhook não zera mais). + restituição do gilbertojun.
+sql/181_ajuste_valor.sql       — ajustar o VALOR de uma previsão no Extrato (sem pular nem adiar).
+sql/182_divida_conta_pagamento.sql — dividas.conta_pagamento_id: de qual conta sai a parcela.
+sql/183_assinatura_conexao_fim.sql — users.of_assinatura_fim + of_fim_avisado_em: fim da assinatura da conexão e aviso prévio.
+sql/184_absorvido_auto.sql     — transacoes.absorvido_auto_em. **LIGA** a absorção automática do previsto manual pelo banco (sem ela, nada é absorvido — de propósito). CONFIRMAR SE RODOU.
+sql/185_davidson_conexao_anual.sql — restitui 1 conexão anual paga (davidson, até 2027-09-19). Pontual.
+sql/186_diagnostico_financeiro.sql — tabela diagnostico_financeiro: retratos do diagnóstico diário (JOB 1S + aba "Saúde financeira" do /admin). Sem ela a varredura roda mas não guarda. CONFIRMAR SE RODOU.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
