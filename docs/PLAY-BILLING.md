@@ -72,7 +72,23 @@ Em cada plano básico: marque **"Compatível com versões anteriores"**
 ⚠️ Sem o passo 4 a API responde 401/403 mesmo com a chave certa. É o erro de
 configuração mais comum — e às vezes leva algumas horas pra valer.
 
-## Passo 4 — Avisos automáticos (renovou, cancelou, reembolso)
+## Passo 4 — Avisos automáticos (renovou, cancelou, reembolso) — ✅ FEITO em 20/10/2026
+
+Projeto do Google Cloud **`sora-play-512223`** ("Sora Play", conta
+contatosora.ai@gmail.com, sem organização e sem faturamento — o Pub/Sub ativou
+sem cartão). Tópico **`projects/sora-play-512223/topics/play-sora`**, com
+`google-play-developer-notifications@system.gserviceaccount.com` como publicador
+(⚠️ na tela em português o papel "Publisher" aparece como **"Editor pub/sub"**,
+igual ao Editor de verdade — filtrar por `pubsub.publisher`). Assinatura push
+**`play-sora-push`** → `https://www.forsora.com/api/play/rtdn?token=…`, repetição
+com espera exponencial, prazo de 60s e **nunca expira** (o padrão de 31 dias
+sem atividade apagaria o canal no começo, quando ainda não há compras). Ligado
+no Play Console em "Configuração de monetização" (só assinaturas e compras
+anuladas); a notificação de teste foi enviada sem erro.
+
+⚠️ Criar o tópico logo depois de ativar o Pub/Sub deu erro de "política de local
+da organização" — era a ativação se propagando; recarregar e tentar de novo
+resolveu.
 
 1. Google Cloud → **Pub/Sub** → **Tópicos** → **Criar tópico** → ID `play-sora`.
 2. No tópico → **Permissões** → **Adicionar principal** →
