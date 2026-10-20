@@ -24,7 +24,15 @@ Play Console → **Configurações** (engrenagem) → **Perfil de pagamentos** �
 criar/vincular. Pede dados da empresa (ou CPF), endereço e a conta bancária
 onde o Google deposita. A verificação pode levar alguns dias.
 
-## Passo 2 — Os 6 produtos (assinaturas)
+## Passo 2 — Os 6 produtos (assinaturas) — ✅ FEITO em 20/10/2026
+
+Os 6 estão **ativos**, cada um com um plano básico "compatível com versões
+anteriores", tributos "Vendas de apps digitais · Serviço", disponíveis em 175
+países. ⚠️ **O "Set prices" ARREDONDA pro padrão .99 de cada país — inclusive o
+Brasil** (19,90 virou 19,99; 210,12 virou 209,99). Depois de aplicar o preço em
+massa, o Brasil foi corrigido à mão na linha dele (clicar no preço → editar), e
+conferido depois de salvar. Os outros países ficaram com a conversão do Google.
+Ao mudar preço no futuro, repetir essa correção.
 
 Play Console → app **Sora** → **Monetizar com o Google Play** → **Produtos** →
 **Assinaturas** → **Criar assinatura**. Repita 6 vezes.
