@@ -55,7 +55,13 @@ Em cada plano básico: marque **"Compatível com versões anteriores"**
 (backwards compatible), defina o preço em reais e **ative**. Os preços de 19,90,
 29,90, 210,12 e 287,04 foram lidos do Stripe em 19/10/2026.
 
-## Passo 3 — A chave pra Sora conversar com o Google (conta de serviço)
+## Passo 3 — A chave pra Sora conversar com o Google (conta de serviço) — ✅ FEITO em 20/10/2026
+
+API ativada no projeto `sora-play-512223`; conta de serviço
+**`sora-play-api@sora-play-512223.iam.gserviceaccount.com`** (chave JSON baixada
+pelo dono — não está no repo nem na conversa); convidada no Play Console só no
+app Sora com "Ver informações do app", "Ver dados financeiros" e "Gerenciar
+pedidos e assinaturas".
 
 1. [Google Cloud Console](https://console.cloud.google.com) → escolha (ou crie)
    um projeto → **APIs e serviços** → **Biblioteca** → ative
