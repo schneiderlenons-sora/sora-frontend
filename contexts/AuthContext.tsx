@@ -156,6 +156,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // ⚠️ A ABERTURA PEDIA O PERFIL DUAS VEZES AO MESMO TEMPO. O `getSession()`
+  // abaixo carrega o perfil — e o `onAuthStateChange` dispara INITIAL_SESSION
+  // logo em seguida, antes de a primeira carga terminar. Como
+  // `perfilCarregadoDe` só é marcado no FIM da carga, o callback não sabia que
+  // o perfil já vinha e chamava `/api/me` de novo: toda abertura do app e todo
+  // F5 eram 2 chamadas idênticas (medido na Vercel: o `/api/me` é ~11% do
+  // processamento do site).
+  //
+  // Aqui as DUAS portas da abertura compartilham a carga em andamento do MESMO
+  // usuário. ⚠️ O `recarregar()` NÃO passa por aqui de propósito: ele existe
+  // pra buscar o perfil NOVO (depois de pagar, de trocar de grupo) e não pode
+  // herdar uma resposta que saiu antes da mudança.
+  const cargaEmAndamento = useRef<{ userId: string; p: Promise<void> } | null>(null);
+  function carregarPerfilNaAbertura(u: User): Promise<void> {
+    const atual = cargaEmAndamento.current;
+    if (atual && atual.userId === u.id) return atual.p;
+    const p = carregarPerfil(u).finally(() => {
+      // Terminou: a próxima chamada (outro usuário, ou depois da abertura)
+      // segue o caminho normal — nada fica preso a uma resposta antiga.
+      if (cargaEmAndamento.current?.p === p) cargaEmAndamento.current = null;
+    });
+    cargaEmAndamento.current = { userId: u.id, p };
+    return p;
+  }
+
   // Hidrata o perfil do cache local ANTES do paint → revisita / F5 abrem com o
   // perfil na hora (sem esperar o /api/me). A validação de segurança (é o mesmo
   // usuário da sessão?) acontece no getSession logo abaixo — se for outro (ou
@@ -183,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async ({ data: { session } }) => {
         setUser(session?.user ?? null);
         validarCache(session?.user ?? null);
-        if (session?.user) await carregarPerfil(session.user);
+        if (session?.user) await carregarPerfilNaAbertura(session.user);
       })
       .catch(() => {})
       .finally(finalizar);
@@ -234,7 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mesmoUsuario) { finalizar(); return; }
 
         validarCache(novo);
-        if (novo) await carregarPerfil(novo);
+        if (novo) await carregarPerfilNaAbertura(novo);
         else { setPerfil(null); perfilCarregadoDe.current = null; }
         finalizar();
       }

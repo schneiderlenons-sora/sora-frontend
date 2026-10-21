@@ -2965,6 +2965,24 @@ rede. ⚠️ **O middleware SEMPRE escreve ou apaga esse header** — `requestHe
 nasce de uma cópia dos headers recebidos, então deixar o valor do cliente passar
 seria falsificar identidade.
 
+### 4B. `/api/me` era chamado DUAS vezes em toda abertura (out/2026)
+
+Achado investigando o **Fluid Active CPU** da Vercel, que estourou o plano
+Hobby (5h18 de 4h no ciclo). O `/api/me` era ~11% do processamento.
+
+- ⚠️ **A LÓGICA DELE É LEVE — medido:** ~1ms de CPU por passo (as idas ao banco
+  são espera, que não conta). Os ~96ms por chamada vistos na Vercel são de
+  **acordar a função** (só importar o supabase-js custa ~80ms) e o pacote dela
+  já é o mínimo (416 KB). Otimizar o código da rota NÃO move esse ponteiro.
+- **O que movia: a abertura pedia o perfil 2× em paralelo.** O `getSession()`
+  carrega o perfil e o `onAuthStateChange` dispara `INITIAL_SESSION` antes de
+  a 1ª carga terminar — como `perfilCarregadoDe` só é marcado no FIM, o
+  callback chamava `/api/me` de novo. Hoje as duas portas compartilham a carga
+  em andamento do MESMO usuário (`carregarPerfilNaAbertura`).
+- ⚠️ **`recarregar()` NÃO passa pela carga compartilhada:** ele busca o perfil
+  NOVO (depois de pagar, trocar de grupo) e não pode herdar uma resposta que
+  saiu antes da mudança.
+
 ### 5. recharts fora do chunk das rotas do Grow
 
 Oito páginas do Grow importavam `recharts` direto, furando a regra. Hoje são 12
