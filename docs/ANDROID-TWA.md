@@ -4,7 +4,7 @@ A Sora na Play Store é uma **TWA**: o `.aab` é uma casca que abre
 `www.forsora.com` em tela cheia. **O conteúdo não vive dentro do pacote.**
 
 **Estado:** público na Play Store desde **10/10/2026** — pacote `com.forsora.app`,
-último `appVersionCode` no build local: **10** em 19/10/2026 (o guia dizia 3 e estava desatualizado); o **12** (1.1.0, cobrança da Play ligada) foi enviado ao Teste interno em 20/10/2026 — o `bubblewrap update` sobe o número sozinho (11→12). **O próximo é o 13.** Nunca repete — conferir no Explorador de pacotes do Play Console.
+último `appVersionCode` no build local: **10** em 19/10/2026 (o guia dizia 3 e estava desatualizado); o **12** (1.1.0, cobrança da Play ligada) foi enviado ao Teste interno em 20/10/2026 — o `bubblewrap update` sobe o número sozinho (11→12). O **13** (1.1.1, splash transparente) foi preparado em 21/10/2026 — **o próximo é o 14.** Nunca repete — conferir no Explorador de pacotes do Play Console.
 URL pública de exclusão de conta (Play Console → Segurança dos dados):
 **`https://www.forsora.com/excluir-conta`** (19/10/2026). Lacuna ainda aberta:
 operadores na Política de Privacidade — ver a seção "Play Store (TWA)" do
@@ -109,6 +109,13 @@ permanentemente.
   preto→verde. Se o vídeo mudar, remedir o quadro 0 e trocar nos **três**
   lugares: aqui, o `background` de `#sora-abertura` no `globals.css` e o
   `poster` em `app/layout.tsx`.
+- **Splash TRANSPARENTE desde o build 13 (21/10/2026)** — o Bubblewrap gera
+  `drawable-*/splash.png` a partir do ÍCONE, e o quadrado da Sora aparecia
+  por um instante antes da animação (relato do dono). Transparente, sobra só o
+  verde do `backgroundColor`, que é o quadro 0 do vídeo. ⚠️ **`bubblewrap
+  update` recria o splash com o ícone**: depois de todo update, rodar
+  `node splash-transparente.cjs` (na pasta do build) e só então `bubblewrap
+  build`. Originais em `backup-antes-v13/`.
 - **`playBilling: true` desde o build 11 (19/10/2026)** — o app passou a
   VENDER as assinaturas pela cobrança do Google, a única permitida dentro do
   app (o Brasil não tem billing alternativo, e link ou texto levando ao site/
