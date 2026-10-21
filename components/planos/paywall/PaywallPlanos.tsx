@@ -1,7 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { X, Check, Loader2, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -96,7 +97,8 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
   const { plano: planoAtual } = useAuth();
   const nativo = useEhAppNativo();
   const compra = usePlayCompra(nativo);
-  const { status, disponivel, precos, comprando, aviso } = compra;
+  const { status, disponivel, precos, erroPreco, motivoIndisponivel, comprando, aviso } = compra;
+  const celular = useCelular();
 
   // Planos oferecidos: os que destravam a aba, e — pra quem já assina pela
   // Play — só os acima do atual (trocar pra baixo não destrava nada aqui).
@@ -123,25 +125,49 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
 
   // ── Preços: do Google no app, da tabela no site ─────────────────────────
   const oferta = useMemo(() => {
+    const info = PLANOS_INFO[plano];
     if (nativo) {
       const m = precos[produtoPlay(plano, 'mensal')];
       const a = precos[produtoPlay(plano, 'anual')];
-      const vm = m ? Number(m.price.value) : NaN;
-      const va = a ? Number(a.price.value) : NaN;
-      const economia = Number.isFinite(vm) && Number.isFinite(va) && vm > 0 ? Math.round((1 - va / (vm * 12)) * 100) : null;
+      if (m || a) {
+        const vm = m ? Number(m.price.value) : NaN;
+        const va = a ? Number(a.price.value) : NaN;
+        const economia = Number.isFinite(vm) && Number.isFinite(va) && vm > 0 ? Math.round((1 - va / (vm * 12)) * 100) : null;
+        return {
+          mensal: precoTexto(m),
+          anualTotal: precoTexto(a),
+          anualMes: precoTexto(a, 12),
+          economia: economia && economia > 0 ? economia : null,
+          referencia: false,
+        };
+      }
+      // ⚠️ O Google não devolveu o preço: cai no preço de TABELA (o mesmo
+      // cadastrado na Play) em vez de travar a venda. A janela do Google mostra
+      // o valor final antes de a pessoa confirmar — por isso o rodapé avisa.
       return {
-        mensal: precoTexto(m),
-        anualTotal: precoTexto(a),
-        anualMes: precoTexto(a, 12),
-        economia: economia && economia > 0 ? economia : null,
+        mensal: fmtBRL(info.mensal),
+        anualTotal: fmtBRL(Math.round(info.anual * 12 * 100) / 100),
+        anualMes: fmtBRL(info.anual),
+        economia: info.descAnual,
+        referencia: true,
       };
     }
-    const info = PLANOS_INFO[plano];
-    return { mensal: fmtBRL(info.mensal), anualTotal: null, anualMes: fmtBRL(info.anual), economia: info.descAnual };
+    return { mensal: fmtBRL(info.mensal), anualTotal: null, anualMes: fmtBRL(info.anual), economia: info.descAnual, referencia: false };
   }, [nativo, precos, plano]);
 
-  const carregandoPreco = nativo && (disponivel === null || (disponivel && !oferta.mensal && Object.keys(precos).length === 0));
+  const temPrecoGoogle = Object.keys(precos).length > 0;
+  const carregandoPreco = nativo && (disponivel === null || (disponivel === true && !temPrecoGoogle && !erroPreco));
   const appSemCobranca = nativo && disponivel === false;
+
+  // No celular o paywall é uma TELA, não um card: cobre a página inteira, por
+  // cima da barra de baixo. Trava a rolagem do fundo enquanto está aberto.
+  useEffect(() => {
+    if (!celular) return;
+    const html = document.documentElement;
+    const antes = html.style.overflow;
+    html.style.overflow = 'hidden';
+    return () => { html.style.overflow = antes; };
+  }, [celular]);
   const ocupado = !!comprando || indoWeb;
 
   function sair() {
@@ -182,10 +208,13 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
     ? (nativo ? 'Abrindo o pagamento…' : 'Indo para o pagamento…')
     : `Assinar o ${display.nome}${ciclo === 'anual' ? ' anual' : ''}`;
 
-  return (
+  const tela = (
     <section
-      className="relative isolate mx-auto w-full max-w-5xl overflow-hidden rounded-[2rem] text-[#E9FFF2]"
-      style={{ background: 'linear-gradient(180deg, #0B3A35 0%, #072B28 38%, #051C1B 100%)' }}
+      className={`relative isolate mx-auto w-full overflow-hidden text-[#E9FFF2] ${celular ? 'min-h-full' : 'max-w-5xl rounded-[2rem]'}`}
+      style={{
+        background: 'linear-gradient(180deg, #0B3A35 0%, #072B28 38%, #051C1B 100%)',
+        ...(celular ? { paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : null),
+      }}
       aria-labelledby="paywall-titulo"
     >
       {/* Luz entrando na água: dois focos suaves, nada animado. */}
@@ -320,7 +349,7 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
                 Atualize o app para assinar
               </a>
             ) : (
-              <button type="button" onClick={assinar} disabled={ocupado || carregandoPreco || (nativo && !oferta.mensal)}
+              <button type="button" onClick={assinar} disabled={ocupado || carregandoPreco}
                 className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold shadow-[0_14px_30px_-12px_rgba(97,206,112,.55)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 motion-reduce:transition-none"
                 style={{ background: `linear-gradient(135deg, ${cor.base}, ${cor.escura})`, color: cor.texto }}>
                 {ocupado && <Loader2 size={18} className="animate-spin" aria-hidden />}
@@ -353,7 +382,15 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
               {nativo
                 ? 'Cobrado pela Google Play. Renova sozinho; cancele quando quiser em Play Store › Pagamentos e assinaturas.'
                 : 'Pagamento seguro. Renova sozinho e você cancela quando quiser.'}
+              {nativo && oferta.referencia && !appSemCobranca && ' O valor final aparece na janela do Google antes de você confirmar.'}
             </p>
+            {/* Detalhe técnico: só aparece quando a conversa com o Google falhou,
+                pra o print do cliente já dizer o motivo. */}
+            {nativo && (erroPreco || (appSemCobranca && motivoIndisponivel)) && (
+              <p className="mt-1 text-center text-[11px] leading-snug text-white/35 break-words">
+                Detalhe técnico: {appSemCobranca ? motivoIndisponivel : erroPreco}
+              </p>
+            )}
 
             <button type="button" onClick={sair}
               className="mx-auto mt-2 flex min-h-11 items-center justify-center whitespace-nowrap rounded-full px-2 text-[13px] font-semibold text-white/70 min-[380px]:text-sm transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
@@ -385,18 +422,54 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
 
             <div className="mt-6 border-t border-white/[0.07] pt-5">
               <p className="text-sm font-semibold text-white">Conecte os bancos que você já usa</p>
-              <div className="mt-3 flex items-center">
-                {BANCOS.map((b, i) => (
-                  <img key={b} src={`/brands/${b}.png`} alt="" width={40} height={40}
-                    className="h-10 w-10 rounded-full border-2 bg-white object-cover"
-                    style={{ borderColor: '#072B28', marginLeft: i === 0 ? 0 : -10, zIndex: BANCOS.length - i }} />
-                ))}
-                <span className="ml-3 whitespace-nowrap text-sm text-[#9CC4BA]">e muitos outros</span>
+              {/* ⚠️ flex-wrap: em tela estreita o texto desce pra linha de baixo
+                  inteiro, em vez de ser cortado na borda do card. */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="flex items-center">
+                  {BANCOS.map((b, i) => (
+                    <img key={b} src={`/brands/${b}.png`} alt="" width={40} height={40}
+                      className="h-10 w-10 rounded-full border-2 bg-white object-cover"
+                      style={{ borderColor: '#072B28', marginLeft: i === 0 ? 0 : -10, zIndex: BANCOS.length - i }} />
+                  ))}
+                </span>
+                <span className="whitespace-nowrap text-sm text-[#9CC4BA]">e muitos outros</span>
               </div>
             </div>
           </div>
         </div>
       </div>
     </section>
+  );
+
+  // ⚠️ No celular vai por PORTAL pro <body>: o painel tem ancestrais com
+  // transform/backdrop-filter, e um `fixed` dentro deles fica preso no card em
+  // vez de cobrir a tela (regra "Modal via portal" do CLAUDE.md). z-50 passa
+  // por cima da barra de baixo (z-40) e do "+".
+  if (celular) {
+    return createPortal(
+      <div role="dialog" aria-modal="true" aria-labelledby="paywall-titulo"
+        className="fixed inset-0 z-50 overflow-y-auto overscroll-contain" style={{ background: '#051C1B' }}>
+        {tela}
+      </div>,
+      document.body,
+    );
+  }
+  return tela;
+}
+
+/**
+ * Celular = tela abaixo de 768px (o `md` do Tailwind, onde a sidebar aparece).
+ * Começa `false` no servidor; o primeiro render no cliente já lê a medida real.
+ */
+const MQ_CELULAR = '(max-width: 767px)';
+function useCelular() {
+  return useSyncExternalStore(
+    (avisar) => {
+      const mq = window.matchMedia(MQ_CELULAR);
+      mq.addEventListener('change', avisar);
+      return () => mq.removeEventListener('change', avisar);
+    },
+    () => window.matchMedia(MQ_CELULAR).matches,
+    () => false,
   );
 }

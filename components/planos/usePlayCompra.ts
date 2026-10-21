@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { useAuth } from '@/contexts/AuthContext';
 import { produtoPlay, modoDeTroca, PRODUTOS_PLAY, type PlanoPlay, type IntervaloPlay } from '@/lib/play-billing';
-import { servicoPlay, detalhesPlay, comprarPlay, comprasDoAparelho, type DetalheItem } from '@/lib/digital-goods';
+import {
+  servicoPlay, detalhesPlay, comprarPlay, comprasDoAparelho, motivoServicoIndisponivel, mensagemDeErro,
+  type DetalheItem,
+} from '@/lib/digital-goods';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A COMPRA PELA GOOGLE PLAY — fonte única das telas que vendem dentro do app
@@ -62,6 +65,11 @@ export function usePlayCompra(ligado = true) {
   const [precos, setPrecos] = useState<Record<string, DetalheItem>>({});
   const [comprando, setComprando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<AvisoCompra | null>(null);
+  // Por que o preço do Google não veio. ⚠️ Preço que não vem NÃO trava a venda:
+  // a tela cai no preço de tabela (é o mesmo cadastrado na Play) e a janela do
+  // Google mostra o valor final antes de a pessoa confirmar.
+  const [erroPreco, setErroPreco] = useState<string | null>(null);
+  const [motivoIndisponivel, setMotivoIndisponivel] = useState('');
 
   useEffect(() => {
     if (!ligado) return;
@@ -70,11 +78,15 @@ export function usePlayCompra(ligado = true) {
       const s = await servicoPlay();
       if (!vivo) return;
       setDisponivel(!!s);
-      if (!s) return;
+      if (!s) { setMotivoIndisponivel(motivoServicoIndisponivel()); return; }
       try {
         const d = await detalhesPlay(Object.keys(PRODUTOS_PLAY));
-        if (vivo) setPrecos(d);
-      } catch { /* sem preço, a tela mostra "indisponível" */ }
+        if (!vivo) return;
+        setPrecos(d);
+        if (!Object.keys(d).length) setErroPreco('o Google não devolveu nenhum plano');
+      } catch (e) {
+        if (vivo) setErroPreco(mensagemDeErro(e));
+      }
     })();
     return () => { vivo = false; };
   }, [ligado]);
@@ -136,7 +148,7 @@ export function usePlayCompra(ligado = true) {
     }
   }
 
-  return { status, disponivel, precos, comprando, aviso, setAviso, assinar, confirmarPendente };
+  return { status, disponivel, precos, erroPreco, motivoIndisponivel, comprando, aviso, setAviso, assinar, confirmarPendente };
 }
 
 /** "R$ 19,90" a partir do preço que o Google devolveu. */

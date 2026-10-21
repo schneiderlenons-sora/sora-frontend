@@ -31,6 +31,23 @@ type ServicoDG = {
 };
 
 let servico: Promise<ServicoDG | null> | null = null;
+/** Por que o serviço não veio — mostrado na tela como "detalhe técnico". */
+let motivoSemServico = '';
+
+/**
+ * ⚠️ TODA chamada ao Google tem PRAZO. Sem ele, um app que não responde (versão
+ * sem a cobrança, ou o serviço da Play travado) deixava o paywall carregando
+ * pra sempre — e, sem preço, o botão de assinar nunca liberava. Foi o relato do
+ * primeiro teste no aparelho.
+ */
+function comPrazo<T>(p: Promise<T>, ms: number, rotulo: string): Promise<T> {
+  return new Promise((ok, falha) => {
+    const t = setTimeout(() => falha(new Error(`${rotulo}: sem resposta em ${ms / 1000}s`)), ms);
+    p.then((v) => { clearTimeout(t); ok(v); }, (e) => { clearTimeout(t); falha(e); });
+  });
+}
+
+const mensagem = (e: unknown) => (e instanceof Error ? `${e.name !== 'Error' ? e.name + ': ' : ''}${e.message}` : String(e));
 
 /** O serviço de cobrança do Google, ou `null` fora do app / em app sem cobrança. */
 export function servicoPlay(): Promise<ServicoDG | null> {
@@ -38,23 +55,32 @@ export function servicoPlay(): Promise<ServicoDG | null> {
   servico = (async () => {
     if (typeof window === 'undefined') return null;
     const w = window as unknown as { getDigitalGoodsService?: (m: string) => Promise<ServicoDG> };
-    if (typeof w.getDigitalGoodsService !== 'function' || typeof window.PaymentRequest !== 'function') return null;
+    if (typeof w.getDigitalGoodsService !== 'function') { motivoSemServico = 'navegador sem a API de compras do Google'; return null; }
+    if (typeof window.PaymentRequest !== 'function') { motivoSemServico = 'navegador sem PaymentRequest'; return null; }
     try {
-      return await w.getDigitalGoodsService(METODO);
-    } catch {
-      // "unsupported context": Chrome comum, ou app instalado fora da Play Store.
+      return await comPrazo(w.getDigitalGoodsService(METODO), 6000, 'serviço da Play');
+    } catch (e) {
+      // "unsupported context": Chrome comum, app instalado fora da Play Store,
+      // ou versão do app sem a cobrança do Google.
+      motivoSemServico = mensagem(e);
       return null;
     }
   })();
   return servico;
 }
 
+export function motivoServicoIndisponivel(): string {
+  return motivoSemServico;
+}
+
 export async function detalhesPlay(ids: string[]): Promise<Record<string, DetalheItem>> {
   const s = await servicoPlay();
   if (!s) return {};
-  const lista = await s.getDetails(ids);
+  const lista = await comPrazo(s.getDetails(ids), 8000, 'preços da Play');
   return Object.fromEntries(lista.map((d) => [d.itemId, d]));
 }
+
+export { mensagem as mensagemDeErro };
 
 /** Comprovantes de compra que o aparelho tem (restauração). */
 export async function comprasDoAparelho(): Promise<string[]> {

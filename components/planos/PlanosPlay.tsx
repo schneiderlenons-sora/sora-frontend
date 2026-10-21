@@ -7,6 +7,7 @@ import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { LINK_PLAY_STORE } from '@/lib/play-store';
 import { produtoPlay, ORDEM_PLAY, type PlanoPlay, type IntervaloPlay } from '@/lib/play-billing';
 import { linkGerenciarPlay } from '@/lib/digital-goods';
+import { PLANOS_INFO } from '@/lib/stripe';
 import { usePlayCompra, precoTexto } from './usePlayCompra';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ import { usePlayCompra, precoTexto } from './usePlayCompra';
 export { useStatusPlay, type StatusPlay } from './usePlayCompra';
 
 const PLANOS = PLANOS_DISPLAY.filter((p) => p.id in ORDEM_PLAY);
+const fmtTabela = (v: number) => (Math.round(v * 100) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function PlanosPlay() {
   const { plano: planoAtual, isVitalicio } = useAuth();
@@ -129,7 +131,11 @@ export default function PlanosPlay() {
         {PLANOS.map((p) => {
           const id = p.id as PlanoPlay;
           const sku = produtoPlay(id, ciclo);
-          const preco = precoTexto(precos[sku]);
+          // Sem preço do Google, o de tabela (o mesmo cadastrado na Play) — a
+          // janela do Google mostra o valor final antes de confirmar.
+          const info = PLANOS_INFO[id];
+          const preco = precoTexto(precos[sku])
+            ?? (compra.erroPreco ? fmtTabela(ciclo === 'anual' ? info.anual * 12 : info.mensal) : null);
           const ehAtual = status.ativa && status.produto === sku;
           const mesmoPlanoOutroCiclo = status.ativa && status.plano === id && !ehAtual;
           const subir = status.ativa && status.plano ? ORDEM_PLAY[id] > ORDEM_PLAY[status.plano] : true;
