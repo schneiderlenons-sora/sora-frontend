@@ -7,6 +7,8 @@ import {
   Gift, CalendarDays, TrendingUp, Home, GraduationCap, Plane,
 } from 'lucide-react';
 import { planoMinimo, PLANO_LABEL, type Feature } from '@/lib/plans';
+import { useAuth } from '@/contexts/AuthContext';
+import PaywallPlanos from './paywall/PaywallPlanos';
 
 /**
  * O convite que aparece quando a pessoa abre uma aba que o plano dela não tem.
@@ -22,6 +24,24 @@ import { planoMinimo, PLANO_LABEL, type Feature } from '@/lib/plans';
  * feature, então uma aba de Básico não anuncia "Premium" e faz a pessoa pagar
  * mais do que precisa.
  */
+
+/**
+ * A frase que abre o paywall (quem está no modo grátis): o que a aba resolve,
+ * dito do ponto de vista de quem usa — nunca "esta aba é paga".
+ */
+const CHAMADA: Partial<Record<Feature, string>> = {
+  grow_saude: 'Seu corpo em dia, junto do seu dinheiro',
+  open_finance: 'Seu banco lança tudo por você',
+  drive_painel: 'Seus documentos sempre à mão',
+  wrapped: 'O seu dinheiro, contado como história',
+  grow_agenda: 'Nenhuma conta vence de surpresa',
+  agentes: 'Agentes cuidando do seu dinheiro',
+  investimentos: 'Seu patrimônio crescendo à vista',
+  grow_casa: 'A casa organizada, sem outro app',
+  grow_estudos: 'Estudos no ritmo certo',
+  grow_colecoes: 'O que você quer viver, guardado',
+  whatsapp_sora: 'Mande um áudio e pronto, está lançado',
+};
 
 /** Copy por feature. Sem entrada = texto genérico (nunca quebra). */
 const COPY: Partial<Record<Feature, { titulo: string; texto: string; icone: React.ReactNode }>> = {
@@ -79,9 +99,27 @@ const COPY: Partial<Record<Feature, { titulo: string; texto: string; icone: Reac
 
 export default function AbaBloqueada({ feature }: { feature: Feature }) {
   const router = useRouter();
+  const { plano, isVitalicio } = useAuth();
   const info = COPY[feature];
   const minimo = planoMinimo(feature);
   const nomePlano = PLANO_LABEL[minimo];
+
+  // ⚠️ QUEM ESTÁ NO MODO GRÁTIS (ou sem plano) VÊ O PAYWALL COMPLETO, com a
+  // compra ali mesmo — no app pela Google Play, no site pelo Stripe. Quem já
+  // paga (upgrade), é vitalício ou Kit segue com o cartão abaixo, que leva à
+  // /planos: lá é que estão a troca de plano, o portal do Stripe e o upgrade
+  // do Kit, e comprar daqui criaria uma SEGUNDA assinatura em cima da atual.
+  if (!isVitalicio && (plano === 'gratis' || plano === 'inativo')) {
+    return (
+      <div className="py-2 sm:py-4">
+        <PaywallPlanos
+          feature={feature}
+          chamada={CHAMADA[feature] ?? 'Tudo no automático com a Sora'}
+          texto={info?.texto ?? 'Escolha um plano e destrave esta aba agora.'}
+        />
+      </div>
+    );
+  }
 
   return (
     // `min-h-[70vh]` centraliza sem depender do conteúdo da aba, que não existe.

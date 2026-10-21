@@ -1,154 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import useSWR from 'swr';
+import { useState } from 'react';
 import { Check, CheckCircle2, Loader2, AlertCircle, ExternalLink, RefreshCw, Sparkles, Crown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { LINK_PLAY_STORE } from '@/lib/play-store';
-import {
-  produtoPlay, modoDeTroca, PRODUTOS_PLAY, ORDEM_PLAY,
-  type PlanoPlay, type IntervaloPlay,
-} from '@/lib/play-billing';
-import {
-  servicoPlay, detalhesPlay, comprarPlay, comprasDoAparelho, linkGerenciarPlay, type DetalheItem,
-} from '@/lib/digital-goods';
+import { produtoPlay, ORDEM_PLAY, type PlanoPlay, type IntervaloPlay } from '@/lib/play-billing';
+import { linkGerenciarPlay } from '@/lib/digital-goods';
+import { usePlayCompra, precoTexto } from './usePlayCompra';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A grade de planos DENTRO do app Android, cobrada pela Google Play.
 //
 // Substitui a grade do Stripe só no app nativo (`useEhAppNativo`). No site nada
-// muda. O fluxo: janela de pagamento do Google → /api/play/verificar confere
-// com o Google e libera o plano → só então a janela fecha com "sucesso".
+// muda. O fluxo (usePlayCompra): janela de pagamento do Google →
+// /api/play/verificar confere com o Google e libera o plano → só então a janela
+// fecha com "sucesso".
 //
 // ⚠️ NESTA TELA NÃO SE FALA DO SITE NEM DE OUTRO MEIO DE PAGAMENTO. É a regra
 // do Google ("anti-steering"): dentro do app, a única compra mencionada é a
 // da própria Play.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type StatusPlay = {
-  ativa: boolean;
-  produto?: string;
-  plano?: PlanoPlay;
-  intervalo?: IntervaloPlay;
-  estado?: string;
-  expiraEm?: string;
-  autoRenova?: boolean;
-  purchaseToken?: string;
-  indisponivel?: boolean;
-};
-
-const fetcherJson = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : { ativa: false }));
-export function useStatusPlay(ligado = true) {
-  return useSWR<StatusPlay>(ligado ? '/api/play/status' : null, fetcherJson, { revalidateOnFocus: true });
-}
+export { useStatusPlay, type StatusPlay } from './usePlayCompra';
 
 const PLANOS = PLANOS_DISPLAY.filter((p) => p.id in ORDEM_PLAY);
 
-function precoTexto(d: DetalheItem | undefined): string | null {
-  if (!d) return null;
-  const v = Number(d.price.value);
-  if (!Number.isFinite(v)) return null;
-  try {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: d.price.currency }).format(v);
-  } catch { return `${d.price.currency} ${v.toFixed(2)}`; }
-}
-
-async function confirmarNoServidor(tokens: string[]) {
-  const r = await fetch('/api/play/verificar', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tokens }),
-  });
-  const j = await r.json().catch(() => ({})) as { resultados?: { ok: boolean; motivo?: string }[]; erro?: string };
-  return { http: r.status, resultados: j.resultados || [], erro: j.erro };
-}
-
-const MOTIVO: Record<string, string> = {
-  outra_conta: 'Esta compra da Google Play já está ligada a outra conta da Sora. Entre com a conta que fez a assinatura.',
-  ja_tem_plano: 'Sua conta já tem um plano ativo, então esta compra não foi aplicada. O Google devolve o valor automaticamente em até 3 dias.',
-  produto_desconhecido: 'Este plano não está disponível no momento. O Google devolve o valor automaticamente em até 3 dias.',
-};
-
 export default function PlanosPlay() {
-  const { plano: planoAtual, isVitalicio, recarregar } = useAuth();
-  const { data: status, mutate } = useStatusPlay();
-  const [disponivel, setDisponivel] = useState<boolean | null>(null);
-  const [precos, setPrecos] = useState<Record<string, DetalheItem>>({});
+  const { plano: planoAtual, isVitalicio } = useAuth();
+  const compra = usePlayCompra();
+  const { status, disponivel, precos, comprando, aviso } = compra;
   // Derivado, não sincronizado por efeito: enquanto a pessoa não escolhe, abre
   // no ciclo da assinatura que ela já tem.
   const [cicloEscolhido, setAnual] = useState<boolean | null>(null);
   const anual = cicloEscolhido ?? status?.intervalo === 'anual';
-  const [comprando, setComprando] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro' | 'pendente'; texto: string } | null>(null);
-
-  useEffect(() => {
-    let vivo = true;
-    (async () => {
-      const s = await servicoPlay();
-      if (!vivo) return;
-      setDisponivel(!!s);
-      if (!s) return;
-      try {
-        const d = await detalhesPlay(Object.keys(PRODUTOS_PLAY));
-        if (vivo) setPrecos(d);
-      } catch { /* sem preço, os cards mostram "indisponível" */ }
-    })();
-    return () => { vivo = false; };
-  }, []);
-
-  async function tentarDeNovo() {
-    setAviso(null);
-    const tokens = await comprasDoAparelho();
-    if (!tokens.length) { setAviso({ tipo: 'erro', texto: 'Não encontramos nenhuma compra neste aparelho.' }); return; }
-    const r = await confirmarNoServidor(tokens);
-    if (r.resultados.some((x) => x.ok)) {
-      await Promise.all([recarregar(), mutate()]);
-      setAviso({ tipo: 'ok', texto: 'Pronto! Sua assinatura está ativa.' });
-    } else {
-      setAviso({ tipo: 'erro', texto: MOTIVO[r.resultados[0]?.motivo || ''] || 'Ainda não conseguimos confirmar. Tente de novo em alguns minutos.' });
-    }
-  }
-
-  async function assinar(plano: PlanoPlay) {
-    const ciclo: IntervaloPlay = anual ? 'anual' : 'mensal';
-    const sku = produtoPlay(plano, ciclo);
-    setAviso(null);
-    setComprando(sku);
-    try {
-      const troca = status?.ativa && status.produto && status.purchaseToken && status.plano && status.produto !== sku
-        ? { oldSku: status.produto, purchaseToken: status.purchaseToken, replacementMode: modoDeTroca(status.plano, plano) }
-        : undefined;
-      const compra = await comprarPlay(sku, troca);
-      if (!compra.ok) {
-        if (!compra.cancelada) setAviso({ tipo: 'erro', texto: compra.erro || 'Não foi possível abrir o pagamento.' });
-        return;
-      }
-      const r = await confirmarNoServidor([compra.purchaseToken]).catch(() => null);
-      const res = r?.resultados[0];
-      await compra.concluir(!!res?.ok);
-      if (res?.ok) {
-        await Promise.all([recarregar(), mutate()]);
-        setAviso({
-          tipo: 'ok',
-          texto: troca && troca.replacementMode === 'deferred'
-            ? 'Troca agendada! O novo plano começa na próxima renovação — até lá você continua no atual.'
-            : 'Assinatura ativa! Já pode usar tudo do seu plano novo.',
-        });
-      } else if (res?.motivo && MOTIVO[res.motivo]) {
-        setAviso({ tipo: 'erro', texto: MOTIVO[res.motivo] });
-      } else {
-        // ⚠️ O pagamento PODE ter sido feito. Dizer "deu erro" faria a pessoa
-        // pagar de novo; a restauração na próxima abertura resolve sozinha.
-        setAviso({
-          tipo: 'pendente',
-          texto: 'O pagamento foi enviado ao Google, mas ainda não conseguimos liberar o plano. Não pague de novo: a Sora confirma sozinha nos próximos minutos — ou toque em "Confirmar compra".',
-        });
-      }
-    } finally {
-      setComprando(null);
-    }
-  }
+  const assinar = (plano: PlanoPlay) => compra.assinar(plano, anual ? 'anual' : 'mensal');
+  const tentarDeNovo = () => compra.confirmarPendente();
 
   // ── Casos em que não há o que vender aqui ─────────────────────────────────
   if (isVitalicio) {

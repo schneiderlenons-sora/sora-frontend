@@ -3844,6 +3844,16 @@ essencial pra não errar:
   - **Restauração:** `SincronizarPlay` reenvia as compras do aparelho 1×/sessão
     (rede de segurança se a confirmação falhar logo após pagar).
   - Regras em `lib/play-billing.ts` (`eval:play-billing`, 8/8 mutações mortas).
+  - **Paywall da aba bloqueada** (`components/planos/paywall/`): quem está em
+    `gratis`/`inativo` e toca numa aba trancada vê `PaywallPlanos` (3 celulares
+    desenhados em código + escolha de plano/ciclo + compra ali mesmo) em vez do
+    cartão que levava à /planos. Pagante/vitalício/Kit seguem no cartão antigo
+    (comprar dali criaria uma 2ª assinatura). No app compra pela Play, no site
+    pelo Stripe. ⚠️ Só aparecem os planos que **destravam a aba tocada**
+    (`planoMinimo`). ⚠️ A lista "O que destrava" é promessa de venda conferida
+    contra `lib/plans.ts` — mexeu num plano, confira lá. O fluxo de compra da
+    Play é fonte única em `components/planos/usePlayCompra.ts` (a /planos usa o
+    mesmo). Celulares em `cqw`/`em`: escalam sem breakpoint.
   - **Fora (fase seguinte):** Kit/vitalício comprando pela Play, conexão avulsa
     de OF no app, assinantes Play no MRR do /admin.
 - ⚠️ **A keystore está no OneDrive** (`...\Sora\android.keystore`, alias
