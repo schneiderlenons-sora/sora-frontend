@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import AbaBloqueada, { vePaywallCompleto } from '@/components/planos/AbaBloqueada';
 import { podeVerOpenFinance } from '@/lib/open-finance-access';
 import { limiteConexoesOf, PLANO_LABEL } from '@/lib/plans';
 import { isAdminEmail } from '@/lib/admin';
@@ -450,6 +451,13 @@ export default function OpenFinancePage() {
     if (!confirm(aviso)) return;
     setConexoes(prev => prev.filter(c => c.external_id !== id));
     try { await api.openFinance.desconectar(id); } catch (e: any) { setErro(e.message); carregar(); }
+  }
+
+  // Modo grátis sem acesso: o paywall com a compra ali mesmo. ⚠️ Não quando há
+  // aviso de cobertura — conexão além do direito tem prazo correndo, e esse
+  // aviso não pode sumir atrás de uma tela de venda.
+  if (!indefinido && !liberado && !cobertura && vePaywallCompleto(plano, perfil?.vitalicio)) {
+    return <AbaBloqueada feature="open_finance" />;
   }
 
   return (

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
+import AbaBloqueada, { vePaywallCompleto } from '@/components/planos/AbaBloqueada';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useTheme } from 'next-themes';
@@ -127,7 +128,7 @@ const fmtPct = (v: number) => `${v >= 0 ? '+' : ''}${(v || 0).toFixed(2)}%`;
 type Tab = 'resumo' | 'carteira' | 'caixinhas' | 'reserva' | 'simulador' | 'aportes';
 
 export default function InvestimentosClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
-  const { phone: authPhone, podeUsar } = useAuth();
+  const { phone: authPhone, podeUsar, plano, isVitalicio } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const temAcesso = podeUsar('investimentos');
 
@@ -264,6 +265,8 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
 
   // ─── PAYWALL ─────────────────────────────────────────────────
   if (!temAcesso) {
+    // Modo grátis: o paywall com a compra ali mesmo (Play no app, Stripe no site).
+    if (vePaywallCompleto(plano, isVitalicio)) return <AbaBloqueada feature="investimentos" />;
     return (
       <>
         <div className="max-w-7xl mx-auto pb-20 space-y-6">

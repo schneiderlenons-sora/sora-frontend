@@ -97,6 +97,20 @@ const COPY: Partial<Record<Feature, { titulo: string; texto: string; icone: Reac
   },
 };
 
+/**
+ * ⚠️ QUEM ESTÁ NO MODO GRÁTIS (ou sem plano) VÊ O PAYWALL COMPLETO, com a
+ * compra ali mesmo — no app pela Google Play, no site pelo Stripe. Quem já
+ * paga (upgrade), é vitalício ou Kit segue com o cartão simples, que leva à
+ * /planos: lá é que estão a troca de plano, o portal do Stripe e o upgrade do
+ * Kit, e comprar daqui criaria uma SEGUNDA assinatura em cima da atual.
+ *
+ * Exportada porque Investimentos e Open Finance têm tela de bloqueio própria
+ * (não passam pelo GrowGate) e precisam da MESMA regra pra trocar pelo paywall.
+ */
+export function vePaywallCompleto(plano: string | null | undefined, vitalicio?: boolean | null) {
+  return !vitalicio && (plano === 'gratis' || plano === 'inativo');
+}
+
 export default function AbaBloqueada({ feature }: { feature: Feature }) {
   const router = useRouter();
   const { plano, isVitalicio } = useAuth();
@@ -104,12 +118,7 @@ export default function AbaBloqueada({ feature }: { feature: Feature }) {
   const minimo = planoMinimo(feature);
   const nomePlano = PLANO_LABEL[minimo];
 
-  // ⚠️ QUEM ESTÁ NO MODO GRÁTIS (ou sem plano) VÊ O PAYWALL COMPLETO, com a
-  // compra ali mesmo — no app pela Google Play, no site pelo Stripe. Quem já
-  // paga (upgrade), é vitalício ou Kit segue com o cartão abaixo, que leva à
-  // /planos: lá é que estão a troca de plano, o portal do Stripe e o upgrade
-  // do Kit, e comprar daqui criaria uma SEGUNDA assinatura em cima da atual.
-  if (!isVitalicio && (plano === 'gratis' || plano === 'inativo')) {
+  if (vePaywallCompleto(plano, isVitalicio)) {
     return (
       <div className="py-2 sm:py-4">
         <PaywallPlanos
