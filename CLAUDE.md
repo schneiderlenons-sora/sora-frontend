@@ -2847,6 +2847,22 @@ morrem junto com o componente remontado. Marcada DENTRO do `warm()`: se o
 componente desmontar antes do idle, o cleanup cancela e nada foi aquecido —
 marcar antes deixaria o app sem prefetch pelo resto da sessão.
 
+### 2B. Aquecimento SOB DEMANDA — o aquecimento era ~37% do processamento (out/2026)
+
+Medido no **Fluid Active CPU** da Vercel (estourou o Hobby: 5h18 de 4h). Somando
+as rotas nas últimas 12h (~200s): as ~30 abas pouco usadas tinham TODAS o mesmo
+número de chamadas (138 a 202) — assinatura de aquecimento, não de uso — e
+somavam ~75s (**~37%**). Cada abertura do painel = ~76 execuções (32 abas × 2
+pedidos que o Next faz por aba, ~15ms cada).
+
+- **No ocioso, só as ESSENCIAIS** (`ROTAS_ESSENCIAIS` em `Sidebar.tsx`): barra de
+  baixo + Cartões, Contas e Previstos. As outras 26 aquecem **quando o menu
+  lateral abre no celular** (`jaAqueceuResto`, flag de módulo por telefone) — a
+  pessoa está prestes a escolher, e o tempo até o toque basta. No computador o
+  item aquece no `onMouseEnter`, como já era.
+- ⚠️ Fora do Negócios/Labs: o menu ali é outro, aquecer o app pessoal seria gasto.
+- ⚠️ Aba nova muito usada entra em `ROTAS_ESSENCIAIS`; o resto não precisa de nada.
+
 ### 3. `staleTimes` — o Router Cache estava desligado
 
 ⚠️ **O default do Next 16 é `experimental.staleTimes.dynamic = 0`**, e TODAS as

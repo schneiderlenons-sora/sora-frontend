@@ -85,6 +85,26 @@ const SIDEBAR_BG_BLACK = '#000000';
 // Guardada POR TELEFONE: trocar de conta (ou de grupo) reaquece, porque as
 // rotas visíveis e os dados são outros.
 let jaAqueceu: string | null = null;
+// Mesma ideia, pras abas que NÃO são essenciais: aquecidas só quando o menu
+// lateral abre no celular (ver o efeito `aquecerResto`).
+let jaAqueceuResto: string | null = null;
+
+// ⚠️ AQUECIMENTO SOB DEMANDA (out/2026) — medido no Fluid Active CPU da Vercel,
+// que estourou o plano Hobby. Aquecer TODAS as abas a cada abertura do painel
+// custava ~76 execuções no servidor (38 abas × 2 pedidos que o Next faz por
+// aba) e era ~37% de todo o processamento do site: as ~30 abas que quase
+// ninguém abre tinham TODAS o mesmo número de chamadas (138 a 202 em 12h) —
+// assinatura de aquecimento, não de uso.
+//
+// Agora: no ocioso, só as ESSENCIAIS (barra de baixo + as mais usadas). O
+// resto aquece quando o MENU LATERAL ABRE no celular — a pessoa está prestes a
+// escolher uma, e o tempo até o toque basta pra aba chegar. No computador o
+// item já aquece ao passar o mouse (`onMouseEnter`). Quem nunca abre o menu
+// não paga nada.
+const ROTAS_ESSENCIAIS = new Set([
+  '/dashboard', '/transacoes', '/relatorios',          // barra de baixo
+  '/cartao-de-credito', '/contas-bancarias', '/previstos',
+]);
 
 type IconeLucide = React.ComponentType<{ size?: number; className?: string }>;
 // Ícones da navegação do app, resolvidos pelo NOME vindo de lib/sidebar-nav.
@@ -139,14 +159,18 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // (inclusive no mobile, onde não há hover) já é instantâneo, porque a rota
   // (RSC + chunk) já foi baixada. Não compete com o LCP do dashboard (roda no
   // ocioso, low-priority) e o recharts é dynamic → não vem no chunk da rota.
+  // Todas as abas do app pessoal, na ORDEM do menu (o topo aquece primeiro).
+  const todasAsRotas = useMemo(() => Array.from(new Set([
+    ...NAV_TOPO.map((i) => i.href),
+    ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
+    '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
+  ])), []);
+
   useEffect(() => {
     if (!phone) return;
     if (jaAqueceu === phone) return;   // já aqueceu nesta sessão
-    const rotas = [
-      ...NAV_TOPO.map((i) => i.href),
-      ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
-      '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
-    ];
+    // Só as essenciais (ver ROTAS_ESSENCIAIS): o resto espera o menu abrir.
+    const rotas = todasAsRotas.filter((r) => ROTAS_ESSENCIAIS.has(r));
     // ⚠️ EM LOTES, NÃO DE UMA VEZ — e isto veio de medição, não de teoria.
     //
     // `rotas.forEach(router.prefetch)` disparava as 31 rotas no mesmo instante.
@@ -215,13 +239,36 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       const cic = (window as any).cancelIdleCallback as undefined | ((h: number) => void);
       if (ocioso !== null && cic) cic(ocioso);
     };
-  }, [phone, router]);
+  }, [phone, router, todasAsRotas]);
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
   // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
   // Drawer mobile agora é CONTROLADO pelo DashboardLayout (aberto pelo perfil do
   // BottomNav) — mantém `setOpen(false)` como fechar-mobile.
   const open = mobileOpen;
   const setOpen = (_v: boolean) => { if (!_v) onMobileClose?.(); };
+
+  // ── Aquece o RESTO das abas quando o menu abre no celular ─────────────────
+  // (o porquê está em ROTAS_ESSENCIAIS). Uma vez por sessão e por telefone,
+  // com a mesma flag de MÓDULO do aquecimento principal — a Sidebar pode
+  // remontar, a flag não. Lotes curtos: aqui não há conteúdo da página
+  // disputando a rede, e o topo do menu (o que a pessoa vê primeiro) vai antes.
+  useEffect(() => {
+    if (!open || !phone) return;
+    if (jaAqueceuResto === phone) return;
+    // O menu do painel Negócios/Labs é outro: aquecer o app pessoal ali seria
+    // gasto sem uso.
+    if (pathname?.startsWith('/negocios') || pathname?.startsWith('/labs')) return;
+    jaAqueceuResto = phone;
+    const resto = todasAsRotas.filter((r) => !ROTAS_ESSENCIAIS.has(r));
+    const LOTE = 6;
+    const timers: number[] = [];
+    for (let i = 0; i < resto.length; i += LOTE) {
+      const fatia = resto.slice(i, i + LOTE);
+      timers.push(window.setTimeout(() => fatia.forEach((r) => router.prefetch(r)), (i / LOTE) * 150));
+    }
+    // ⚠️ SEM cancelar no cleanup: fechar o menu antes do último lote não é
+    // motivo pra deixar metade das abas fria — e a flag já marcou a sessão.
+  }, [open, phone, pathname, router, todasAsRotas]);
 
   // ── Respostas do suporte que a pessoa ainda não leu ───────────────────────
   //
