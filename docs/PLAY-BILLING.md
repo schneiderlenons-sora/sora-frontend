@@ -126,7 +126,18 @@ Rodar `sora-backend/sql/187_play_assinaturas.sql` no Supabase (SQL Editor).
 Sem ela a compra não é registrada — e compra não registrada não é confirmada, e
 o Google devolve o dinheiro em 3 dias.
 
-## Passo 7 — Versão nova do app (com a cobrança ligada)
+## Passo 7 — Versão nova do app (com a cobrança ligada) — ✅ 12 (1.1.0) no Teste interno em 20/10/2026
+
+⚠️ O `bubblewrap update` incrementou o número sozinho (11→12). Testadores internos e de
+licença: lista **"Testadores de compra (equipe Sora)"** (3 e-mails). ⚠️ A lista antiga
+"Lista de Teste da Sora" (109 pessoas) **NÃO** é testadora de licença de propósito —
+quem está lá compraria de mentira e ganharia o plano de graça. Link de participação:
+https://play.google.com/apps/internaltest/4701517316320901087
+
+Diagnóstico da configuração (sem compra): `GET /api/play/rtdn?token=<PLAY_RTDN_TOKEN>`
+→ `"ok":true` quando chave + permissão funcionam (a permissão levou ~40 min pra propagar).
+
+Texto antigo deste passo, mantido como referência:
 
 O `twa-manifest.json` de `C:\Users\jenif\sora-android` já está com
 `playBilling: true` e `appVersionCode: 11` (o anterior era 10 — o guia antigo

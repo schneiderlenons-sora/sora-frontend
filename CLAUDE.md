@@ -3815,7 +3815,8 @@ essencial pra não errar:
   em `versionCode 1`, build em `3`) e foi apagada. Se reaparecer, apague.
 - ⚠️ **`appVersionCode` nunca repete**, nem após exclusão ou reprovação. O build
   local estava no **10** em 19/10/2026 (este arquivo dizia 3 — estava velho); o
-  11 é o da cobrança da Play. Conferir no Explorador de pacotes antes de subir.
+  **12** (1.1.0, cobrança da Play) foi pro Teste interno em 20/10/2026. **Próximo: 13.**
+  ⚠️ O `bubblewrap update` incrementa o número sozinho — não pré-incrementar no manifesto.
 - ✅ **assetlinks no ar e correto** (conferido 08/10): responde 200 com as DUAS
   impressões — `CE:38:9C…` (upload, CN=Sora) e `32:DA:85…` (Play App Signing).
   ⚠️ Publicar numa faixa **aberta TRAVA a chave de assinatura pra sempre**.
