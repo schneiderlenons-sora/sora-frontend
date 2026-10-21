@@ -1771,6 +1771,42 @@ reconectar"**. Ele apontou a contradição — e estava certo.
   nome errado devolve `undefined` e o diagnóstico mostra o `provider`
   ("polp-celcoin") no lugar do banco. Custou uma rodada de medição.
 
+## Transações "Por fatura" + a lista da fatura como fonte única (out/2026)
+
+Pedido de cliente (Eduardo): ver os gastos do cartão pelo mês em que são
+PAGOS. Primeiro passo entregue: a aba Transações ganhou **Por mês | Por
+fatura** — escolhe o cartão e navega pelas faturas (‹ Fatura de novembro ›).
+
+- ⚠️ **SÓ A FONTE DA LISTA MUDA.** Filtros, totais, seleção, edição e exclusão
+  são os mesmos da visão por mês, operando sobre os lançamentos da fatura.
+  **Nenhum total do painel, dos relatórios ou do WhatsApp muda.** As edições
+  passam por `mLista` (ponto único): cai no cache da visão na tela e revalida
+  a do mês por trás.
+- ⚠️ **QUAIS LANÇAMENTOS = `lib/fatura-lista.ts`**, a mesma regra do
+  `DetalhesCartaoModal` (era inline nele e foi MOVIDA, não reescrita).
+  `eval:fatura-lista` compara com a cópia congelada da lógica antiga (4.000
+  casos) e com 4 mutações mortas; com dados reais, **1.685 de 1.685 faturas
+  idênticas**. A busca (rede) fica em `lib/fatura-lista-busca.ts` — separada
+  pra o eval rodar sem cliente do Supabase.
+- ⚠️ **O VALOR da fatura no topo vem de `/fatura/status` (faturaVista)**, nunca
+  da soma da lista — quando diferem, a tela explica (parcelas que só o banco
+  conhece, saldo da fatura anterior). Só compara na mesma moeda.
+- ⚠️ **ACHADO: o critério "híbrido" (`of_bill_id` da competência) NUNCA rodava
+  de verdade no modal.** O id chegava depois de a lista ser montada: ao abrir
+  ia `null`; ao NAVEGAR ia o da fatura ANTERIOR (sempre errado). A lista agora
+  fixa `null` — igual ao que a pessoa via ao abrir — e a navegação parou de
+  usar o id errado. **Ligar o híbrido de verdade muda a lista de 107 das 727
+  faturas (15%), algumas esvaziam** (o agrupamento do emissor nem sempre bate
+  com o ciclo cadastrado). É decisão própria, com medição própria — não ligar
+  como efeito colateral.
+- Na visão por fatura somem o filtro de conta, a aba Arquivadas e as contas
+  fixas do mês (não se aplicam). "Ver detalhes e pagamento da fatura" abre o
+  mesmo modal da tela de cartões, na mesma fatura.
+- **Fase seguinte (plano aprovado, não iniciado):** opção por cartão de
+  contar as compras no MÊS DO VENCIMENTO nos relatórios/painel/limites/zap —
+  ver o plano de 5 fases na conversa de 21/10/2026 (começa por simulação só
+  leitura; a opção só aparece pros clientes quando TODAS as telas seguirem).
+
 ## Extrato Futuro: período e FATURAS com conta de pagamento (set/2026)
 
 - ⚠️ **As faturas NUNCA entravam no extrato**: o código passava

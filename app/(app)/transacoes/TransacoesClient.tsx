@@ -33,18 +33,21 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // Conta em moeda estrangeira (migration 144): `saldo_brl` vem pronto do
 // backend. O fallback pra `saldo` mantem tudo certo antes da migration e em
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
-import { saldoNaBase } from '@/lib/moeda';
+import { saldoNaBase, cartaoForaDaBase } from '@/lib/moeda';
 import { fmtDataBR } from '@/lib/data-br';
 import useSWR from 'swr';
 import { contaDebitoDoFiltro, saldoInicialDaConta, saldoPrevistoDaConta } from '@/lib/saldo-conta';
 import { ymHojeSP, somarMeses } from '@/lib/previstos';
-import { hojeSP } from '@/lib/ciclo-fatura';
+import { hojeSP, competenciaAtual, competenciaVizinha, cicloPorCompetencia, labelCompetencia } from '@/lib/ciclo-fatura';
+import { carregarLancamentosDaFatura } from '@/lib/fatura-lista-busca';
+import { somarFatura } from '@/lib/valor-fatura';
+import dynamic from 'next/dynamic';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
-  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench } from 'lucide-react';
+  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench, CreditCard } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
@@ -52,6 +55,15 @@ import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 import { useTemMarca } from '@/contexts/MarcasCustomContext';
 
 const BRAND = 'hsl(var(--primary))';
+
+// Detalhe da fatura (o mesmo da tela de cartões). Só carrega quando abre.
+const DetalhesCartaoModal = dynamic(() => import('@/components/cartoes/DetalhesCartaoModal'), { ssr: false });
+
+// 'YYYY-MM-DD' → 'DD/MM'
+const ddmm = (iso?: string | null) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+
+// Quantas faturas à frente da atual dá pra navegar (mesmo teto dos meses).
+const MAX_FATURA_FUTURA = 12;
 
 const fmtData = (d: string) => fmtDataBR(d, { day: '2-digit', month: 'short' });
 
@@ -162,9 +174,87 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const { data: wData,  mutate: mW }  = useApi(phone ? chave.wallets(phone) : null,            () => api.wallets.listar(phone), { fallbackData: initialData?.wallets });
   const { data: rData,  mutate: mR }  = useApi(phone ? chave.resumo(phone, mesRef) : null,   () => api.transacoes.resumo(phone, mesRef), { fallbackData: initialData?.resumo });
 
-  const txs: any[]     = txData?.transacoes ?? [];
   const wallets: any[] = wData ?? [];
   const resumo: any    = rData ?? { receitas: 0, gastos: 0, por_categoria: [] };
+
+  // ── Visão "Por fatura" ─────────────────────────────────────────────────────
+  //
+  // ⚠️ SÓ A FONTE DA LISTA MUDA. Filtros, totais, seleção, edição e exclusão são
+  // os mesmos da visão por mês — que já funcionam — e passam a operar sobre os
+  // lançamentos da fatura escolhida. Nenhum total do painel, dos relatórios ou
+  // do WhatsApp é tocado: é só outra forma de olhar a mesma lista.
+  //
+  // ⚠️ QUAIS LANÇAMENTOS sai de `lib/fatura-lista.ts`, a MESMA regra do detalhe
+  // do cartão. As duas telas têm de mostrar a mesma lista pra mesma fatura.
+  const [visao, setVisao] = useState<'mes' | 'fatura'>('mes');
+  const cartoesCredito = useMemo(() => wallets.filter((w) => w.tipo === 'Crédito'), [wallets]);
+  const [cartaoFaturaId, setCartaoFaturaId] = useState<string | null>(null);
+  const cartaoFatura: any = cartoesCredito.find((c) => c.id === cartaoFaturaId) ?? cartoesCredito[0] ?? null;
+  // Quão à frente/atrás da fatura atual (0 = a atual). Navega FATURAS pelo ciclo
+  // real, não meses do calendário — igual ao detalhe do cartão.
+  const [offsetFatura, setOffsetFatura] = useState(0);
+  const porFatura = visao === 'fatura' && !!cartaoFatura;
+  const compAtualFatura = cartaoFatura ? competenciaAtual(cartaoFatura) : null;
+  const compFatura = cartaoFatura && compAtualFatura
+    ? (offsetFatura === 0 ? compAtualFatura : competenciaVizinha(cartaoFatura, compAtualFatura, offsetFatura))
+    : null;
+  const cicloFatura = cartaoFatura && compFatura ? cicloPorCompetencia(cartaoFatura, compFatura) : null;
+  // ⚠️ `useSWR` direto, não `useApi`: o `useApi` registraria no LoadingGate e a
+  // baleia cobriria a página inteira a cada troca de fatura. Sem
+  // `keepPreviousData` de propósito: mostrar a lista da fatura ANTERIOR enquanto
+  // a nova carrega faria um total piscar errado (o detalhe do cartão já teve
+  // esse defeito, medido: R$ 3.190,81 piscando onde o certo era R$ 287,27).
+  const chaveFatura = porFatura && phone && compFatura
+    ? ['fatura-lista', phone, cartaoFatura.id, compFatura, cartaoFatura.nome, cartaoFatura.dia_fechamento ?? '', cartaoFatura.dia_vencimento ?? '', cartaoFatura.of_bill_atual ?? '']
+    : null;
+  const { data: fatData, mutate: mFat, error: erroFatura } = useSWR(
+    chaveFatura,
+    () => carregarLancamentosDaFatura(phone, cartaoFatura, compFatura as string)
+      .then((r) => ({ transacoes: r.transacoes, total: r.transacoes.length })),
+    { revalidateOnFocus: false },
+  );
+  // O VALOR da fatura vem do servidor (`faturaVista`), a mesma fonte do card do
+  // cartão e do WhatsApp — nunca da soma da lista.
+  const { data: fatStatus } = useSWR(
+    porFatura && phone && compFatura ? ['fatura-status', phone, cartaoFatura.id, compFatura] : null,
+    () => api.wallets.faturaStatus(phone, cartaoFatura.id, compFatura as string),
+    { revalidateOnFocus: false },
+  );
+  const [detalheFaturaAberto, setDetalheFaturaAberto] = useState(false);
+  // Fatura é na moeda do CARTÃO; a lista de lançamentos, na moeda do grupo.
+  const fmtCartao = useDinheiro({ moeda: cartaoFatura?.moeda });
+  const faturaForaDaBase = cartaoFatura ? cartaoForaDaBase(cartaoFatura, moedaBase) : false;
+
+  const txs: any[] = useMemo(
+    () => (porFatura ? (fatData?.transacoes ?? []) : (txData?.transacoes ?? [])),
+    [porFatura, fatData, txData],
+  );
+  const carregandoFatura = porFatura && !fatData && !erroFatura;
+
+  // ⚠️ PONTO ÚNICO de atualização da lista. Toda edição otimista (arquivar,
+  // excluir, editar, ratear…) passa por aqui e cai no cache da visão que está
+  // na tela. Na visão por fatura, a do mês revalida em silêncio depois — senão
+  // voltar pra ela mostraria a lista de antes da edição.
+  const mListaFn = useCallback((...args: any[]) => {
+    if (!porFatura) return (mTx as any)(...args);
+    const r = (mFat as any)(...args);
+    Promise.resolve(r).then(() => { mTx(); }, () => { mTx(); });
+    return r;
+  }, [porFatura, mTx, mFat]);
+  const mLista = mListaFn as unknown as typeof mTx;
+
+  function entrarNaVisao(v: 'mes' | 'fatura') {
+    if (v === visao) return;
+    setSelecionados(new Set());
+    setRowMenuOpen(null);
+    if (v === 'fatura') {
+      // A fatura já É de uma conta (o cartão): o filtro de conta e a aba de
+      // arquivadas não se aplicam a ela.
+      setContaId('todas');
+      setVerArquivadas(false);
+    }
+    setVisao(v);
+  }
 
   // ── Conciliar previsto manual × cobrança IGUAL do banco ────────────────────
   // ⚠️ `useSWR` direto, não `useApi`: é sugestão secundária, e o `useApi`
@@ -218,7 +308,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     await api.transacoes.vincularPagamentoFatura({
       transacao_id: p.saida.id, cartao_id: p.fatura.cartao_id, competencia: p.fatura.competencia, desfazer,
     });
-    mTx((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (t.id === p.saida.id ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
+    mLista((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (t.id === p.saida.id ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
     mR();
     if (desfazer) mPagFat();
   }
@@ -229,7 +319,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     // saem dos totais: lista e resumo revalidam. A sugestão NÃO é revalidada
     // aqui — o item marcado fica na tela com "Desfazer".
     const ids = new Set([p.saida.id, p.entrada.id]);
-    mTx((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (ids.has(t.id) ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
+    mLista((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (ids.has(t.id) ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
     mR();
     if (desfazer) mTransf();
   }
@@ -241,7 +331,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     setParAberto(null);
     // A fusão JÁ aconteceu: daqui pra baixo é só a tela alcançar o servidor.
     mConc((cur) => cur ? { pares: cur.pares.filter((x) => idPar(x) !== idPar(p)) } : cur, { revalidate: true });
-    mTx((cur: any) => cur ? {
+    mLista((cur: any) => cur ? {
       ...cur,
       transacoes: (cur.transacoes || [])
         .filter((t: any) => t.id !== p.previsto.id)
@@ -258,7 +348,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   }
 
   // Revalida tudo (usado após criar/importar transação).
-  const carregar = useCallback(() => { mTx(); mW(); mR(); }, [mTx, mW, mR]);
+  const carregar = useCallback(() => { mLista(); mW(); mR(); }, [mLista, mW, mR]);
 
   // ── Filtros aplicados ──────────────────────────────────────
   const txsFiltradas = useMemo(() => {
@@ -441,7 +531,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // efeito é visual e reverter é barato (o item volta se a chamada falhar).
   async function handleArquivar(tx: any, arquivar: boolean) {
     try {
-      await mTx(async () => { await api.transacoes.arquivar(tx.id, arquivar); return undefined; }, {
+      await mLista(async () => { await api.transacoes.arquivar(tx.id, arquivar); return undefined; }, {
         optimisticData: (atual: any) => ({
           ...atual,
           transacoes: (atual?.transacoes || []).filter((t: any) => t.id !== tx.id),
@@ -504,7 +594,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     setRowMenuOpen(null);
     // Remoção otimista via SWR — some da lista na hora, reverte se a API falhar.
     try {
-      await mTx(
+      await mLista(
         async () => { await api.transacoes.deletar(id, phone, excluirTodas ? { parcelas: 'todas' } : undefined); return undefined; },
         {
           optimisticData: (cur: any) => {
@@ -539,7 +629,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     const ids = Array.from(selecionados);
     if (!ids.length || !Object.keys(patch).length) return;
     const alvo = new Set(ids);
-    await mTx(
+    await mLista(
       async () => {
         for (let i = 0; i < ids.length; i += 20) {
           await Promise.all(ids.slice(i, i + 20).map(id => api.transacoes.editar(id, { ...patch, phone })));
@@ -574,7 +664,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     }))) return;
     const alvo = new Set(ids);
     try {
-      await mTx(
+      await mLista(
         async () => {
           // Em lotes de 20 (não derruba o rate limit ao excluir centenas).
           for (let i = 0; i < ids.length; i += 20) {
@@ -605,7 +695,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `transacoes-${mesAtual}.csv`;
+    a.download = porFatura && compFatura ? `fatura-${compFatura}.csv` : `transacoes-${mesAtual}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -635,6 +725,70 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               {/* Navegação de meses. Toque 44pt no mobile (regra do projeto);
                   compacto no desktop. Avança até 12 meses pra alcançar parcelas
                   a vencer / fixos provisionados (e poder excluí-los). */}
+              {/* Por mês × Por fatura. Só aparece com cartão de crédito
+                  cadastrado — sem cartão não existe fatura pra olhar. */}
+              {cartoesCredito.length > 0 && (
+                <div role="radiogroup" aria-label="Como ver as transações"
+                     className="inline-flex items-center p-1 mb-3 rounded-full bg-muted/60 border border-border/60">
+                  {([['mes', 'Por mês'], ['fatura', 'Por fatura']] as const).map(([v, rotulo]) => (
+                    <button key={v} type="button" role="radio" aria-checked={visao === v}
+                      onClick={() => entrarNaVisao(v)}
+                      className={`h-9 sm:h-8 px-4 rounded-full text-xs font-semibold transition-colors ${
+                        visao === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`}>
+                      {rotulo}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {porFatura ? (
+                <div className="mb-3 space-y-2">
+                  {/* Qual cartão — só quando há mais de um. */}
+                  {cartoesCredito.length > 1 && (
+                    <label className="flex items-center gap-2">
+                      <CreditCard size={14} className="text-muted-foreground flex-shrink-0" aria-hidden />
+                      <span className="sr-only">Cartão da fatura</span>
+                      <select
+                        value={cartaoFatura.id}
+                        onChange={(e) => { setCartaoFaturaId(e.target.value); setOffsetFatura(0); setSelecionados(new Set()); }}
+                        className="input py-2 text-sm text-foreground min-w-0 max-w-[260px]"
+                      >
+                        {cartoesCredito.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  <div className="inline-flex items-center gap-1 flex-wrap">
+                    <button
+                      onClick={() => { setOffsetFatura((o) => o - 1); setSelecionados(new Set()); }}
+                      aria-label="Fatura anterior"
+                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors"
+                      style={{ color: BRAND }}>
+                      <ChevronLeft className="w-[18px] h-[18px] sm:w-[15px] sm:h-[15px]" />
+                    </button>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider px-2 min-w-[150px] text-center" style={{ color: BRAND }}>
+                      Fatura de {compFatura ? labelCompetencia(compFatura) : ''}
+                    </span>
+                    <button
+                      onClick={() => { setOffsetFatura((o) => Math.min(o + 1, MAX_FATURA_FUTURA)); setSelecionados(new Set()); }}
+                      disabled={offsetFatura >= MAX_FATURA_FUTURA}
+                      aria-label="Próxima fatura"
+                      className="w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      style={{ color: BRAND }}>
+                      <ChevronRight className="w-[18px] h-[18px] sm:w-[15px] sm:h-[15px]" />
+                    </button>
+                    {offsetFatura !== 0 && (
+                      <button
+                        onClick={() => { setOffsetFatura(0); setSelecionados(new Set()); }}
+                        aria-label="Voltar para a fatura atual"
+                        className="h-11 sm:h-7 px-3 ml-1 inline-flex items-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors text-[11px] font-semibold uppercase tracking-wider"
+                        style={{ color: BRAND }}>
+                        Atual
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
               <div className="inline-flex items-center gap-1 mb-3 flex-wrap">
                 <button
                   onClick={() => setMesIndex(i => i - 1)}
@@ -664,6 +818,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   </button>
                 )}
               </div>
+              )}
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">
                 Transações
               </h1>
@@ -765,6 +920,67 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         </div>
 
         {/* ═══════════════════════════════════════════════════════
+            RESUMO DA FATURA (só na visão "Por fatura")
+        ═══════════════════════════════════════════════════════ */}
+        {porFatura && cicloFatura && (() => {
+          const listados = somarFatura(txs);
+          const valorFatura = typeof fatStatus?.fatura === 'number' ? fatStatus.fatura : null;
+          const pago = typeof fatStatus?.pago === 'number' ? fatStatus.pago : 0;
+          const restante = typeof fatStatus?.restante === 'number' ? fatStatus.restante : null;
+          // ⚠️ Só compara na MESMA moeda: fatura de cartão em dólar contra uma
+          // lista em reais daria uma "diferença" que é só câmbio.
+          const diferente = !faturaForaDaBase && valorFatura !== null && !!fatData
+            && Math.abs(valorFatura - listados) >= 0.01;
+          return (
+            <div className="card rounded-2xl p-4 sm:p-5 animate-fade-in" aria-live="polite">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground break-words">
+                    {cartaoFatura.nome} · vence {ddmm(cicloFatura.venc)}
+                  </p>
+                  <p className="text-base font-semibold text-foreground mt-0.5">
+                    Fatura de {labelCompetencia(cicloFatura.competencia)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {cicloFatura.porCiclo
+                      ? `Compras de ${ddmm(cicloFatura.ini)} a ${ddmm(cicloFatura.fim)}`
+                      : `Compras de ${ddmm(cicloFatura.ini)} a ${ddmm(cicloFatura.fim)} · cadastre o dia de fechamento do cartão pra seguir o ciclo real`}
+                  </p>
+                </div>
+                <div className="sm:text-right flex-shrink-0">
+                  <p className="text-xs text-muted-foreground">Valor da fatura</p>
+                  <p className="text-xl font-bold text-foreground tabular tracking-tight">
+                    {ocultar ? '••••••' : valorFatura === null ? '…' : fmtCartao(valorFatura)}
+                  </p>
+                  {pago > 0.005 && !ocultar && (
+                    <p className="text-xs text-muted-foreground tabular">
+                      Pago {fmtCartao(pago)}{restante !== null && restante > 0.005 ? ` · em aberto ${fmtCartao(restante)}` : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {diferente && (
+                // ⚠️ A lista e o valor podem diferir, e isso NÃO é erro: o valor
+                // inclui parcelas que só o banco conhece e saldo de fatura
+                // anterior. Dizer isso evita a pessoa achar que falta lançamento.
+                <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                  A soma dos lançamentos abaixo é {ocultar ? '••••' : fmt(listados)}. O valor da fatura pode ser diferente
+                  porque também inclui parcelas que o banco já conhece e saldo de fatura anterior.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setDetalheFaturaAberto(true)}
+                className="mt-3 inline-flex items-center gap-1.5 min-h-11 sm:min-h-0 text-xs font-semibold hover:underline"
+                style={{ color: BRAND }}
+              >
+                Ver detalhes e pagamento da fatura <ChevronRight size={13} aria-hidden />
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* ═══════════════════════════════════════════════════════
             STAT CARDS (4)
         ═══════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -857,7 +1073,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         {/* ═══════════════════════════════════════════════════════
             GASTOS FIXOS (recorrências)
         ═══════════════════════════════════════════════════════ */}
-        <GastosFixosSection phone={phone} wallets={wallets} mesRef={mesRef} />
+        {/* Contas fixas são do MÊS — na visão por fatura não têm a que se referir. */}
+        {!porFatura && <GastosFixosSection phone={phone} wallets={wallets} mesRef={mesRef} />}
 
         {/* Previsto manual cuja cobrança IGUAL já chegou do banco. Só existe
             quando há par — sem par, não ocupa espaço nenhum. */}
@@ -936,7 +1153,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 desktop. As larguras mínimas existem porque o rótulo estava
                 sendo cortado ("Categori…"): select truncado obriga a abrir pra
                 saber o que ele filtra. */}
-            <div className="grid grid-cols-3 gap-2 lg:flex lg:flex-shrink-0">
+            <div className={`grid ${porFatura ? 'grid-cols-2' : 'grid-cols-3'} gap-2 lg:flex lg:flex-shrink-0`}>
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value as Status)}
@@ -958,6 +1175,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 ))}
               </select>
 
+              {/* Na visão por fatura a conta já é o cartão escolhido lá em cima. */}
+              {!porFatura && (
               <select
                 value={contaId}
                 onChange={e => setContaId(e.target.value)}
@@ -968,6 +1187,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   <option key={w.id} value={w.nome}>{w.nome}</option>
                 ))}
               </select>
+              )}
             </div>
 
             {/* Filtro por membro — só em grupo compartilhado com mais de um autor */}
@@ -1005,6 +1225,9 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 arquivadas — se só aparecesse quando há alguma, quem escondeu um
                 lançamento não teria como achá-lo de volta (a lista normal já
                 não o mostra). Vazio nessa aba é resposta, não ausência. */}
+            {/* A fatura lista o que o cartão cobra; arquivadas ficam na visão
+                por mês (é lá que se acha um lançamento escondido). */}
+            {!porFatura && (
             <button
               onClick={() => setVerArquivadas(v => !v)}
               aria-pressed={verArquivadas}
@@ -1015,6 +1238,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               {verArquivadas ? <Eye size={13} /> : <EyeOff size={13} />}
               {verArquivadas ? 'Ver normais' : 'Arquivadas'}
             </button>
+            )}
 
             {temFiltro && (
               <button
@@ -1081,7 +1305,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             </span>
           </div>
 
-          {txsFiltradas.length === 0 ? (
+          {carregandoFatura ? (
+            // ⚠️ Carregando NÃO é "nenhuma transação": dizer que a fatura está
+            // vazia enquanto ela chega faria a pessoa achar que perdeu dados.
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground" aria-busy="true">
+              Carregando os lançamentos da fatura…
+            </div>
+          ) : porFatura && erroFatura && !fatData ? (
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground" role="alert">
+              Não consegui carregar os lançamentos desta fatura agora. Eles continuam salvos.
+              <button type="button" onClick={() => mFat()} className="block mx-auto mt-3 min-h-11 font-semibold underline" style={{ color: BRAND }}>
+                Tentar de novo
+              </button>
+            </div>
+          ) : txsFiltradas.length === 0 ? (
             <EmptyState temFiltro={!!temFiltro} onLimpar={limparFiltros} onCriar={() => setModalOpen(true)} />
           ) : (
             <>
@@ -1176,6 +1413,18 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         </div>
       </div>
 
+      {/* O detalhe da fatura é o MESMO da tela de cartões: valor do servidor,
+          pagamentos, parcelas previstas. Abre na fatura que está na tela. */}
+      {detalheFaturaAberto && porFatura && (
+        <DetalhesCartaoModal
+          phone={phone}
+          cartao={cartaoFatura}
+          offsetInicial={offsetFatura}
+          onClose={() => setDetalheFaturaAberto(false)}
+          onRefresh={() => { mFat(); mW(); }}
+        />
+      )}
+
       {modalOpen && (
         <NovaTransacaoModal
           phone={phone}
@@ -1185,7 +1434,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           onOptimisticCreate={(optimisticRow, doCreate) => {
             // Insere a linha no cache na hora; a API roda em segundo plano e
             // reverte (rollbackOnError) se falhar. mR/mW revalidam totais/saldo.
-            mTx(
+            mLista(
               async () => { await doCreate(); return undefined; },
               {
                 optimisticData: (cur: any) => ({
@@ -1221,7 +1470,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           phone={phone}
           tx={ratearTx}
           onClose={() => setRatearTx(null)}
-          onSuccess={() => { mTx(); mR(); }}
+          onSuccess={() => { mLista(); mR(); }}
         />
       )}
 
@@ -1235,7 +1484,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           // rotula como "o que consegui ver" e nunca afirma um total final.
           partes={txs}
           onClose={() => setJuntarTx(null)}
-          onSuccess={() => { mTx(); mR(); }}
+          onSuccess={() => { mLista(); mR(); }}
         />
       )}
 
@@ -1256,7 +1505,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           onClose={() => setEditTx(null)}
           onSaved={carregar}
           onOptimisticSave={(optimisticRow, doSave) => {
-            mTx(
+            mLista(
               async () => { await doSave(); return undefined; },
               {
                 optimisticData: (cur: any) => ({
