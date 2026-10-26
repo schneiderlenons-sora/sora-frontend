@@ -335,9 +335,21 @@ function ViewLista({ eventos, onAbrir, onDelete, onNovo }: any) {
   );
 }
 
+// ─── Conta fixa já resolvida ─────────────────────────────────────────
+// Pedido de cliente (Fábio, out/2026): conta paga ANTES do vencimento seguia
+// na Agenda como se fosse a pagar. O servidor manda `pago` (a mesma regra do
+// "o que tenho pra pagar" do WhatsApp) e a tela diz isso com ÍCONE + RÓTULO —
+// nunca só com cor. A conta paga não some: a pessoa quer ver que aquele dia
+// está resolvido.
+function rotuloFixa(e: any): string | null {
+  if (e.source !== 'recorrencia' || !e.pago) return null;
+  return e.receita ? 'Recebida' : 'Paga';
+}
+
 // ─── Card de evento (compromisso editável OU agregado read-only) ────
 function EventoCard({ e, onAbrir, onDelete }: any) {
   const brl = useDinheiro();
+  const resolvida = rotuloFixa(e);
   const fam = FAMILIAS[familiaDe(e.source)];
   const FamIcon = fam.icon;
   const SrcIcon = ICONE_SOURCE[e.source] || CalendarDays;
@@ -345,22 +357,33 @@ function EventoCard({ e, onAbrir, onDelete }: any) {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border/40 backdrop-blur-xl flex items-stretch transition-all hover:border-border/70"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
-      <div className="w-1 flex-shrink-0" style={{ background: e.cor }} />
+      <div className={`w-1 flex-shrink-0 ${resolvida ? 'opacity-30' : ''}`} style={{ background: e.cor }} />
       {/* hora ou ícone da origem */}
       <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 py-3 border-r border-border/30">
         {e.hora
           ? <span className="text-sm font-bold text-foreground tabular tracking-tight">{e.hora}</span>
-          : <SrcIcon size={18} style={{ color: e.cor }} />}
+          : <SrcIcon size={18} style={{ color: e.cor, opacity: resolvida ? 0.45 : 1 }} />}
       </div>
       {/* corpo */}
       <button onClick={onAbrir} className="flex-1 min-w-0 py-2.5 px-3 text-left">
-        <p className="text-sm font-bold text-foreground line-clamp-2 break-words">{e.titulo}</p>
+        <p className={`text-sm font-bold line-clamp-2 break-words ${resolvida ? 'text-muted-foreground' : 'text-foreground'}`}>{e.titulo}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
+          {resolvida && (
+            <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+              <Check size={10} strokeWidth={3} /> {resolvida}
+            </span>
+          )}
           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: e.cor }}>
             {cat ? <cat.icon size={10} /> : <FamIcon size={10} />} {cat ? cat.label : fam.label}
           </span>
           {e.valor != null && (
-            <span className="text-[11px] font-bold tabular" style={{ color: e.cor }}>{brl(e.valor)}</span>
+            <span className={`text-[11px] font-bold tabular ${resolvida ? 'text-muted-foreground' : ''}`}
+                  style={resolvida ? undefined : { color: e.cor }}>{brl(e.valor)}</span>
+          )}
+          {e.source === 'recorrencia' && e.adiada && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+              <Clock size={10} /> adiada
+            </span>
           )}
           {e.local && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
@@ -479,7 +502,7 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                 {evs.length > 0 && (
                   <div className="flex sm:hidden items-center justify-center gap-0.5 flex-wrap px-0.5" aria-hidden="true">
                     {evs.slice(0, 4).map((e: any, k: number) => (
-                      <span key={k} className="w-1.5 h-1.5 rounded-full" style={{ background: e.cor }} />
+                      <span key={k} className={`w-1.5 h-1.5 rounded-full ${rotuloFixa(e) ? 'opacity-35' : ''}`} style={{ background: e.cor }} />
                     ))}
                     {evs.length > 4 && <span className="text-[8px] font-bold text-muted-foreground leading-none">+</span>}
                   </div>
@@ -489,11 +512,12 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                   <div className="hidden sm:flex flex-col gap-0.5 min-w-0">
                     {evs.slice(0, 3).map((e: any) => (
                       <button key={e.id} onClick={(ev) => { ev.stopPropagation(); onAbrir(e); }}
-                        title={e.titulo}
+                        title={rotuloFixa(e) ? `${e.titulo} (${rotuloFixa(e)!.toLowerCase()})` : e.titulo}
                         className="w-full text-left rounded-md px-1.5 py-1 text-[10px] font-semibold leading-tight flex items-center gap-1 min-w-0 transition-all hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current"
                         style={{ background: `color-mix(in srgb, ${e.cor} 12%, transparent)`, color: e.cor }}>
                         {e.hora && <span className="tabular shrink-0 opacity-80">{e.hora}</span>}
-                        <span className="truncate">{e.titulo}</span>
+                        {rotuloFixa(e) && <Check size={10} strokeWidth={3} className="shrink-0" aria-label={rotuloFixa(e)!} />}
+                        <span className={`truncate ${rotuloFixa(e) ? 'opacity-60' : ''}`}>{e.titulo}</span>
                       </button>
                     ))}
                     {evs.length > 3 && (

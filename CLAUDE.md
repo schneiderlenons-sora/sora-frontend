@@ -2003,6 +2003,32 @@ pagamento, automático quando possível, manual quando não.
   construído nesta rodada — precisa de um picker de transações (buscar por
   período/valor), componente que não existe ainda no painel.
 
+## Agenda: conta fixa PAGA aparece como paga (out/2026)
+
+Pedido de cliente (Fábio): conta paga antes do vencimento seguia na Agenda
+como se fosse a pagar. Medido: as **362** contas fixas pagas em outubro
+apareciam todas em aberto.
+
+- ⚠️ **A Agenda tinha a 4ª cópia da pergunta "esta conta já foi resolvida?"**
+  — só o dia do vencimento, mês a mês (`ocorrenciasMensais`), sem baixa,
+  pulo, adiamento nem frequência. Hoje a regra é **fonte única** em
+  `sora-backend/src/services/ocorrenciasFixas.js`, usada pelo `agendaFeed` E
+  pelo "o que tenho pra pagar" do WhatsApp (de onde foi extraída).
+- **Paga não some:** o evento vem com `pago: true` e a tela mostra
+  **"✓ Paga" / "✓ Recebida"** (ícone + rótulo, card esmaecido). Pulada some;
+  adiada vai pra data nova com "adiada"; semanal sai toda semana; conta
+  encerrada (`data_fim`) para de aparecer.
+- ⚠️ **Falha de leitura de baixa/ajuste → aparece como antes (em aberto).**
+  Marcar "paga" ou esconder por falta de dado é o erro que não se perdoa.
+- ⚠️ **O dedup do fim do feed fundia a adiada com a do mês seguinte** (mesmo
+  título, dia e valor) e escondia a ainda não paga. A chave ganhou `pago` e o
+  id da adiada (nas outras fontes os campos não existem — chave igual).
+- `eval:ocorrencias-fixas` (backend): "a pagar" comparado com a cópia
+  congelada da lógica antiga em 4.000 casos; Agenda com banco falso; 17/18
+  mutações mortas. Simulação só leitura na base: nenhuma conta em aberto some
+  sem motivo (as que saem: antes de a conta existir, encerrada, semanal
+  redistribuída, pulada, adiada).
+
 ## Agenda: a IA reescrevia a DATA do compromisso (set/2026)
 
 Relato de cliente: marcou consulta pra **25/09** pelo WhatsApp e a Sora salvou
