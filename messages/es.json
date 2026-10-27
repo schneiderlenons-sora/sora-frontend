@@ -167,6 +167,7 @@
     "descontoBadge": "-{pct}%",
     "porMes": "al mes",
     "pagoAnualmente": "pago anual",
+    "totalAno": "{valor} al año",
     "descOff": "{pct}% de descuento",
     "ctaComecar": "Empezar ahora →",
     "ctaEspera": "Próximamente",

@@ -11,6 +11,10 @@ export type PlanoLandingId = 'basico' | 'premium' | 'platinum';
 export interface PlanoPreco {
   mensal: number;
   anual: number;      // valor POR MÊS quando pago anualmente
+  // TOTAL cobrado no ano — o número do Price do Stripe, NÃO anual × 12:
+  // o Platinum custa R$ 479,00 e 12 × 39,92 daria 479,04 (conferido na API
+  // LIVE do Stripe em 27/10/2026: 210,12 · 287,04 · 479,00).
+  totalAnual: number;
   descAnual: number;  // % de desconto no anual
 }
 
@@ -27,10 +31,10 @@ export const PRECOS_LANDING: Record<'pt' | 'es', PrecoLocale> = {
     simbolo: 'R$',
     separadorDecimal: ',',
     planos: {
-      basico:   { mensal: 19.90, anual: 17.51, descAnual: 12 },
-      premium:  { mensal: 29.90, anual: 23.92, descAnual: 20 },
+      basico:   { mensal: 19.90, anual: 17.51, totalAnual: 210.12, descAnual: 12 },
+      premium:  { mensal: 29.90, anual: 23.92, totalAnual: 287.04, descAnual: 20 },
       // R$479/ano ÷ 12 = 39,92 (20% off sobre 12×49,90 = 598,80).
-      platinum: { mensal: 49.90, anual: 39.92, descAnual: 20 },
+      platinum: { mensal: 49.90, anual: 39.92, totalAnual: 479.00, descAnual: 20 },
     },
   },
   es: {
@@ -38,11 +42,11 @@ export const PRECOS_LANDING: Record<'pt' | 'es', PrecoLocale> = {
     simbolo: '$',
     separadorDecimal: '.',
     planos: {
-      basico:   { mensal: 99,  anual: 84,  descAnual: 15 },
-      premium:  { mensal: 149, anual: 112, descAnual: 25 },
+      basico:   { mensal: 99,  anual: 84,  totalAnual: 1008, descAnual: 15 },
+      premium:  { mensal: 149, anual: 112, totalAnual: 1344, descAnual: 25 },
       // Mesma proporção dos outros (×~5 sobre o BRL). ⚠ Vitrine: o checkout MXN
       // ainda não existe, o CTA no /es é lista de espera.
-      platinum: { mensal: 249, anual: 187, descAnual: 25 },
+      platinum: { mensal: 249, anual: 187, totalAnual: 2244, descAnual: 25 },
     },
   },
 };
@@ -58,4 +62,13 @@ export function partesPreco(valor: number, sep: ',' | '.'): { inteiro: string; d
   const cents = Math.round((valor % 1) * 100);
   const decimal = cents === 0 ? '' : `${sep}${cents.toString().padStart(2, '0')}`;
   return { inteiro, decimal };
+}
+
+// Valor cheio com símbolo, no formato do locale (R$ 287,04 · $1,344).
+export function precoCheio(valor: number, p: PrecoLocale): string {
+  const n = new Intl.NumberFormat(p.separadorDecimal === ',' ? 'pt-BR' : 'es-MX', {
+    minimumFractionDigits: p.separadorDecimal === ',' ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(valor);
+  return p.separadorDecimal === ',' ? `${p.simbolo} ${n}` : `${p.simbolo}${n}`;
 }

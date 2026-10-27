@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check, Sparkles, ShieldCheck, Zap, Crown, Flame } from 'lucide-react';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
-import { precosDoLocale, partesPreco, type PlanoLandingId } from '@/lib/landing-precos';
+import { precosDoLocale, partesPreco, precoCheio, type PlanoLandingId } from '@/lib/landing-precos';
 
 // Ícone exibido junto ao nome do plano destacado. Mantido aqui pra não
 // vazar dependência de lucide-react no lib/planos-display.
@@ -124,12 +124,19 @@ export default function Pricing({ vitalicio = true, esperaLista = false }: { vit
 
                   {/* Preço */}
                   <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
+                    <div className="flex flex-wrap items-baseline gap-1">
                       <span className="text-sm font-bold">{precos.simbolo}</span>
                       <span className="text-5xl font-bold tabular-nums tracking-tight">
                         {inteiro}
                         {decimal && <span className="text-2xl">{decimal}</span>}
                       </span>
+                      {/* Total do ano, pequeno ao lado do valor mensal — é o
+                          que quem assina o anual paga de uma vez. */}
+                      {anual && (
+                        <span className="ml-1.5 text-xs font-medium tabular-nums text-zinc-500 dark:text-white/50 whitespace-nowrap">
+                          {t('totalAno', { valor: precoCheio(info.totalAnual, precos) })}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-white/50 mt-1">
                       {t('porMes')}{anual && <> · {t('pagoAnualmente')} · <span style={{ color: p.cor }} className="font-bold">{t('descOff', { pct: info.descAnual })}</span></>}
