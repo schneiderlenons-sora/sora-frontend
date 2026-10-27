@@ -35,7 +35,11 @@ const nextConfig = {
   // faz a ponte. O matcher do middleware ignora caminhos com ponto, entao
   // este aqui passa sem interceptacao — conferido.
   async rewrites() {
-    return [{ source: '/.well-known/assetlinks.json', destination: '/api/assetlinks' }];
+    return [
+      { source: '/.well-known/assetlinks.json', destination: '/api/assetlinks' },
+      // O mesmo papel pro iPhone (app da App Store). Sem extensão, exigência da Apple.
+      { source: '/.well-known/apple-app-site-association', destination: '/api/apple-app-site-association' },
+    ];
   },
 
   experimental: {
