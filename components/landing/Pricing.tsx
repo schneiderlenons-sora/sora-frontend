@@ -62,7 +62,7 @@ export default function Pricing({ vitalicio = true, esperaLista = false }: { vit
               {!anual && (
                 <span className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white"
                       style={{ background: '#61ce70' }}>
-                  {t('descontoBadge', { pct: precos.planos.premium.descAnual })}
+                  {t('descontoBadge', { pct: Math.max(...Object.values(precos.planos).map((x) => x.descAnual)) })}
                 </span>
               )}
             </button>

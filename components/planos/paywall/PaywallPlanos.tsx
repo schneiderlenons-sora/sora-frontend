@@ -146,7 +146,7 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
       // o valor final antes de a pessoa confirmar — por isso o rodapé avisa.
       return {
         mensal: fmtBRL(info.mensal),
-        anualTotal: fmtBRL(Math.round(info.anual * 12 * 100) / 100),
+        anualTotal: fmtBRL(info.totalAnual),
         anualMes: fmtBRL(info.anual),
         economia: info.descAnual,
         referencia: true,

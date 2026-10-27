@@ -13,7 +13,7 @@ export interface PlanoPreco {
   anual: number;      // valor POR MÊS quando pago anualmente
   // TOTAL cobrado no ano — o número do Price do Stripe, NÃO anual × 12:
   // o Platinum custa R$ 479,00 e 12 × 39,92 daria 479,04 (conferido na API
-  // LIVE do Stripe em 27/10/2026: 210,12 · 287,04 · 479,00).
+  // LIVE do Stripe em 27/10/2026: 146,90 · 287,04 · 479,00).
   totalAnual: number;
   descAnual: number;  // % de desconto no anual
 }
@@ -31,7 +31,8 @@ export const PRECOS_LANDING: Record<'pt' | 'es', PrecoLocale> = {
     simbolo: 'R$',
     separadorDecimal: ',',
     planos: {
-      basico:   { mensal: 19.90, anual: 17.51, totalAnual: 210.12, descAnual: 12 },
+      // R$146,90/ano ÷ 12 = 12,24 (preço novo do Básico anual, 27/10/2026).
+      basico:   { mensal: 19.90, anual: 12.24, totalAnual: 146.90, descAnual: 40 },
       premium:  { mensal: 29.90, anual: 23.92, totalAnual: 287.04, descAnual: 20 },
       // R$479/ano ÷ 12 = 39,92 (20% off sobre 12×49,90 = 598,80).
       platinum: { mensal: 49.90, anual: 39.92, totalAnual: 479.00, descAnual: 20 },

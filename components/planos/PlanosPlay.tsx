@@ -135,7 +135,7 @@ export default function PlanosPlay() {
           // janela do Google mostra o valor final antes de confirmar.
           const info = PLANOS_INFO[id];
           const preco = precoTexto(precos[sku])
-            ?? (compra.erroPreco ? fmtTabela(ciclo === 'anual' ? info.anual * 12 : info.mensal) : null);
+            ?? (compra.erroPreco ? fmtTabela(ciclo === 'anual' ? info.totalAnual : info.mensal) : null);
           const ehAtual = status.ativa && status.produto === sku;
           const mesmoPlanoOutroCiclo = status.ativa && status.plano === id && !ehAtual;
           const subir = status.ativa && status.plano ? ORDEM_PLAY[id] > ORDEM_PLAY[status.plano] : true;

@@ -620,14 +620,14 @@ function Etapa5() {
   const premium = PLANOS_INFO.premium;
   const precoMes = anual ? premium.anual : premium.mensal;
   const { inteiro, decimal } = partesPreco(precoMes, ',');
-  const totalAnual = (premium.anual * 12).toFixed(2).replace('.', ',');
+  const totalAnual = premium.totalAnual.toFixed(2).replace('.', ',');
 
   // Básico — preço e recursos das fontes únicas (lib/stripe + lib/planos-display),
   // as mesmas da landing e da /planos: mudou lá, muda aqui.
   const basico = PLANOS_INFO.basico;
   const precoBasico = anual ? basico.anual : basico.mensal;
   const partesBasico = partesPreco(precoBasico, ',');
-  const totalAnualBasico = (basico.anual * 12).toFixed(2).replace('.', ',');
+  const totalAnualBasico = basico.totalAnual.toFixed(2).replace('.', ',');
   const recursosBasico = PLANOS_DISPLAY.find((p) => p.id === 'basico')?.features ?? [];
   const maiorDesconto = Math.max(premium.descAnual, basico.descAnual);
 

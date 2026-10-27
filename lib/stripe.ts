@@ -39,9 +39,14 @@ export type Intervalo = 'mensal' | 'anual';
 // Price IDs criados no Stripe Dashboard — configurar no .env.local
 // Preencher com os IDs reais: Settings → Products → Prices
 export const PRICE_IDS: Record<PlanoId, Record<Intervalo, string>> = {
+  // ⚠️ O anual do Básico mudou em 27/10/2026 (R$ 210,12 → R$ 146,90/ano) e vem
+  // CRAVADO: a env STRIPE_PRICE_BASICO_ANUAL da Vercel ainda aponta pro preço
+  // ANTIGO, então "env vence" venderia o preço velho. Pra trocar de novo sem
+  // deploy existe a STRIPE_PRICE_BASICO_ANUAL_V2. O antigo segue reconhecido
+  // em PRICE_IDS_LEGADOS — quem já assina continua sendo Básico ao renovar.
   basico:  {
     mensal: process.env.STRIPE_PRICE_BASICO_MENSAL!,
-    anual:  process.env.STRIPE_PRICE_BASICO_ANUAL!,
+    anual:  process.env.STRIPE_PRICE_BASICO_ANUAL_V2 || 'price_1UVAxCQlbb8xkB6tkSeSq33J',
   },
   premium: {
     mensal: process.env.STRIPE_PRICE_PREMIUM_MENSAL!,
@@ -75,12 +80,21 @@ export function ehPriceConexaoOf(priceId?: string | null): boolean {
   return Object.values(PRICE_CONEXAO_OF).filter(Boolean).includes(priceId);
 }
 
+// Preços que NÃO se vendem mais, mas que assinaturas antigas ainda usam.
+// ⚠️ Não apagar: o webhook traduz o price da assinatura em plano a cada
+// renovação, e um price desconhecido vira plano 'inativo' — quem pagou o anual
+// antigo perderia o acesso no dia da renovação.
+const PRICE_IDS_LEGADOS: { id: string | undefined; plano: PlanoId; intervalo: Intervalo }[] = [
+  { id: 'price_1TdXOaQlbb8xkB6t2rdb79WP',        plano: 'basico', intervalo: 'anual' }, // R$ 210,12/ano, até 27/10/2026
+  { id: process.env.STRIPE_PRICE_BASICO_ANUAL, plano: 'basico', intervalo: 'anual' },
+];
+
 // Mapeamento inverso: price ID → plano
 export function priceIdToPlano(priceId: string): PlanoId | null {
   for (const [plano, intervals] of Object.entries(PRICE_IDS)) {
     if (Object.values(intervals).includes(priceId)) return plano as PlanoId;
   }
-  return null;
+  return PRICE_IDS_LEGADOS.find((l) => l.id && l.id === priceId)?.plano ?? null;
 }
 
 export function priceIdToIntervalo(priceId: string): Intervalo | null {
@@ -89,14 +103,16 @@ export function priceIdToIntervalo(priceId: string): Intervalo | null {
       if (id === priceId) return intervalo as Intervalo;
     }
   }
-  return null;
+  return PRICE_IDS_LEGADOS.find((l) => l.id && l.id === priceId)?.intervalo ?? null;
 }
 
 // Preços de exibição (client-side, sem price IDs)
-export const PLANOS_INFO: Record<PlanoId, { mensal: number; anual: number; descAnual: number }> = {
-  basico:  { mensal: 19.90, anual: 17.51, descAnual: 12 },
-  premium: { mensal: 29.90, anual: 23.92, descAnual: 20 },
-  platinum: { mensal: 49.90, anual: 39.92, descAnual: 20 }, // R$479/ano ÷ 12
+// `anual` = valor POR MÊS no anual; `totalAnual` = o que o Stripe cobra no ano
+// (o número do Price, nunca anual × 12: 12 × 12,24 daria 146,88).
+export const PLANOS_INFO: Record<PlanoId, { mensal: number; anual: number; totalAnual: number; descAnual: number }> = {
+  basico:  { mensal: 19.90, anual: 12.24, totalAnual: 146.90, descAnual: 40 }, // R$146,90/ano ÷ 12
+  premium: { mensal: 29.90, anual: 23.92, totalAnual: 287.04, descAnual: 20 },
+  platinum: { mensal: 49.90, anual: 39.92, totalAnual: 479.00, descAnual: 20 }, // R$479/ano ÷ 12
 };
 
 // ── VITALÍCIO (pagamento único) ──────────────────────────────────────────────

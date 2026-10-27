@@ -142,7 +142,7 @@ export default function CardPlanos({
                       className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-black text-[#0A2A14]"
                       style={{ background: '#61ce70' }}
                     >
-                      -20%
+                      -{Math.max(...Object.values(PLANOS_INFO).map((x) => x.descAnual))}%
                     </span>
                   )}
                 </button>
