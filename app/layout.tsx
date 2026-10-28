@@ -10,6 +10,7 @@ import { NAV_CORES } from '@/lib/nav-cores';
 import MetaPixel from '@/components/analytics/MetaPixel';
 import TikTokPixel from '@/components/analytics/TikTokPixel';
 import UtmifyPixel from '@/components/analytics/UtmifyPixel';
+import { MARCA_APP_IOS } from '@/lib/app-ios';
 
 // `variable` (e não só className) porque o globals.css referencia a família por
 // var(--font-inter). Antes o CSS pedia 'Inter' pelo NOME, que só existia via
@@ -117,6 +118,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} crossOrigin="anonymous" />
         )}
+
+        {/* ═══ APP DE IPHONE — marcado antes do primeiro paint ═══
+            Dentro do app da App Store nada de venda pode aparecer (lib/app-ios.ts).
+            Fora do painel o React só descobre isso depois de hidratar; esta
+            marca no <html> deixa o CSS (`.oculto-no-app-ios`, globals.css)
+            esconder já no 1º paint, sem piscar. */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(navigator.userAgent.indexOf('${MARCA_APP_IOS}')>-1)document.documentElement.setAttribute('data-app-ios','1')}catch(e){}` }} />
 
         {/* ═══ ABERTURA DA SORA — a DECISÃO, antes do primeiro paint ═══
             ⚠️ ISTO PRECISA RODAR NO <head>, e não num efeito do React. Montar o

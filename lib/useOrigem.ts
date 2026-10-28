@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { detectarOrigem, esquecerOrigem, PARAM_ANDROID, type Origem } from './origem-app';
+import { ehAppIos } from './app-ios';
+import { AppIosContexto } from './app-ios-contexto';
 
 /**
  * `true` SÓ quando a sessão está rodando DENTRO do app nativo (TWA) agora.
@@ -66,4 +68,19 @@ export function useOrigem(): Origem {
 /** `true` só depois de montar e confirmar que a sessão veio do app Android. */
 export function useEhAndroid(): boolean {
   return useOrigem() === 'android';
+}
+
+/**
+ * `true` dentro do app de IPHONE (App Store) — ver `lib/app-ios.ts`.
+ *
+ * No painel (`app/(app)`) a resposta vem do SERVIDOR via `AppIosProvider`, já
+ * certa no 1º render — sem piscar venda. Fora dele (sem provider) começa em
+ * `false` e lê o User-Agent depois de montar, pelo mesmo motivo do `useOrigem`:
+ * o servidor não vê o `navigator`, e chutar no 1º render daria hydration mismatch.
+ */
+export function useEhAppIos(): boolean {
+  const doServidor = useContext(AppIosContexto);
+  const [ios, setIos] = useState(false);
+  useEffect(() => { if (doServidor === null) setIos(ehAppIos()); }, [doServidor]);
+  return doServidor ?? ios;
 }

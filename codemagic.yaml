@@ -1,0 +1,56 @@
+# Montagem do app da Sora para iPhone (App Store), no Mac na nuvem do Codemagic.
+#
+# Por que existe: o app de iPhone só pode ser montado e assinado no Xcode, que
+# só roda em Mac — e o desenvolvimento é em Windows. O projeto mora em
+# `ios-app/` (Capacitor abrindo www.forsora.com; ver ios-app/README.md).
+#
+# Só roda quando alguém clica em "Start new build" no Codemagic: sem
+# `triggering`, nenhum push dispara build (cada build gasta minutos do plano).
+#
+# Pré-requisito no painel do Codemagic: Team settings → Integrations →
+# Developer Portal → chave da API do App Store Connect com o nome "Codemagic"
+# (acesso "Gerente de apps"). A chave .p8 vive SÓ lá, nunca no repositório.
+
+workflows:
+  ios-app-store:
+    name: Sora iPhone → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.forsora.app
+      vars:
+        APP_STORE_APPLE_ID: 6827597771
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Instalar o Capacitor
+        working_directory: ios-app
+        script: npm ci
+      - name: Sincronizar o projeto iOS
+        working_directory: ios-app
+        script: npx cap sync ios
+      - name: Aplicar os perfis de assinatura
+        script: xcode-project use-profiles
+      # ⚠️ Cada envio à Apple precisa de um número de build MAIOR que o anterior
+      # (igual ao versionCode do Android). O $BUILD_NUMBER do Codemagic cresce
+      # sozinho a cada build deste workflow, então nunca repete.
+      - name: Numerar a build
+        script: |
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" \
+            ios-app/ios/App/App.xcodeproj/project.pbxproj
+      - name: Montar o .ipa
+        script: |
+          xcode-project build-ipa \
+            --project ios-app/ios/App/App.xcodeproj \
+            --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

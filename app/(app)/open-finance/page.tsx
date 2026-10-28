@@ -19,6 +19,7 @@ import { api } from '@/lib/api';
 import IconeMarca from '@/components/ui/IconeMarca';
 import AvisoCobertura, { type Cobertura } from '@/components/open-finance/AvisoCobertura';
 import { useMoedaBase } from '@/lib/moeda-base';
+import { useEhAppIos } from '@/lib/useOrigem';
 import { MOEDAS } from '@/lib/moeda';
 import {
   docsDaInstituicao, conexaoEmpresarial, documentosDoConsentimento, textoDoQueFalta,
@@ -152,6 +153,9 @@ function quando(iso: string) {
 export default function OpenFinancePage() {
   const { perfil, phone, plano, loading: carregandoPerfil } = useAuth();
   const moedaBase = useMoedaBase();
+  // ⚠️ App de iPhone: nada se vende (lib/app-ios.ts) — sem contratar conexão,
+  // sem portal do Stripe, sem "Ver planos". O resto da aba é igual.
+  const ehIos = useEhAppIos();
   // ⚠️ O acesso depende do PLANO, que chega junto com o perfil. Enquanto ele não
   // carrega não dá pra decidir — sem isto, quem TEM acesso via a tela de "só na
   // assinatura" piscar antes do conteúdo.
@@ -456,7 +460,9 @@ export default function OpenFinancePage() {
   // Modo grátis sem acesso: o paywall com a compra ali mesmo. ⚠️ Não quando há
   // aviso de cobertura — conexão além do direito tem prazo correndo, e esse
   // aviso não pode sumir atrás de uma tela de venda.
-  if (!indefinido && !liberado && !cobertura && vePaywallCompleto(plano, perfil?.vitalicio)) {
+  // No app de iPhone, QUALQUER conta sem acesso cai aqui: o painel de "sem
+  // acesso" abaixo explica os planos e oferece a conexão avulsa — é venda.
+  if (!indefinido && !liberado && !cobertura && (ehIos || vePaywallCompleto(plano, perfil?.vitalicio))) {
     return <AbaBloqueada feature="open_finance" />;
   }
 
@@ -500,6 +506,7 @@ export default function OpenFinancePage() {
         {cobertura && (
           <AvisoCobertura
             cobertura={cobertura}
+            semVenda={ehIos}
             onContratar={() => contratarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
           />
         )}
@@ -628,7 +635,7 @@ export default function OpenFinancePage() {
                 barato do que pagar avulso uma por uma se ele for conectar mais
                 de uma. As duas opções ficam visíveis juntas — nunca escondendo
                 uma atrás da outra. */}
-            {!carregando && noLimite && (
+            {!carregando && noLimite && !ehIos && (
               <div className="space-y-2">
                 {!perfil?.vitalicio && plano === 'basico' && (
                   <div className="rounded-2xl border border-border bg-muted/40 p-3 flex items-center justify-between gap-3">
@@ -655,7 +662,7 @@ export default function OpenFinancePage() {
                 vitalício não via o portal em lugar nenhum do painel (o botão
                 de /configuracoes era escondido pra ele). Medido: os 13
                 pagantes eram todos vitalícios. */}
-            <GerenciarCobrancaConexao pagas={Number(perfil?.of_conexoes_pagas) || 0} />
+            {!ehIos && <GerenciarCobrancaConexao pagas={Number(perfil?.of_conexoes_pagas) || 0} />}
 
             {/* ⚠️ GRUPO FORA DO REAL (migration 168). O Open Finance brasileiro
                 só fala real: contas e cartões entram em real e cada lançamento é

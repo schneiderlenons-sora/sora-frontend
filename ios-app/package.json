@@ -1,0 +1,15 @@
+{
+  "name": "sora-ios",
+  "private": true,
+  "description": "App da Sora para iPhone (App Store): embrulho Capacitor que abre www.forsora.com.",
+  "scripts": {
+    "sync": "cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

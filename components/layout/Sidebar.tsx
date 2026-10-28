@@ -29,7 +29,7 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
 import { usePwa } from '@/components/pwa/InstallPwa';
-import { useEhAndroid } from '@/lib/useOrigem';
+import { useEhAndroid, useEhAppIos } from '@/lib/useOrigem';
 import type { Feature } from '@/lib/plans';
 
 type NavItem = {
@@ -414,6 +414,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const isDark      = isTemaBlack; // black usa as variáveis .dark
 
   const { abrir: abrirInstall } = usePwa();
+  const ehIos = useEhAppIos();
 
   const plano = perfil?.plano || 'inativo';
   const sidebarBg = isTemaBlack ? SIDEBAR_BG_BLACK : (isDark ? SIDEBAR_BG_DARK : SIDEBAR_BG_LIGHT);
@@ -471,6 +472,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
    * esconderia que a função existe.
    */
   function atalho(href: string, label: string, icone: React.ReactNode, liberado: boolean) {
+    if (ehIos && !liberado) return null;   // ver navLink
     const fundo = isTemaBlack
       ? 'bg-black/40 hover:bg-black/55 border border-white/5'
       : 'bg-white/10 hover:bg-white/20';
@@ -528,6 +530,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // a usa — o item sumiria da barra do dia pra noite.
     const gateLocked = gate === 'negocios' ? !temNegocios : gate ? !podeUsar(gate) : false;
     const locked     = growLocked || gateLocked;
+    // ⚠️ APP DE IPHONE: aba fora do plano NÃO aparece (nem com cadeado). Lá não
+    // há como comprar (lib/app-ios.ts), e cadeado + selo "Premium" sem caminho
+    // de compra é o tipo de coisa que a revisão da Apple questiona.
+    if (ehIos && locked) return null;
     // ⚠️ ITEM BLOQUEADO POR PLANO ABRE A PRÓPRIA ABA, não o /planos.
     //
     // Cada uma delas renderiza o convite no próprio lugar (`AbaBloqueada`,
@@ -908,6 +914,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               const aberto    = g.id === 'grow' ? openGrow : openFin;
               const alternar  = g.id === 'grow' ? toggleGrow : toggleFin;
               const bloqueado = !!g.grow && !temAcessoGrow;
+              if (ehIos && bloqueado) return null;   // ver navLink: iPhone não mostra o que não pode comprar
               return (
                 <div key={g.id}>
                   {groupHeader({
@@ -1011,12 +1018,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           </span>
         </Link>
 
-        {/* Instalar app | Sair (mesma linha, economiza espaço) */}
-        <div className="grid grid-cols-2 gap-1.5">
+        {/* Instalar app | Sair (mesma linha, economiza espaço). No app de
+            iPhone não há o que instalar: Sair ocupa a linha inteira. */}
+        <div className={`grid ${ehIos ? 'grid-cols-1' : 'grid-cols-2'} gap-1.5`}>
+          {!ehIos && (
           <button onClick={() => { setOpen(false); abrirInstall(); }}
             className="flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium text-white/75 hover:text-white bg-white/10 hover:bg-white/20 transition-all">
             <Download size={16} /> Instalar
           </button>
+          )}
           {/*
             ⚠️ SAIR PEDE CONFIRMAÇÃO — e não é excesso de zelo.
 

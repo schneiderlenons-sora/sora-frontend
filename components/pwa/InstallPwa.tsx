@@ -8,6 +8,7 @@ import {
   Zap, Wifi, Bell, Check, Sparkles, ExternalLink, ShieldCheck,
 } from 'lucide-react';
 import { LINK_PLAY_STORE } from '@/lib/play-store';
+import { ehAppIos } from '@/lib/app-ios';
 
 // ════════════════════════════════════════════════════════════
 // CONTEXT — permite outras telas dispararem o modal
@@ -31,6 +32,8 @@ function detectarPlataforma(): Plataforma {
 
 function jaInstalado(): boolean {
   if (typeof window === 'undefined') return false;
+  // Dentro do app da App Store já é o app — e o WKWebView não é "standalone".
+  if (ehAppIos()) return true;
   // iOS Safari standalone
   if ((window.navigator as any).standalone === true) return true;
   // Chrome / Edge standalone

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useVisivel } from '@/lib/useVisivel';
+import { useEhAppIos } from '@/lib/useOrigem';
 import {
   ListChecks, Heart, CalendarDays, ChevronRight, Crown, ArrowRight,
 } from 'lucide-react';
@@ -48,6 +49,7 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
   };
 
   const basico = !podeUsar('grow_saude'); // Básico não tem Saúde/Estudos/Casa+
+  const ehIos = useEhAppIos(); // app de iPhone: sem convite de upgrade (lib/app-ios.ts)
 
   if (!temAcessoGrow) return null;
 
@@ -126,7 +128,7 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
       </div>
 
       {/* ── Upsell pro Básico ───────────────────────────────────── */}
-      {basico && (
+      {basico && !ehIos && (
         <Link href="/planos"
           className="flex items-center gap-3 rounded-2xl p-4 border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
           <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">

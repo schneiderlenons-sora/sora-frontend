@@ -18,6 +18,7 @@ import {
   Archive, Layers, CloudOff,
 } from 'lucide-react';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useEhAppIos } from '@/lib/useOrigem';
 // recharts sob demanda: os 3 gráficos vivem em ./Graficos e saem do bundle
 // inicial. Skeleton com a mesma altura do container (evita CLS).
 const skel = () => <div className="w-full h-full rounded-xl bg-muted/40 animate-pulse" role="status" aria-label="Carregando gráfico" />;
@@ -484,6 +485,9 @@ function Header({ actions }: { actions?: React.ReactNode }) {
 }
 
 function PaywallPremium() {
+  // App de iPhone: sem "Ver planos" (lib/app-ios.ts).
+  const ehIos = useEhAppIos();
+  if (ehIos) return <AbaBloqueada feature="investimentos" />;
   const features = [
     { icon: Briefcase,  l: 'Carteira completa multiclasse',    d: 'Ações, FIIs, ETFs, Cripto, Tesouro, CDB, Imóveis' },
     { icon: RefreshCw,  l: 'Atualização automática',           d: 'Yahoo Finance + CoinGecko (24h)' },

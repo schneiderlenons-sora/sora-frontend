@@ -3989,6 +3989,38 @@ essencial pra não errar:
     exatamente o cruzamento que o Google faz com o formulário de Segurança dos
     Dados.
 
+## App Store (iPhone) — casca Capacitor + "nada se vende" (out/2026)
+
+App `com.forsora.app` (App Store Connect `6827597771`, Team `V4P649QY95`).
+Projeto em **`ios-app/`** (Capacitor 8, abre `www.forsora.com/login`) e
+montado no **Codemagic** (`codemagic.yaml` na raiz): o Xcode só existe em Mac.
+Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
+
+- **O site reconhece o app pelo User-Agent** `SoraApp-iOS` (`lib/app-ios.ts`,
+  `eval:app-ios`). ⚠️ NÃO é o `ehAndroid`: no Android a venda existe (Play
+  Billing) e a aba Saúde é bloqueada (regra do Google); no iPhone **nada se
+  vende** (Apple 3.1.1 + anti-steering — nem "assine pelo site") e a Saúde fica.
+- **Três camadas**, cada uma pro seu lugar:
+  1. **middleware**: landings com preço, funis e checkout (`ROTAS_DE_VENDA_IOS`)
+     → `/login`. O revisor chega nelas saindo do login.
+  2. **painel** (`app/(app)`): `useEhAppIos()` vem do SERVIDOR via
+     `AppIosProvider` no layout — a /planos não pisca preço. /planos e "Plano e
+     Cobrança" viram `PlanosNoAppIos` (só o plano atual); aba fora do plano
+     **some do menu** e, por link direto, `AbaBloqueada` diz "fora do seu plano"
+     sem botão; Open Finance sem contratar conexão nem portal do Stripe.
+  3. **fora do painel** (login, cadastro): o `<head>` marca `data-app-ios` no
+     `<html>` antes do 1º paint e a classe **`oculto-no-app-ios`** esconde
+     ("Pagamento seguro com Stripe", etapas Plano/Pagamento do cadastro).
+- ⚠️ **Pixel do Facebook, TikTok e o envio server-side (CAPI/Events API)
+  DESLIGADOS no app** — na Privacidade do app declaramos "não rastreia". Os
+  pixels checam o User-Agent DENTRO do script; `lib/analytics.ts` corta os 4
+  helpers de saída. Medido: 0 chamadas no app × 9 no Safari.
+- `inativo` no app vira `gratis` (mesma regra do Android em `PaywallRedirect`)
+  e o cadastro cai no `/tour` com o card sem preço.
+- ⚠️ **Tela nova com preço, "Assinar", "upgrade" ou link pra /planos/Stripe:
+  esconder no app de iPhone** (`useEhAppIos` no painel, `oculto-no-app-ios` fora).
+- **Fase 2 (não feita):** assinatura pela Apple (StoreKit), igual à Play.
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects

@@ -27,6 +27,7 @@ import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { MOEDAS, cartaoForaDaBase, normalizarMoeda, valorDoCartaoNaBase } from '@/lib/moeda';
+import { ehAppIos } from '@/lib/app-ios';
 const BRAND = 'hsl(var(--primary))';
 const MES_ABREV  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MES_NOMES  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -388,7 +389,10 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
               <button
                 onClick={() => {
                   if (wallets.length >= limiteCartoes) {
-                    alert(`Plano atual permite ${limiteCartoes} cartões. Faça upgrade para Premium para ter cartões ilimitados.`);
+                    // App de iPhone: sem convite de upgrade (lib/app-ios.ts).
+                    alert(ehAppIos()
+                      ? `Seu plano permite ${limiteCartoes} cartões.`
+                      : `Plano atual permite ${limiteCartoes} cartões. Faça upgrade para Premium para ter cartões ilimitados.`);
                     return;
                   }
                   setEdicao(null); setAddOpen(true);

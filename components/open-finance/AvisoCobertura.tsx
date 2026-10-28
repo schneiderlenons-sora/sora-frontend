@@ -41,11 +41,13 @@ function prazoLegivel(horas: number | null): string {
 }
 
 export default function AvisoCobertura({
-  cobertura, onContratar,
+  cobertura, onContratar, semVenda = false,
 }: {
   cobertura: Cobertura;
   /** Rola até o card de contratar conexão avulsa (ele já existe na página). */
   onContratar?: () => void;
+  /** App de iPhone: sem "Manter conectado · R$ 6" nem "Ver planos" (lib/app-ios.ts). */
+  semVenda?: boolean;
 }) {
   const { estado, limite, excedente, horasRestantes, aDesligar } = cobertura;
   const vencido = estado === 'vencido';
@@ -108,6 +110,7 @@ export default function AvisoCobertura({
           conexão (mantém tudo como está) ou desconectar um banco (não custa
           nada). Esconder a segunda leria como cobrança forçada. */}
       <div className="flex flex-wrap items-center gap-2 pl-7">
+        {!semVenda && (<>
         <button
           type="button"
           onClick={onContratar}
@@ -123,9 +126,10 @@ export default function AvisoCobertura({
         >
           Ver planos
         </a>
+        </>)}
         <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Clock size={13} aria-hidden />
-          ou desconecte um banco na lista abaixo
+          {semVenda ? 'Desconecte um banco na lista abaixo' : 'ou desconecte um banco na lista abaixo'}
         </span>
       </div>
     </div>

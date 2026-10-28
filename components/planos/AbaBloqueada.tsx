@@ -9,6 +9,7 @@ import {
 import { planoMinimo, PLANO_LABEL, type Feature } from '@/lib/plans';
 import { useAuth } from '@/contexts/AuthContext';
 import PaywallPlanos from './paywall/PaywallPlanos';
+import { useEhAppIos } from '@/lib/useOrigem';
 
 /**
  * O convite que aparece quando a pessoa abre uma aba que o plano dela não tem.
@@ -117,8 +118,11 @@ export default function AbaBloqueada({ feature }: { feature: Feature }) {
   const info = COPY[feature];
   const minimo = planoMinimo(feature);
   const nomePlano = PLANO_LABEL[minimo];
+  // ⚠️ APP DE IPHONE: nada se vende (lib/app-ios.ts) — nem paywall, nem botão
+  // pro /planos, nem "faça upgrade". A aba só diz que não faz parte do plano.
+  const ehIos = useEhAppIos();
 
-  if (vePaywallCompleto(plano, isVitalicio)) {
+  if (!ehIos && vePaywallCompleto(plano, isVitalicio)) {
     return (
       <div className="py-2 sm:py-4">
         <PaywallPlanos
@@ -155,7 +159,7 @@ export default function AbaBloqueada({ feature }: { feature: Feature }) {
 
           {/* Ícone + rótulo, nunca a cor sozinha. */}
           <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-            <Lock size={11} /> Disponível no {nomePlano}
+            <Lock size={11} /> {ehIos ? 'Fora do seu plano' : <>Disponível no {nomePlano}</>}
           </p>
 
           <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight">
@@ -163,11 +167,14 @@ export default function AbaBloqueada({ feature }: { feature: Feature }) {
           </h1>
 
           <p className="text-sm text-muted-foreground leading-relaxed mt-2.5">
-            {info?.texto ?? `Faça upgrade pro plano ${nomePlano} pra desbloquear esta aba.`}
+            {ehIos
+              ? 'Esta aba não faz parte do plano da sua conta.'
+              : (info?.texto ?? `Faça upgrade pro plano ${nomePlano} pra desbloquear esta aba.`)}
           </p>
 
           {/* `intent=upgrade` faz o /planos abrir já com o card certo destacado,
               em vez de a pessoa ter de procurar qual plano resolve. */}
+          {!ehIos && (
           <Link
             href={`/planos?intent=upgrade&plano=${minimo}&ciclo=mensal`}
             className="mt-6 w-full inline-flex items-center justify-center gap-2 h-12 rounded-2xl text-white text-sm font-bold shadow-lg active:scale-[0.99] transition-transform"
@@ -175,6 +182,7 @@ export default function AbaBloqueada({ feature }: { feature: Feature }) {
           >
             Ver o plano {nomePlano}
           </Link>
+          )}
 
           {/* Saída sempre visível: sem ela a aba bloqueada vira beco sem saída
               no mobile, onde não há sidebar à vista. */}

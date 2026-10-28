@@ -1,0 +1,15 @@
+{
+  "appId": "com.forsora.app",
+  "appName": "Sora",
+  "webDir": "www",
+  "server": {
+    "url": "https://www.forsora.com/login",
+    "allowNavigation": ["www.forsora.com", "forsora.com"]
+  },
+  "ios": {
+    "appendUserAgent": "SoraApp-iOS",
+    "contentInset": "never",
+    "backgroundColor": "#44AC74",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}

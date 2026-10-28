@@ -5,7 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
-import { useEhAppNativo } from '@/lib/useOrigem';
+import { useEhAppNativo, useEhAppIos } from '@/lib/useOrigem';
+import PlanosNoAppIos from '@/components/planos/PlanosNoAppIos';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import PlanosPlay, { useStatusPlay } from '@/components/planos/PlanosPlay';
 import { linkGerenciarPlay } from '@/lib/digital-goods';
@@ -662,6 +663,11 @@ function PlanosContent() {
 }
 
 export default function PlanosPage() {
+  // App de iPhone: nada se vende (lib/app-ios.ts). Decidido no servidor, então
+  // os preços do site nunca chegam a aparecer lá dentro.
+  const ehIos = useEhAppIos();
+  if (ehIos) return <PlanosNoAppIos />;
+
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh]">

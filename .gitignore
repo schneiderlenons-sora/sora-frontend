@@ -68,3 +68,6 @@ next-env.d.ts
 /settings.gradle
 /twa-manifest.json
 /manifest-checksum.txt
+
+# app de iPhone (Capacitor)
+/ios-app/node_modules

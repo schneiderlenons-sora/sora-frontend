@@ -964,3 +964,10 @@ html[data-abertura='on'] body {
 @media (prefers-reduced-motion: reduce) {
   .sora-nav-surface { transition: none; }
 }
+
+
+/* ═══ APP DE IPHONE (App Store) ═══
+   O <head> marca `data-app-ios` no <html> antes do 1º paint (app/layout.tsx).
+   Tudo que cita venda/pagamento FORA do painel leva esta classe — dentro do
+   painel quem decide é o `useEhAppIos`, que já vem do servidor. */
+html[data-app-ios] .oculto-no-app-ios { display: none !important; }

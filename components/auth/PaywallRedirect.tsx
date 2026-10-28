@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { lerIntencaoPlano, limparIntencaoPlano } from '@/lib/plan-intent';
 import { detectarOrigem } from '@/lib/origem-app';
+import { ehAppIos } from '@/lib/app-ios';
 import { decidirPaywall, destinoAposGratis } from '@/lib/paywall';
 
 /**
@@ -41,7 +42,9 @@ export default function PaywallRedirect() {
     // ⚠️ `detectarOrigem()` AQUI DENTRO, não o `useEhAndroid()`. O hook começa em
     // 'web' e só vira 'android' depois de montar — nesse primeiro render o
     // paywall já teria mandado a conta pra /planos.
-    const acao = decidirPaywall({ plano, pathname, android: detectarOrigem() === 'android' });
+    // O app de iPhone segue a regra do app Android (nada se vende por fora →
+    // `inativo` vira modo grátis) — ver lib/app-ios.ts.
+    const acao = decidirPaywall({ plano, pathname, android: detectarOrigem() === 'android' || ehAppIos() });
 
     // Plano ativo (ou grátis) → libera e descarta a intenção salva.
     if (acao === 'plano-ativo') {

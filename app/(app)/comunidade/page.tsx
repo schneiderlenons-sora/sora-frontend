@@ -16,6 +16,8 @@ import {
   Trash2, Shield,
 } from 'lucide-react';
 import { useDinheiro } from '@/lib/moeda-base';
+import { useEhAppIos } from '@/lib/useOrigem';
+import AbaBloqueada from '@/components/planos/AbaBloqueada';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -530,6 +532,9 @@ function MiniStat({ label, value, icon: Icon }: { label: string; value: string; 
 // PAYWALL
 // ─────────────────────────────────────────────────────────────
 function PaywallGrupos() {
+  // App de iPhone: sem preço nem "Assinar" (lib/app-ios.ts).
+  const ehIos = useEhAppIos();
+  if (ehIos) return <AbaBloqueada feature="compartilhamento" />;
   const features = {
     premium: [
       'Até 3 membros no grupo',

@@ -1,6 +1,7 @@
 'use client';
 
 import Script from 'next/script';
+import { MARCA_APP_IOS } from '@/lib/app-ios';
 
 // Pixel ID NÃO é segredo — ele vai inline no HTML de toda página (o próprio
 // TikTok manda incluir literalmente no <head>), então dá pra hardcodar como
@@ -19,8 +20,12 @@ export default function TikTokPixel() {
     //
     // Código-base COPIADO LITERAL do painel do TikTok Events Manager (não
     // reescrever à mão — é o snippet oficial deles, só interpolando o ID).
+    //
+    // ⚠️ NÃO CARREGA NO APP DE IPHONE (declaramos à Apple que o app não
+    // rastreia) — o `if` embrulha o snippet inteiro, sem tocar nele.
     <Script id="tiktok-pixel" strategy="lazyOnload">
       {`
+        if (navigator.userAgent.indexOf('${MARCA_APP_IOS}') === -1) {
         !function (w, d, t) {
           w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(
           var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script")
@@ -41,6 +46,7 @@ export default function TikTokPixel() {
             document.cookie = 'ttclid=' + m[1] + ';max-age=' + (7 * 24 * 60 * 60) + ';path=/;SameSite=Lax';
           }
         })();
+        }
       `}
     </Script>
   );

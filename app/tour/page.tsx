@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TourPlayer from '@/components/tour/TourPlayer';
 import CardPlanos from '@/components/planos/CardPlanos';
-import { useOrigem } from '@/lib/useOrigem';
+import { useOrigem, useEhAppIos } from '@/lib/useOrigem';
 
 /**
  * A abertura do app: demonstrações → escolha de plano.
@@ -18,7 +18,10 @@ import { useOrigem } from '@/lib/useOrigem';
  */
 export default function TourPage() {
   const router = useRouter();
-  const origem = useOrigem();
+  const origemTwa = useOrigem();
+  // No app de iPhone o card também sai SEM preço (modo `android` do
+  // CardPlanos): lá nada se vende — lib/app-ios.ts.
+  const origem = useEhAppIos() ? 'android' : origemTwa;
   const [passo, setPasso] = useState<'demo' | 'plano'>('demo');
 
   if (passo === 'demo') return <TourPlayer onFim={() => setPasso('plano')} />;

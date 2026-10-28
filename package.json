@@ -22,6 +22,7 @@
     "eval:renovacao-sessao": "npx tsx lib/renovacao-sessao.eval.mjs",
     "eval:extrato-futuro": "npx tsx lib/extrato-futuro.eval.mjs",
     "eval:paywall": "npx tsx lib/paywall.eval.mjs",
+    "eval:app-ios": "npx tsx lib/app-ios.eval.mjs",
     "eval:importar-tabela": "npx tsx lib/importar-tabela.eval.mjs",
     "eval:vitalicio-tier": "npx tsx lib/vitalicio-tier.eval.mjs",
     "eval:saldo-conta": "npx tsx lib/saldo-conta.eval.mjs",

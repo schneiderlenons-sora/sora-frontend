@@ -85,7 +85,8 @@ export default function AuthHero({ pagamento = 'Stripe' }: { pagamento?: string 
         {/* Badges mobile */}
         <div className="flex flex-wrap gap-2 lg:hidden">
           <PillBadge label="Setup em 30s" />
-          <PillBadge label={`Pagamento seguro com ${pagamento}`} />
+          {/* Cita outro meio de pagamento: some no app de iPhone (Apple 3.1.1). */}
+          <PillBadge label={`Pagamento seguro com ${pagamento}`} className="oculto-no-app-ios" />
         </div>
 
         {/* Card mockup desktop */}
@@ -153,9 +154,9 @@ export default function AuthHero({ pagamento = 'Stripe' }: { pagamento?: string 
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
-function PillBadge({ label }: { label: string }) {
+function PillBadge({ label, className = '' }: { label: string; className?: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white/90 border border-white/15 bg-white/[0.04] backdrop-blur-sm">
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold text-white/90 border border-white/15 bg-white/[0.04] backdrop-blur-sm ${className}`}>
       <Check size={12} style={{ color: BRAND }} strokeWidth={3} />
       {label}
     </span>

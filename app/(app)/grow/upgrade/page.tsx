@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEhAppIos } from '@/lib/useOrigem';
+import AbaBloqueada from '@/components/planos/AbaBloqueada';
 import {
   Sprout, Check, Sparkles, Target, ListChecks, Heart,
   Home, ShoppingCart, Calendar, Loader2, Crown, Zap,
@@ -24,6 +26,9 @@ export default function GrowUpgradePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+  // App de iPhone: a página de upgrade mostra preço — lá nada se vende
+  // (lib/app-ios.ts). Depois dos hooks acima, nenhum hook abaixo depende disto.
+  const ehIos = useEhAppIos();
 
   if (temAcessoGrow) {
     router.replace('/grow/dashboard');
@@ -40,6 +45,8 @@ export default function GrowUpgradePage() {
       setErro(e.message || 'Erro ao ativar trial.');
     } finally { setLoading(false); }
   }
+
+  if (ehIos) return <AbaBloqueada feature="sora_grow" />;
 
   return (
     <div className="max-w-5xl mx-auto pb-20 space-y-8">

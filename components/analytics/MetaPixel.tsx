@@ -1,6 +1,7 @@
 'use client';
 
 import Script from 'next/script';
+import { MARCA_APP_IOS } from '@/lib/app-ios';
 
 const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 
@@ -14,8 +15,12 @@ export default function MetaPixel() {
           /api/dashboard (1395ms), que é quem o LCP espera. Analytics não pode
           competir com o conteúdo. Com lazyOnload o PageView continua disparando,
           só que quando o navegador fica ocioso. */}
+      {/* ⚠️ NÃO CARREGA NO APP DE IPHONE: lá declaramos à Apple que o app não
+          rastreia (Privacidade do app). Checado DENTRO do script porque este
+          componente renderiza no servidor, que não vê o navegador. */}
       <Script id="fb-pixel" strategy="lazyOnload">
         {`
+          if (navigator.userAgent.indexOf('${MARCA_APP_IOS}') === -1)
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
           n.callMethod.apply(n,arguments):n.queue.push(arguments)};

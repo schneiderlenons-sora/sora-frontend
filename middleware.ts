@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { uaEhAppIos, rotaDeVendaNoAppIos } from './lib/app-ios';
 
 // ── QUEM PRECISA DE LOGIN ─────────────────────────────────────────────────
 //
@@ -312,6 +313,15 @@ export async function middleware(request: NextRequest) {
   // e a linha sairia sem saber de quem é — justo o campo que a investigação
   // precisa. Lido antes, sobrevive.
   const donoNaEntrada = donoDoCookie(cookiesDeSessao);
+
+  // ── APP DE IPHONE: páginas de venda não abrem ─────────────────────────────
+  // Landing com preço, funil e checkout dentro do app da App Store reprovam o
+  // app (Apple 3.1.1). Vão pro /login — que já manda pro painel quem entrou.
+  // ⚠️ Antes do client do Supabase existir, então sair sem copiar cookie é
+  // seguro (nada foi renovado ainda) — mesmo caso do redirect do /es abaixo.
+  if (uaEhAppIos(request.headers.get('user-agent')) && rotaDeVendaNoAppIos(pathname)) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
 
   // Auto-detect: visitante da landing raiz, sem cookie de idioma, que prefere
   // espanhol (ou vem do México) → manda pro /es. Só a landing pública — nunca

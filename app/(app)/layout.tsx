@@ -1,4 +1,6 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { uaEhAppIos } from '@/lib/app-ios';
+import { AppIosProvider } from '@/lib/app-ios-contexto';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ValoresProvider, COOKIE_VALORES } from '@/lib/valores-ocultos';
 import { MoedaBaseProvider } from '@/lib/moeda-base';
@@ -58,14 +60,21 @@ import { contextoSSR } from '@/lib/ssr';
 // cliente, o primeiro paint sairia com "R$" e trocaria pro símbolo do grupo
 // depois da hidratação. `contextoSSR` é `React.cache` — as abas que já o chamam
 // na página dividem esta MESMA leitura, sem ida extra ao banco.
+//
+// ⚠️ "ESTOU NO APP DE IPHONE?" TAMBÉM: pelo User-Agent da requisição, pelo
+// mesmo motivo — decidido só no cliente, a /planos e o "Plano e Cobrança"
+// piscariam os preços do site dentro do app (ver lib/app-ios.ts).
 export default async function AppShellLayout({ children }: { children: React.ReactNode }) {
-  const [jar, ctx] = await Promise.all([cookies(), contextoSSR()]);
+  const [jar, cab, ctx] = await Promise.all([cookies(), headers(), contextoSSR()]);
   const ocultos = jar.get(COOKIE_VALORES)?.value === '1';
+  const appIos = uaEhAppIos(cab.get('user-agent'));
   return (
-    <MoedaBaseProvider moeda={ctx?.moedaBase}>
-      <ValoresProvider inicial={ocultos}>
-        <DashboardLayout>{children}</DashboardLayout>
-      </ValoresProvider>
-    </MoedaBaseProvider>
+    <AppIosProvider valor={appIos}>
+      <MoedaBaseProvider moeda={ctx?.moedaBase}>
+        <ValoresProvider inicial={ocultos}>
+          <DashboardLayout>{children}</DashboardLayout>
+        </ValoresProvider>
+      </MoedaBaseProvider>
+    </AppIosProvider>
   );
 }

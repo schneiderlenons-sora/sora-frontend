@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
-import { useEhAppNativo } from '@/lib/useOrigem';
+import { useEhAppNativo, useEhAppIos } from '@/lib/useOrigem';
+import PlanosNoAppIos from '@/components/planos/PlanosNoAppIos';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import PlanosPlay, { useStatusPlay } from '@/components/planos/PlanosPlay';
 import { linkGerenciarPlay } from '@/lib/digital-goods';
@@ -481,6 +482,10 @@ function SecaoPlano() {
     ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa })
     : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
 
+  // App de iPhone: sem preço, sem portal do Stripe e sem grade — só o plano
+  // atual (lib/app-ios.ts). Depois de TODOS os hooks desta função.
+  const ehIos = useEhAppIos();
+
   // Plano fora do catálogo de assinatura (kit, inativo) cai no visual do Premium.
   // ⚠️ Mas o Kit leva o PRÓPRIO nome: o hero dizia "Sora Premium" pra quem tem
   // o Kit, justamente o plano que ele ainda não tem.
@@ -500,6 +505,8 @@ function SecaoPlano() {
   const diasRestantes = validoAte
     ? Math.max(0, Math.ceil((validoAte.getTime() - Date.now()) / 86400000))
     : null;
+
+  if (ehIos) return <PlanosNoAppIos dentroDeConfiguracoes />;
 
   async function iniciarCheckout(planoAlvo: PlanoId) {
     setFeedback(null);

@@ -15,6 +15,8 @@
 //   trackSignUp({ email: user.email });
 // =============================================================================
 
+import { ehAppIos } from './app-ios';
+
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void;
@@ -81,8 +83,14 @@ function getCookie(name: string): string | undefined {
   return m?.[1];
 }
 
+// ⚠️ No app de IPHONE nada sai — nem pixel, nem envio server-side (CAPI/
+// Events API, que também é rastreamento pra Apple). Declaramos "não rastreia"
+// na Privacidade do app. Os 4 helpers abaixo são o único caminho de saída.
+const semRastreio = () => ehAppIos();
+
 // Dispara no pixel client-side (Meta)
 function fbq(...args: unknown[]) {
+  if (semRastreio()) return;
   if (typeof window !== 'undefined' && window.fbq) {
     window.fbq(...args);
   }
@@ -90,6 +98,7 @@ function fbq(...args: unknown[]) {
 
 // Dispara no pixel client-side (TikTok)
 function ttqTrack(event: string, data?: Record<string, unknown>) {
+  if (semRastreio()) return;
   if (typeof window !== 'undefined' && window.ttq) {
     window.ttq.track(event, data);
   }
@@ -97,7 +106,7 @@ function ttqTrack(event: string, data?: Record<string, unknown>) {
 
 // Envia pro /api/analytics (CAPI server-side). Non-blocking.
 function sendToCAPI(payload: Record<string, unknown>) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || semRastreio()) return;
   fetch('/api/analytics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -108,7 +117,7 @@ function sendToCAPI(payload: Record<string, unknown>) {
 
 // Envia pro /api/analytics/tiktok (Events API server-side). Non-blocking.
 function sendToTikTokAPI(payload: Record<string, unknown>) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || semRastreio()) return;
   fetch('/api/analytics/tiktok', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

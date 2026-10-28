@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEhAndroid } from '@/lib/useOrigem';
+import { ehAppIos } from '@/lib/app-ios';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { trackSignUp, trackInitiateCheckout, trackViewContent, trackAddToCart } from '@/lib/analytics';
@@ -126,7 +127,8 @@ function SignupWizard() {
       // em `users` direto pelo Supabase, então a tentação é fazer igual — e
       // aí qualquer um com o console aberto se daria `platinum`. A rota
       // `/api/plano-gratis` faz isso no servidor e só anda de inativo → gratis.
-      if (ehAndroid) {
+      // O app de iPhone também (nada se vende nele — lib/app-ios.ts).
+      if (ehAndroid || ehAppIos()) {
         try {
           const r = await fetch('/api/plano-gratis', { method: 'POST' });
           if (!r.ok) {
@@ -274,7 +276,9 @@ function SignupWizard() {
                       bg-white dark:bg-zinc-950 z-10">
         <div className="w-full max-w-md space-y-6 animate-fade-in">
 
-          <Stepper step={step} />
+          {/* Etapas Dados → Plano → Pagamento: no app de iPhone não há plano nem
+              pagamento (o cadastro vira modo grátis) — some (lib/app-ios.ts). */}
+          <div className="oculto-no-app-ios"><Stepper step={step} /></div>
 
           {erro && (
             <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
