@@ -63,10 +63,15 @@ export default function ModalContas({
     finally { setCarregando(false); }
   }
 
-  const resumoTrazido = (r: { inseridos: number; juntados: number }) => {
+  // Passo B (migration 192): "esta conta é só da empresa" — padrão SIM.
+  const [soEmpresa, setSoEmpresa] = useState(true);
+  const [mudandoPessoal, setMudandoPessoal] = useState<string | null>(null);
+
+  const resumoTrazido = (r: { inseridos: number; juntados: number; foraDoPessoal?: number }) => {
     const partes: string[] = [];
     if (r.inseridos) partes.push(r.inseridos === 1 ? '1 movimentação entrou no caixa' : `${r.inseridos} movimentações entraram no caixa`);
     if (r.juntados) partes.push(r.juntados === 1 ? '1 já lançada à mão foi juntada, sem duplicar' : `${r.juntados} já lançadas à mão foram juntadas, sem duplicar`);
+    if (r.foraDoPessoal) partes.push(r.foraDoPessoal === 1 ? '1 saiu das suas finanças pessoais' : `${r.foraDoPessoal} saíram das suas finanças pessoais`);
     return partes.length ? partes.join(' · ') : 'Nada novo neste mês ainda — o que chegar do banco entra sozinho.';
   };
 
@@ -75,7 +80,7 @@ export default function ModalContas({
     setLigando(b.id); setErro(''); setAviso('');
     try {
       const { conta } = await api.negocios.contas.criar({ empresa_id: empresaId, nome: b.nome.slice(0, 40), tipo: 'banco' });
-      const r = await api.negocios.contas.vincularBanco(conta.id, b.id);
+      const r = await api.negocios.contas.vincularBanco(conta.id, b.id, soEmpresa);
       setAviso(resumoTrazido(r));
       await carregar();
       onChanged?.();
@@ -84,9 +89,23 @@ export default function ModalContas({
   }
 
   async function desvincular(c: ContaNegocio) {
-    if (!confirm(`Parar de trazer as movimentações do banco para "${c.nome}"? O que já entrou no caixa continua lá.`)) return;
+    const volta = c.fora_do_pessoal !== false ? ' As movimentações dela voltam a contar nas suas finanças pessoais.' : '';
+    if (!confirm(`Parar de trazer as movimentações do banco para "${c.nome}"? O que já entrou no caixa continua lá.${volta}`)) return;
     try { await api.negocios.contas.desvincularBanco(c.id); await carregar(); onChanged?.(); }
     catch (e: any) { setErro(e?.message || 'Não consegui desvincular.'); }
+  }
+
+  async function alternarPessoal(c: ContaNegocio) {
+    const ativo = c.fora_do_pessoal === false;   // estava contando no pessoal → tira
+    setMudandoPessoal(c.id); setErro(''); setAviso('');
+    try {
+      await api.negocios.contas.foraDoPessoal(c.id, ativo);
+      setAviso(ativo
+        ? 'As movimentações desta conta saíram das suas finanças pessoais.'
+        : 'As movimentações desta conta voltaram a contar nas suas finanças pessoais.');
+      await carregar();
+    } catch (e: any) { setErro(e?.message || 'Não consegui mudar.'); }
+    finally { setMudandoPessoal(null); }
   }
 
   async function atualizarDoBanco(c: ContaNegocio) {
@@ -175,6 +194,20 @@ export default function ModalContas({
                           {c.saldo_banco != null && <>Saldo no banco: <span className="tabular">{fmtCent(c.saldo_banco)}</span> · </>}
                           traz desde {fmtDia(c.importar_desde)}
                         </p>
+                      ) : null}
+                      {c.wallet_id ? (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {c.fora_do_pessoal === false ? 'Também conta nas suas finanças pessoais' : 'Fora das suas finanças pessoais'}
+                          {dono && (
+                            <>
+                              {' · '}
+                              <button type="button" onClick={() => alternarPessoal(c)} disabled={mudandoPessoal === c.id}
+                                      className="font-semibold underline underline-offset-2 disabled:opacity-60" style={{ color: cor }}>
+                                {c.fora_do_pessoal === false ? 'tirar do pessoal' : 'contar no pessoal também'}
+                              </button>
+                            </>
+                          )}
+                        </p>
                       ) : !!c.saldo_inicial && <p className="text-[11px] text-muted-foreground">Abertura: {fmtCent(c.saldo_inicial)}</p>}
                     </div>
                     {c.wallet_id && dono && (
@@ -213,6 +246,17 @@ export default function ModalContas({
                   movimentação (fora do resultado). O que você já lançou à mão é juntado, sem duplicar.
                 </p>
               </div>
+              {paraLigar.some(b => !(b.vinculada_a ? 'x' : b.motivo)) && (
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input type="checkbox" checked={soEmpresa} onChange={e => setSoEmpresa(e.target.checked)}
+                         className="w-5 h-5 mt-0.5 accent-primary flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground leading-relaxed">
+                    <span className="block text-sm font-medium text-foreground">Esta conta é só da empresa</span>
+                    As movimentações dela saem das suas finanças pessoais (início, relatórios, limites e resumos
+                    do WhatsApp) e contam só aqui. Desmarque se usa a mesma conta pra gastos pessoais.
+                  </span>
+                </label>
+              )}
               {paraLigar.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   {bancos.length

@@ -1200,10 +1200,44 @@ neutra que a pessoa classifica. A conta da empresa (`contas_negocio.wallet_id`)
   corrente/poupança em real (cartão fica pra depois). Membro convidado de outro
   grupo puxar o extrato do dono exporia a conta dele.
 - Conta ligada mostra o **saldo do banco** (`saldo_banco`, em centavos).
-- **Pendentes:** (1) **"aprende"** — regra por descrição pra classificar as
-  próximas sozinha (decisão 3 do dono: neutra + aprende; só a neutra foi
-  feita); (2) **passo B** — tirar a conta da empresa dos totais PESSOAIS
-  (dashboard, relatórios, categorias, limites, resumos), com medição própria.
+
+### Negócios: recorrência, baixa com valor diferente, aprende e passo B (out/2026)
+
+Os quatro pendentes do pedido do Robert, todos na migration **192**.
+
+- **Contas que se repetem** (`services/serieNegocio.js`, `eval:serie-negocio`
+  + `-rota`). Cada ocorrência é conta em aberto comum com o mesmo `serie_id`.
+  Gera até um horizonte (semanal ~13 sem., mensal ~6 meses, anual ~13 meses);
+  **JOB 1T** (05:15) o mantém andando. ⚠️ Só gera DEPOIS da última existente
+  (semana apagada à mão não volta), com o dia do mês da 1ª (31→28/fev→31/mar)
+  e no máximo 31 dias pra trás. Edição: "aplicar às próximas em aberto" e
+  "parar de repetir" (apaga as futuras em aberto, marca `recorrente=false`
+  ANTES de apagar). As listas A receber / Contas abrem a conta ao tocar.
+- **Baixa com valor diferente** (`services/baixaBancoNegocio.js`,
+  `eval:baixa-banco-negocio`). Sugestão, nunca automático: de 6 dias antes a
+  20 depois do vencimento, até 10% (mín. R$ 1). ⚠️ Empate só quando valor E
+  distância empatam — no semanal de mesmo valor, quem desempata é a data.
+  Confirmar: apaga o lançamento solto do banco PRIMEIRO (índice único do
+  vínculo) e a conta herda vínculo, valor e data; anota previsto × recebido.
+- **Aprende** (`services/regrasNegocio.js`, tabela `regras_negocio`,
+  `eval:regras-negocio`). Casamento = `regrasCategoria.casaRegra/termoDe`
+  (fonte única). ⚠️ Descrição genérica ("PIX RECEBIDO", só código, nome < 4
+  letras) não vira regra. Nunca sobrescreve escolha da pessoa; só acerta o que
+  está "a classificar". Desfazer = classificar de novo com outra categoria
+  (atualiza a regra). **Sem tela de gerenciar regras** (pendente se pedirem).
+- **Passo B** (`espelhoContaEmpresa` → `ignorar_em = 'empresa'`,
+  `eval:conta-empresa-fora-pessoal`). A transação que entra no caixa sai das
+  finanças pessoais pelo "não considerar" que todos os totais já respeitam.
+  ⚠️ Valor próprio: desvincular tira exatamente essa marca, sem desfazer a
+  escolha da pessoa. Só marca na hora em que entra no caixa (se a pessoa
+  mandar voltar a considerar, o sync respeita). `contas_negocio.fora_do_pessoal`
+  (padrão sim; conta mista desliga). ⚠️ **O SALDO da conta PJ continua no
+  "saldo em contas" pessoal** — só receitas/despesas saíram (decisão pendente).
+  - De passagem: gráfico do dashboard (servidor), Wrapped, Oráculo e resumo do
+    WhatsApp **não liam `ignorar_em`** — o "não considerar" da 146 nunca valeu
+    ali. Medido: 0 lançamentos marcados, nenhum número atual mudou.
+- De passagem: o **centro de custo** do formulário era descartado pela rota
+  (POST e PUT). Agora grava, só se for da própria empresa.
 
 ## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
 
@@ -4329,6 +4363,7 @@ sql/188_of_conexao_empresarial.sql — of_conexoes.empresarial: a conexão foi f
 sql/189_conta_empresa_banco.sql — contas_negocio.wallet_id/importar_desde + lancamentos_negocio.origem + índice único em transacao_id: a conta do banco alimenta o caixa da EMPRESA. Sem ela nada muda (ninguém consegue vincular; a tela avisa que falta a migration).
 sql/190_divida_pagamento_transacao.sql — divida_pagamentos.transacao_id: o pagamento da parcela LIGADO ao débito do extrato que o pagou. Sem ela a baixa funciona igual (grava sem o vínculo); só perde a trava de "débito já usado".
 sql/191_bug_reports_duvida.sql — tipo "duvida" no CHECK de bug_reports (o suporte foi pra Ajuda). Sem ela a dúvida vira "problema" com o texto marcado "❓ Dúvida:".
+sql/192_negocios_series_regras_pessoal.sql — Sora Negócios: serie_id/serie_ate (contas que se repetem), tabela regras_negocio (aprende) e contas_negocio.fora_do_pessoal (passo B). Sem ela, repetir avisa que falta, aprender não grava e nada sai do pessoal.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

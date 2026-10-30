@@ -54,6 +54,10 @@ export default function ModalLancamento({
   const [repetirAte, setRepetirAte] = useState('');
   const daSerie = editando && !!lancamento?.serie_id;
   const [aplicarSerie, setAplicarSerie] = useState(false);
+  // "Aprende" (migration 192): no que veio do banco, a categoria escolhida vale
+  // pros próximos parecidos. Ligado por padrão — decisão do dono ("neutra +
+  // aprende"); a pessoa desmarca quando é um caso isolado.
+  const [aprender, setAprender] = useState(true);
   const confirmar = useConfirmar();
 
   // Conta do negócio (caixa) — migration 095.
@@ -125,6 +129,7 @@ export default function ModalLancamento({
         body.serie_ate = repetirAte || null;
       }
       if (daSerie && aplicarSerie) body.aplicar_serie = true;
+      if (travado && aprender && catFinal) body.aprender = true;
       if (editando) await api.negocios.lancamentos.editar(lancamento!.id, body);
       else await api.negocios.lancamentos.criar(body);
       onSalvo();
@@ -291,6 +296,19 @@ export default function ModalLancamento({
                      placeholder="Sua categoria (ex.: Delivery, Fiado)" className="input w-full mt-2" autoFocus />
             )}
           </div>
+
+          {/* Aprende: só no que veio do banco, onde a mesma descrição volta todo mês. */}
+          {travado && (
+            <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-border/60 p-3.5">
+              <input type="checkbox" checked={aprender} onChange={e => setAprender(e.target.checked)}
+                     className="w-5 h-5 mt-0.5 accent-primary flex-shrink-0" />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                <span className="block text-sm font-medium text-foreground">Classificar assim os próximos parecidos</span>
+                Os que chegarem do banco com esta descrição já entram nesta categoria.
+                Descrição sem nome (só &quot;Pix recebido&quot;) não é aprendida.
+              </span>
+            </label>
+          )}
 
           {/* Conta (caixa) — pra onde entra / de onde sai */}
           {!travado && (

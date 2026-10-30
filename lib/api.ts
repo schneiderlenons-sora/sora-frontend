@@ -1512,10 +1512,15 @@ export const api = {
       // Conta do banco (Open Finance) alimentando a conta da empresa — migration 189.
       bancosDisponiveis: (phone: string, empresa_id: string) =>
         req<{ dono: boolean; contas: ContaBancoDisponivel[] }>(`/api/negocios/contas-banco/${phone}?empresa_id=${empresa_id}`),
-      vincularBanco: (id: string, wallet_id: string) =>
-        req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/vincular-banco`, { method: 'POST', body: JSON.stringify({ wallet_id }) }),
+      // `fora_do_pessoal` (padrão sim, migration 192): as movimentações da conta
+      // saem das finanças PESSOAIS. Conta mista (pessoal e empresa) manda false.
+      vincularBanco: (id: string, wallet_id: string, fora_do_pessoal = true) =>
+        req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number; foraDoPessoal?: number }>(`/api/negocios/contas/${id}/vincular-banco`, { method: 'POST', body: JSON.stringify({ wallet_id, fora_do_pessoal }) }),
       desvincularBanco: (id: string) =>
-        req<{ ok: boolean }>(`/api/negocios/contas/${id}/vincular-banco`, { method: 'DELETE' }),
+        req<{ ok: boolean; devolvidas?: number }>(`/api/negocios/contas/${id}/vincular-banco`, { method: 'DELETE' }),
+      /** Muda "esta conta é só da empresa" e aplica ao que ela já trouxe. */
+      foraDoPessoal: (id: string, ativo: boolean) =>
+        req<{ ok: boolean; fora_do_pessoal: boolean; mudaram: number }>(`/api/negocios/contas/${id}/fora-do-pessoal`, { method: 'POST', body: JSON.stringify({ ativo }) }),
       trazerDoBanco: (id: string) =>
         req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/espelhar`, { method: 'POST' }),
     },
@@ -1539,7 +1544,7 @@ export const api = {
       criar: (body: Partial<Lancamento> & { empresa_id: string; tipo: string; descricao: string; valor: number; data: string; centro_custo_id?: string | null }) =>
         req<{ ok: boolean; lancamento: Lancamento; gerados?: number }>('/api/negocios/lancamentos', { method: 'POST', body: JSON.stringify(body) }),
       // `aplicar_serie`: a mudança vale também pras próximas em aberto da série.
-      editar: (id: string, body: Partial<Lancamento> & { aplicar_serie?: boolean; centro_custo_id?: string | null }) =>
+      editar: (id: string, body: Partial<Lancamento> & { aplicar_serie?: boolean; aprender?: boolean; centro_custo_id?: string | null }) =>
         req<{ ok: boolean; lancamento: Lancamento; aplicadas?: number }>(`/api/negocios/lancamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       /** "Parar de repetir": apaga as próximas em aberto; esta e as pagas ficam. */
       pararSerie: (id: string) =>

@@ -69,6 +69,8 @@ export interface ContaNegocio {
   /** Vêm do backend quando a conta é ligada ao banco. */
   wallet_nome?:    string | null;
   saldo_banco?:    number | null;   // CENTAVOS — o saldo de verdade
+  /** Migration 192: as movimentações da conta ficam fora das finanças PESSOAIS. */
+  fora_do_pessoal?: boolean;
 }
 
 /** Conta do banco (Open Finance) que pode alimentar uma conta da empresa. */

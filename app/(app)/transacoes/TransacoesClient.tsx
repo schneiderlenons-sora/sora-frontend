@@ -1685,6 +1685,14 @@ function TransactionRow({
         />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{desc}</p>
+          {/* A linha esmaecida dizia "fora dos totais" sem dizer por quê. A
+              marca 'empresa' é da conta vinculada ao Sora Negócios (passo B,
+              migration 192): conta lá, não aqui. */}
+          {isIgnorada && (
+            <p className="text-[11px] text-muted-foreground">
+              {tx.ignorar_em === 'empresa' ? 'Da empresa · conta no Sora Negócios' : 'Não considerado nos totais'}
+            </p>
+          )}
         </div>
       </div>
 
