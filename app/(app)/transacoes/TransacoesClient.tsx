@@ -73,6 +73,9 @@ const cardDaTx = (t: any): string | null => t?.of_card || t?.pluggy_card || null
 
 type Tipo   = 'todos' | 'Gasto' | 'Recebimento';
 type Status = 'todos' | 'pago' | 'pendente';
+// Valores especiais do filtro de conta (nunca colidem com nome de carteira).
+const FILTRO_SO_CONTAS = '__so_contas__';
+const FILTRO_SO_CARTOES = '__so_cartoes__';
 
 const mesAtual = new Date().toISOString().slice(0, 7);
 
@@ -351,13 +354,20 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const carregar = useCallback(() => { mLista(); mW(); mR(); }, [mLista, mW, mR]);
 
   // ── Filtros aplicados ──────────────────────────────────────
+  // Nomes dos cartões, pro filtro "só contas" × "só cartões" (pedido do Robert:
+  // ver o caixa sem o cartão misturado, sem tirar o cartão da aba).
+  const nomesCartao = useMemo(() => new Set(wallets.filter((w) => w.tipo === 'Crédito').map((w) => w.nome)), [wallets]);
   const txsFiltradas = useMemo(() => {
     return txs.filter(t => {
       const q = busca.toLowerCase();
       const matchBusca  = !q || t.observacao?.toLowerCase().includes(q) || t.categoria?.toLowerCase().includes(q);
       const matchTipo   = tipo === 'todos' || t.tipo === tipo;
       const matchCat    = catFiltro === 'todas' || t.categoria === catFiltro;
-      const matchConta  = contaId === 'todas' || (t.carteira_nome || t.wallet_nome) === contaId;
+      const nomeConta   = t.carteira_nome || t.wallet_nome;
+      const matchConta  = contaId === 'todas'
+        || (contaId === FILTRO_SO_CONTAS ? !nomesCartao.has(nomeConta)
+          : contaId === FILTRO_SO_CARTOES ? nomesCartao.has(nomeConta)
+          : nomeConta === contaId);
       const matchStatus = status === 'todos' ||
                           (status === 'pago' && t.pago) ||
                           (status === 'pendente' && !t.pago);
@@ -365,7 +375,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       const matchCartao = cartaoFiltro === 'todos' || cardDaTx(t) === cartaoFiltro;
       return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro && matchCartao;
     });
-  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro]);
+  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro, nomesCartao]);
 
   // ── Métricas calculadas das filtradas ──────────────────────
   //
@@ -1183,9 +1193,26 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 className="input py-2.5 text-sm text-foreground min-w-0 lg:w-[140px]"
               >
                 <option value="todas">Contas</option>
-                {wallets.map(w => (
-                  <option key={w.id} value={w.nome}>{w.nome}</option>
-                ))}
+                {/* Agrupado: "só contas" separa o caixa do cartão sem tirar o
+                    cartão da aba — ele continua a uma escolha de distância. */}
+                {nomesCartao.size > 0 && wallets.some(w => w.tipo !== 'Crédito') && (
+                  <optgroup label="Por tipo">
+                    <option value={FILTRO_SO_CONTAS}>Só contas (sem cartão)</option>
+                    <option value={FILTRO_SO_CARTOES}>Só cartões de crédito</option>
+                  </optgroup>
+                )}
+                <optgroup label="Contas">
+                  {wallets.filter(w => w.tipo !== 'Crédito').map(w => (
+                    <option key={w.id} value={w.nome}>{w.nome}</option>
+                  ))}
+                </optgroup>
+                {nomesCartao.size > 0 && (
+                  <optgroup label="Cartões">
+                    {wallets.filter(w => w.tipo === 'Crédito').map(w => (
+                      <option key={w.id} value={w.nome}>{w.nome}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               )}
             </div>
