@@ -695,6 +695,21 @@ tempo real**. Exposta em `/api/admin/of-debug` como `resources`, em todo foco
   lançamentos agendados". É exatamente o que `cicloFatura` + `parcelasPrevistas`
   + `pertenceAFatura` reconstroem na mão. **Não usamos ainda** — vale medir
   contra a nossa reconstrução antes de trocar.
+  - ⚠️ **MEDIDO em 30/10/2026: NÃO trocar.** Contra 381 faturas publicadas
+    (jun–out, 108 cartões), o `forecast` ficou mais perto do total do banco em
+    **81** e a nossa reconstrução em **93**. E o MÊS não tem convenção única:
+    nas linhas já faturadas, 3.282 trazem o mês da fatura e **2.769 o mês
+    ANTERIOR** (cada emissor faz de um jeito). Script de medição na conversa de
+    30/10. Onde ele ajuda: confirmar um caso pontual (o Robert, abaixo).
+- ⚠️ **Data corrigida à mão ERRADA também desloca a fatura.** Cartão do MP do
+  Robert com `datas_manuais` 29/4 enquanto o banco publica TODA fatura com 2/7:
+  compras que o banco já faturou em outubro entravam em novembro. Medido em
+  30/10: 25 cartões com `datas_manuais`, vários divergindo das datas
+  publicadas — conferir `of_faturas` antes de investigar "valor errado".
+- ⚠️ **A trava "limite usado não é fatura" exige a coluna `of_limite_usado`.**
+  Cinco chamadores de `valorExibido` não a liam (modal Pagar fatura, fatura no
+  zap, Agenda, Oráculo, "o que tenho pra pagar") e exibiam o limite usado.
+  Hoje `valorExibido` lê a coluna sozinho quando falta (`eval:fatura-vista` §12).
 - ⚠️ **`bill_post_date` NUNCA é null**: vem a sentinela `"0001-01-01"` quando
   ainda não há lançamento. Conferido: `dataDaFatura` a neutraliza por acaso (o
   `delta > 7` dá 739.859 dias e cai na data da compra). Quem for usar o campo
