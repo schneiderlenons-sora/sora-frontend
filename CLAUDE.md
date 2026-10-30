@@ -1134,6 +1134,24 @@ por decisão (pagou uma vez; cada conexão é mensalidade nossa no agregador).
 - ⚠️ **Nada acontece até a 179 rodar** (o `select` erra e o job não age) — então
   é a migration que dá a partida no relógio.
 
+## Conta PJ do Open Finance nasce "… PJ" (out/2026)
+
+Relato (Robert): conectou a conta PJ do Mercado Pago; como já havia a pessoal
+de mesmo nome, a nova virou **"Mercado Pago (OF)"** no meio das pessoais — ele
+leu como "não conectou" e desconectou a conta que funcionava.
+
+- ⚠️ **A Celcoin NÃO devolve se o consentimento é PJ** (nem , nem
+  a conta:  é INDIVIDUAL/CONJUNTA). Só se sabe ao CONECTAR (CNPJ
+  informado) →  (migration **188**), só o fato.
+-  (): carteira NOVA de conexão de
+  empresa → "Mercado Pago PJ" / "Mercado Pago PJ Crédito". Já vinculada nunca
+  é renomeada; sem a marca, o nome é exatamente o de antes.
+- ⚠️ **A conta PJ adotava a carteira MANUAL pessoal de mesmo nome do banco**
+  (o "adota carteira manual de mesmo nome" do ), misturando
+  empresa e pessoal. Com o PJ aplicado antes da busca, só adota "… PJ".
+- **Próximo (plano aprovado):** levar a conta PJ pro Sora Negócios (caixa, DRE,
+  conciliação) — medir antes por simulação só leitura.
+
 ## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
 
 Relato de cliente: *"bancos do Open Finance ficam com o nome 'Banco' e não
@@ -4197,6 +4215,7 @@ sql/184_absorvido_auto.sql     — transacoes.absorvido_auto_em. **LIGA** a abso
 sql/185_davidson_conexao_anual.sql — restitui 1 conexão anual paga (davidson, até 2027-09-19). Pontual.
 sql/186_diagnostico_financeiro.sql — tabela diagnostico_financeiro: retratos do diagnóstico diário (JOB 1S + aba "Saúde financeira" do /admin). Sem ela a varredura roda mas não guarda. CONFIRMAR SE RODOU.
 sql/187_play_assinaturas.sql   — assinaturas da GOOGLE PLAY (tabela play_assinaturas + users.plano_fonte). **OBRIGATÓRIA antes de vender no app**: sem ela a compra não é registrada nem confirmada, e o Google reembolsa em 3 dias. Ver docs/PLAY-BILLING.md.
+sql/188_of_conexao_empresarial.sql — of_conexoes.empresarial: a conexão foi feita com CNPJ (só o FATO, nunca o número). Conta/cartão NOVO de conexão de empresa nasce "Mercado Pago PJ" em vez de "Mercado Pago (OF)". Sem ela tudo segue como antes (conexão vira pessoal). Base do Open Finance no Sora Negócios.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
