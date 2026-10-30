@@ -1140,14 +1140,14 @@ Relato (Robert): conectou a conta PJ do Mercado Pago; como já havia a pessoal
 de mesmo nome, a nova virou **"Mercado Pago (OF)"** no meio das pessoais — ele
 leu como "não conectou" e desconectou a conta que funcionava.
 
-- ⚠️ **A Celcoin NÃO devolve se o consentimento é PJ** (nem , nem
-  a conta:  é INDIVIDUAL/CONJUNTA). Só se sabe ao CONECTAR (CNPJ
-  informado) →  (migration **188**), só o fato.
--  (): carteira NOVA de conexão de
+- ⚠️ **A Celcoin NÃO devolve se o consentimento é PJ** (nem `consents/show`, nem
+  a conta: `subtype` é INDIVIDUAL/CONJUNTA). Só se sabe ao CONECTAR (CNPJ
+  informado) → `of_conexoes.empresarial` (migration **188**), só o fato.
+- `services/nomeContaOf.js` (`eval:conta-pj`): carteira NOVA de conexão de
   empresa → "Mercado Pago PJ" / "Mercado Pago PJ Crédito". Já vinculada nunca
   é renomeada; sem a marca, o nome é exatamente o de antes.
 - ⚠️ **A conta PJ adotava a carteira MANUAL pessoal de mesmo nome do banco**
-  (o "adota carteira manual de mesmo nome" do ), misturando
+  (o "adota carteira manual de mesmo nome" do `upsertWallet`), misturando
   empresa e pessoal. Com o PJ aplicado antes da busca, só adota "… PJ".
 - **Próximo (plano aprovado):** levar a conta PJ pro Sora Negócios (caixa, DRE,
   conciliação) — medir antes por simulação só leitura.
