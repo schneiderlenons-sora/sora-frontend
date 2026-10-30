@@ -2210,6 +2210,35 @@ não aprende?"*. Três defeitos somados, todos em `services/regrasCategoria.js`
   categoria específica ficaram (ex.: 18 do Mercado Livre que o cliente separou
   à mão). 11 "PG" que o reverso jogou em Medicamento voltaram pra Outros.
 
+## Dívidas: o débito do extrato dá baixa na parcela (out/2026)
+
+Relato (Robert): o extrato do BB trazia os débitos dos empréstimos (727,12 e
+79,78 no dia 20) e as parcelas seguiam "não pagas" — nada ligava o débito à
+dívida. Migration **190** (`divida_pagamentos.transacao_id`).
+
+- **Régua:** `services/baixaDivida.js` (`eval:baixa-divida`, 19/19 mutações).
+  Débito com cara de empréstimo (categoria ou descrição: CDC, empréstimo,
+  financiamento, consórcio), de **conta** (não cartão), de 5 dias antes a 10
+  depois do vencimento ABERTO mais recente, até **5%** da parcela (mín. R$ 1),
+  **par sem disputa**. ⚠️ **Sempre sugestão**: o banco cobra ~1% a mais que a
+  parcela cadastrada (727,12 × 720,34), então não há prova de valor exato.
+- ⚠️ **Débito único que paga várias dívidas fica FORA da régua** (Cooperforte:
+  R$ 1.000,08 por três empréstimos que somam 1.010,76). Liga-se à mão no
+  "Pagar parcela" → "Já saiu do extrato?", com o valor da parcela; o mesmo
+  débito pode ser usado em várias dívidas, nunca duas vezes na mesma (409).
+- `GET /dividas/conciliacao/:phone` (sugestões + débitos recentes) e
+  `POST /:id/pagar` com `transacao_id` (`eval:pagar-divida-rota`, 10/10).
+  ⚠️ **Com `transacao_id` a conta NÃO é debitada**, mesmo com `wallet_id`.
+- ⚠️ **Dívida do Open Finance: `/pagar` não mexe mais na contagem nem no status**
+  (o sync os reescreve; o "53/120" pulava e voltava). Só o pagamento é gravado —
+  é o `ultimo_pagamento` que diz ao card que a parcela do mês foi paga.
+- De passagem: `/pagar` **ignorava o erro do insert** (contava a parcela sem
+  pagamento gravado) e **não escopava a dívida ao grupo**. Os dois corrigidos.
+- Painel: `components/dividas/SugestoesBaixa.tsx` (quadro no topo de Dívidas,
+  "Dar baixa" pede confirmação nomeando valor e data — não há desfazer).
+- Medido em 30/10/2026: 70 grupos com dívida ativa → **4 sugestões em 3 grupos**,
+  todas plausíveis.
+
 ## Dívidas — vencimento respeita o PAGAMENTO (ago/2026) — fonte única
 
 O card dizia *"Próxima parcela em 3 dias"* mesmo depois do usuário pagar: a
@@ -4269,6 +4298,7 @@ sql/186_diagnostico_financeiro.sql — tabela diagnostico_financeiro: retratos d
 sql/187_play_assinaturas.sql   — assinaturas da GOOGLE PLAY (tabela play_assinaturas + users.plano_fonte). **OBRIGATÓRIA antes de vender no app**: sem ela a compra não é registrada nem confirmada, e o Google reembolsa em 3 dias. Ver docs/PLAY-BILLING.md.
 sql/188_of_conexao_empresarial.sql — of_conexoes.empresarial: a conexão foi feita com CNPJ (só o FATO, nunca o número). Conta/cartão NOVO de conexão de empresa nasce "Mercado Pago PJ" em vez de "Mercado Pago (OF)". Sem ela tudo segue como antes (conexão vira pessoal). Base do Open Finance no Sora Negócios.
 sql/189_conta_empresa_banco.sql — contas_negocio.wallet_id/importar_desde + lancamentos_negocio.origem + índice único em transacao_id: a conta do banco alimenta o caixa da EMPRESA. Sem ela nada muda (ninguém consegue vincular; a tela avisa que falta a migration).
+sql/190_divida_pagamento_transacao.sql — divida_pagamentos.transacao_id: o pagamento da parcela LIGADO ao débito do extrato que o pagou. Sem ela a baixa funciona igual (grava sem o vínculo); só perde a trava de "débito já usado".
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

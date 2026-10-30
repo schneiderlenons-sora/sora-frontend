@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, AlertCircle, Check, Receipt, Zap, Calendar, ArrowDownRight } from 'lucide-react';
+import { X, Loader2, AlertCircle, Check, Receipt, Zap, Calendar, ArrowDownRight, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
 import ContaDebitoSelect from '@/components/ui/ContaDebitoSelect';
 import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
+import { useConciliacaoDividas, diaMes } from '@/components/dividas/SugestoesBaixa';
+import type { DebitoEmprestimo } from '@/lib/api';
 
 const TIPOS_PAGAMENTO = [
   { v: 'parcela',       l: 'Parcela',         desc: 'Pagamento mensal regular',     icon: Receipt },
@@ -32,6 +34,30 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
   const [data,    setData]    = useState(new Date().toISOString().slice(0, 10));
   const [obs,     setObs]     = useState('');
   const [walletId, setWalletId] = useState<string | null>(null);
+  // Débito do extrato que pagou esta parcela (ligar à mão). Com ele escolhido,
+  // NADA é descontado de conta nenhuma: o dinheiro já saiu, é aquele débito.
+  const [txId, setTxId] = useState<string | null>(null);
+  const { data: conc, mutate: mConc } = useConciliacaoDividas(phone);
+  const debitos: DebitoEmprestimo[] = (conc?.debitos || [])
+    .filter((d) => !d.ligado_ids?.includes(divida.id))
+    .slice(0, 8);
+  // Juros de atraso não paga parcela: ali o débito escolhido deixa de valer.
+  const txAtivo = tipo === 'juros_atraso' ? null : txId;
+  const debitoEscolhido = debitos.find((d) => d.id === txAtivo) || null;
+  // Débito bem maior que a parcela costuma pagar várias dívidas de uma vez
+  // (a Cooperforte debita R$ 1.000,08 por três empréstimos).
+  const debitoCobreMais = !!debitoEscolhido && valorPadrao > 0 && debitoEscolhido.valor > valorPadrao * 1.05;
+
+  function escolherDebito(d: DebitoEmprestimo) {
+    if (txId === d.id) { setTxId(null); return; }
+    setTxId(d.id);
+    setData(d.data);
+    // Valor do débito só quando ele É desta parcela (até 5%); senão fica o da
+    // parcela, que é a parte desta dívida no débito maior.
+    if (valorPadrao > 0 && Math.abs(d.valor - valorPadrao) <= valorPadrao * 0.05) {
+      setValorRaw(String(unidadesDoValor(d.valor, moeda)));
+    }
+  }
   const [loading, setLoading] = useState(false);
   const [erro,    setErro]    = useState('');
 
@@ -55,10 +81,13 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
         valor,
         tipo,
         data_pagamento: data,
-        observacao: obs.trim() || undefined,
+        observacao: obs.trim()
+          || (debitoEscolhido ? `Débito do banco${debitoEscolhido.descricao ? `: ${debitoEscolhido.descricao}` : ''}`.slice(0, 120) : undefined),
         numero_parcela: tipo === 'parcela' || tipo === 'antecipacao' ? numeroAtual : undefined,
-        wallet_id: walletId,
+        wallet_id: txAtivo ? null : walletId,
+        transacao_id: txAtivo,
       });
+      if (txAtivo) mConc();
       onSuccess(r.quitada);
       onClose();
     } catch (e: any) {
@@ -73,11 +102,11 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border"
+        className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-border max-h-[92dvh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">
               <ArrowDownRight size={20} className="text-primary" />
@@ -94,7 +123,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto overscroll-contain">
           {/* Contexto da parcela */}
           {parcelasTotal > 0 && tipo === 'parcela' && (
             <div className="rounded-xl p-3 bg-muted/30 border border-border/60">
@@ -190,8 +219,60 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
             />
           </div>
 
-          {/* Descontar de uma conta */}
-          <ContaDebitoSelect value={walletId} onChange={setWalletId} />
+          {/* Já saiu do extrato? — liga o débito do banco a esta parcela */}
+          {debitos.length > 0 && tipo !== 'juros_atraso' && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
+                <Landmark size={12} /> Já saiu do extrato?
+              </p>
+              <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+                Escolha o débito que pagou esta parcela. Ela fica paga sem descontar de novo do saldo.
+              </p>
+              <div className="space-y-1.5" role="radiogroup" aria-label="Débito que pagou a parcela">
+                {debitos.map((d) => {
+                  const sel = txId === d.id;
+                  return (
+                    <button key={d.id} type="button" role="radio" aria-checked={sel} onClick={() => escolherDebito(d)}
+                      className={`w-full text-left rounded-xl px-3 py-2.5 min-h-[44px] flex items-center gap-2.5 transition-colors ${
+                        sel ? 'bg-primary/10 ring-1 ring-primary/40' : 'bg-muted/30 hover:bg-muted/60'}`}>
+                      <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center ${sel ? 'bg-primary' : ''}`}
+                            style={{ border: sel ? 'none' : '1.5px solid hsl(var(--muted-foreground) / 0.5)' }}>
+                        {sel && <Check size={10} className="text-primary-foreground" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs text-foreground">
+                          <strong className="tabular">{fmt(d.valor)}</strong> em <span className="tabular">{diaMes(d.data)}</span>
+                          {d.conta && <span className="text-muted-foreground"> · {d.conta}</span>}
+                        </span>
+                        {d.descricao && <span className="block text-[11px] text-muted-foreground truncate">{d.descricao}</span>}
+                        {d.ligado_a.length > 0 && (
+                          <span className="block text-[10px] text-muted-foreground">Também usado em: {d.ligado_a.join(', ')}</span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {debitoCobreMais && (
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                  Este débito é maior que a parcela. Se ele paga mais de uma dívida, registre aqui só a parte desta
+                  e use o mesmo débito nas outras.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Descontar de uma conta — some quando o pagamento já é um débito do extrato */}
+          {txAtivo ? (
+            <div className="rounded-xl p-3 bg-muted/30 flex items-start gap-2" style={{ border: '1px solid hsl(var(--border) / 0.6)' }}>
+              <Check size={14} className="text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Nenhuma conta será descontada: o débito escolhido já tirou esse dinheiro.
+              </p>
+            </div>
+          ) : (
+            <ContaDebitoSelect value={walletId} onChange={setWalletId} />
+          )}
 
           {erro && (
             <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">
@@ -201,7 +282,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 shrink-0">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
           <button
             onClick={salvar}

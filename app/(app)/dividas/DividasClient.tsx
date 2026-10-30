@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import NovaDividaModal from '@/components/dividas/NovaDividaModal';
 import PagarParcelaModal from '@/components/dividas/PagarParcelaModal';
+import SugestoesBaixa from '@/components/dividas/SugestoesBaixa';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
 import { proximoVencimento } from '@/lib/vencimento-divida';
@@ -232,6 +233,14 @@ export default function DividasClient({ phoneInicial, initialData }: { phoneInic
             alerta={resumo.proxima_parcela?.dias <= 3 && resumo.proxima_parcela?.dias >= 0}
           />
         </div>
+
+        {/* Débitos do extrato que parecem parcelas (relato do Robert): some
+            sozinho quando não há nenhum. */}
+        {phone && (
+          <PermissaoGuard>
+            <SugestoesBaixa phone={phone} onBaixa={(t) => { carregar(); flash(`✓ Parcela de ${t} marcada como paga.`); }} />
+          </PermissaoGuard>
+        )}
 
         {/* Filtros */}
         <div className="inline-flex items-center gap-1 bg-muted/40 rounded-2xl p-1.5 animate-fade-in" style={{ animationDelay: '90ms' }}>

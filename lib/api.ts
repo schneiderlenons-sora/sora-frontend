@@ -97,6 +97,23 @@ export type ParConciliavelTx = {
   pago?: boolean;
 };
 
+/** Débito do extrato que parece ter pago a parcela de uma dívida (GET /dividas/conciliacao). */
+export type SugestaoBaixaDivida = {
+  divida_id: string; titulo: string; valor_parcela: number; vencimento: string;
+  transacao: { id: string; data: string; valor: number; descricao: string | null; conta: string | null };
+  /** valor do débito − parcela cadastrada (o banco costuma cobrar um pouco mais). */
+  diferenca: number;
+};
+
+/** Débito recente com cara de empréstimo, pra ligar à mão no "Pagar parcela". */
+export type DebitoEmprestimo = {
+  id: string; data: string; valor: number; descricao: string | null; conta: string | null;
+  /** Dívidas que já usaram este débito (um débito único pode pagar várias). */
+  ligado_a: string[];
+  /** Os ids dessas dívidas — o título se repete ("Empréstimo Pessoal" × 2). */
+  ligado_ids: string[];
+};
+
 export type SugestaoCategoriaFixa = {
   id: string;
   descricao: string;
@@ -859,12 +876,15 @@ export const api = {
       req<any>(`/api/dividas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deletar: (id: string, phone: string) =>
       req(`/api/dividas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
-    pagar: (id: string, body: { phone: string; valor: number; tipo?: string; data_pagamento?: string; observacao?: string; numero_parcela?: number; wallet_id?: string | null }) =>
-      req<{ divida: any; quitada: boolean; debito?: any }>(`/api/dividas/${id}/pagar`, { method: 'POST', body: JSON.stringify(body) }),
+    pagar: (id: string, body: { phone: string; valor: number; tipo?: string; data_pagamento?: string; observacao?: string; numero_parcela?: number; wallet_id?: string | null; transacao_id?: string | null }) =>
+      req<{ divida: any; quitada: boolean; debito?: any; semVinculo?: boolean }>(`/api/dividas/${id}/pagar`, { method: 'POST', body: JSON.stringify(body) }),
     quitar: (id: string, body: { phone: string; valor?: number; data_pagamento?: string; observacao?: string; wallet_id?: string | null }) =>
       req<{ divida: any; quitada: boolean; debito?: any }>(`/api/dividas/${id}/quitar`, { method: 'POST', body: JSON.stringify(body) }),
     pagamentos: (id: string) =>
       req<any[]>(`/api/dividas/${id}/pagamentos`),
+    // Débitos do extrato que parecem parcelas (sugestões) + débitos recentes de empréstimo (ligar à mão).
+    conciliacao: (phone: string) =>
+      req<{ sugestoes: SugestaoBaixaDivida[]; debitos: DebitoEmprestimo[] }>(`/api/dividas/conciliacao/${phone}`),
     toggleLembrete: (id: string, body: { phone: string; ativo: boolean }) =>
       req<any>(`/api/dividas/${id}/lembrete`, { method: 'PATCH', body: JSON.stringify(body) }),
     toggleLembretesGlobal: (phone: string, ativo: boolean) =>
