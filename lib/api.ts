@@ -1534,10 +1534,25 @@ export const api = {
         ).toString();
         return req<Lancamento[]>(`/api/negocios/lancamentos/${phone}?${q}`);
       },
-      criar: (body: Partial<Lancamento> & { empresa_id: string; tipo: string; descricao: string; valor: number; data: string }) =>
-        req<{ ok: boolean; lancamento: Lancamento }>('/api/negocios/lancamentos', { method: 'POST', body: JSON.stringify(body) }),
-      editar: (id: string, body: Partial<Lancamento>) =>
-        req<{ ok: boolean; lancamento: Lancamento }>(`/api/negocios/lancamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      // `recorrencia` (semanal|mensal|anual) cria uma conta que SE REPETE: o
+      // servidor gera as próximas em aberto e devolve quantas (`gerados`).
+      criar: (body: Partial<Lancamento> & { empresa_id: string; tipo: string; descricao: string; valor: number; data: string; centro_custo_id?: string | null }) =>
+        req<{ ok: boolean; lancamento: Lancamento; gerados?: number }>('/api/negocios/lancamentos', { method: 'POST', body: JSON.stringify(body) }),
+      // `aplicar_serie`: a mudança vale também pras próximas em aberto da série.
+      editar: (id: string, body: Partial<Lancamento> & { aplicar_serie?: boolean; centro_custo_id?: string | null }) =>
+        req<{ ok: boolean; lancamento: Lancamento; aplicadas?: number }>(`/api/negocios/lancamentos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      /** "Parar de repetir": apaga as próximas em aberto; esta e as pagas ficam. */
+      pararSerie: (id: string) =>
+        req<{ ok: boolean; removidas: number }>(`/api/negocios/lancamentos/${id}/parar-serie`, { method: 'POST' }),
+      /** Quita a conta em aberto com um lançamento que veio do banco (valor diferente). */
+      baixaBanco: (id: string, bancoId: string) =>
+        req<{ ok: boolean; lancamento: Lancamento }>(`/api/negocios/lancamentos/${id}/baixa-banco`, {
+          method: 'POST', body: JSON.stringify({ banco_id: bancoId }),
+        }),
+      /** "Chegou do banco, parecido com esta conta": pares sugeridos (só lê). */
+      conciliacaoBanco: (phone: string, empresa_id: string) =>
+        req<{ sugestoes: { aberto: Lancamento; banco: Lancamento; diferenca: number }[] }>(
+          `/api/negocios/conciliacao-banco/${phone}?empresa_id=${empresa_id}`),
       deletar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/lancamentos/${id}`, { method: 'DELETE' }),
     },

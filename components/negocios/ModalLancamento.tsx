@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus, Layers, Landmark } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus, Layers, Landmark, Repeat } from 'lucide-react';
+import { useConfirmar } from '@/contexts/ConfirmContext';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import {
-  categoriasDe, FORMAS_PAGAMENTO, fmtCent, doBanco, CAT_A_CLASSIFICAR,
-  type Lancamento, type TipoLancamento, type ContaNegocio, type CentroCusto,
+  categoriasDe, FORMAS_PAGAMENTO, fmtCent, doBanco, CAT_A_CLASSIFICAR, REPETICOES, rotuloRepeticao,
+  type Lancamento, type TipoLancamento, type ContaNegocio, type CentroCusto, type Repeticao,
 } from '@/lib/lancamentos';
 
 // Lançamento do caixa. Os campos de CONTA A PAGAR (vencimento) só aparecem
@@ -46,6 +47,14 @@ export default function ModalLancamento({
   const [contraparte, setContraparte] = useState(lancamento?.contraparte || '');
   const [pago, setPago] = useState((lancamento?.status || 'pago') === 'pago');
   const [vencimento, setVencimento] = useState(lancamento?.vencimento || hoje());
+
+  // Conta que se repete (migration 192). Na criação: escolher a repetição. Na
+  // edição de uma ocorrência: aplicar às próximas ou parar de repetir.
+  const [repetir, setRepetir] = useState<Repeticao | ''>('');
+  const [repetirAte, setRepetirAte] = useState('');
+  const daSerie = editando && !!lancamento?.serie_id;
+  const [aplicarSerie, setAplicarSerie] = useState(false);
+  const confirmar = useConfirmar();
 
   // Conta do negócio (caixa) — migration 095.
   const [contas, setContas] = useState<ContaNegocio[]>([]);
@@ -111,6 +120,11 @@ export default function ModalLancamento({
         conta_id: contaId,
         centro_custo_id: centroId,
       };
+      if (!editando && repetir) {
+        body.recorrencia = repetir;
+        body.serie_ate = repetirAte || null;
+      }
+      if (daSerie && aplicarSerie) body.aplicar_serie = true;
       if (editando) await api.negocios.lancamentos.editar(lancamento!.id, body);
       else await api.negocios.lancamentos.criar(body);
       onSalvo();
@@ -118,6 +132,25 @@ export default function ModalLancamento({
     } catch (e: any) {
       setErro(e?.message || 'Não consegui salvar. Tente de novo.');
     } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function pararRepeticao() {
+    if (!daSerie || salvando) return;
+    const ok = await confirmar({
+      titulo: 'Parar de repetir?',
+      mensagem: 'As próximas em aberto desta conta são apagadas. Esta e as que já foram pagas continuam.',
+      confirmar: 'Parar de repetir',
+    });
+    if (!ok) return;
+    setSalvando(true); setErro('');
+    try {
+      await api.negocios.lancamentos.pararSerie(lancamento!.id);
+      onSalvo();
+      onClose();
+    } catch (e: any) {
+      setErro(e?.message || 'Não consegui parar a repetição.');
       setSalvando(false);
     }
   }
@@ -375,6 +408,75 @@ export default function ModalLancamento({
               </div>
             )}
           </div>
+          )}
+
+          {/* ── SE REPETE? (só ao criar) ─────────────────────────────────── */}
+          {!editando && !travado && (
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <Repeat size={12} aria-hidden /> Repetir
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="radiogroup" aria-label="Repetir">
+                {([{ v: '', label: 'Não repete' }, ...REPETICOES] as const).map(o => {
+                  const on = repetir === o.v;
+                  return (
+                    <button key={o.v || 'nao'} type="button" role="radio" aria-checked={on}
+                            onClick={() => setRepetir(o.v as Repeticao | '')}
+                            className="h-11 px-2 rounded-xl text-xs font-semibold border transition-colors"
+                            style={{
+                              borderColor: on ? cor : 'hsl(var(--border) / 0.6)',
+                              background: on ? `color-mix(in srgb, ${cor} 12%, transparent)` : 'transparent',
+                              color: on ? cor : 'hsl(var(--foreground))',
+                            }}>
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {repetir && (
+                <div className="mt-3 space-y-2">
+                  <label htmlFor="lanc-ate" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground block">
+                    Até quando <span className="normal-case tracking-normal font-medium">(deixe vazio se não tem fim)</span>
+                  </label>
+                  <input id="lanc-ate" type="date" value={repetirAte} min={pago ? data : vencimento}
+                         onChange={e => setRepetirAte(e.target.value)} className="input w-full" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {pago ? 'Esta entra como já paga; as próximas ficam em aberto. ' : ''}
+                    A Sora cria as próximas {ehEntrada ? 'a receber' : 'a pagar'} e vai completando com o tempo.
+                    Quando o banco trouxer o pagamento com o mesmo valor, ela dá baixa sozinha.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Ocorrência de uma conta que se repete (edição) ─────────────── */}
+          {daSerie && (
+            <div className="rounded-2xl border border-border/60 p-3.5 space-y-3">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Repeat size={14} style={{ color: cor }} aria-hidden />
+                Repete {rotuloRepeticao(lancamento?.recorrencia) || ''}
+                {lancamento?.serie_ate ? ` até ${lancamento.serie_ate.split('-').reverse().join('/')}` : ''}
+                {lancamento?.recorrente === false ? ' (parada)' : ''}
+              </p>
+              {lancamento?.recorrente !== false && (
+                <>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" checked={aplicarSerie} onChange={e => setAplicarSerie(e.target.checked)}
+                           className="w-5 h-5 mt-0.5 accent-primary flex-shrink-0" />
+                    <span className="text-xs text-muted-foreground leading-relaxed">
+                      <span className="block text-sm font-medium text-foreground">Aplicar também às próximas em aberto</span>
+                      Pra um reajuste de valor, por exemplo. As já pagas não mudam.
+                    </span>
+                  </label>
+                  <button type="button" onClick={pararRepeticao} disabled={salvando}
+                          className="w-full h-11 rounded-xl text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                          style={{ border: '1px solid hsl(var(--border) / 0.6)' }}>
+                    Parar de repetir
+                  </button>
+                </>
+              )}
+            </div>
           )}
 
           {/* Do banco não se apaga (voltaria no próximo sync): o caminho é classificar. */}

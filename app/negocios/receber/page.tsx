@@ -19,11 +19,12 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import ModalLancamento from '@/components/negocios/ModalLancamento';
+import SugestoesBaixaBanco from '@/components/negocios/SugestoesBaixaBanco';
 import { corEmpresa } from '@/lib/empresas';
 import { fmtCent, labelCategoria, type Lancamento } from '@/lib/lancamentos';
 import {
   HandCoins, Plus, AlertTriangle, CalendarClock, Check, Loader2,
-  MessageCircle, Inbox, ChevronRight,
+  MessageCircle, Inbox, ChevronRight, Repeat,
 } from 'lucide-react';
 
 const hojeSP = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -48,6 +49,7 @@ export default function ReceberPage() {
   const cor = corEmpresa(empresa);
 
   const [modalNovo, setModalNovo] = useState(false);
+  const [editando, setEditando]   = useState<Lancamento | null>(null);
   const [baixando, setBaixando]   = useState<string | null>(null);
 
   const { data, mutate, isLoading } = useApi(
@@ -140,6 +142,11 @@ export default function ReceberPage() {
         </div>
       </section>
 
+      {/* Chegou do banco algo parecido com uma conta (valor não bate exato). */}
+      {phone && empresa && (
+        <SugestoesBaixaBanco phone={phone} empresaId={empresa.id} tipo="entrada" cor={cor} onBaixa={() => mutate()} />
+      )}
+
       {carregando ? (
         <Esqueleto />
       ) : lista.length === 0 ? (
@@ -147,13 +154,13 @@ export default function ReceberPage() {
       ) : (
         <div className="space-y-5">
           <Grupo titulo="Vencidas" itens={vencidos} tom="#ef4444" alerta
-                 onReceber={receber} baixando={baixando} cor={cor} />
+                 onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
           <Grupo titulo="Vencem hoje" itens={hoje} tom="#f59e0b"
-                 onReceber={receber} baixando={baixando} cor={cor} />
+                 onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
           <Grupo titulo="A vencer" itens={futuros} tom={cor}
-                 onReceber={receber} baixando={baixando} cor={cor} />
+                 onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
           <Grupo titulo="Sem data de vencimento" itens={semData} tom="#71717a"
-                 onReceber={receber} baixando={baixando} cor={cor} />
+                 onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
         </div>
       )}
 
@@ -166,15 +173,25 @@ export default function ReceberPage() {
           onSalvo={() => { setModalNovo(false); mutate(); }}
         />
       )}
+      {editando && empresa && (
+        <ModalLancamento
+          empresaId={empresa.id}
+          cor={cor}
+          lancamento={editando}
+          onClose={() => setEditando(null)}
+          onSalvo={() => mutate()}
+          onExcluido={() => mutate()}
+        />
+      )}
     </div>
   );
 }
 
 /* ── Peças ─────────────────────────────────────────────────────── */
 
-function Grupo({ titulo, itens, tom, alerta, onReceber, baixando, cor }: {
+function Grupo({ titulo, itens, tom, alerta, onReceber, onAbrir, baixando, cor }: {
   titulo: string; itens: Lancamento[]; tom: string; alerta?: boolean;
-  onReceber: (l: Lancamento) => void; baixando: string | null; cor: string;
+  onReceber: (l: Lancamento) => void; onAbrir: (l: Lancamento) => void; baixando: string | null; cor: string;
 }) {
   if (!itens.length) return null;
   const total = itens.reduce((s, l) => s + (l.valor || 0), 0);
@@ -190,15 +207,16 @@ function Grupo({ titulo, itens, tom, alerta, onReceber, baixando, cor }: {
       </div>
       <ul className="space-y-2">
         {itens.map(l => (
-          <LinhaReceber key={l.id} l={l} tom={tom} onReceber={onReceber} baixando={baixando} cor={cor} />
+          <LinhaReceber key={l.id} l={l} tom={tom} onReceber={onReceber} onAbrir={onAbrir} baixando={baixando} cor={cor} />
         ))}
       </ul>
     </section>
   );
 }
 
-function LinhaReceber({ l, tom, onReceber, baixando, cor }: {
-  l: Lancamento; tom: string; onReceber: (l: Lancamento) => void; baixando: string | null; cor: string;
+function LinhaReceber({ l, tom, onReceber, onAbrir, baixando, cor }: {
+  l: Lancamento; tom: string; onReceber: (l: Lancamento) => void; onAbrir: (l: Lancamento) => void;
+  baixando: string | null; cor: string;
 }) {
   const dias = diasAte(l.vencimento);
   const atrasada = dias !== null && dias < 0;
@@ -220,8 +238,13 @@ function LinhaReceber({ l, tom, onReceber, baixando, cor }: {
         <HandCoins size={17} style={{ color: tom }} />
       </span>
 
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{l.descricao}</p>
+      {/* Tocar abre a conta pra editar (e, se ela se repete, pra parar). */}
+      <button type="button" onClick={() => onAbrir(l)} className="flex-1 min-w-0 text-left min-h-[44px]"
+              aria-label={`Abrir ${l.descricao}`}>
+        <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+          {l.serie_id && <Repeat size={12} className="flex-shrink-0 text-muted-foreground" aria-label="se repete" />}
+          <span className="truncate">{l.descricao}</span>
+        </p>
         <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
           {l.contraparte && <span className="truncate max-w-[140px]">{l.contraparte}</span>}
           <span className="inline-flex items-center gap-1">
@@ -235,7 +258,7 @@ function LinhaReceber({ l, tom, onReceber, baixando, cor }: {
           {l.categoria && <span className="hidden sm:inline">· {labelCategoria('entrada', l.categoria)}</span>}
           {l.criado_por_nome && <span className="hidden sm:inline">· por {l.criado_por_nome}</span>}
         </p>
-      </div>
+      </button>
 
       <span className="text-sm font-bold tabular-nums text-foreground flex-shrink-0">{fmtCent(l.valor)}</span>
 

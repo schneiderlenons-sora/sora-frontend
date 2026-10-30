@@ -25,6 +25,10 @@ export interface Lancamento {
   conta_id?:       string | null;   // conta do negócio (caixa) — migration 095
   recorrente?:     boolean;
   recorrencia?:    string | null;
+  /** Conta que se repete (migration 192): ocorrências da mesma série. */
+  serie_id?:       string | null;
+  serie_ate?:      string | null;   // YYYY-MM-DD — até quando repete (null = sem fim)
+  centro_custo_id?: string | null;
   observacao?:     string | null;
   created_at?:     string;
   /** Quem lançou (Fase 5 multiusuário). Vem resolvido do backend; ausente em
@@ -35,6 +39,15 @@ export interface Lancamento {
   origem?:         'manual' | 'banco';
   transacao_id?:   string | null;
 }
+
+/** Como cada repetição aparece na tela. */
+export const REPETICOES = [
+  { v: 'semanal', label: 'Toda semana', curto: 'semanal' },
+  { v: 'mensal',  label: 'Todo mês',    curto: 'mensal' },
+  { v: 'anual',   label: 'Todo ano',    curto: 'anual' },
+] as const;
+export type Repeticao = typeof REPETICOES[number]['v'];
+export const rotuloRepeticao = (r?: string | null) => REPETICOES.find((x) => x.v === r)?.label.toLowerCase() || null;
 
 /** O lançamento está ligado a uma transação do banco (veio de lá ou foi juntado). */
 export const doBanco = (l: Pick<Lancamento, 'transacao_id' | 'origem'>) =>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import ModalLancamento from '@/components/negocios/ModalLancamento';
+import SugestoesBaixaBanco from '@/components/negocios/SugestoesBaixaBanco';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
@@ -11,7 +12,7 @@ import { corEmpresa, type Empresa } from '@/lib/empresas';
 import { fmtCent, labelCategoria, type Lancamento } from '@/lib/lancamentos';
 import {
   ArrowLeft, Plus, Check, CalendarClock, AlertTriangle, CheckCircle2,
-  Wallet, Loader2,
+  Wallet, Loader2, Repeat,
 } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
@@ -32,6 +33,7 @@ export default function ContasPage() {
   const { empresa, carregando, recarregar, phone, temNegocios } = useEmpresa();
   const [modalNova, setModalNova] = useState(false);
   const [baixando, setBaixando] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Lancamento | null>(null);
 
   const { data, mutate } = useApi(
     (phone && empresa) ? `neg:contas:${empresa.id}` : null,
@@ -158,6 +160,11 @@ export default function ContasPage() {
           </div>
         </section>
 
+        {/* Saiu do banco algo parecido com uma conta (valor não bate exato). */}
+        {phone && (
+          <SugestoesBaixaBanco phone={phone} empresaId={empresa.id} tipo="saida" cor={cor} onBaixa={() => mutate()} />
+        )}
+
         {carregandoContas ? (
           <SectionSkeleton />
         ) : contas.length === 0 ? (
@@ -174,10 +181,10 @@ export default function ContasPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <Grupo titulo="Atrasadas"      itens={grupos.atrasadas} tom="#ef4444" Icon={AlertTriangle} onBaixa={darBaixa} baixando={baixando} />
-            <Grupo titulo="Vencem hoje"    itens={grupos.hoje}      tom="#f59e0b" Icon={CalendarClock} onBaixa={darBaixa} baixando={baixando} />
-            <Grupo titulo="Próximos 7 dias" itens={grupos.semana}   tom={cor}     Icon={CalendarClock} onBaixa={darBaixa} baixando={baixando} />
-            <Grupo titulo="Mais pra frente" itens={grupos.depois}   tom="#64748b" Icon={Wallet}        onBaixa={darBaixa} baixando={baixando} />
+            <Grupo titulo="Atrasadas"      itens={grupos.atrasadas} tom="#ef4444" Icon={AlertTriangle} onBaixa={darBaixa} onAbrir={setEditando} baixando={baixando} />
+            <Grupo titulo="Vencem hoje"    itens={grupos.hoje}      tom="#f59e0b" Icon={CalendarClock} onBaixa={darBaixa} onAbrir={setEditando} baixando={baixando} />
+            <Grupo titulo="Próximos 7 dias" itens={grupos.semana}   tom={cor}     Icon={CalendarClock} onBaixa={darBaixa} onAbrir={setEditando} baixando={baixando} />
+            <Grupo titulo="Mais pra frente" itens={grupos.depois}   tom="#64748b" Icon={Wallet}        onBaixa={darBaixa} onAbrir={setEditando} baixando={baixando} />
           </div>
         )}
       </div>
@@ -186,6 +193,14 @@ export default function ContasPage() {
           empresaId={empresa.id} cor={cor} tipoInicial="saida"
           onClose={() => setModalNova(false)}
           onSalvo={() => mutate()}
+        />
+      )}
+      {editando && empresa && (
+        <ModalLancamento
+          empresaId={empresa.id} cor={cor} lancamento={editando}
+          onClose={() => setEditando(null)}
+          onSalvo={() => mutate()}
+          onExcluido={() => mutate()}
         />
       )}
     </>
@@ -202,10 +217,10 @@ function Voltar() {
 }
 
 function Grupo({
-  titulo, itens, tom, Icon, onBaixa, baixando,
+  titulo, itens, tom, Icon, onBaixa, onAbrir, baixando,
 }: {
   titulo: string; itens: Lancamento[]; tom: string; Icon: any;
-  onBaixa: (c: Lancamento) => void; baixando: string | null;
+  onBaixa: (c: Lancamento) => void; onAbrir: (c: Lancamento) => void; baixando: string | null;
 }) {
   if (!itens.length) return null;
   const total = itens.reduce((s, c) => s + (c.valor || 0), 0);
@@ -224,14 +239,19 @@ function Grupo({
           <div key={c.id}
                className="flex items-center gap-3 px-4 sm:px-5 py-3 min-h-[64px] animate-fade-in"
                style={{ animationDelay: `${Math.min(i * 25, 300)}ms` }}>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-foreground truncate">{c.descricao}</span>
+            {/* Tocar abre a conta pra editar (e, se ela se repete, pra parar). */}
+            <button type="button" onClick={() => onAbrir(c)} className="min-w-0 flex-1 text-left min-h-[44px]"
+                    aria-label={`Abrir ${c.descricao}`}>
+              <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                {c.serie_id && <Repeat size={12} className="flex-shrink-0 text-muted-foreground" aria-label="se repete" />}
+                <span className="truncate">{c.descricao}</span>
+              </span>
               <span className="block text-[11px] text-muted-foreground truncate">
                 {rotuloVenc(c.vencimento)} · {labelCategoria('saida', c.categoria)}
                 {c.contraparte ? ` · ${c.contraparte}` : ''}
                 {c.criado_por_nome ? ` · por ${c.criado_por_nome}` : ''}
               </span>
-            </span>
+            </button>
             <span className="text-sm font-bold tabular text-foreground flex-shrink-0">{fmtCent(c.valor)}</span>
             <button
               onClick={() => onBaixa(c)}
