@@ -706,6 +706,13 @@ tempo real**. Exposta em `/api/admin/of-debug` como `resources`, em todo foco
   compras que o banco já faturou em outubro entravam em novembro. Medido em
   30/10: 25 cartões com `datas_manuais`, vários divergindo das datas
   publicadas — conferir `of_faturas` antes de investigar "valor errado".
+  O 29/4 ERA o ciclo dele até abril/2026; desde maio o MP fecha 2 e vence 7
+  (6 faturas seguidas). Corrigido em 30/10 com autorização do dono (2/7,
+  `datas_manuais=false`): R$ 1.204,57 → R$ 966,49, e R$ 986,27 quando o MP
+  lançar a parcela de 29/10.
+  - ⚠️ **Latente:** o sync grava a MODA de TODAS as faturas conhecidas. Cartão
+    que mudou de ciclo fica com o ciclo VELHO até as faturas novas virarem
+    maioria (no Robert: 6 × 5). Não corrigido.
 - ⚠️ **A trava "limite usado não é fatura" exige a coluna `of_limite_usado`.**
   Cinco chamadores de `valorExibido` não a liam (modal Pagar fatura, fatura no
   zap, Agenda, Oráculo, "o que tenho pra pagar") e exibiam o limite usado.
