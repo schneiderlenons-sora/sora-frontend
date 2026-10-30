@@ -59,7 +59,7 @@ type Overview = {
 type BugReport = {
   id: string; nome: string | null; email: string | null; phone: string | null;
   mensagem: string; tem_imagem: boolean; status: 'aberto' | 'em_andamento' | 'resolvido'; created_at: string;
-  tipo?: 'problema' | 'melhoria';
+  tipo?: 'problema' | 'melhoria' | 'duvida';
 };
 
 // Dispositivo da última sessão que enviou (migration 161). Curto de propósito
@@ -309,7 +309,7 @@ export default function AdminPage() {
     const p = new URLSearchParams(); if (q) p.set('q', q); if (filter !== 'todos') p.set('filter', filter);
     adminFetch(`/users?${p}`).then((d) => setUsers(d.users || [])).catch(() => setUsers([])).finally(() => setLoadingUsers(false));
   }, [q, filter]);
-  const carregarBugs = useCallback(() => { adminFetch('/bugs?tipo=problema').then((d) => setBugs(d.bugs || [])).catch(() => setBugs([])); }, []);
+  const carregarBugs = useCallback(() => { adminFetch('/bugs?tipo=problema,duvida').then((d) => setBugs(d.bugs || [])).catch(() => setBugs([])); }, []);
   const carregarMelhorias = useCallback(() => { adminFetch('/bugs?tipo=melhoria').then((d) => setMelhorias(d.bugs || [])).catch(() => setMelhorias([])); }, []);
 
   useEffect(() => { if (admin) { carregarOverview(); carregarBugs(); carregarMelhorias(); } }, [admin, carregarOverview, carregarBugs, carregarMelhorias]);
@@ -656,7 +656,12 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                         um e-mail longo empurrava o selo de status pra fora do
                         card. `break-all` no contato porque e-mail não tem
                         espaço onde quebrar. */}
-                    <p className="text-sm font-semibold text-foreground truncate">{b.nome || '—'}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {b.tipo === 'duvida' && (
+                        <span className="mr-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-sky-500/15 text-sky-600 align-middle">❓ Dúvida</span>
+                      )}
+                      {b.nome || '—'}
+                    </p>
                     <p className="text-[11px] text-muted-foreground break-all">{b.phone || b.email || ''}</p>
                     <p className="text-[11px] text-muted-foreground">{new Date(b.created_at).toLocaleString('pt-BR')}{b.tem_imagem ? ' · 📷 com print' : ''}</p>
                   </div>

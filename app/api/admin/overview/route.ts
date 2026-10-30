@@ -60,11 +60,11 @@ export async function GET() {
     }
   }
 
-  // Bugs abertos = só os do tipo 'problema' (tolerante a pré-migration 053).
+  // Bugs abertos = problemas + dúvidas (as duas na aba Bugs; tolerante a pré-053).
   let bugsAbertos = 0;
   try {
     const abertos = () => supabaseAdmin.from('bug_reports').select('*', { count: 'exact', head: true }).neq('status', 'resolvido');
-    let { count, error } = await abertos().eq('tipo', 'problema');
+    let { count, error } = await abertos().in('tipo', ['problema', 'duvida']);
     if (error) ({ count } = await abertos());
     bugsAbertos = count || 0;
   } catch { /* tabela pode não existir ainda */ }

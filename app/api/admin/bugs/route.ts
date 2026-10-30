@@ -7,10 +7,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const gate = await checkAdmin();
   if ('error' in gate) return gate.error;
-  const tipo = new URL(req.url).searchParams.get('tipo'); // 'problema' | 'melhoria' | null
+  // 'problema' | 'melhoria' | 'duvida' | lista separada por vírgula | null.
+  // A aba Bugs pede 'problema,duvida': a dúvida (migration 191) é atendida
+  // no mesmo fluxo do relato, e sem isto ela não apareceria em aba nenhuma.
+  const tipo = new URL(req.url).searchParams.get('tipo');
+  const tipos = (tipo || '').split(',').map((t) => t.trim()).filter(Boolean);
 
   const base = () => supabaseAdmin.from('bug_reports').select('*').order('created_at', { ascending: false }).limit(200);
-  let { data, error } = tipo ? await base().eq('tipo', tipo) : await base();
+  let { data, error } = tipos.length ? await base().in('tipo', tipos) : await base();
   // Coluna `tipo` pode não existir ainda (pré-migration 053) → cai sem filtro.
   if (error && tipo) ({ data, error } = await base());
   if (error) return NextResponse.json({ bugs: [], erro: error.message });

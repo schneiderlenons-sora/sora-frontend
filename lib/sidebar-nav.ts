@@ -175,7 +175,6 @@ export const SECOES: SubgrupoNav[] = [
       // coisa era exatamente o que confundia.
       { href: '/comunidade',   label: 'Gestão compartilhada', icone: 'Users', gate: 'compartilhamento', badge: 'Premium' },
       { href: '/planos',       label: 'Planos',               icone: 'Zap' },
-      { href: '/reportar-bug?aba=problema', label: 'Relatar um problema',  icone: 'Bug', externa: true },
       { href: '/configuracoes?aba=aparencia', label: 'Aparência', icone: 'Palette', externa: true },
     ],
   },
@@ -183,9 +182,11 @@ export const SECOES: SubgrupoNav[] = [
     id: 'conta', titulo: 'Sua conta', tom: '#FED7AA',
     itens: [
       { href: '/wrapped', label: 'Sora Wrapped', icone: 'Gift', gate: 'wrapped', badge: 'Básico' },
-      // Novidades é a aba padrão de /reportar-bug (sem `?aba=`) — este item é
-      // a porta de entrada; "Relatar um problema" acima é o atalho direto.
-      { href: '/reportar-bug', label: 'Novidades e sugestões', icone: 'Sparkles', externa: true },
+      // Novidades e o suporte (relatar problema, sugerir melhoria, chamados)
+      // moraram em /reportar-bug; hoje são seções da Ajuda, fixa no menu
+      // (out/2026). O antigo "Relatar um problema" de Ajustes saiu: o
+      // caminho é o "Ajuda" do menu, que ganha o selo de resposta nova.
+      { href: '/ajuda?aba=novidades', label: 'Novidades', icone: 'Sparkles', externa: true },
       // Abas que ainda não existem: aparecem pra dar noção do todo, mas não
       // navegam. 404 é pior que "em breve" — mesma regra do `negocios-nav`.
       { href: '/indique',   label: 'Indique e ganhe', icone: 'Share2' },

@@ -1,6 +1,6 @@
 // =============================================================================
-// Catálogo de novidades do painel — fonte única da aba "Novidades" em
-// /reportar-bug. Editado à mão: ao terminar uma feature nova voltada pro
+// Catálogo de novidades do painel — fonte única da seção "Novidades" da
+// aba Ajuda (era /reportar-bug). Editado à mão: ao terminar uma feature nova voltada pro
 // usuário, soma uma entrada no FIM desta lista com o próximo número
 // (1.1 → 1.2 → ...). Não documentar aqui fix interno/invisível — só o que a
 // pessoa percebe usando o app.
@@ -57,5 +57,17 @@ export const CHANGELOG: NovidadeEntry[] = [
     data: '2026-09-21',
     titulo: 'Categorias em ordem alfabética',
     descricao: 'Todos os filtros e listas de categoria do painel agora aparecem em ordem alfabética, pra achar mais rápido.',
+  },
+  {
+    versao: '1.8',
+    data: '2026-10-30',
+    titulo: 'Parcela de empréstimo paga pelo extrato',
+    descricao: 'Quando o débito de um empréstimo chega do banco, a aba Dívidas sugere dar baixa na parcela, sem descontar o saldo de novo. E no "Registrar pagamento" dá pra escolher o débito que já saiu do extrato.',
+  },
+  {
+    versao: '1.9',
+    data: '2026-10-30',
+    titulo: 'Suporte dentro da Ajuda',
+    descricao: 'Relatar um problema, sugerir uma melhoria ou tirar uma dúvida agora fica na aba Ajuda, junto com seus chamados. Quando o suporte responder, aparece um aviso no botão Ajuda do menu.',
   },
 ];

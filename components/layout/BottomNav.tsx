@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from 'next-themes';
 import { api } from '@/lib/api';
 import { navPaleta } from '@/lib/nav-cores';
+import { useChamadosNaoLidos } from '@/lib/useChamadosNaoLidos';
 import QuickAddSheet from '@/components/dashboard/QuickAddSheet';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 
@@ -72,6 +73,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   // DashboardLayout lê daqui também). Foi a divergência entre os dois que
   // criava o degrau de cor logo abaixo dela.
   const paleta = navPaleta(theme, mounted);
+  const { naoLidas: chamadosNaoLidos } = useChamadosNaoLidos();
 
   // No painel Negócios a barra leva às telas DO NEGÓCIO. Com os atalhos do app
   // pessoal, cada toque no mobile jogava o usuário pra fora do painel — o
@@ -243,7 +245,16 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
                   }}
                   aria-hidden={ativo}
                 >
-                  <s.icon size={21} strokeWidth={2} style={{ color: paleta.item }} />
+                  <span className="relative">
+                    <s.icon size={21} strokeWidth={2} style={{ color: paleta.item }} />
+                    {/* Resposta do suporte esperando: no celular o "Ajuda" mora
+                        DENTRO do menu, então sem este ponto o selo de lá nunca
+                        seria visto. Ponto + texto no aria-label do botão. */}
+                    {s.tipo === 'menu' && chamadosNaoLidos > 0 && (
+                      <span aria-hidden className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-red-500"
+                            style={{ boxShadow: `0 0 0 2px ${paleta.superficie}` }} />
+                    )}
+                  </span>
                   <span className="text-[10px] font-medium leading-none" style={{ color: paleta.item }}>{s.label}</span>
                 </span>
               );
@@ -255,7 +266,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
                 return (
                   <button
                     key="menu"
-                    aria-label={s.label}
+                    aria-label={chamadosNaoLidos > 0 ? `${s.label} (resposta nova do suporte em Ajuda)` : s.label}
                     className={classes}
                     // Mesmo motivo dos links: no zap do scroll por inércia o
                     // clique some, e era isso que fazia o menu pedir 3 toques.

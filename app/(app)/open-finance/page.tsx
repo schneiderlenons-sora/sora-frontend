@@ -821,7 +821,7 @@ export default function OpenFinancePage() {
                                     caminho, fora do ar, falta titular), pedir contato
                                     geraria um chamado que não tem o que resolver. */}
                                 {(!c.cartao_status || c.cartao_status === 'inexistente') && (
-                                  <a href="/reportar-bug" className="font-semibold underline">Fale com a gente</a>
+                                  <a href="/ajuda?aba=suporte" className="font-semibold underline">Fale com a gente</a>
                                 )}
                               </span>
                             </p>
@@ -1337,7 +1337,7 @@ function ObservacoesOpenFinance() {
             app e no banco. Os <b>lançamentos</b> continuam corretos; mas se houver
             grande diferença entre a fatura no app e no banco, você poderá abrir um
             chamado conosco na aba{' '}
-            <a href="/reportar-bug" className="underline underline-offset-2 hover:text-foreground">
+            <a href="/ajuda?aba=suporte" className="underline underline-offset-2 hover:text-foreground">
               Relatar um problema
             </a>{' '}
             para analisarmos se há possíveis transações duplicadas sendo contadas no
@@ -1357,7 +1357,7 @@ function ObservacoesOpenFinance() {
           <b>Detetive Watson</b> na aba Agentes: ele varre o período e mostra as
           duplicadas com a prova de por que são duplicadas, pra você apagar em um
           clique. Se mesmo assim a conta não fechar,{' '}
-          <a href="/reportar-bug" className="underline underline-offset-2 hover:text-foreground">
+          <a href="/ajuda?aba=suporte" className="underline underline-offset-2 hover:text-foreground">
             nos avise em Relatar um problema
           </a>{' '}
           — a gente investiga com os dados do seu banco.

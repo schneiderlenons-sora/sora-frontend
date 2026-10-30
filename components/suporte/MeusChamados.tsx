@@ -14,11 +14,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSWRConfig } from 'swr';
-import { api, type ChamadoResumo, type ChamadoMensagem, type ChamadoDetalhe } from '@/lib/api';
+import { api, type ChamadoResumo, type ChamadoMensagem, type ChamadoDetalhe, type TipoChamado } from '@/lib/api';
 import {
   MessageSquare, Send, Loader2, ChevronLeft, CheckCircle2, Clock,
-  Paperclip, X, Bug, Lightbulb,
+  Paperclip, X, Bug, Lightbulb, HelpCircle,
 } from 'lucide-react';
+
+/** Ícone de cada tipo de chamado (o rótulo vai junto no aria-label). */
+const ICONE_TIPO = { problema: Bug, melhoria: Lightbulb, duvida: HelpCircle } as const;
+const ROTULO_TIPO = { problema: 'Problema', melhoria: 'Melhoria', duvida: 'Dúvida' } as const;
 
 const MAX_IMG = 6 * 1024 * 1024;
 
@@ -38,7 +42,7 @@ export default function MeusChamados({ recarregarRef, tipoFiltro }: {
   /** Só mostra chamados desse tipo (a tela agora separa "Relatar um
    *  problema" de "Propor melhoria" em abas — sem isso a lista de uma
    *  aba mostrava chamado da outra). Omitido = mostra todos. */
-  tipoFiltro?: 'problema' | 'melhoria';
+  tipoFiltro?: TipoChamado;
 }) {
   const [listaCompleta, setListaCompleta] = useState<ChamadoResumo[]>([]);
   const lista = tipoFiltro ? listaCompleta.filter((c) => (c.tipo || 'problema') === tipoFiltro) : listaCompleta;
@@ -95,12 +99,13 @@ export default function MeusChamados({ recarregarRef, tipoFiltro }: {
       <div className="space-y-2">
         {lista.map((c) => {
           const st = STATUS[c.status] || STATUS.aberto;
-          const TipoIcon = c.tipo === 'melhoria' ? Lightbulb : Bug;
+          const tipo = (c.tipo || 'problema') as TipoChamado;
+          const TipoIcon = ICONE_TIPO[tipo] || Bug;
           return (
             <button key={c.id} onClick={() => setAberto(c.id)}
                     className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:bg-muted/50 transition-colors active:scale-[0.99]">
               <div className="flex items-start gap-3">
-                <TipoIcon size={15} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+                <TipoIcon size={15} className="text-muted-foreground flex-shrink-0 mt-0.5" aria-label={ROTULO_TIPO[tipo]} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-foreground line-clamp-2 leading-snug">{c.mensagem}</p>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -232,7 +237,7 @@ function Conversa({ id, onVoltar }: { id: string; onVoltar: () => void }) {
         // ⚠️ Encerrado = a conversa foi limpa do servidor. Dizer isso é melhor
         // que deixar um campo de texto que responderia 409 ao ser usado.
         <p className="text-[13px] text-muted-foreground text-center py-2 leading-relaxed">
-          Este chamado foi encerrado. Se o problema voltar, abra um relato novo acima. 👆
+          Este chamado foi encerrado. Se precisar de novo, é só abrir outro chamado.
         </p>
       ) : (
         <div className="space-y-2">

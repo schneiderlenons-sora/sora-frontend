@@ -878,7 +878,7 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
               </a>{' '}
               autorizando o cartão de crédito junto. Se você já reconectou e ele continua assim,
               o banco não está liberando este cartão —{' '}
-              <a href="/reportar-bug" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
+              <a href="/ajuda?aba=suporte" onClick={(e) => e.stopPropagation()} className="font-semibold underline">
                 fale com a gente
               </a>.
             </p>

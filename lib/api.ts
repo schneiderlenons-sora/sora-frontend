@@ -164,11 +164,13 @@ export type ParcelaPrevista = {
 
 // ── Chamados de suporte (migration 143) ──────────────────────────────────────
 export type StatusChamado = 'aberto' | 'em_andamento' | 'resolvido';
+/** 'duvida' é da migration 191 (o suporte foi pra aba Ajuda). */
+export type TipoChamado = 'problema' | 'melhoria' | 'duvida';
 
 export type ChamadoResumo = {
   id: string;
   mensagem: string;                 // o relato de abertura
-  tipo?: 'problema' | 'melhoria';
+  tipo?: TipoChamado;
   status: StatusChamado;
   created_at: string;
   tem_imagem?: boolean;
@@ -189,7 +191,7 @@ export type ChamadoMensagem = {
 export type ChamadoDetalhe = {
   id: string;
   mensagem: string;
-  tipo?: 'problema' | 'melhoria';
+  tipo?: TipoChamado;
   status: StatusChamado;
   created_at: string;
   imagem_url: string | null;
@@ -261,8 +263,8 @@ export const api = {
 
   // ── RELATAR BUG ───────────────────────────────────────────────
   bug: {
-    /** Envia um relato de bug ou sugestão de melhoria (texto + imagem base64 opcional) pro suporte. */
-    reportar: (body: { mensagem: string; imagem?: string; tipo?: 'problema' | 'melhoria' }) =>
+    /** Envia um relato de bug, sugestão de melhoria ou dúvida (texto + imagem base64 opcional) pro suporte. */
+    reportar: (body: { mensagem: string; imagem?: string; tipo?: TipoChamado }) =>
       req<{ ok: boolean; id?: string }>('/api/bug', {
         method: 'POST',
         body: JSON.stringify(body),

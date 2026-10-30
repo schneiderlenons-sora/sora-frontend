@@ -294,7 +294,8 @@ contas e cartões, duplicado. Agora o step 5 abre com a escolha.
 | `/grow/*` | Sora Grow — hábitos, tarefas, bem-estar, saúde, estudos, casa, agenda, **coleções (viagens/midia/leituras)**, **Drive (`/grow/dados` — ex-Dados Pessoais)**, **configurações** |
 | `/wrapped` | Sora Wrapped — retrospectiva financeira do mês (aviso WhatsApp dedup via `wrapped_avisado`) |
 | `/admin` | Painel admin (métricas internas) — acesso restrito |
-| `/reportar-bug` | Aba "Relatar um problema" — relato cai no WhatsApp de suporte (via mensageiro → Cloud API) (migration 043) |
+| `/ajuda` | Ajuda: Vídeos e dicas · Comandos WhatsApp · **Suporte** (relatar problema, sugerir melhoria, tirar dúvida + chamados) · **Novidades**. Ver "Suporte dentro da Ajuda" |
+| `/reportar-bug` | **Só redireciona** pra `/ajuda` (link antigo em WhatsApp/e-mail; `?aba=`/`?chamado=` caem no lugar certo) |
 | `/comunidade` | Comunidade |
 
 ---
@@ -377,7 +378,7 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
 - **Desconto de conta destino** (migration 037, `src/services/descontoConta.js` + `contaDebito.js`): ao registrar aporte/pagamento (meta/investimento/dívida/fatura) a Sora pergunta de qual conta descontar.
 - **Sora Wrapped** (`app/wrapped`, migration 037_wrapped_aviso): retrospectiva do mês + aviso WhatsApp com dedup.
 - **Transações na Agenda** (`agendaFeed.montarFeed` com flag `incluirTransacoes`, origem `transacao`): calendário mostra movimentações do dia + total líquido por dia. Fora do briefing.
-- **Relatar um problema** (`app/reportar-bug`, migration 043): relato vai pro WhatsApp de suporte (via mensageiro → Cloud API).
+- **Relatar um problema** (migration 043): relato vai pro WhatsApp de suporte (via mensageiro → Cloud API). Hoje mora na seção Suporte da Ajuda — ver "Suporte dentro da Ajuda".
 - **Máscara de telefone WhatsApp** (`components/ui/WhatsappInput.tsx`): máscara BR; telefone sempre E.164 sem `+`. Futuro i18n via libphonenumber-js nesse ponto.
 - **Landing "Corpo em Dia"** (`components/landing/SaudeShowcase.tsx`): carrossel de 6 imagens 9:16 (3-up desktop / 1-up mobile, bordas redondas + sombra), imagens em `public/landing/corpo/1.png…6.png`, destaque do macros por foto.
 
@@ -2209,6 +2210,34 @@ não aprende?"*. Três defeitos somados, todos em `services/regrasCategoria.js`
 - **Dados (aprovados):** 24 lançamentos em balde genérico reaplicados; os 30 em
   categoria específica ficaram (ex.: 18 do Mercado Livre que o cliente separou
   à mão). 11 "PG" que o reverso jogou em Medicamento voltaram pra Outros.
+
+## Suporte dentro da Ajuda (out/2026)
+
+Relato (Robert): "difícil achar os chamados". O suporte vivia em
+`/reportar-bug` (item "Relatar um problema" perdido em Ajustes). Decisão do
+dono: virar seção da **Ajuda**, que é fixa no menu, com o **selo de resposta
+nova no botão Ajuda**.
+
+- `components/suporte/SecaoSuporte.tsx`: três assuntos — **Relatar um
+  problema · Sugerir uma melhoria · Tirar uma dúvida** — e os chamados
+  (`MeusChamados`, a mesma conversa de antes). Novidades virou a 4ª seção.
+- **Tipo `duvida`** novo (migration **191**, CHECK de `bug_reports.tipo`). Sem
+  ela a rota grava como `problema` com o texto "❓ Dúvida: …" — nada se perde.
+  No admin, dúvidas entram na aba **Bugs** com selo "❓ Dúvida" (`?tipo=problema,duvida`).
+- **Selo:** `lib/useChamadosNaoLidos.ts` (chave canônica `d:chamados:<phone>`,
+  2 min) no botão **Ajuda** da sidebar **e um ponto no "Menu" da barra
+  inferior** — no celular o Ajuda mora dentro do menu, sem o ponto o selo nunca
+  seria visto. ⚠️ O hook responde 0 até montar (cache em localStorage →
+  hydration mismatch).
+- ⚠️ **Posições decididas UMA VEZ.** Com resposta nova, a Ajuda abre em Suporte
+  e os chamados vêm antes dos assuntos. Abrir a conversa zera o contador; se a
+  seção/posição dependesse dele ao vivo, o React recriaria a lista e FECHARIA a
+  conversa no meio da leitura.
+- ⚠️ **A Ajuda lê a seção com `useSearchParams`** (nasce certa no SSR, sem
+  piscar) e a página é remontada por `key` quando o endereço muda — por isso os
+  botões de seção **não** reescrevem a URL.
+- `/reportar-bug` é só redirecionamento; `AvisoChamado` leva a
+  `/ajuda?aba=suporte&chamado=<id>` e some na própria Ajuda.
 
 ## Dívidas: o débito do extrato dá baixa na parcela (out/2026)
 
@@ -4299,6 +4328,7 @@ sql/187_play_assinaturas.sql   — assinaturas da GOOGLE PLAY (tabela play_assin
 sql/188_of_conexao_empresarial.sql — of_conexoes.empresarial: a conexão foi feita com CNPJ (só o FATO, nunca o número). Conta/cartão NOVO de conexão de empresa nasce "Mercado Pago PJ" em vez de "Mercado Pago (OF)". Sem ela tudo segue como antes (conexão vira pessoal). Base do Open Finance no Sora Negócios.
 sql/189_conta_empresa_banco.sql — contas_negocio.wallet_id/importar_desde + lancamentos_negocio.origem + índice único em transacao_id: a conta do banco alimenta o caixa da EMPRESA. Sem ela nada muda (ninguém consegue vincular; a tela avisa que falta a migration).
 sql/190_divida_pagamento_transacao.sql — divida_pagamentos.transacao_id: o pagamento da parcela LIGADO ao débito do extrato que o pagou. Sem ela a baixa funciona igual (grava sem o vínculo); só perde a trava de "débito já usado".
+sql/191_bug_reports_duvida.sql — tipo "duvida" no CHECK de bug_reports (o suporte foi pra Ajuda). Sem ela a dúvida vira "problema" com o texto marcado "❓ Dúvida:".
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

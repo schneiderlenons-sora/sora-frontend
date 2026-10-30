@@ -589,24 +589,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           <Icon size={15} />
         </span>
         <span className="flex-1 min-w-0 truncate">{label}</span>
-        {/* ── RESPOSTA DO SUPORTE ESPERANDO ────────────────────────────────
-            ⚠️ Existe porque a conversa do chamado já funcionava e ninguém via.
-            A thread (migration 143) estava pronta dos dois lados, mas nada
-            fora da própria tela avisava que havia resposta — a pessoa teria
-            de adivinhar que devia abrir "Relatar um problema". Sem este
-            número, responder pelo painel continua sendo um bilhete numa
-            gaveta fechada. ⚠️ `startsWith`, não `===`: a página ganhou abas
-            por querystring (`?aba=problema`) e dois itens da sidebar levam
-            a ela — comparação exata deixaria o badge sumir dos dois. */}
-        {!locked && chamadosNaoLidos > 0 && href.startsWith('/reportar-bug') && (
-          <span
-            aria-label={`${chamadosNaoLidos} ${chamadosNaoLidos === 1 ? 'resposta nova' : 'respostas novas'} do suporte`}
-            className="flex-shrink-0 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full
-                       bg-red-500 text-white text-[10px] font-bold tabular"
-          >
-            {chamadosNaoLidos > 9 ? '9+' : chamadosNaoLidos}
-          </span>
-        )}
         {locked && (
           badgeText
             ? <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${corBadge}`}>{badgeText}</span>
@@ -986,6 +968,20 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               isTemaBlack ? 'bg-black/40 hover:bg-black/55 border border-white/5' : 'bg-white/10 hover:bg-white/20'
             }`}>
             <HelpCircle size={16} /> Ajuda
+            {/* ── RESPOSTA DO SUPORTE ESPERANDO ──────────────────────────────
+                ⚠️ Existe porque a conversa do chamado já funcionava e ninguém
+                via: nada fora da própria tela avisava que havia resposta.
+                O suporte mudou-se pra Ajuda (out/2026, relato "difícil achar
+                os chamados"), e o selo veio junto. */}
+            {chamadosNaoLidos > 0 && (
+              <span
+                aria-label={`${chamadosNaoLidos} ${chamadosNaoLidos === 1 ? 'resposta nova' : 'respostas novas'} do suporte`}
+                className="flex-shrink-0 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full
+                           bg-red-500 text-white text-[10px] font-bold tabular"
+              >
+                {chamadosNaoLidos > 9 ? '9+' : chamadosNaoLidos}
+              </span>
+            )}
           </Link>
           <Link href="/configuracoes" onClick={() => setOpen(false)}
             prefetch={false}

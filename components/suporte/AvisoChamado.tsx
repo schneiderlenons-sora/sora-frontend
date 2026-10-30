@@ -51,14 +51,14 @@ export default function AvisoChamado() {
     return { chamado: ordenada[0], total, chamados: lista.length };
   }, [data]);
 
-  // Na própria aba de chamados a notificação seria ruído — a resposta está na
-  // tela, e abrir o chamado já é o que a faz sumir.
-  if (!alvo || pathname?.startsWith('/reportar-bug')) return null;
+  // Na aba Ajuda a notificação seria ruído — o selo da seção Suporte já está
+  // na tela, e abrir o chamado é o que a faz sumir.
+  if (!alvo || pathname?.startsWith('/ajuda') || pathname?.startsWith('/reportar-bug')) return null;
 
   const carimbo = alvo.chamado.ultima_msg?.created_at || alvo.chamado.created_at;
   if (dispensadoEm && dispensadoEm === carimbo) return null;
 
-  const abrir = () => router.push(`/reportar-bug?chamado=${alvo.chamado.id}`);
+  const abrir = () => router.push(`/ajuda?aba=suporte&chamado=${alvo.chamado.id}`);
 
   return (
     <div
