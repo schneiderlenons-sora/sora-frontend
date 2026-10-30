@@ -9,6 +9,7 @@ import { useApi } from '@/lib/useApi';
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import { corEmpresa, type Empresa } from '@/lib/empresas';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
+import ModalRegrasNegocio from '@/components/negocios/ModalRegrasNegocio';
 import ModalCentrosCusto from '@/components/negocios/ModalCentrosCusto';
 import {
   fmtCent, labelCategoria, labelForma, porDia, totais, saldoPorConta,
@@ -17,8 +18,7 @@ import {
 } from '@/lib/lancamentos';
 import {
   ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Plus, Minus,
-  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark,
-} from 'lucide-react';
+  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark, Sparkles } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -47,6 +47,7 @@ export default function CaixaPage() {
   const [modalLanc, setModalLanc] = useState<{ tipo: TipoLancamento; item?: Lancamento } | null>(null);
   const [modalContas, setModalContas] = useState(false);
   const [modalCentros, setModalCentros] = useState(false);
+  const [modalRegras, setModalRegras] = useState(false);
 
   // Período visualizado. "mês" mantém o navegador de mês a mês; os outros são
   // recortes fixos terminando HOJE (o backend calcula no fuso de SP — em UTC,
@@ -265,7 +266,11 @@ export default function CaixaPage() {
           <div className="px-4 sm:px-5 py-3 border-b border-border/40">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Saldo por conta</span>
-              <span className="inline-flex items-center gap-3">
+              <span className="inline-flex items-center gap-3 flex-wrap justify-end">
+                {/* O que a Sora aprendeu a classificar do banco (migration 192). */}
+                <button onClick={() => setModalRegras(true)} className="text-[11px] font-semibold inline-flex items-center gap-1 min-h-[32px]" style={{ color: cor }}>
+                  <Sparkles size={12} /> Regras
+                </button>
                 <button onClick={() => setModalCentros(true)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: cor }}>
                   <Layers size={12} /> Centros de custo
                 </button>
@@ -351,6 +356,14 @@ export default function CaixaPage() {
           cor={cor}
           onClose={() => setModalContas(false)}
           onChanged={() => mContas()}
+        />
+      )}
+      {modalRegras && empresa && (
+        <ModalRegrasNegocio
+          empresaId={empresa.id}
+          cor={cor}
+          onClose={() => setModalRegras(false)}
+          onChanged={() => mLanc()}
         />
       )}
       {modalCentros && empresa && (

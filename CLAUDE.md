@@ -1223,8 +1223,10 @@ Os quatro pendentes do pedido do Robert, todos na migration **192**.
   `eval:regras-negocio`). Casamento = `regrasCategoria.casaRegra/termoDe`
   (fonte única). ⚠️ Descrição genérica ("PIX RECEBIDO", só código, nome < 4
   letras) não vira regra. Nunca sobrescreve escolha da pessoa; só acerta o que
-  está "a classificar". Desfazer = classificar de novo com outra categoria
-  (atualiza a regra). **Sem tela de gerenciar regras** (pendente se pedirem).
+  está "a classificar". Tela **"Regras aprendidas"** (botão "Regras" no Fluxo de caixa,
+  `ModalRegrasNegocio`, `eval:regras-negocio-rota`): trocar a categoria acerta o
+  que ainda está "a classificar"; apagar só para os próximos (o que já foi
+  classificado fica).
 - **Passo B** (`espelhoContaEmpresa` → `ignorar_em = 'empresa'`,
   `eval:conta-empresa-fora-pessoal`). A transação que entra no caixa sai das
   finanças pessoais pelo "não considerar" que todos os totais já respeitam.

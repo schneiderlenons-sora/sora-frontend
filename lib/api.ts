@@ -97,6 +97,12 @@ export type ParConciliavelTx = {
   pago?: boolean;
 };
 
+/** Regra aprendida do caixa da empresa: descrição parecida → categoria (migration 192). */
+export type RegraNegocio = {
+  id: string; termo: string; tipo: 'entrada' | 'saida' | null; categoria: string;
+  created_at?: string; updated_at?: string;
+};
+
 /** Débito do extrato que parece ter pago a parcela de uma dívida (GET /dividas/conciliacao). */
 export type SugestaoBaixaDivida = {
   divida_id: string; titulo: string; valor_parcela: number; vencimento: string;
@@ -1554,6 +1560,19 @@ export const api = {
         req<{ ok: boolean; lancamento: Lancamento }>(`/api/negocios/lancamentos/${id}/baixa-banco`, {
           method: 'POST', body: JSON.stringify({ banco_id: bancoId }),
         }),
+      /** Regras aprendidas do caixa (o "aprende", migration 192). */
+      regras: {
+        listar: (phone: string, empresa_id: string) =>
+          req<{ regras: RegraNegocio[]; semMigration?: boolean }>(`/api/negocios/regras/${phone}?empresa_id=${empresa_id}`),
+        /** Troca a categoria; acerta o que ainda está "a classificar". */
+        editar: (id: string, categoria: string) =>
+          req<{ ok: boolean; regra: RegraNegocio; aplicadas: number }>(`/api/negocios/regras/${id}`, {
+            method: 'PUT', body: JSON.stringify({ categoria }),
+          }),
+        /** Para de classificar os próximos; o que já foi classificado fica. */
+        apagar: (id: string) =>
+          req<{ ok: boolean }>(`/api/negocios/regras/${id}`, { method: 'DELETE' }),
+      },
       /** "Chegou do banco, parecido com esta conta": pares sugeridos (só lê). */
       conciliacaoBanco: (phone: string, empresa_id: string) =>
         req<{ sugestoes: { aberto: Lancamento; banco: Lancamento; diferenca: number }[] }>(
