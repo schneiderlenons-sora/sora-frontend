@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus, Layers } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus, Layers, Landmark } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import {
-  categoriasDe, FORMAS_PAGAMENTO, fmtCent,
+  categoriasDe, FORMAS_PAGAMENTO, fmtCent, doBanco, CAT_A_CLASSIFICAR,
   type Lancamento, type TipoLancamento, type ContaNegocio, type CentroCusto,
 } from '@/lib/lancamentos';
 
@@ -28,13 +28,19 @@ export default function ModalLancamento({
   onExcluido?: () => void;
 }) {
   const editando = !!lancamento?.id;
+  // ⚠️ VEIO DO BANCO (conta vinculada, migration 189): valor, data, sentido,
+  // situação e conta são do BANCO — o backend ignora mudanças neles e o próximo
+  // sync os reescreveria. Aqui eles aparecem só pra leitura, com o porquê
+  // (`read-only-distinction`: campo travado sem explicação lê como defeito).
+  const travado = !!lancamento && doBanco(lancamento);
   const { phone } = useAuth();
 
   const [tipo, setTipo] = useState<TipoLancamento>(lancamento?.tipo || tipoInicial);
   // Valor em CENTAVOS, digitado como número inteiro (igual ao modal de transação).
   const [valor, setValor] = useState(lancamento ? String(lancamento.valor) : '');
   const [descricao, setDescricao] = useState(lancamento?.descricao || '');
-  const [categoria, setCategoria] = useState(lancamento?.categoria || '');
+  // 'a_classificar' é a marca do banco, não uma escolha: abre sem seleção.
+  const [categoria, setCategoria] = useState(lancamento?.categoria === CAT_A_CLASSIFICAR ? '' : (lancamento?.categoria || ''));
   const [data, setData] = useState(lancamento?.data || hoje());
   const [forma, setForma] = useState(lancamento?.forma_pagamento || 'dinheiro');
   const [contraparte, setContraparte] = useState(lancamento?.contraparte || '');
@@ -49,7 +55,7 @@ export default function ModalLancamento({
   const [gerenciarContas, setGerenciarContas] = useState(false);
 
   // Categoria própria (texto livre além da lista fixa).
-  const catInicial = lancamento?.categoria || '';
+  const catInicial = lancamento?.categoria === CAT_A_CLASSIFICAR ? '' : (lancamento?.categoria || '');
   const catNaLista = (t: TipoLancamento, v: string) => categoriasDe(t).some(c => c.v === v);
   const [catCustom, setCatCustom] = useState(catInicial && !catNaLista(tipo, catInicial) ? catInicial : '');
   const [mostraCustom, setMostraCustom] = useState(!!(catInicial && !catNaLista(tipo, catInicial)));
@@ -93,7 +99,8 @@ export default function ModalLancamento({
       const body: any = {
         empresa_id: empresaId,
         tipo,
-        categoria: catFinal || null,
+        // Do banco e ainda sem escolha: continua "a classificar" (não vira "sem categoria").
+        categoria: catFinal || (travado ? CAT_A_CLASSIFICAR : null),
         descricao: descricao.trim(),
         valor: valorCent,
         data,
@@ -117,6 +124,7 @@ export default function ModalLancamento({
 
   async function excluir() {
     if (!editando || salvando) return;
+    if (travado) return;   // backend recusa: voltaria no próximo sync
     if (!confirm('Excluir este lançamento?')) return;
     setSalvando(true);
     try {
@@ -147,6 +155,24 @@ export default function ModalLancamento({
 
         <div className="p-5 space-y-5">
 
+          {travado && (
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 text-center">
+              <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                <Landmark size={12} aria-hidden /> Veio do banco
+              </p>
+              <p className="text-3xl font-bold tabular mt-2" style={{ color: corTipo }}>
+                {ehEntrada ? '+' : '−'}{fmtCent(valorCent)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {data.split('-').reverse().join('/')} · {pago ? (ehEntrada ? 'recebido' : 'pago') : 'em aberto'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
+                Valor, data e situação seguem o banco. Aqui você classifica: categoria, descrição e {ehEntrada ? 'cliente' : 'fornecedor'}.
+              </p>
+            </div>
+          )}
+
+          {!travado && (<>
           {/* Tipo — ícone + rótulo (nunca só cor) */}
           <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60">
             {([
@@ -186,6 +212,7 @@ export default function ModalLancamento({
             </div>
             <p className="text-center text-xs text-muted-foreground mt-1.5 tabular">{fmtCent(valorCent)}</p>
           </div>
+          </>)}
 
           {/* Descrição */}
           <div>
@@ -233,6 +260,7 @@ export default function ModalLancamento({
           </div>
 
           {/* Conta (caixa) — pra onde entra / de onde sai */}
+          {!travado && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -267,6 +295,7 @@ export default function ModalLancamento({
               </div>
             )}
           </div>
+          )}
 
           {/* Centro de custo — só aparece pra quem já criou algum (migration
               105). Seletor vazio num formulário longo é ruído puro. */}
@@ -297,6 +326,7 @@ export default function ModalLancamento({
           )}
 
           {/* Data + forma */}
+          {!travado && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="lanc-data" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Data</label>
@@ -309,6 +339,7 @@ export default function ModalLancamento({
               </select>
             </div>
           </div>
+          )}
 
           {/* Contraparte */}
           <div>
@@ -319,6 +350,7 @@ export default function ModalLancamento({
           </div>
 
           {/* Já foi pago? — desmarcar vira CONTA A PAGAR */}
+          {!travado && (
           <div className="rounded-2xl border border-border/60 p-3.5">
             <label className="flex items-center justify-between gap-3 cursor-pointer">
               <span className="min-w-0">
@@ -343,6 +375,15 @@ export default function ModalLancamento({
               </div>
             )}
           </div>
+          )}
+
+          {/* Do banco não se apaga (voltaria no próximo sync): o caminho é classificar. */}
+          {travado && (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Não é da empresa? Classifique como <b className="text-foreground">Movimentação entre contas</b>:
+              ele sai do resultado e continua no saldo da conta.
+            </p>
+          )}
 
           {erro && (
             <div role="alert" className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60">
@@ -353,7 +394,7 @@ export default function ModalLancamento({
         </div>
 
         <div className="flex items-center gap-2 px-5 py-4 border-t border-border bg-muted/20 sticky bottom-0">
-          {editando && (
+          {editando && !travado && (
             <button onClick={excluir} disabled={salvando} aria-label="Excluir lançamento"
                     className="w-11 h-11 flex items-center justify-center rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
               <Trash2 size={16} />

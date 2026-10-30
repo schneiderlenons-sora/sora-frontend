@@ -3,7 +3,7 @@ import type { Empresa, MembroEmpresa, ConviteEmpresa } from '@/lib/empresas';
 import type {
   Lancamento, ContaNegocio, CentroCusto, IndicadoresNegocio,
   ClienteNegocio, ClienteFicha, ProdutoNegocio, VendaNegocio,
-  ItemEstoque, ResumoEstoque, FornecedorNegocio, CompraNegocio,
+  ItemEstoque, ResumoEstoque, FornecedorNegocio, CompraNegocio, ContaBancoDisponivel,
 } from '@/lib/lancamentos';
 import type { Funcionario } from '@/lib/funcionarios';
 import type { Frequencia } from '@/lib/frequencia-recorrencia';
@@ -1487,6 +1487,15 @@ export const api = {
         req<{ ok: boolean; conta: ContaNegocio }>(`/api/negocios/contas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       arquivar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/contas/${id}`, { method: 'DELETE' }),
+      // Conta do banco (Open Finance) alimentando a conta da empresa — migration 189.
+      bancosDisponiveis: (phone: string, empresa_id: string) =>
+        req<{ dono: boolean; contas: ContaBancoDisponivel[] }>(`/api/negocios/contas-banco/${phone}?empresa_id=${empresa_id}`),
+      vincularBanco: (id: string, wallet_id: string) =>
+        req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/vincular-banco`, { method: 'POST', body: JSON.stringify({ wallet_id }) }),
+      desvincularBanco: (id: string) =>
+        req<{ ok: boolean }>(`/api/negocios/contas/${id}/vincular-banco`, { method: 'DELETE' }),
+      trazerDoBanco: (id: string) =>
+        req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/espelhar`, { method: 'POST' }),
     },
     // Livro caixa: entradas, saídas e contas a pagar (saída pendente).
     // `valor` SEMPRE em centavos.

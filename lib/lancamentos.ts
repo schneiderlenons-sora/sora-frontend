@@ -30,7 +30,15 @@ export interface Lancamento {
   /** Quem lançou (Fase 5 multiusuário). Vem resolvido do backend; ausente em
    *  lançamento antigo ou quando a busca de nomes falha. */
   criado_por_nome?: string | null;
+  /** Veio da conta do banco vinculada (migration 189) ou foi juntado a ela:
+   *  valor, data e sentido são do BANCO e ficam travados na tela. */
+  origem?:         'manual' | 'banco';
+  transacao_id?:   string | null;
 }
+
+/** O lançamento está ligado a uma transação do banco (veio de lá ou foi juntado). */
+export const doBanco = (l: Pick<Lancamento, 'transacao_id' | 'origem'>) =>
+  !!l.transacao_id || l.origem === 'banco';
 
 // Conta do negócio (caixa nomeada) — migration 095.
 export type TipoContaNegocio = 'dinheiro' | 'banco' | 'cartao' | 'outro';
@@ -42,6 +50,22 @@ export interface ContaNegocio {
   saldo_inicial: number;            // CENTAVOS
   cor?:          string | null;
   ativa?:        boolean;
+  /** Carteira do banco (Open Finance) que alimenta esta conta — migration 189. */
+  wallet_id?:      string | null;
+  importar_desde?: string | null;   // YYYY-MM-DD
+  /** Vêm do backend quando a conta é ligada ao banco. */
+  wallet_nome?:    string | null;
+  saldo_banco?:    number | null;   // CENTAVOS — o saldo de verdade
+}
+
+/** Conta do banco (Open Finance) que pode alimentar uma conta da empresa. */
+export interface ContaBancoDisponivel {
+  id:          string;
+  nome:        string;
+  tipo:        string;
+  saldo:       number;              // REAIS (é a carteira das finanças)
+  motivo:      string | null;       // por que não pode ser ligada (null = pode)
+  vinculada_a: string | null;       // id da conta da empresa que já a usa
 }
 
 // ── Operação: clientes, produtos e vendas (migration 106) ──────────────────
@@ -239,6 +263,7 @@ export const CATEGORIAS_ENTRADA = [
   { v: 'vendas',    label: 'Vendas',          icone: 'ShoppingBag' },
   { v: 'servicos',  label: 'Serviços',        icone: 'Wrench' },
   { v: 'outros',    label: 'Outras receitas', icone: 'Plus' },
+  { v: 'movimentacao', label: 'Movimentação entre contas', icone: 'ArrowLeftRight' },
 ];
 
 export const CATEGORIAS_SAIDA = [
@@ -252,7 +277,18 @@ export const CATEGORIAS_SAIDA = [
   { v: 'marketing',  label: 'Marketing',    icone: 'Megaphone' },
   { v: 'transporte', label: 'Transporte',   icone: 'Car' },
   { v: 'outros',     label: 'Outros',       icone: 'Package' },
+  { v: 'movimentacao', label: 'Movimentação entre contas', icone: 'ArrowLeftRight' },
 ];
+
+// ⚠️ Categorias que vêm da CONTA DO BANCO vinculada (migration 189):
+//   · 'a_classificar' — o banco não sabe se o Pix foi venda ou fornecedor; a
+//     pessoa classifica (não é oferecida pra lançamento digitado).
+//   · 'movimentacao' — transferência entre contas, aplicação, pró-labore: mexe
+//     no SALDO mas NÃO é receita nem despesa (fora do DRE e dos totais). Mesma
+//     regra de services/espelhoContaEmpresa.js no backend.
+export const CAT_A_CLASSIFICAR = 'a_classificar';
+export const CAT_MOVIMENTACAO = 'movimentacao';
+export const ehMovimentacao = (l: Pick<Lancamento, 'categoria'>) => l.categoria === CAT_MOVIMENTACAO;
 
 export const FORMAS_PAGAMENTO = [
   { v: 'dinheiro',      label: 'Dinheiro' },
@@ -268,6 +304,7 @@ export const categoriasDe = (tipo: TipoLancamento) =>
 
 export function labelCategoria(tipo: TipoLancamento, v?: string | null): string {
   if (!v) return 'Sem categoria';
+  if (v === CAT_A_CLASSIFICAR) return 'A classificar';
   return categoriasDe(tipo).find(c => c.v === v)?.label || v;
 }
 
@@ -281,10 +318,14 @@ export const fmtCent = (c: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((c || 0) / 100);
 
 /** Totais de um conjunto de lançamentos. Pendentes NÃO entram no caixa
- *  realizado — só contam quando pagos (senão o saldo do dia mente). */
+ *  realizado — só contam quando pagos (senão o saldo do dia mente).
+ *  ⚠️ Movimentação (transferência/aplicação) fica FORA de entradas e saídas:
+ *  é dinheiro mudando de lugar, não resultado. Ela continua no saldo de cada
+ *  conta (`saldoPorConta`). */
 export function totais(lancs: Lancamento[]) {
   let entradas = 0, saidas = 0, aPagar = 0;
   for (const l of lancs) {
+    if (ehMovimentacao(l)) continue;
     if (l.status === 'pendente') {
       if (l.tipo === 'saida') aPagar += l.valor;
       continue;
@@ -312,7 +353,12 @@ export function saldoPorConta(lancs: Lancamento[], contas: ContaNegocio[]) {
   }
   const linhas = contas.map(c => {
     const a = acc.get(c.id) || { entradas: 0, saidas: 0 };
-    return { conta: c, saldo: (c.saldo_inicial || 0) + a.entradas - a.saidas, ...a };
+    // ⚠️ Conta LIGADA ao banco mostra o saldo do banco: o caixa só tem as
+    // movimentações desde o vínculo, a soma local não chega no saldo real.
+    const saldo = c.wallet_id && c.saldo_banco != null
+      ? c.saldo_banco
+      : (c.saldo_inicial || 0) + a.entradas - a.saidas;
+    return { conta: c, saldo, ...a };
   });
   // "Sem conta" só aparece se houver movimento órfão (não polui quem já organizou).
   const orfao = acc.get('__sem__');

@@ -12,11 +12,12 @@ import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import ModalCentrosCusto from '@/components/negocios/ModalCentrosCusto';
 import {
   fmtCent, labelCategoria, labelForma, porDia, totais, saldoPorConta,
+  doBanco, ehMovimentacao, CAT_A_CLASSIFICAR,
   type Lancamento, type TipoLancamento, type ContaNegocio,
 } from '@/lib/lancamentos';
 import {
   ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Plus, Minus,
-  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers,
+  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark,
 } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
@@ -386,7 +387,11 @@ function Total({ rotulo, valor, cor, Icon }: { rotulo: string; valor: number; co
 function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => void; delay: number }) {
   const entrada = l.tipo === 'entrada';
   const pendente = l.status === 'pendente';
-  const cor = entrada ? '#16a34a' : '#ef4444';
+  // Movimentação (transferência/aplicação vinda do banco) não é resultado:
+  // cor NEUTRA e ícone próprio, pra não ler como receita ou despesa.
+  const mov = ehMovimentacao(l);
+  const aClassificar = l.categoria === CAT_A_CLASSIFICAR;
+  const cor = mov ? 'hsl(var(--muted-foreground))' : entrada ? '#16a34a' : '#ef4444';
   return (
     <button
       onClick={onClick}
@@ -395,13 +400,23 @@ function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => 
     >
       <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: `color-mix(in srgb, ${cor} 14%, transparent)` }}>
-        {entrada ? <ArrowUpRight size={16} style={{ color: cor }} /> : <ArrowDownRight size={16} style={{ color: cor }} />}
+        {mov ? <ArrowLeftRight size={16} style={{ color: cor }} />
+          : entrada ? <ArrowUpRight size={16} style={{ color: cor }} /> : <ArrowDownRight size={16} style={{ color: cor }} />}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-foreground truncate">{l.descricao}</span>
         <span className="block text-[11px] text-muted-foreground truncate">
-          {labelCategoria(l.tipo, l.categoria)}
-          {l.forma_pagamento ? ` · ${labelForma(l.forma_pagamento)}` : ''}
+          {/* Ícone + rótulo, nunca só cor (acessibilidade). */}
+          {doBanco(l) && (
+            <span className="inline-flex items-center gap-0.5 align-middle mr-1">
+              <Landmark size={10} aria-hidden /> Banco ·
+            </span>
+          )}
+          {aClassificar
+            ? <span className="font-semibold text-amber-600 dark:text-amber-500">A classificar</span>
+            : labelCategoria(l.tipo, l.categoria)}
+          {mov ? ' · fora do resultado' : ''}
+          {l.forma_pagamento && !doBanco(l) ? ` · ${labelForma(l.forma_pagamento)}` : ''}
           {l.contraparte ? ` · ${l.contraparte}` : ''}
           {l.criado_por_nome ? ` · por ${l.criado_por_nome}` : ''}
         </span>

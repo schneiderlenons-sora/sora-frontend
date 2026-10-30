@@ -1149,8 +1149,38 @@ leu como "não conectou" e desconectou a conta que funcionava.
 - ⚠️ **A conta PJ adotava a carteira MANUAL pessoal de mesmo nome do banco**
   (o "adota carteira manual de mesmo nome" do `upsertWallet`), misturando
   empresa e pessoal. Com o PJ aplicado antes da busca, só adota "… PJ".
-- **Próximo (plano aprovado):** levar a conta PJ pro Sora Negócios (caixa, DRE,
-  conciliação) — medir antes por simulação só leitura.
+
+### Conta do banco alimenta o caixa da EMPRESA — passo A (out/2026)
+
+Migration **189**. Decisões do dono: conta INTEIRA; em 2 passos; categoria
+neutra que a pessoa classifica. A conta da empresa (`contas_negocio.wallet_id`)
+é ligada a uma carteira do Open Finance e as transações entram em
+`lancamentos_negocio` (`transacao_id`, `origem='banco'`).
+
+- **Regra única:** `sora-backend/src/services/espelhoContaEmpresa.js`
+  (`eval:espelho-empresa`), rodada no fim do sync (`espelharDoConsentimento`),
+  ao vincular e no botão "trazer agora". Idempotente; índice único em
+  `transacao_id` segura passadas simultâneas.
+- ⚠️ **`movimentacao`** (transferência, aplicação, pagamento de fatura) mexe no
+  SALDO mas fica FORA de receita/despesa/DRE — `ehMovimentacao` no back
+  (`handlers/negocios.js` gerarDre, indicadores) E no front (`totais` em
+  `lib/lancamentos.ts`). Ponto novo que some receita/despesa do caixa: filtrar.
+- ⚠️ **Digitado à mão é JUNTADO** (mesmo sentido, valor no centavo, ≤3 dias,
+  1:1 pelo mais próximo; não junta "dinheiro" nem outra conta). A simulação na
+  base achou 8 duplicatas num cliente que já digitava o caixa.
+- ⚠️ **Órfão do reprocesso do agregador** (id novo) é religado, categoria intacta.
+- Banco manda em valor/data/sentido/situação (o PUT ignora, a tela mostra só
+  leitura); a pessoa manda na categoria. **Não se apaga** (409): voltaria no
+  sync — o caminho é classificar como Movimentação.
+- Começa no **1º do mês do vínculo** (meses fechados não são reescritos).
+- ⚠️ **Só o DONO da empresa vincula**, só carteira do grupo da empresa, só
+  corrente/poupança em real (cartão fica pra depois). Membro convidado de outro
+  grupo puxar o extrato do dono exporia a conta dele.
+- Conta ligada mostra o **saldo do banco** (`saldo_banco`, em centavos).
+- **Pendentes:** (1) **"aprende"** — regra por descrição pra classificar as
+  próximas sozinha (decisão 3 do dono: neutra + aprende; só a neutra foi
+  feita); (2) **passo B** — tirar a conta da empresa dos totais PESSOAIS
+  (dashboard, relatórios, categorias, limites, resumos), com medição própria.
 
 ## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
 
@@ -4216,6 +4246,7 @@ sql/185_davidson_conexao_anual.sql — restitui 1 conexão anual paga (davidson,
 sql/186_diagnostico_financeiro.sql — tabela diagnostico_financeiro: retratos do diagnóstico diário (JOB 1S + aba "Saúde financeira" do /admin). Sem ela a varredura roda mas não guarda. CONFIRMAR SE RODOU.
 sql/187_play_assinaturas.sql   — assinaturas da GOOGLE PLAY (tabela play_assinaturas + users.plano_fonte). **OBRIGATÓRIA antes de vender no app**: sem ela a compra não é registrada nem confirmada, e o Google reembolsa em 3 dias. Ver docs/PLAY-BILLING.md.
 sql/188_of_conexao_empresarial.sql — of_conexoes.empresarial: a conexão foi feita com CNPJ (só o FATO, nunca o número). Conta/cartão NOVO de conexão de empresa nasce "Mercado Pago PJ" em vez de "Mercado Pago (OF)". Sem ela tudo segue como antes (conexão vira pessoal). Base do Open Finance no Sora Negócios.
+sql/189_conta_empresa_banco.sql — contas_negocio.wallet_id/importar_desde + lancamentos_negocio.origem + índice único em transacao_id: a conta do banco alimenta o caixa da EMPRESA. Sem ela nada muda (ninguém consegue vincular; a tela avisa que falta a migration).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
