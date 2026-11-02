@@ -1529,6 +1529,9 @@ export const api = {
       /** Muda "esta conta é só da empresa" e aplica ao que ela já trouxe. */
       foraDoPessoal: (id: string, ativo: boolean) =>
         req<{ ok: boolean; fora_do_pessoal: boolean; mudaram: number }>(`/api/negocios/contas/${id}/fora-do-pessoal`, { method: 'POST', body: JSON.stringify({ ativo }) }),
+      /** Traz pro caixa os meses ANTERIORES ao vínculo ('YYYY-MM'): só recua, até 12 meses. */
+      trazerDesde: (id: string, mes: string) =>
+        req<{ ok: boolean; desde: string; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/trazer-desde`, { method: 'POST', body: JSON.stringify({ mes }) }),
       trazerDoBanco: (id: string) =>
         req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/espelhar`, { method: 'POST' }),
     },

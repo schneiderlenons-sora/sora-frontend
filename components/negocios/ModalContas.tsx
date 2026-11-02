@@ -66,6 +66,9 @@ export default function ModalContas({
   // Passo B (migration 192): "esta conta é só da empresa" — padrão SIM.
   const [soEmpresa, setSoEmpresa] = useState(true);
   const [mudandoPessoal, setMudandoPessoal] = useState<string | null>(null);
+  // "Trazer meses anteriores": qual conta está com o seletor aberto e o mês.
+  const [recuando, setRecuando] = useState<string | null>(null);
+  const [mesRecuo, setMesRecuo] = useState('');
 
   const resumoTrazido = (r: { inseridos: number; juntados: number; foraDoPessoal?: number }) => {
     const partes: string[] = [];
@@ -106,6 +109,39 @@ export default function ModalContas({
       await carregar();
     } catch (e: any) { setErro(e?.message || 'Não consegui mudar.'); }
     finally { setMudandoPessoal(null); }
+  }
+
+  // ── TRAZER MESES ANTERIORES (pedido do Robert, 01/11/2026) ─────────────
+  // A cópia pro caixa começa no mês do vínculo; o histórico que o banco já
+  // mandou (meses antes) ficava de fora. Aqui o dono escolhe até onde recuar
+  // — no máximo 12 meses, e só pra trás.
+  const mesesParaTras = (desde?: string | null) => {
+    const base = (desde || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })).slice(0, 7);
+    const [y, m] = base.split('-').map(Number);
+    const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
+    const [hy, hm] = hoje.split('-').map(Number);
+    const limite = new Date(Date.UTC(hy, hm - 1 - 12, 1)).toISOString().slice(0, 7);
+    const out: { v: string; rot: string }[] = [];
+    for (let k = 1; k <= 12; k++) {
+      const v = new Date(Date.UTC(y, m - 1 - k, 1)).toISOString().slice(0, 7);
+      if (v < limite) break;
+      const longo = new Date(Date.UTC(y, m - 1 - k, 15)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+      const rot = longo.charAt(0).toUpperCase() + longo.slice(1);
+      out.push({ v, rot });
+    }
+    return out;
+  };
+  async function trazerAnteriores(c: ContaNegocio) {
+    if (!mesRecuo) return;
+    setLigando(c.id); setErro(''); setAviso('');
+    try {
+      const r = await api.negocios.contas.trazerDesde(c.id, mesRecuo);
+      setAviso(resumoTrazido(r));
+      setRecuando(null);
+      await carregar();
+      onChanged?.();
+    } catch (e: any) { setErro(e?.message || 'Não consegui trazer os meses anteriores.'); }
+    finally { setLigando(null); }
   }
 
   async function atualizarDoBanco(c: ContaNegocio) {
@@ -175,7 +211,8 @@ export default function ModalContas({
               {contas.map(c => {
                 const Icon = iconeConta(c.tipo);
                 return (
-                  <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-xl border border-border/60 bg-muted/20">
+                  <div key={c.id} className="p-2.5 rounded-xl border border-border/60 bg-muted/20">
+                  <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted text-muted-foreground">
                       <Icon size={16} />
                     </div>
@@ -193,6 +230,16 @@ export default function ModalContas({
                         <p className="text-[11px] text-muted-foreground">
                           {c.saldo_banco != null && <>Saldo no banco: <span className="tabular">{fmtCent(c.saldo_banco)}</span> · </>}
                           traz desde {fmtDia(c.importar_desde)}
+                          {dono && mesesParaTras(c.importar_desde).length > 0 && recuando !== c.id && (
+                            <>
+                              {' · '}
+                              <button type="button"
+                                      onClick={() => { setRecuando(c.id); setMesRecuo(mesesParaTras(c.importar_desde)[1]?.v || mesesParaTras(c.importar_desde)[0].v); }}
+                                      className="font-semibold underline underline-offset-2" style={{ color: cor }}>
+                                trazer meses anteriores
+                              </button>
+                            </>
+                          )}
                         </p>
                       ) : null}
                       {c.wallet_id ? (
@@ -222,6 +269,32 @@ export default function ModalContas({
                     )}
                     <button onClick={() => editar(c)} aria-label="Editar" className="w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><Pencil size={14} /></button>
                     <button onClick={() => excluir(c.id)} aria-label="Excluir" className="w-9 h-9 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 size={14} /></button>
+                  </div>
+                  {recuando === c.id && (
+                    <div className="mt-2 p-2.5 rounded-xl space-y-2" style={{ background: `color-mix(in srgb, ${cor} 8%, transparent)` }}>
+                      <label className="block text-[11px] font-semibold text-foreground">
+                        Trazer as movimentações do banco desde
+                        <select value={mesRecuo} onChange={(e) => setMesRecuo(e.target.value)} disabled={ligando === c.id}
+                                className="mt-1 w-full h-10 px-2.5 rounded-lg bg-background border border-border/60 text-[13px] font-normal">
+                          {mesesParaTras(c.importar_desde).map((o) => <option key={o.v} value={o.v}>{o.rot}</option>)}
+                        </select>
+                      </label>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Entram no caixa como &quot;a classificar&quot; (as regras que a Sora aprendeu já classificam as conhecidas).
+                        O que você já tinha lançado à mão com o mesmo valor e data é juntado, não duplicado.
+                        {c.fora_do_pessoal !== false ? ' Elas também saem das suas finanças pessoais.' : ''}
+                      </p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => trazerAnteriores(c)} disabled={ligando === c.id || !mesRecuo}
+                                className="h-9 px-3 rounded-lg text-white text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
+                                style={{ background: cor }}>
+                          {ligando === c.id ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Trazer
+                        </button>
+                        <button type="button" onClick={() => setRecuando(null)} disabled={ligando === c.id}
+                                className="h-9 px-3 rounded-lg bg-muted text-foreground text-xs font-semibold">Cancelar</button>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 );
               })}

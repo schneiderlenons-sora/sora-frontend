@@ -1240,6 +1240,18 @@ Os quatro pendentes do pedido do Robert, todos na migration **192**.
     ali. Medido: 0 lançamentos marcados, nenhum número atual mudou.
 - De passagem: o **centro de custo** do formulário era descartado pela rota
   (POST e PUT). Agora grava, só se for da própria empresa.
+- **192 RODADA em 02/11/2026.** Testado ponta a ponta no banco real (conta de
+  teste, 26/26): série semanal/mensal/anual, aplicar às próximas, parar,
+  vínculo, aprende, Regras aprendidas, fora do pessoal, desvincular.
+- **"Trazer meses anteriores"** (`POST /contas/:id/trazer-desde { mes }`,
+  `validarTrazerDesde`, no `eval:espelho-empresa`): o histórico da conta do
+  banco JÁ está na Sora (o OF traz meses de movimento), mas a cópia pro caixa
+  começa no mês do vínculo. O dono recua até 12 meses (só pra trás); os
+  snapshots de DRE dos meses fechados afetados são apagados pra recalcular.
+  ⚠️ Religar a conta volta o início pro mês atual (o que já entrou fica).
+- ⚠️ Aviso de migration pendente nunca vai pro cliente com jargão ("falta
+  rodar a migration 192 no Supabase" chegou ao Robert): texto pra cliente na
+  resposta, detalhe técnico no `console.warn`.
 
 ## Renomear conta/cartão — `PUT /api/wallets/:id` (ago/2026)
 
