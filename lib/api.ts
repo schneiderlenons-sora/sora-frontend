@@ -742,6 +742,8 @@ export const api = {
       data?: string; valor?: number; carteira_nome?: string | null;
       /** Cobrança do banco que JÁ é o pagamento: amarra em vez de criar. */
       transacao_id?: string;
+      /** Registra o pagamento SEM descontar de conta nenhuma (nov/2026). */
+      sem_conta?: boolean;
     }) => req<any>('/api/previstos/quitar', { method: 'POST', body: JSON.stringify(body) }),
     ajuste: (body: {
       recorrencia_id: string; competencia: string;

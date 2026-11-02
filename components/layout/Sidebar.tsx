@@ -28,6 +28,7 @@ import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
+import { useSWRConfig } from 'swr';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import { useEhAndroid, useEhAppIos } from '@/lib/useOrigem';
 import type { Feature } from '@/lib/plans';
@@ -147,6 +148,10 @@ function PainelOpcao({ ativo, titulo, sub, onClick, logo, icon: Icon }:
 export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
+  // O aquecimento de dados grava no cache DO APP (localStorageProvider), nunca
+  // no padrão do SWR — ver o porquê em lib/prefetch.ts.
+  const { cache: swrCache, mutate: swrMutate } = useSWRConfig();
+  const cacheSWR = { cache: swrCache, mutate: swrMutate };
   const { perfil, phone, signOut, podeUsar, temNegocios, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
   // Conformidade com a política do Play Console — ver `semAndroid` em
@@ -205,7 +210,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       // Dados primeiro: são as 3 chamadas que TODAS as abas compartilham
       // (wallets, categorias, resumo) e o dashboard já as pediu — com as chaves
       // de `lib/chaves-swr.ts` isto custa ZERO requisição extra.
-      prefetchTopTabs(phone);
+      prefetchTopTabs(phone, cacheSWR);
 
       for (let i = 0; i < rotas.length; i += LOTE) {
         const fatia = rotas.slice(i, i + LOTE);
@@ -559,7 +564,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         // Hover no desktop prefetcha ROTA + DADOS daquela aba → o clique já
         // encontra tudo pronto. No mobile NÃO: prefetch no touchstart adiciona
         // jank ao próprio toque, e o aquecimento ocioso já baixou a rota.
-        onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone); }}
+        onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone, cacheSWR); }}
         // visível, então o prefetch automático do Next baixava TODAS as rotas de
         // uma vez — e /investimentos, /metas, /relatorios e /juros carregam
         // recharts (~288 KB cada). Medido: 3 MB de JS no dashboard sem desenhar

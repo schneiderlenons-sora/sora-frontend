@@ -21,6 +21,8 @@ import { useConexoesOF } from '@/lib/conexao-of';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
 } from '@/lib/saldo-projetado';
+import FaturasNaPrevisao from '@/components/previstos/FaturasNaPrevisao';
+import { previstosRestantesDoMes, pendentesDoCaixa, nomesDeCartao, itensDoSaldoProjetado } from '@/lib/ainda-vem-mes';
 import {
   projetarMeses, primeiroMesNoVermelho, ymHojeSP, somarMeses, distanciaMeses,
   linhasDoMes, type MesProjetado, type LinhaMes,
@@ -158,7 +160,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     data: recData, mutate: recarregarRec,
   } = useApi(phone ? chave.recorrencias(phone) : null, () => api.recorrencias.listar(phone));
   const { data: divData, mutate: mutDiv } = useApi(phone ? chave.dividas(phone) : null, () => api.dividas.listar(phone));
-  const { data: fatData }  = useApi(phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
+  const { data: fatData, mutate: mutFat } = useApi(phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
   const { data: walData, mutate: mutWal } = useApi(phone ? chave.wallets(phone) : null, () => api.wallets.listar(phone));
   const { data: resData }  = useApi(phone ? chave.resumo(phone, ymRef) : null, () => api.transacoes.resumo(phone, ymRef));
   // O ano inteiro alimenta os gráficos históricos — mesma fonte do Relatórios,
@@ -300,8 +302,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // Duas listagens porque a janela do extrato cruza o mês. As chaves são as
   // CANÔNICAS de `lib/chaves-swr.ts`, então se a aba Transações já carregou o
   // mês corrente, aqui não custa requisição nenhuma.
+  // ⚠️ SEMPRE carregada (antes só com o Extrato aberto): a manchete "fecha o
+  // mês em" precisa dos lançamentos PENDENTES do mês — previsto único, conta
+  // "só prever" que o cron já criou. A chave é a canônica, então quem veio da
+  // aba Transações não paga requisição.
   const { data: txA, mutate: mutTxA } = useApi(
-    ligado ? chave.transacoes(phone, { mes: ymHoje, limit: 500 }) : null,
+    phone ? chave.transacoes(phone, { mes: ymHoje, limit: 500 }) : null,
     () => api.transacoes.listar(phone, { mes: ymHoje, limit: 500 }),
   );
   const { data: txB, mutate: mutTxB } = useApi(
@@ -350,6 +356,13 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   }
 
   const [erroContaFatura, setErroContaFatura] = useState<string | null>(null);
+  // ⚠️ ERRO DAS AÇÕES DO EXTRATO (Paguei, Pular, Adiar…) agora APARECE. Antes
+  // era `catch {}`: o botão falhava (rede, data inválida, conta apagada) e a
+  // tela não dizia nada — pra quem tocou, "o botão não funciona".
+  const [erroAcaoExtrato, setErroAcaoExtrato] = useState<string | null>(null);
+  // `body.mensagem` é o texto pra pessoa; `message` às vezes é só o código.
+  const falhou = (e: unknown) => setErroAcaoExtrato(
+    (e as any)?.body?.mensagem || (e as Error)?.message || 'Não consegui salvar agora. Tente de novo.');
   async function definirContaFatura(cartaoId: string, contaId: string | null) {
     setErroContaFatura(null);
     try {
@@ -393,6 +406,29 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     };
   }, [txA, txB, txExtra, ateExtrato, saldoPartida, recorrencias, dividas, faturas, contaQuePaga, contaDaDivida, ocorrData, carteiraExtrato]);
 
+  // ── CONSIDERAR / NÃO CONSIDERAR A FATURA (wallets.nos_previstos, 123) ────
+  // Otimista: a manchete e a projeção mudam no toque; se o servidor recusar,
+  // volta ao que era E diz por quê (antes a falha era silenciosa).
+  const [mexendoFatura, setMexendoFatura] = useState<string | null>(null);
+  const [erroFatura, setErroFatura] = useState<string | null>(null);
+  async function alternarFatura(cartaoId: string, considerar: boolean) {
+    setMexendoFatura(cartaoId); setErroFatura(null);
+    const trocar = (cur: any) => cur && ({
+      ...cur,
+      faturas: (cur.faturas || []).map((x: any) => (x.cartao_id === cartaoId ? { ...x, nos_previstos: considerar } : x)),
+    });
+    try {
+      await mutFat(trocar, { revalidate: false });
+      await api.wallets.editar(cartaoId, { nos_previstos: considerar });
+      await Promise.all([mutFat(), mutWal?.()]);
+    } catch (e) {
+      await mutFat();
+      setErroFatura((e as Error)?.message || 'Não consegui salvar. Tente de novo.');
+    } finally {
+      setMexendoFatura(null);
+    }
+  }
+
   const contasPagamento = useMemo(
     () => wallets.filter((w) => w.tipo !== 'Crédito' && !w.arquivada).map((w) => ({ id: String(w.id), nome: String(w.nome) })),
     [wallets],
@@ -415,6 +451,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   async function acaoExtrato(a: AcaoOcorrencia) {
     const { linha, acao } = a;
     if (!linha.recorrenciaId || !linha.competencia) return;
+    setErroAcaoExtrato(null);
     const base = { recorrencia_id: linha.recorrenciaId, competencia: linha.competencia };
 
     // ── Correções de uma linha JÁ LANÇADA (Fase C) ──────────────────────────
@@ -441,8 +478,9 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         });
         // O PUT mexe no SALDO da conta — sem recarregar as carteiras o saldo
         // de partida do extrato ficava velho até a próxima revalidação.
-        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
-      } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+        // `recarregarRec`: a manchete lê `resolvida_no_mes` da lista de contas fixas.
+        await Promise.all([recarregarOcorr(), recarregarRec(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
+      } catch (e) { falhou(e); }
       finally { setQuitandoRec(null); }
       return;
     }
@@ -451,13 +489,19 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       setQuitandoRec(linha.recorrenciaId);
       if (acao === 'quitar') {
         await api.previstos.quitar({
-          ...base, data: a.data, valor: a.valor, carteira_nome: linha.carteira ?? null,
+          ...base, data: a.data, valor: a.valor,
+          // Conta escolhida na tela (ou nenhuma: `sem_conta`). Sem escolha, a
+          // da previsão — o comportamento de antes.
+          ...(a.conta === null
+            ? { sem_conta: true }
+            : { carteira_nome: (a.conta ?? linha.carteira) ?? null }),
           ...(a.transacaoBanco ? { transacao_id: a.transacaoBanco } : {}),
         });
         // ⚠️ A baixa agora DEBITA o saldo da conta manual e cria a linha paga:
         // o extrato precisa das duas coisas juntas. Com só uma, a linha paga
         // sairia "já no saldo" contra um saldo que ainda não a descontou.
-        await Promise.all([recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
+        // `recarregarRec`: a manchete lê `resolvida_no_mes` da lista de contas fixas.
+        await Promise.all([recarregarOcorr(), recarregarRec(), mutTxA?.(), mutTxB?.(), mutTxExtra?.(), mutWal?.()]);
         return;
       } else if (acao === 'ajustar-valor') {
         // ⚠️ `status: 'valor'` mantém a previsão ABERTA e só troca o número —
@@ -479,8 +523,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         if (!a.data) return;
         await api.previstos.ajuste({ ...base, status: 'movido', nova_data: a.data });
       }
-      await recarregarOcorr();
-    } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+      await Promise.all([recarregarOcorr(), recarregarRec()]);
+    } catch (e) { falhou(e); }
     finally { setQuitandoRec(null); }
   }
 
@@ -504,7 +548,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         transacao_id: transacaoId,
       });
       await Promise.all([recarregarPassado(), recarregarOcorr(), mutTxA?.(), mutTxB?.(), mutTxExtra?.()]);
-    } catch { /* a tela recarrega; erro silencioso não trava o usuário */ }
+    } catch (e) { falhou(e); }
     finally { setQuitandoRec(null); }
   }
 
@@ -517,7 +561,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         recorrencia_id: p.recorrenciaId, competencia: p.competencia, status: 'pulado',
       });
       await recarregarPassado();
-    } catch { /* idem */ }
+    } catch (e) { falhou(e); }
     finally { setQuitandoRec(null); }
   }
 
@@ -553,32 +597,33 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // ⚠️ SAI DO MESMO `calcularSaldoProjetado` do card da aba Transações e do
   // Relatórios. Três telas respondendo "quanto sobra" com contas diferentes foi
   // o defeito que a gente acabou de corrigir — não vou reintroduzi-lo aqui.
-  const previstosDoMes = useMemo(() => {
-    // ⚠️ `itemPrevistoDe` em vez de escolher campo a campo: montado à mão,
-    // o objeto perdia frequência e duração (migration 157) sem avisar, e a
-    // conta anual voltava a ser cobrada todo mês.
-    const itens = recorrencias
-      .map((r: any) => itemPrevistoDe(r))
-      .filter((i) => vezesQueAindaVem(i) > 0);
-    const parc = dividas
-      .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false
-        && aindaVemNoMes({ tipo: 'Gasto', valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }))
-      .map((d: any) => ({ tipo: 'Gasto' as const, valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }));
-    const fat = faturas
-      .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false
-        && aindaVemNoMes({ tipo: 'Gasto', valor: f.restante, dia_vencimento: 0, venc: f.venc }))
-      .map((f: any) => ({ tipo: 'Gasto' as const, valor: f.restante, dia_vencimento: 0, venc: f.venc }));
-    return { itens, extras: [...parc, ...fat] };
-  }, [recorrencias, dividas, faturas]);
-
+  // ⚠️ FONTE ÚNICA (lib/ainda-vem-mes.ts) com o card da aba Transações e os
+  // Relatórios. Antes esta tela montava a lista à mão e contava DUAS VEZES a
+  // conta fixa paga antes do vencimento (o valor já tinha saído do saldo e
+  // seguia "a pagar" — 23 casos em out/2026) e a parcela de dívida paga
+  // adiantada (19); e deixava de fora os lançamentos PENDENTES do mês.
+  const restantesDoMes = useMemo(
+    () => previstosRestantesDoMes({ recorrencias: recorrencias as any, dividas, faturas: faturas as any }),
+    [recorrencias, dividas, faturas],
+  );
+  const pendentesMes = useMemo(
+    () => pendentesDoCaixa((txA as any)?.transacoes, nomesDeCartao(wallets)),
+    [txA, wallets],
+  );
   const proj = useMemo(
     () => calcularSaldoProjetado(
       wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
-      previstosDoMes.itens,
-      previstosDoMes.extras,
+      itensDoSaldoProjetado(restantesDoMes, pendentesMes),
     ),
-    [wallets, previstosDoMes, moedaBase],
+    [wallets, restantesDoMes, pendentesMes, moedaBase],
   );
+  // ⚠️ A fatura que vence no MÊS SEGUINTE já está no "ainda sai" deste mês
+  // (é dinheiro a guardar). Projetada de novo no mês dela, saía DUAS vezes do
+  // saldo acumulado — e o "fica no vermelho em…" chegava antes da hora.
+  const faturasProjecao = useMemo(() => {
+    const noMes0 = new Set(restantesDoMes.filter((r) => r.chave.startsWith('fat:')).map((r) => r.chave.slice(4)));
+    return (faturas as FaturaCartao[]).filter((f) => !(noMes0.has(String(f.cartao_id)) && String(f.venc || '').slice(0, 7) > ymHoje));
+  }, [faturas, restantesDoMes, ymHoje]);
 
   const projecao = useMemo<MesProjetado[]>(() => projetarMeses({
     inicio: ymHoje,
@@ -586,7 +631,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     saldoInicial: saldoHoje,
     recorrencias,
     dividas,
-    faturas,
+    faturas: faturasProjecao,
     realizado: resumo && offset === 0
       ? { receitas: resumo.receitas || 0, gastos: resumo.gastos || 0 }
       : undefined,
@@ -595,7 +640,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     // tela isso aparecia como a manchete dizendo que o mês fecha em R$ 52,85
     // e a projeção do MESMO mês, logo abaixo, dizendo R$ 154,02.
     restante: { receitas: proj.aReceber, gastos: proj.aPagar },
-  }), [ymHoje, saldoHoje, recorrencias, dividas, faturas, resumo, offset, proj]);
+  }), [ymHoje, saldoHoje, recorrencias, dividas, faturasProjecao, resumo, offset, proj]);
 
   const vermelho = useMemo(() => primeiroMesNoVermelho(projecao), [projecao]);
 
@@ -658,20 +703,6 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   );
 
 
-  if (carregando) return <SectionSkeleton />;
-
-  if (semSessao) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="max-w-sm text-center">
-          <p className="text-base font-semibold text-foreground">Entre para ver seus previstos</p>
-          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-            Esta aba mostra o que ainda vai entrar e sair da sua conta.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
   // 'novo' = criando · um item = editando ESSE item · null = fechado.
@@ -910,6 +941,28 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   const receitas = recorrencias.filter((r: any) => r.tipo === 'Recebimento');
   const despesas = recorrencias.filter((r: any) => r.tipo === 'Gasto');
 
+  // ⚠️ OS RETORNOS ANTECIPADOS FICAM AQUI, DEPOIS DE TODOS OS HOOKS (nov/2026).
+  // Ficavam no meio do componente, com ~15 hooks (useState do formulário,
+  // useMemo/useCallback da composição) DEPOIS deles. Quem abria a aba sem
+  // cache (primeira visita, outro aparelho, depois de sair e entrar) via o
+  // esqueleto no 1º render e, quando os dados chegavam, o React executava mais
+  // hooks do que antes e derrubava a página ("This page couldn't load", erro
+  // #310) — reproduzido em produção com uma conta nova. Hook novo entra ACIMA.
+  if (carregando) return <SectionSkeleton />;
+
+  if (semSessao) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="max-w-sm text-center">
+          <p className="text-base font-semibold text-foreground">Entre para ver seus previstos</p>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+            Esta aba mostra o que ainda vai entrar e sair da sua conta.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-24 space-y-5">
 
@@ -999,7 +1052,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           contasPagamento={contasPagamento}
           onContaFatura={definirContaFatura}
           onContaDivida={definirContaDivida}
-          erroContaFatura={erroContaFatura}
+          erroContaFatura={erroContaFatura || erroAcaoExtrato}
           onAcao={acaoExtrato}
           ocupado={quitandoRec}
           sugestoes={(ocorrData as any)?.sugestoes ?? []}
@@ -1075,6 +1128,18 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
           confirmando={confirmando}
           onConfirmar={setConfirmando}
           removendo={removendo}
+        />
+      )}
+
+      {/* Considerar ou não a fatura de cada cartão — nas abas que SOMAM a
+          fatura (Projeção, Caixa e Extrato). A fatura de fora segue listada,
+          desligada: é ela que deixa voltar atrás. */}
+      {(aba === 'projecao' || aba === 'caixa' || aba === 'extrato') && (
+        <FaturasNaPrevisao
+          faturas={faturas as any}
+          ocupado={mexendoFatura}
+          erro={erroFatura}
+          onAlternar={alternarFatura}
         />
       )}
     </div>

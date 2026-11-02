@@ -18,9 +18,8 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
-import {
-  aindaVemNoMes, diaHojeSP, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
-} from '@/lib/saldo-projetado';
+import { calcularSaldoProjetado } from '@/lib/saldo-projetado';
+import { previstosRestantesDoMes } from '@/lib/ainda-vem-mes';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
   Filter, BarChart3, PieChart as PieIcon, LineChart as LineIcon,
@@ -409,95 +408,17 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
   //   · `nao_lancar`      → nunca cria nada  → entra a partir de HOJE;
   //   · `lancar`/`prever` → cria no dia      → entra só se ainda FALTAM dias.
   // No dia do vencimento o cron já rodou e quem responde é a transação.
-  const previstosFixos = useMemo(() => {
-    const lista = Array.isArray(recData) ? recData : [];
-    const diaHoje = diaHojeSP();
-    // ⚠️ Migration 157: quando a frequência NÃO é mensal, "ainda vem" deixa
-    // de ser sim/não. A anual só cai no mês dela — sem esta contagem, o IPVA
-    // apareceria como "ainda vai sair" em TODO mês do ano. A semanal cai
-    // várias vezes, e o que falta até o fim do mês é valor × ocorrências.
-    // Mensal continua no caminho antigo, incluindo a regra de
-    // `modo_lancamento` logo abaixo (no dia do vencimento o cron já rodou e
-    // quem responde é a transação, não a recorrência).
-    return lista
-      // ⚠️ CONTA JÁ PAGA NÃO "AINDA VENCE". `resolvida_no_mes` vem do servidor
-      // (services/resolvidasNoMes.js), a MESMA regra do cron e do resumo do
-      // WhatsApp — refazer a conta aqui criaria uma 4ª cópia divergente.
-      // Relato de set/2026: o cliente pagou luz, gás e internet no dia 21,
-      // ANTES do vencimento (25, 26 e 28), e as três seguiram neste card: a
-      // lógica abaixo só compara DIA, e nunca perguntava se já tinha sido
-      // paga. Cobre também a conta "pulada" no mês.
-      .filter((r: any) => !r.resolvida_no_mes)
-      .map((r: any) => {
-        const item = itemPrevistoDe(r);
-        const naoMensal = !!r.frequencia && r.frequencia !== 'mensal';
-        const vezes = naoMensal
-          ? vezesQueAindaVem(item)
-          : ((r.modo_lancamento || 'lancar') === 'nao_lancar'
-            ? (aindaVemNoMes(item) ? 1 : 0)
-            : (Number(r.dia_vencimento) > diaHoje ? 1 : 0));
-        return { r, vezes };
-      })
-      .filter((x: any) => x.vezes > 0)
-      .map(({ r, vezes }: any) => ({
-        chave: `rec:${r.id}`,
-        titulo: r.descricao || r.categoria || 'Conta fixa',
-        tipo: r.tipo as string,
-        valor: (Number(r.valor) || 0) * vezes,
-        dia: Number(r.dia_vencimento) || 0,
-        variavel: !!r.valor_variavel,
-        origem: vezes > 1 ? `Conta fixa · ${vezes}x no mês` : 'Conta fixa',
-      }));
-  }, [recData]);
-
-  // Parcela de dívida e fatura de cartão também são saída prevista do mês —
-  // as duas já entram no card da aba Transações, e ficar de fora aqui
-  // reproduziria a mesma divergência que este bloco existe pra fechar.
-  // `nos_previstos !== false` (migrations 115 e 123) respeita quem tirou o
-  // item da previsão; `!== false` e não `=== true` porque antes da migration
-  // a coluna não vem e o certo é MOSTRAR.
-  const previstosDivida = useMemo(() => {
-    const lista = (divData as any)?.dividas || [];
-    return lista
-      .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0
-        && d.nos_previstos !== false
-        && aindaVemNoMes({ tipo: 'Gasto', valor: d.valor_parcela, dia_vencimento: d.dia_vencimento }))
-      .map((d: any) => ({
-        chave: `div:${d.id}`,
-        titulo: d.titulo || 'Dívida',
-        tipo: 'Gasto',
-        valor: Number(d.valor_parcela) || 0,
-        dia: Number(d.dia_vencimento) || 0,
-        variavel: false,
-        origem: 'Parcela de dívida',
-      }));
-  }, [divData]);
-
-  const previstosFatura = useMemo(() => {
-    // Na moeda do GRUPO (migration 168): a pendência entra num total com as
-    // outras. Cartão na base: o mesmo objeto. Sem câmbio fica fora.
-    const lista = ((fatData as any)?.faturas || []).map((f: FaturaCartao) => faturaNaBase(f, moedaBase)).filter(Boolean);
-    return lista
-      .filter((f: any) => Number(f.restante) > 0.01 && f.nos_previstos !== false
-        // A data INTEIRA manda: o ciclo do cartão cruza meses, e reduzido ao
-        // dia um vencimento 13/10 viraria "13" e seria lido como já vencido.
-        && aindaVemNoMes({ tipo: 'Gasto', valor: f.restante, dia_vencimento: 0, venc: f.venc }))
-      .map((f: any) => ({
-        chave: `fat:${f.cartao_id}`,
-        titulo: `Fatura ${f.nome || 'do cartão'}`,
-        tipo: 'Gasto',
-        valor: Number(f.restante) || 0,
-        dia: parseInt(String(f.venc || "").slice(8, 10), 10) || 0,
-        variavel: false,
-        origem: 'Fatura de cartão',
-      }));
-  }, [fatData, moedaBase]);
-
-  const previstos = useMemo(
-    () => [...previstosFixos, ...previstosDivida, ...previstosFatura]
-      .sort((a, b) => a.dia - b.dia),
-    [previstosFixos, previstosDivida, previstosFatura],
-  );
+  // ⚠️ FONTE ÚNICA (lib/ainda-vem-mes.ts) com a aba Previstos e o card da aba
+  // Transações. As regras de conta fixa são as que moravam aqui (o eval prova
+  // regressão zero contra a cópia congelada); o que mudou é a DÍVIDA, que
+  // agora usa `proximoVencimento` — a parcela paga adiantada saía como "ainda
+  // vence" (19 casos em out/2026).
+  const previstos = useMemo(() => previstosRestantesDoMes({
+    recorrencias: Array.isArray(recData) ? recData : [],
+    dividas: (divData as any)?.dividas || [],
+    // Na moeda do GRUPO (migration 168). Cartão na base: o mesmo objeto. Sem câmbio fica fora.
+    faturas: ((fatData as any)?.faturas || []).map((f: FaturaCartao) => faturaNaBase(f, moedaBase)).filter(Boolean),
+  }), [recData, divData, fatData, moedaBase]);
   const prevReceber = previstos.filter((i) => i.tipo === "Recebimento");
   const prevPagar   = previstos.filter((i) => i.tipo === "Gasto");
   const somaPrev = (l: any[]) => l.reduce((s, i) => s + (i.valor || 0), 0);

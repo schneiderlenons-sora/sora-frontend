@@ -137,6 +137,8 @@ export type TransacaoExtrato = {
   pago?: boolean | null;
   transferencia?: boolean | null;
   recorrencia_id?: string | null;
+  /** 'YYYY-MM' da ocorrência que este lançamento pagou (com `recorrencia_id`). */
+  competencia?: string | null;
 };
 
 /** Marcas que o CRON escreve em `observacao` ao materializar uma ocorrência. */
@@ -232,6 +234,11 @@ export function montarExtrato(params: {
       estimado: false,
       transacaoId: t.id,
       recorrenciaId: t.recorrencia_id || null,
+      // ⚠️ SEM ISTO "AINDA NÃO PAGUEI" E A CORREÇÃO DE DATA/VALOR NUNCA
+      // FUNCIONARAM (nov/2026): a ação da tela exige `competencia` e sai calada
+      // sem ela — e a linha de LANÇAMENTO nunca a carregava. Sem a coluna
+      // (lançamento antigo), o mês da própria data é a competência.
+      competencia: t.recorrencia_id ? (t.competencia || String(t.data).slice(0, 7)) : null,
       // Paga = o dinheiro já saiu/entrou e o saldo das contas já reflete isso.
       jaNoSaldo: t.pago !== false,
     });

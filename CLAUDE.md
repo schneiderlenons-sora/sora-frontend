@@ -2026,6 +2026,52 @@ como saldo de uma conta com R$ 5.217,71).
   20/09 seriam lançadas de novo. Semanal fica de fora (a chave é mensal);
   aviso antecipado também (pode ser do mês seguinte).
 
+## Previstos: auditoria de ponta a ponta (nov/2026)
+
+Pedido do dono ("tenho a impressão de que algo está errado"). Testado com conta
+de teste real (apagada depois) + medição só-leitura na base. Achados e fixes:
+
+- ⚠️ **A ABA PREVISTOS QUEBRAVA EM PRODUÇÃO** ("This page couldn't load", erro
+  React #310) pra quem abria sem cache: ~15 hooks ficavam DEPOIS do
+  `if (carregando) return`. Os retornos antecipados agora ficam no fim, depois
+  de todos os hooks. **Hook novo nessa tela entra ACIMA deles.**
+- ⚠️ **"VAI SOBRAR" TEM FONTE ÚNICA: `lib/ainda-vem-mes.ts`** (`eval:ainda-vem-mes`,
+  com 3.000 casos de regressão contra a regra antiga dos Relatórios). Card da
+  Transações, manchete da aba Previstos e Relatórios montavam a lista cada um:
+  conta fixa paga ANTES do vencimento (23 em out/2026) e parcela de dívida paga
+  adiantada (19) eram contadas DUAS VEZES (saíam do saldo e seguiam "a pagar");
+  pendentes (previsto único, "só prever" já lançado) ficavam fora de duas telas.
+  Dívida usa `proximoVencimento` (a regra do card e do Extrato).
+- A fatura que vence no mês seguinte entra no "vai sobrar" do mês (decisão
+  antiga) — por isso a projeção de vários meses a TIRA do mês dela
+  (`faturasProjecao`), senão saía 2× do saldo acumulado.
+- O card usa o ESTADO da linha (paga/lançada/pulada) na hora; a aba recarrega
+  as contas fixas depois de cada ação (`resolvida_no_mes` só vem do servidor).
+- ⚠️ **`preload` DO SWR DEVOLVIA DADO VELHO EM TODO O APP.** Ele guarda a
+  requisição no cache PADRÃO; o app usa o `localStorageProvider`, e o `mutate()`
+  pós-ação limpa só o do app — a 1ª revalidação depois de um pré-carregamento
+  recebia a promessa antiga sem ir ao servidor (saldo "não mudava" depois de
+  pagar). `lib/prefetch.ts` agora grava no cache do app (`aquecer`), só se não
+  houver dado. **Não voltar a usar `preload` com provider customizado.**
+- ⚠️ **"Ainda não paguei" e corrigir data/valor no Extrato NUNCA funcionaram:**
+  a linha de lançamento não levava `competencia` e a ação saía calada.
+  `montarExtrato` agora a preenche (`eval:extrato-futuro` §17). Erros das ações
+  do Extrato passaram a aparecer na tela (eram `catch {}`).
+- **"Marcar pago" sem descontar de conta** (pedido do dono): `sem_conta: true`
+  em `/previstos/quitar` registra o pagamento (despesa do mês, sai da previsão,
+  cron não relança) sem mexer em saldo; "Saiu de" escolhe outra conta (tem de
+  existir: 400 `conta_inexistente`). `eval:quitacao` §11. O seletor obrigatório
+  de lançamento agora só vale pra conta do BANCO (`baixaPrecisaVincular(i,
+  { contaDoBanco })`) — 36 contas fixas sem Open Finance estavam presas nele.
+- **Fatura nos previstos**: bloco `FaturasNaPrevisao` (interruptor por cartão)
+  nas abas Projeção/Caixa/Extrato; no card da Transações o "Não considerar"
+  ficou visível (era um olho de 11px só no hover).
+- **Não corrigido (anotado):** aviso de hydration na 2ª visita à aba Previstos
+  (existe em produção também; o React refaz a tela, nada quebra); e a fatura
+  ABERTA do mês seguinte (compras de hoje num cartão que já fechou) não entra
+  na projeção de meses futuros — limitação antiga ("projetar fatura seria
+  inventar").
+
 ## Conta paga ANTES do vencimento continuava "a vencer" (set/2026)
 
 Relato de cliente: pagou **Luz, Gás e Internet no dia 21** — antes dos

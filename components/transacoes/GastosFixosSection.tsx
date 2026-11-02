@@ -7,7 +7,7 @@ import {
   Bell, ChevronDown, Link2, EyeOff, TrendingUp, Wallet as WalletIcon, Clock,
 } from 'lucide-react';
 import { api, type ModoLancamentoFixo, type SugestaoCategoriaFixa } from '@/lib/api';
-import { mutate as mutateGlobal, useSWRConfig } from 'swr';
+import useSWR, { mutate as mutateGlobal, useSWRConfig } from 'swr';
 import { chave } from '@/lib/chaves-swr';
 import FormRecorrencia from '@/components/previstos/FormRecorrencia';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
@@ -81,7 +81,8 @@ import {
 } from '@/lib/previstos-mes';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
-import { faturaNaBase } from '@/lib/moeda';
+import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
+import { previstosRestantesDoMes, pendentesDoCaixa, nomesDeCartao, itensDoSaldoProjetado } from '@/lib/ainda-vem-mes';
 
 // `saldo` sempre vem (a rota faz `select('*')`) — o tipo é que não declarava,
 // e sem ele o saldo projetado somaria `undefined` e daria sempre zero.
@@ -257,7 +258,9 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
   // aqui e o vínculo sai por `vincularOcorrencia` logo abaixo.
   const [vinculando, setVinculando] = useState<Recorrencia | null>(null);
 
-  const anteciparOcorrencia = useCallback(async (item: Recorrencia, transacaoId?: string) => {
+  // `conta`: undefined = a da conta fixa (comportamento antigo); string = a
+  // conta escolhida na confirmação; null = "não descontar de nenhuma conta".
+  const anteciparOcorrencia = useCallback(async (item: Recorrencia, transacaoId?: string, conta?: string | null) => {
     setOcupadoAntecipar(item.id);
     setErroAntecipar(null);
     try {
@@ -272,7 +275,9 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
           : {
             data: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
             valor: Number(item.valor) || undefined,
-            carteira_nome: item.carteira ?? null,
+            ...(conta === null
+              ? { sem_conta: true }
+              : { carteira_nome: (conta ?? item.carteira) ?? null }),
           }),
       });
       marcarPaga(item.id, Number(item.valor) || null);
@@ -283,7 +288,8 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
       const pref = [`d:tx:${phone}:`, `d:wallets:${phone}`, `d:resumo:${phone}:`, `d:ocorrencias:${phone}:`];
       mutateRef.current((k: unknown) => typeof k === 'string' && pref.some((p) => k.startsWith(p)));
     } catch (e) {
-      setErroAntecipar({ id: item.id, msg: (e as Error)?.message || 'Não consegui registrar agora. Tente de novo.' });
+      // `body.mensagem` é o texto pra pessoa; `message` às vezes é só o código.
+      setErroAntecipar({ id: item.id, msg: (e as any)?.body?.mensagem || (e as Error)?.message || 'Não consegui registrar agora. Tente de novo.' });
     } finally {
       setOcupadoAntecipar(null);
     }
@@ -499,30 +505,42 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
   // "Com o que ainda vai entrar e sair, como eu termino o mês?" — pedido de
   // cliente. A aritmética (e o cuidado de não contar duas vezes o que já
   // venceu) mora em lib/saldo-projetado.ts, com eval próprio.
+  // ⚠️ FONTE ÚNICA (lib/ainda-vem-mes.ts) com a aba Previstos e os Relatórios.
+  // Antes este card passava TODAS as contas fixas e dívidas só pelo filtro de
+  // data: a conta paga antes do vencimento (23 casos em out/2026) e a parcela
+  // paga adiantada (19) saíam do saldo E continuavam "a pagar" — contadas duas
+  // vezes no "vai sobrar". E os lançamentos PENDENTES do mês ficavam de fora.
+  //
+  // Os pendentes vêm da chave CANÔNICA do mês corrente — a mesma que a lista
+  // desta página usa quando está no mês atual, então não custa requisição.
+  // `useSWR` direto (não `useApi`): é dado secundário, não pode cobrir a
+  // página com a tela de carregamento.
+  const ymAtual = mesAtualSP();
+  const { data: txMesAtual } = useSWR(
+    phone ? chave.transacoes(phone, { mes: ymAtual, limit: 500 }) : null,
+    () => api.transacoes.listar(phone as string, { mes: ymAtual, limit: 500 }),
+    { revalidateOnFocus: false, dedupingInterval: 4000 },
+  );
+  // ⚠️ O ESTADO DA LINHA VALE NA HORA. `resolvida_no_mes` vem do servidor
+  // junto com a lista e só muda quando ela é recarregada — sem isto, marcar
+  // uma conta como paga tirava o dinheiro do saldo e a deixava "a pagar" até
+  // o próximo carregamento (pego no teste de ponta a ponta: sobra R$ 3.750
+  // onde o certo era R$ 4.050). Mesma regra do servidor: paga, LANÇADA
+  // (pendente, que já entra pelos pendentes) ou pulada = resolvida.
+  const itensProjecao = useMemo(() => (mesRef !== ymAtual ? itens : itens.map((i) => {
+    const sit = estados.get(i.id)?.situacao;
+    return sit && sit !== 'aberta' ? { ...i, resolvida_no_mes: true } : i;
+  })), [itens, estados, mesRef, ymAtual]);
   const projecao = useMemo(
     () => calcularSaldoProjetado(
-      wallets,
-      itens,
-      [
-        ...dividas.map((d) => ({
-          tipo: 'Gasto' as const,
-          valor: Number(d.valor_parcela) || 0,
-          dia_vencimento: Number(d.dia_vencimento) || 0,
-        })),
-        // Fatura do cartão entra como despesa prevista — era o que faltava pra
-        // a projeção fechar. O DIA vem do vencimento (`venc` é ISO), pra a
-        // regra "já venceu × ainda vem" valer igual pro resto.
-        ...cartoesNaPrevisao.map((f) => ({
-          tipo: 'Gasto' as const,
-          valor: Number(f.restante) || 0,
-          dia_vencimento: parseInt(String(f.venc || '').slice(8, 10), 10) || 0,
-          // A data inteira manda: sem ela a fatura do mês que vem some da
-          // projeção (ver ItemPrevisto.venc em lib/saldo-projetado.ts).
-          venc: f.venc ? String(f.venc).slice(0, 10) : undefined,
-        })),
-      ],
+      // Na moeda BASE, como a aba Previstos (conta em moeda estrangeira).
+      (wallets || []).map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
+      itensDoSaldoProjetado(
+        previstosRestantesDoMes({ recorrencias: itensProjecao as any, dividas, faturas }),
+        pendentesDoCaixa((txMesAtual as any)?.transacoes, nomesDeCartao(wallets)),
+      ),
     ),
-    [wallets, itens, dividas, cartoesNaPrevisao]);
+    [wallets, itensProjecao, dividas, faturas, txMesAtual, moedaBase]);
 
   // Despesas e receitas separadas (não um `grupos` só): dívida é DESPESA e
   // precisa ficar entre "Gastos variáveis" e "Receitas fixas" — antes ela
@@ -601,7 +619,20 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
    * cobrança vem do Open Finance e criar geraria a duplicata que a própria
    * baixa existe pra evitar.
    */
-  const precisaVincular = useCallback((i: Recorrencia) => baixaPrecisaVincular(i), []);
+  // ⚠️ Só a conta do BANCO obriga a escolher o lançamento (ver baixa-previsto.ts).
+  const contaDoBanco = useCallback((nome?: string | null) => {
+    if (!nome) return false;
+    const n = String(nome).trim().toLowerCase();
+    return (wallets || []).some((w: any) => String(w.nome || '').trim().toLowerCase() === n && !!w.of_conta_id);
+  }, [wallets]);
+  const precisaVincular = useCallback(
+    (i: Recorrencia) => baixaPrecisaVincular(i, { contaDoBanco: contaDoBanco(i.carteira) }),
+    [contaDoBanco]);
+  // Contas que a confirmação oferece: as de débito (cartão não paga conta).
+  const contasDaBaixa = useMemo(
+    () => (wallets || []).filter((w: any) => w.tipo !== 'Crédito' && !w.arquivada)
+      .map((w: any) => ({ nome: String(w.nome), banco: !!w.of_conta_id })),
+    [wallets]);
 
   /** Ainda a vencer primeiro; dentro de cada bloco, por dia. */
   const ordenar = useCallback((lista: Recorrencia[]) => [...lista].sort((a, b) => {
@@ -895,9 +926,11 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
                     ocupadoAntecipar={ocupadoAntecipar === item.id}
                     erroAntecipar={erroAntecipar?.id === item.id ? erroAntecipar.msg : null}
                     onPedirAntecipar={(v: boolean) => { setErroAntecipar(null); setAntecipando(v ? item.id : null); }}
-                    onAntecipar={() => (precisaVincular(item)
+                    contasDaBaixa={contasDaBaixa}
+                    onEscolherLancamento={() => setVinculando(item)}
+                    onAntecipar={(conta?: string | null) => (precisaVincular(item)
                       ? setVinculando(item)
-                      : anteciparOcorrencia(item))} />
+                      : anteciparOcorrencia(item, undefined, conta))} />
                 ))}
               </ul>
             </div>
@@ -973,7 +1006,7 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
               {cartoesDeFora.length > 0 && (
                 <div className="px-4 sm:px-6 py-3 space-y-2 border-t border-border/50">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                    Fora da previsão
+                    Faturas que você não está considerando
                   </p>
                   {cartoesDeFora.map((f) => (
                     <div key={f.cartao_id} className="flex items-center justify-between gap-3">
@@ -987,7 +1020,7 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
                         style={{ background: `color-mix(in srgb, ${BRAND} 12%, transparent)`, color: BRAND, minHeight: 36 }}
                       >
                         {mexendoCartao === f.cartao_id ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                        Voltar pra previsão
+                        Considerar de novo
                       </button>
                     </div>
                   ))}
@@ -1065,9 +1098,11 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
                     ocupadoAntecipar={ocupadoAntecipar === item.id}
                     erroAntecipar={erroAntecipar?.id === item.id ? erroAntecipar.msg : null}
                     onPedirAntecipar={(v: boolean) => { setErroAntecipar(null); setAntecipando(v ? item.id : null); }}
-                    onAntecipar={() => (precisaVincular(item)
+                    contasDaBaixa={contasDaBaixa}
+                    onEscolherLancamento={() => setVinculando(item)}
+                    onAntecipar={(conta?: string | null) => (precisaVincular(item)
                       ? setVinculando(item)
-                      : anteciparOcorrencia(item))} />
+                      : anteciparOcorrencia(item, undefined, conta))} />
                 ))}
               </ul>
             </div>
@@ -1171,7 +1206,12 @@ function Linha({
   item, idx, confirmando, removendo, onPedir, onCancelar, onEditar, onModo, pago, lancado, valorReal, pulado, onPularMes, onDespularMes,
   sugCat, onAceitarCat, onIgnorarCat, jaPassou,
   podeAntecipar, precisaVincular, emAntecipar, ocupadoAntecipar, erroAntecipar, onPedirAntecipar, onAntecipar,
+  contasDaBaixa, onEscolherLancamento,
 }: {
+  /** Contas de débito oferecidas na confirmação (`banco` = Open Finance). */
+  contasDaBaixa?:    { nome: string; banco: boolean }[];
+  /** "Já lancei este pagamento" — abre o seletor e AMARRA em vez de criar. */
+  onEscolherLancamento?: () => void;
   /** Oferece "Já recebi / Já paguei" (ocorrência deste mês, antes do dia). */
   podeAntecipar?:    boolean;
   /** Em `prever`/`nao_lancar` a baixa AMARRA um lançamento existente (o banco
@@ -1182,7 +1222,8 @@ function Linha({
   ocupadoAntecipar?: boolean;
   erroAntecipar?:    string | null;
   onPedirAntecipar?: (abrir: boolean) => void;
-  onAntecipar?:      () => void;
+  /** `conta`: string = conta escolhida; null = sem descontar de conta nenhuma. */
+  onAntecipar?:      (conta?: string | null) => void;
   /** Vencimento já passou neste mês? Só muda a APRESENTAÇÃO — a conta segue
    *  igual, e o "Total previsto" continua sendo o custo do mês inteiro. */
   jaPassou?:   boolean;
@@ -1213,6 +1254,12 @@ function Linha({
 }) {
   const fmtCru = useDinheiro();
   const [aberto, setAberto] = useState(false);
+  // De qual conta saiu o pagamento, na confirmação. '' = nenhuma conta.
+  // Começa na conta da própria conta fixa (o comportamento de sempre) quando
+  // ela existe; senão, em "nenhuma" — nunca numa conta que a pessoa não citou.
+  const contaPadrao = (contasDaBaixa || []).some((c) => c.nome === item.carteira) ? String(item.carteira) : '';
+  const [contaBaixa, setContaBaixa] = useState<string>(contaPadrao);
+  const contaBaixaEhBanco = (contasDaBaixa || []).some((c) => c.nome === contaBaixa && c.banco);
   const modo = item.modo_lancamento || 'lancar';
   const modoInfo = MODOS.find((m) => m.id === modo) || MODOS[0];
   const querLembrete = item.lembrete !== false;
@@ -1469,11 +1516,34 @@ function Linha({
             <div className="mt-2 p-2.5 rounded-xl bg-primary/[0.07] border border-primary/20 space-y-2 animate-fade-in">
               <p className="text-[11.5px] sm:text-xs text-foreground leading-snug">
                 {ehGasto ? 'Registrar o pagamento de ' : 'Registrar o recebimento de '}
-                <strong className="font-semibold tabular-nums">{fmt(item.valor)}</strong>
-                {' '}hoje{item.carteira ? <> em <strong className="font-semibold">{item.carteira}</strong></> : null}?
-                <span className="block text-[10.5px] text-muted-foreground mt-0.5">
-                  {ehGasto ? 'Ela sai' : 'Ela entra'} no saldo agora e não é lançada de novo no dia {item.dia_vencimento}.
-                </span>
+                <strong className="font-semibold tabular-nums">{fmt(item.valor)}</strong> hoje?
+              </p>
+              {/* ⚠️ DE ONDE SAIU (nov/2026). Antes a baixa SEMPRE descontava da
+                  conta da conta fixa — quem pagou por fora, ou só controla o
+                  saldo pelo extrato do banco, não tinha como marcar sem
+                  bagunçar o saldo. "Nenhuma conta" registra o pagamento (conta
+                  como despesa do mês e sai da previsão) sem mexer em saldo. */}
+              <label className="block text-[11px] font-medium text-muted-foreground">
+                {ehGasto ? 'Saiu de' : 'Entrou em'}
+                <select
+                  value={contaBaixa}
+                  onChange={(e) => setContaBaixa(e.target.value)}
+                  disabled={ocupadoAntecipar}
+                  className="mt-1 w-full h-10 px-2.5 rounded-lg bg-background border border-border/60 text-[13px] text-foreground"
+                >
+                  <option value="">{ehGasto ? 'Não descontar de nenhuma conta' : 'Não somar em nenhuma conta'}</option>
+                  {(contasDaBaixa || []).map((c) => (
+                    <option key={c.nome} value={c.nome}>{c.nome}{c.banco ? ' (banco conectado)' : ''}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-[10.5px] text-muted-foreground leading-snug">
+                {!contaBaixa
+                  ? `Fica registrada como ${ehGasto ? 'paga' : 'recebida'} neste mês, sem mexer no saldo de nenhuma conta.`
+                  : contaBaixaEhBanco
+                    ? 'O saldo dessa conta vem do banco, então nada é descontado aqui.'
+                    : `${ehGasto ? 'Sai do' : 'Entra no'} saldo de ${contaBaixa} agora.`}
+                {' '}Não é lançada de novo no dia {item.dia_vencimento}.
               </p>
               {erroAntecipar && (
                 <p role="alert" className="text-[11px] font-medium text-red-600 dark:text-red-400">{erroAntecipar}</p>
@@ -1481,7 +1551,7 @@ function Linha({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => onAntecipar?.()}
+                  onClick={() => onAntecipar?.(contaBaixa || null)}
                   disabled={ocupadoAntecipar}
                   className="h-9 px-3 rounded-lg bg-primary text-white text-xs font-semibold inline-flex items-center gap-1.5
                              hover:opacity-90 disabled:opacity-60 transition-opacity active:scale-[0.98]"
@@ -1498,6 +1568,17 @@ function Linha({
                   Cancelar
                 </button>
               </div>
+              {/* Quem já lançou o pagamento (pelo WhatsApp, por exemplo) amarra
+                  em vez de criar outro — senão a despesa entraria duas vezes. */}
+              {onEscolherLancamento && (
+                <button
+                  type="button"
+                  onClick={() => { onPedirAntecipar?.(false); onEscolherLancamento(); }}
+                  className="text-[11px] font-semibold text-primary hover:underline underline-offset-2 min-h-[32px]"
+                >
+                  {ehGasto ? 'Já lancei esse pagamento? Escolher o lançamento' : 'Já lancei esse recebimento? Escolher o lançamento'}
+                </button>
+              )}
             </div>
           )}
 
@@ -1684,16 +1765,22 @@ function LinhaCartao({ fatura, idx, mexendo, onTirar }: {
             alvo tocável que um ícone de 11px não tem sozinho. */}
         <div className="flex items-center gap-1.5 mt-1 text-[10px] sm:text-xs text-muted-foreground">
           <span className="flex-1 min-w-0 truncate">Fatura{dia ? ` · vence dia ${dia}` : ''}</span>
+          {/* ⚠️ VISÍVEL E COM RÓTULO (nov/2026). Era um olho de 11px sem texto
+              que, no computador, só aparecia com o mouse em cima — o dono pediu
+              "a opção de desconsiderar a fatura" sem saber que ela existia. */}
           <button
             onClick={onTirar}
             disabled={mexendo}
             title="Não contar esta fatura nos previstos do mês"
-            aria-label={`Tirar a fatura do ${fatura.nome} da previsão`}
-            className="flex-shrink-0 -my-2 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 disabled:opacity-50"
+            aria-label={`Não considerar a fatura do ${fatura.nome} nos previstos`}
+            className="flex-shrink-0 -my-2 inline-flex items-center gap-1 px-2 py-2 sm:py-1 rounded-md font-semibold
+                       border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/60
+                       transition-colors disabled:opacity-50"
           >
             {mexendo
               ? <Loader2 className="w-[11px] h-[11px] sm:w-3 sm:h-3 animate-spin" />
               : <EyeOff className="w-[11px] h-[11px] sm:w-3 sm:h-3" />}
+            Não considerar
           </button>
         </div>
       </div>

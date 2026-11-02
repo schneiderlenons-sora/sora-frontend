@@ -56,6 +56,11 @@ export function podeDarBaixa(
  * Open Finance — criar ali seria a duplicata que a baixa existe pra evitar, e
  * é por isso que esses modos não podiam simplesmente ganhar o botão antigo.
  */
-export function baixaPrecisaVincular(i: ContaFixa): boolean {
-  return (i.modo_lancamento || 'lancar') !== 'lancar';
+export function baixaPrecisaVincular(i: ContaFixa, ctx: { contaDoBanco?: boolean } = {}): boolean {
+  // ⚠️ SÓ EM CONTA DO BANCO (nov/2026). A regra nasceu pra quem tem Open
+  // Finance: lá a cobrança CHEGA pelo extrato e criar outra seria duplicata.
+  // Sem banco conectado nada chega sozinho — antes do vencimento o lançamento
+  // nem existe, e obrigar a escolher um deixava a pessoa sem saída. Medido:
+  // 36 contas fixas em 11 clientes sem Open Finance estavam presas nisso.
+  return (i.modo_lancamento || 'lancar') !== 'lancar' && !!ctx.contaDoBanco;
 }

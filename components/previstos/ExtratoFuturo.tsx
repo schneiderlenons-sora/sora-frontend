@@ -109,6 +109,12 @@ export type AcaoOcorrencia = {
    * seria a duplicata).
    */
   transacaoBanco?: string;
+  /**
+   * De qual conta saiu o pagamento (nov/2026). undefined = a da previsão (o
+   * comportamento antigo); string = a escolhida; null = nenhuma conta — o
+   * pagamento é registrado sem mexer em saldo.
+   */
+  conta?: string | null;
 };
 
 export type Sugestao = {
@@ -202,7 +208,7 @@ export default function ExtratoFuturo({
   const [adiando, setAdiando] = useState<string | null>(null);
   // Qual linha está com o painel de "Paguei" aberto, e o que foi digitado.
   const [quitando, setQuitando] = useState<string | null>(null);
-  const [quitacao, setQuitacao] = useState<{ data: string; valor: string }>({ data: '', valor: '' });
+  const [quitacao, setQuitacao] = useState<{ data: string; valor: string; conta: string }>({ data: '', valor: '', conta: '' });
 
   // Conta conectada ao banco? Decide se o campo de VALOR aparece.
   const doBanco = useMemo(() => new Set(carteirasBanco || []), [carteirasBanco]);
@@ -728,7 +734,8 @@ export default function ExtratoFuturo({
                             // já aconteceu. Conta que vence depois de hoje e foi
                             // paga adiantada foi paga HOJE (ou antes).
                             const hoje = hojeSP();
-                            setQuitacao({ data: l.data > hoje ? hoje : l.data, valor: String(l.valor).replace('.', ',') });
+                            // A conta começa na da própria previsão; sem ela, "nenhuma".
+                            setQuitacao({ data: l.data > hoje ? hoje : l.data, valor: String(l.valor).replace('.', ','), conta: l.carteira || '' });
                           }}
                         />
                         <AcaoBtn
@@ -892,6 +899,30 @@ export default function ExtratoFuturo({
                               O valor real vem do banco quando a cobrança cair no extrato.
                             </p>
                           )}
+                          {/* ⚠️ DE ONDE SAIU (nov/2026): antes a baixa sempre
+                              descontava da conta da previsão. "Nenhuma conta"
+                              registra o pagamento sem mexer em saldo — quem
+                              pagou por fora ou não usa a Sora pro saldo. */}
+                          {!doBanco.has(l.carteira || '') && (
+                            <label className="block text-[11px] font-medium text-muted-foreground">
+                              {receita ? 'Entrou em' : 'Saiu de'}
+                              <select
+                                value={quitacao.conta}
+                                onChange={(e) => setQuitacao({ ...quitacao, conta: e.target.value })}
+                                className="mt-1 w-full h-11 px-2 rounded-lg bg-background border border-border/50 text-sm text-foreground"
+                              >
+                                <option value="">{receita ? 'Não somar em nenhuma conta' : 'Não descontar de nenhuma conta'}</option>
+                                {(contasPagamento || []).map((c) => (
+                                  <option key={c.id} value={c.nome}>{c.nome}{doBanco.has(c.nome) ? ' (banco conectado)' : ''}</option>
+                                ))}
+                              </select>
+                              <span className="block mt-1 font-normal">
+                                {quitacao.conta
+                                  ? (doBanco.has(quitacao.conta) ? 'O saldo dessa conta vem do banco: nada é descontado aqui.' : `${receita ? 'Entra no' : 'Sai do'} saldo de ${quitacao.conta}.`)
+                                  : `Fica registrada como ${receita ? 'recebida' : 'paga'}, sem mexer no saldo de nenhuma conta.`}
+                              </span>
+                            </label>
+                          )}
                           {/* O `max` do input não impede digitar a data no
                               teclado em todo navegador — o botão é a trava, e
                               o motivo fica escrito ao lado (não só o cinza). */}
@@ -912,6 +943,8 @@ export default function ExtratoFuturo({
                                 // Valor inválido/vazio → o previsto, que é o que a
                                 // rota já usava. Nunca manda 0: zeraria a despesa.
                                 valor: v > 0 ? v : l.valor,
+                                // Conta do banco: segue a da previsão (sem seletor).
+                                ...(doBanco.has(l.carteira || '') ? {} : { conta: quitacao.conta || null }),
                               });
                               setQuitando(null); setAberta(null);
                             }}
