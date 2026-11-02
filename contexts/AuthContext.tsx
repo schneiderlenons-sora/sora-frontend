@@ -126,16 +126,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Carrega o perfil pelo SERVIDOR (/api/me): lê a sessão via cookie + service
   // role. É confiável no F5 — o caminho client-side (RLS + sessão ainda
   // hidratando) voltava vazio/erro e travava o painel. Reententa em falha.
-  async function carregarPerfil(_u: User, tentativa = 0): Promise<void> {
+  //
+  // ⚠️ SÓ A CARGA MAIS RECENTE GRAVA. No cadastro saem várias em sequência (a
+  // do SIGNED_IN, a do `recarregar()` e a de depois do plano grátis), e a
+  // primeira pode demorar mais — com retentativas, até ~1,5s. Se ela chegasse
+  // por último, devolveria o plano `inativo` de antes e o paywall mandaria a
+  // pessoa de volta pro tour (relato de 01/11/2026). `ordem` é o número da
+  // carga; as retentativas herdam o dela.
+  const ultimaCarga = useRef(0);
+  async function carregarPerfil(_u: User, tentativa = 0, ordem?: number): Promise<void> {
     const MAX = 3;
+    const minha = ordem ?? ++ultimaCarga.current;
+    const valendo = () => minha === ultimaCarga.current;
     try {
       const res = await fetch('/api/me', { cache: 'no-store' });
       if (!res.ok) throw new Error('status ' + res.status);
       const { perfil: p, papel: pap } = await res.json();
+      if (!valendo()) return;
       if (!p) {
         if (tentativa < MAX) {
           await new Promise((r) => setTimeout(r, 500));
-          return carregarPerfil(_u, tentativa + 1);
+          return carregarPerfil(_u, tentativa + 1, minha);
         }
         setPerfil(null); setPapel('admin'); return;
       }
@@ -147,9 +158,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // dispara só porque a aba voltou ao foco — ver o comentário lá embaixo.
       perfilCarregadoDe.current = _u.id;
     } catch (e) {
+      if (!valendo()) return;
       if (tentativa < MAX) {
         await new Promise((r) => setTimeout(r, 500));
-        return carregarPerfil(_u, tentativa + 1);
+        return carregarPerfil(_u, tentativa + 1, minha);
       }
       console.warn('[AuthContext] carregarPerfil falhou:', e);
       setPerfil(null); setPapel('admin');
@@ -324,8 +336,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   }
 
+  // ⚠️ `user` aqui é o da renderização em que esta função nasceu. O cadastro
+  // chama `recarregar()` logo depois do `signUp()`, ainda com a função da
+  // renderização SEM usuário — e o `if (user)` fazia o recarregar não fazer
+  // nada. O plano grátis era gravado no servidor e a memória seguia `inativo`.
+  // Sem `user` em mãos, pergunta à sessão (leitura local, sem rede).
   async function recarregar() {
-    if (user) await carregarPerfil(user);
+    const u = user ?? (await supabase.auth.getSession()).data.session?.user ?? null;
+    if (u) await carregarPerfil(u);
   }
 
   // Chave usada no segmento /:phone das rotas (o backend IGNORA e resolve pelo

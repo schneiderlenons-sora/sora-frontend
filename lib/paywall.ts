@@ -57,8 +57,16 @@ export function decidirPaywall(p: { plano: Plano; pathname: string; android: boo
  *   (demonstrações → card sem preço → onboarding curto).
  * - Já fez e está numa rota de compra → painel (não fica numa tela de preço).
  * - Já fez e está no app → fica onde está.
+ *
+ * ⚠️ JÁ NO `/onboarding` → FICA. O onboarding é o FIM do caminho do tour
+ * (demonstrações → "Começar agora" → onboarding curto). Mandar de volta pro
+ * `/tour` dali repetia a sequência inteira. Caso real (01/11/2026, app de
+ * iPhone): o cadastro libera o grátis, mas o plano em memória ainda dizia
+ * `inativo`; o paywall reconvertia no `/onboarding` e devolvia a pessoa ao
+ * tour — só na 2ª volta (com a página já recarregada) ela conseguia seguir.
  */
 export function destinoAposGratis(p: { onboardingCompleto: boolean; pathname: string }): string | null {
+  if (casa(p.pathname, ['/onboarding'])) return null;
   if (!p.onboardingCompleto) return '/tour';
   if (casa(p.pathname, ROTAS_DE_COMPRA)) return '/dashboard';
   return null;
