@@ -837,7 +837,7 @@ export const api = {
       req<{ atualizados: number; total: number }>(`/api/investimentos/atualizar-precos/${phone}`, { method: 'POST' }),
     /** Caixinhas/cofrinhos do Open Finance (saldos reservados — fora do saldo da conta). */
     caixinhas: (phone: string) =>
-      req<{ caixinhas: any[]; total: number }>(`/api/investimentos/caixinhas/${phone}`),
+      req<{ caixinhas: any[]; total: number; empresa?: any[] }>(`/api/investimentos/caixinhas/${phone}`),
     reserva: (phone: string) =>
       req<any>(`/api/investimentos/reserva/${phone}`),
     /** ⚠️ Campos OPCIONAIS: o servidor só grava o que vier. Mandar
@@ -1532,6 +1532,9 @@ export const api = {
       /** Traz pro caixa os meses ANTERIORES ao vínculo ('YYYY-MM'): só recua, até 12 meses. */
       trazerDesde: (id: string, mes: string) =>
         req<{ ok: boolean; desde: string; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/trazer-desde`, { method: 'POST', body: JSON.stringify({ mes }) }),
+      /** Mostrar as reservas (caixinhas) desta conta também na aba Investimentos pessoal (migration 193). */
+      reservasNoPessoal: (id: string, ativo: boolean) =>
+        req<{ ok: boolean; reservas_no_pessoal: boolean }>(`/api/negocios/contas/${id}/reservas-no-pessoal`, { method: 'POST', body: JSON.stringify({ ativo }) }),
       trazerDoBanco: (id: string) =>
         req<{ ok: boolean; inseridos: number; juntados: number; atualizados: number }>(`/api/negocios/contas/${id}/espelhar`, { method: 'POST' }),
     },

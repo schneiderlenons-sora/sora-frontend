@@ -19,7 +19,7 @@ import dynamic from 'next/dynamic';
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, Receipt, HandCoins,
   ChevronRight, ChevronLeft, Plus, Minus, AlertTriangle, Landmark, Banknote,
-  CreditCard, ShoppingBag, Percent, CalendarClock,
+  CreditCard, ShoppingBag, Percent, CalendarClock, PiggyBank,
 } from 'lucide-react';
 import { labelCategoria, labelForma, type IndicadoresNegocio } from '@/lib/lancamentos';
 
@@ -184,6 +184,23 @@ export default function PainelLoja({
               );
             })}
           </div>
+          {/* Reservas (caixinhas) das contas do banco: o banco separa esse
+              dinheiro do saldo, então ele vem À PARTE — e o total da empresa
+              junta os dois, dizendo isso. */}
+          {(d.reservas_contas || 0) > 0 && (
+            <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="inline-flex items-center gap-2 text-muted-foreground">
+                  <PiggyBank size={15} aria-hidden="true" /> Guardado em reservas
+                </span>
+                <span className="font-bold tabular-nums text-foreground">{real(d.reservas_contas || 0)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Total da empresa (contas + reservas)</span>
+                <span className="font-bold tabular-nums text-foreground">{real(d.saldo_contas + (d.reservas_contas || 0))}</span>
+              </div>
+            </div>
+          )}
         </section>
       )}
 

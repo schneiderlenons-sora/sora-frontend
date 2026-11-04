@@ -15,7 +15,7 @@ import {
   Plus, RefreshCw, BarChart3, Briefcase, Shield, Calculator, Coins,
   Trash2, Pencil, ArrowUpRight, ArrowDownRight, Search, Loader2, Crown, TrendingUp,
   PiggyBank, Landmark, ChevronRight, ChevronDown, CalendarClock, Percent,
-  Archive, Layers, CloudOff,
+  Archive, Layers, CloudOff, Building2,
 } from 'lucide-react';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
 import { useEhAppIos } from '@/lib/useOrigem';
@@ -194,7 +194,14 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
   // próprio — nunca somado ao investido, que tem aporte e rentabilidade.
   const caixinhas: any[]    = ((caixData as any)?.caixinhas) ?? [];
   const totalCaixinhas: number = ((caixData as any)?.total) ?? 0;
-  const temCaixinhas = caixinhas.length > 0;
+  // Reservas de conta "só da empresa" (Sora Negócios) vêm À PARTE e nunca
+  // entram no total pessoal. O dono pode pedir pra vê-las aqui também
+  // (`reservas_no_pessoal`, por conta) — aí aparecem num bloco próprio.
+  const caixinhasEmpresa: any[] = ((caixData as any)?.empresa) ?? [];
+  const totalEmpresaVisivel = caixinhasEmpresa
+    .filter((c) => c?.da_empresa?.reservas_no_pessoal)
+    .reduce((s, c) => s + (Number(c.saldo) || 0), 0);
+  const temCaixinhas = caixinhas.length > 0 || caixinhasEmpresa.length > 0;
 
   const carregar = useCallback(() => Promise.all([mInvs(), mAp(), mPat(), mRes(), mCaix()]), [mInvs, mAp, mPat, mRes, mCaix]);
 
@@ -347,12 +354,13 @@ export default function InvestimentosClient({ phoneInicial, initialData }: { pho
         {!falhouInvs && tab === 'resumo' && (
           <TabResumo totais={totais} distribuicao={distribuicao} patrimonio={patrimonio}
                      totalCaixinhas={totalCaixinhas} qtdCaixinhas={caixinhas.length} proventos={totalProventos}
+                     totalEmpresa={totalEmpresaVisivel}
                      onVerCaixinhas={() => setTab('caixinhas')} />
         )}
 
         {/* TAB: CAIXINHAS */}
         {!falhouInvs && tab === 'caixinhas' && (
-          <TabCaixinhas caixinhas={caixinhas} total={totalCaixinhas} />
+          <TabCaixinhas caixinhas={caixinhas} total={totalCaixinhas} empresa={caixinhasEmpresa} onMudou={() => mCaix()} />
         )}
 
         {/* TAB: CARTEIRA */}
@@ -536,7 +544,7 @@ function PaywallPremium() {
 // ─────────────────────────────────────────────────────────────
 // TAB RESUMO
 // ─────────────────────────────────────────────────────────────
-function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, proventos = 0, onVerCaixinhas }: any) {
+function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCaixinhas = 0, proventos = 0, totalEmpresa = 0, onVerCaixinhas }: any) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   // Aportado > 0 e lucro exatamente zero = todas as posições entraram com
   // aportado igual ao valor atual, ou seja, a Sora não conhece nenhum custo de
@@ -574,7 +582,7 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
       {/* Caixinhas do banco — atalho pra aba. Fica ACIMA do hero de propósito:
           é dinheiro que o painel nunca mostrou (o banco o tira do saldo da
           conta), então precisa ser encontrado. Só aparece quando existe. */}
-      {qtdCaixinhas > 0 && (
+      {(qtdCaixinhas > 0 || totalEmpresa > 0) && (
         <button type="button" onClick={onVerCaixinhas}
                 className="w-full card rounded-2xl p-4 flex items-center gap-4 text-left transition-all hover:border-primary/40 active:scale-[0.995]"
                 style={{ minHeight: 44 }}>
@@ -588,6 +596,12 @@ function TabResumo({ totais, distribuicao, patrimonio, totalCaixinhas = 0, qtdCa
             <p className="text-xs text-muted-foreground mt-0.5">
               {qtdCaixinhas === 1 ? '1 reserva no banco' : `${qtdCaixinhas} reservas no banco`} · fora do saldo da conta
             </p>
+            {/* Reserva da empresa À VISTA: à parte, nunca somada ao número de cima. */}
+            {totalEmpresa > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                <Building2 size={11} aria-hidden="true" /> + {fmt(totalEmpresa)} da empresa
+              </p>
+            )}
           </div>
           <ChevronRight size={18} className="text-muted-foreground shrink-0" />
         </button>
@@ -1176,11 +1190,12 @@ function textoRendimento(c: any): string | null {
   return null;
 }
 
-function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number }) {
+function TabCaixinhas({ caixinhas, total, empresa = [], onMudou }: { caixinhas: any[]; total: number; empresa?: any[]; onMudou?: () => void }) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   return (
     <div className="space-y-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
 
+      {caixinhas.length > 0 && (<>
       {/* Total guardado */}
       <div className="card rounded-3xl p-6 sm:p-7 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none"
@@ -1234,6 +1249,10 @@ function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number })
           );
         })}
       </div>
+      </>)}
+
+      {/* Reservas de conta "só da empresa" — ficam no Sora Negócios. */}
+      <ReservasDaEmpresa empresa={empresa} onMudou={onMudou} />
 
       <p className="text-xs text-muted-foreground flex items-start gap-1.5 px-1">
         <Landmark size={13} className="shrink-0 mt-0.5" />
@@ -1242,6 +1261,102 @@ function TabCaixinhas({ caixinhas, total }: { caixinhas: any[]; total: number })
           do seu CPF aparecem na aba <strong className="text-foreground">Carteira</strong>, não aqui.
         </span>
       </p>
+    </div>
+  );
+}
+
+// ── Reservas da EMPRESA na aba pessoal ───────────────────────────────────────
+// Caixinha de conta "só da empresa" mora no Sora Negócios. Aqui ela aparece de
+// duas formas, por conta (escolha do dono, `reservas_no_pessoal`, migration 193):
+//   · escondida → uma linha dizendo que existe e onde está, com "Mostrar aqui";
+//   · à vista   → bloco PRÓPRIO, com subtotal, nunca somado ao total pessoal.
+// ⚠️ Escondida não mostra o valor: quem escondeu não quer o número aqui.
+function ReservasDaEmpresa({ empresa, onMudou }: { empresa: any[]; onMudou?: () => void }) {
+  const fmt = useDinheiro({ entrada: 'ouZero' });
+  const [salvando, setSalvando] = useState<string | null>(null);
+  const [erro, setErro] = useState('');
+  const grupos = useMemo(() => {
+    type Grupo = { contaId: string; empresaNome: string; visivel: boolean; itens: any[] };
+    const m = new Map<string, Grupo>();
+    for (const c of empresa || []) {
+      const d = c?.da_empresa; if (!d?.conta_id) continue;
+      const g: Grupo = m.get(d.conta_id) || { contaId: d.conta_id, empresaNome: d.empresa_nome || 'sua empresa', visivel: !!d.reservas_no_pessoal, itens: [] };
+      g.itens.push(c); m.set(d.conta_id, g);
+    }
+    return [...m.values()];
+  }, [empresa]);
+  if (!grupos.length) return null;
+
+  async function alternar(contaId: string, ativo: boolean) {
+    setSalvando(contaId); setErro('');
+    try { await api.negocios.contas.reservasNoPessoal(contaId, ativo); onMudou?.(); }
+    catch (e: any) { setErro(e?.body?.erro || e?.message || 'Não consegui mudar agora. Tente de novo.'); }
+    finally { setSalvando(null); }
+  }
+
+  return (
+    <div className="space-y-3">
+      {grupos.map((g) => {
+        const subtotal = g.itens.reduce((s, c) => s + (Number(c.saldo) || 0), 0);
+        const qtd = g.itens.length === 1 ? '1 reserva' : `${g.itens.length} reservas`;
+        if (!g.visivel) {
+          return (
+            <div key={g.contaId} className="card rounded-2xl p-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Building2 size={18} className="text-muted-foreground shrink-0" aria-hidden="true" />
+              <p className="text-sm text-muted-foreground flex-1 min-w-[12rem]">
+                {qtd} da conta de <strong className="text-foreground">{g.empresaNome}</strong> {g.itens.length === 1 ? 'fica' : 'ficam'} no Sora Negócios.
+              </p>
+              <div className="flex items-center gap-3">
+                <a href="/negocios/caixa" className="text-sm font-semibold text-primary hover:underline min-h-11 inline-flex items-center">Ver no Negócios</a>
+                <button type="button" disabled={salvando === g.contaId} onClick={() => alternar(g.contaId, true)}
+                        className="text-sm font-semibold text-foreground underline underline-offset-2 min-h-11 disabled:opacity-50">
+                  {salvando === g.contaId ? 'Salvando…' : 'Mostrar aqui também'}
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div key={g.contaId} className="card rounded-2xl overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 sm:px-5 py-3 border-b border-border bg-muted/30">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Building2 size={15} aria-hidden="true" /> Da empresa · {g.empresaNome}
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold tabular text-foreground">{fmt(subtotal)}</span>
+                <button type="button" disabled={salvando === g.contaId} onClick={() => alternar(g.contaId, false)}
+                        className="text-xs font-semibold text-muted-foreground underline underline-offset-2 min-h-11 disabled:opacity-50">
+                  {salvando === g.contaId ? 'Salvando…' : 'Parar de mostrar aqui'}
+                </button>
+              </div>
+            </div>
+            <div className="divide-y divide-border">
+              {g.itens.map((c, i) => {
+                const rend = textoRendimento(c);
+                return (
+                  <div key={c.id || i} className="p-4 sm:p-5 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                         style={{ background: `color-mix(in srgb, ${CAIXA_COR} 14%, transparent)` }}>
+                      <PiggyBank size={18} style={{ color: CAIXA_COR }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground truncate">{c.nome}</p>
+                      {rend
+                        ? <span className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: CAIXA_COR }}><TrendingUp size={11} /> {rend}</span>
+                        : <span className="text-xs text-muted-foreground">Sem rendimento informado</span>}
+                    </div>
+                    <p className="font-bold text-foreground tabular shrink-0">{fmt(c.saldo || 0)}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="px-4 sm:px-5 py-2.5 text-xs text-muted-foreground border-t border-border">
+              Dinheiro da empresa: não entra no seu total de caixinhas. Mostrado aqui só pra você acompanhar.
+            </p>
+          </div>
+        );
+      })}
+      {erro && <p role="alert" className="text-sm text-red-500 px-1">{erro}</p>}
     </div>
   );
 }

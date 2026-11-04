@@ -12,13 +12,13 @@ import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import ModalRegrasNegocio from '@/components/negocios/ModalRegrasNegocio';
 import ModalCentrosCusto from '@/components/negocios/ModalCentrosCusto';
 import {
-  fmtCent, labelCategoria, labelForma, porDia, totais, saldoPorConta,
+  fmtCent, labelDoLancamento, labelForma, porDia, totais, saldoPorConta,
   doBanco, ehMovimentacao, CAT_A_CLASSIFICAR,
   type Lancamento, type TipoLancamento, type ContaNegocio,
 } from '@/lib/lancamentos';
 import {
   ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Plus, Minus,
-  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark, Sparkles } from 'lucide-react';
+  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark, Sparkles, PiggyBank } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -289,12 +289,25 @@ export default function CaixaPage() {
                 {saldosConta.map((s, i) => {
                   const Icon = iconeConta(s.conta?.tipo);
                   const neg = s.saldo < 0;
+                  // Reservas (caixinhas) da conta do banco: FORA do saldo dela
+                  // — o banco separa esse dinheiro. Chip próprio, nunca somado.
+                  const res = s.conta?.reservas?.total || 0;
                   return (
-                    <div key={s.conta?.id || `sem-${i}`} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/60 bg-muted/20">
-                      <Icon size={14} className="text-muted-foreground flex-shrink-0" />
-                      <span className="text-xs font-medium text-foreground">{s.conta?.nome || 'Sem conta'}</span>
-                      <span className="text-sm font-bold tabular" style={{ color: neg ? '#ef4444' : '#16a34a' }}>{fmtCent(s.saldo)}</span>
-                    </div>
+                    <span key={s.conta?.id || `sem-${i}`} className="contents">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/60 bg-muted/20">
+                        <Icon size={14} className="text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs font-medium text-foreground">{s.conta?.nome || 'Sem conta'}</span>
+                        <span className="text-sm font-bold tabular" style={{ color: neg ? '#ef4444' : '#16a34a' }}>{fmtCent(s.saldo)}</span>
+                      </div>
+                      {res > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/60 bg-muted/20"
+                             title="Guardado nas reservas (caixinhas) desta conta. O banco separa esse dinheiro do saldo.">
+                          <PiggyBank size={14} className="text-muted-foreground flex-shrink-0" />
+                          <span className="text-xs font-medium text-foreground">Reservas · {s.conta?.nome}</span>
+                          <span className="text-sm font-bold tabular text-foreground">{fmtCent(res)}</span>
+                        </div>
+                      )}
+                    </span>
                   );
                 })}
               </div>
@@ -427,7 +440,7 @@ function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => 
           )}
           {aClassificar
             ? <span className="font-semibold text-amber-600 dark:text-amber-500">A classificar</span>
-            : labelCategoria(l.tipo, l.categoria)}
+            : labelDoLancamento(l)}
           {mov ? ' · fora do resultado' : ''}
           {l.forma_pagamento && !doBanco(l) ? ` · ${labelForma(l.forma_pagamento)}` : ''}
           {l.contraparte ? ` · ${l.contraparte}` : ''}

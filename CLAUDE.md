@@ -1254,6 +1254,23 @@ Os quatro pendentes do pedido do Robert, todos na migration **192**.
   - Cartão PJ: a conexão PJ do Robert trouxe SÓ a conta corrente (medido
     03/11) — o "Mercado Pago Crédito" é da conexão pessoal. Cartão na conta da
     empresa segue fora de escopo (só corrente/poupança vinculam).
+  - **RESERVAS (caixinhas) seguem a conta (nov/2026).** A caixinha da conta PJ
+    aparecia na aba Investimentos pessoal. `of_caixinhas.of_conta_id` = o da
+    carteira → `separarCaixinhas`/`reservasDasCarteiras` em
+    `services/contaDaEmpresa.js` (§7 do eval). `/investimentos/caixinhas`
+    devolve as pessoais + `empresa` à parte (nunca no total pessoal). No
+    Negócios: chip "Reservas · conta" no Fluxo de caixa, linha no Gerenciar e
+    "Total da empresa (contas + reservas)" no Painel — sempre À PARTE do saldo
+    (o banco separa esse dinheiro). Opção por conta "mostrar no pessoal
+    também" = `contas_negocio.reservas_no_pessoal` (migration **193**, só
+    visual: bloco próprio na aba pessoal). ⚠️ Cartão da conta PJ usa o MESMO
+    `of_conta_id` da conta e não é "da empresa" — não pode apagar a marca.
+  - Aplicar/resgatar na reserva JÁ chega pelo banco ("Dinheiro reservado /
+    retirado") e entra como Movimentação; `labelDoLancamento` (lib/lancamentos)
+    só dá o rótulo "Guardou/Tirou da reserva" (sentido pelo TIPO). O Open
+    Finance manda as reservas da PJ SOMADAS numa "Caixinha" — não dá pra
+    separar por nome. Módulo de investimentos da empresa: só quando uma
+    conexão PJ trouxer investimento (hoje zero).
   - De passagem: gráfico do dashboard (servidor), Wrapped, Oráculo e resumo do
     WhatsApp **não liam `ignorar_em`** — o "não considerar" da 146 nunca valeu
     ali. Medido: 0 lançamentos marcados, nenhum número atual mudou.
@@ -4443,6 +4460,7 @@ sql/189_conta_empresa_banco.sql — contas_negocio.wallet_id/importar_desde + la
 sql/190_divida_pagamento_transacao.sql — divida_pagamentos.transacao_id: o pagamento da parcela LIGADO ao débito do extrato que o pagou. Sem ela a baixa funciona igual (grava sem o vínculo); só perde a trava de "débito já usado".
 sql/191_bug_reports_duvida.sql — tipo "duvida" no CHECK de bug_reports (o suporte foi pra Ajuda). Sem ela a dúvida vira "problema" com o texto marcado "❓ Dúvida:".
 sql/192_negocios_series_regras_pessoal.sql — Sora Negócios: serie_id/serie_ate (contas que se repetem), tabela regras_negocio (aprende) e contas_negocio.fora_do_pessoal (passo B). Sem ela, repetir avisa que falta, aprender não grava e nada sai do pessoal.
+sql/193_reservas_no_pessoal.sql — contas_negocio.reservas_no_pessoal: mostrar as reservas (caixinhas) da conta da empresa TAMBÉM na aba Investimentos pessoal (só visual). Sem ela as reservas ficam só no Negócios e a opção responde "ainda está sendo liberado".
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

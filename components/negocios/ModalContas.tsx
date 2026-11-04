@@ -111,6 +111,21 @@ export default function ModalContas({
     finally { setMudandoPessoal(null); }
   }
 
+  // Reservas (caixinhas) desta conta TAMBÉM na aba Investimentos pessoal
+  // (migration 193). Só visual: lá elas ficam num bloco à parte, fora do total.
+  async function alternarReservasPessoal(c: ContaNegocio) {
+    const ativo = !c.reservas_no_pessoal;
+    setMudandoPessoal(c.id); setErro(''); setAviso('');
+    try {
+      await api.negocios.contas.reservasNoPessoal(c.id, ativo);
+      setAviso(ativo
+        ? 'As reservas desta conta também aparecem na aba Investimentos das suas finanças pessoais.'
+        : 'As reservas desta conta ficam só aqui no Sora Negócios.');
+      await carregar();
+    } catch (e: any) { setErro(e?.message || 'Não consegui mudar.'); }
+    finally { setMudandoPessoal(null); }
+  }
+
   // ── TRAZER MESES ANTERIORES (pedido do Robert, 01/11/2026) ─────────────
   // A cópia pro caixa começa no mês do vínculo; o histórico que o banco já
   // mandou (meses antes) ficava de fora. Aqui o dono escolhe até onde recuar
@@ -256,6 +271,22 @@ export default function ModalContas({
                           )}
                         </p>
                       ) : !!c.saldo_inicial && <p className="text-[11px] text-muted-foreground">Abertura: {fmtCent(c.saldo_inicial)}</p>}
+                      {/* Reservas (caixinhas) da conta: FORA do saldo dela. */}
+                      {c.wallet_id && (c.reservas?.total || 0) > 0 ? (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Guardado em reservas: <span className="tabular">{fmtCent(c.reservas!.total)}</span>
+                          {' · '}{c.reservas_no_pessoal ? 'também na aba Investimentos pessoal' : 'só aqui no Negócios'}
+                          {dono && (
+                            <>
+                              {' · '}
+                              <button type="button" onClick={() => alternarReservasPessoal(c)} disabled={mudandoPessoal === c.id}
+                                      className="font-semibold underline underline-offset-2 disabled:opacity-60" style={{ color: cor }}>
+                                {c.reservas_no_pessoal ? 'esconder do pessoal' : 'mostrar no pessoal também'}
+                              </button>
+                            </>
+                          )}
+                        </p>
+                      ) : null}
                     </div>
                     {c.wallet_id && dono && (
                       <>

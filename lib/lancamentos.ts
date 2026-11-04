@@ -71,6 +71,21 @@ export interface ContaNegocio {
   saldo_banco?:    number | null;   // CENTAVOS — o saldo de verdade
   /** Migration 192: as movimentações da conta ficam fora das finanças PESSOAIS. */
   fora_do_pessoal?: boolean;
+  /** Reservas (caixinhas) da conta do banco — FORA do saldo dela. CENTAVOS. */
+  reservas?: { total: number; itens: ReservaConta[] } | null;
+  /** Migration 193: mostrar essas reservas também na aba Investimentos pessoal. */
+  reservas_no_pessoal?: boolean;
+}
+
+/** Caixinha/reserva de uma conta do banco (Open Finance). 'saldo' em CENTAVOS. */
+export interface ReservaConta {
+  id: string;
+  nome: string;
+  saldo: number;
+  indexador?: string | null;
+  indexador_pct?: number | null;
+  taxa_pre?: number | null;
+  periodicidade?: string | null;
 }
 
 /** Conta do banco (Open Finance) que pode alimentar uma conta da empresa. */
@@ -259,7 +274,9 @@ export interface IndicadoresNegocio {
   a_receber:    PendenteNegocio;
   a_pagar:      PendenteNegocio;
   saldo_contas: number;
-  contas:       { id: string; nome: string; tipo: string; saldo: number }[];
+  /** Reservas (caixinhas) das contas do banco, FORA do saldo. CENTAVOS. */
+  reservas_contas?: number;
+  contas:       { id: string; nome: string; tipo: string; saldo: number; reservas?: number }[];
   evolucao:     { mes: string; receita: number; despesa: number; lucro: number }[];
   por_dia:      { dia: string; entrada: number; saida: number }[];
   por_categoria:{ categoria: string; valor: number }[];
@@ -321,6 +338,22 @@ export function labelCategoria(tipo: TipoLancamento, v?: string | null): string 
   if (!v) return 'Sem categoria';
   if (v === CAT_A_CLASSIFICAR) return 'A classificar';
   return categoriasDe(tipo).find(c => c.v === v)?.label || v;
+}
+
+// ⚠️ Aplicar/resgatar na RESERVA (caixinha) é uma Movimentação — mexe no saldo
+// da conta, não é receita nem despesa. O banco já manda as duas linhas
+// sozinho ("Dinheiro reservado / Dinheiro retirado Reserva X"); o genérico
+// "Movimentação entre contas" só não dizia o que aconteceu. O SENTIDO vem do
+// tipo (saída = guardou, entrada = tirou), não das palavras: é o que o banco
+// não erra. Só rótulo — categoria, totais e DRE não mudam.
+const RE_RESERVA = /reserva|caixinha|cofrinho|porquinho|aplica[cç]|resgate/i;
+
+/** Rótulo da categoria de UM lançamento (reconhece aplicação/resgate da reserva). */
+export function labelDoLancamento(l: Pick<Lancamento, 'tipo' | 'categoria' | 'descricao'>): string {
+  if (l.categoria === CAT_MOVIMENTACAO && RE_RESERVA.test(l.descricao || '')) {
+    return l.tipo === 'saida' ? 'Guardou na reserva' : 'Tirou da reserva';
+  }
+  return labelCategoria(l.tipo, l.categoria);
 }
 
 export function labelForma(v?: string | null): string {
