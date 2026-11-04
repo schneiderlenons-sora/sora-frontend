@@ -17,6 +17,7 @@ import {
 import { formatarDinheiro, normalizarMoeda, saldoNaBase, valorDoCartaoNaBase } from '@/lib/moeda';
 import { useFmt } from '@/lib/valores-ocultos';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { contasDoPessoal } from '@/lib/conta-empresa';
 
 // =============================================================================
 // Os stat cards abaixo do card de hábitos.
@@ -87,8 +88,9 @@ export default function ResumoCards({
   const [aberto, setAberto] = useState<Aberto>(null);
   const toggle = (k: Exclude<Aberto, null>) => setAberto(a => (a === k ? null : k));
 
+  // Conta "só da empresa" (Sora Negócios) fica fora do saldo pessoal.
   const contas = useMemo(
-    () => wallets.filter(w => w.tipo !== 'Crédito'),
+    () => contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito'),
     [wallets],
   );
 

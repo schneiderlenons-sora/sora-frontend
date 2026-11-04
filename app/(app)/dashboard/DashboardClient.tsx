@@ -35,6 +35,7 @@ import {
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { contasDoPessoal } from '@/lib/conta-empresa';
 import { useTemMarca } from '@/contexts/MarcasCustomContext';
 // ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
 // (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
@@ -272,8 +273,10 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   // ── Métricas (memoizadas — só recalculam quando os dados mudam) ──
   // Contas bancárias = tudo que NÃO é cartão. Cartão tem saldo negativo (é
   // fatura, dívida) e somar junto daria um "saldo em contas" menor que o real.
+  // ⚠️ Conta "só da empresa" (Sora Negócios) NÃO é dinheiro da pessoa
+  // (lib/conta-empresa.ts) — fica fora do "Saldo em contas".
   const contasBancarias = useMemo(
-    () => wallets.filter(w => w.tipo !== 'Crédito'),
+    () => contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito'),
     [wallets]
   );
   const saldoTotal  = useMemo(

@@ -19,6 +19,7 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
 import { calcularSaldoProjetado } from '@/lib/saldo-projetado';
+import { contasDoPessoal } from '@/lib/conta-empresa';
 import { previstosRestantesDoMes } from '@/lib/ainda-vem-mes';
 import {
   ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet,
@@ -307,7 +308,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
 
   // ── Métricas derivadas ─────────────────────────────────────
   const saldo       = (resumo?.receitas || 0) - (resumo?.gastos || 0);
-  const saldoBanco  = wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0);
+  const saldoBanco  = contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0);
 
   // Humor da baleia: com receita lançada → taxa de economia; sem receita →
   // quanto do saldo disponível do banco já foi gasto no mês (fica triste se
@@ -455,7 +456,7 @@ export default function RelatoriosClient({ phoneInicial, initialData }: { phoneI
     // ⚠️ NORMALIZADO NA MOEDA BASE antes de entrar. O helper soma `saldo` cru, e
     // esta aba mostra `saldoNaBase(w)` logo acima, no mesmo card: com conta em
     // moeda estrangeira os dois números discordariam a um centímetro um do outro.
-    wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
+    contasDoPessoal(wallets).map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
     [{ tipo: 'Recebimento' as const, valor: totalReceber, dia_vencimento: 0 },
      { tipo: 'Gasto' as const, valor: totalPagar, dia_vencimento: 0 }],
   ).projetado, [wallets, totalReceber, totalPagar, moedaBase]);

@@ -22,11 +22,13 @@ import {
   Plus, Pencil, Trash2, X, Loader2, Wallet as WalletIcon, Wallet,
   TrendingUp, CreditCard, PiggyBank, Banknote, CheckCircle2,
   Archive, ArchiveRestore, ArrowLeftRight, DollarSign,
-  Shield, Star, Sparkles, AlertCircle, ChevronRight, Landmark,
+  Shield, Star, Sparkles, AlertCircle, ChevronRight, Landmark, Building2,
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
+import { contasDoPessoal, contasDaEmpresa } from '@/lib/conta-empresa';
+import Link from 'next/link';
 import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 
 const BRAND = 'hsl(var(--primary))';
@@ -227,13 +229,18 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
   const semCartoes       = useMemo(() => wallets.filter(w => w.tipo !== 'Crédito'), [wallets]);
   const walletsAtivas    = useMemo(() => semCartoes.filter(w => !w.arquivada), [semCartoes]);
   const walletsArquivadas= useMemo(() => semCartoes.filter(w => w.arquivada),  [semCartoes]);
-  const walletsList      = tab === 'ativas' ? walletsAtivas : walletsArquivadas;
+  // ⚠️ Conta "só da empresa" (Sora Negócios): não é dinheiro da pessoa. Sai do
+  // saldo total e da grade, e aparece numa seção própria logo abaixo —
+  // escondê-la de vez faria parecer que a conexão caiu (lib/conta-empresa.ts).
+  const ativasPessoais   = useMemo(() => contasDoPessoal(walletsAtivas), [walletsAtivas]);
+  const ativasEmpresa    = useMemo(() => contasDaEmpresa(walletsAtivas), [walletsAtivas]);
+  const walletsList      = tab === 'ativas' ? ativasPessoais : walletsArquivadas;
 
   const saldoTotal = useMemo(() =>
-    walletsAtivas
+    ativasPessoais
       .filter(w => w.tipo !== 'Crédito')
       .reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
-    [walletsAtivas, moedaBase]
+    [ativasPessoais, moedaBase]
   );
 
   const podeAdicionar = walletsAtivas.length < limiteContas;
@@ -396,7 +403,7 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
                 <div className="flex items-center gap-3 mt-3">
                   <span className="text-white/40 text-xs flex items-center gap-1.5">
                     <CheckCircle2 size={11} className="text-green-400" />
-                    {walletsAtivas.filter(w => w.tipo !== 'Crédito').length} conta{walletsAtivas.length !== 1 ? 's' : ''} ativa{walletsAtivas.length !== 1 ? 's' : ''}
+                    {ativasPessoais.length} conta{ativasPessoais.length !== 1 ? 's' : ''} ativa{ativasPessoais.length !== 1 ? 's' : ''}
                   </span>
                   <span className="text-white/20">·</span>
                   <span className="text-white/40 text-xs">Plano {plano}</span>
@@ -497,6 +504,49 @@ export default function ContasClient({ phoneInicial, initialData }: { phoneInici
               </button>
             )}
           </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════
+            CONTAS DA EMPRESA — ficam no Sora Negócios
+        ═══════════════════════════════════════════════════════ */}
+        {tab === 'ativas' && ativasEmpresa.length > 0 && (
+          <section aria-labelledby="titulo-contas-empresa" className="space-y-3 animate-fade-in">
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+              <div className="min-w-0">
+                <h2 id="titulo-contas-empresa" className="font-semibold text-foreground flex items-center gap-2">
+                  <Building2 size={16} aria-hidden="true" /> Contas da empresa
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Ficam no Sora Negócios e não entram no seu saldo nem nos seus lançamentos.
+                </p>
+              </div>
+              <Link href="/negocios/caixa" className="min-h-11 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                Abrir no Sora Negócios <ChevronRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {ativasEmpresa.map((w, i) => (
+                <WalletCard
+                  key={w.id}
+                  wallet={w}
+                  index={i}
+                  ocultar={ocultar}
+                  compartilhado={compartilhado}
+                  onEditar={() => abrirModal(w)}
+                  onDeletar={() => setContaExcluir(w)}
+                  onTornarPadrao={() => tornarPadrao(w)}
+                  onArquivar={() => toggleArquivar(w)}
+                  onAjustar={() => setAjusteOpen(w)}
+                  onTransferir={() => setTransferOpen(true)}
+                  onVerExtrato={() => setContaDetalhe(w)}
+                  sincronizadoEm={conexoes.sincronizadoEm(w)}
+                  conexaoEncerrada={conexoes.encerrada(w)}
+                  onSoltar={soltarDoBanco}
+                  estadoConexao={conexoes.estado(w)}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
       </div>

@@ -221,9 +221,38 @@ export async function transacoesDireto(
 // backend, que é o que o painel soma (`lib/moeda.saldoNaBase`). Num grupo em
 // real, `saldo_base` é o próprio `saldo_brl`. A cotação da BASE entra na mesma
 // consulta: o pivô pelo real precisa das duas pontas.
+// ⚠️ PORTE FIEL de `carteirasDaEmpresa` (sora-backend/src/services/contaDaEmpresa.js):
+// marca `da_empresa` na carteira ligada a uma conta do Sora Negócios com "só da
+// empresa". Sem isto o SSR pintaria o saldo COM a conta da empresa e o SWR o
+// tiraria logo depois — o número pularia na tela. Falha → ninguém é da empresa
+// (mostrar dinheiro é o lado seguro), igual ao backend.
+async function marcarDaEmpresaDireto(ws: any[]): Promise<any[]> {
+  const ids = ws.map((w) => w?.id).filter(Boolean);
+  if (!ids.length) return ws;
+  try {
+    const { data, error } = await supabaseAdmin.from('contas_negocio')
+      .select('id, wallet_id, empresa_id, ativa, fora_do_pessoal').in('wallet_id', ids);
+    if (error || !data) return ws;
+    const mapa = new Map<string, any>();
+    for (const c of data as any[]) {
+      if (c.wallet_id && c.ativa !== false && c.fora_do_pessoal !== false) {
+        mapa.set(String(c.wallet_id), { conta_id: c.id, empresa_id: c.empresa_id, empresa_nome: null });
+      }
+    }
+    if (!mapa.size) return ws.map((w) => ({ ...w, da_empresa: null }));
+    try {
+      const { data: emps } = await supabaseAdmin.from('empresas')
+        .select('id, nome').in('id', [...new Set([...mapa.values()].map((v) => v.empresa_id))]);
+      const nomes = new Map((emps || []).map((e: any) => [String(e.id), e.nome]));
+      for (const v of mapa.values()) v.empresa_nome = nomes.get(String(v.empresa_id)) || null;
+    } catch { /* nome é enfeite */ }
+    return ws.map((w) => ({ ...w, da_empresa: mapa.get(String(w.id)) || null }));
+  } catch { return ws; }
+}
+
 export async function walletsDireto(grupoId: string, moedaBase?: string | null) {
   const { data } = await supabaseAdmin.from('wallets').select('*').eq('grupo_id', grupoId).order('nome');
-  const ws = data || [];
+  const ws = await marcarDaEmpresaDireto(data || []);
   const base = normalizarMoeda(moedaBase);
 
   const moedas = [...new Set(ws.map((w: any) => String(w.moeda || 'BRL').toUpperCase()))]

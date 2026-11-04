@@ -13,6 +13,7 @@ import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import IconeMarca from '@/components/ui/IconeMarca';
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { contasDoPessoal } from '@/lib/conta-empresa';
 
 // "Transferência", "transferi", "transferir"… — gatilho do aviso que leva ao
 // "Transferir entre contas". Relato (Vander, out/2026): procurava a categoria
@@ -68,7 +69,10 @@ const FALLBACK_RECEITA: CatItem[] = [
   { emoji: '🪙', nome: 'Outras receitas'  },
 ];
 
-export default function NovaTransacaoModal({ phone, wallets, onClose, onSuccess, onOptimisticCreate }: Props) {
+export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClose, onSuccess, onOptimisticCreate }: Props) {
+  // Conta "só da empresa" (Sora Negócios) não é escolha de lançamento pessoal:
+  // o que entra nela aparece no caixa da empresa, não aqui.
+  const wallets = useMemo(() => contasDoPessoal(walletsTodas), [walletsTodas]);
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const [tipo,       setTipo]       = useState<'Gasto' | 'Recebimento'>('Gasto');
   const [valor,      setValor]      = useState('');

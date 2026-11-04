@@ -47,10 +47,11 @@ import {
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
-  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench, CreditCard } from 'lucide-react';
+  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench, CreditCard, Building2 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
+import { contasDoPessoal, contasDaEmpresa, ehLancamentoDaEmpresa } from '@/lib/conta-empresa';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 import { useTemMarca } from '@/contexts/MarcasCustomContext';
 
@@ -145,6 +146,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [contaId,  setContaId]  = useState('todas');
   const [membroFiltro, setMembroFiltro] = useState('todos'); // só em grupo compartilhado
   const [cartaoFiltro, setCartaoFiltro] = useState('todos'); // por cartão virtual (Open Finance)
+  // Lançamentos da conta "só da empresa" (Sora Negócios): escondidos por padrão.
+  const [mostrarEmpresa, setMostrarEmpresa] = useState(false);
 
   // Mês visualizado (0 = atual, -1 = anterior, +1 = próximo…). Passado: ver
   // transações importadas de OFX de meses anteriores. FUTURO: parcelas a vencer
@@ -357,7 +360,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // Nomes dos cartões, pro filtro "só contas" × "só cartões" (pedido do Robert:
   // ver o caixa sem o cartão misturado, sem tirar o cartão da aba).
   const nomesCartao = useMemo(() => new Set(wallets.filter((w) => w.tipo === 'Crédito').map((w) => w.nome)), [wallets]);
-  const txsFiltradas = useMemo(() => {
+  const txsBase = useMemo(() => {
     return txs.filter(t => {
       const q = busca.toLowerCase();
       const matchBusca  = !q || t.observacao?.toLowerCase().includes(q) || t.categoria?.toLowerCase().includes(q);
@@ -376,6 +379,25 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro && matchCartao;
     });
   }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro, nomesCartao]);
+
+  // ⚠️ CONTA "SÓ DA EMPRESA" (nov/2026, relato do Robert): os lançamentos dela
+  // já não entram em total nenhum (`ignorar_em = 'empresa'`), mas seguiam na
+  // lista — e quem olha a lista lê "a empresa está no meu pessoal". Agora saem
+  // da lista por padrão, com uma faixa dizendo quantos e um "mostrar".
+  // Escolher a conta da empresa no filtro é pedido explícito: aí aparecem.
+  // ⚠️ Escondidas saem de TUDO que lê `txsFiltradas` (contador, seleção,
+  // rodapé): o rodapé tem de somar exatamente o que a lista mostra.
+  const nomesEmpresa = useMemo(() => new Set(contasDaEmpresa(wallets).map((w) => w.nome)), [wallets]);
+  const verEmpresa = mostrarEmpresa || nomesEmpresa.has(contaId);
+  const { txsFiltradas, qtdEmpresaEscondida, qtdEmpresaNaLista } = useMemo(() => {
+    const daEmpresa = txsBase.filter(ehLancamentoDaEmpresa).length;
+    if (verEmpresa || !daEmpresa) return { txsFiltradas: txsBase, qtdEmpresaEscondida: 0, qtdEmpresaNaLista: daEmpresa };
+    return {
+      txsFiltradas: txsBase.filter((t) => !ehLancamentoDaEmpresa(t)),
+      qtdEmpresaEscondida: daEmpresa,
+      qtdEmpresaNaLista: 0,
+    };
+  }, [txsBase, verEmpresa]);
 
   // ── Métricas calculadas das filtradas ──────────────────────
   //
@@ -455,8 +477,9 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     txsFiltradas.filter(t => ehTransferencia(t)).reduce((s, t) => s + (t.valor || 0), 0),
     [txsFiltradas, ehTransferencia]);
 
+  // Conta "só da empresa" (Sora Negócios) fica fora do saldo pessoal.
   const saldoTotal = useMemo(() =>
-    wallets.filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
+    contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito').reduce((s, w) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
     [wallets, moedaBase]);
 
   // ── SALDO DA CONTA FILTRADA (atual e previsto) ─────────────────────────────
@@ -1042,7 +1065,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 </div>
               ) : (
                 <p className="text-white/40 text-xs mt-1.5">
-                  {wallets.filter(w => w.tipo !== 'Crédito').length} conta{wallets.length !== 1 ? 's' : ''}
+                  {contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito').length} conta{contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito').length !== 1 ? 's' : ''}
                 </p>
               )}
             </div>
@@ -1202,10 +1225,19 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   </optgroup>
                 )}
                 <optgroup label="Contas">
-                  {wallets.filter(w => w.tipo !== 'Crédito').map(w => (
+                  {contasDoPessoal(wallets).filter(w => w.tipo !== 'Crédito').map(w => (
                     <option key={w.id} value={w.nome}>{w.nome}</option>
                   ))}
                 </optgroup>
+                {/* Conta "só da empresa": à parte, e escolhê-la mostra os
+                    lançamentos dela (que a lista esconde por padrão). */}
+                {nomesEmpresa.size > 0 && (
+                  <optgroup label="Conta da empresa">
+                    {contasDaEmpresa(wallets).map(w => (
+                      <option key={w.id} value={w.nome}>{w.nome}</option>
+                    ))}
+                  </optgroup>
+                )}
                 {nomesCartao.size > 0 && (
                   <optgroup label="Cartões">
                     {wallets.filter(w => w.tipo === 'Crédito').map(w => (
@@ -1331,6 +1363,26 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
               Ordenado por data (mais recente)
             </span>
           </div>
+
+          {/* Conta "só da empresa": diz quantos lançamentos ficaram de fora e
+              por quê — esconder calado faria parecer que sumiram. */}
+          {!porFatura && (qtdEmpresaEscondida > 0 || (mostrarEmpresa && qtdEmpresaNaLista > 0)) && (
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2.5 border-b border-border/60 bg-muted/30 text-xs text-muted-foreground">
+              <span className="flex items-center gap-2 min-w-0">
+                <Building2 size={14} className="flex-shrink-0" aria-hidden="true" />
+                {qtdEmpresaEscondida > 0
+                  ? <span>{qtdEmpresaEscondida} {qtdEmpresaEscondida === 1 ? 'lançamento da conta da empresa está' : 'lançamentos da conta da empresa estão'} no Sora Negócios e não {qtdEmpresaEscondida === 1 ? 'aparece' : 'aparecem'} aqui.</span>
+                  : <span>Mostrando os lançamentos da conta da empresa. Eles não entram nos seus totais.</span>}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMostrarEmpresa((v) => !v)}
+                className="min-h-11 sm:min-h-0 font-semibold text-foreground underline underline-offset-2 hover:opacity-80"
+              >
+                {qtdEmpresaEscondida > 0 ? 'Mostrar' : 'Esconder'}
+              </button>
+            </div>
+          )}
 
           {carregandoFatura ? (
             // ⚠️ Carregando NÃO é "nenhuma transação": dizer que a fatura está

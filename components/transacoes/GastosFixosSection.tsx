@@ -13,6 +13,7 @@ import FormRecorrencia from '@/components/previstos/FormRecorrencia';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { calcularSaldoProjetado, diaHojeSP } from '@/lib/saldo-projetado';
+import { contasDoPessoal } from '@/lib/conta-empresa';
 import { ocorrenciasNoMes } from '@/lib/frequencia-recorrencia';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 
@@ -534,7 +535,7 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
   const projecao = useMemo(
     () => calcularSaldoProjetado(
       // Na moeda BASE, como a aba Previstos (conta em moeda estrangeira).
-      (wallets || []).map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
+      contasDoPessoal(wallets).map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
       itensDoSaldoProjetado(
         previstosRestantesDoMes({ recorrencias: itensProjecao as any, dividas, faturas }),
         pendentesDoCaixa((txMesAtual as any)?.transacoes, nomesDeCartao(wallets)),

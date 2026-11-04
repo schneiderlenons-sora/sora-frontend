@@ -17,6 +17,7 @@ import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
+import { contasDoPessoal } from '@/lib/conta-empresa';
 import { useConexoesOF } from '@/lib/conexao-of';
 import {
   aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
@@ -190,8 +191,9 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   const carregando = !semSessao && (!recData || !divData || !walData);
 
   // ── Projeção ─────────────────────────────────────────────────────────────
+  // Conta "só da empresa" (Sora Negócios) fica fora do saldo pessoal.
   const saldoHoje = useMemo(
-    () => wallets.filter((w: any) => w.tipo !== 'Crédito')
+    () => contasDoPessoal(wallets).filter((w: any) => w.tipo !== 'Crédito')
       .reduce((s: number, w: any) => s + (saldoNaBase(w, moedaBase) ?? 0), 0),
     [wallets, moedaBase],
   );
@@ -430,12 +432,12 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   }
 
   const contasPagamento = useMemo(
-    () => wallets.filter((w) => w.tipo !== 'Crédito' && !w.arquivada).map((w) => ({ id: String(w.id), nome: String(w.nome) })),
+    () => contasDoPessoal(wallets).filter((w) => w.tipo !== 'Crédito' && !w.arquivada).map((w) => ({ id: String(w.id), nome: String(w.nome) })),
     [wallets],
   );
 
   const carteirasDebito = useMemo(
-    () => wallets.filter((w: any) => w.tipo !== 'Crédito').map((w: any) => w.nome).filter(Boolean),
+    () => contasDoPessoal(wallets).filter((w: any) => w.tipo !== 'Crédito').map((w: any) => w.nome).filter(Boolean),
     [wallets],
   );
 
@@ -612,7 +614,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   );
   const proj = useMemo(
     () => calcularSaldoProjetado(
-      wallets.map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
+      contasDoPessoal(wallets).map((w: any) => ({ tipo: w.tipo, saldo: saldoNaBase(w, moedaBase) ?? 0 })),
       itensDoSaldoProjetado(restantesDoMes, pendentesMes),
     ),
     [wallets, restantesDoMes, pendentesMes, moedaBase],
