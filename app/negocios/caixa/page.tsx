@@ -13,7 +13,7 @@ import ModalRegrasNegocio from '@/components/negocios/ModalRegrasNegocio';
 import ModalCentrosCusto from '@/components/negocios/ModalCentrosCusto';
 import {
   fmtCent, labelDoLancamento, labelForma, porDia, totais, saldoPorConta,
-  doBanco, ehMovimentacao, CAT_A_CLASSIFICAR,
+  doBanco, ehMovimentacao, CAT_A_CLASSIFICAR, CAT_USO_PESSOAL,
   type Lancamento, type TipoLancamento, type ContaNegocio,
 } from '@/lib/lancamentos';
 import {
@@ -442,6 +442,7 @@ function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => 
             ? <span className="font-semibold text-amber-600 dark:text-amber-500">A classificar</span>
             : labelDoLancamento(l)}
           {mov ? ' · fora do resultado' : ''}
+          {l.categoria === CAT_USO_PESSOAL && doBanco(l) && l.tipo === 'saida' ? ' · nas suas finanças pessoais' : ''}
           {l.forma_pagamento && !doBanco(l) ? ` · ${labelForma(l.forma_pagamento)}` : ''}
           {l.contraparte ? ` · ${l.contraparte}` : ''}
           {l.criado_por_nome ? ` · por ${l.criado_por_nome}` : ''}

@@ -500,8 +500,9 @@ export default function ModalLancamento({
           {/* Do banco não se apaga (voltaria no próximo sync): o caminho é classificar. */}
           {travado && (
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Não é da empresa? Classifique como <b className="text-foreground">Movimentação entre contas</b>:
-              ele sai do resultado e continua no saldo da conta.
+              Foi um gasto seu, pessoal? Classifique como <b className="text-foreground">Uso pessoal / retirada do sócio</b>:
+              sai do resultado da empresa e volta pras suas finanças pessoais. Se foi só dinheiro mudando de conta,
+              use <b className="text-foreground">Movimentação entre contas</b>.
             </p>
           )}
 

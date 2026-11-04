@@ -310,6 +310,7 @@ export const CATEGORIAS_SAIDA = [
   { v: 'transporte', label: 'Transporte',   icone: 'Car' },
   { v: 'outros',     label: 'Outros',       icone: 'Package' },
   { v: 'movimentacao', label: 'Movimentação entre contas', icone: 'ArrowLeftRight' },
+  { v: 'uso_pessoal',  label: 'Uso pessoal / retirada do sócio', icone: 'UserRound' },
 ];
 
 // ⚠️ Categorias que vêm da CONTA DO BANCO vinculada (migration 189):
@@ -320,7 +321,14 @@ export const CATEGORIAS_SAIDA = [
 //     regra de services/espelhoContaEmpresa.js no backend.
 export const CAT_A_CLASSIFICAR = 'a_classificar';
 export const CAT_MOVIMENTACAO = 'movimentacao';
-export const ehMovimentacao = (l: Pick<Lancamento, 'categoria'>) => l.categoria === CAT_MOVIMENTACAO;
+//   · 'uso_pessoal' — gasto da PESSOA pago pela conta da empresa (retirada do
+//     sócio): fora do resultado como a movimentação, e, se veio do banco, a
+//     transação VOLTA pras finanças pessoais como gasto (o backend cuida —
+//     services/espelhoContaEmpresa.js, ajustarPessoalDaConta).
+export const CAT_USO_PESSOAL = 'uso_pessoal';
+/** Fora do resultado (receita/despesa/DRE), mas mexe no saldo. Espelho do backend. */
+export const ehMovimentacao = (l: Pick<Lancamento, 'categoria'>) =>
+  l.categoria === CAT_MOVIMENTACAO || l.categoria === CAT_USO_PESSOAL;
 
 export const FORMAS_PAGAMENTO = [
   { v: 'dinheiro',      label: 'Dinheiro' },

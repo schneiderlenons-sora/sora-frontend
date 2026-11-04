@@ -1271,6 +1271,16 @@ Os quatro pendentes do pedido do Robert, todos na migration **192**.
     Finance manda as reservas da PJ SOMADAS numa "Caixinha" — não dá pra
     separar por nome. Módulo de investimentos da empresa: só quando uma
     conexão PJ trouxer investimento (hoje zero).
+  - **"Uso pessoal / retirada do sócio"** (`uso_pessoal`, só SAÍDA, nov/2026,
+    decisão do dono): gasto da pessoa pago pela conta da empresa. Fora do
+    resultado — entrou em `ehMovimentacao` (back E front), que é a regra única
+    de DRE/Painel/totais — mas sai do saldo da conta. Do banco: a transação
+    VOLTA pro pessoal como gasto (categoria do banco). É a ÚNICA exceção à
+    conta inteira: `ajustarPessoalDaConta` (estado idempotente) roda no
+    espelho, no PUT do lançamento, ao religar e nas regras aprendidas
+    (`aplicarNosPendentes`). ⚠️ Só tira a marca 'empresa'; leitura que falha
+    NÃO remarca; conta mista não é tocada; entrada nunca vira gasto pessoal;
+    baixa sugerida ignora. `eval:conta-empresa-fora-pessoal` §8 + front §5.
   - De passagem: gráfico do dashboard (servidor), Wrapped, Oráculo e resumo do
     WhatsApp **não liam `ignorar_em`** — o "não considerar" da 146 nunca valeu
     ali. Medido: 0 lançamentos marcados, nenhum número atual mudou.
