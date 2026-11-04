@@ -157,8 +157,8 @@ const COLUNAS_GRAFICO = 'id, data, valor, categoria, tipo, transferencia, cartei
 // Porte fiel de dashboard.listarTransacoes (com o mesmo fallback de embed).
 export async function transacoesDireto(
   grupoId: string,
-  { mes, tipo, limit, ate, colunas }:
-    { mes?: string; tipo?: string; limit: number; ate?: string; colunas?: string },
+  { mes, tipo, limit, ate, colunas, soPessoal }:
+    { mes?: string; tipo?: string; limit: number; ate?: string; colunas?: string; soPessoal?: boolean },
 ) {
   // `async` porque a sonda da coluna é assíncrona. Quem chama já usa `await`, e
   // o builder do Supabase é thenable — então o `await` do call site resolve a
@@ -168,6 +168,9 @@ export async function transacoesDireto(
     if (mes)  q = q.gte('data', `${mes}-01`).lt('data', proximoMesPrimeiroDia(mes));
     if (ate)  q = q.lte('data', ate);
     if (tipo) q = q.eq('tipo', tipo);
+    // Conta "só da empresa": fora das RECENTES pessoais (porte do `semEmpresa`
+    // do backend; `neq` sozinho excluiria o NULL, daí o `is.null`).
+    if (soPessoal) q = q.or('ignorar_em.is.null,ignorar_em.neq.empresa');
     if (await arquivadasOk()) q = q.is('arquivada_por', null);
     return q;
   };
@@ -407,7 +410,7 @@ export async function dashboardDireto(grupoId: string, mes: string, mesAnt: stri
     resumoDireto(grupoId, mes),
     resumoDireto(grupoId, mesAnt),
     walletsDireto(grupoId, moedaBase),
-    transacoesDireto(grupoId, { limit: 8, ate: agora }),
+    transacoesDireto(grupoId, { limit: 8, ate: agora, soPessoal: true }),
     // ⚠️ Só o GRÁFICO usa colunas enxutas. A lista de recentes (acima) segue
     // com `select('*')` + embed do criador, porque ela MOSTRA observação,
     // avatar de quem lançou e o resto — estreitar ali apagaria conteúdo da tela.

@@ -1231,10 +1231,29 @@ Os quatro pendentes do pedido do Robert, todos na migration **192**.
   `eval:conta-empresa-fora-pessoal`). A transação que entra no caixa sai das
   finanças pessoais pelo "não considerar" que todos os totais já respeitam.
   ⚠️ Valor próprio: desvincular tira exatamente essa marca, sem desfazer a
-  escolha da pessoa. Só marca na hora em que entra no caixa (se a pessoa
-  mandar voltar a considerar, o sync respeita). `contas_negocio.fora_do_pessoal`
-  (padrão sim; conta mista desliga). ⚠️ **O SALDO da conta PJ continua no
-  "saldo em contas" pessoal** — só receitas/despesas saíram (decisão pendente).
+  escolha da pessoa. `contas_negocio.fora_do_pessoal` (padrão sim; conta
+  mista desliga).
+  - ⚠️ **A CONTA INTEIRA sai do pessoal (nov/2026, decisão do dono, relato do
+    Robert).** Antes só marcava o que entrava no caixa — meses antes do vínculo
+    seguiam pessoais. Hoje `marcarCarteira` marca toda a carteira a cada
+    passada (cura também o reprocesso do agregador). Pra uma transação dela
+    voltar ao pessoal, o caminho é desligar "só da empresa".
+  - ⚠️ **O SALDO também sai** — `services/contaDaEmpresa.js` (fonte única,
+    DERIVADA do vínculo, sem coluna nova): `/api/wallets` e `/api/dashboard`
+    devolvem `da_empresa`; "ver saldos"/resumo do zap e Oráculo a tiram. No
+    painel, `lib/conta-empresa.ts` (`contasDoPessoal`) em TODO saldo pessoal
+    (dashboard, Transações, Relatórios, Previstos, contas fixas, SSR) — tela
+    nova que soma saldo passa por ele. ⚠️ Leitura que falha = conta PESSOAL
+    (nunca esconder dinheiro). `eval:conta-empresa` + §6 do backend.
+  - Transações esconde os lançamentos da empresa por padrão (faixa "N … no
+    Sora Negócios · Mostrar"; escolher a conta no filtro também mostra);
+    "Recentes" do dashboard filtra NA CONSULTA (`neq` exclui NULL → `is.null`).
+    Contas bancárias: seção "Contas da empresa". Novo lançamento não a oferece.
+  - Apagar conta da empresa ligada ao banco DESVINCULA antes (deixava as
+    transações marcadas pra sempre).
+  - Cartão PJ: a conexão PJ do Robert trouxe SÓ a conta corrente (medido
+    03/11) — o "Mercado Pago Crédito" é da conexão pessoal. Cartão na conta da
+    empresa segue fora de escopo (só corrente/poupança vinculam).
   - De passagem: gráfico do dashboard (servidor), Wrapped, Oráculo e resumo do
     WhatsApp **não liam `ignorar_em`** — o "não considerar" da 146 nunca valeu
     ali. Medido: 0 lançamentos marcados, nenhum número atual mudou.

@@ -390,14 +390,14 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const nomesEmpresa = useMemo(() => new Set(contasDaEmpresa(wallets).map((w) => w.nome)), [wallets]);
   const verEmpresa = mostrarEmpresa || nomesEmpresa.has(contaId);
   const { txsFiltradas, qtdEmpresaEscondida, qtdEmpresaNaLista } = useMemo(() => {
-    const daEmpresa = txsBase.filter(ehLancamentoDaEmpresa).length;
+    const daEmpresa = txsBase.filter((t) => ehLancamentoDaEmpresa(t, nomesEmpresa)).length;
     if (verEmpresa || !daEmpresa) return { txsFiltradas: txsBase, qtdEmpresaEscondida: 0, qtdEmpresaNaLista: daEmpresa };
     return {
-      txsFiltradas: txsBase.filter((t) => !ehLancamentoDaEmpresa(t)),
+      txsFiltradas: txsBase.filter((t) => !ehLancamentoDaEmpresa(t, nomesEmpresa)),
       qtdEmpresaEscondida: daEmpresa,
       qtdEmpresaNaLista: 0,
     };
-  }, [txsBase, verEmpresa]);
+  }, [txsBase, verEmpresa, nomesEmpresa]);
 
   // ── Métricas calculadas das filtradas ──────────────────────
   //

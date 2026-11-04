@@ -35,7 +35,7 @@ import {
 import { useFmt } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
-import { contasDoPessoal } from '@/lib/conta-empresa';
+import { contasDoPessoal, contasDaEmpresa, ehLancamentoDaEmpresa } from '@/lib/conta-empresa';
 import { useTemMarca } from '@/contexts/MarcasCustomContext';
 // ⚠️ recharts NÃO entra aqui. Importado estático, ele ia pro bundle inicial
 // (~288 KB) e, como o <Link> do Next faz prefetch das rotas da sidebar (que
@@ -263,7 +263,11 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const resumo:    any   = data?.resumo    ?? { receitas: 0, gastos: 0, por_categoria: [] };
   const resumoAnt: any   = data?.resumoAnt ?? { receitas: 0, gastos: 0, por_categoria: [] };
   const wallets:   any[] = data?.wallets   ?? [];
-  const txs:       any[] = data?.txsRec?.transacoes ?? [];
+  const txsRecTodas: any[] = data?.txsRec?.transacoes ?? [];
+  // Recentes PESSOAIS: a consulta já tira a marca "empresa"; aqui sai também o
+  // que está numa carteira da empresa com outra marca (lib/conta-empresa.ts).
+  const nomesEmpresa = useMemo(() => new Set(contasDaEmpresa(wallets).map((w: any) => w.nome)), [wallets]);
+  const txs = useMemo(() => txsRecTodas.filter((t) => !ehLancamentoDaEmpresa(t, nomesEmpresa)), [txsRecTodas, nomesEmpresa]);
   const txsMes:    any[] = data?.txsMes?.transacoes ?? [];
   const categorias: any[] = data?.categorias ?? [];
 

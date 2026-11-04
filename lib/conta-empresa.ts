@@ -35,7 +35,18 @@ export function contasDaEmpresa<W>(ws: W[] | null | undefined): W[] {
   return (ws || []).filter((w) => ehContaDaEmpresa(w));
 }
 
-/** O lançamento é da conta da empresa (marcado pelo Sora Negócios)? */
-export function ehLancamentoDaEmpresa(t: { ignorar_em?: string | null } | null | undefined): boolean {
-  return !!t && t.ignorar_em === 'empresa';
+/**
+ * O lançamento é da conta da empresa? Marcado pelo Sora Negócios OU numa
+ * carteira da empresa — este segundo cobre o lançamento que a pessoa já tinha
+ * posto em "não considerar" por conta própria (outra marca, que o Negócios
+ * nunca sobrescreve) e o que acabou de chegar e ainda não passou pelo espelho.
+ */
+export function ehLancamentoDaEmpresa(
+  t: { ignorar_em?: string | null; carteira_nome?: string | null; wallet_nome?: string | null } | null | undefined,
+  nomesEmpresa?: Set<string> | null,
+): boolean {
+  if (!t) return false;
+  if (t.ignorar_em === 'empresa') return true;
+  const nome = t.carteira_nome || t.wallet_nome;
+  return !!(nome && nomesEmpresa && nomesEmpresa.has(nome));
 }
