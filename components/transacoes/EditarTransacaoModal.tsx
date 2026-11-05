@@ -53,7 +53,22 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   // vem com nome de pessoa, e o usuário corrigiria o mesmo nome todo mês).
   const [aplicarTodas, setAplicarTodas] = useState(false);
   const mudouCategoria = (categoria || '') !== (tx.categoria || '');
+  const mudouNome = observacao.trim() !== (tx.observacao || '').trim();
   const estabelecimento = (tx.observacao || '').trim();
+  // O nome da loja sem o "1/10" do fim — no rótulo, "Kabum 1/10" faria parecer
+  // que a regra vale só pra primeira parcela.
+  const lojaSemMarcador = estabelecimento.replace(/\s*\(?\s*\d{1,3}\s*\/\s*\d{1,3}\s*\)?\s*$/, '').trim() || estabelecimento;
+
+  // "Aplicar nas outras parcelas desta compra" (relato do Bruno, nov/2026):
+  // renomear/recategorizar UMA parcela deixava as outras com o nome do banco.
+  // ⚠️ Estado DERIVADO com escolha explícita por cima: liga sozinho quando o
+  // nome ou a categoria mudam (editar uma parcela quase sempre é editar a
+  // compra), mas quem desmarcar continua desmarcado. Sem mudança fica
+  // desligado — e ainda dá pra marcar, pra arrumar uma compra que ficou
+  // pela metade antes desta correção.
+  const ehParcela = !!tx.parcela_grupo && Number(tx.parcela_total) > 1;
+  const [escolhaParcelas, setEscolhaParcelas] = useState<boolean | null>(null);
+  const aplicarParcelas = ehParcela && (escolhaParcelas ?? (mudouCategoria || mudouNome));
   // Formulário completo de regra, aberto a partir desta transação. O toggle
   // abaixo resolve o caso simples (categoria); isto abre as MESMAS telas do
   // card do Watson pra quem quer renomear, marcar recorrente ou mandar o
@@ -84,14 +99,15 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
       phone, tipo, categoria: categoria || 'Outros', valor: v,
       observacao, carteira_nome: carteira || undefined, data, pago,
       ...(querRegra ? { aplicar_todas: true } : {}),
+      ...(aplicarParcelas ? { aplicar_parcelas: true } : {}),
     };
 
     // #6 otimista (opt-in): fecha na hora e delega o save pro pai, que troca a
     // linha no cache imediatamente e chama a API em segundo plano.
-    // ⚠️ Com "vale pra todas" NÃO usamos o caminho otimista: o servidor mexe em
-    // várias linhas e só ele sabe quantas — fechar antes mostraria a tela com
-    // uma transação corrigida e as outras ainda erradas.
-    if (onOptimisticSave && !querRegra) {
+    // ⚠️ Com "vale pra todas" ou "outras parcelas" NÃO usamos o caminho
+    // otimista: o servidor mexe em várias linhas e só ele sabe quantas — fechar
+    // antes mostraria uma parcela corrigida e as outras ainda erradas.
+    if (onOptimisticSave && !querRegra && !aplicarParcelas) {
       const optimisticRow = { ...tx, ...payload, wallet_nome: carteira || undefined };
       onOptimisticSave(optimisticRow, () => api.transacoes.editar(tx.id, payload));
       onClose();
@@ -165,7 +181,7 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-foreground">
-                    Valer para todas de &ldquo;{estabelecimento.slice(0, 28)}{estabelecimento.length > 28 ? '…' : ''}&rdquo;
+                    Valer para todas de &ldquo;{lojaSemMarcador.slice(0, 28)}{lojaSemMarcador.length > 28 ? '…' : ''}&rdquo;
                   </span>
                   <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">
                     Corrige as anteriores e as próximas entram já em{' '}
@@ -225,6 +241,31 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Descrição</label>
             <input value={observacao} onChange={e => setObservacao(e.target.value)} className="input w-full" placeholder="Ex.: Mercado, Uber…" />
+
+            {/* Compra parcelada: o nome e a categoria são da COMPRA. Sem isto,
+                renomear a 1ª parcela deixava as outras com o nome do banco. */}
+            {ehParcela && (
+              <button type="button" onClick={() => setEscolhaParcelas(!aplicarParcelas)}
+                      role="switch" aria-checked={aplicarParcelas}
+                      className={`mt-2.5 w-full flex items-start gap-2.5 p-3 rounded-xl text-left transition-colors ${
+                        aplicarParcelas ? 'bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+                      style={{ border: `1px solid ${aplicarParcelas ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))'}`, minHeight: 44 }}>
+                <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+                        aplicarParcelas ? 'bg-primary text-white' : 'bg-card'}`}
+                      style={aplicarParcelas ? undefined : { border: '1px solid hsl(var(--border))' }}>
+                  {aplicarParcelas && <Check size={13} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">
+                    Aplicar nas outras parcelas desta compra
+                  </span>
+                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    As outras {Number(tx.parcela_total) - 1} parcelas ficam com o mesmo nome e a mesma categoria.
+                    Valor e data continuam os de cada uma.
+                  </span>
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Valor + Data */}

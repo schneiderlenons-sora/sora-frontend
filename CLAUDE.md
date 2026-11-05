@@ -2351,6 +2351,28 @@ não aprende?"*. Três defeitos somados, todos em `services/regrasCategoria.js`
   categoria específica ficaram (ex.: 18 do Mercado Livre que o cliente separou
   à mão). 11 "PG" que o reverso jogou em Medicamento voltaram pra Outros.
 
+### Editar uma parcela → as outras da compra acompanham (nov/2026)
+
+Relato (Bruno): renomeou a 1ª parcela ("Mlp*Kabum-Fast Shop 1/10" → "Boombox
+4"), trocou a categoria, marcou "Valer para todas" e as outras 9 não mudaram.
+
+- ⚠️ **A regra era gravada com o nome NOVO** (`tx` depois do update), que
+  nenhuma outra linha tem — nascia "boombox" e não alcançava nada. Hoje a rota
+  usa a descrição de **ANTES** da edição.
+- ⚠️ **Regra de loja não é "esta compra".** Ela só leva a CATEGORIA, e a TODAS
+  as compras da loja. Nome e categoria da compra vão pelo **"Aplicar nas outras
+  parcelas desta compra"** (`aplicar_parcelas` no `PUT /transacoes/:id`,
+  `services/parcelasIrmas.js`, `eval:parcelas-irmas` 10/10 mutações).
+- Irmãs = mesmo `parcela_grupo` **+ mesma carteira (de antes) + mesmo total**
+  (o grupo do OF é hash e há 10 grupos espalhados em mais de um cartão).
+  Só nome e categoria andam; valor/data/pago/conta não (nada mexe em saldo).
+  Nome com o marcador da editada ("X 1/10") vira o de cada irmã ("X 3/10").
+- Na tela o interruptor é DERIVADO: liga sozinho quando nome ou categoria
+  mudam, quem desmarcar fica desmarcado, e sem mudança dá pra marcar (é como se
+  conserta uma compra que ficou pela metade). Sem caminho otimista quando ligado.
+- ⚠️ Latente (não mexido): `dedupReprocesso` casa a cópia velha pela
+  DESCRIÇÃO; linha renomeada não acha a gêmea se o agregador reprocessar.
+
 ## Suporte dentro da Ajuda (out/2026)
 
 Relato (Robert): "difícil achar os chamados". O suporte vivia em
