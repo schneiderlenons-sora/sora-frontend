@@ -39,6 +39,8 @@ interface GrupoListItem {
   grupo_id: string;
   papel:    string;
   grupos:   { id: string; nome: string; dono_id: string; emoji?: string };
+  /** Nasceu com a conta: não se sai dele, mesmo renomeado (decidido no servidor). */
+  original?: boolean;
 }
 
 interface Membro {
@@ -220,7 +222,7 @@ export default function ComunidadePage() {
                   <Pencil size={13} /> Editar grupo
                 </button>
               )}
-              {!ehGrupoPessoal && (
+              {!ehGrupoPessoal && !grupoAtivo?.original && (
                 <button
                   onClick={() => setConfirmSair(grupoAtivo)}
                   className="btn-ghost px-3 py-2 text-sm gap-1.5 text-red-600 dark:text-red-400 ml-auto"

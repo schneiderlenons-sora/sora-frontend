@@ -3870,6 +3870,24 @@ Decisão consciente, tomada depois de medir; não é lacuna.
   **painel compartilhado**, não ao plano do dono. Se um cliente reclamar que
   "paguei Platinum e meu cônjuge não usa o zap", é ISTO, e é esperado.
 
+## Toda conta tem um grupo; o original não se abandona (nov/2026)
+
+Relato (Paulo, vitalício com 2 conexões pagas): WhatsApp "Erro ao carregar seu
+perfil" em toda mensagem e Open Finance "Você não tem um grupo ativo".
+
+- **Como chegou lá:** o grupo criado com a conta foi RENOMEADO, um convidado
+  entrou e o dono tocou em "Sair". A trava olhava só `/pessoal/i` no nome; a
+  posse foi pro convidado e a conta ficou com `grupo_ativo = null` e nenhum grupo.
+- ⚠️ **Original = nasceu com a conta** (`created_at` igual ao do usuário, mesma
+  transação do trigger; 344 de 348 contas, 9 já renomeadas). **Não é "o mais
+  antigo de que é dono"**: grupo recebido por transferência é mais velho que o
+  Pessoal de quem recebeu. `services/grupoDoUsuario.js`, `eval:grupo-do-usuario`.
+- **Conta sem grupo se recupera** (`garantirGrupoAtivo`, no `auth` e no webhook):
+  volta pra um grupo dela, senão cria "Pessoal de X". ⚠️ O painel dispara ~10
+  chamadas juntas: promessa em andamento por usuário + update condicional
+  (`grupo_ativo is null`), senão nasceriam 10 grupos. Leitura que falha não cria.
+- `GET /grupos/:phone` devolve `original`; a Comunidade não oferece "Sair" nele.
+
 ## O alerta de teto nunca disparava pra quem gasta em conta fixa (set/2026)
 
 Relato do dono: *"ultrapassei meu limite geral de gastos e não fui avisado"*.
