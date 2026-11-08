@@ -10,7 +10,7 @@ import EditarLoteModal, { type PatchLote } from '@/components/transacoes/EditarL
 import RatearModal from '@/components/transacoes/RatearModal';
 import JuntarRateioModal from '@/components/transacoes/JuntarRateioModal';
 import {
-  ConciliarSugestoes, ConciliarSheet, SeloConciliar,
+  ConciliarSugestoes, ConciliarSheet, ConciliarLoteSheet, SeloConciliar,
   type ParConciliavel, idPar, lerDispensados, dispensarPar,
 } from '@/components/transacoes/ConciliarBanco';
 import PagamentoFaturaSugestoes, {
@@ -282,6 +282,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     [paresConciliar],
   );
   const [parAberto, setParAberto] = useState<ParConciliavel | null>(null);
+  const [loteAberto, setLoteAberto] = useState(false);
 
   // ── Transferência entre contas próprias (sugestão, o cliente confirma) ──────
   // Mesmo motivo do `useSWR` direto acima: sugestão secundária fora do LoadingGate.
@@ -328,6 +329,21 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     mLista((cur: any) => cur ? { ...cur, transacoes: (cur.transacoes || []).map((t: any) => (ids.has(t.id) ? { ...t, transferencia: !desfazer } : t)) } : cur, { revalidate: true });
     mR();
     if (desfazer) mTransf();
+  }
+
+  // Em passadas (o servidor junta até 150 por vez e diz quantas restam). Para se
+  // uma passada não juntar nada: repetir só bateria no mesmo erro.
+  async function juntarTodas(progresso: (feitas: number) => void) {
+    let feitas = 0;
+    for (let i = 0; i < 40; i++) {
+      const r = await api.transacoes.conciliarTodos([...dispensados]);
+      feitas += r.juntadas;
+      progresso(feitas);
+      if (!r.restantes || !r.juntadas) break;
+    }
+    mConc();
+    mLista();
+    return feitas;
   }
 
   async function conciliarPar(p: ParConciliavel) {
@@ -1111,7 +1127,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
         {/* Previsto manual cuja cobrança IGUAL já chegou do banco. Só existe
             quando há par — sem par, não ocupa espaço nenhum. */}
-        <ConciliarSugestoes pares={paresConciliar} onAbrir={setParAberto} />
+        <ConciliarSugestoes pares={paresConciliar} onAbrir={setParAberto} onJuntarTodas={() => setLoteAberto(true)} />
 
         {/* Saída de conta no valor exato de uma fatura fechada em aberto:
             provável pagamento que nunca chegou pelo cartão. Só aparece com par. */}
@@ -1598,6 +1614,10 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             ).then(() => { mR(); mW(); }).catch((e: any) => { void avisar({ titulo: 'Não consegui salvar', mensagem: e?.message || 'Tente de novo em instantes.' }); });
           }}
         />
+      )}
+
+      {loteAberto && (
+        <ConciliarLoteSheet pares={paresConciliar} onFechar={() => setLoteAberto(false)} onConfirmar={juntarTodas} />
       )}
 
       {parAberto && (

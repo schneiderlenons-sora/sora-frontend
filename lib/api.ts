@@ -469,7 +469,10 @@ export const api = {
     // que o botão "Conciliar com o banco" oferece. Mesma régua do automático
     // (prova do Watson + 1-pra-1 sem disputa); quem junta é o `fundir`.
     conciliaveis: (phone: string) =>
-      req<{ pares: { previsto: ParConciliavelTx; banco: ParConciliavelTx }[] }>(`/api/transacoes/conciliaveis/${phone}`),
+      req<{ pares: { previsto: ParConciliavelTx; banco: ParConciliavelTx; lote?: boolean }[] }>(`/api/transacoes/conciliaveis/${phone}`),
+    // Junta de uma vez os pares que o SERVIDOR considera seguros. Em passadas: repetir até `restantes` zerar.
+    conciliarTodos: (dispensados: string[]) =>
+      req<{ ok: boolean; juntadas: number; restantes: number }>('/api/transacoes/conciliar-todos', { method: 'POST', body: JSON.stringify({ dispensados }) }),
     // Saída numa conta e entrada noutra, mesmo valor e dia: provável dinheiro do
     // cliente mudando de conta (contando como gasto E receita). Só SUGESTÃO —
     // régua em services/transferenciaPropria.js; quem marca é o cliente.

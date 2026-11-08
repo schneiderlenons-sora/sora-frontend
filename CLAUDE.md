@@ -1608,6 +1608,17 @@ cobrança entra separada **de propósito** (nunca fundir sem rede de desfazer). 
 `recorrente != true` no Postgres EXCLUI `NULL` — usar `IS NOT TRUE`. Falhas que
 saíam caladas (interruptor, update recusado, exceção) hoje logam.
 
+**Juntar em lote (nov/2026, Caio):** criar grupo "trazendo os dados"
+(`copiarGrupo`) copia contas e transações SEM o vínculo com o banco; reconectar
+repete 90 dias em dobro (~500 linhas). `POST /transacoes/conciliar-todos` +
+`planoLote`/`cabeNoLote` (`fusaoDuplicada.js`, `eval:fusao`): botão "Juntar N
+repetidas" no quadro "Já chegou do banco". ⚠️ Mais rígido que o par: prova do
+Watson **+ mesma descrição ou mesmo instante** (ninguém olha um por um). O
+servidor recalcula, em passadas de 150. ⚠️ O quadro aceita QUALQUER prova do
+Watson: filtrar só `manual-e-banco` escondia a cópia com mesmo instante e mesma
+descrição, que sai como `mesmo-instante` (achado só no teste em banco real).
+Medido: 30 → 233 pares na base, 207 cabem no lote.
+
 **Conta fixa em conta conectada:** com "Desconta sozinho" o cron lançava PAGO e o
 banco trazia a mesma (13 linhas em dobro em 60 dias). Hoje, em conta do banco, o
 cron lança como **previsão** (`contaConectada` em `jobs/index.js`) e o banco

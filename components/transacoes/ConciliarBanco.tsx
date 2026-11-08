@@ -30,7 +30,7 @@ import { nomeCategoria } from '@/lib/categorias';
 import { useDinheiro } from '@/lib/moeda-base';
 import { useFmt } from '@/lib/valores-ocultos';
 
-export type ParConciliavel = { previsto: ParConciliavelTx; banco: ParConciliavelTx };
+export type ParConciliavel = { previsto: ParConciliavelTx; banco: ParConciliavelTx; lote?: boolean };
 
 // "Não é a mesma" é escolha de QUEM ESTÁ VENDO, não dado da conta: guardado no
 // navegador. Pior caso (storage bloqueado) é a sugestão voltar — nunca some
@@ -73,9 +73,10 @@ const titulo = (t: ParConciliavelTx) => (t.observacao || '').trim() || nomeCateg
 // CARTÃO DE SUGESTÕES — acima da lista. É o caminho principal no celular, onde
 // a tabela rola na horizontal e a coluna de status fica fora da tela.
 // ─────────────────────────────────────────────────────────────────────────────
-export function ConciliarSugestoes({ pares, onAbrir }: {
+export function ConciliarSugestoes({ pares, onAbrir, onJuntarTodas }: {
   pares: ParConciliavel[];
   onAbrir: (p: ParConciliavel) => void;
+  onJuntarTodas?: () => void;
 }) {
   const fmt = useFmt(useDinheiro());
   const [todos, setTodos] = useState(false);
@@ -84,6 +85,8 @@ export function ConciliarSugestoes({ pares, onAbrir }: {
   const LIMITE = 3;
   const visiveis = todos ? pares : pares.slice(0, LIMITE);
   const n = pares.length;
+  // Só com 2+: pra um par só, o botão da linha já é o caminho.
+  const nLote = pares.filter((p) => p.lote).length;
 
   return (
     <section
@@ -116,6 +119,16 @@ export function ConciliarSugestoes({ pares, onAbrir }: {
           </p>
         </div>
       </div>
+
+      {onJuntarTodas && nLote >= 2 && (
+        <button
+          type="button"
+          onClick={onJuntarTodas}
+          className="btn-primary relative mt-3 w-full min-h-[48px] text-sm font-semibold inline-flex items-center justify-center gap-2"
+        >
+          <Link2 size={16} aria-hidden="true" /> Juntar {nLote} repetidas de uma vez
+        </button>
+      )}
 
       <ul className="relative mt-3 -mx-1 divide-y divide-border/50">
         {visiveis.map((p) => (
@@ -386,6 +399,96 @@ export function ConciliarSheet({ par, onFechar, onConciliar, onDispensar }: {
               : <><Link2 size={16} aria-hidden="true" /> Conciliar</>}
           </button>
         </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIRMAR O LOTE — diz o resultado e o que NÃO entra, antes do toque.
+// ─────────────────────────────────────────────────────────────────────────────
+export function ConciliarLoteSheet({ pares, onFechar, onConfirmar }: {
+  pares: ParConciliavel[];
+  onFechar: () => void;
+  /** Junta tudo; chama `progresso` a cada passada. Rejeita com a mensagem do servidor. */
+  onConfirmar: (progresso: (feitas: number) => void) => Promise<number>;
+}) {
+  const [montado, setMontado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [feitas, setFeitas] = useState(0);
+  const [erro, setErro] = useState('');
+  const [concluidas, setConcluidas] = useState<number | null>(null);
+  useEffect(() => setMontado(true), []);
+
+  const nLote = pares.filter((p) => p.lote).length;
+  const ficam = pares.length - nLote;
+
+  async function confirmar() {
+    if (enviando) return;
+    setEnviando(true); setErro('');
+    try {
+      setConcluidas(await onConfirmar(setFeitas));
+    } catch (e: any) {
+      setErro(e?.message || 'Não consegui terminar agora. Tente de novo: o que já foi juntado continua certo.');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (!montado) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center sm:justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { if (!enviando) onFechar(); }} aria-hidden="true" />
+      <div role="dialog" aria-modal="true" aria-labelledby="conciliar-lote-titulo"
+           className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl border border-border/60 shadow-2xl px-5 pt-5
+                      pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:pb-5"
+           style={{ background: 'hsl(var(--bg-card))' }}>
+        {concluidas !== null ? (
+          <>
+            <h2 id="conciliar-lote-titulo" className="text-lg font-bold text-foreground">
+              {concluidas === 1 ? '1 lançamento juntado' : `${concluidas} lançamentos juntados`}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {ficam > 0
+                ? `${ficam === 1 ? 'Ficou 1 para você conferir na lista: nele' : `Ficaram ${ficam} para você conferir na lista: neles`} o nome é diferente do que veio do banco.`
+                : 'Não sobrou nada repetido nesta lista.'}
+            </p>
+            <button type="button" onClick={onFechar} className="btn-primary w-full mt-4 min-h-[48px] text-sm font-semibold">Fechar</button>
+          </>
+        ) : (
+          <>
+            <h2 id="conciliar-lote-titulo" className="text-lg font-bold text-foreground">
+              Juntar {nLote} lançamentos repetidos?
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Eles têm o mesmo valor, a mesma conta e o mesmo nome ou horário de uma movimentação que o banco trouxe.
+            </p>
+            <ul className="mt-4 space-y-2">
+              {[
+                'Fica a linha que veio do banco, com o nome e a categoria que você já usava.',
+                'A cópia repetida é apagada. Isso não dá para desfazer.',
+                'O saldo não muda: ele já vem do banco.',
+                ...(ficam > 0 ? [`${ficam === 1 ? '1 outro continua' : `${ficam} outros continuam`} na lista para você conferir um por um.`] : []),
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2 text-sm text-foreground">
+                  <CheckCircle2 size={15} className="flex-shrink-0 mt-0.5" style={{ color: 'hsl(var(--primary))' }} aria-hidden="true" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+            {erro && <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">{erro}</p>}
+            <div className="mt-5 flex flex-col-reverse sm:flex-row gap-2">
+              <button type="button" onClick={onFechar} disabled={enviando} className="btn-ghost w-full sm:w-auto min-h-[48px] px-4 text-sm disabled:opacity-40">Agora não</button>
+              <button type="button" onClick={confirmar} disabled={enviando} aria-busy={enviando}
+                      className="btn-primary w-full sm:flex-1 min-h-[48px] text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                {enviando
+                  ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Juntando… {feitas} de {nLote}</>
+                  : <><Link2 size={16} aria-hidden="true" /> Juntar {nLote}</>}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>,
     document.body,
