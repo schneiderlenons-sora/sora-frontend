@@ -4336,6 +4336,9 @@ Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
   helpers de saída. Medido: 0 chamadas no app × 9 no Safari.
 - `inativo` no app vira `gratis` (mesma regra do Android em `PaywallRedirect`)
   e o cadastro cai no `/tour` com o card sem preço.
+- **Varredura com conta grátis antes do reenvio (08/11/2026):** Negócios fica fora
+  de `app/(app)` e tinha "Ver planos"; "Seja afiliado"/"Indique e ganhe" estavam no
+  menu. Hoje saem do menu e o middleware os tira do app (`ROTAS_DE_VENDA_IOS`).
 - ⚠️ **Tela nova com preço, "Assinar", "upgrade" ou link pra /planos/Stripe:
   esconder no app de iPhone** (`useEhAppIos` no painel, `oculto-no-app-ios` fora).
 - **Fase 2 (não feita):** assinatura pela Apple (StoreKit), igual à Play.

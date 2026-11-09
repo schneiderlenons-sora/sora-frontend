@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useEhAppIos } from '@/lib/useOrigem';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -551,11 +552,12 @@ function TelaSucesso({ webhookUrl, plataforma }: { webhookUrl: string; plataform
 }
 
 function BloqueioNegocios() {
+  const ehIos = useEhAppIos(); // App de iPhone: sem convite a comprar (lib/app-ios.ts).
   return (
     <div className="max-w-md mx-auto pt-20 px-6 text-center">
       <Lock size={32} className="text-muted-foreground mx-auto mb-3" />
-      <h2 className="text-lg font-bold text-foreground">Disponível no plano Platinum</h2>
-      <p className="text-sm text-muted-foreground mt-2">Faça upgrade para conectar suas plataformas.</p>
+      <h2 className="text-lg font-bold text-foreground">{ehIos ? 'Fora do seu plano' : 'Disponível no plano Platinum'}</h2>
+      {!ehIos && <p className="text-sm text-muted-foreground mt-2">Faça upgrade para conectar suas plataformas.</p>}
     </div>
   );
 }

@@ -31,6 +31,7 @@ import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
 import { useSWRConfig } from 'swr';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import { useEhAndroid, useEhAppIos } from '@/lib/useOrigem';
+import { rotaDeVendaNoAppIos } from '@/lib/app-ios';
 import type { Feature } from '@/lib/plans';
 
 type NavItem = {
@@ -538,7 +539,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // ⚠️ APP DE IPHONE: aba fora do plano NÃO aparece (nem com cadeado). Lá não
     // há como comprar (lib/app-ios.ts), e cadeado + selo "Premium" sem caminho
     // de compra é o tipo de coisa que a revisão da Apple questiona.
-    if (ehIos && locked) return null;
+    if (ehIos && (locked || rotaDeVendaNoAppIos(href))) return null;
     // ⚠️ ITEM BLOQUEADO POR PLANO ABRE A PRÓPRIA ABA, não o /planos.
     //
     // Cada uma delas renderiza o convite no próprio lugar (`AbaBloqueada`,

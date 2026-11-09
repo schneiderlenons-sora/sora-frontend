@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEhAppIos } from '@/lib/useOrigem';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
@@ -739,6 +740,8 @@ function FuturoEmBreve() {
 }
 
 function PaywallNegocios() {
+  // App de iPhone: sem "Ver planos" nem meio de pagamento (lib/app-ios.ts).
+  const ehIos = useEhAppIos();
   return (
     <div className="max-w-2xl mx-auto pb-20 pt-12 px-4">
       <div className="relative overflow-hidden rounded-3xl bg-black text-white p-10 text-center">
@@ -749,14 +752,14 @@ function PaywallNegocios() {
                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }}>
             <Crown size={28} className="text-black" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Negócios é exclusivo do plano Platinum</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">{ehIos ? 'Negócios está fora do seu plano' : 'Negócios é exclusivo do plano Platinum'}</h1>
           <p className="text-white/70 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
-            Conecte Hotmart, Stripe e mais. Tenha seu DRE, fluxo de caixa e insights de IA em tempo real.
+            {ehIos ? 'Esta área organiza o financeiro de empresas: DRE, fluxo de caixa e insights em tempo real.' : 'Conecte Hotmart, Stripe e mais. Tenha seu DRE, fluxo de caixa e insights de IA em tempo real.'}
           </p>
-          <Link href="/planos" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-black shadow-lg"
+          {!ehIos && <Link href="/planos" className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-black shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }}>
             <Crown size={15} /> Ver planos
-          </Link>
+          </Link>}
         </div>
       </div>
     </div>

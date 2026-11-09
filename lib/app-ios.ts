@@ -40,7 +40,9 @@ export function ehAppIos(): boolean {
  * ⚠️ `/planos` NÃO está aqui: é item do menu do painel. Lá ela mostra o plano
  * atual sem vender (ver `app/(app)/planos/page.tsx`).
  */
-export const ROTAS_DE_VENDA_IOS = ['/oferta', '/kit', '/checkout-vitalicio', '/financas', '/chat', '/quiz', '/es'];
+// `/indique` e `/afiliados` ficam aqui porque falam em ganhar sobre ASSINATURA
+// vendida fora da Apple: dentro do app isso é promover outro meio de pagamento.
+export const ROTAS_DE_VENDA_IOS = ['/oferta', '/kit', '/checkout-vitalicio', '/financas', '/chat', '/quiz', '/es', '/indique', '/afiliados'];
 
 export function rotaDeVendaNoAppIos(pathname: string): boolean {
   if (pathname === '/') return true;
