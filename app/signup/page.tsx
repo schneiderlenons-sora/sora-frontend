@@ -56,6 +56,10 @@ function SignupWizard() {
   const kitMode = searchParams.get('tier') === 'kit';
 
   const [step, setStep] = useState<Step>('dados');
+  // Veio de um convite de grupo: entra de graça (quem paga é quem convidou).
+  // A tela não pode mostrar etapas de plano/pagamento nem selo de cobrança —
+  // foi o "quer cobrar ele" do relato da Pollyana (nov/2026).
+  const veioDeConvite = (searchParams.get('next') || '').startsWith('/convite/');
 
   // Passo 1 — dados
   const [nome,     setNome]     = useState('');
@@ -121,6 +125,15 @@ function SignupWizard() {
       await recarregar();
       trackSignUp();
 
+      // ⚠️ CONVITE DE GRUPO tem prioridade sobre a escolha de plano: quem
+      // chegou por um convite não veio comprar — quem paga é quem convidou. Sem
+      // este desvio, criar a conta pelo link do convite terminava na tabela de
+      // preços e o código se perdia (relato de 23/09/2026).
+      // ⚠️ E vem ANTES do desvio do app: lá a conta ia pro tour e o código se
+      // perdia. O modo grátis quem libera é a página do convite, depois de entrar.
+      const next = searchParams.get('next');
+      if (next && next.startsWith('/convite/')) { router.push(next); return; }
+
       // ── App Android: modo manual + demonstrações, sem passar por preço ──
       //
       // ⚠️ NÃO DÁ PRA GRAVAR O PLANO AQUI PELO CLIENT. O onboarding escreve
@@ -145,13 +158,6 @@ function SignupWizard() {
           /* sem rede: segue pro fluxo de planos */
         }
       }
-
-      // ⚠️ CONVITE DE GRUPO tem prioridade sobre a escolha de plano: quem
-      // chegou por um convite não veio comprar — quem paga é quem convidou. Sem
-      // este desvio, criar a conta pelo link do convite terminava na tabela de
-      // preços e o código se perdia (relato de 23/09/2026).
-      const next = searchParams.get('next');
-      if (next && next.startsWith('/convite/')) { router.push(next); return; }
 
       if (vitalicioMode) {
         // Vitalício: checkout transparente (Mercado Pago) na nossa própria
@@ -268,7 +274,7 @@ function SignupWizard() {
 
   return (
     <div className="min-h-dvh flex flex-col lg:flex-row bg-white dark:bg-zinc-950">
-      <AuthHero pagamento={vitalicioMode ? 'Mercado Pago' : 'Stripe'} />
+      <AuthHero pagamento={veioDeConvite ? null : vitalicioMode ? 'Mercado Pago' : 'Stripe'} />
 
       <div className="relative flex-1 flex items-center justify-center
                       px-6 sm:px-10 lg:px-12 py-10 lg:py-12
@@ -278,7 +284,7 @@ function SignupWizard() {
 
           {/* Etapas Dados → Plano → Pagamento: no app de iPhone não há plano nem
               pagamento (o cadastro vira modo grátis) — some (lib/app-ios.ts). */}
-          <div className="oculto-no-app-ios"><Stepper step={step} /></div>
+          {!veioDeConvite && <div className="oculto-no-app-ios"><Stepper step={step} /></div>}
 
           {erro && (
             <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
@@ -291,7 +297,7 @@ function SignupWizard() {
             <DadosStep
               {...{ nome, setNome, whatsapp, setWhatsapp, email, setEmail,
                     password, setPassword, confirm, setConfirm, showPass, setShowPass,
-                    aceito, setAceito, loading, handleDados, kitMode }}
+                    aceito, setAceito, loading, handleDados, kitMode, veioDeConvite }}
             />
           )}
 
@@ -469,7 +475,11 @@ function DadosStep(p: any) {
     <>
       <div className="space-y-1.5">
         <h2 className="text-3xl font-bold text-foreground tracking-tight leading-none">Criar conta</h2>
-        <p className="text-muted-foreground text-sm">Comece a usar a Sora em 30 segundos</p>
+        <p className="text-muted-foreground text-sm">
+          {p.veioDeConvite
+            ? 'É grátis pra entrar no grupo: quem te convidou já tem o plano.'
+            : 'Comece a usar a Sora em 30 segundos'}
+        </p>
       </div>
 
 

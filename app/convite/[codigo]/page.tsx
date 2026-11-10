@@ -46,6 +46,8 @@ export default function ConvitePage() {
   const codigo = String(params?.codigo || '').toUpperCase().trim();
   const [fase, setFase] = useState<Fase>('verificando');
   const [erro, setErro] = useState('');
+  // O próprio dono abriu o link: o código NÃO foi gasto e ainda vale pra quem ele convidou.
+  const [proprio, setProprio] = useState(false);
   // Uma tentativa por carregamento: o efeito depende do auth, que reavalia
   // quando a aba volta ao foco — sem isto o convite seria resgatado de novo.
   const tentou = useRef(false);
@@ -74,6 +76,7 @@ export default function ConvitePage() {
         setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
       } catch (e: any) {
         setErro(e?.message || 'Não foi possível usar este convite.');
+        setProprio(e?.body?.codigo === 'convite_proprio');
         setFase('erro');
       }
     })();
@@ -134,8 +137,9 @@ export default function ConvitePage() {
               <AlertCircle size={16} className="mt-0.5 flex-shrink-0" /> {erro}
             </p>
             <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-              Convites valem por 7 dias e só podem ser usados uma vez. Peça um código novo
-              a quem te convidou.
+              {proprio
+                ? 'O convite continua valendo: nada foi gasto. Ele vale uma vez, por 7 dias, para a pessoa que abrir com a conta dela.'
+                : 'Convites valem por 7 dias e só podem ser usados uma vez. Peça um código novo a quem te convidou.'}
             </p>
             <Link href="/dashboard"
                   className="mt-5 w-full h-11 rounded-xl text-sm font-semibold text-foreground border border-border inline-flex items-center justify-center hover:bg-muted transition-colors">

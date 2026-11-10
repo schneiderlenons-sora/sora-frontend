@@ -26,7 +26,8 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function AuthHero({ pagamento = 'Stripe' }: { pagamento?: string }) {
+/** `pagamento = null`: sem selo de cobrança (ex.: quem chega por convite de grupo). */
+export default function AuthHero({ pagamento = 'Stripe' }: { pagamento?: string | null }) {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
@@ -86,7 +87,7 @@ export default function AuthHero({ pagamento = 'Stripe' }: { pagamento?: string 
         <div className="flex flex-wrap gap-2 lg:hidden">
           <PillBadge label="Setup em 30s" />
           {/* Cita outro meio de pagamento: some no app de iPhone (Apple 3.1.1). */}
-          <PillBadge label={`Pagamento seguro com ${pagamento}`} className="oculto-no-app-ios" />
+          {pagamento && <PillBadge label={`Pagamento seguro com ${pagamento}`} className="oculto-no-app-ios" />}
         </div>
 
         {/* Card mockup desktop */}
