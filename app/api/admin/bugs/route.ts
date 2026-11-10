@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { checkAdmin } from '@/lib/admin-server';
+import { situacaoDoChamado, ordenarChamados, type MsgResumo } from '@/lib/chamados-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,12 +14,36 @@ export async function GET(req: NextRequest) {
   const tipo = new URL(req.url).searchParams.get('tipo');
   const tipos = (tipo || '').split(',').map((t) => t.trim()).filter(Boolean);
 
-  const base = () => supabaseAdmin.from('bug_reports').select('*').order('created_at', { ascending: false }).limit(200);
-  let { data, error } = tipos.length ? await base().in('tipo', tipos) : await base();
-  // Coluna `tipo` pode não existir ainda (pré-migration 053) → cai sem filtro.
-  if (error && tipo) ({ data, error } = await base());
-  if (error) return NextResponse.json({ bugs: [], erro: error.message });
-  return NextResponse.json({ bugs: data || [] });
+  // ⚠️ ABERTOS TODOS + os 100 resolvidos mais recentes. Antes era "os 200
+  // mais recentes", e com o tempo um chamado aberto antigo seria empurrado pra
+  // fora da lista pelos resolvidos novos — sumindo sem ter sido atendido.
+  const abertos = () => supabaseAdmin.from('bug_reports').select('*').neq('status', 'resolvido')
+    .order('created_at', { ascending: false }).limit(500);
+  const resolvidos = () => supabaseAdmin.from('bug_reports').select('*').eq('status', 'resolvido')
+    .order('created_at', { ascending: false }).limit(100);
+  const ler = async (q: () => any) => {
+    let r = tipos.length ? await q().in('tipo', tipos) : await q();
+    // Coluna `tipo` pode não existir ainda (pré-migration 053) → cai sem filtro.
+    if (r.error && tipo) r = await q();
+    return r as { data: any[] | null; error: { message: string } | null };
+  };
+  const [a, r] = await Promise.all([ler(abertos), ler(resolvidos)]);
+  if (a.error) return NextResponse.json({ bugs: [], erro: a.error.message });
+  const lista = [...(a.data || []), ...(r.data || [])];
+
+  // Conversa resumida dos ABERTOS (resolvido teve a conversa apagada). Só os
+  // campos que decidem a situação — o texto vem sob demanda, ao abrir.
+  const porBug = new Map<string, MsgResumo[]>();
+  const idsAbertos = (a.data || []).map((b) => b.id);
+  if (idsAbertos.length) {
+    try {
+      const { data: msgs } = await supabaseAdmin.from('bug_mensagens')
+        .select('bug_id, autor, lida_em, created_at').in('bug_id', idsAbertos);
+      for (const m of msgs || []) porBug.set(m.bug_id, [...(porBug.get(m.bug_id) || []), m]);
+    } catch { /* migration 143 pendente — fica sem situação de conversa */ }
+  }
+  const bugs = ordenarChamados(lista.map((b) => situacaoDoChamado(b, porBug.get(b.id) || [])));
+  return NextResponse.json({ bugs });
 }
 
 export async function PATCH(req: NextRequest) {

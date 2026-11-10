@@ -217,33 +217,33 @@ export async function GET() {
   let ofConectados = 0, ofGrupos = 0, ofComProblema = 0;
   let ofGruposFranquia = 0, ofGruposPagando = 0, ofPagandoSemUsar = 0;
   try {
-    const { data, error } = await supabaseAdmin.from('of_conexoes').select('grupo_id, status');
+    const { data, error } = await supabaseAdmin.from('of_conexoes').select('user_id, status');
     if (error) throw error;
-    const grupos = new Set<string>();
+    // ⚠️ POR CLIENTE (dono da conexão), não por grupo. Contando grupos o card
+    // dizia "42 contas" pra 41 clientes, e o "pagando sem usar" casava pelo
+    // grupo ATIVO (9) enquanto a aba Open Finance casava pelo dono (6) — os
+    // dois números da mesma pergunta na mesma tela. A franquia é do plano da
+    // PESSOA, então a unidade é ela. (Os nomes `ofGrupos*` ficaram por
+    // compatibilidade com a tela; o conteúdo agora é clientes.)
+    const clientes = new Set<string>();
     for (const c of data || []) {
       ofConectados++;
-      if (c.grupo_id) grupos.add(String(c.grupo_id));
+      if (c.user_id) clientes.add(String(c.user_id));
       if (c.status !== 'updated') ofComProblema++;
     }
-    ofGrupos = grupos.size;
+    ofGrupos = clientes.size;
 
     // ⚠️ QUEM CONECTA NÃO É SÓ QUEM PAGA. A assinatura recorrente tem franquia
-    // (Básico 1, Premium 3) e conecta de graça — medido: 9 dos 17 grupos
-    // conectados são de franquia. Olhando só a receita, metade de quem USA
-    // Open Finance ficava invisível no admin.
-    //
-    // E o cruzamento revela o caso caro: quem PAGA e NÃO conectou nada. É
-    // cobrança rodando por um serviço parado — vale ligar antes de virar
-    // pedido de reembolso.
+    // (Básico 1, Premium 3) e conecta de graça. E o cruzamento revela o caso
+    // caro: quem PAGA e NÃO conectou nada.
     const { data: pagantes } = await supabaseAdmin
-      .from('users').select('grupo_ativo, of_conexoes_pagas').gt('of_conexoes_pagas', 0);
-    const gruposPagantes = new Set(
-      (pagantes || []).map((u) => u.grupo_ativo).filter(Boolean).map(String));
-    for (const g of grupos) {
-      if (gruposPagantes.has(g)) ofGruposPagando++;
+      .from('users').select('id').gt('of_conexoes_pagas', 0);
+    const idsPagantes = new Set((pagantes || []).map((u) => String(u.id)));
+    for (const id of clientes) {
+      if (idsPagantes.has(id)) ofGruposPagando++;
       else ofGruposFranquia++;
     }
-    for (const g of gruposPagantes) if (!grupos.has(g)) ofPagandoSemUsar++;
+    for (const id of idsPagantes) if (!clientes.has(id)) ofPagandoSemUsar++;
   } catch { /* tabela of_conexoes pode não existir */ }
 
   // ── DISPOSITIVO (Android × Apple) ──────────────────────────────────────

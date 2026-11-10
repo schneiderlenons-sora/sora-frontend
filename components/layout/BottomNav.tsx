@@ -13,6 +13,7 @@ import { useTheme } from 'next-themes';
 import { api } from '@/lib/api';
 import { navPaleta } from '@/lib/nav-cores';
 import { useChamadosNaoLidos } from '@/lib/useChamadosNaoLidos';
+import { useAdminPendencias } from '@/lib/useAdminPendencias';
 import QuickAddSheet from '@/components/dashboard/QuickAddSheet';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 
@@ -73,7 +74,11 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
   // DashboardLayout lê daqui também). Foi a divergência entre os dois que
   // criava o degrau de cor logo abaixo dela.
   const paleta = navPaleta(theme, mounted);
-  const { naoLidas: chamadosNaoLidos } = useChamadosNaoLidos();
+  const { naoLidas: suporteNaoLidas } = useChamadosNaoLidos();
+  // Admin: resposta de cliente em chamado. O item Admin mora dentro do menu
+  // no celular, então o ponto do "Menu" também acende por ela.
+  const { respostas: adminRespostas } = useAdminPendencias();
+  const chamadosNaoLidos = suporteNaoLidas + adminRespostas;
 
   // No painel Negócios a barra leva às telas DO NEGÓCIO. Com os atalhos do app
   // pessoal, cada toque no mobile jogava o usuário pra fora do painel — o
@@ -266,7 +271,7 @@ export default function BottomNav({ onPerfil }: { onPerfil: () => void }) {
                 return (
                   <button
                     key="menu"
-                    aria-label={chamadosNaoLidos > 0 ? `${s.label} (resposta nova do suporte em Ajuda)` : s.label}
+                    aria-label={adminRespostas > 0 ? `${s.label} (cliente respondeu chamado no Admin)` : chamadosNaoLidos > 0 ? `${s.label} (resposta nova do suporte em Ajuda)` : s.label}
                     className={classes}
                     // Mesmo motivo dos links: no zap do scroll por inércia o
                     // clique some, e era isso que fazia o menu pedir 3 toques.

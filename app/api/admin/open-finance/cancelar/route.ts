@@ -1,94 +1,111 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, ehPriceConexaoOf } from '@/lib/stripe';
+import Stripe from 'stripe';
+import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { checkAdmin } from '@/lib/admin-server';
+import { ehAddonConexao, gravarConexoesPagas, encerrarConexaoCancelada } from '@/lib/conexao-of-stripe';
 
 export const dynamic = 'force-dynamic';
 
 // =============================================================================
-// Cancela a assinatura da CONEXÃO de Open Finance (R$6/mês) de um usuário,
-// direto do painel — sem abrir o Stripe.
+// Assinatura da CONEXÃO de Open Finance (R$6/mês) de um usuário, direto do
+// painel — sem abrir o Stripe.
 //
-// ⚠️ CANCELA NO FIM DO PERÍODO (`cancel_at_period_end`), NUNCA na hora. O
-// cliente pagou o mês inteiro; cortar no meio tiraria um banco que ele já
-// pagou pra usar. É também o que a tela dele promete ("o banco fica conectado
-// até o fim do período que você já pagou").
+//   POST { userId, acao }
+//     'cancelar'     → no FIM do período (padrão). O cliente pagou o mês;
+//                      cortar no meio tiraria um banco que ele já pagou.
+//     'cancelar_agora' → encerra hoje, sem reembolso automático.
+//     'reativar'     → desfaz o cancelamento agendado.
+//     'sincronizar'  → relê a assinatura e regrava as colunas com a MESMA regra
+//                      do webhook (lib/conexao-of-stripe). Pra quando o evento
+//                      se perdeu: medido em 10/11/2026, 2 assinaturas já
+//                      canceladas no Stripe seguiam com "1 conexão paga" aqui.
 //
-// ⚠️ NÃO GRAVA `of_conexoes_pagas = 0` AQUI. Quem faz isso é o webhook
-// `customer.subscription.deleted`, quando o período de fato acabar. Zerar agora
-// derrubaria o acesso na hora — exatamente o que o cancelamento no fim do
-// período existe pra evitar.
+// ⚠️ NO 'cancelar' NÃO GRAVA `of_conexoes_pagas = 0`. Quem faz isso é o webhook
+// quando o período acabar. Zerar agora derrubaria o acesso na hora.
 //
-// ⚠️ SÓ TOCA NO ADD-ON. A trava `ehAddonConexao` conferindo os metadados +
-// o price impede o pior erro possível aqui: cancelar por engano a assinatura do
-// PLANO do cliente, que vive no mesmo customer do Stripe.
+// ⚠️ SÓ TOCA NO ADD-ON. `ehAddonConexao` (a mesma função do webhook) impede o
+// pior erro possível aqui: cancelar a assinatura do PLANO, que vive no mesmo
+// customer do Stripe.
 // =============================================================================
 
-// `ehPriceConexaoOf` vem de lib/stripe — a MESMA função que o webhook usa pra
-// não confundir add-on com plano. Reescrevê-la aqui criaria uma segunda
-// verdade: bastaria alguém trocar um price id num lugar e não no outro pra esta
-// trava passar a liberar o cancelamento da assinatura errada.
+type Acao = 'cancelar' | 'cancelar_agora' | 'reativar' | 'sincronizar';
+
+function fimDoPeriodo(sub: Stripe.Subscription): string | null {
+  // ⚠️ Na API atual o fim do período mora no ITEM (no topo vem undefined).
+  const s = sub.items?.data?.[0]?.current_period_end
+    ?? (sub as unknown as { current_period_end?: number }).current_period_end;
+  return s ? new Date(s * 1000).toISOString() : null;
+}
 
 export async function POST(req: NextRequest) {
   const gate = await checkAdmin();
   if ('error' in gate) return gate.error;
 
-  let body: { userId?: string; agora?: boolean };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ erro: 'Corpo inválido.' }, { status: 400 });
-  }
+  let body: { userId?: string; acao?: Acao };
+  try { body = await req.json(); } catch { return NextResponse.json({ erro: 'Corpo inválido.' }, { status: 400 }); }
   const userId = String(body?.userId || '').trim();
+  const acao: Acao = body?.acao || 'cancelar';
   if (!userId) return NextResponse.json({ erro: 'Falta userId.' }, { status: 400 });
+  if (!['cancelar', 'cancelar_agora', 'reativar', 'sincronizar'].includes(acao)) {
+    return NextResponse.json({ erro: 'Ação inválida.' }, { status: 400 });
+  }
 
   const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('id, email, of_assinatura_id, of_conexoes_pagas')
-    .eq('id', userId)
-    .maybeSingle();
-
+    .from('users').select('id, email, of_assinatura_id').eq('id', userId).maybeSingle();
   if (!user) return NextResponse.json({ erro: 'Usuário não encontrado.' }, { status: 404 });
   if (!user.of_assinatura_id) {
-    return NextResponse.json(
-      { erro: 'Esse usuário não tem assinatura de conexão pra cancelar.' }, { status: 400 });
+    return NextResponse.json({ erro: 'Esse usuário não tem assinatura de conexão no Stripe.' }, { status: 400 });
   }
 
   try {
     const sub = await stripe.subscriptions.retrieve(user.of_assinatura_id as string);
 
-    // ⚠️ TRAVA DE SEGURANÇA. Confirma que é MESMO o add-on antes de cancelar:
-    // o customer do Stripe é o mesmo do plano, e um id trocado no banco faria
-    // este endpoint derrubar a assinatura principal de um cliente pagante.
-    const ehAddon = sub.metadata?.tipo === 'conexao_of'
-      || sub.items.data.some((i) => ehPriceConexaoOf(i.price?.id));
-    if (!ehAddon) {
+    // ⚠️ TRAVA DE SEGURANÇA: confirma que é MESMO o add-on antes de mexer.
+    if (!ehAddonConexao(sub)) {
       return NextResponse.json({
-        erro: 'Essa assinatura não é do add-on de conexão. Cancelamento bloqueado por segurança.',
-        assinatura: sub.id,
+        erro: 'Essa assinatura não é a de conexão. Bloqueado por segurança.', assinatura: sub.id,
       }, { status: 409 });
     }
 
-    if (sub.status === 'canceled') {
-      return NextResponse.json({ ok: true, jaCancelada: true, status: sub.status });
+    const encerrada = sub.status === 'canceled' || sub.status === 'incomplete_expired';
+
+    if (acao === 'sincronizar') {
+      if (encerrada) await encerrarConexaoCancelada(userId, sub);
+      else await gravarConexoesPagas(userId, sub);
+      return NextResponse.json({ ok: true, status: sub.status, mensagem: encerrada
+        ? 'A assinatura já tinha acabado no Stripe. Corrigido aqui também.'
+        : 'Conferido: a Sora está igual ao Stripe.' });
+    }
+
+    if (encerrada) {
+      // Já acabou lá: aproveita e acerta as colunas daqui (era o caso do evento perdido).
+      await encerrarConexaoCancelada(userId, sub);
+      return NextResponse.json({ ok: true, jaCancelada: true, status: sub.status,
+        mensagem: 'A assinatura já estava encerrada no Stripe. Corrigido aqui também.' });
+    }
+
+    if (acao === 'cancelar_agora') {
+      const fechada = await stripe.subscriptions.cancel(sub.id, { prorate: false });
+      // Não espera o webhook pra tela refletir: mesma regra que ele aplicará.
+      await encerrarConexaoCancelada(userId, fechada);
+      return NextResponse.json({ ok: true, status: fechada.status,
+        mensagem: 'Cancelada agora. Não há reembolso automático: se for o caso, estorne no Stripe.' });
     }
 
     const atualizada = await stripe.subscriptions.update(sub.id, {
-      cancel_at_period_end: true,
+      cancel_at_period_end: acao === 'cancelar',
     });
-
-    const fim = (atualizada as unknown as { current_period_end?: number }).current_period_end;
-
+    // Grava a data do fim (aviso de 3 dias) e a quantidade, como o webhook faria.
+    await gravarConexoesPagas(userId, atualizada);
+    const ate = fimDoPeriodo(atualizada);
     return NextResponse.json({
-      ok: true,
-      email: user.email,
-      assinatura: atualizada.id,
-      cancelaEm: fim ? new Date(fim * 1000).toISOString() : null,
-      // Deixa explícito pra UI não mentir: o acesso continua até lá.
-      mensagem: 'Cancelada no fim do período já pago. O banco segue conectado até lá.',
+      ok: true, status: atualizada.status, cancelaEm: acao === 'cancelar' ? ate : null,
+      mensagem: acao === 'cancelar'
+        ? 'Cancelada no fim do período já pago. O banco segue conectado até lá.'
+        : 'Cancelamento desfeito: a assinatura volta a renovar.',
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Erro no Stripe';
-    return NextResponse.json({ erro: msg }, { status: 500 });
+    return NextResponse.json({ erro: e instanceof Error ? e.message : 'Erro no Stripe' }, { status: 500 });
   }
 }

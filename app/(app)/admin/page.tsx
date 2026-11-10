@@ -1,18 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminEmail } from '@/lib/admin';
 import { useConfirmar } from '@/contexts/ConfirmContext';
 import OpenFinancePainel from '@/components/admin/OpenFinancePainel';
 import AfiliadosPainel from '@/components/admin/AfiliadosPainel';
 import SaudeFinanceira from '@/components/admin/SaudeFinanceira';
+import ChamadosPainel from '@/components/admin/ChamadosPainel';
+import ClienteOpenFinance from '@/components/admin/ClienteOpenFinance';
 import {
-  Shield, Search, RefreshCw, Users as UsersIcon, Bug, X, Trash2, Loader2,
-  Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Lightbulb, Send,
-  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake, AlertCircle,
-  ChevronRight, Stethoscope,
+  Shield, Search, RefreshCw, Users as UsersIcon, X, Trash2, Loader2,
+  Check, Crown, Sparkles, ExternalLink, AlertTriangle, Zap, Phone, Copy, CircleDot, Send,
+  Infinity as InfinityIcon, Gem, Undo2, Megaphone, Repeat, XCircle, CalendarClock, Landmark, MessageSquare, Handshake,
+  ChevronRight, Stethoscope, Inbox,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -55,11 +57,6 @@ type Overview = {
   ofGruposFranquia?: number; ofGruposPagando?: number; ofPagandoSemUsar?: number;
   // Dispositivo (migration 161): Android × Apple × desktop × sem dado ainda.
   android?: number; ios?: number; desktop?: number; semDado?: number;
-};
-type BugReport = {
-  id: string; nome: string | null; email: string | null; phone: string | null;
-  mensagem: string; tem_imagem: boolean; status: 'aberto' | 'em_andamento' | 'resolvido'; created_at: string;
-  tipo?: 'problema' | 'melhoria' | 'duvida';
 };
 
 // Dispositivo da última sessão que enviou (migration 161). Curto de propósito
@@ -256,25 +253,24 @@ async function adminFetch(path: string, init?: RequestInit) {
   return data;
 }
 
-// QUANTO CABE NA RESPOSTA AO CHAMADO.
-//
-// ⚠️ O TETO DE 764 CARACTERES ACABOU (26/09/2026). Ele existia porque a
-// resposta viajava DENTRO do template da Meta, cujo corpo hidratado não passa
-// de 1024 — limite de plataforma, sem plano que aumente (foi a pergunta do
-// dono em 24/09: "não tem como aumentar esse limite?"). A resposta era não,
-// enquanto o texto passasse por lá.
-//
-// Agora ela não passa: o WhatsApp leva só a campainha (texto fixo, sem
-// variável de conteúdo) e a resposta vai pro painel, que é uma coluna `text`
-// no Postgres. O limite abaixo é só higiene de formulário — evita colar um
-// arquivo inteiro por engano —, não uma regra de plataforma.
-const LIMITE_RESPOSTA = 6000;
-
 // Mesmo teto de 1024 pro comunicado em MASSA, que usa o `atualizacao_sora`
 // ("Eaí, {{1}}! Nova atualização no ar! / {{2}} / Qualquer dúvida, é só
 // responder aqui. 💚"). Corpo fixo mais curto, então sobra mais — e aqui
 // estourar é pior: o disparo é em background e falharia em TODO mundo.
 const LIMITE_COMUNICADO = 1024 - 75 - 40;   // = 909
+
+// Abas, na ordem do uso. "Chamados" junta os antigos Bugs e Melhorias:
+// eram duas listas sem ordem por situação, e uma resposta nova do cliente
+// ficava no meio delas sem nada que a destacasse.
+const ABAS = [
+  ['users', 'Usuários', UsersIcon],
+  ['chamados', 'Chamados', MessageSquare],
+  ['openfinance', 'Open Finance', Landmark],
+  ['saude', 'Saúde financeira', Stethoscope],
+  ['comunicados', 'Comunicados', Megaphone],
+  ['afiliados', 'Afiliados', Handshake],
+] as const;
+type Aba = (typeof ABAS)[number][0];
 
 export default function AdminPage() {
   const { perfil, loading } = useAuth();
@@ -283,19 +279,35 @@ export default function AdminPage() {
   const confirmar = useConfirmar();
   const admin = isAdminEmail(perfil?.email);
 
-  const [tab, setTab] = useState<'users' | 'bugs' | 'melhorias' | 'comunicados' | 'openfinance' | 'afiliados' | 'saude'>('users');
+  // A aba mora na URL (?aba=): F5 e "voltar" mantêm onde você estava, e dá pra
+  // abrir o admin direto nos chamados (é o destino do selo da sidebar).
+  const searchParams = useSearchParams();
+  const abaUrl = searchParams.get('aba');
+  const tab: Aba = (ABAS.some(([id]) => id === abaUrl) ? abaUrl : 'users') as Aba;
+  const setTab = useCallback((a: Aba) => {
+    const p = new URLSearchParams(window.location.search);
+    if (a === 'users') p.delete('aba'); else p.set('aba', a);
+    router.replace(`/admin${p.toString() ? `?${p}` : ''}`, { scroll: false });
+  }, [router]);
+  // Chegou por link com `?aba=` (o selo da sidebar leva a `?aba=chamados`):
+  // rola até as abas. No celular as métricas ocupam duas telas antes delas.
+  const abasRef = useRef<HTMLDivElement>(null);
+  const rolouProLink = useRef(false);
+  useEffect(() => {
+    // Espera o resumo: a faixa de pendências entra depois e empurraria as abas.
+    if (rolouProLink.current || !abaUrl || !abasRef.current || !ov) return;
+    rolouProLink.current = true;
+    abasRef.current.scrollIntoView({ block: 'start' });
+  });
+  // O que espera você nos chamados (mesma fonte do selo da sidebar).
+  const [pend, setPend] = useState<{ respostas: number; semResposta: number }>({ respostas: 0, semResposta: 0 });
   const [ov, setOv] = useState<Overview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [bugs, setBugs] = useState<BugReport[]>([]);
-  const [melhorias, setMelhorias] = useState<BugReport[]>([]);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'todos' | 'ativos' | 'inativos' | 'pagou_inativo' | 'cancelados' | 'nao_concluido' | 'recuperados' | 'recorrentes' | 'vitalicios' | 'anuais' | 'pagamento_falhou' | 'open_finance' | 'of_conectado' | 'android' | 'ios'>('todos');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [sel, setSel] = useState<User | null>(null);
   const [msg, setMsg] = useState(''); // texto opcional pré-preenchido no link wa.me
-  const [respId, setRespId] = useState<string | null>(null); // relato com compositor aberto
-  const [respMsg, setRespMsg] = useState('');
-  const [enviandoResp, setEnviandoResp] = useState(false);
   const [toast, setToast] = useState('');
 
   // Guard de UI (a segurança real é nos endpoints).
@@ -309,10 +321,13 @@ export default function AdminPage() {
     const p = new URLSearchParams(); if (q) p.set('q', q); if (filter !== 'todos') p.set('filter', filter);
     adminFetch(`/users?${p}`).then((d) => setUsers(d.users || [])).catch(() => setUsers([])).finally(() => setLoadingUsers(false));
   }, [q, filter]);
-  const carregarBugs = useCallback(() => { adminFetch('/bugs?tipo=problema,duvida').then((d) => setBugs(d.bugs || [])).catch(() => setBugs([])); }, []);
-  const carregarMelhorias = useCallback(() => { adminFetch('/bugs?tipo=melhoria').then((d) => setMelhorias(d.bugs || [])).catch(() => setMelhorias([])); }, []);
+  const carregarPend = useCallback(() => {
+    adminFetch('/pendencias').then((d) => setPend({ respostas: d.respostas || 0, semResposta: d.semResposta || 0 })).catch(() => {});
+    // Avisa a sidebar pra reler o selo na hora, sem esperar os 2 minutos.
+    window.dispatchEvent(new Event('sora:admin-pendencias'));
+  }, []);
 
-  useEffect(() => { if (admin) { carregarOverview(); carregarBugs(); carregarMelhorias(); } }, [admin, carregarOverview, carregarBugs, carregarMelhorias]);
+  useEffect(() => { if (admin) { carregarOverview(); carregarPend(); } }, [admin, carregarOverview, carregarPend]);
   useEffect(() => { if (admin) { const t = setTimeout(carregarUsers, q ? 300 : 0); return () => clearTimeout(t); } }, [admin, carregarUsers, q]);
   useEffect(() => { setMsg(''); }, [sel?.id]); // limpa o compositor ao trocar de usuário
 
@@ -365,50 +380,16 @@ export default function AdminPage() {
 
   async function apagar() {
     if (!sel) return;
-    if (!confirm(`Apagar ${sel.name || sel.email}? Isso remove dados + login e libera o número. Irreversível.`)) return;
-    if (!confirm('Tem certeza mesmo? Não dá pra desfazer.')) return;
+    // Diálogo próprio: `window.confirm` some no navegador do WhatsApp (e o
+    // admin também é usado no celular).
+    const ok = await confirmar({
+      titulo: `Apagar ${sel.name || sel.email}?`,
+      mensagem: 'Remove os dados e o login, desliga os bancos na Polp, cancela as assinaturas no Stripe e libera o número. Não dá pra desfazer.',
+      confirmar: 'Apagar de vez', cancelar: 'Voltar', perigo: true,
+    });
+    if (!ok) return;
     try { await adminFetch(`/users/${sel.id}`, { method: 'DELETE' }); flash('Usuário apagado'); setSel(null); carregarUsers(); carregarOverview(); }
     catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
-  }
-
-  async function responderRelato(bugId: string) {
-    if (!respMsg.trim()) return;
-    setEnviandoResp(true);
-    try {
-      const r = await fetch('/api/admin/responder-relato', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bugId, texto: respMsg.trim() }),
-      });
-      const d = await r.json().catch(() => ({}));
-      // Só é erro quando a RESPOSTA não foi publicada — a campainha do
-      // WhatsApp falhando não invalida nada e volta como `aviso`.
-      if (d?.erro) { flash('⚠️ ' + d.erro); return; }
-      // Publicada, mas sem aviso no zap (sem número, ou entrega falhou). Fecha
-      // o formulário do mesmo jeito: reescrever duplicaria a conversa.
-      if (d?.aviso) { flash('⚠️ ' + d.aviso); setRespId(null); setRespMsg(''); return; }
-      flash('Respondido ✓ — avisado no WhatsApp'); setRespId(null); setRespMsg('');
-    } catch (e: any) { flash('⚠️ ' + (e?.message || 'falhou')); }
-    finally { setEnviandoResp(false); }
-  }
-
-  async function mudarStatusBug(id: string, status: BugReport['status']) {
-    // ⚠️ "RESOLVIDO" APAGA A CONVERSA E OS ANEXOS, e isso é irreversível.
-    // É comportamento pedido (não guardar print de extrato depois de resolver),
-    // mas o botão não avisava nada — dava pra encerrar um chamado e ver a
-    // thread inteira sumir sem entender por quê. Foi exatamente o que aconteceu:
-    // "respondi o usuário e a conversa não aparece no painel".
-    if (status === 'resolvido') {
-      const ok = window.confirm(
-        `Encerrar este chamado apaga a conversa e os anexos dele, sem como desfazer.
-
-O relato de abertura continua no histórico. Encerrar mesmo assim?`
-      );
-      if (!ok) return;
-    }
-    setBugs((b) => b.map((x) => x.id === id ? { ...x, status } : x));
-    setMelhorias((m) => m.map((x) => x.id === id ? { ...x, status } : x));
-    try { await adminFetch('/bugs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) }); carregarOverview(); }
-    catch { carregarBugs(); carregarMelhorias(); }
   }
 
   const stripeBase = 'https://dashboard.stripe.com'; // troque p/ /test/... se estiver testando
@@ -428,7 +409,7 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
               <p className="text-xs text-muted-foreground mt-1 truncate">Operação da Sora — só você vê isso.</p>
             </div>
           </div>
-          <button onClick={() => { carregarOverview(); carregarUsers(); carregarBugs(); flash('Atualizado'); }}
+          <button onClick={() => { carregarOverview(); carregarUsers(); carregarPend(); flash('Atualizado'); }}
                   className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
             <RefreshCw size={13} /> Atualizar
           </button>
@@ -462,55 +443,91 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
           </div>
         )}
 
-        {/* Métricas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        {/* ── O QUE ESPERA VOCÊ ─────────────────────────────────────────────
+            Uma faixa só com o que pede AÇÃO, antes dos números. Antes isso
+            ficava espalhado em 16 cards do mesmo tamanho (bug aberto ao lado
+            de "novos 30d") e o que importava não se destacava. Some sozinho
+            quando não há nada. */}
+        {(() => {
+          const itens = [
+            pend.respostas > 0 && { k: 'resp', n: pend.respostas, txt: pend.respostas === 1 ? 'cliente respondeu um chamado' : 'clientes responderam chamados', cor: BRAND, Icon: MessageSquare, ir: () => setTab('chamados') },
+            pend.semResposta > 0 && { k: 'sem', n: pend.semResposta, txt: pend.semResposta === 1 ? 'chamado sem resposta' : 'chamados sem resposta', cor: '#ef4444', Icon: Inbox, ir: () => setTab('chamados') },
+            (ov?.ofPagandoSemUsar ?? 0) > 0 && { k: 'of', n: ov!.ofPagandoSemUsar!, txt: 'pagando conexão sem banco conectado', cor: '#ef4444', Icon: Landmark, ir: () => setTab('openfinance') },
+            (ov?.ofComProblema ?? 0) > 0 && { k: 'ofp', n: ov!.ofComProblema!, txt: (ov!.ofComProblema === 1 ? 'banco parou' : 'bancos pararam') + ' de atualizar', cor: '#f59e0b', Icon: AlertTriangle, ir: () => setTab('openfinance') },
+          ].filter(Boolean) as { k: string; n: number; txt: string; cor: string; Icon: any; ir: () => void }[];
+          if (!ov) return null;
+          if (!itens.length) {
+            return (
+              <p className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-600">
+                <Check size={15} /> Nada esperando por você agora.
+              </p>
+            );
+          }
+          return (
+            <div className="flex flex-wrap gap-2" role="list" aria-label="O que espera você">
+              {itens.map((i) => (
+                <button key={i.k} role="listitem" onClick={i.ir}
+                        className="inline-flex items-center gap-2 h-11 pl-2.5 pr-3 rounded-xl border text-[13px] font-semibold text-foreground hover:-translate-y-0.5 active:scale-[0.98] transition-all"
+                        style={{ borderColor: `color-mix(in srgb, ${i.cor} 40%, transparent)`, background: `color-mix(in srgb, ${i.cor} 8%, transparent)` }}>
+                  <i.Icon size={15} style={{ color: i.cor }} />
+                  <b className="tabular-nums" style={{ color: i.cor }}>{i.n}</b> {i.txt}
+                  <ChevronRight size={13} className="text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ── Números, em três grupos ───────────────────────────────────────
+            Receita (o que entra), Clientes (quem usa) e Funil (quem quase
+            entrou ou saiu). Clicar num card que tem seta filtra a lista. */}
+        <Grupo titulo="Receita">
           <Stat label="MRR mensal" value={ov ? money(ov.mrr) : '—'}
                 hint={ov
                   ? `${ov.recorrentesMensais ?? 0} mensais${ov.anuais ? ` · ${ov.anuais} anuais fora` : ''}${ov.mrrExcluidos ? ` · ${ov.mrrExcluidos} excluídos` : ''}`
-                  : ''} destaque />
+                  : ''}
+                onClick={() => { setTab('users'); setFilter('recorrentes'); }} destaque />
           <Stat label="Receita vitalícia" value={ov ? money(ov.receitaVitalicio ?? 0) : '—'}
-                hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''} destaque />
-          {/* Receita das conexões de banco. Fica junto dos outros dois cards de
-              dinheiro (MRR e vitalício) de propósito — é a terceira fonte, e
-              separá-la faria parecer detalhe. Clicar filtra a lista. */}
-          <Stat label="Open Finance" value={ov ? money(ov.ofMrr ?? 0) : '—'}
+                hint={ov ? `${ov.vitalicios ?? 0} vital. · ${ov.kitVitalicio ?? 0} Kit · ${ov.premiumVitalicio ?? 0} Compl.` : ''}
+                onClick={() => { setTab('users'); setFilter('vitalicios'); }} destaque />
+          <Stat label="Conexões pagas" value={ov ? money(ov.ofMrr ?? 0) : '—'}
                 hint={ov
                   ? `${ov.ofConexoesPagas ?? 0} conexões · ${ov.ofUsuarios ?? 0} clientes${ov.ofAnuais ? ` · ${ov.ofAnuais} anuais (${money(ov.ofReceitaAnual ?? 0)}/ano) fora` : ''}`
                   : ''}
                 onClick={() => { setTab('users'); setFilter('open_finance'); }} destaque
                 alerta={!!ov && (ov.ofPagandoSemUsar ?? 0) > 0} />
-          {/* Uso real, separado da receita: quem PAGA nem sempre é quem está
-              CONECTADO. Conexão fora de 'updated' é banco que parou de
-              atualizar — o cliente sente como "a Sora travou". */}
+          {/* Sem `alerta`: banco parado já aparece na faixa de cima, e o 73 em
+              vermelho lia como "número errado". */}
           <Stat label="Bancos conectados" value={ov?.ofConectados ?? '—'}
-                alerta={!!ov && ((ov.ofComProblema ?? 0) > 0 || (ov.ofPagandoSemUsar ?? 0) > 0)}
-                hint={ov ? `${ov.ofGrupos ?? 0} contas · ${ov.ofGruposFranquia ?? 0} pela franquia · ${ov.ofGruposPagando ?? 0} pagando${ov.ofComProblema ? ` · ${ov.ofComProblema} reconectar` : ''}` : ''} />
-          <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d` : ''} />
-          {/* Só aparece depois que a 161 rodou e algum navegador já enviou —
-              antes disso os quatro ficam em 0 e o card só faria ruído. */}
+                hint={ov ? `${ov.ofGrupos ?? 0} clientes · ${ov.ofGruposFranquia ?? 0} pela franquia · ${ov.ofGruposPagando ?? 0} pagando` : ''}
+                onClick={() => setTab('openfinance')} />
+        </Grupo>
+        <Grupo titulo="Clientes">
+          <Stat label="Usuários" value={ov?.total ?? '—'} hint={ov ? `${ov.novos7} nos últimos 7d · ${ov.novos30} em 30d` : ''}
+                onClick={() => { setTab('users'); setFilter('todos'); }} />
+          <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.platinum} PL · ${ov.kit ?? 0} Kit` : ''}
+                onClick={() => { setTab('users'); setFilter('ativos'); }} />
+          <Stat label="Premium / Platinum" value={ov ? `${ov.premium} / ${ov.platinum}` : '—'} />
+          {/* Só aparece depois que a 161 rodou e algum navegador já enviou. */}
           {!!ov && (ov.android ?? 0) + (ov.ios ?? 0) + (ov.desktop ?? 0) > 0 && (
             <Stat label="Android × Apple" value={`${ov.android ?? 0} / ${ov.ios ?? 0}`}
                   hint={`${ov.desktop ?? 0} desktop${ov.semDado ? ` · ${ov.semDado} sem dado` : ''}`}
                   onClick={() => { setTab('users'); setFilter('android'); }} />
           )}
-          <Stat label="Ativos" value={ov?.ativos ?? '—'} hint={ov ? `${ov.basico} B · ${ov.premium} P · ${ov.platinum} PL · ${ov.kit ?? 0} Kit` : ''} />
-          <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
-                hint={ov ? 'tinham assinatura' : ''}
-                onClick={() => { setTab('users'); setFilter('cancelados'); }} />
+        </Grupo>
+        <Grupo titulo="Funil">
           <Stat label="Pagamento não concluído" value={ov?.naoConcluido ?? '—'} alerta={!!ov && (ov.naoConcluido ?? 0) > 0}
                 hint={ov ? 'nunca assinaram' : ''}
                 onClick={() => { setTab('users'); setFilter('nao_concluido'); }} />
-          <Stat label="Novos (30d)" value={ov?.novos30 ?? '—'} />
-          <Stat label="Bugs abertos" value={ov?.bugsAbertos ?? '—'} alerta={!!ov && ov.bugsAbertos > 0} onClick={() => setTab('bugs')} />
-          <Stat label="Melhorias propostas" value={ov?.melhoriasAbertas ?? '—'} onClick={() => setTab('melhorias')} />
-          <Stat label="Premium / Platinum" value={ov ? `${ov.premium} / ${ov.platinum}` : '—'} />
           <Stat label="Cadastros sem pagamento" value={ov?.semPagamento ?? '—'}
-                hint={ov ? `${ov.recEnviadas ?? 0} no 1º · ${ov.recEnviadas2 ?? 0} no 2º lembrete` : ''} alerta={!!ov && (ov.semPagamento ?? 0) > 0} />
+                hint={ov ? `${ov.recEnviadas ?? 0} no 1º · ${ov.recEnviadas2 ?? 0} no 2º lembrete` : ''} />
           <Stat label="Recuperados" value={ov?.recuperados ?? ov?.recRecuperados ?? '—'}
                 hint={ov ? 'voltaram a pagar após recuperação' : ''}
-                onClick={() => { setTab('users'); setFilter('recuperados'); }}
-                destaque />
-        </div>
+                onClick={() => { setTab('users'); setFilter('recuperados'); }} />
+          <Stat label="Cancelaram" value={ov?.cancelados ?? '—'}
+                hint={ov ? 'tinham assinatura' : ''}
+                onClick={() => { setTab('users'); setFilter('cancelados'); }} />
+        </Grupo>
 
         {/* ── Abas ────────────────────────────────────────────────────────
             ⚠️ `w-fit` ESTOURAVA A TELA NO MOBILE. Seis abas com ícone + rótulo
@@ -519,20 +536,21 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
             inteira — a "seção admin completamente desorganizada no mobile" do
             relato. Agora a faixa é full-width e o que rola é ELA, não a página.
             No desktop `sm:w-fit` devolve a pílula justa de sempre. */}
-        <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <div ref={abasRef} className="-mx-4 px-4 sm:mx-0 sm:px-0 scroll-mt-3">
           <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60
                           overflow-x-auto sm:w-fit [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {([['users', 'Usuários', UsersIcon], ['openfinance', 'Open Finance', Landmark], ['saude', 'Saúde financeira', Stethoscope], ['bugs', 'Bugs', Bug], ['melhorias', 'Melhorias', Lightbulb], ['comunicados', 'Comunicados', Megaphone], ['afiliados', 'Afiliados', Handshake]] as const).map(([id, label, Icon]) => (
+            {ABAS.map(([id, label, Icon]) => (
               <button key={id} onClick={() => setTab(id)}
                       aria-current={tab === id ? 'page' : undefined}
                       className={`inline-flex items-center gap-1.5 px-3 sm:px-4 h-10 rounded-xl text-sm font-bold transition-all flex-shrink-0 ${tab === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                 <Icon size={14} className="flex-shrink-0" /> {label}
-                {id === 'bugs' && ov && ov.bugsAbertos > 0 && (
-                  <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-red-500">{ov.bugsAbertos}</span>
-                )}
-                {id === 'melhorias' && ov && (ov.melhoriasAbertas ?? 0) > 0 && (
-                  <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-amber-500">{ov.melhoriasAbertas}</span>
-                )}
+                {/* Resposta nova do cliente ganha o número cheio; chamado só
+                    sem resposta, um contador discreto. */}
+                {id === 'chamados' && (pend.respostas > 0 ? (
+                  <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold text-white bg-red-500 tabular-nums" aria-label={`${pend.respostas} com resposta nova`}>{pend.respostas}</span>
+                ) : pend.semResposta > 0 ? (
+                  <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground tabular-nums">{pend.semResposta}</span>
+                ) : null)}
               </button>
             ))}
           </div>
@@ -545,7 +563,9 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
         ) : tab === 'comunicados' ? (
           <Comunicados flash={flash} />
         ) : tab === 'openfinance' ? (
-          <OpenFinancePainel />
+          <OpenFinancePainel flash={flash} />
+        ) : tab === 'chamados' ? (
+          <ChamadosPainel flash={flash} onMudou={() => { carregarPend(); carregarOverview(); }} />
         ) : tab === 'users' ? (
           <div className="space-y-3">
             {/* ── Busca e filtros ─────────────────────────────────────────
@@ -641,109 +661,7 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
             </div>
             <p className="text-[11px] text-muted-foreground text-center">Mostrando até 300. Use a busca para refinar.</p>
           </div>
-        ) : (
-          /* ── BUGS / MELHORIAS (mesma estrutura) ── */
-          <div className="space-y-2.5">
-            {(tab === 'melhorias' ? melhorias : bugs).length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground rounded-2xl border border-border bg-card">
-                {tab === 'melhorias' ? 'Nenhuma melhoria proposta ainda.' : 'Nenhum relato ainda.'}
-              </div>
-            ) : (tab === 'melhorias' ? melhorias : bugs).map((b) => (
-              <div key={b.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    {/* ⚠️ Nome e contato em linhas separadas no mobile: juntos,
-                        um e-mail longo empurrava o selo de status pra fora do
-                        card. `break-all` no contato porque e-mail não tem
-                        espaço onde quebrar. */}
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {b.tipo === 'duvida' && (
-                        <span className="mr-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-sky-500/15 text-sky-600 align-middle">❓ Dúvida</span>
-                      )}
-                      {b.nome || '—'}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground break-all">{b.phone || b.email || ''}</p>
-                    <p className="text-[11px] text-muted-foreground">{new Date(b.created_at).toLocaleString('pt-BR')}{b.tem_imagem ? ' · 📷 com print' : ''}</p>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap ${b.status === 'resolvido' ? 'bg-emerald-500/15 text-emerald-600' : b.status === 'em_andamento' ? 'bg-amber-500/15 text-amber-600' : 'bg-red-500/15 text-red-600'}`}>
-                    {b.status === 'resolvido' ? 'Resolvido' : b.status === 'em_andamento' ? 'Em andamento' : 'Aberto'}
-                  </span>
-                </div>
-                <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{b.mensagem}</p>
-
-                {/* Conversa do chamado + print anexado. Carrega sob demanda:
-                    a URL do anexo e ASSINADA e expira, entao nao vale trazer
-                    na listagem de 200 relatos — so quando o admin abre. */}
-                <ConversaChamado id={b.id} temImagem={b.tem_imagem} />
-                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                  {(['aberto', 'em_andamento', 'resolvido'] as const).map((s) => (
-                    <button key={s} onClick={() => mudarStatusBug(b.id, s)}
-                            className={`h-8 px-2.5 rounded-lg text-[11px] font-bold transition-all border ${b.status === s ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
-                      {s === 'aberto' ? 'Aberto' : s === 'em_andamento' ? 'Em andamento' : 'Resolvido'}
-                    </button>
-                  ))}
-                  {/* ⚠️ SEM `b.phone &&`. A resposta vive no PAINEL desde
-                      26/09/2026 — o WhatsApp é só a campainha. Esconder o botão
-                      de quem não tem número deixava o chamado sem resposta
-                      possível (caso real: jr.sprega@gmail.com). */}
-                  <button onClick={() => { setRespId(respId === b.id ? null : b.id); setRespMsg(''); }}
-                          className={`h-8 px-2.5 rounded-lg text-[11px] font-bold transition-all border inline-flex items-center gap-1 ${respId === b.id ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
-                    <Send size={11} /> Responder
-                  </button>
-                  {!b.phone && (
-                    <span className="text-[10px] text-muted-foreground">
-                      sem WhatsApp — ele vê pela notificação no painel
-                    </span>
-                  )}
-                </div>
-
-                {/* Compositor: a resposta vai pro PAINEL; o zap leva só o aviso. */}
-                {respId === b.id && (() => {
-                  // O contador só aparece perto do fim — 6.000 caracteres é
-                  // higiene de formulário, não regra de plataforma, e mostrar
-                  // "5.800 restantes" numa resposta de duas linhas é ruído.
-                  const usado = respMsg.trim().length;
-                  const restante = LIMITE_RESPOSTA - usado;
-                  const estourou = restante < 0;
-                  return (
-                  <div className="pt-2 space-y-2 border-t border-border/60 mt-1">
-                    <textarea
-                      value={respMsg} onChange={(e) => setRespMsg(e.target.value)} rows={3} autoFocus
-                      placeholder={`Resposta pra ${b.nome?.split(' ')[0] || 'o cliente'}…`}
-                      aria-invalid={estourou}
-                      className={`w-full rounded-xl bg-background p-3 text-sm resize-none focus:outline-none ${
-                        estourou ? 'border border-red-500 focus:border-red-500' : 'border border-border focus:border-primary'}`}
-                    />
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => responderRelato(b.id)} disabled={enviandoResp || !respMsg.trim() || estourou}
-                              className="h-10 px-4 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 inline-flex items-center justify-center gap-2 disabled:opacity-50">
-                        {enviandoResp ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Responder
-                      </button>
-                      <button onClick={() => { setRespId(null); setRespMsg(''); }} className="h-10 px-3 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground">Cancelar</button>
-                      {/* Ícone + número, nunca só a cor (acessibilidade). E só
-                          perto do limite — contador sempre visível vira ruído. */}
-                      {(estourou || restante <= 500) && (
-                        <span className={`ml-auto text-[11px] font-semibold tabular-nums inline-flex items-center gap-1 ${
-                          estourou ? 'text-red-500' : 'text-amber-500'}`}>
-                          {estourou && <AlertCircle size={12} />}
-                          {estourou ? `${-restante} a mais` : `${restante} restantes`}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-snug">
-                      {estourou
-                        ? `Máximo de ${LIMITE_RESPOSTA.toLocaleString('pt-BR')} caracteres por mensagem. Encurte ou mande em duas.`
-                        : b.phone
-                          ? 'A resposta aparece no painel do cliente. No WhatsApp ele recebe só um aviso com o link — assim ele responde onde você lê.'
-                          : 'Este cliente não tem WhatsApp cadastrado: ele vê a resposta pela notificação ao abrir a Sora.'}
-                    </p>
-                  </div>
-                  );
-                })()}
-              </div>
-            ))}
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Drawer do usuário */}
@@ -899,6 +817,14 @@ O relato de abertura continua no histórico. Encerrar mesmo assim?`
                 )}
               </Section>
 
+              {/* Open Finance do cliente: bancos (o que a Polp cobra de nós) e a
+                  cobrança da conexão (o que ele paga), com as ações — sem abrir
+                  o Stripe. `key` recarrega ao trocar de cliente. */}
+              <Section title="Open Finance">
+                <ClienteOpenFinance key={sel.id} userId={sel.id} email={sel.email} flash={flash}
+                                    onMudou={() => { carregarUsers(); carregarOverview(); }} />
+              </Section>
+
               {/* WhatsApp */}
               <Section title="WhatsApp">
                 <PhoneEditor onSet={(phone) => acao('set_phone', { phone })} />
@@ -952,6 +878,15 @@ function Stat({ label, value, hint, destaque, alerta, onClick }: { label: string
           o explica. No desktop cabe numa linha e o truncate volta. */}
       {hint && <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2 sm:line-clamp-none sm:truncate">{hint}</p>}
     </button>
+  );
+}
+
+function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h2 className="text-[13px] font-bold text-muted-foreground">{titulo}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">{children}</div>
+    </section>
   );
 }
 
@@ -1025,6 +960,7 @@ const PLANOS_ENVIO: { id: Plano; label: string }[] = [
 ];
 
 function Comunicados({ flash }: { flash: (m: string) => void }) {
+  const confirmar = useConfirmar();
   const [texto, setTexto] = useState('');
   const [planos, setPlanos] = useState<Plano[]>(['premium', 'platinum', 'basico', 'kit']);
   const [testePhone, setTestePhone] = useState('');
@@ -1079,8 +1015,12 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
     catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); setBusy(''); return; }
     setBusy('');
     if (!n) { flash('Ninguém nesse filtro.'); return; }
-    if (!confirm(`Enviar esse comunicado pra ${n} pessoa(s)?\n\nManda WhatsApp de verdade agora e NÃO dá pra desfazer.`)) return;
-    if (!confirm(`Confirma mesmo? ${n} mensagens vão sair.`)) return;
+    const ok = await confirmar({
+      titulo: `Enviar pra ${n} ${n === 1 ? 'pessoa' : 'pessoas'}?`,
+      mensagem: 'Manda WhatsApp de verdade agora, pra todo mundo do filtro. Não dá pra cancelar depois de começar.',
+      confirmar: `Enviar ${n} mensagens`, cancelar: 'Voltar', perigo: true,
+    });
+    if (!ok) return;
     setBusy('disparar');
     try { const d = await post({ modo: 'disparar', texto: texto.trim(), planos, apenasRecorrentes: soRecorrentes }); flash(`Disparo iniciado pra ${d.total ?? n} pessoas ✓`); }
     catch (e) { flash('⚠️ ' + (e instanceof Error ? e.message : 'falhou')); }
@@ -1198,92 +1138,6 @@ function Comunicados({ flash }: { flash: (m: string) => void }) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Conversa de um chamado (visão do suporte) ───────────────────────────────
-//
-// Carrega SOB DEMANDA, num toque. Duas razões: a URL do anexo é assinada e
-// expira em 1h — trazer 200 delas na listagem seria gerar links que morrem
-// antes de alguém clicar; e a thread só interessa no chamado que o admin
-// resolveu abrir.
-function ConversaChamado({ id, temImagem }: { id: string; temImagem?: boolean }) {
-  const [aberto, setAberto] = useState(false);
-  const [dados, setDados] = useState<{
-    chamado: { imagem_url: string | null };
-    mensagens: { id: string; autor: 'usuario' | 'suporte'; texto: string; created_at: string; imagem_url: string | null }[];
-  } | null>(null);
-  const [carregando, setCarregando] = useState(false);
-
-  async function abrir() {
-    if (aberto) { setAberto(false); return; }
-    setAberto(true);
-    if (dados) return;               // já carregado nesta sessão
-    setCarregando(true);
-    try {
-      const r = await fetch(`/api/admin/bugs/${id}`);
-      setDados(await r.json());
-    } catch { /* mostra vazio */ }
-    finally { setCarregando(false); }
-  }
-
-  const qtd = dados?.mensagens.length ?? 0;
-
-  return (
-    <div className="pt-1">
-      <button onClick={abrir}
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors">
-        <MessageSquare size={12} />
-        {aberto ? 'Ocultar conversa' : temImagem ? 'Ver conversa e print' : 'Ver conversa'}
-        {qtd > 0 && !aberto ? ` (${qtd})` : ''}
-      </button>
-
-      {aberto && (
-        <div className="mt-2 rounded-xl border border-border/60 bg-background/50 p-3 space-y-2">
-          {carregando && <Loader2 size={14} className="animate-spin text-muted-foreground mx-auto" />}
-
-          {/* Print do relato de abertura — o que antes só existia no WhatsApp */}
-          {dados?.chamado.imagem_url && (
-            <a href={dados.chamado.imagem_url} target="_blank" rel="noopener noreferrer"
-               className="block rounded-lg overflow-hidden border border-border">
-              <img src={dados.chamado.imagem_url} alt="Print anexado pelo cliente"
-                   className="w-full max-h-72 object-contain bg-muted" />
-            </a>
-          )}
-          {!carregando && temImagem && !dados?.chamado.imagem_url && (
-            // Relato anterior à migration 143: a imagem foi descartada na época.
-            <p className="text-[11px] text-muted-foreground italic">
-              Print não guardado (relato anterior ao histórico de anexos) — veja no seu WhatsApp.
-            </p>
-          )}
-
-          {!carregando && qtd === 0 && (
-            <p className="text-[11px] text-muted-foreground">Nenhuma resposta ainda.</p>
-          )}
-
-          {dados?.mensagens.map((m) => (
-            <div key={m.id} className={`flex ${m.autor === 'suporte' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-xl px-3 py-2 ${
-                m.autor === 'suporte' ? 'bg-primary/12 border border-primary/25' : 'bg-muted border border-border'}`}>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
-                  {m.autor === 'suporte' ? 'Suporte' : 'Cliente'}
-                </p>
-                <p className="text-[13px] text-foreground whitespace-pre-wrap break-words leading-relaxed">{m.texto}</p>
-                {m.imagem_url && (
-                  <a href={m.imagem_url} target="_blank" rel="noopener noreferrer"
-                     className="block mt-1.5 rounded-lg overflow-hidden border border-border">
-                    <img src={m.imagem_url} alt="Anexo do cliente" className="w-full max-h-52 object-contain bg-background" />
-                  </a>
-                )}
-                <p className="text-[10px] text-muted-foreground mt-1 text-right tabular-nums">
-                  {new Date(m.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

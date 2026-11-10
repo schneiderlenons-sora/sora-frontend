@@ -42,7 +42,8 @@
     "eval:importar-pdf": "npx tsx lib/importar-pdf.eval.mjs",
     "eval:play-billing": "npx tsx lib/play-billing.eval.mjs",
     "eval:ainda-vem-mes": "npx tsx lib/ainda-vem-mes.eval.mjs",
-    "eval:conta-empresa": "npx tsx lib/conta-empresa.eval.mjs"
+    "eval:conta-empresa": "npx tsx lib/conta-empresa.eval.mjs",
+    "eval:chamados-admin": "npx tsx lib/chamados-admin.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

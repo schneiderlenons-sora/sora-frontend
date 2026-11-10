@@ -59,10 +59,10 @@ export async function GET(req: NextRequest) {
     // Dispositivo: Android (app OU navegador) × Apple (PWA OU navegador).
     else if (filter === 'android') query = query.in('plataforma', ['android_app', 'android_web']);
     else if (filter === 'ios')     query = query.in('plataforma', ['ios_pwa', 'ios_web']);
-    // 'of_conectado' NÃO entra aqui: `of_conexoes` é por GRUPO, não por user,
-    // e o Supabase não filtra por tabela irmã neste select. É aplicado depois
-    // de enriquecer (ver abaixo) — o limite de 300 vale pra busca, e quem tem
-    // banco conectado hoje são 17 grupos, então não há risco de cortar.
+    // 'of_conectado': filtra pelos DONOS de conexão (lidos antes, abaixo) —
+    // ⚠️ antes era aplicado DEPOIS do limite de 300, e com 362 usuários cinco
+    // clientes conectados sumiam da lista (medido em 10/11/2026).
+    else if (filter === 'of_conectado') query = query.in('id', donosOf.length ? donosOf : ['00000000-0000-0000-0000-000000000000']);
     // Anuais: assinatura anual ATIVA (pré-paga, fora do MRR mensal).
     else if (filter === 'anuais')        query = query.eq('plano_intervalo', 'anual').neq('plano', 'inativo');
     // Recorrentes: pagante ATIVO que não é vitalício e não cancelou — quem
@@ -74,6 +74,13 @@ export async function GET(req: NextRequest) {
     if (q) query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
     return query;
   };
+
+  // Donos de conexão: só lidos quando o filtro precisa (é uma consulta a mais).
+  let donosOf: string[] = [];
+  if (filter === 'of_conectado') {
+    const { data: cx } = await supabaseAdmin.from('of_conexoes').select('user_id');
+    donosOf = [...new Set((cx || []).map((c) => c.user_id).filter(Boolean))] as string[];
+  }
 
   // Degrada por migration: plataforma (161) → OF → 102 (motivo) → 074 (MRR) → base.
   let { data, error } = await build(COM_PLATAFORMA, true);
@@ -90,24 +97,27 @@ export async function GET(req: NextRequest) {
   // então, olhando só a receita, metade de quem usa Open Finance ficava
   // invisível no admin (medido: 9 dos 17 grupos conectados são de franquia).
   //
-  // O casamento é por `grupo_ativo`, porque a conexão é do GRUPO: na gestão
-  // compartilhada o casal conecta uma vez e os dois enxergam.
+  // ⚠️ O casamento é pelo DONO (`user_id`), não mais por `grupo_ativo`. Por
+  // grupo, quem trocou de grupo ativo aparecia sem banco (4 clientes) e o
+  // membro convidado aparecia com os bancos do dono (2) — e a franquia, que é
+  // o que importa pra custo, é da PESSOA (CLAUDE.md, "conexão de outro membro
+  // não conta"). Mesma unidade da aba Open Finance e do resumo do topo.
   let lista = (data || []) as any[];
   try {
-    const grupos = [...new Set(lista.map((u) => u.grupo_ativo).filter(Boolean))];
-    if (grupos.length) {
+    const ids = lista.map((u) => u.id).filter(Boolean);
+    if (ids.length) {
       const { data: conexoes } = await supabaseAdmin
-        .from('of_conexoes').select('grupo_id, status, instituicao').in('grupo_id', grupos);
-      const porGrupo: Record<string, { total: number; ok: number; bancos: string[] }> = {};
+        .from('of_conexoes').select('user_id, status, instituicao').in('user_id', ids);
+      const porUser: Record<string, { total: number; ok: number; bancos: string[] }> = {};
       for (const c of conexoes || []) {
-        const g = String(c.grupo_id);
-        porGrupo[g] ||= { total: 0, ok: 0, bancos: [] };
-        porGrupo[g].total++;
-        if (c.status === 'updated') porGrupo[g].ok++;
-        if (c.instituicao) porGrupo[g].bancos.push(String(c.instituicao));
+        const g = String(c.user_id);
+        porUser[g] ||= { total: 0, ok: 0, bancos: [] };
+        porUser[g].total++;
+        if (c.status === 'updated') porUser[g].ok++;
+        if (c.instituicao) porUser[g].bancos.push(String(c.instituicao));
       }
       lista = lista.map((u) => {
-        const c = u.grupo_ativo ? porGrupo[String(u.grupo_ativo)] : null;
+        const c = porUser[String(u.id)] || null;
         return {
           ...u,
           of_conectadas: c?.total || 0,
@@ -120,7 +130,6 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* tabela of_conexoes pode não existir — a lista segue sem o dado */ }
 
-  if (filter === 'of_conectado') lista = lista.filter((u) => (u.of_conectadas || 0) > 0);
 
   return NextResponse.json({ users: lista });
 }

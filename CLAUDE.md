@@ -538,6 +538,43 @@ vira número plausível e errado que o dono usa pra decidir preço.
 
 > **Adiado de propósito:** NF-e (decisão do usuário, entra depois das 7 fases).
 
+## Painel admin reorganizado (nov/2026)
+
+Topo: faixa **"O que espera você"** (cliente respondeu chamado, chamado sem
+resposta, pagando conexão sem banco, banco parado) e métricas em 3 grupos
+(Receita · Clientes · Funil). Aba na URL (`/admin?aba=chamados|openfinance|…`).
+
+- **Chamados** (`components/admin/ChamadosPainel.tsx`) juntou Bugs + Melhorias.
+  Situação e ordem em `lib/chamados-admin.ts` (`eval:chamados-admin`):
+  precisa de resposta (não lida primeiro, depois o mais antigo) → aguardando o
+  cliente → resolvidos no fim, recolhidos. Melhoria sem resposta não acende.
+  ⚠️ Abrir a conversa MARCA COMO LIDA em produção — não abrir chamado real em teste.
+- **Selo vermelho no item Admin** da sidebar (e ponto no "Menu" do celular):
+  `lib/useAdminPendencias.ts` → `/api/admin/pendencias`, 2 min, só pra admin;
+  leva a `/admin?aba=chamados`. Existe porque o aviso ao suporte por WhatsApp é
+  texto livre e a Meta não entrega fora da janela de 24h.
+- ⚠️ **Open Finance conta por CLIENTE DONO (`of_conexoes.user_id`) em todas as
+  telas.** Antes o topo contava grupos (42), a aba Usuários casava por
+  `grupo_ativo` e cortava no limite de 300 (34 em vez de 41).
+- **Ações sem abrir o Stripe/Polp:** no painel do cliente (seção Open Finance,
+  `ClienteOpenFinance.tsx`) e na aba Open Finance: **Desconectar** um banco
+  (backend `POST /api/admin/desconectar-conexao`, só apaga se a Polp confirmar)
+  e **Cancelar cobrança** (fim do período ou agora), **Desfazer cancelamento** e
+  **Conferir com o Stripe** (`/api/admin/open-finance/cancelar`, `acao`).
+  "Consultar Polp" lista o que só existe lá e **revoga**
+  (`POST /api/admin/revogar-consentimento`). Desconectar e cancelar cobrança são
+  SEPARADOS de propósito.
+- ⚠️ **`revogarConsentimento` engolia o erro** — o "só apaga se revogar" do
+  corte de excedente e da exclusão de conta nunca falhava. Hoje
+  `{ estrito: true }` faz o erro subir; 404 = já revogado
+  (`eval:revogar-consentimento`, pelo cliente real com fetch falso).
+- ⚠️ **API do Stripe atual: `current_period_end` mora no ITEM** (no topo vem
+  undefined). O webhook não gravava `of_assinatura_fim` (o aviso de 3 dias
+  nunca saía). A lógica do add-on saiu do webhook pra `lib/conexao-of-stripe.ts`
+  (movida, não reescrita) e é a mesma usada pelo admin.
+- "Na conta da Polp (mês)" = ativas + desconectadas desde o dia 1 (antes somava
+  todo o histórico, cortado em 100).
+
 ## Painel admin — MRR (correções jul/2026)
 
 `/admin` são **Route Handlers do Next** (`app/api/admin/*`), não o backend Express — usam `supabaseAdmin`. MRR calculado em `app/api/admin/overview/route.ts`.

@@ -21,6 +21,7 @@ import { NAV_TOPO, GRUPOS, SECOES, type ItemNav, type SubgrupoNav } from '@/lib/
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
+import { useAdminPendencias } from '@/lib/useAdminPendencias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useMemo, useState } from 'react';
 import { useApi } from '@/lib/useApi';
@@ -155,6 +156,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const cacheSWR = { cache: swrCache, mutate: swrMutate };
   const { perfil, phone, signOut, podeUsar, temNegocios, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
+  // Cliente respondeu chamado e o admin não abriu (só consulta pra admin).
+  const { respostas: adminRespostas } = useAdminPendencias();
   // Conformidade com a política do Play Console — ver `semAndroid` em
   // `lib/sidebar-nav.ts`. Começa `false` e só vira `true` depois de montar
   // (evita hydration mismatch), então o pior caso é a Saúde piscar por um
@@ -429,6 +432,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     if (href === '/grow/saude')   return !!pathname?.startsWith('/grow/saude');
     if (href === '/grow/estudos') return !!pathname?.startsWith('/grow/estudos');
     if (href === '/negocios')     return !!pathname?.startsWith('/negocios');
+    // O Admin aponta pra /admin?aba=chamados quando há resposta nova: segue aceso.
+    if (href.startsWith('/admin'))  return pathname === '/admin';
     return pathname === href;
   }
 
@@ -500,7 +505,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     );
   }
 
-  function navLink({ item, grow = false, chave }: { item: ItemNav; grow?: boolean; chave?: string }) {
+  // `contador`: selo numérico à direita (hoje só o do Admin).
+  function navLink({ item, grow = false, chave, contador = 0, contadorRotulo }: { item: ItemNav; grow?: boolean; chave?: string; contador?: number; contadorRotulo?: string }) {
     const { href, label, gate, badge, breve, externa } = item;
     const Icon = ICONES_APP[item.icone] || Sparkles;
 
@@ -595,6 +601,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           <Icon size={15} />
         </span>
         <span className="flex-1 min-w-0 truncate">{label}</span>
+        {contador > 0 && !locked && (
+          <span aria-label={contadorRotulo}
+                className="flex-shrink-0 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-red-500 text-white text-[10px] font-bold tabular">
+            {contador > 9 ? '9+' : contador}
+          </span>
+        )}
         {locked && (
           badgeText
             ? <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold flex-shrink-0 ${corBadge}`}>{badgeText}</span>
@@ -940,7 +952,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
           {SECOES.map(sg => subgrupo({ sg }))}
           {ehAdmin && (
             <div className="mt-0.5 ml-[6px] pl-[10px]" style={{ borderLeft: '1px solid #E2E8F030' }}>
-              {navLink({ item: { href: '/admin', label: 'Admin', icone: 'Shield' } })}
+              {/* O selo leva DIRETO pros chamados quando há resposta nova. */}
+              {navLink({
+                item: { href: adminRespostas > 0 ? '/admin?aba=chamados' : '/admin', label: 'Admin', icone: 'Shield' },
+                contador: adminRespostas,
+                contadorRotulo: `${adminRespostas} ${adminRespostas === 1 ? 'cliente respondeu' : 'clientes responderam'} chamado`,
+              })}
             </div>
           )}
         </div>
