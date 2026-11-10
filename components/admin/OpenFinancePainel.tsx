@@ -63,7 +63,7 @@ type Polp = {
 const FILTROS = [
   { id: 'todos', label: 'Todos' },
   { id: 'orfa', label: 'Pagando sem usar' },
-  { id: 'inativo', label: 'Sem acesso há 30+ dias' },
+  { id: 'inativo', label: 'Sem uso há 30+ dias' },
   { id: 'excedente', label: 'Além do direito' },
   { id: 'repetido', label: 'Banco repetido' },
   { id: 'problema', label: 'Parou de atualizar' },
@@ -282,7 +282,7 @@ export default function OpenFinancePainel({ flash }: { flash?: (m: string) => vo
               hint={`avulsas, além da franquia · ≈ R$ ${r.receitaMes.toFixed(0)}/mês com os anuais divididos por 12`} />
         <Card label="Para revisar" valor={r.cobrancasOrfas + r.semAcesso30 + r.alemDoDireito + r.repetidas}
               alerta={r.cobrancasOrfas > 0}
-              hint={`${r.cobrancasOrfas} pagando sem usar · ${r.semAcesso30} sem acesso · ${r.alemDoDireito} além do direito · ${r.repetidas} repetido`} />
+              hint={`${r.cobrancasOrfas} pagando sem usar · ${r.semAcesso30} sem uso · ${r.alemDoDireito} além do direito · ${r.repetidas} repetido`} />
       </div>
 
       {/* ── 1. Conferir com a Polp ── */}
@@ -360,7 +360,7 @@ export default function OpenFinancePainel({ flash }: { flash?: (m: string) => vo
           ))}
         </div>
         {filtro === 'inativo' && (
-          <p className="text-[11px] text-muted-foreground">Não abrem o painel há 30 dias ou mais. O WhatsApp pode continuar em uso: confira antes de desconectar.</p>
+          <p className="text-[11px] text-muted-foreground">Sem login, sem abrir o painel e sem lançar nada (painel ou WhatsApp) há 30 dias ou mais. Consultar saldo pelo WhatsApp não conta: confira antes de desconectar.</p>
         )}
         {filtro === 'excedente' && (
           <p className="text-[11px] text-muted-foreground">O aviso de 48h já saiu (JOB 1R) e o corte é automático; desconectar aqui só adianta.</p>
@@ -384,7 +384,7 @@ export default function OpenFinancePainel({ flash }: { flash?: (m: string) => vo
                         {u.pagas > 0 ? `paga ${u.pagas} (${u.intervalo === 'anual' ? 'anual' : 'mensal'})` : 'pela franquia'}
                       </span>
                       <span className={(u.diasSemAcesso ?? 0) >= 30 ? 'text-amber-600 font-semibold' : ''}>
-                        {u.ultimoAcesso ? `último acesso ${u.diasSemAcesso === 0 ? 'hoje' : `há ${u.diasSemAcesso} dias`}` : 'nunca acessou o painel'}
+                        {u.ultimoAcesso ? `último uso ${u.diasSemAcesso === 0 ? 'hoje' : u.diasSemAcesso === 1 ? 'ontem' : `há ${u.diasSemAcesso} dias`}` : 'sem uso registrado'}
                       </span>
                     </p>
                     <div className="flex flex-wrap gap-1 mt-1.5">

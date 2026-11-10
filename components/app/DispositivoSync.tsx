@@ -11,9 +11,11 @@ const CHAVE = 'sora-dispositivo-enviado';
  * instalar, desktop) pro servidor — só pra o /admin enxergar Android × Apple.
  * Puramente analytics: nunca gate de feature.
  *
- * ⚠️ UMA VEZ POR NAVEGADOR (guard em localStorage), não a cada carga — é o
- * mesmo desenho do `OrigemSync` ao lado, que já resolve o problema de
- * "detectar de novo custaria uma escrita no banco em toda navegação".
+ * ⚠️ NO MÁXIMO UMA VEZ POR DIA, POR PESSOA, POR NAVEGADOR (guard em
+ * localStorage), nunca a cada carga. Era "uma vez por navegador" pra sempre —
+ * mas a mesma chamada passou a gravar `ultimo_acesso_em` (migration 194), que
+ * o admin usa pra saber quem ainda usa a Sora: o login (`last_sign_in_at`) não
+ * serve, só muda quando a pessoa digita a senha.
  *
  * ⚠️ Sem sessão (401), NÃO marca como enviado — tenta de novo na próxima
  * carga já logado. Falha de rede também não marca, pelo mesmo motivo. Fora
@@ -29,9 +31,12 @@ export default function DispositivoSync() {
     // chamada recorrente que valida sessão FORA do middleware. Telemetria não
     // pode ter esse peso: espera o usuário existir e dispara uma vez só.
     if (loading || !user) return;
+    // Dia no fuso de SP + quem é: trocar de conta no mesmo navegador também envia.
+    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    const marca = `${user.id}|${dia}`;
 
     try {
-      if (localStorage.getItem(CHAVE) === '1') return;
+      if (localStorage.getItem(CHAVE) === marca) return;
     } catch {
       return; // storage bloqueado: sem como marcar, sem como evitar reenvio — desiste.
     }
@@ -44,7 +49,7 @@ export default function DispositivoSync() {
     })
       .then((res) => {
         if (res.ok) {
-          try { localStorage.setItem(CHAVE, '1'); } catch { /* storage bloqueado */ }
+          try { localStorage.setItem(CHAVE, marca); } catch { /* storage bloqueado */ }
         }
       })
       .catch(() => { /* melhor esforço — nunca atrapalha o app */ });

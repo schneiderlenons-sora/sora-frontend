@@ -68,6 +68,11 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabaseAdmin.from('users').update({ plataforma }).eq('id', user.id);
 
+  // ── Último acesso (migration 194). UPDATE SEPARADO e calado: sem a coluna,
+  // só isto falha. O cliente manda no máximo 1×/dia (DispositivoSync).
+  await supabaseAdmin.from('users').update({ ultimo_acesso_em: new Date().toISOString() })
+    .eq('id', user.id).then(() => {}, () => {});
+
   // ── Abriu DENTRO do app Android → marca `app_android_em` (migration 166).
   // É o que esconde a barra de convite da Play Store em qualquer navegador.
   //
