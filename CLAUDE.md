@@ -1613,6 +1613,26 @@ fatura PUBLICADA do `faturaVista` só ouvia o `payments[]` do emissor.
 - O caso da transação que **NÃO** chega pelo cartão ganhou sugestão própria —
   ver "Conciliação de ponta a ponta" abaixo.
 
+### Mercado Pago: abatimento no ciclo, na ORDEM do banco (nov/2026)
+
+Relato (dono): MP fechou em **R$ 1.872,06** no banco × **R$ 5.771,63** na Sora.
+O MP deixa abater a fatura EM CURSO e a fecha líquida: 5.771,63 − 2.899,57
+(25/10) − 500 (07/11) − 500 (08/11, 21h06) = **1.872,06**, ao centavo.
+`competenciaDoPagamento` ("vencimento mais próximo") jogava o de 25/10 em
+outubro, já quitada pelo de 09/10.
+
+- `faturaVista.abatimentosDoCiclo` (`eval:abatimento-ciclo`): na fatura fechada
+  e NÃO publicada cuja ANTERIOR está publicada, os pagamentos depois do
+  fechamento dela a quitam primeiro; a sobra **abate** o ciclo (até o
+  fechamento dele) ou é **pago** (depois). Fonte `ciclo+previstas+ordem`.
+- ⚠️ **SÓ MERCADO PAGO** (instituição da conexão, nunca o nome da carteira).
+  Medido na base inteira antes de subir: a versão geral errava 4 de 5 — CAIXA
+  manda o mesmo boleto 2× ("PGTO.BOLETO" + "AUT. PGTO. BOLETO") e crédito de
+  renegociação como pagamento; no Bradesco convivem o "paga" manual e o PIX.
+  Somados em sequência, ZERAVAM faturas em aberto. Com o recorte: 1 de 18 muda.
+- ⚠️ `pagamentos_fatura.data` era o dia em **UTC** (21h06 de 08/11 → 09/11,
+  depois do fechamento). Hoje `diaSP`; migration **195** corrige 60 linhas.
+
 ## Conciliação de ponta a ponta + diagnóstico diário (out/2026)
 
 Relatos repetidos do Vander (e de outros) levaram a um plano em frentes. Todas
@@ -4579,6 +4599,8 @@ sql/190_divida_pagamento_transacao.sql — divida_pagamentos.transacao_id: o pag
 sql/191_bug_reports_duvida.sql — tipo "duvida" no CHECK de bug_reports (o suporte foi pra Ajuda). Sem ela a dúvida vira "problema" com o texto marcado "❓ Dúvida:".
 sql/192_negocios_series_regras_pessoal.sql — Sora Negócios: serie_id/serie_ate (contas que se repetem), tabela regras_negocio (aprende) e contas_negocio.fora_do_pessoal (passo B). Sem ela, repetir avisa que falta, aprender não grava e nada sai do pessoal.
 sql/193_reservas_no_pessoal.sql — contas_negocio.reservas_no_pessoal: mostrar as reservas (caixinhas) da conta da empresa TAMBÉM na aba Investimentos pessoal (só visual). Sem ela as reservas ficam só no Negócios e a opção responde "ainda está sendo liberado".
+sql/194_ultimo_acesso.sql       — users.ultimo_acesso_em + função admin_ultimo_uso (só service_role): o "último uso" do admin era o último LOGIN (cliente logado no app aparecia "há 68 dias"). Sem ela a tela mostra o login, como antes.
+sql/195_pagamento_fatura_dia_sp.sql — corrige pagamentos_fatura.data gravada no dia UTC (pagamento entre 21h e meia-noite caía no dia seguinte). 60 linhas em 27 cartões. Só mexe em data.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
