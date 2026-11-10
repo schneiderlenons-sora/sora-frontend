@@ -3853,6 +3853,23 @@ Dois defeitos independentes, os dois nossos.
 
 
 
+### O convite nunca abriu pra quem NÃO TINHA CONTA (nov/2026)
+
+Relato (Pollyana): *"mando o link, ele pede pra criar senha e quer cobrar"*.
+A correção de set/2026 só valia pra quem já estava logado.
+
+- ⚠️ **`/convite` não era rota pública do middleware**: o convidado caía no
+  login com "Sua sessão expirou" e o "Criar conta" de lá ia pro cadastro com
+  plano e pagamento. Hoje `/convite/*` e `/convite-empresa/*` são públicas e o
+  login leva o `next` pro "Criar conta".
+- ⚠️ **O dono abrindo o PRÓPRIO link gastava o código** e virava membro
+  "escrita" do próprio grupo (o papel de membro vence o de dono). Hoje 409
+  `convite_proprio`, e quem já participa só troca de grupo sem gastar. Medido:
+  4 donos, 7 linhas (3 da Pollyana), nenhuma com convidado real.
+- Cadastro vindo do convite: sem etapas Plano/Pagamento nem selo do Stripe; no
+  app (iPhone/Android) o convite vem ANTES do desvio pro tour; conta nova que
+  entra por convite pula o onboarding (gravaria contas no grupo de quem convidou).
+
 ### ⚠️ Quem paga pelo convidado — DECISÃO DO DONO (set/2026)
 
 **O convidado entra de graça, em `gratis`, e NÃO herda o plano do dono.**
