@@ -23,8 +23,13 @@ export default function LoginPage() {
   // sessão dele estava válida no navegador e inválida no servidor (trocar a
   // senha derruba as sessões antigas), e nada na tela dizia isso.
   const [aviso, setAviso] = useState('');
+  // O destino vai junto pro "Criar conta": sem isso quem chegou por um convite
+  // e não tinha conta caía no cadastro com plano e pagamento, e o convite sumia.
+  const [nextSeguro, setNextSeguro] = useState('');
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
+    const n = q.get('next') || '';
+    if (n.startsWith('/') && !n.startsWith('//')) setNextSeguro(n);
     if (q.get('motivo') === 'sessao') {
       setAviso('Sua sessão expirou — entre de novo pra continuar de onde parou. Sua conta e seus dados estão intactos.');
     }
@@ -154,7 +159,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-muted-foreground">
             Não tem conta?{' '}
-            <Link href="/signup"
+            <Link href={nextSeguro ? `/signup?next=${encodeURIComponent(nextSeguro)}` : '/signup'}
                   className="font-bold hover:underline inline-flex items-center gap-0.5"
                   style={{ color: BRAND }}>
               Criar conta <ArrowRight size={12} />

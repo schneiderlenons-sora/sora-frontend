@@ -33,6 +33,12 @@ const ROTAS_PUBLICAS = [
 /** Pública? `/es` e tudo abaixo dele é a landing em espanhol. */
 function ehPublica(pathname: string): boolean {
   if (pathname === '/es' || pathname.startsWith('/es/')) return true;
+  // ⚠️ CONVITE (grupo e empresa) é público: quem abre o link quase sempre NÃO
+  // TEM CONTA, e a própria página diz "entre ou crie uma conta, sem pagar".
+  // Protegida, o convidado caía no login com "Sua sessão expirou" e o
+  // "Criar conta" de lá ia pro cadastro com plano e pagamento — o "quer
+  // cobrar ele" do relato da Pollyana (nov/2026). A página só aceita com login.
+  if (pathname.startsWith('/convite/') || pathname.startsWith('/convite-empresa/')) return true;
   return ROTAS_PUBLICAS.includes(pathname);
 }
 
