@@ -1,6 +1,6 @@
 {
   "appId": "com.forsora.app",
-  "appName": "Sora",
+  "appName": "ForSora",
   "webDir": "www",
   "server": {
     "url": "https://www.forsora.com/login",
