@@ -133,8 +133,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             está no <html> quando o <body> começa a pintar.
             ?abertura=1 na URL força a abertura (ignora sessão, largura e
             reduced-motion) — é como se testa sem depender do estado do
-            aparelho. */}
+            aparelho.
+            ⚠️ NO APP DE IPHONE NÃO HÁ ABERTURA, nem com ?abertura=1: o vídeo
+            termina com "Sora" escrito, e lá a marca é "ForSora" (recusa da
+            Apple pela 4.1a — ver lib/marca-app-ios.ts). Imagem não dá pra trocar. */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{
+if(navigator.userAgent.indexOf('${MARCA_APP_IOS}')>-1)return;
 if(location.search.indexOf('abertura=1')<0){
   var p=location.pathname,pub=['/','/login','/signup','/recuperar-senha','/redefinir-senha','/oferta','/kit','/checkout-vitalicio','/es','/tour','/convite','/convite-empresa','/excluir-conta'];
   for(var i=0;i<pub.length;i++){if(p===pub[i]||p.indexOf(pub[i]+'/')===0)return;}

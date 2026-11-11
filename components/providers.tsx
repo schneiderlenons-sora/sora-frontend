@@ -14,6 +14,7 @@ import WelcomeTrigger from '@/components/auth/WelcomeTrigger';
 import { LoadingGateProvider } from '@/components/ui/LoadingGate';
 import ThemeColorSync from '@/components/layout/ThemeColorSync';
 import OrigemSync from '@/components/app/OrigemSync';
+import MarcaAppIos from '@/components/app/MarcaAppIos';
 import DispositivoSync from '@/components/app/DispositivoSync';
 import AppInstaladoSync from '@/components/app/AppInstaladoSync';
 import SincronizarPlay from '@/components/app/SincronizarPlay';
@@ -53,6 +54,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           usuário logado, e o sinal chega na primeira tela — que pode ser o
           login. */}
       <OrigemSync />
+      {/* App de iPhone: a marca na tela é "ForSora" (recusa da Apple pela
+          4.1a — ver lib/marca-app-ios.ts). Fora daqui nada muda. */}
+      <MarcaAppIos />
       <SWRConfig value={{ provider: localStorageProvider }}>
         <AuthProvider>
           <PaywallRedirect />
