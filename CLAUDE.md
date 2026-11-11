@@ -4444,6 +4444,14 @@ Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
   menu. Hoje saem do menu e o middleware os tira do app (`ROTAS_DE_VENDA_IOS`).
 - ⚠️ **Tela nova com preço, "Assinar", "upgrade" ou link pra /planos/Stripe:
   esconder no app de iPhone** (`useEhAppIos` no painel, `oculto-no-app-ios` fora).
+- ⚠️ **No iPhone a marca é "ForSora" (nov/2026).** A Apple recusou pela 4.1(a):
+  "Sora" é o app de vídeo da OpenAI. Loja: "ForSora - Controle Financeiro";
+  ícone `CFBundleDisplayName` = ForSora. Dentro do app, `MarcaAppIos` troca
+  "Sora" → "ForSora" nos textos da TELA (regra em `lib/marca-app-ios.ts`,
+  `eval:marca-app-ios`), só depois da hidratação; input/textarea não são
+  tocados (o dado não muda). A abertura (vídeo termina com "Sora" escrito) é
+  desligada no app. ⚠️ Imagem nova com "Sora" ESCRITO não é coberta — no app
+  de iPhone, esconder. Web, Android e WhatsApp seguem "Sora".
 - **Fase 2 (não feita):** assinatura pela Apple (StoreKit), igual à Play.
 
 ## Convenções de código
