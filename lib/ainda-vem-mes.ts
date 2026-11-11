@@ -32,6 +32,11 @@ export type PrevistoRestante = {
   dia: number;
   variavel: boolean;
   origem: string;
+  /** Quantas vezes a linha cai (conta fixa semanal = várias). */
+  vezes: number;
+  /** O objeto de origem (conta fixa, dívida ou fatura) — a tela o usa pra
+   *  desenhar a linha com ícone e legenda, sem refazer a regra. */
+  ref: unknown;
 };
 
 type Rec = {
@@ -55,6 +60,31 @@ type Fat = {
 
 const hojeISO = (agora: Date) => agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
+/**
+ * A parcela de dívida AINDA cai neste mês? Pelo `proximoVencimento` — a regra
+ * do card da dívida e do Extrato, a única que sabe que ela foi PAGA adiantada
+ * (aí o próximo vencimento já é no mês seguinte). Atrasada e não paga: ainda.
+ */
+export function parcelaAindaNoMes(d: Div, agora: Date = new Date()): boolean {
+  const hoje = hojeISO(agora);
+  const prox = proximoVencimento(d, hoje);
+  return !!prox && prox.data.slice(0, 7) === hoje.slice(0, 7);
+}
+
+/**
+ * Quantas vezes a conta fixa ainda aparece como "a pagar/receber" nas LISTAS
+ * do mês (Receitas, Despesas, Caixa).
+ *
+ * ⚠️ `resolvida_no_mes` primeiro (paga OU pulada, vem do servidor). As listas
+ * decidiam só pela DATA e uma conta paga antes do vencimento seguia como
+ * "ainda sai" logo abaixo de uma manchete que já a tinha descontado (relato
+ * do dono, nov/2026). Fora isso é a regra de data de sempre.
+ */
+export function vezesAindaNaLista(r: Rec, agora: Date = new Date()): number {
+  if (r.resolvida_no_mes) return 0;
+  return vezesQueAindaVem(itemPrevistoDe(r as Parameters<typeof itemPrevistoDe>[0]), agora);
+}
+
 export function previstosRestantesDoMes(p: {
   recorrencias?: Rec[] | null;
   dividas?: Div[] | null;
@@ -62,7 +92,6 @@ export function previstosRestantesDoMes(p: {
   agora?: Date;
 }): PrevistoRestante[] {
   const agora = p.agora ?? new Date();
-  const hoje = hojeISO(agora);
   const diaHoje = diaHojeSP(agora);
 
   // ── Contas fixas ──────────────────────────────────────────────────────────
@@ -92,6 +121,8 @@ export function previstosRestantesDoMes(p: {
       dia: Number(r.dia_vencimento) || 0,
       variavel: !!r.valor_variavel,
       origem: vezes > 1 ? `Conta fixa · ${vezes}x no mês` : 'Conta fixa',
+      vezes,
+      ref: r,
     }));
 
   // ── Parcelas de dívida ────────────────────────────────────────────────────
@@ -100,10 +131,7 @@ export function previstosRestantesDoMes(p: {
   // (aí o próximo vencimento já é no mês seguinte e ela sai daqui).
   const parcelas = (p.dividas || [])
     .filter((d) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false)
-    .filter((d) => {
-      const prox = proximoVencimento(d, hoje);
-      return !!prox && prox.data.slice(0, 7) === hoje.slice(0, 7);
-    })
+    .filter((d) => parcelaAindaNoMes(d, agora))
     .map((d): PrevistoRestante => ({
       chave: `div:${d.id}`,
       titulo: d.titulo || 'Dívida',
@@ -112,6 +140,8 @@ export function previstosRestantesDoMes(p: {
       dia: Number(d.dia_vencimento) || 0,
       variavel: false,
       origem: 'Parcela de dívida',
+      vezes: 1,
+      ref: d,
     }));
 
   // ── Faturas ───────────────────────────────────────────────────────────────
@@ -132,6 +162,8 @@ export function previstosRestantesDoMes(p: {
       dia: parseInt(String(f.venc || '').slice(8, 10), 10) || 0,
       variavel: false,
       origem: 'Fatura de cartão',
+      vezes: 1,
+      ref: f,
     }));
 
   return [...fixas, ...parcelas, ...faturas].sort((a, b) => a.dia - b.dia);

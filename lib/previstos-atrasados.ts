@@ -29,6 +29,8 @@ import { somarMeses, type ItemRecorrente } from '@/lib/previstos';
 export type RecorrenciaAtrasavel = ItemRecorrente & {
   id?: string;
   carteira?: string | null;
+  /** Quando a conta fixa foi cadastrada — o início, se `data_inicio` faltar. */
+  created_at?: string | null;
 };
 
 export type Quitacao = { recorrenciaId: string; competencia: string };
@@ -88,7 +90,13 @@ export function pendenciasAnteriores(params: {
       // ⚠️ `ocorrenciasNoMes` é a MESMA função do extrato e da projeção. Ela
       // já sabe de frequência, início e fim — uma conta que ainda não existia
       // em agosto, ou que terminou, não vira pendência retroativa.
-      const vezes = ocorrenciasNoMes(r, ym);
+      // ⚠️ SEM `data_inicio`, O INÍCIO É A CRIAÇÃO (nov/2026). Medido: 299 contas
+      // fixas ativas sem a data (quase todas de antes da migration 157). Sem
+      // isto, uma conta cadastrada em novembro aparecia "em aberto" em agosto,
+      // setembro e outubro — meses em que ela nem existia.
+      const comInicio = r.data_inicio || !r.created_at
+        ? r : { ...r, data_inicio: String(r.created_at).slice(0, 10) };
+      const vezes = ocorrenciasNoMes(comInicio, ym);
       if (!vezes) continue;
 
       const chave = `${r.id}:${ym}`;

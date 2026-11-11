@@ -213,6 +213,24 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
   // mêses". Era verdade — o único botão apagava a RECORRÊNCIA. Agora a
   // confirmação oferece as duas coisas, e "só este mês" reusa o MESMO
   // `status: pulado` que o Extrato já grava (nenhuma regra nova).
+  // ⚠️ A ABA PREVISTOS LÊ OUTRAS CHAVES (contas fixas com `resolvida_no_mes`,
+  // ocorrências do Extrato). Sem avisá-las, quem marcava aqui e ia direto pra
+  // lá via a conta como "ainda sai" (relato do dono, nov/2026).
+  // `resolvida`: só no MÊS CORRENTE — é o único mês que `resolvida_no_mes`
+  // descreve — a lista guardada já muda na hora (sem a piscada do valor velho).
+  const avisarPrevistos = useCallback((id: string, resolvida?: boolean) => {
+    if (!phone) return;
+    if (resolvida !== undefined && mesRef === mesAtualSP()) {
+      mutateRef.current(chave.recorrencias(phone),
+        (atual: any) => (Array.isArray(atual)
+          ? atual.map((r: any) => (r.id === id ? { ...r, resolvida_no_mes: resolvida } : r))
+          : atual),
+        { revalidate: false });
+    }
+    const pref = [`d:tx:${phone}:`, `d:wallets:${phone}`, `d:resumo:${phone}:`, `d:ocorrencias:${phone}:`, `d:rec:${phone}`];
+    mutateRef.current((k: unknown) => typeof k === 'string' && pref.some((p) => k.startsWith(p)));
+  }, [phone, mesRef]);
+
   const pularMes = useCallback(async (id: string) => {
     setRemovendo(id);
     try {
@@ -221,9 +239,12 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
       // confirma pelo servidor.
       setEstados((m) => new Map(m).set(id, { situacao: 'pulada', valor: null, transacaoId: null }));
       setConfirm(null);
+      avisarPrevistos(id, true);
     } catch { /* silencioso: a linha continua como estava */ }
     finally { setRemovendo(null); }
-  }, []);
+  // ⚠️ `mesRef` NAS DEPS: sem ele a função guardava o mês do 1º carregamento
+  // e "pular" em outro mês da aba Transações pulava o mês ERRADO.
+  }, [mesRef, avisarPrevistos]);
 
   // ── DESFAZER O "SÓ ESTE MÊS" ────────────────────────────────────────
   // O pulo não tinha volta por tela nenhuma (a rota DELETE existia, nenhum
@@ -233,10 +254,10 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
     try {
       await api.previstos.removerAjuste({ recorrencia_id: id, competencia: mesRef });
       setEstados((m) => { const n = new Map(m); n.delete(id); return n; });
-      mutateRef.current((k: unknown) => typeof k === 'string' && k.startsWith(`d:ocorrencias:${phone}:`));
+      avisarPrevistos(id, false);
     } catch { /* silencioso: a linha continua pulada */ }
     finally { setRemovendo(null); }
-  }, [phone]);
+  }, [mesRef, avisarPrevistos]);
 
   // ── "JÁ RECEBI" / "JÁ PAGUEI" ANTES DO DIA ──────────────────────────
   //
@@ -283,18 +304,21 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
       });
       marcarPaga(item.id, Number(item.valor) || null);
       setAntecipando(null);
-      // A baixa cria a transação e mexe no saldo: lista, saldos, resumo e o
-      // Extrato precisam revalidar. ⚠️ `mutate` do useSWRConfig, não o de
-      // 'swr' — aquele fala com o cache padrão e não com o do app.
-      const pref = [`d:tx:${phone}:`, `d:wallets:${phone}`, `d:resumo:${phone}:`, `d:ocorrencias:${phone}:`];
-      mutateRef.current((k: unknown) => typeof k === 'string' && pref.some((p) => k.startsWith(p)));
+      // A baixa cria a transação e mexe no saldo: lista, saldos, resumo, o
+      // Extrato e a aba Previstos precisam revalidar. ⚠️ `mutate` do
+      // useSWRConfig, não o de 'swr' — aquele fala com o cache padrão.
+      avisarPrevistos(item.id, true);
     } catch (e) {
       // `body.mensagem` é o texto pra pessoa; `message` às vezes é só o código.
       setErroAntecipar({ id: item.id, msg: (e as any)?.body?.mensagem || (e as Error)?.message || 'Não consegui registrar agora. Tente de novo.' });
     } finally {
       setOcupadoAntecipar(null);
     }
-  }, [phone]);
+  // ⚠️ `mesRef` NAS DEPS (nov/2026): sem ele a baixa ia pra competência do 1º
+  // carregamento. Testado: marcar pago em OUTUBRO, com a aba aberta em
+  // novembro, respondia "já quitada" (a de novembro) e não gravava nada —
+  // enquanto a tela mostrava "pago".
+  }, [mesRef, avisarPrevistos, marcarPaga]);
 
   const carregar = useCallback(async () => {
     if (!phone) { setCarreg(false); return; }

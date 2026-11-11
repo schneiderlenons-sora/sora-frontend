@@ -18,12 +18,16 @@ import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/Extra
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
 import { contasDoPessoal } from '@/lib/conta-empresa';
+import { fmtDataBR } from '@/lib/data-br';
 import { useConexoesOF } from '@/lib/conexao-of';
 import {
-  aindaVemNoMes, calcularSaldoProjetado, itemPrevistoDe, vezesQueAindaVem,
+  aindaVemNoMes, calcularSaldoProjetado,
 } from '@/lib/saldo-projetado';
 import FaturasNaPrevisao from '@/components/previstos/FaturasNaPrevisao';
-import { previstosRestantesDoMes, pendentesDoCaixa, nomesDeCartao, itensDoSaldoProjetado } from '@/lib/ainda-vem-mes';
+import {
+  previstosRestantesDoMes, pendentesDoCaixa, nomesDeCartao, itensDoSaldoProjetado,
+  vezesAindaNaLista, parcelaAindaNoMes,
+} from '@/lib/ainda-vem-mes';
 import {
   projetarMeses, primeiroMesNoVermelho, ymHojeSP, somarMeses, distanciaMeses,
   linhasDoMes, type MesProjetado, type LinhaMes,
@@ -67,21 +71,26 @@ const PERIODOS = [
  * depois das receitas — é uma queixa real de usuário, já corrigida lá, e
  * repeti-la aqui seria reintroduzir um bug já pago.
  */
+// ⚠️ "Lançamentos pendentes" (previsto único, "só prever" já criado) faz parte
+// do "ainda sai" da manchete — sem o bloco, o card dizia R$ 60 embaixo de um
+// "+R$ 105 previsto" no topo da mesma aba. Bloco vazio não aparece (CardComposicao).
 const BLOCOS_DESPESA = [
   { grupo: 'fixo',     label: 'Gastos fixos' },
   { grupo: 'variavel', label: 'Gastos variáveis',   hint: 'você confirma o valor' },
   { grupo: 'divida',   label: 'Dívidas',            hint: 'parcela deste mês' },
   { grupo: 'fatura',   label: 'Cartões de crédito', hint: 'fatura em aberto' },
+  { grupo: 'pendente', label: 'Lançamentos pendentes', hint: 'ainda não pagos' },
 ] as const;
 
 const BLOCOS_RECEITA = [
   { grupo: 'fixo',     label: 'Receitas fixas' },
   { grupo: 'variavel', label: 'Receitas variáveis', hint: 'você confirma o valor' },
+  { grupo: 'pendente', label: 'Lançamentos pendentes', hint: 'ainda não recebidos' },
 ] as const;
 
 type ItemComposicao = {
   id: string; titulo: string; legenda: string; valor: number; icone: string;
-  grupo: 'fixo' | 'variavel' | 'divida' | 'fatura';
+  grupo: 'fixo' | 'variavel' | 'divida' | 'fatura' | 'pendente';
   /**
    * Só em fatura de cartão do Open Finance: de onde vem o valor.
    * `estimativa` = ciclo em aberto, o valor ainda muda; `banco` = o emissor já
@@ -792,9 +801,6 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       : undefined,
   }), [cartaoParado]);
 
-  /** Quantas vezes a recorrência AINDA cai neste mês. */
-  const aindaVezes = useCallback((r: any) => vezesQueAindaVem(itemPrevistoDe(r)), []);
-
   // ── AS LINHAS DO MÊS CORRENTE ────────────────────────────────────────────
   //
   // ⚠️ TODAS as linhas, não só as que ainda vêm. A versão anterior listava
@@ -802,12 +808,27 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
   // e só aparece uma". Some da lista o que já entrou e a pessoa conclui que a
   // conta não está cadastrada. Agora tudo aparece, e o que já aconteceu leva a
   // marca — que é informação, não ruído.
+  /** Lançamento PENDENTE do mês como linha das listas (sempre "ainda vem"). */
+  const itemDoPendente = useCallback((t: any): ItemComposicao => ({
+    id: `tx:${t.id}`,
+    titulo: t.observacao || t.categoria || 'Lançamento',
+    valor: Number(t.valor) || 0,
+    legenda: [fmtDataBR(t.data), t.carteira_nome].filter(Boolean).join(' · '),
+    icone: t.tipo === 'Recebimento' ? '💰' : '🧾',
+    grupo: 'pendente',
+    jaVezes: 0,
+    totalVezes: 1,
+  } as ItemComposicao), []);
+
   const fontes = useMemo(() => {
     const doTipo = (tipo: string) => recorrencias
       .filter((r: any) => r.tipo === tipo && Number(r.valor) > 0)
       .map((r: any) => {
         const total = ocorrenciasNoMes(r, ymHoje);
-        const ainda = aindaVezes(r);
+        // ⚠️ Paga/pulada no mês conta como JÁ (resolvida_no_mes) — antes só a
+        // data decidia, e a conta paga antes do vencimento seguia "ainda sai"
+        // embaixo de uma manchete que já a tinha descontado.
+        const ainda = Math.min(total, vezesAindaNaLista(r));
         return { r, total, ainda, ja: Math.max(0, total - ainda) };
       })
       .filter((x) => x.total > 0)
@@ -822,9 +843,10 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         .filter((d: any) => d.status !== 'quitada' && Number(d.valor_parcela) > 0 && d.nos_previstos !== false)
         .map((d: any) => ({
           ...itemDaDivida(d),
-          jaVezes: aindaVemNoMes({
-            tipo: 'Gasto' as const, valor: d.valor_parcela, dia_vencimento: d.dia_vencimento,
-          }) ? 0 : 1,
+          // ⚠️ Pelo próximo vencimento (a regra da manchete e do card da
+          // dívida): parcela paga ADIANTADA é "já saiu"; atrasada e não paga
+          // segue "ainda sai" — a data sozinha errava os dois casos.
+          jaVezes: parcelaAindaNoMes(d) ? 0 : 1,
           totalVezes: 1,
         })),
       ...faturas
@@ -838,8 +860,13 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         })),
     ];
 
-    return { vem: doTipo('Recebimento'), vai };
-  }, [recorrencias, dividas, faturas, ymHoje, aindaVezes, itemDaRecorrencia, itemDaDivida, itemDaFatura]);
+    // Os pendentes do mês entram nas listas como no "ainda sai" da manchete.
+    const pend = (pendentesMes as any[]);
+    return {
+      vem: [...doTipo('Recebimento'), ...pend.filter((t) => t.tipo === 'Recebimento').map(itemDoPendente)],
+      vai: [...vai, ...pend.filter((t) => t.tipo === 'Gasto').map(itemDoPendente)],
+    };
+  }, [recorrencias, dividas, faturas, ymHoje, itemDaRecorrencia, itemDaDivida, itemDaFatura, pendentesMes, itemDoPendente]);
 
   /**
    * Quanto de uma lista JÁ aconteceu e quanto ainda vem — a divisão da barra.
@@ -869,6 +896,33 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
    * inventar — ela depende de compras que ainda não aconteceram).
    */
   const composicaoDoMes = useCallback((ym: string) => {
+    // ⚠️ MÊS CORRENTE: A LISTA SAI DAS MESMAS PEÇAS DO VALOR. O "Ainda sai"
+    // é `proj.aPagar` = o que ainda vem (`restantesDoMes`, que sabe o que foi
+    // PAGO) + os lançamentos pendentes. A lista vinha de `linhasDoMes`, que
+    // lista o mês INTEIRO sem saber de pagamento nem de data — e a conta paga
+    // agora há pouco aparecia como "ainda sai" logo abaixo de um total que já
+    // não a continha (relato do dono, nov/2026). Mês futuro segue igual.
+    if (ym === ymHoje) {
+      const desp: ItemComposicao[] = [];
+      const rec: ItemComposicao[] = [];
+      for (const r of restantesDoMes) {
+        const ref: any = r.ref;
+        const item = r.chave.startsWith('div:') ? itemDaDivida(ref)
+          : r.chave.startsWith('fat:') ? itemDaFatura(ref)
+          : itemDaRecorrencia(ref, r.vezes);
+        (r.tipo === 'Recebimento' ? rec : desp).push(item);
+      }
+      for (const t of pendentesMes as any[]) (t.tipo === 'Recebimento' ? rec : desp).push(itemDoPendente(t));
+      return {
+        blocosDespesa: agrupar(desp, BLOCOS_DESPESA),
+        blocosReceita: agrupar(rec, BLOCOS_RECEITA),
+        totalDespesas: somaItens(desp),
+        totalReceitas: somaItens(rec),
+        qtd: desp.length + rec.length,
+        aproximado: restantesDoMes.some((r) => r.variavel),
+      };
+    }
+
     // ⚠️ AS LINHAS VÊM DE `linhasDoMes`, a MESMA função de onde `projetarMeses`
     // tira a soma. Enquanto isto aqui reimplementava as regras (recorrência por
     // ocorrências, parcela enquanto sobra, fatura só no mês dela), bastava um
@@ -898,7 +952,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       totalReceitas: somaItens(rec),
       qtd: desp.length + rec.length,
       aproximado: linhas.some((l: LinhaMes) => l.estimado),
-    };  }, [recorrencias, dividas, faturas, ymHoje, itemDaRecorrencia, itemDaDivida, itemDaFatura]);
+    };
+  }, [recorrencias, dividas, faturas, ymHoje, itemDaRecorrencia, itemDaDivida, itemDaFatura, restantesDoMes, pendentesMes, itemDoPendente]);
   // A composição do mês que a Projeção está exibindo (o tocado no gráfico
   // ou, sem toque, o último da janela).
   const composicaoAlvo = useMemo(() => {

@@ -2198,6 +2198,35 @@ de teste real (apagada depois) + medição só-leitura na base. Achados e fixes:
   na projeção de meses futuros — limitação antiga ("projetar fatura seria
   inventar").
 
+### Previstos: as LISTAS concordam com o valor (nov/2026)
+
+Relato (dono): marcou contas como pagas na aba Transações e a Projeção seguia
+listando-as em "Ainda sai". Testado na tela com conta de teste, antes × depois.
+
+- ⚠️ **Projeção, mês corrente:** o valor de "Ainda sai/entra" era `proj.aPagar`
+  (certo), mas a LISTA vinha de `linhasDoMes`, que lista o mês inteiro sem
+  saber de pagamento nem data (R$ 940 listados embaixo de R$ 105). Hoje a lista
+  do mês corrente sai de `restantesDoMes` + pendentes — as MESMAS peças do
+  valor (`eval:ainda-vem-mes` §7: 1.500 casos, lista = manchete).
+- ⚠️ **Receitas/Despesas/Caixa:** decidiam "já saiu" só pela DATA — conta e
+  parcela pagas ANTES do vencimento seguiam "ainda sai" (R$ 360 × R$ 60).
+  Agora `vezesAindaNaLista` (lê `resolvida_no_mes`) e `parcelaAindaNoMes`
+  (`proximoVencimento`), fonte única em `lib/ainda-vem-mes.ts`. Lançamentos
+  pendentes entram num bloco próprio (o topo da aba já os somava).
+- ⚠️ **Card da aba Transações com mês trocado:** `pularMes`, `despularMes` e
+  `anteciparOcorrencia` não tinham `mesRef` nas deps e usavam o mês do 1º
+  carregamento. Testado: "Marcar pago" em OUTUBRO com a aba aberta em novembro
+  respondia "já quitada" e não gravava nada, com a tela dizendo "pago".
+- Marcar/pular no card avisa a aba Previstos (`avisarPrevistos`: `d:rec:` já
+  atualizado na hora no mês corrente — sem piscar o valor velho).
+- **Pendências de meses anteriores:** sem `data_inicio`, o início é o
+  `created_at` (299 contas fixas ativas sem a data; uma conta de novembro
+  aparecia "em aberto" em agosto). 20 contas criadas DEPOIS da 157 saíram sem
+  a data e a causa não foi achada — `criarRecorrencia` agora loga quando o
+  insert completo falha e cai de camada.
+- ⚠️ Não é bug: parcela paga 18 dias antes do vencimento é lida como a do mês
+  ANTERIOR paga atrasada (`vencimentoCoberto`, "o mais próximo").
+
 ## Conta paga ANTES do vencimento continuava "a vencer" (set/2026)
 
 Relato de cliente: pagou **Luz, Gás e Internet no dia 21** — antes dos
