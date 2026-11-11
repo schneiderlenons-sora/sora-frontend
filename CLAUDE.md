@@ -14,6 +14,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 | Assunto | Fonte | Seção aqui |
 |---|---|---|
 | **Docs da Polp/Celcoin (Open Finance)** | **`sora-backend/docs/celcoin/*.txt`** (as 51 páginas da doc, uma por arquivo — `bills__transactions.txt`, `credit-cards__installments.txt`, `consents__resources.txt`, `changelog.txt`… —; índice em `_URLS.txt`; reatualiza com `node docs/celcoin/baixar.js`, conferido em 19/10/2026). ⚠️ Consultar ALI antes de supor qualquer campo da API | "DOCS DA CELCOIN SALVOS" |
+| **App de iPhone / App Store** | **`docs/APP-STORE.md`** (textos da loja, notas, histórico das recusas) + `ios-app/README.md` | "App Store (iPhone)" |
 | **App Android / Play Store (TWA)** | **`docs/ANDROID-TWA.md`** (build, versão, keystore, assetlinks) + build em `C:\Users\jenif\sora-android` | "Play Store (TWA)" |
 | Conciliação (previsto × banco, transferências, fatura paga) | `sora-backend/src/services/` (réguas puras com eval) | "Conciliação de ponta a ponta" + "Outubro/2026" |
 | Diagnóstico de OF de um cliente | `/api/admin/of-debug?email=<cliente>` (`&foco=saldo` / `cartoes`) | "Open Finance (Polp)" |
@@ -4452,6 +4453,7 @@ Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
   tocados (o dado não muda). A abertura (vídeo termina com "Sora" escrito) é
   desligada no app. ⚠️ Imagem nova com "Sora" ESCRITO não é coberta — no app
   de iPhone, esconder. Web, Android e WhatsApp seguem "Sora".
+  **Textos da loja, notas de revisão e histórico das recusas: `docs/APP-STORE.md`.**
 - **Fase 2 (não feita):** assinatura pela Apple (StoreKit), igual à Play.
 
 ## Convenções de código
