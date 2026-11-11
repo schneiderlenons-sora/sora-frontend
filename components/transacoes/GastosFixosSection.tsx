@@ -804,6 +804,14 @@ export default function GastosFixosSection({ phone, wallets, mesRef: mesRefProp 
           tipo={vinculando.tipo === 'Recebimento' ? 'Recebimento' : 'Gasto'}
           competencia={mesRef}
           onEscolher={(txId) => anteciparOcorrencia(vinculando, txId)}
+          // Sem lançamento: registra na conta da conta fixa (`conta` undefined).
+          // Em conta do banco nada é descontado (o saldo vem de lá), e o quadro
+          // "Já chegou do banco" junta com a cobrança quando ela chegar — por
+          // isso NÃO é `sem_conta`, que tiraria a linha da conta e impediria isso.
+          // Só em conta do banco: em conta manual a baixa DESCONTARIA do saldo, e o
+          // caminho de lá é o "Já paguei" com o "Saiu de".
+          onSemLancamento={precisaVincular(vinculando) ? () => anteciparOcorrencia(vinculando) : undefined}
+          conta={vinculando.carteira}
           onFechar={() => setVinculando(null)}
         />
       )}

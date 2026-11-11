@@ -40,7 +40,7 @@ type Candidata = {
 };
 
 export default function SeletorPagamento({
-  phone, titulo, valorPrevisto, tipo, competencia, onEscolher, onFechar,
+  phone, titulo, valorPrevisto, tipo, competencia, onEscolher, onFechar, onSemLancamento, conta,
 }: {
   phone: string;
   /** Nome da conta fixa — o cabeçalho diz o que está sendo conciliado. */
@@ -51,6 +51,15 @@ export default function SeletorPagamento({
   competencia: string;
   onEscolher: (transacaoId: string) => Promise<void> | void;
   onFechar: () => void;
+  /**
+   * Saída sem escolher lançamento (pagou por fora, ou a cobrança ainda não
+   * chegou). ⚠️ Sem ela o seletor era beco sem saída em conta do banco: o
+   * "Já paguei" abre direto aqui e só havia "escolher" ou "fechar" — o "marcar
+   * pago sem lançamento" de nov/2026 só existia em conta manual (relato do dono).
+   */
+  onSemLancamento?: () => Promise<void> | void;
+  /** Conta da conta fixa — só pra a explicação dizer onde fica registrada. */
+  conta?: string | null;
 }) {
   const fmt = useDinheiro();
   const [mes, setMes] = useState(competencia);
@@ -89,6 +98,16 @@ export default function SeletorPagamento({
       .sort((a, b) => Math.abs(Number(a.valor) - valorPrevisto) - Math.abs(Number(b.valor) - valorPrevisto))
       .slice(0, 40);
   }, [linhas, busca, valorPrevisto]);
+
+  async function semLancamento() {
+    if (!onSemLancamento) return;
+    setSalvando('sem'); setErro('');
+    try { await onSemLancamento(); onFechar(); }
+    catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Não consegui registrar.');
+      setSalvando(null);
+    }
+  }
 
   async function escolher(id: string) {
     setSalvando(id); setErro('');
@@ -208,6 +227,21 @@ export default function SeletorPagamento({
             );
           })}
         </div>
+
+        {onSemLancamento && (
+          <div className="p-4 border-t border-border space-y-2"
+               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+            <button onClick={semLancamento} disabled={!!salvando}
+                    className="w-full h-11 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted/40 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+              {salvando === 'sem' ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+              {tipo === 'Recebimento' ? 'Marcar como recebida sem escolher lançamento' : 'Marcar como paga sem escolher lançamento'}
+            </button>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Fica registrada {conta ? <>em <b className="text-foreground">{conta}</b></> : 'na conta da conta fixa'} sem mexer no saldo, que vem do banco.
+              Se a cobrança chegar depois pelo extrato com o mesmo valor, ela aparece em “Já chegou do banco” pra você juntar as duas.
+            </p>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
