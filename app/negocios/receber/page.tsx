@@ -23,8 +23,12 @@ import SugestoesBaixaBanco from '@/components/negocios/SugestoesBaixaBanco';
 import { corEmpresa } from '@/lib/empresas';
 import { fmtCent, labelCategoria, type Lancamento } from '@/lib/lancamentos';
 import {
+  situacaoReceber, agruparPorCliente, csvCobrancas, csvPorCliente, nomeArquivo,
+  diasAte as diasAteEm, type ResumoCliente,
+} from '@/lib/receber';
+import {
   HandCoins, Plus, AlertTriangle, CalendarClock, Check, Loader2,
-  MessageCircle, Inbox, ChevronRight, Repeat,
+  MessageCircle, Inbox, Repeat, Download, ChevronDown, UserRound,
 } from 'lucide-react';
 
 const hojeSP = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -35,12 +39,23 @@ const diaMes = (iso?: string | null) => {
   return `${d}/${m}`;
 };
 
-/** Dias até o vencimento (negativo = venceu há N dias). */
-function diasAte(iso?: string | null): number | null {
-  if (!iso) return null;
-  const a = new Date(`${iso.slice(0, 10)}T12:00:00Z`).getTime();
-  const b = new Date(`${hojeSP()}T12:00:00Z`).getTime();
-  return Math.round((a - b) / 86400000);
+/** Dias até o vencimento (negativo = venceu há N dias). Regra em lib/receber. */
+const diasAte = (iso?: string | null) => diasAteEm(iso, hojeSP());
+
+type Visao = 'vencimento' | 'cliente';
+
+/** Baixa o CSV com BOM (sem ele o Excel lê os acentos errado). */
+function baixarCsv(conteudo: string, nome: string) {
+  const blob = new Blob(['﻿' + conteudo], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revogar na hora cancela o download em alguns navegadores (Safari/Firefox).
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 export default function ReceberPage() {
@@ -51,6 +66,7 @@ export default function ReceberPage() {
   const [modalNovo, setModalNovo] = useState(false);
   const [editando, setEditando]   = useState<Lancamento | null>(null);
   const [baixando, setBaixando]   = useState<string | null>(null);
+  const [visao, setVisao]         = useState<Visao>('vencimento');
 
   const { data, mutate, isLoading } = useApi(
     (phone && temNegocios && empresa) ? `neg:receber:${phone}:${empresa.id}` : null,
@@ -64,11 +80,12 @@ export default function ReceberPage() {
   // Urgência primeiro: vencido → vence hoje → a vencer → sem data.
   const { vencidos, hoje, futuros, semData, total, totalVencido } = useMemo(() => {
     const v: Lancamento[] = [], h: Lancamento[] = [], f: Lancamento[] = [], s: Lancamento[] = [];
+    const dia = hojeSP();
     for (const l of lista) {
-      const d = diasAte(l.vencimento);
-      if (d === null) s.push(l);
-      else if (d < 0) v.push(l);
-      else if (d === 0) h.push(l);
+      const g = situacaoReceber(l.vencimento, dia).grupo;
+      if (g === 'sem_data') s.push(l);
+      else if (g === 'vencida') v.push(l);
+      else if (g === 'hoje') h.push(l);
       else f.push(l);
     }
     const soma = (arr: Lancamento[]) => arr.reduce((acc, l) => acc + (l.valor || 0), 0);
@@ -77,6 +94,23 @@ export default function ReceberPage() {
       total: soma(lista), totalVencido: soma(v),
     };
   }, [lista]);
+
+  // Só calcula a visão por cliente quando ela está aberta.
+  const porCliente = useMemo(
+    () => (visao === 'cliente' ? agruparPorCliente(lista, hojeSP()) : []),
+    [lista, visao],
+  );
+
+  /** Exporta o que está na tela: as cobranças, ou a posição por cliente. */
+  function exportar() {
+    if (!lista.length) return;
+    const dia = hojeSP();
+    if (visao === 'cliente') {
+      baixarCsv(csvPorCliente(lista, dia), nomeArquivo('a-receber-por-cliente', empresa?.nome, dia));
+    } else {
+      baixarCsv(csvCobrancas(lista, dia), nomeArquivo('a-receber', empresa?.nome, dia));
+    }
+  }
 
   async function receber(l: Lancamento) {
     if (baixando) return;
@@ -110,11 +144,23 @@ export default function ReceberPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mt-0.5">A receber</h1>
           <p className="text-sm text-muted-foreground mt-1">Quem ainda tem que te pagar</p>
         </div>
-        <button onClick={() => setModalNovo(true)}
-          className="inline-flex items-center gap-1.5 h-11 px-4 rounded-2xl text-white text-sm font-bold shadow-sm transition-transform active:scale-[0.98]"
-          style={{ background: cor, minHeight: 44 }}>
-          <Plus size={16} /> Novo recebimento
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={exportar} disabled={!lista.length}
+            title={visao === 'cliente'
+              ? 'Baixa a posição por cliente (abre no Excel)'
+              : 'Baixa as cobranças em aberto (abre no Excel)'}
+            className="inline-flex items-center gap-1.5 h-11 px-3.5 rounded-2xl text-sm font-bold bg-card border border-border text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ minHeight: 44 }}>
+            <Download size={15} />
+            <span className="hidden sm:inline">Exportar para Excel</span>
+            <span className="sm:hidden">Exportar</span>
+          </button>
+          <button onClick={() => setModalNovo(true)}
+            className="inline-flex items-center gap-1.5 h-11 px-4 rounded-2xl text-white text-sm font-bold shadow-sm transition-transform active:scale-[0.98]"
+            style={{ background: cor, minHeight: 44 }}>
+            <Plus size={16} /> Novo recebimento
+          </button>
+        </div>
       </header>
 
       {/* Totais */}
@@ -152,6 +198,26 @@ export default function ReceberPage() {
       ) : lista.length === 0 ? (
         <VazioReceber cor={cor} onCriar={() => setModalNovo(true)} />
       ) : (
+        <div className="space-y-4">
+          {/* A mesma lista, vista por vencimento ou por cliente. A exportação
+              segue a visão aberta. */}
+          <div role="group" aria-label="Organizar a lista"
+               className="inline-flex p-1 rounded-2xl border border-border bg-card">
+            {([['vencimento', 'Por vencimento'], ['cliente', 'Por cliente']] as const).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setVisao(v)} aria-pressed={visao === v}
+                className="h-9 px-3.5 rounded-xl text-xs font-bold transition-colors"
+                style={visao === v
+                  ? { background: cor, color: '#fff', minHeight: 36 }
+                  : { color: 'hsl(var(--muted-foreground))', minHeight: 36 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {visao === 'cliente' ? (
+            <ListaPorCliente grupos={porCliente} onReceber={receber} onAbrir={setEditando}
+                             baixando={baixando} cor={cor} />
+          ) : (
         <div className="space-y-5">
           <Grupo titulo="Vencidas" itens={vencidos} tom="#ef4444" alerta
                  onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
@@ -161,6 +227,8 @@ export default function ReceberPage() {
                  onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
           <Grupo titulo="Sem data de vencimento" itens={semData} tom="#71717a"
                  onReceber={receber} onAbrir={setEditando} baixando={baixando} cor={cor} />
+        </div>
+          )}
         </div>
       )}
 
@@ -279,6 +347,108 @@ function LinhaReceber({ l, tom, onReceber, onAbrir, baixando, cor }: {
         </button>
       </div>
     </li>
+  );
+}
+
+/** Cor da linha pela situação — a mesma da visão por vencimento. */
+function tomDaSituacao(l: Lancamento, cor: string): string {
+  const g = situacaoReceber(l.vencimento, hojeSP()).grupo;
+  return g === 'vencida' ? '#ef4444' : g === 'hoje' ? '#f59e0b' : g === 'futura' ? cor : '#71717a';
+}
+
+function ListaPorCliente({ grupos, onReceber, onAbrir, baixando, cor }: {
+  grupos: ResumoCliente[]; onReceber: (l: Lancamento) => void; onAbrir: (l: Lancamento) => void;
+  baixando: string | null; cor: string;
+}) {
+  // Vários abertos ao mesmo tempo: comparar dois clientes é o caso comum.
+  const [abertos, setAbertos] = useState<Set<string>>(() => new Set());
+  const alternar = (k: string) => setAbertos(prev => {
+    const n = new Set(prev);
+    if (n.has(k)) n.delete(k); else n.add(k);
+    return n;
+  });
+
+  const devendoVencido = grupos.filter(g => !g.semCliente && g.vencido > 0).length;
+
+  return (
+    <section className="space-y-2">
+      <p className="text-xs text-muted-foreground px-1">
+        {grupos.filter(g => !g.semCliente).length} cliente{grupos.filter(g => !g.semCliente).length === 1 ? '' : 's'}
+        {devendoVencido > 0 && <> · <b style={{ color: '#ef4444' }}>{devendoVencido} com valor vencido</b></>}
+        {' '}· quem tem valor vencido aparece primeiro
+      </p>
+      <ul className="space-y-2">
+        {grupos.map(g => {
+          const aberto = abertos.has(g.chave);
+          const atrasado = g.vencido > 0;
+          return (
+            <li key={g.chave || '__sem'} className="rounded-2xl border border-border bg-card overflow-hidden">
+              <button type="button" onClick={() => alternar(g.chave)} aria-expanded={aberto}
+                className="w-full p-3.5 flex items-center gap-3 text-left min-h-[56px]">
+                <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: `color-mix(in srgb, ${atrasado ? '#ef4444' : cor} 14%, transparent)` }}>
+                  <UserRound size={17} style={{ color: atrasado ? '#ef4444' : cor }} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className={`block text-sm font-semibold truncate ${g.semCliente ? 'text-muted-foreground italic' : 'text-foreground'}`}>
+                    {g.nome}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                    {g.quantidade} cobrança{g.quantidade === 1 ? '' : 's'}
+                    {g.proximoVencimento && <> · próximo vencimento {diaMes(g.proximoVencimento)}</>}
+                  </span>
+                  {/* Atraso em TEXTO, não só na cor. */}
+                  {atrasado && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold mt-0.5" style={{ color: '#ef4444' }}>
+                      <AlertTriangle size={11} />
+                      {fmtCent(g.vencido)} vencido · {g.maiorAtraso}d de atraso
+                    </span>
+                  )}
+                </span>
+                <span className="text-right flex-shrink-0">
+                  <span className="block text-sm font-bold tabular-nums text-foreground">{fmtCent(g.total)}</span>
+                  <span className="block text-[10px] text-muted-foreground">em aberto</span>
+                </span>
+                <ChevronDown size={16} className="flex-shrink-0 text-muted-foreground transition-transform"
+                             style={{ transform: aberto ? 'rotate(180deg)' : undefined }} />
+              </button>
+
+              {aberto && (
+                <div className="border-t border-border/60 p-2.5 space-y-2 bg-muted/20">
+                  <div className="grid grid-cols-3 gap-2 text-center px-1 pb-1">
+                    <Mini label="Vencido" valor={g.vencido} tom={g.vencido > 0 ? '#ef4444' : undefined} />
+                    <Mini label="Vence hoje" valor={g.venceHoje} tom={g.venceHoje > 0 ? '#f59e0b' : undefined} />
+                    <Mini label="A vencer" valor={g.aVencer} />
+                  </div>
+                  {g.semData > 0 && (
+                    <p className="text-[11px] text-muted-foreground px-1">
+                      + {fmtCent(g.semData)} sem data de vencimento
+                    </p>
+                  )}
+                  <ul className="space-y-2">
+                    {g.itens.map(l => (
+                      <LinhaReceber key={l.id} l={l} tom={tomDaSituacao(l, cor)} onReceber={onReceber}
+                                    onAbrir={onAbrir} baixando={baixando} cor={cor} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function Mini({ label, valor, tom }: { label: string; valor: number; tom?: string }) {
+  return (
+    <div className="rounded-xl bg-card border border-border/60 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-xs font-bold tabular-nums mt-0.5" style={{ color: tom || 'hsl(var(--foreground))' }}>
+        {fmtCent(valor)}
+      </p>
+    </div>
   );
 }
 
