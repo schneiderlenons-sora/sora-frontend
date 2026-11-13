@@ -539,6 +539,24 @@ vira número plausível e errado que o dono usa pra decidir preço.
 
 > **Adiado de propósito:** NF-e (decisão do usuário, entra depois das 7 fases).
 
+### A receber: exportar para Excel + posição por cliente (nov/2026)
+
+Pedido de cliente antes de comprar o vitalício (Jonathan). `/negocios/receber`
+ganhou **"Por vencimento | Por cliente"** e **"Exportar para Excel"**, que baixa
+o que está na tela (cobranças, uma por linha; ou o resumo por cliente com linha
+de TOTAL). Regra única em `lib/receber.ts` (`eval:receber`, 66 casos, 11/11
+mutações mortas) — a tela e o arquivo não podem discordar da situação.
+
+- ⚠️ **O cliente é `contraparte` (TEXTO)**, não FK: o agrupamento ignora caixa,
+  acento e espaço, e o nome exibido é a grafia mais usada (empate: a mais bem
+  escrita). O CSV de cobranças usa esse nome UNIFICADO — com a grafia crua, o
+  filtro do Excel separava o mesmo cliente em três.
+- CSV no formato do Excel em português: `;`, vírgula decimal sem milhar (lê como
+  número), BOM, aspas escapadas e texto começando com `= + - @` vira texto
+  (senão o Excel executaria como fórmula).
+- **Fora:** recebimento PARCIAL (hoje: registrar a parte recebida e ajustar o
+  aberto pro restante) e lançamentos da empresa pelo WhatsApp além da venda.
+
 ## Painel admin reorganizado (nov/2026)
 
 Topo: faixa **"O que espera você"** (cliente respondeu chamado, chamado sem
