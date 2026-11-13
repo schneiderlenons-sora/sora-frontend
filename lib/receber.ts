@@ -198,11 +198,15 @@ const linha = (cels: string[]) => cels.join(';');
 export function csvCobrancas(lista: Lancamento[], hoje: string): string {
   const cab = ['Cliente', 'Descrição', 'Categoria', 'Valor (R$)', 'Lançado em', 'Vencimento',
     'Situação', 'Dias em atraso', 'Observação'];
+  // O nome UNIFICADO da visão por cliente, não a grafia de cada linha: senão
+  // "João Silva", "joao  silva" e "JOÃO SILVA" virariam três clientes no
+  // filtro ou na tabela dinâmica do Excel.
+  const nomes = new Map(agruparPorCliente(lista, hoje).map(g => [g.chave, g.nome]));
   const linhas = [linha(cab.map(celulaTexto))];
   for (const l of ordenarPorUrgencia(lista, hoje)) {
     const s = situacaoReceber(l.vencimento, hoje);
     linhas.push(linha([
-      celulaTexto(String(l.contraparte || '').trim() || SEM_CLIENTE),
+      celulaTexto(nomes.get(chaveCliente(l.contraparte)) || SEM_CLIENTE),
       celulaTexto(l.descricao),
       celulaTexto(labelCategoria('entrada', l.categoria)),
       celulaValor(l.valor),

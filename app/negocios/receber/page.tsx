@@ -414,7 +414,7 @@ function ListaPorCliente({ grupos, onReceber, onAbrir, baixando, cor }: {
               </button>
 
               {aberto && (
-                <div className="border-t border-border/60 p-2.5 space-y-2 bg-muted/20">
+                <div className="border-t border-border/60 p-1.5 sm:p-2.5 space-y-2 bg-muted/20">
                   <div className="grid grid-cols-3 gap-2 text-center px-1 pb-1">
                     <Mini label="Vencido" valor={g.vencido} tom={g.vencido > 0 ? '#ef4444' : undefined} />
                     <Mini label="Vence hoje" valor={g.venceHoje} tom={g.venceHoje > 0 ? '#f59e0b' : undefined} />
