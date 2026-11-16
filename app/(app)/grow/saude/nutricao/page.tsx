@@ -120,7 +120,9 @@ export default function NutricaoPage() {
     if (!v || v <= 0) { alert('Peso inválido.'); return; }
     setPesoLoading(true);
     try {
-      await api.saude.pesos.criar({ phone, peso_kg: v, data: hojeStr });
+      // Sem `data`: o servidor usa HOJE em São Paulo (o `hojeStr` daqui é UTC
+      // e, depois das 21h, gravava o peso no dia seguinte).
+      await api.saude.pesos.criar({ phone, peso_kg: v });
       setPesoHoje('');
       carregar();
     } catch (e: any) { alert(e.message); }

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import SaudeNav from '../SaudeNav';
 import ModalMedida from '@/components/saude/ModalMedida';
+import HistoricoPeso from '@/components/saude/HistoricoPeso';
 import {
   Ruler, Sparkles, Plus, Image as ImageIcon, TrendingDown, TrendingUp, Minus,
 } from 'lucide-react';
@@ -98,7 +99,7 @@ export default function CorpoPage() {
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight leading-none">Medidas & Composição</h1>
             <p className="text-muted-foreground text-sm mt-2 max-w-md">
-              Cintura, quadril, braço, % gordura, % músculo e RCQ. Evolução no tempo.
+              Peso, cintura, quadril, braço, % gordura, % músculo e RCQ. Evolução no tempo.
             </p>
           </div>
           <button onClick={() => setModalOpen(true)}
@@ -109,6 +110,9 @@ export default function CorpoPage() {
       </div>
 
       <SaudeNav />
+
+      {/* Peso com data e histórico (pedido de cliente, nov/2026). */}
+      {phone && <HistoricoPeso phone={phone} />}
 
       {medidas.length === 0 ? (
         <div className="rounded-3xl border-2 border-dashed border-primary/40 dark:border-primary p-10 sm:p-12 bg-primary/15 dark:bg-primary/15 animate-fade-in text-center">

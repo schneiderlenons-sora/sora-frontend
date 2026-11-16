@@ -354,6 +354,35 @@ Central de tudo que tem data na Sora. Construída em 3 fases (ver memória `proj
 - **Roteamento de foto no webhook** (`src/routes/webhook.js`): se a legenda tem palavra de comida (`macro|caloria|kcal|nutri|proteina|carboidrato|gordura|comida|refei|prato|calcula…`) → `analisarFotoComida` → `formatarMacrosFoto`. Senão → OCR de nota fiscal (`lerNotaFiscal`). Gate: `premium`/`black`.
 - Comando na Central: `grow-macros-foto` em `lib/sora-commands.ts`.
 
+## Peso com DATA + histórico (Saúde, nov/2026)
+
+Pedido de cliente: escolher a data do peso e ver o histórico. O backend já
+aceitava `data`, mas a tela nunca mandava, e o WhatsApp gravava sempre "hoje".
+
+- **Regra única:** `sora-backend/src/services/pesoRegistro.js` (`eval:peso`, 73
+  casos, 12/12 mutações): peso 1–599,99 kg, data no passado ou hoje, **hoje =
+  dia de São Paulo** (era `toISOString()`, UTC: depois das 21h o peso caía no
+  dia seguinte, no zap e na Nutrição). Um peso por dia (`unique(user_id,data)`):
+  registrar de novo substitui e a rota devolve `substituiu`; editar pra um dia
+  ocupado dá 409.
+- **WhatsApp:** "peso 80", "peso 80,5 ontem", "peso 80 dia 10", "peso 80 10/11"
+  (`lerComandoPeso` + `dataDaFrase`: data sem ano é a mais recente que JÁ
+  passou). ⚠️ O `kg?` antigo exigia o "k" — "peso 75.2", o exemplo da própria
+  mensagem de erro, nunca funcionava. Depois de "estou com/tô com" o kg segue
+  obrigatório ("estou com 80" pode ser dinheiro). Fast-path no webhook, sem IA.
+- ⚠️ **`DELETE /saude/pesos/:id` apagava o peso de QUALQUER conta** (só
+  `.eq('id')`). Hoje só o próprio (`user_id`), e há `PUT` com a mesma trava.
+  ⚠️ **Mesmo furo em 11 rotas da Saúde ainda abertas** (água, refeições,
+  treinos, consultas, exames, medicamentos: update/delete só por id). Algumas
+  tabelas são do GRUPO — corrigir tabela por tabela, não em lote.
+- **Painel:** `components/saude/ModalPeso.tsx` (com data, editar, avisa ANTES
+  quando o dia já tem peso) e `HistoricoPeso.tsx` na subaba **Corpo** (30/90
+  dias/1 ano/tudo, lista com variação contra a pesagem ANTERIOR NO TEMPO,
+  corrigir, apagar otimista). Card do painel ganhou "Ver histórico de peso".
+  Leitura em `lib/peso.ts` (`eval:peso` no front, 17 casos, 6/6 mutações).
+- Testado ponta a ponta com conta de teste (apagada): zap pelo handler real +
+  tela no computador e no celular.
+
 ## FAQ local-first no WhatsApp
 
 - **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.

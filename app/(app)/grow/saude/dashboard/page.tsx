@@ -7,10 +7,12 @@ import { api } from '@/lib/api';
 import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import { useApi } from '@/lib/useApi';
 import SaudeNav from '../SaudeNav';
+import ModalPeso from '@/components/saude/ModalPeso';
+import { useRecarregarPesos } from '@/components/saude/HistoricoPeso';
 import {
-  Activity, Loader2, Scale, Droplets, Dumbbell, Sparkles, Plus, ArrowRight,
-  CalendarHeart, Pill, AlertCircle, TrendingDown, TrendingUp, Minus,
-  Check, X, ChevronRight,
+  Activity, Scale, Droplets, Dumbbell, Sparkles, Plus, ArrowRight,
+  CalendarHeart, Pill, TrendingDown, TrendingUp, Minus,
+  ChevronRight,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -60,6 +62,8 @@ export default function SaudeDashboardPage() {
   useEffect(() => { if (swrData !== undefined) setData(swrData); }, [swrData]);
   const loading = data == null;
   const carregar = useCallback((_silent = false) => mDash(), [mDash]);
+  // Peso novo muda o painel E o histórico (subaba Corpo) — recarrega os dois.
+  const recarregarPesos = useRecarregarPesos();
 
   // Água — totalmente otimista. Sem disable de botão, sem piscar nada.
   // Recalcula hoje_ml + pct na hora e revalida em background.
@@ -171,7 +175,10 @@ export default function SaudeDashboardPage() {
       </div>
 
       {modalPeso && phone && (
-        <ModalPeso phone={phone} onClose={() => setModalPeso(false)} onSuccess={() => { carregar(true); setModalPeso(false); }} />
+        <ModalPeso phone={phone}
+          datasComPeso={(data?.historico_peso || []).map((p: any) => p.data)}
+          onClose={() => setModalPeso(false)}
+          onSuccess={() => { recarregarPesos(); setModalPeso(false); }} />
       )}
     </div>
   );
@@ -339,6 +346,12 @@ function CardPeso({ historico, pesoAtual, metaPeso }: any) {
           <span className="text-muted-foreground">Faltam: <strong className="text-foreground tabular">{Math.abs(pesoAtual - metaPeso).toFixed(1)} kg</strong></span>
         </div>
       )}
+
+      {/* Histórico completo: lista, períodos maiores, corrigir e apagar. */}
+      <Link href="/grow/saude/corpo#peso"
+            className="mt-3 inline-flex items-center gap-1 min-h-[36px] text-xs font-semibold text-primary hover:underline underline-offset-2">
+        Ver histórico de peso <ChevronRight size={13} aria-hidden />
+      </Link>
     </div>
   );
 }
@@ -566,81 +579,5 @@ function QuickActionLink({ icon: Icon, label, href }: any) {
     >
       <Icon size={13} className="text-primary dark:text-primary" /> {label}
     </Link>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// MODAL REGISTRAR PESO
-// ═══════════════════════════════════════════════════════════════════
-function ModalPeso({ phone, onClose, onSuccess }: { phone: string; onClose: () => void; onSuccess: () => void }) {
-  const [peso, setPeso] = useState('');
-  const [obs, setObs] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState('');
-
-  async function salvar() {
-    setErro('');
-    const val = parseFloat(peso.replace(',', '.'));
-    if (!val || val <= 0 || val > 600) { setErro('Peso inválido.'); return; }
-    setLoading(true);
-    try {
-      await api.saude.pesos.criar({ phone, peso_kg: val, observacao: obs.trim() || undefined });
-      onSuccess();
-    } catch (e: any) { setErro(e.message); } finally { setLoading(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-sm bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-primary/15">
-              <Scale size={16} className="text-primary dark:text-primary" />
-            </div>
-            <h2 className="text-base font-bold text-foreground">Registrar peso</h2>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="text-center">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Peso de hoje</p>
-            <div className="flex items-baseline justify-center gap-1.5">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={peso}
-                onChange={e => setPeso(e.target.value.replace(/[^\d.,]/g, ''))}
-                placeholder="0,0"
-                className="text-5xl font-bold text-foreground bg-transparent border-none outline-none text-center w-32 tabular"
-                autoFocus
-              />
-              <span className="text-xl font-bold text-muted-foreground">kg</span>
-            </div>
-          </div>
-          <input
-            value={obs}
-            onChange={e => setObs(e.target.value)}
-            placeholder="Observação (opcional)"
-            className="input"
-            maxLength={100}
-          />
-          {erro && (
-            <div className="rounded-xl p-2.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2">
-              <AlertCircle size={13} className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-red-700 dark:text-red-400">{erro}</p>
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
-          <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
-          <button onClick={salvar} disabled={loading || !peso}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Registrar
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

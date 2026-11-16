@@ -7,6 +7,7 @@ import type {
   TipoLancamento,
 } from '@/lib/lancamentos';
 import type { CategoriaPropria } from '@/lib/categorias-negocio';
+import type { RegistroPeso } from '@/lib/peso';
 import type { Funcionario } from '@/lib/funcionarios';
 import type { Frequencia } from '@/lib/frequencia-recorrencia';
 
@@ -1156,9 +1157,14 @@ export const api = {
     },
 
     pesos: {
-      listar:  (phone: string, dias?: number) => req<any[]>(`/api/saude/pesos/${phone}${dias ? `?dias=${dias}` : ''}`),
+      /** `dias`: 30/90/365… ou 'todos' (o histórico inteiro). Padrão do servidor: 90. */
+      listar:  (phone: string, dias?: number | 'todos') => req<RegistroPeso[]>(`/api/saude/pesos/${phone}${dias ? `?dias=${dias}` : ''}`),
+      /** Sem `data`, o servidor usa HOJE em São Paulo. `substituiu` = já havia peso nesse dia. */
       criar:   (body: { phone: string; peso_kg: number; data?: string; observacao?: string }) =>
-        req<any>('/api/saude/pesos', { method: 'POST', body: JSON.stringify(body) }),
+        req<RegistroPeso & { substituiu: boolean }>('/api/saude/pesos', { method: 'POST', body: JSON.stringify(body) }),
+      /** 409 quando a data nova já tem outro peso. */
+      editar:  (id: string, body: { peso_kg: number; data: string; observacao?: string | null }) =>
+        req<RegistroPeso>(`/api/saude/pesos/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       deletar: (id: string, phone: string) =>
         req(`/api/saude/pesos/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },

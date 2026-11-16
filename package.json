@@ -46,7 +46,8 @@
     "eval:conta-empresa": "npx tsx lib/conta-empresa.eval.mjs",
     "eval:chamados-admin": "npx tsx lib/chamados-admin.eval.mjs",
     "eval:receber": "npx tsx lib/receber.eval.mjs",
-    "eval:categorias-negocio": "npx tsx lib/categorias-negocio.eval.mjs"
+    "eval:categorias-negocio": "npx tsx lib/categorias-negocio.eval.mjs",
+    "eval:peso": "npx tsx lib/peso.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",
