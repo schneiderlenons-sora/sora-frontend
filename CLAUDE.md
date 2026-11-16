@@ -577,6 +577,10 @@ lançam no caixa digitavam a sua, e a mesma aparecia escrita de 3 jeitos
 - Categoria própria não pode ter nome de PADRÃO (valor ou rótulo). As padrão e
   a lista de 56 ícones são espelho nos dois lados — `eval:categorias-negocio`
   do front compara.
+- ⚠️ **A tabela  JÁ EXISTIA** (migration 105, nunca usada) com
+  menos colunas: o `create table if not exists` da 196 não fazia nada e o
+  backend ficava em "ainda sendo liberado". A 196 agora completa com ALTER.
+  **Antes de criar tabela, procurar o nome em `sora-backend/sql/`.**
 - Natureza fixa/variável da própria entra no DRE (`aplicarNatureza`; a do
   lançamento vence).
 - Telas: `ModalCategoriasNegocio` (botão "Categorias" no Fluxo de caixa e
@@ -4689,7 +4693,7 @@ sql/192_negocios_series_regras_pessoal.sql — Sora Negócios: serie_id/serie_at
 sql/193_reservas_no_pessoal.sql — contas_negocio.reservas_no_pessoal: mostrar as reservas (caixinhas) da conta da empresa TAMBÉM na aba Investimentos pessoal (só visual). Sem ela as reservas ficam só no Negócios e a opção responde "ainda está sendo liberado".
 sql/194_ultimo_acesso.sql       — users.ultimo_acesso_em + função admin_ultimo_uso (só service_role): o "último uso" do admin era o último LOGIN (cliente logado no app aparecia "há 68 dias"). Sem ela a tela mostra o login, como antes.
 sql/195_pagamento_fatura_dia_sp.sql — corrige pagamentos_fatura.data gravada no dia UTC (pagamento entre 21h e meia-noite caía no dia seguinte). 60 linhas em 27 cartões. Só mexe em data.
-sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícone, natureza fixa/variável, oculta). Sem ela: as digitadas aparecem pra reaproveitar, renomear/juntar/mover funcionam, mas ícone e "tirar da lista" não (a tela avisa sem jargão).
+sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícone, natureza fixa/variável, oculta). ⚠️ A tabela JÁ EXISTIA desde a 105 (sem uso, sem natureza/oculta/criado_por/updated_at) — a 196 completa as colunas com ALTER; rodar de novo é seguro. Sem ela: as digitadas aparecem pra reaproveitar, renomear/juntar/mover funcionam, mas ícone e "tirar da lista" não (a tela avisa sem jargão).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
