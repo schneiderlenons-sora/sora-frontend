@@ -577,7 +577,7 @@ lançam no caixa digitavam a sua, e a mesma aparecia escrita de 3 jeitos
 - Categoria própria não pode ter nome de PADRÃO (valor ou rótulo). As padrão e
   a lista de 56 ícones são espelho nos dois lados — `eval:categorias-negocio`
   do front compara.
-- ⚠️ **A tabela  JÁ EXISTIA** (migration 105, nunca usada) com
+- ⚠️ **A tabela `categorias_negocio` JÁ EXISTIA** (migration 105, nunca usada) com
   menos colunas: o `create table if not exists` da 196 não fazia nada e o
   backend ficava em "ainda sendo liberado". A 196 agora completa com ALTER.
   **Antes de criar tabela, procurar o nome em `sora-backend/sql/`.**
