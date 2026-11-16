@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { X, Check, Loader2, AlertCircle, ArrowUpRight, ArrowDownRight, Trash2, Plus, Layers, Landmark, Repeat } from 'lucide-react';
 import { useConfirmar } from '@/contexts/ConfirmContext';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
+import ModalCategoriasNegocio from '@/components/negocios/ModalCategoriasNegocio';
+import IconeCategoria, { ICONES_CATEGORIA, ROTULO_ICONE } from '@/components/negocios/IconeCategoria';
+import { opcoesCategoria, categoriaExistente, chaveCategoria, NOME_MAX_CATEGORIA } from '@/lib/categorias-negocio';
+import { useCategoriasNegocio } from '@/lib/useCategoriasNegocio';
 import {
-  categoriasDe, FORMAS_PAGAMENTO, fmtCent, doBanco, CAT_A_CLASSIFICAR, REPETICOES, rotuloRepeticao,
+  FORMAS_PAGAMENTO, fmtCent, doBanco, CAT_A_CLASSIFICAR, REPETICOES, rotuloRepeticao,
   type Lancamento, type TipoLancamento, type ContaNegocio, type CentroCusto, type Repeticao,
 } from '@/lib/lancamentos';
 
@@ -35,6 +40,9 @@ export default function ModalLancamento({
   // (`read-only-distinction`: campo travado sem explicação lê como defeito).
   const travado = !!lancamento && doBanco(lancamento);
   const { phone } = useAuth();
+  // Cache do APP (localStorageProvider) — o `mutate` importado de 'swr' falaria
+  // com o cache padrão e não acharia nada.
+  const { mutate: mutateCache } = useSWRConfig();
 
   const [tipo, setTipo] = useState<TipoLancamento>(lancamento?.tipo || tipoInicial);
   // Valor em CENTAVOS, digitado como número inteiro (igual ao modal de transação).
@@ -67,18 +75,28 @@ export default function ModalLancamento({
   const [centroId, setCentroId] = useState<string | null>((lancamento as any)?.centro_custo_id || null);
   const [gerenciarContas, setGerenciarContas] = useState(false);
 
-  // Categoria própria (texto livre além da lista fixa).
-  const catInicial = lancamento?.categoria === CAT_A_CLASSIFICAR ? '' : (lancamento?.categoria || '');
-  const catNaLista = (t: TipoLancamento, v: string) => categoriasDe(t).some(c => c.v === v);
-  const [catCustom, setCatCustom] = useState(catInicial && !catNaLista(tipo, catInicial) ? catInicial : '');
-  const [mostraCustom, setMostraCustom] = useState(!!(catInicial && !catNaLista(tipo, catInicial)));
+  // Categorias PRÓPRIAS da empresa (migration 196) + o "Outra", que agora
+  // GUARDA a categoria nova (com ícone) pra ela aparecer na lista da próxima vez.
+  const { proprias, semMigration, recarregar: recarregarCategorias } = useCategoriasNegocio(empresaId);
+  const [catCustom, setCatCustom] = useState('');
+  const [iconeCustom, setIconeCustom] = useState<string | null>(null);
+  const [mostraCustom, setMostraCustom] = useState(false);
+  const [gerenciarCategorias, setGerenciarCategorias] = useState(false);
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
   const ehEntrada = tipo === 'entrada';
   const corTipo = ehEntrada ? '#16a34a' : '#ef4444';
-  const cats = categoriasDe(tipo);
+  // A categoria atual entra na lista mesmo antes das próprias carregarem (ou
+  // se foi tirada da lista) — senão o lançamento abriria sem ela marcada.
+  const opcoes = opcoesCategoria(tipo, proprias, categoria);
+  const cats = categoria && !opcoes.some(c => chaveCategoria(c.v) === chaveCategoria(categoria))
+    ? [...opcoes, { v: categoria, label: categoria, icone: null, propria: true }]
+    : opcoes;
+  // Própria casa por chave ("CONVENIENCIA" marca o chip "Conveniência"); padrão, pelo valor.
+  const marcada = (v: string, propria: boolean) =>
+    !!categoria && (propria ? chaveCategoria(v) === chaveCategoria(categoria) : v === categoria);
 
   // Carrega as contas da empresa (pra o seletor de conta).
   async function carregarContas() {
@@ -108,7 +126,21 @@ export default function ModalLancamento({
 
     setSalvando(true);
     try {
-      const catFinal = mostraCustom ? catCustom.trim() : categoria;
+      let catFinal = categoria;
+      if (mostraCustom) {
+        const digitado = catCustom.replace(/\s+/g, ' ').trim();
+        // Já existe (padrão ou própria, sem olhar acento/caixa)? Usa a que existe
+        // em vez de criar mais uma grafia da mesma categoria.
+        catFinal = digitado ? (categoriaExistente(tipo, digitado, proprias) || digitado) : '';
+        if (digitado && catFinal === digitado && !semMigration) {
+          // Guarda a nova pra aparecer na lista. Se falhar, o lançamento sai
+          // assim mesmo com o nome digitado (é o que o "Outra" sempre fez).
+          try {
+            await api.negocios.categorias.salvar({ empresa_id: empresaId, tipo, nome: digitado, icone: iconeCustom });
+            recarregarCategorias();
+          } catch { /* segue com o nome digitado */ }
+        }
+      }
       const body: any = {
         empresa_id: empresaId,
         tipo,
@@ -219,7 +251,7 @@ export default function ModalLancamento({
             ] as const).map(o => {
               const on = tipo === o.v;
               return (
-                <button key={o.v} onClick={() => { setTipo(o.v); setCategoria(''); setMostraCustom(false); setCatCustom(''); }}
+                <button key={o.v} onClick={() => { setTipo(o.v); setCategoria(''); setMostraCustom(false); setCatCustom(''); setIconeCustom(null); }}
                         aria-pressed={on}
                         className={`h-11 rounded-xl text-sm font-bold transition-all inline-flex items-center justify-center gap-1.5 ${
                           on ? 'bg-card shadow-sm' : 'text-muted-foreground'
@@ -261,21 +293,27 @@ export default function ModalLancamento({
                    className="input w-full" placeholder={ehEntrada ? 'Ex.: Venda no balcão' : 'Ex.: Compra de farinha'} />
           </div>
 
-          {/* Categoria (lista fixa + "Outra" pra categoria própria) */}
+          {/* Categoria (padrão + as da empresa + "Outra" pra criar na hora) */}
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Categoria</span>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Categoria</span>
+              <button onClick={() => setGerenciarCategorias(true)} className="text-[11px] font-semibold inline-flex items-center gap-1 min-h-[32px]" style={{ color: cor }}>
+                <Layers size={12} aria-hidden /> Gerenciar
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {cats.map(c => {
-                const on = !mostraCustom && categoria === c.v;
+                const on = !mostraCustom && marcada(c.v, c.propria);
                 return (
-                  <button key={c.v} onClick={() => { setMostraCustom(false); setCategoria(on ? '' : c.v); }}
+                  <button key={`${c.propria ? 'p' : 'f'}:${c.v}`} onClick={() => { setMostraCustom(false); setCategoria(on ? '' : c.v); }}
                           aria-pressed={on}
-                          className="h-11 px-3.5 rounded-xl text-xs font-semibold border transition-colors"
+                          className="h-11 px-3.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1.5"
                           style={{
                             borderColor: on ? cor : 'hsl(var(--border) / 0.6)',
                             background: on ? `color-mix(in srgb, ${cor} 12%, transparent)` : 'transparent',
                             color: on ? cor : 'hsl(var(--foreground))',
                           }}>
+                    <IconeCategoria nome={c.icone} size={13} style={{ color: on ? cor : 'hsl(var(--muted-foreground))' }} />
                     {c.label}
                   </button>
                 );
@@ -292,8 +330,40 @@ export default function ModalLancamento({
               </button>
             </div>
             {mostraCustom && (
-              <input value={catCustom} onChange={e => setCatCustom(e.target.value)} maxLength={30}
-                     placeholder="Sua categoria (ex.: Delivery, Fiado)" className="input w-full mt-2" autoFocus />
+              <div className="mt-2 space-y-2">
+                <input value={catCustom} onChange={e => setCatCustom(e.target.value)} maxLength={NOME_MAX_CATEGORIA}
+                       aria-label="Nome da nova categoria"
+                       placeholder="Nome da categoria (ex.: Delivery, Embalagens)" className="input w-full" autoFocus />
+                {(() => {
+                  // Já existe? Diz qual vai ser usada, em vez de criar outra grafia.
+                  const existe = catCustom.trim() ? categoriaExistente(tipo, catCustom, proprias) : null;
+                  if (!existe) return null;
+                  const rot = cats.find(c => c.v === existe)?.label || existe;
+                  return <p className="text-[11px] text-muted-foreground">Já existe: vai usar &quot;{rot}&quot;.</p>;
+                })()}
+                {!semMigration && (
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Ícone (opcional) — fica guardado com a categoria</p>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" role="group" aria-label="Ícone da categoria">
+                      {ICONES_CATEGORIA.map(n => {
+                        const on = iconeCustom === n;
+                        return (
+                          <button key={n} type="button" onClick={() => setIconeCustom(on ? null : n)}
+                                  aria-pressed={on} aria-label={ROTULO_ICONE[n]} title={ROTULO_ICONE[n]}
+                                  className="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center border transition-colors"
+                                  style={{
+                                    borderColor: on ? cor : 'transparent',
+                                    background: on ? `color-mix(in srgb, ${cor} 14%, transparent)` : 'hsl(var(--muted) / 0.5)',
+                                    color: on ? cor : 'hsl(var(--foreground))',
+                                  }}>
+                            <IconeCategoria nome={n} size={16} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -535,6 +605,19 @@ export default function ModalLancamento({
         <ModalContas empresaId={empresaId} cor={cor}
           onClose={() => setGerenciarContas(false)}
           onChanged={carregarContas} />
+      )}
+      {gerenciarCategorias && (
+        <ModalCategoriasNegocio empresaId={empresaId} cor={cor} tipoInicial={tipo}
+          onClose={() => setGerenciarCategorias(false)}
+          onChanged={(m) => {
+            // A categoria deste lançamento foi renomeada/juntada/movida lá
+            // dentro: troca aqui também, senão o "Salvar" gravaria o nome velho.
+            if (m && m.tipo === tipo && categoria && chaveCategoria(categoria) === chaveCategoria(m.de)) setCategoria(m.para);
+            // ⚠️ NÃO chama onSalvo: no lançamento NOVO ele fecha o formulário,
+            // e a pessoa ainda está preenchendo. As telas que mostram nomes de
+            // categoria (caixa, a receber/pagar, DRE, painel) revalidam pelo cache.
+            mutateCache((k) => typeof k === 'string' && /^neg:(lanc|receber|contas|dre|ind|cliente):/.test(k));
+          }} />
       )}
     </div>
   );

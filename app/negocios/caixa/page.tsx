@@ -10,6 +10,10 @@ import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import { corEmpresa, type Empresa } from '@/lib/empresas';
 import ModalContas, { iconeConta } from '@/components/negocios/ModalContas';
 import ModalRegrasNegocio from '@/components/negocios/ModalRegrasNegocio';
+import ModalCategoriasNegocio from '@/components/negocios/ModalCategoriasNegocio';
+import IconeCategoria from '@/components/negocios/IconeCategoria';
+import { iconeDaCategoria } from '@/lib/categorias-negocio';
+import { useCategoriasNegocio } from '@/lib/useCategoriasNegocio';
 import ModalCentrosCusto from '@/components/negocios/ModalCentrosCusto';
 import {
   fmtCent, labelDoLancamento, labelForma, porDia, totais, saldoPorConta,
@@ -18,7 +22,7 @@ import {
 } from '@/lib/lancamentos';
 import {
   ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Plus, Minus,
-  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark, Sparkles, PiggyBank } from 'lucide-react';
+  Wallet, CalendarClock, ArrowLeft, Inbox, Settings2, Layers, ArrowLeftRight, Landmark, Sparkles, PiggyBank, Tag } from 'lucide-react';
 
 const hojeIso = () => new Date().toISOString().slice(0, 10);
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -48,6 +52,9 @@ export default function CaixaPage() {
   const [modalContas, setModalContas] = useState(false);
   const [modalCentros, setModalCentros] = useState(false);
   const [modalRegras, setModalRegras] = useState(false);
+  const [modalCategorias, setModalCategorias] = useState(false);
+  // Ícone de cada categoria própria na lista (migration 196).
+  const { proprias } = useCategoriasNegocio(empresa?.id);
 
   // Período visualizado. "mês" mantém o navegador de mês a mês; os outros são
   // recortes fixos terminando HOJE (o backend calcula no fuso de SP — em UTC,
@@ -268,6 +275,10 @@ export default function CaixaPage() {
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Saldo por conta</span>
               <span className="inline-flex items-center gap-3 flex-wrap justify-end">
                 {/* O que a Sora aprendeu a classificar do banco (migration 192). */}
+                {/* Categorias próprias com ícone (migration 196). */}
+                <button onClick={() => setModalCategorias(true)} className="text-[11px] font-semibold inline-flex items-center gap-1 min-h-[32px]" style={{ color: cor }}>
+                  <Tag size={12} /> Categorias
+                </button>
                 <button onClick={() => setModalRegras(true)} className="text-[11px] font-semibold inline-flex items-center gap-1 min-h-[32px]" style={{ color: cor }}>
                   <Sparkles size={12} /> Regras
                 </button>
@@ -343,7 +354,8 @@ export default function CaixaPage() {
                       </span>
                     </div>
                     {itens.map((l, i) => (
-                      <LinhaLancamento key={l.id} l={l} onClick={() => setModalLanc({ tipo: l.tipo, item: l })} delay={i * 25} />
+                      <LinhaLancamento key={l.id} l={l} onClick={() => setModalLanc({ tipo: l.tipo, item: l })} delay={i * 25}
+                                       icone={iconeDaCategoria(l.tipo, l.categoria, proprias)} />
                     ))}
                   </div>
                 );
@@ -369,6 +381,14 @@ export default function CaixaPage() {
           cor={cor}
           onClose={() => setModalContas(false)}
           onChanged={() => mContas()}
+        />
+      )}
+      {modalCategorias && empresa && (
+        <ModalCategoriasNegocio
+          empresaId={empresa.id}
+          cor={cor}
+          onClose={() => setModalCategorias(false)}
+          onChanged={() => mLanc()}
         />
       )}
       {modalRegras && empresa && (
@@ -410,7 +430,7 @@ function Total({ rotulo, valor, cor, Icon }: { rotulo: string; valor: number; co
   );
 }
 
-function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => void; delay: number }) {
+function LinhaLancamento({ l, onClick, delay, icone }: { l: Lancamento; onClick: () => void; delay: number; icone?: string | null }) {
   const entrada = l.tipo === 'entrada';
   const pendente = l.status === 'pendente';
   // Movimentação (transferência/aplicação vinda do banco) não é resultado:
@@ -440,7 +460,10 @@ function LinhaLancamento({ l, onClick, delay }: { l: Lancamento; onClick: () => 
           )}
           {aClassificar
             ? <span className="font-semibold text-amber-600 dark:text-amber-500">A classificar</span>
-            : labelDoLancamento(l)}
+            : <>
+                {icone && !mov && <IconeCategoria nome={icone} size={10} className="inline align-[-1px] mr-0.5" />}
+                {labelDoLancamento(l)}
+              </>}
           {mov ? ' · fora do resultado' : ''}
           {l.categoria === CAT_USO_PESSOAL && doBanco(l) && l.tipo === 'saida' ? ' · nas suas finanças pessoais' : ''}
           {l.forma_pagamento && !doBanco(l) ? ` · ${labelForma(l.forma_pagamento)}` : ''}

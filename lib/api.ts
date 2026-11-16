@@ -4,7 +4,9 @@ import type {
   Lancamento, ContaNegocio, CentroCusto, IndicadoresNegocio,
   ClienteNegocio, ClienteFicha, ProdutoNegocio, VendaNegocio,
   ItemEstoque, ResumoEstoque, FornecedorNegocio, CompraNegocio, ContaBancoDisponivel,
+  TipoLancamento,
 } from '@/lib/lancamentos';
+import type { CategoriaPropria } from '@/lib/categorias-negocio';
 import type { Funcionario } from '@/lib/funcionarios';
 import type { Frequencia } from '@/lib/frequencia-recorrencia';
 
@@ -1590,6 +1592,26 @@ export const api = {
           `/api/negocios/conciliacao-banco/${phone}?empresa_id=${empresa_id}`),
       deletar: (id: string) =>
         req<{ ok: boolean }>(`/api/negocios/lancamentos/${id}`, { method: 'DELETE' }),
+    },
+    // Categorias PRÓPRIAS da empresa (migration 196). O lançamento guarda o
+    // NOME; renomear/juntar/remover levam os lançamentos junto (no servidor).
+    categorias: {
+      listar: (phone: string, empresa_id: string) =>
+        req<{ categorias: CategoriaPropria[]; semMigration?: boolean }>(
+          `/api/negocios/categorias/${phone}?empresa_id=${empresa_id}`),
+      /** Cria, ou atualiza ícone/natureza da que já existe com esse nome. */
+      salvar: (body: { empresa_id: string; tipo: TipoLancamento; nome: string; icone?: string | null; natureza?: 'fixa' | 'variavel' | null }) =>
+        req<{ ok: boolean; criada: boolean }>('/api/negocios/categorias', { method: 'POST', body: JSON.stringify(body) }),
+      /** 409 com `existente` quando o nome novo é de outra → reenviar com `juntar`. */
+      renomear: (body: { empresa_id: string; tipo: TipoLancamento; de: string; para: string; juntar?: boolean }) =>
+        req<{ ok: boolean; nome: string; lancamentos: number; juntou: boolean }>('/api/negocios/categorias/renomear', {
+          method: 'POST', body: JSON.stringify(body),
+        }),
+      /** Sem lançamento apaga; com, `acao` move (pra `para`) ou só tira da lista. */
+      remover: (body: { empresa_id: string; tipo: TipoLancamento; nome: string; acao?: 'mover' | 'ocultar'; para?: string }) =>
+        req<{ ok: boolean; lancamentos?: number }>('/api/negocios/categorias/remover', {
+          method: 'POST', body: JSON.stringify(body),
+        }),
     },
     // Quadro de pessoal + folha. `pagar` gera um lançamento de saída
     // (categoria 'folha') vinculado ao funcionário — sem estrutura paralela.

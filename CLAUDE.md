@@ -557,6 +557,37 @@ mutações mortas) — a tela e o arquivo não podem discordar da situação.
 - **Fora:** recebimento PARCIAL (hoje: registrar a parte recebida e ajustar o
   aberto pro restante) e lançamentos da empresa pelo WhatsApp além da venda.
 
+### Categorias PRÓPRIAS com ícone (nov/2026) — migration 196
+
+Pedido de cliente (Sebastião): criar categorias e escolher ícone. O "Outra" do
+formulário aceitava um nome mas não guardava: medido, 7 das 15 empresas que
+lançam no caixa digitavam a sua, e a mesma aparecia escrita de 3 jeitos
+("CONVENIENCIA", "Conveniencia", "COVENIENCIA").
+
+- ⚠️ **O lançamento guarda o NOME, não um id** (`lancamentos_negocio.categoria`
+  sempre foi texto). DRE, Painel, CSV e regras mostram a categoria nova sem
+  mudar nada, e o que já foi digitado aparece pra reaproveitar mesmo SEM a 196.
+  O preço: **renomear/juntar/mover cascateia** lançamentos + regras aprendidas
+  (`cascatearCategoria` em `routes/negocios.js`; desfaz o rename se falhar).
+- "Mesma categoria" = mesma CHAVE (sem acento/caixa/espaço) — back
+  `services/categoriasNegocio.js`, front `lib/categorias-negocio.ts`, SQL
+  `chave_categoria_negocio()` (translate, não unaccent: no Supabase ela não é
+  IMMUTABLE). Erro de digitação é outra categoria → "Juntar" na tela (409 até
+  a pessoa confirmar).
+- Categoria própria não pode ter nome de PADRÃO (valor ou rótulo). As padrão e
+  a lista de 56 ícones são espelho nos dois lados — `eval:categorias-negocio`
+  do front compara.
+- Natureza fixa/variável da própria entra no DRE (`aplicarNatureza`; a do
+  lançamento vence).
+- Telas: `ModalCategoriasNegocio` (botão "Categorias" no Fluxo de caixa e
+  "Gerenciar" no formulário), chips com ícone no `ModalLancamento`, ícone na
+  linha do caixa, próprias nas Regras. Criar = operador; renomear/remover =
+  admin. ⚠️ O gerenciador avisa o formulário aberto (`onChanged({de, para})`)
+  — senão o "Salvar" regravaria o nome velho; e NÃO chama `onSalvo` (fecharia
+  o lançamento novo no meio).
+- Evals: back `eval:categorias-negocio` (51) + `-rota` (48), 16/16 mutações;
+  front 30 casos, 8/8. Testado na tela (sem a 196) com conta de teste apagada.
+
 ## Painel admin reorganizado (nov/2026)
 
 Topo: faixa **"O que espera você"** (cliente respondeu chamado, chamado sem
@@ -4658,6 +4689,7 @@ sql/192_negocios_series_regras_pessoal.sql — Sora Negócios: serie_id/serie_at
 sql/193_reservas_no_pessoal.sql — contas_negocio.reservas_no_pessoal: mostrar as reservas (caixinhas) da conta da empresa TAMBÉM na aba Investimentos pessoal (só visual). Sem ela as reservas ficam só no Negócios e a opção responde "ainda está sendo liberado".
 sql/194_ultimo_acesso.sql       — users.ultimo_acesso_em + função admin_ultimo_uso (só service_role): o "último uso" do admin era o último LOGIN (cliente logado no app aparecia "há 68 dias"). Sem ela a tela mostra o login, como antes.
 sql/195_pagamento_fatura_dia_sp.sql — corrige pagamentos_fatura.data gravada no dia UTC (pagamento entre 21h e meia-noite caía no dia seguinte). 60 linhas em 27 cartões. Só mexe em data.
+sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícone, natureza fixa/variável, oculta). Sem ela: as digitadas aparecem pra reaproveitar, renomear/juntar/mover funcionam, mas ícone e "tirar da lista" não (a tela avisa sem jargão).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

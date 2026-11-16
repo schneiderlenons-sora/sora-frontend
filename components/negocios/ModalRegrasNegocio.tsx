@@ -20,21 +20,23 @@ import { X, Sparkles, Trash2, Pencil, Check, Loader2, AlertCircle, ArrowUpRight,
 import { api, type RegraNegocio } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
-import { CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA, labelCategoria, type TipoLancamento } from '@/lib/lancamentos';
+import { labelCategoria, type TipoLancamento } from '@/lib/lancamentos';
+import { opcoesCategoria, categoriaExistente, type CategoriaPropria } from '@/lib/categorias-negocio';
+import { useCategoriasNegocio } from '@/lib/useCategoriasNegocio';
+import IconeCategoria from '@/components/negocios/IconeCategoria';
 
 const semInscricao = () => () => {};
 
-/** Categorias oferecidas pra uma regra: as do sentido dela (ou as dos dois). */
-function opcoesDe(tipo: RegraNegocio['tipo']) {
-  if (tipo === 'entrada') return CATEGORIAS_ENTRADA;
-  if (tipo === 'saida') return CATEGORIAS_SAIDA;
+/** Categorias oferecidas pra uma regra: as do sentido dela (ou as dos dois),
+ *  padrão + as próprias da empresa (migration 196). */
+function opcoesDe(tipo: RegraNegocio['tipo'], proprias: CategoriaPropria[] = []) {
+  if (tipo === 'entrada' || tipo === 'saida') return opcoesCategoria(tipo, proprias);
   const vistas = new Set<string>();
-  return [...CATEGORIAS_ENTRADA, ...CATEGORIAS_SAIDA].filter((c) => (vistas.has(c.v) ? false : (vistas.add(c.v), true)));
+  return [...opcoesCategoria('entrada', proprias), ...opcoesCategoria('saida', proprias)]
+    .filter((c) => (vistas.has(c.v) ? false : (vistas.add(c.v), true)));
 }
 
-const rotuloCat = (r: RegraNegocio) =>
-  opcoesDe(r.tipo).find((c) => c.v === r.categoria)?.label
-  || labelCategoria((r.tipo || 'saida') as TipoLancamento, r.categoria);
+const rotuloCat = (r: RegraNegocio) => labelCategoria((r.tipo || 'saida') as TipoLancamento, r.categoria);
 
 export default function ModalRegrasNegocio({ empresaId, cor, onClose, onChanged }: {
   empresaId: string; cor: string; onClose: () => void; onChanged?: () => void;
@@ -47,6 +49,7 @@ export default function ModalRegrasNegocio({ empresaId, cor, onClose, onChanged 
     () => api.negocios.lancamentos.regras.listar(phone!, empresaId),
   );
   const regras = data?.regras || [];
+  const { proprias } = useCategoriasNegocio(empresaId);
   const [editando, setEditando] = useState<string | null>(null);
   const [outra, setOutra] = useState('');
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -54,7 +57,10 @@ export default function ModalRegrasNegocio({ empresaId, cor, onClose, onChanged 
   const [aviso, setAviso] = useState('');
 
   async function trocar(r: RegraNegocio, categoria: string) {
-    const c = categoria.trim();
+    // Digitada no "Ou outra categoria": se já existe (padrão ou própria, sem
+    // olhar acento/caixa), usa a que existe — não cria mais uma grafia.
+    const digitada = categoria.replace(/\s+/g, ' ').trim();
+    const c = categoriaExistente((r.tipo || 'saida') as TipoLancamento, digitada, proprias) || digitada;
     if (!c || c === r.categoria) { setEditando(null); return; }
     setOcupado(r.id); setErro(''); setAviso('');
     try {
@@ -166,18 +172,19 @@ export default function ModalRegrasNegocio({ empresaId, cor, onClose, onChanged 
                       <div className="mt-3 pt-3 space-y-2" style={{ borderTop: '1px solid hsl(var(--border) / 0.6)' }}>
                         <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Nova categoria</p>
                         <div className="flex flex-wrap gap-2">
-                          {opcoesDe(r.tipo).map((c) => {
+                          {opcoesDe(r.tipo, proprias).map((c) => {
                             const atual = c.v === r.categoria;
                             return (
                               <button key={c.v} onClick={() => trocar(r, c.v)} disabled={carregandoEsta || atual}
                                       aria-pressed={atual}
-                                      className="min-h-[44px] px-3 rounded-xl text-xs font-semibold transition-colors disabled:cursor-default"
+                                      className="min-h-[44px] px-3 rounded-xl text-xs font-semibold transition-colors disabled:cursor-default inline-flex items-center gap-1.5"
                                       style={{
                                         border: `1px solid ${atual ? cor : 'hsl(var(--border) / 0.6)'}`,
                                         background: atual ? `color-mix(in srgb, ${cor} 12%, transparent)` : 'transparent',
                                         color: atual ? cor : 'hsl(var(--foreground))',
                                       }}>
-                                {atual && <Check size={12} className="inline mr-1 -mt-0.5" aria-hidden />}{c.label}
+                                {atual ? <Check size={12} aria-hidden /> : <IconeCategoria nome={c.icone} size={12} style={{ color: 'hsl(var(--muted-foreground))' }} />}
+                                {c.label}
                               </button>
                             );
                           })}
