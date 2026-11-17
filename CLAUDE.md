@@ -1716,6 +1716,56 @@ outubro, já quitada pelo de 09/10.
 - ⚠️ `pagamentos_fatura.data` era o dia em **UTC** (21h06 de 08/11 → 09/11,
   depois do fechamento). Hoje `diaSP`; migration **195** corrige 60 linhas.
 
+## Fatura ATRASADA do cartão manual + passar pra próxima por ESCOLHA (nov/2026)
+
+Relato (Fábio): o C6 venceu sem pagamento e a tela pulou pra fatura seguinte
+como se a vencida estivesse paga. Decisão do dono: **atrasada até pagar**;
+passar o saldo pra próxima é escolha (botão no card ou "passar" no WhatsApp),
+com ou sem juros. Open Finance fica de fora (o banco leva o saldo, com os juros).
+
+- ⚠️ **O JOB 1L ROLAVA SOZINHO EM 24h — e quebrava desde 10/08/2026**
+  (`row is not defined` em `notificarDono`, depois de gravar e antes de
+  avisar). Um rollover SILENCIOSO por dia: **100 faturas** em 3 meses, sem
+  mensagem. Hoje o job só AVISA, e só até 3 dias depois do vencimento (o
+  estoque antigo fica no painel, não vira rajada de WhatsApp). ⚠️ Os 100
+  rollovers já feitos NÃO foram desfeitos (decisão pendente do dono).
+- Regra única: back `services/faturaAtrasada.js` (`faturasAtrasadas` para na
+  paga, na passada pra frente e antes de o cartão existir; teto 6) +
+  `rolarFatura` em `faturaRollover.js` (painel e WhatsApp): só fatura
+  vencida, valor RECALCULADO, reserva `aguardando → rolado`, juros viram
+  GASTO "Juros" (o saldo segue `transferencia: true`), desfaz tudo se falhar.
+  `eval:fatura-atrasada` (69, 22/22 mutações). Front: `lib/fatura-atrasada.ts`.
+- `/faturas` devolve `atrasadas`; `/fatura/status` devolve `situacao`
+  (`paga|atrasada|rolada|em_aberto`) e `rolagem`. ⚠️ **Fatura passada pra
+  frente não oferece "Pagar"** (o saldo dela já está na seguinte — pagaria em
+  dobro).
+- Tela: selo "Atrasada", bloco vermelho no card (Pagar · Passar pra próxima),
+  linha "R$ X em faturas atrasadas" no topo, `PassarFaturaModal`.
+- Medido em 17/11: **76 de 288 cartões manuais** (41 grupos) com fatura
+  atrasada — 123 faturas, R$ 109.730. Muitos pagam fora e não registram: a
+  saída é o "Pagar fatura" (aceita pagamento externo).
+- ⚠️ Crons de hora fixa (`'0 9 * * *'` etc.) rodam em **UTC** — o "09:00"
+  sai às 06:00 de Brasília. Não mexido (mudaria o horário que os clientes
+  recebem).
+
+## Lembrete de compromisso a cada MINUTO (nov/2026)
+
+Terceiro relato de "não recebi o lembrete" (aviso marcado pra 18:50, chamado
+às 18:54). As correções de set/out mexeram na supressão pelo briefing; a causa
+agora era o intervalo: o JOB 1J rodava de 15 em 15 e o aviso saiu às 19:00
+(a Meta confirma a entrega). 32 de 232 lembretes com hora tinham gatilho fora
+do quarto de hora. ⚠️ O node-cron 4 só executa no segundo :00 — disparo 1 s
+atrasado PULA a rodada.
+
+- Hoje: a cada minuto + `noOverlap`, reserva atômica
+  (`update … eq lembrete_enviado false select`), recusa provada da Meta desfaz a
+  marca e tenta até 3x, try por compromisso. Regra de tempo em
+  `services/lembreteCompromisso.js`; `eval:lembrete-compromisso` roda o cron.
+- **Provar se um aviso saiu:** `/webhook/meta/diag?key=…&metricas=<modelo>&meiahora=AAAA-MM-DD`
+  (métricas da Meta por modelo e por meia hora). O envio não tem outro rastro.
+- ⚠️ Briefing matinal só sai com item no dia, e a tela promete "toda manhã"
+  (70% de quem liga não recebeu nada em 3 dias medidos) — decisão pendente.
+
 ## Conciliação de ponta a ponta + diagnóstico diário (out/2026)
 
 Relatos repetidos do Vander (e de outros) levaram a um plano em frentes. Todas

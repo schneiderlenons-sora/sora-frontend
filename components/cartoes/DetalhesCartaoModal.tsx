@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Calendar, CalendarClock, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2 } from 'lucide-react';
+import { X, Calendar, CalendarClock, ChevronRight, ChevronLeft, ExternalLink, Loader2, Zap, CreditCard, Trash2, AlertTriangle } from 'lucide-react';
 import { api, type ParcelaPrevista } from '@/lib/api';
 import { getCategoriaTheme, nomeCategoria } from '@/lib/categorias';
 import { bancoLogo, loadCartaoMeta, labelVencimento } from './AdicionarCartaoModal';
@@ -94,6 +94,10 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
   // Fatura quitada segundo o SERVIDOR (pagamento registrado depois do
   // fechamento — inclusive o que o Open Finance trouxe do extrato).
   const [quitadaServidor, setQuitadaServidor] = useState(false);
+  // 'atrasada' (venceu sem pagamento) / 'rolada' (passada pra próxima) — do
+  // servidor (services/faturaAtrasada.js). Sem isto o selo dizia "Em aberto"
+  // numa fatura vencida, e era o que fazia o cliente achar que estava em dia.
+  const [situacao, setSituacao] = useState<string | null>(null);
   // ⚠️ O VALOR VEM DO SERVIDOR. `/fatura/status` já devolve `fatura`, `pago` e
   //    `restante` calculados por `faturaVista` — a MESMA fonte do card da
   //    lista e do WhatsApp. Este modal recebia esse payload e usava só as
@@ -113,7 +117,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
   useEffect(() => {
     if (!phone || !cartao?.id || !mesRef) return;
     let cancelado = false;
-    setPrevistas([]); setTotalPrevisto(0); setQuitadaServidor(false);
+    setPrevistas([]); setTotalPrevisto(0); setQuitadaServidor(false); setSituacao(null);
     setFaturaApi(null); setPagoApi(null); setRestanteApi(null);
     api.wallets.faturaStatus(phone, cartao.id, mesRef)
       .then((st) => {
@@ -121,6 +125,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
         setPrevistas(st.parcelas_previstas || []);
         setTotalPrevisto(Number(st.total_previsto) || 0);
         setQuitadaServidor(!!st.quitada);
+        setSituacao(st.situacao || null);
         // `null` quando o servidor não sabe — e aí o cálculo local abaixo vale.
         const num = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
         setFaturaApi(num((st as any).fatura));
@@ -513,17 +518,33 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
           <div className="rounded-2xl p-4 border border-border bg-muted/20">
             <div className="flex items-start justify-between mb-2">
               <p className="text-sm font-semibold text-foreground">Valor da fatura</p>
-              <button
-                onClick={togglePaga}
-                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 transition-all ${
-                  pagoFlag
-                    ? 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: pagoFlag ? '#16a34a' : '#d97706' }} />
-                {pagoFlag ? 'Paga' : 'Em aberto'}
-              </button>
+              {(() => {
+                // Selo: ícone + rótulo (nunca só cor). Atrasada e passada pra
+                // frente vêm do servidor; "Paga" segue a regra de antes.
+                const estado = pagoFlag ? 'paga'
+                  : situacao === 'atrasada' ? 'atrasada'
+                  : situacao === 'rolada' ? 'rolada'
+                  : 'aberta';
+                const estilo = {
+                  paga: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400',
+                  atrasada: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400',
+                  rolada: 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300',
+                  aberta: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
+                }[estado];
+                const cor = { paga: '#16a34a', atrasada: '#dc2626', rolada: '#64748b', aberta: '#d97706' }[estado];
+                const rotulo = { paga: 'Paga', atrasada: 'Atrasada', rolada: 'Passada pra próxima', aberta: 'Em aberto' }[estado];
+                return (
+                  <button
+                    onClick={togglePaga}
+                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 transition-all ${estilo}`}
+                  >
+                    {estado === 'atrasada'
+                      ? <AlertTriangle size={11} />
+                      : <span className="w-1.5 h-1.5 rounded-full" style={{ background: cor }} />}
+                    {rotulo}
+                  </button>
+                );
+              })()}
             </div>
             <p className="text-3xl font-bold text-foreground tabular tracking-tight">
               {fmt(valorFatura)}

@@ -4,12 +4,14 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, labelVencimento, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
 import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
+import PassarFaturaModal from '@/components/cartoes/PassarFaturaModal';
+import { nomeDoMesFatura, ddmmFatura, textoDiasAtraso } from '@/lib/fatura-atrasada';
 import IconeMarca, { slugDaMarca, marcaDe } from '@/components/ui/IconeMarca';
 import CategoriaIcon from '@/components/ui/CategoriaIcon';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import ExcluirContaModal from '@/components/contas/ExcluirContaModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, type FaturaAtrasada, type FaturaCartao } from '@/lib/api';
 import { useConexoesOF } from '@/lib/conexao-of';
 import { chave } from '@/lib/chaves-swr';
 import { useApi } from '@/lib/useApi';
@@ -21,7 +23,7 @@ import {
 import { somarFatura } from '@/lib/valor-fatura';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Pencil, Trash2,
-  ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight,
+  ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight, AlertTriangle, Check,
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
@@ -99,7 +101,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   // não é mais "a atual" — quem manda na tela é a seguinte.
   // ⚠️ Sempre no offset 0 (a competência de verdade), nunca na deslocada: é o
   // que impede o vaivém "pulou → não está mais paga → volta".
-  const { data: faturasData } = useApi(
+  const { data: faturasData, mutate: mF } = useApi(
     phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
   // A fatura SEGUINTE: é dela que saem as parcelas previstas de quem já pagou a
   // atual (a projeção só existe pra fatura futura).
@@ -155,10 +157,23 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     return acc;
   }, [faturasData, faturasProx]);
 
+  // Faturas VENCIDAS e não pagas, por cartão (cartão manual). Sem isto a tela
+  // pulava pra fatura seguinte e a vencida sumia como se estivesse paga —
+  // relato de nov/2026. Regra única no backend (services/faturaAtrasada.js).
+  const atrasadasPor = useMemo(() => {
+    const acc: Record<string, FaturaAtrasada[]> = {};
+    ((faturasData as { faturas?: FaturaCartao[] } | undefined)?.faturas || []).forEach((f) => {
+      if (Array.isArray(f.atrasadas) && f.atrasadas.length) acc[f.cartao_id] = f.atrasadas;
+    });
+    return acc;
+  }, [faturasData]);
+
   const wallets: Wallet[] = ((wRaw as Wallet[]) ?? []).filter((w: any) => w.tipo === 'Crédito');
   const txsTodas: any[]   = (tAllData as any)?.transacoes ?? [];
   const loading = wRaw === undefined;
-  const carregar = useCallback(() => Promise.all([mW(), mTA()]), [mW, mTA]);
+  // `mF`: pagar ou passar uma fatura pra frente muda as atrasadas e o valor
+  // canônico de cada card — sem recarregar, o bloco de atraso ficaria na tela.
+  const carregar = useCallback(() => Promise.all([mW(), mTA(), mF()]), [mW, mTA, mF]);
 
   // Carrega os últimos meses pro gráfico de histórico. 7 (não 6) porque o ciclo
   // da fatura mais antiga começa no mês anterior a ela.
@@ -300,6 +315,19 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   // pra uma fatura anterior, o header volta a somar o bruto daquele ciclo.
   // ⚠️ Cada card está NA MOEDA DO CARTÃO; a soma vai pra moeda do grupo
   // (migration 168). Cartão na base: o próprio valor. Sem câmbio fica fora.
+  // Atrasadas na moeda do grupo (cada uma está na moeda do cartão).
+  const { totalAtrasado, qtdAtrasadas } = useMemo(() => {
+    let total = 0, qtd = 0;
+    wallets.forEach((w) => {
+      if (w.of_conta_id) return;
+      (atrasadasPor[w.id] || []).forEach((a) => {
+        qtd++;
+        total += valorDoCartaoNaBase(a.restante, w, moedaBase) ?? 0;
+      });
+    });
+    return { totalAtrasado: total, qtdAtrasadas: qtd };
+  }, [wallets, atrasadasPor, moedaBase]);
+
   const faturaTotal = useMemo(
     () => wallets.reduce((s, w) => {
       const bruto = faturaPorCartao[w.id] || 0;
@@ -436,6 +464,14 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                 Soma de {wallets.length} {wallets.length === 1 ? 'cartão' : 'cartões'}
               </p>
             )}
+            {/* O total acima é das faturas que ainda vão vencer; o que JÁ
+                venceu sem pagamento aparece à parte, sem se misturar a ele. */}
+            {mesIndex === 0 && totalAtrasado > 0 && (
+              <p className="text-xs font-semibold text-red-600 dark:text-red-400 inline-flex items-center gap-1.5">
+                <AlertTriangle size={12} />
+                {ocultar ? '••••' : fmt(totalAtrasado)} em {qtdAtrasadas === 1 ? 'fatura atrasada' : `${qtdAtrasadas} faturas atrasadas`}
+              </p>
+            )}
           </div>
         </div>
 
@@ -485,6 +521,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                   competencia={cicloPorCartao[w.id]?.competencia || ''}
                   ciclo={cicloPorCartao[w.id]}
                   ehMesAtual={mesIndex === 0}
+                  atrasadas={atrasadasPor[w.id] || []}
                   compartilhado={compartilhado}
                   delay={i * 50}
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
@@ -634,6 +671,8 @@ interface CardCartaoProps {
   /** Ciclo real da fatura exibida (período + vencimento). */
   ciclo?: Ciclo;
   ehMesAtual: boolean;
+  /** Faturas VENCIDAS e não pagas deste cartão (só cartão manual). */
+  atrasadas?: FaturaAtrasada[];
   compartilhado?: boolean;
   onEditar:  () => void;
   onExcluir: () => void;
@@ -644,7 +683,7 @@ interface CardCartaoProps {
   onRestanteChange?: (cartaoId: string, restante: number) => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, atrasadas = [], compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
   // Conexão do banco encerrada? (ver lib/conexao-of.ts — o caso do BTG). Só
   // busca pra cartão que vem do Open Finance; o SWR divide a lista entre os cards.
   const conexoes = useConexoesOF(!!cartao.of_conta_id);
@@ -669,8 +708,30 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
   const [status, setStatus] = useState<{
     fatura: number; pago: number; restante: number; rollover?: any;
     quitada?: boolean; fechada?: boolean;
+    situacao?: 'paga' | 'atrasada' | 'rolada' | 'em_aberto';
   } | null>(null);
-  const [rolando, setRolando] = useState(false);
+  // Fatura passada pra frente: o saldo dela já está na seguinte. Pagar AQUI
+  // cobraria duas vezes — então nem oferece o botão.
+  const rolada = ehManual && status?.situacao === 'rolada';
+  const atrasadaExibida = ehManual && status?.situacao === 'atrasada';
+  // Fatura atrasada sendo paga / passada pra próxima, e a confirmação depois.
+  const [pagarAtrasada, setPagarAtrasada] = useState<FaturaAtrasada | null>(null);
+  const [passarAtrasada, setPassarAtrasada] = useState<FaturaAtrasada | null>(null);
+  const [avisoAtraso, setAvisoAtraso] = useState('');
+  // Resolvidas AGORA (paga ou passada): saem da tela na hora. A lista do
+  // servidor (`/faturas`) leva alguns segundos pra voltar, e o bloco vermelho
+  // ficava ao lado do "pagamento registrado" — parecia que não tinha dado certo.
+  // ⚠️ Vale SÓ enquanto a lista na tela é a mesma de antes da ação (`de`):
+  // quando o servidor responde, a lista nova manda — um pagamento PARCIAL
+  // deixa a fatura atrasada (com valor menor), e ela tem de voltar.
+  const [resolvidas, setResolvidas] = useState<{ comps: string[]; de: FaturaAtrasada[] | null }>({ comps: [], de: null });
+  const marcarResolvida = (comp: string) =>
+    setResolvidas((r) => ({ comps: r.de === atrasadas ? [...r.comps, comp] : [comp], de: atrasadas }));
+  // Só na fatura atual e só cartão manual (no Open Finance o banco leva o
+  // saldo pra frente sozinho, com os juros dele).
+  const atrasadasVisiveis = ehMesAtual && !cartao.of_conta_id
+    ? atrasadas.filter((a) => !(resolvidas.de === atrasadas && resolvidas.comps.includes(a.competencia)))
+    : [];
 
   useEffect(() => {
     setMeta(loadCartaoMeta(cartao.id));
@@ -683,14 +744,6 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
       .then(setStatus).catch(() => setStatus(null));
   }, [phone, cartao.id, competencia, ehManual]);
   useEffect(() => { recarregarStatus(); }, [recarregarStatus, fatura]);
-
-  async function rolarAgora() {
-    if (!status?.rollover?.id) return;
-    setRolando(true);
-    try { await api.wallets.rolarFatura({ rollover_id: status.rollover.id }); onRefresh(); }
-    catch { /* noop */ }
-    finally { setRolando(false); }
-  }
 
   // Fonte da verdade = banco (wallets.dia_fechamento/vencimento, migration 023);
   // localStorage só como fallback. Antes lia só o `meta` em state, que não
@@ -798,6 +851,18 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
         </div>
 
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          {/* ⚠️ Fatura VENCIDA manda no selo: "Paga"/"Em aberto" falam da
+              fatura exibida (a próxima), e a vencida sumia da leitura. */}
+          {atrasadasVisiveis.length > 0 || atrasadaExibida ? (
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
+              <AlertTriangle size={11} />
+              {atrasadasVisiveis.length > 1 ? `${atrasadasVisiveis.length} atrasadas` : 'Atrasada'}
+            </span>
+          ) : rolada ? (
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+              <ArrowRight size={11} /> Passada pra próxima
+            </span>
+          ) : (
           <span
             className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
               paga
@@ -808,6 +873,7 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: paga ? '#16a34a' : '#d97706' }} />
             {paga ? 'Paga' : 'Em aberto'}
           </span>
+          )}
 
           {/* Ações. ⚠️ SEMPRE VISÍVEIS NO CELULAR: não existe hover no toque, e
               o usuário tinha de adivinhar que precisava segurar o dedo no card.
@@ -940,21 +1006,57 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
             banco. Não há mais "parcial" a explicar — e manter o aviso ao lado
             de um número correto só faz o usuário duvidar dele. */}
 
-        {/* Banner de rollover aguardando confirmação */}
-        {ehManual && status?.rollover && (
-          <div onClick={(e) => e.stopPropagation()}
-               className="relative z-10 mt-2 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 p-2.5">
-            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
-              Sobrou <strong>{fmt(Number(status.rollover.valor) || 0)}</strong> da fatura anterior. Rolar pra próxima?
-            </p>
-            <button onClick={rolarAgora} disabled={rolando}
-              className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500 text-white text-[11px] font-bold hover:bg-amber-600 transition-colors disabled:opacity-60">
-              {rolando ? <Loader2 size={11} className="animate-spin" /> : <ArrowRight size={11} />} Rolar pra próxima fatura
-            </button>
+        {/* ⚠️ FATURA VENCIDA E NÃO PAGA (nov/2026). A tela mostra a próxima a
+            vencer; sem este bloco a vencida sumia como se estivesse paga.
+            Ela fica aqui até ser paga — passar pra próxima é escolha da pessoa,
+            nunca automático. (Substitui o antigo "Sobrou X. Rolar?", que dizia
+            "sobrou" até pra quem não tinha pago nada.) */}
+        {atrasadasVisiveis.length > 0 && (
+          <div role="group" aria-label="Faturas atrasadas" onClick={(e) => e.stopPropagation()}
+               onKeyDown={(e) => e.stopPropagation()}
+               className="relative z-10 mt-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 divide-y divide-red-200/70 dark:divide-red-900/50">
+            {atrasadasVisiveis.map((a) => (
+              <div key={a.competencia} className="p-3">
+                <p className="text-[11px] font-semibold text-red-700 dark:text-red-300 inline-flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> Fatura de {nomeDoMesFatura(a.competencia)} atrasada
+                </p>
+                <p className="text-lg font-bold tabular text-red-800 dark:text-red-200 leading-tight mt-0.5">
+                  {ocultar ? '••••••' : fmt(a.restante)}
+                </p>
+                <p className="text-[11px] text-red-700/80 dark:text-red-300/80">
+                  Venceu em {ddmmFatura(a.venc)}{a.diasAtraso ? ` · ${textoDiasAtraso(a.diasAtraso)}` : ''}
+                  {a.pago && a.pago > 0 ? ` · ${ocultar ? '•••' : fmt(a.pago)} já pago` : ''}
+                </p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {!pagamentoTravado && (
+                    <button type="button" onClick={() => setPagarAtrasada(a)}
+                            className="inline-flex items-center gap-1.5 min-h-[44px] lg:min-h-[36px] px-3 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 active:scale-[0.98] transition-all">
+                      <CreditCard size={13} /> Pagar fatura
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setPassarAtrasada(a)}
+                          className="inline-flex items-center gap-1.5 min-h-[44px] lg:min-h-[36px] px-3 rounded-lg border border-red-300 dark:border-red-800 bg-white/70 dark:bg-transparent text-red-700 dark:text-red-300 text-xs font-bold hover:bg-white dark:hover:bg-red-950/50 active:scale-[0.98] transition-all">
+                    <ArrowRight size={13} /> Passar pra próxima
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {restante > 0 && !paga && (pagamentoTravado ? (
+        {avisoAtraso && (
+          <p role="status" className="relative mt-2 text-[11px] font-semibold text-green-700 dark:text-green-400 inline-flex items-center gap-1.5">
+            <Check size={12} /> {avisoAtraso}
+          </p>
+        )}
+
+        {rolada && (
+          <p className="relative mt-2 text-[11px] text-muted-foreground leading-snug inline-flex items-center gap-1.5">
+            <ArrowRight size={11} /> O saldo desta fatura foi passado pra fatura seguinte.
+          </p>
+        )}
+
+        {restante > 0 && !paga && !rolada && (pagamentoTravado ? (
           // ⚠️ Cartão em outra moeda que a do grupo: o backend recusa o
           // pagamento pela Sora (debitaria uma conta misturando moedas). A tela
           // EXPLICA em vez de mostrar botão desabilitado, que leria como defeito.
@@ -966,7 +1068,9 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
         ) : (
           <button onClick={(e) => { e.stopPropagation(); setPagarOpen(true); }}
             className="relative z-10 mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-bold hover:bg-primary hover:text-white transition-colors">
-            <CreditCard size={11} /> Pagar fatura
+            <CreditCard size={11} />
+            {/* Com uma atrasada no card, há dois "Pagar fatura" — diz qual é qual. */}
+            {atrasadasVisiveis.length > 0 ? `Pagar fatura de ${nomeDoMesFatura(competencia)}` : 'Pagar fatura'}
           </button>
         ))}
 
@@ -1042,6 +1146,39 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
       )}
 
     </div>
+    {pagarAtrasada && (
+      <PagarFaturaModal
+        cartaoId={cartao.id}
+        cartaoNome={cartao.nome}
+        valorFatura={pagarAtrasada.restante}
+        competencia={pagarAtrasada.competencia}
+        onClose={() => setPagarAtrasada(null)}
+        onPago={() => {
+          setAvisoAtraso(`Pagamento da fatura de ${nomeDoMesFatura(pagarAtrasada.competencia)} registrado.`);
+          // Some na hora; se o pagamento foi PARCIAL, volta (menor) quando o
+          // servidor responder — ver `resolvidas`.
+          marcarResolvida(pagarAtrasada.competencia);
+          recarregarStatus();
+          onRefresh();
+          mutateGlobal(() => true);
+        }}
+      />
+    )}
+    {passarAtrasada && (
+      <PassarFaturaModal
+        cartaoId={cartao.id}
+        cartaoNome={cartao.nome}
+        atrasada={passarAtrasada}
+        onClose={() => setPassarAtrasada(null)}
+        onPassada={(msg) => {
+          setAvisoAtraso(msg);
+          marcarResolvida(passarAtrasada.competencia);
+          recarregarStatus();
+          onRefresh();
+          mutateGlobal(() => true);
+        }}
+      />
+    )}
     {pagarOpen && (
       <PagarFaturaModal
         cartaoId={cartao.id}

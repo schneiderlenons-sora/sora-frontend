@@ -175,7 +175,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
           )}
           {valorFatura > 0 && (
             <p className="text-[11px] text-muted-foreground -mt-2">
-              💡 Pode pagar só uma parte — o que sobrar rola pra próxima fatura (a Sora te avisa no vencimento).
+              💡 Pode pagar só uma parte — o que faltar fica em aberto e, depois do vencimento, aparece como atrasado até você pagar ou passar pra próxima fatura.
             </p>
           )}
 

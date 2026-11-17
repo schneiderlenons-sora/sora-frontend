@@ -232,9 +232,17 @@ export type FaturaCartao = FaturaCiclo & {
   /** Parcelas que o banco projeta pra esta fatura (só em fatura futura). */
   parcelas_previstas?: ParcelaPrevista[];
   total_previsto?: number;
-  /** Fatura anterior que já venceu e ainda tem saldo (alerta de atraso). */
-  vencida?: { competencia: string; venc: string; restante: number; label: string } | null;
+  /** Fatura anterior que já venceu e ainda tem saldo (a mais recente de `atrasadas`). */
+  vencida?: FaturaAtrasada | null;
+  /** Faturas VENCIDAS e não pagas (cartão manual), da mais recente pra mais antiga. */
+  atrasadas?: FaturaAtrasada[];
   rollover?: { id: string; valor: number; competencia: string; status: string; confirmar_ate?: string } | null;
+};
+
+/** Fatura de cartão manual que venceu sem ser paga (services/faturaAtrasada.js). */
+export type FaturaAtrasada = {
+  competencia: string; venc: string; label: string;
+  fatura?: number; pago?: number; restante: number; diasAtraso?: number;
 };
 
 // ── USUÁRIO ──────────────────────────────────────────────────────
@@ -587,6 +595,9 @@ export const api = {
         /** O valor veio do emissor (Open Finance), não da nossa soma do ciclo. */
         doBanco?: boolean;
         parcelas_previstas?: ParcelaPrevista[]; total_previsto?: number;
+        /** 'atrasada' = venceu sem pagamento; 'rolada' = passada pra próxima fatura. */
+        situacao?: 'paga' | 'atrasada' | 'rolada' | 'em_aberto';
+        rolagem?: { id: string; valor: number; competencia: string; rolado_em?: string | null } | null;
       }>(`/api/wallets/fatura/status/${phone}?${q}`);
     },
     /**
@@ -596,9 +607,13 @@ export const api = {
      */
     faturas: (phone: string, offset = 0) =>
       req<{ offset: number; faturas: FaturaCartao[] }>(`/api/wallets/faturas/${phone}?offset=${offset}`),
-    // Confirma o rollover do saldo que sobrou pra próxima fatura.
-    rolarFatura: (body: { rollover_id?: string; cartao_id?: string; competencia?: string }) =>
-      req<{ ok: boolean; transacao_id?: string }>('/api/wallets/fatura/rolar', { method: 'POST', body: JSON.stringify(body) }),
+    // Passa o saldo de uma fatura VENCIDA pra próxima, por escolha da pessoa
+    // (com ou sem juros). Nunca é automático.
+    rolarFatura: (body: { rollover_id?: string; cartao_id?: string; competencia?: string; juros?: number }) =>
+      req<{
+        ok: boolean; jaRolado?: boolean; valor?: number; juros?: number;
+        competenciaDestino?: string; transacao_id?: string;
+      }>('/api/wallets/fatura/rolar', { method: 'POST', body: JSON.stringify(body) }),
     // Transfere valor entre duas contas (ajusta saldos + grava registro)
     transferir: (body: { phone: string; origem_id: string; destino_id: string; valor: number }) =>
       req<{ ok: boolean; tx: any }>('/api/wallets/transferir', { method: 'POST', body: JSON.stringify(body) }),
