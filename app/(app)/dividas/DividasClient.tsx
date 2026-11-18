@@ -10,7 +10,7 @@ import PagarParcelaModal from '@/components/dividas/PagarParcelaModal';
 import SugestoesBaixa from '@/components/dividas/SugestoesBaixa';
 import PermissaoGuard from '@/components/ui/PermissaoGuard';
 import IconeMarca, { slugDaMarca } from '@/components/ui/IconeMarca';
-import { proximoVencimento } from '@/lib/vencimento-divida';
+import { proximoVencimento, parcelasEmAtraso, statusDeAtraso, hojeSP } from '@/lib/vencimento-divida';
 import {
   Plus, Sparkles, Receipt, Pencil, Trash2, ArrowDownRight, CheckCircle2,
   AlertCircle, Loader2, TrendingDown, Calendar, Zap, Eye, EyeOff,
@@ -42,6 +42,12 @@ const STATUS_INFO: Record<string, { label: string; cor: string }> = {
   renegociada:  { label: 'Renegociada',   cor: '#8b5cf6' },
   suspensa:     { label: 'Suspensa',      cor: '#64748b' },
 };
+
+/** 'YYYY-MM-DD' → '10/10' (com o ano quando não é o ano corrente: '10/11/2025'). */
+function diaMes(iso: string) {
+  const [y, m, d] = String(iso).slice(0, 10).split('-');
+  return y === hojeSP().slice(0, 4) ? `${d}/${m}` : `${d}/${m}/${y}`;
+}
 
 export default function DividasClient({ phoneInicial, initialData }: { phoneInicial?: string; initialData?: any } = {}) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
@@ -387,7 +393,17 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const [menuOpen, setMenuOpen] = useState(false);
   const tipo = TIPO_INFO[divida.tipo] || TIPO_INFO.outro;
-  const status = STATUS_INFO[divida.status] || STATUS_INFO.ativa;
+  // ⚠️ ATRASADA ATÉ PAGAR (nov/2026, relato do Fábio — o mesmo do cartão). A
+  // regra antiga só via o vencimento do MÊS CORRENTE: a parcela de outubro não
+  // paga voltava a "Ativa" em 1º de novembro, como se tivesse sido paga. O
+  // card calcula com a MESMA regra do backend (lib/vencimento-divida.ts,
+  // `eval:vencimento-divida`), então mostra na hora — sem esperar o cron da
+  // manhã seguinte regravar o status. Dívida do Open Finance: o status vem do
+  // banco e é exibido como veio.
+  const ehDoBanco = !!divida.of_id;
+  const atraso = divida.status === 'quitada' || ehDoBanco ? null : parcelasEmAtraso(divida);
+  const statusChave = ehDoBanco ? divida.status : (statusDeAtraso(divida) || divida.status);
+  const status = STATUS_INFO[statusChave] || STATUS_INFO.ativa;
   const TipoIcon = tipo.icon;
 
   const pagas  = divida.parcelas_pagas || 0;
@@ -556,6 +572,33 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"
                  style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tipo.cor}, color-mix(in srgb, ${tipo.cor} 67%, transparent))` }} />
+          </div>
+        </div>
+      )}
+
+      {/* PARCELA EM ATRASO — fica aqui até o pagamento ser registrado.
+          Ícone + texto (nunca só a cor). A dica do fim existe porque a Sora
+          só sabe do pagamento que foi REGISTRADO: quem pagou por fora vê o
+          caminho pra tirar o aviso, em vez de um alarme sem saída. */}
+      {atraso && (
+        <div role="status"
+             className="rounded-xl p-2.5 mb-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 text-[11px]">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={13} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-px" />
+            <div className="min-w-0">
+              <p className="text-red-700 dark:text-red-300">
+                {atraso.quantas === 1
+                  ? <><strong>Atrasada há {atraso.dias} dia{atraso.dias === 1 ? '' : 's'}</strong> · parcela de {diaMes(atraso.desde)}:</>
+                  : <><strong>{atraso.quantas}{atraso.ouMais ? ' ou mais' : ''} parcelas atrasadas</strong> · desde {diaMes(atraso.desde)}:</>}
+                {' '}
+                <strong className="text-foreground tabular">
+                  {ocultar ? '•••' : fmt((divida.valor_parcela || 0) * atraso.quantas)}
+                </strong>
+              </p>
+              <p className="text-muted-foreground mt-0.5">
+                Já pagou? Toque em <strong>Registrar pagamento</strong> pra tirar o aviso.
+              </p>
+            </div>
           </div>
         </div>
       )}

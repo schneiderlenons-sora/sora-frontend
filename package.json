@@ -50,6 +50,7 @@
     "eval:peso": "npx tsx lib/peso.eval.mjs",
     "eval:fatura-atrasada": "npx tsx lib/fatura-atrasada.eval.mjs",
     "eval:prefetch": "npx tsx lib/prefetch.eval.mjs",
+    "eval:vencimento-divida": "npx tsx lib/vencimento-divida.eval.mjs",
     "eval:portao": "npx tsx lib/portao.eval.mjs"
   },
   "dependencies": {

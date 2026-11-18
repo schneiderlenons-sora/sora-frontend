@@ -25,6 +25,8 @@ export type DividaVenc = {
   /** Vencimento da próxima parcela SEGUNDO O EMISSOR (migration 154, só Open
    *  Finance). Vence a derivação por calendário enquanto não tiver passado. */
   proximo_vencimento?: string | null;
+  parcelas_total?: number | string | null;
+  parcelas_pagas?: number | string | null;
 };
 
 function partes(iso: string) {
@@ -155,4 +157,102 @@ export function proximoVencimento(
   }
 
   return { data: venc, dias: diffDias(hoje, venc), quitadaNoCiclo };
+}
+
+// =====================================================================
+// ATRASO — porte fiel de `vencidaNoMes`, `parcelasEmAtraso` e
+// `statusDeAtraso` do backend (nov/2026). O backend GRAVA o status (cron
+// diário e edição); o card calcula com a MESMA regra pra mostrar o atraso
+// na hora — sem esperar o cron da manhã seguinte — e dizer DESDE QUANDO.
+// `eval:vencimento-divida` compara as duas cópias caso a caso.
+// =====================================================================
+
+/** A parcela DESTE MÊS já venceu e não foi paga? (a regra de antes) */
+export function vencidaNoMes(divida: DividaVenc, hoje: string = hojeSP()): boolean {
+  const dia = Number(divida?.dia_vencimento);
+  if (!dia || dia < 1 || dia > 31) return false;
+  if (divida.status === 'quitada') return false;
+  const total = Number(divida.parcelas_total) || 0;
+  if (total > 0 && (Number(divida.parcelas_pagas) || 0) >= total) return false;
+
+  const { Y, M } = partes(hoje);
+  const venc = ocorrencia(Y, M, dia);
+  if (venc >= hoje) return false;
+  if (divida.data_inicio && venc <= String(divida.data_inicio).slice(0, 10)) return false;
+  if (divida.proximo_vencimento && String(divida.proximo_vencimento).slice(0, 10) > venc) return false;
+
+  const pago = divida.ultimo_pagamento ? String(divida.ultimo_pagamento).slice(0, 10) : null;
+  if (pago && vencimentoCoberto(pago, dia) >= venc) return false;
+  return true;
+}
+
+export const MAX_PARCELAS_ATRASO = 12;
+
+export type AtrasoDivida = {
+  /** a parcela vencida MAIS ANTIGA sem pagamento */
+  desde: string;
+  /** a mais recente que já venceu */
+  ultima: string;
+  /** dias de atraso da mais antiga */
+  dias: number;
+  quantas: number;
+  /** bateu no teto da janela (MAX_PARCELAS_ATRASO) */
+  ouMais: boolean;
+  /** há pagamento registrado (sem ele, só a parcela do mês conta) */
+  comPagamento: boolean;
+};
+
+/**
+ * Parcelas JÁ VENCIDAS e sem pagamento — "atrasada ATÉ PAGAR", mas só com
+ * PROVA (pagamento registrado). Sem pagamento registrado: só a parcela do
+ * mês corrente, como sempre foi. Ver o porquê no backend.
+ */
+export function parcelasEmAtraso(divida: DividaVenc, hoje: string = hojeSP()): AtrasoDivida | null {
+  const dia = Number(divida?.dia_vencimento);
+  if (!dia || dia < 1 || dia > 31) return null;
+  if (divida.status === 'quitada') return null;
+  const total = Number(divida.parcelas_total) || 0;
+  const pagas = Number(divida.parcelas_pagas) || 0;
+  if (total > 0 && pagas >= total) return null;
+
+  const pago = divida.ultimo_pagamento ? String(divida.ultimo_pagamento).slice(0, 10) : null;
+  const { Y, M } = partes(hoje);
+
+  if (!pago) {
+    if (!vencidaNoMes(divida, hoje)) return null;
+    const venc = ocorrencia(Y, M, dia);
+    return { desde: venc, ultima: venc, dias: diffDias(venc, hoje), quantas: 1, ouMais: false, comPagamento: false };
+  }
+
+  let base = M;
+  let ultima = ocorrencia(Y, M, dia);
+  if (ultima >= hoje) { base = M - 1; ultima = ocorrencia(Y, base, dia); }
+
+  const inicio = divida.data_inicio ? String(divida.data_inicio).slice(0, 10) : null;
+  if (inicio && ultima <= inicio) return null;
+  if (divida.proximo_vencimento && String(divida.proximo_vencimento).slice(0, 10) > ultima) return null;
+
+  const coberta = vencimentoCoberto(pago, dia);
+  if (coberta >= ultima) return null;
+
+  const teto = total > 0 ? Math.min(MAX_PARCELAS_ATRASO, total - pagas) : MAX_PARCELAS_ATRASO;
+  let quantas = 0;
+  let desde = ultima;
+  let ouMais = false;
+  for (let i = 0; ; i++) {
+    const v = ocorrencia(Y, base - i, dia);
+    if (v <= coberta) break;
+    if (inicio && v <= inicio) break;
+    if (quantas >= teto) { ouMais = quantas >= MAX_PARCELAS_ATRASO; break; }
+    quantas += 1;
+    desde = v;
+  }
+  return { desde, ultima, dias: diffDias(desde, hoje), quantas, ouMais, comPagamento: true };
+}
+
+/** O status que a dívida deve ter AGORA — só alterna 'ativa' ↔ 'em_atraso'. */
+export function statusDeAtraso(divida: DividaVenc, hoje: string = hojeSP()): string | null | undefined {
+  const atual = divida?.status;
+  if (atual !== 'ativa' && atual !== 'em_atraso') return atual;
+  return parcelasEmAtraso(divida, hoje) ? 'em_atraso' : 'ativa';
 }
