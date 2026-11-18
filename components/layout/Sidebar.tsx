@@ -336,7 +336,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const { data: chamadosData } = useApi(
     phone ? `d:chamados:${phone}` : null,
     () => api.bug.meusChamados(),
-    { refreshInterval: 120_000 },
+    // `portao: false`: é um selo da barra, não o conteúdo da tela. Sem isto,
+    // na 1ª abertura do app esta consulta sozinha cobria QUALQUER aba com a
+    // baleia até responder (medido, nov/2026).
+    { refreshInterval: 120_000, portao: false },
   );
   const chamadosNaoLidos = useMemo(
     () => ((chamadosData as any)?.chamados || [])

@@ -3452,6 +3452,39 @@ completa ao servidor**, e o aquecimento nunca era aproveitado. Hoje **300s**.
 
 ⚠️ Ao mexer num dos dois, conferir o outro — eles só funcionam em par.
 
+### 3C-bis. ⚠️ A BALEIA: quando aparece e por quê (nov/2026)
+
+Relato de cliente no plano grátis: "frequentemente aparece a tela com a
+baleia". Medido em produção: baleia em **toda** troca de mês (0,7–1,6 s), na
+1ª visita a Cartões/Previstos/Relatórios/Investimentos (até 3,5 s) e até com a
+aba já desenhada. Duas mudanças (item 2: `ec66c9a`; item 1: este commit):
+
+- ⚠️ **O `isLoading` do SWR NÃO quer dizer "tela vazia".** O SWR monta a tela
+  como `{ isLoading: true, ...cache }` quando vai revalidar, e o `mutate` grava
+  só `{ data, error }` — chave gravada por `mutate` (aquecimento, otimista) fica
+  SEM `isLoading` e abre "carregando" com o dado na mão. E na troca de mês o
+  `keepPreviousData` mostra o mês anterior com `isLoading: true`.
+- **Regra única em `lib/portao.ts`** (`eval:portao`): nada pra mostrar →
+  baleia; dado de OUTRA chave (mês anterior) → `'trocando'` (barra fina +
+  conteúdo apagado, sem bloquear, só depois de 150 ms); dado da própria chave →
+  nada; `useApi(..., { portao: false })` = consulta secundária (chamados da
+  barra, resumo do Grow) nunca segura a tela; **painel `/negocios` segue como
+  era** (a chave muda ao trocar de EMPRESA).
+- **Aquecimento no ocioso** (`aquecerAbasNoOcioso` em `lib/prefetch.ts`,
+  `eval:prefetch`): uma vez por sessão, só as chaves que as abas pedem SEM dado
+  do servidor; grava o estado COMPLETO (`isLoading: false`), senão a baleia
+  voltava; não repete chave que a tela já está buscando. ⚠️ Tela nova com
+  chave sem SSR: incluir em `itensDoAquecimento` (o eval confere o contrato com
+  o código das telas). Grow fica de fora (decisão do dono).
+- O card de resumo do dashboard busca as faturas na chave canônica
+  (`chave.faturas(phone, 0)`) — antes descartava a resposta e Cartões/Previstos
+  pediam de novo uma rota de ~4 s.
+- **Diagnóstico:** `window.__soraPortao` lista as chaves que seguram a baleia
+  agora; `[data-portao="baleia"|"trocando"]` marca os dois estados no DOM.
+- Medido depois (conta comercial, aparelho sem cache): **zero baleia** nas 11
+  abas de Finanças, na abertura e na volta ao dashboard; troca de mês sem
+  baleia em Transações, Relatórios e Categorias.
+
 ### 3D. ⚠️ O `LoadingGate` engolia TODO toque na navegação (set/2026)
 
 Relato: *"cliquei em transações 2x e não abriu, só na terceira foi; depois tive

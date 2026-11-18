@@ -2,30 +2,40 @@
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import SoraLoader from './SoraLoader';
+import type { EstadoPortao } from '@/lib/portao';
 
 // Ancestral de todas as páginas (montado em providers.tsx). Cada chamada de
-// useApi avisa, por um contador, quando está no PRIMEIRO carregamento (sem
-// dado em cache). Enquanto houver ≥1 carregando, a baleia cobre a área de
-// conteúdo — a tela real só aparece quando os dados chegam (sem flash de zeros).
-// Em revisita (cache quente) o SWR já tem dado → isLoading=false → sem baleia.
+// useApi avisa, por contadores, em que estado está — a REGRA de qual estado é
+// qual mora em `lib/portao.ts` (nov/2026):
+//
+//   • 'baleia'   → não há NADA pra mostrar: a baleia cobre a área de conteúdo
+//                  (sem flash de zeros). Era o único estado antes, e acendia
+//                  também com a tela cheia de dados — ver lib/portao.ts.
+//   • 'trocando' → a tela mostra o dado ANTERIOR (troca de mês/ano): barra fina
+//                  no topo + conteúdo apagado. NÃO bloqueia nada — a pessoa
+//                  continua navegando e tocando; só não lê o número antigo como
+//                  se fosse do mês novo.
 
-type Register = (active: boolean) => void;
+type Register = (estado: Exclude<EstadoPortao, null>, ativo: boolean) => void;
 const LoadingGateCtx = createContext<Register>(() => {});
 
 // layout-effect no client (cobre antes do paint → sem flash); effect no SSR.
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export function LoadingGateProvider({ children }: { children: React.ReactNode }) {
-  const [count, setCount] = useState(0);
-  const register = useCallback<Register>((active) => {
-    setCount((c) => Math.max(0, c + (active ? 1 : -1)));
+  const [baleias, setBaleias] = useState(0);
+  const [trocas, setTrocas] = useState(0);
+  const register = useCallback<Register>((estado, ativo) => {
+    const set = estado === 'baleia' ? setBaleias : setTrocas;
+    set((c) => Math.max(0, c + (ativo ? 1 : -1)));
   }, []);
 
   return (
     <LoadingGateCtx.Provider value={register}>
       {children}
-      {count > 0 && (
+      {baleias > 0 && (
         <div
+          data-portao="baleia"
           // ⚠️ z-30, ABAIXO DA NAVEGAÇÃO — e isso não é detalhe de estilo.
           //
           // Aqui era `z-40`, o MESMO do BottomNav, e o `md:left-64` só recua no
@@ -51,6 +61,32 @@ export function LoadingGateProvider({ children }: { children: React.ReactNode })
           <SoraLoader />
         </div>
       )}
+      {baleias === 0 && trocas > 0 && (
+        <>
+          {/* Conteúdo apagado: o número na tela é do período ANTERIOR.
+              ⚠️ `pointer-events-none`: nada fica bloqueado — dá pra tocar de
+              novo no "mês anterior", abrir menu, rolar.
+              ⚠️ Só aparece depois de 150 ms (delay da animação): resposta
+              rápida não pisca nada. */}
+          <div
+            data-portao="trocando"
+            aria-hidden
+            className="fixed inset-0 md:left-64 z-30 pointer-events-none opacity-0 animate-[portao-aparece_200ms_ease-out_150ms_forwards]"
+            style={{ background: 'hsl(var(--bg) / 0.45)' }}
+          />
+          {/* Barra fina no topo (indeterminada). */}
+          <div
+            data-portao="trocando-barra"
+            className="fixed top-0 left-0 md:left-64 right-0 z-30 h-[3px] overflow-hidden pointer-events-none opacity-0 animate-[portao-aparece_200ms_ease-out_150ms_forwards]"
+          >
+            <div
+              className="h-full w-1/3 rounded-full motion-safe:animate-[portao-barra_1.1s_ease-in-out_infinite]"
+              style={{ background: 'hsl(var(--primary))' }}
+            />
+            <span className="sr-only" role="status">Atualizando</span>
+          </div>
+        </>
+      )}
     </LoadingGateCtx.Provider>
   );
 }
@@ -66,14 +102,17 @@ function marcarChave(chaveDebug: string | undefined, delta: 1 | -1) {
   (window as unknown as { __soraPortao?: string[] }).__soraPortao = Array.from(chavesNoPortao.keys());
 }
 
-// Registra um carregamento ativo no portão. `active` deve ser o `isLoading` do
-// SWR (true só no 1º load sem cache). Usado internamente pelo useApi.
-export function useGateRegister(active: boolean, chaveDebug?: string) {
+// Registra o estado de uma chamada no portão (regra em lib/portao.ts). Usado
+// internamente pelo useApi. Só a BALEIA entra no diagnóstico de chaves.
+export function useGateRegister(estado: EstadoPortao, chaveDebug?: string) {
   const register = useContext(LoadingGateCtx);
   useIsoLayoutEffect(() => {
-    if (!active) return;
-    register(true);
-    marcarChave(chaveDebug, 1);
-    return () => { register(false); marcarChave(chaveDebug, -1); };
-  }, [active, register, chaveDebug]);
+    if (!estado) return;
+    register(estado, true);
+    if (estado === 'baleia') marcarChave(chaveDebug, 1);
+    return () => {
+      register(estado, false);
+      if (estado === 'baleia') marcarChave(chaveDebug, -1);
+    };
+  }, [estado, register, chaveDebug]);
 }

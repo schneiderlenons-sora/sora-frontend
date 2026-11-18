@@ -24,9 +24,19 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
   // visível). Sem o segundo passo, o LCP continua disputando banda.
   const { ref, visivel } = useVisivel<HTMLElement>(pronto);
   const ativo = phone && temAcessoGrow && pronto && visivel;
-  const { data: tarefasData } = useApi(ativo ? `grow:tarefas:${phone}` : null, () => api.grow.tarefas.listar(phone, { concluida: false }));
-  const { data: humorData }   = useApi(ativo ? `grow:humor:${phone}`   : null, () => api.grow.humor.listar(phone, 1));
-  const { data: eventosData } = useApi(ativo ? `grow:feed:${phone}`    : null, () => api.grow.compromissos.feed(phone));
+  // `portao: false`: este bloco fica ABAIXO da dobra e carrega sozinho — não
+  // pode cobrir o dashboard inteiro com a baleia (era o que acontecia ao
+  // voltar ao dashboard, medido em nov/2026). Enquanto não chega, cada parte
+  // mostra um esqueleto (`carregando*` abaixo), nunca o estado vazio.
+  const { data: tarefasData, error: erroTarefas } = useApi(ativo ? `grow:tarefas:${phone}` : null, () => api.grow.tarefas.listar(phone, { concluida: false }), { portao: false });
+  const { data: humorData, error: erroHumor }     = useApi(ativo ? `grow:humor:${phone}`   : null, () => api.grow.humor.listar(phone, 1), { portao: false });
+  const { data: eventosData, error: erroEventos } = useApi(ativo ? `grow:feed:${phone}`    : null, () => api.grow.compromissos.feed(phone), { portao: false });
+  // ⚠️ Sem dado ainda ≠ "nada marcado"/"0 pendentes": mostrar o vazio antes de
+  // a resposta chegar dizia à pessoa que ela não tinha nada. Com ERRO, volta o
+  // estado de antes (vazio) — esqueleto eterno seria pior.
+  const carregandoTarefas = tarefasData === undefined && !erroTarefas;
+  const carregandoHumor   = humorData === undefined && !erroHumor;
+  const carregandoEventos = eventosData === undefined && !erroEventos;
 
   const tarefas = Array.isArray(tarefasData) ? tarefasData : [];
   const humor   = Array.isArray(humorData)   ? humorData   : [];
@@ -72,7 +82,13 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
             </div>
             <ChevronRight size={16} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
           </div>
-          {proximos.length ? (
+          {carregandoEventos ? (
+            <div className="space-y-2.5 flex-1" aria-busy="true" aria-label="Carregando próximos eventos">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-4 rounded bg-muted motion-safe:animate-pulse" style={{ width: `${80 - i * 15}%` }} />
+              ))}
+            </div>
+          ) : proximos.length ? (
             <div className="space-y-2.5 flex-1">
               {proximos.map(e => (
                 <div key={e.id} className="flex items-center gap-2.5 min-w-0">
@@ -102,10 +118,19 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
             <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
           </div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tarefas</p>
-          <p className="text-xl font-bold text-foreground tabular-nums mt-0.5 leading-tight">
-            {tarefas.length} <span className="text-xs text-muted-foreground font-medium">pendente{tarefas.length === 1 ? '' : 's'}</span>
-          </p>
-          <p className="text-[11px] text-muted-foreground truncate mt-1">{tarefas[0]?.titulo || 'Tudo em dia 🎉'}</p>
+          {carregandoTarefas ? (
+            <div aria-busy="true" aria-label="Carregando tarefas">
+              <div className="h-6 w-24 rounded bg-muted motion-safe:animate-pulse mt-1" />
+              <div className="h-3 w-full rounded bg-muted motion-safe:animate-pulse mt-2" />
+            </div>
+          ) : (
+            <>
+              <p className="text-xl font-bold text-foreground tabular-nums mt-0.5 leading-tight">
+                {tarefas.length} <span className="text-xs text-muted-foreground font-medium">pendente{tarefas.length === 1 ? '' : 's'}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate mt-1">{tarefas[0]?.titulo || 'Tudo em dia 🎉'}</p>
+            </>
+          )}
         </Link>
 
         {/* BEM-ESTAR */}
@@ -117,7 +142,9 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
             <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
           </div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bem-estar</p>
-          {humorHoje && HUMOR[humorHoje.humor] ? (
+          {carregandoHumor ? (
+            <div className="h-6 w-28 rounded bg-muted motion-safe:animate-pulse mt-1.5" aria-busy="true" aria-label="Carregando bem-estar" />
+          ) : humorHoje && HUMOR[humorHoje.humor] ? (
             <p className="text-xl font-bold text-foreground mt-0.5 leading-tight">
               {(HUMOR[humorHoje.humor] as any).e} <span className="text-xs text-muted-foreground font-medium">{(HUMOR[humorHoje.humor] as any).l}</span>
             </p>

@@ -49,7 +49,8 @@
     "eval:categorias-negocio": "npx tsx lib/categorias-negocio.eval.mjs",
     "eval:peso": "npx tsx lib/peso.eval.mjs",
     "eval:fatura-atrasada": "npx tsx lib/fatura-atrasada.eval.mjs",
-    "eval:prefetch": "npx tsx lib/prefetch.eval.mjs"
+    "eval:prefetch": "npx tsx lib/prefetch.eval.mjs",
+    "eval:portao": "npx tsx lib/portao.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

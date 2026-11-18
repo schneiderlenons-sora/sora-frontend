@@ -2,7 +2,9 @@
 
 import { useRef } from 'react';
 import useSWR, { useSWRConfig, type SWRConfiguration, type Key } from 'swr';
+import { usePathname } from 'next/navigation';
 import { useGateRegister } from '@/components/ui/LoadingGate';
+import { estadoDoPortao, dadoEhDeOutraChave } from '@/lib/portao';
 
 /**
  * Wrapper fino do SWR pros endpoints da Sora (lib/api).
@@ -20,9 +22,18 @@ import { useGateRegister } from '@/components/ui/LoadingGate';
 export function useApi<T>(
   key: Key,
   fetcher: () => Promise<T>,
-  config?: SWRConfiguration<T>,
+  configComPortao?: SWRConfiguration<T> & {
+    /**
+     * `false` = consulta SECUNDÁRIA (não é o conteúdo da tela): nunca acende a
+     * baleia. Ex.: os chamados da barra lateral, o resumo do Grow no
+     * dashboard — sem isto, eles cobriam a tela inteira na 1ª abertura.
+     */
+    portao?: boolean;
+  },
 ) {
+  const { portao, ...config } = configComPortao || {};
   const { cache } = useSWRConfig();
+  const pathname = usePathname();
 
   // ── Fim da leitura EM DOBRO do SSR ────────────────────────────────────────
   //
@@ -66,7 +77,22 @@ export function useApi<T>(
     // `revalidateOnMount` explicitamente, a escolha dele vence a nossa.
     revalidateOnMount: config?.revalidateOnMount ?? (pularMount ? false : undefined),
   });
-  // 1º carregamento (sem dado em cache) → mostra a baleia cobrindo a tela.
-  useGateRegister(swr.isLoading, typeof key === 'string' ? key : undefined);
+  // ── Portão (a baleia) — regra em `lib/portao.ts` ─────────────────────────
+  // Antes era `useGateRegister(swr.isLoading)` direto, e o `isLoading` do SWR
+  // fica TRUE com conteúdo na tela (troca de mês, aba vinda do servidor ou do
+  // cache). Agora a baleia só aparece quando não há nada pra mostrar.
+  const chaveStr = typeof key === 'string' ? key : undefined;
+  const estado = estadoDoPortao({
+    carregando: swr.isLoading,
+    temDado: swr.data !== undefined,
+    dadoDeOutraChave: dadoEhDeOutraChave({
+      dadoNaTela: swr.data,
+      dadoNoCacheDaChave: chaveStr ? cache.get(chaveStr)?.data : undefined,
+      fallbackData: config?.fallbackData,
+    }),
+    secundario: portao === false,
+    painelNegocios: !!pathname && pathname.startsWith('/negocios'),
+  });
+  useGateRegister(estado, chaveStr);
   return swr;
 }
