@@ -37,7 +37,7 @@ git push           # Vercel deploya automaticamente do GitHub (branch master)
 
 **URLs:**
 - Frontend: https://forsora.com (Vercel, auto-deploy do GitHub)
-- Backend: Express.js no Render (sora-backend — repositório separado) → **https://sora-backend-ohio.onrender.com** (região **Ohio**, a mesma do Supabase, desde 18/11/2026; o antigo `sora-backend-jqm8` em Oregon foi desligado). ⚠️ O serviço de Ohio é **Docker**: roda pelo `Dockerfile` (Node fixado lá) — ver "Backend em Ohio"
+- Backend: Express.js no Render (sora-backend — repositório separado) → **https://sora-backend-ohio.onrender.com** (região **Ohio**, a mesma do Supabase, desde 18/11/2026; o antigo `sora-backend-jqm8` em Oregon ficou com `CRONS_ATIVOS=0`, sem tráfego, e é SUSPENSO — não reativar sem desligar os crons de um dos dois). ⚠️ O serviço de Ohio é **Docker**: roda pelo `Dockerfile` (Node fixado lá) — ver "Backend em Ohio"
 - DB/Auth: Supabase
 
 **Repositórios:**
