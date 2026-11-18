@@ -255,9 +255,14 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   //
   // Sem isto, a 1ª visita a Cartões, Previstos e Relatórios cobria a tela com a
   // baleia por ~1 s no celular (não há hover pra disparar `prefetchRota`). Uma
-  // vez por sessão e por telefone, só no app pessoal, depois do `load` e com
-  // espera + lotes pequenos (ver `aquecerAbasNoOcioso`) pra não disputar a rede
-  // com o que já está na tela. Grow fica de fora (decisão do dono).
+  // vez por sessão e por telefone, só no app pessoal, com lotes pequenos (ver
+  // `aquecerAbasNoOcioso`). Grow fica de fora (decisão do dono).
+  //
+  // ⚠️ NÃO ESPERA O `load` (nov/2026). Em produção o `load` sai tarde (scripts
+  // de terceiros), e o aquecimento só começava aos ~7 s — a fatura seguinte
+  // ainda estava no ar quando a pessoa abria Cartões (medido). Agora: ocioso
+  // com prazo máximo de 1,5 s. Estas chamadas vão pro backend (outro host que
+  // as rotas), então não disputam a fila do HTML/JS da página.
   const podeInvestimentos = podeUsar('investimentos');
   const perfilPronto = !!perfil;
   useEffect(() => {
@@ -273,18 +278,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       aquecerAbasNoOcioso(phone, cacheSWR, { investimentos: podeInvestimentos });
     };
     const w = window as unknown as {
-      requestIdleCallback?: (cb: () => void) => number;
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (h: number) => void;
     };
-    const agendar = () => {
-      if (w.requestIdleCallback) ocioso = w.requestIdleCallback(iniciar);
-      else iniciar();
-    };
-    if (document.readyState === 'complete') agendar();
-    else window.addEventListener('load', agendar, { once: true });
+    let reserva: number | null = null;
+    if (w.requestIdleCallback) ocioso = w.requestIdleCallback(iniciar, { timeout: 1500 });
+    else reserva = window.setTimeout(iniciar, 1500);
     return () => {
-      window.removeEventListener('load', agendar);
       if (ocioso !== null && w.cancelIdleCallback) w.cancelIdleCallback(ocioso);
+      if (reserva !== null) clearTimeout(reserva);
       // ⚠️ NÃO cancela os lotes já agendados: trocar de aba logo depois de
       // entrar remonta partes da tela, e cortar o aquecimento ali deixaria
       // justamente as abas seguintes frias. A flag já marcou a sessão.

@@ -25,7 +25,36 @@ import { chave } from './chaves-swr';
 // ─────────────────────────────────────────────────────────────
 export type CacheSWR = { cache: Cache; mutate: ScopedMutator };
 
-const emVoo = new Set<string>();
+const emVoo = new Map<string, Promise<unknown>>();
+
+/**
+ * A busca do aquecimento que ainda está NO AR pra esta chave, se houver.
+ *
+ * ⚠️ Usada pelo `useApi` SÓ na 1ª carga (tela sem dado nenhum da chave): em vez
+ * de pedir a mesma URL de novo, a tela espera a resposta que já vem vindo.
+ * Medido em produção (nov/2026): a fatura seguinte (~2,5 s) foi pedida pelo
+ * aquecimento aos 7,7 s, a pessoa abriu Cartões aos 8 s, a tela pediu DE NOVO
+ * e a baleia ficou até a 2ª resposta.
+ * ⚠️ Nunca numa revalidação (tela já com dado): é depois de uma ação, e a busca
+ * do aquecimento pode ser de ANTES dela — foi esse o defeito do `preload` (ver
+ * o topo deste arquivo).
+ */
+export function buscaDoAquecimento(key: string): Promise<unknown> | undefined {
+  return emVoo.get(key);
+}
+
+/**
+ * O que a tela busca: a resposta do aquecimento no ar (só sem dado da chave)
+ * ou uma busca nova. Falha do aquecimento → busca nova. Usada pelo `useApi`.
+ */
+export function buscarReaproveitando<T>(key: string | undefined, temDado: boolean, buscar: () => Promise<T>): Promise<T> {
+  if (key && !temDado) {
+    const noAr = emVoo.get(key);
+    if (noAr) return (noAr as Promise<T>).catch(() => buscar());
+  }
+  return buscar();
+}
+
 function aquecer(cfg: CacheSWR, key: string, buscar: () => Promise<unknown>) {
   if (!cfg?.cache || emVoo.has(key)) return;
   const atual = cfg.cache.get(key);
@@ -33,8 +62,9 @@ function aquecer(cfg: CacheSWR, key: string, buscar: () => Promise<unknown>) {
   // busca em andamento no cache): pedir de novo seria requisição em dobro —
   // foi o caso da rota de faturas (~4 s), pedida pelo dashboard E aqui.
   if (atual?.data !== undefined || atual?.isValidating) return;
-  emVoo.add(key);
-  buscar()
+  const promessa = buscar();
+  emVoo.set(key, promessa);
+  promessa
     .then((data) => {
       const agora = cfg.cache.get(key);
       // A tela buscou (ou está buscando) enquanto isto estava no ar: o dado
@@ -171,13 +201,17 @@ export function itensDoAquecimento(
   const [anoSP, mesSP] = ymSP.split('-').map(Number);
   const PERIODO_PADRAO_PREVISTOS = 6; // `useState<number>(6)` em PrevistosClient
 
+  // ⚠️ A ORDEM É A DA DEMORA: as faturas (~2–4 s no backend) vão primeiro. Em
+  // produção a fatura seguinte saiu por último e ainda estava no ar quando a
+  // pessoa abriu Cartões (medido). A atual (offset 0) quase sempre já vem do
+  // dashboard e é pulada sozinha (`aquecer` não repete chave em busca).
   const itens: ItemAquecimento[] = [
+    // Cartões — as faturas não vêm no SSR.
+    { key: chave.faturas(p, 1), buscar: () => api.wallets.faturas(p, 1) },
+    { key: chave.faturas(p, 0), buscar: () => api.wallets.faturas(p, 0) },
     // Relatórios (barra de baixo) — o resto da aba vem do SSR.
     { key: chave.anual(p, anoLocal), buscar: () => api.transacoes.anual(p, anoLocal) },
     { key: chave.limites(p, mesLocal), buscar: () => api.limites.listar(p, mesLocal) },
-    // Cartões — as faturas não vêm no SSR.
-    { key: chave.faturas(p, 0), buscar: () => api.wallets.faturas(p, 0) },
-    { key: chave.faturas(p, 1), buscar: () => api.wallets.faturas(p, 1) },
     // Previstos — a aba inteira é só cliente.
     { key: chave.recorrencias(p), buscar: () => api.recorrencias.listar(p) },
     { key: chave.dividas(p), buscar: () => api.dividas.listar(p) },
@@ -215,7 +249,7 @@ export function aquecerAbasNoOcioso(
   const itens = itensDoAquecimento(phone, { investimentos: opts.investimentos });
   const LOTE = opts.lote ?? 2;
   const INTERVALO = opts.intervaloMs ?? 600;
-  const ESPERA = opts.esperaMs ?? 2500;
+  const ESPERA = opts.esperaMs ?? 300;
   const timers: number[] = [];
   let cancelado = false;
   for (let i = 0; i < itens.length; i += LOTE) {

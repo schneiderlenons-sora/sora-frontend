@@ -5,6 +5,7 @@ import useSWR, { useSWRConfig, type SWRConfiguration, type Key } from 'swr';
 import { usePathname } from 'next/navigation';
 import { useGateRegister } from '@/components/ui/LoadingGate';
 import { estadoDoPortao, dadoEhDeOutraChave } from '@/lib/portao';
+import { buscarReaproveitando } from '@/lib/prefetch';
 
 /**
  * Wrapper fino do SWR pros endpoints da Sora (lib/api).
@@ -68,7 +69,16 @@ export function useApi<T>(
   }
   const pularMount = temSSR && semCache.current === true;
 
-  const swr = useSWR<T>(key, fetcher, {
+  // ⚠️ 1ª CARGA REAPROVEITA O AQUECIMENTO que já está no ar (nov/2026) — ver
+  // `buscaDoAquecimento`. Só sem dado da chave: numa revalidação (tela já com
+  // dado, quase sempre depois de uma ação) a busca é sempre nova. Se a do
+  // aquecimento falhar, busca por conta própria.
+  const buscar = () => {
+    const chave = typeof key === 'string' ? key : undefined;
+    return buscarReaproveitando(chave, chave ? cache.get(chave)?.data !== undefined : true, fetcher);
+  };
+
+  const swr = useSWR<T>(key, buscar, {
     revalidateOnFocus: false,
     keepPreviousData: true,
     dedupingInterval: 4000,
