@@ -68,12 +68,18 @@ export default function BalcaoVenda({
   const { data: produtosData } = useApi(
     phone ? `neg:produtos:${empresaId}` : null,
     () => api.negocios.produtos.listar(phone, empresaId),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const produtos: ProdutoNegocio[] = useMemo(() => Array.isArray(produtosData) ? produtosData : [], [produtosData]);
 
   const { data: clientesData } = useApi(
     (phone && etapa === 'pagamento') ? `neg:clientes:${empresaId}` : null,
     () => api.negocios.clientes.listar(phone, empresaId),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const clientes: ClienteNegocio[] = useMemo(() => Array.isArray(clientesData) ? clientesData : [], [clientesData]);
 
@@ -82,6 +88,9 @@ export default function BalcaoVenda({
   const { data: equipeData } = useApi(
     (phone && etapa === 'pagamento') ? `neg:func:${empresaId}` : null,
     () => api.negocios.funcionarios.listar(phone, empresaId),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const comissionados = useMemo(
     () => (Array.isArray(equipeData) ? equipeData : []).filter(f => (f.comissao_pct || 0) > 0),

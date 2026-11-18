@@ -49,6 +49,23 @@ export function estadoDoPortao(f: FatosDoCarregamento): EstadoPortao {
   return null;
 }
 
+// ─── Qual esqueleto cobre a tela (nov/2026) ─────────────────────────────────
+// No painel o "nada pra mostrar" não é mais a baleia: é o MESMO esqueleto que o
+// `loading.tsx` da rota desenha, no MESMO lugar. Antes a pessoa via esqueleto
+// (rota) → baleia em tela cheia → conteúdo; agora o esqueleto só continua até o
+// dado chegar. Por isso esta lista ESPELHA os `loading.tsx` — o
+// `eval:portao` lê cada um e falha se divergirem (ou se nascer um novo).
+export type Esqueleto = 'dashboard' | 'secao' | 'negocios' | 'pagina';
+
+export function esqueletoDaRota(pathname: string | null | undefined): Esqueleto {
+  const p = pathname || '';
+  const em = (base: string) => p === base || p.startsWith(base + '/');
+  if (em('/negocios')) return 'negocios';
+  if (em('/dashboard')) return 'dashboard';
+  if (em('/previstos')) return 'secao';
+  return 'pagina';
+}
+
 /**
  * O dado que o SWR devolveu é de OUTRA chave? Só dá pra saber comparando com
  * o cache DESTA chave: o SWR devolve o mês anterior (`keepPreviousData`)

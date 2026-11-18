@@ -56,12 +56,18 @@ export default function ModalCompra({
   const { data: produtosData } = useApi(
     phone ? `neg:produtos:${empresaId}` : null,
     () => api.negocios.produtos.listar(phone, empresaId),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const produtos: ProdutoNegocio[] = useMemo(() => Array.isArray(produtosData) ? produtosData : [], [produtosData]);
 
   const { data: fornData } = useApi(
     phone ? `neg:fornecedores:${empresaId}` : null,
     () => api.negocios.fornecedores.listar(phone, empresaId),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const fornecedores: FornecedorNegocio[] = useMemo(() => Array.isArray(fornData) ? fornData : [], [fornData]);
 

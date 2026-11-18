@@ -3479,8 +3479,22 @@ aba já desenhada. Duas mudanças (item 2: `ec66c9a`; item 1: este commit):
 - O card de resumo do dashboard busca as faturas na chave canônica
   (`chave.faturas(phone, 0)`) — antes descartava a resposta e Cartões/Previstos
   pediam de novo uma rota de ~4 s.
-- **Diagnóstico:** `window.__soraPortao` lista as chaves que seguram a baleia
-  agora; `[data-portao="baleia"|"trocando"]` marca os dois estados no DOM.
+- **Diagnóstico:** `window.__soraPortao` lista as chaves que seguram a tela
+  agora; `[data-portao="esqueleto"|"baleia"|"trocando"]` marca os estados no DOM.
+- **No painel não existe mais baleia — é o ESQUELETO DA ROTA (item 4).** A
+  pessoa via esqueleto (`loading.tsx`) → baleia em tela cheia → conteúdo, e a
+  baleia entrava com opacidade **0,00 no 1º quadro** (fade): a tela zerada
+  vazava por trás dela. Hoje `ConteudoDoPortao` (em `LoadingGate.tsx`, dentro do
+  `main` do `DashboardLayout`) deixa o conteúdo `visibility: hidden` (continua
+  montado e medindo — gráficos ok; invisível não recebe toque) e desenha o MESMO
+  esqueleto do `loading.tsx` daquela rota no MESMO lugar (`padding: inherit`,
+  medido ao pixel). ⚠️ `esqueletoDaRota` ESPELHA os `loading.tsx` — o
+  `eval:portao` §5 lê cada página do app e falha se divergir; `loading.tsx` com
+  desenho próprio novo tem de virar componente e entrar ali (como
+  `EsqueletoDashboard`/`EsqueletoNegocios`). Fora do painel (só o `/wrapped`)
+  segue a baleia. ⚠️ **Modal (`createPortal`) que busca dado usa
+  `portao: false`**: o portão da página nunca cobriu o modal (z acima), só
+  escondia a tela atrás dele.
 - Medido depois (conta comercial, aparelho sem cache): **zero baleia** nas 11
   abas de Finanças, na abertura e na volta ao dashboard; troca de mês sem
   baleia em Transações, Relatórios e Categorias.

@@ -33,6 +33,9 @@ export default function AtrelarInvestimentos({
   const { data, mutate } = useApi(
     phone ? `inv:lista:${phone}` : null,
     () => api.investimentos.listar(phone),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const invs: any[] = (data as any) ?? [];
   const carregando = data === undefined;

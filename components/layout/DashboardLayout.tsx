@@ -5,6 +5,7 @@ import BottomNav from './BottomNav';
 import AvisoChamado from '@/components/suporte/AvisoChamado';
 import ThemeToggle from './ThemeToggle';
 import BarraPlayStore from '@/components/app/BarraPlayStore';
+import { ConteudoDoPortao } from '@/components/ui/LoadingGate';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from 'next-themes';
 import { navPaleta } from '@/lib/nav-cores';
@@ -87,7 +88,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         "
       >
         {mostrarBadge && <PapelBadge papel={papel} />}
-        {children}
+        {/* Sem dado pra mostrar, o conteúdo fica invisível e entra o esqueleto
+            da rota no mesmo lugar (no lugar da baleia) — ver LoadingGate. */}
+        <ConteudoDoPortao>{children}</ConteudoDoPortao>
       </main>
       </div>
       <BottomNav onPerfil={() => setNavOpen(true)} />

@@ -38,6 +38,9 @@ export default function FichaCliente({
   const { data, isLoading } = useApi(
     phone ? `neg:cliente:${clienteId}` : null,
     () => api.negocios.clientes.ficha(phone, clienteId),
+    // Modal (portal): o portão da PÁGINA não o cobre — só esconderia a tela
+    // atrás dele. O modal mostra o próprio carregando.
+    { portao: false },
   );
   const c = data as ClienteFicha | undefined;
 
