@@ -37,7 +37,7 @@ git push           # Vercel deploya automaticamente do GitHub (branch master)
 
 **URLs:**
 - Frontend: https://forsora.com (Vercel, auto-deploy do GitHub)
-- Backend: Express.js no Render (sora-backend — repositório separado) → https://sora-backend-jqm8.onrender.com
+- Backend: Express.js no Render (sora-backend — repositório separado) → **https://sora-backend-ohio.onrender.com** (região **Ohio**, a mesma do Supabase, desde 18/11/2026; o antigo `sora-backend-jqm8` em Oregon foi desligado). ⚠️ O serviço de Ohio é **Docker**: roda pelo `Dockerfile` (Node fixado lá) — ver "Backend em Ohio"
 - DB/Auth: Supabase
 
 **Repositórios:**
@@ -3693,6 +3693,53 @@ Render rota real (com auth) ..... mediana ~240ms   pior 671ms
     a outra, e a de investimentos pode falhar de propósito (leitura tolerante da
     migration 147).
 
+### 6B. Backend em Ohio + as duas rotas mais lentas em paralelo (nov/2026)
+
+**Mudou de região em 18/11/2026** (Oregon → Ohio, junto do Supabase): serviço
+novo `sora-backend-ohio` (o Render não troca a região de um serviço existente).
+Virada: `NEXT_PUBLIC_API_URL` (Vercel), webhook da Meta (Casos de uso → WhatsApp →
+Personalizar → Configuração), webhook da Polp/Celcoin, UptimeRobot (o ping a cada
+5 min que impede o free tier de dormir) e `CRONS_ATIVOS` (antigo 0, novo 1).
+- ⚠️ **Ohio é DOCKER** (criado assim por engano, e funciona igual — só há
+  dependência em JS puro): a versão do Node mora no `Dockerfile`
+  (`node:26.13.1-alpine`) **e** no `.node-version`. Mexeu num, mexa no outro.
+- ⚠️ `engines: ">=20"` sem teto faz o Render pegar o Node MAIS NOVO a cada build
+  — Oregon tinha ido sozinho pra 26. Por isso a versão está fixada.
+
+**Medir DENTRO do servidor:** `x-sora-diag: <API_SECRET_TOKEN>` em qualquer
+requisição devolve `Server-Timing` (total, banco com nº de idas e quantas EM
+SÉRIE, CPU) e `X-Sora-Idas` (início+duração+tabela de cada ida) —
+`src/diag/tempoRequisicao.js`. Sem a chave nada muda. Também: `/health` traz
+`crons`, e `/health/env?key=` compara variáveis entre servidores sem expor valor.
+
+Medido em Ohio: cada ida em série ~20–25 ms; as rotas lentas eram **>95% espera
+de banco** (cálculo 25–46 ms). Por isso o remédio foi paralelizar, não otimizar
+cálculo:
+- `GET /wallets/faturas`: cartões juntos (`mapEmOrdem`, teto 4, NA ORDEM dos
+  cartões); atrasadas + fatura publicada + parcelas previstas junto com a atual;
+  parcelas previstas lidas uma vez por cartão/competência (`memoPorRequisicao`).
+- `montarFeed` (agenda): as 10 fontes em paralelo, juntadas NA ORDEM de antes (a
+  dedup do fim depende dela); faturas por cartão em paralelo.
+- `statusFatura`: soma do ciclo e pagamentos juntos (vale pra todo lugar que
+  calcula fatura: painel, agenda, WhatsApp, crons).
+- **Resultado (mediana de 15, conta comercial, servidor → celular):** fatura atual
+  471→258 ms (680→511), seguinte 253→113 (512→308), agenda 427→248 (641→477).
+  ~200 ms do celular são a viagem Brasil↔Ohio, fixos.
+- ⚠️ **Rodar em paralelo deixa cada consulta mais lenta** (20 → 50–130 ms com
+  várias ao mesmo tempo, o banco é o plano gratuito). Paralelizar tem teto; o que
+  sobra na fatura atual é a corrente de ATRASADAS (mês a mês pra trás até achar
+  uma paga — tem de ser em série).
+- **Como foi provado que a resposta não mudou:** a versão antiga (git worktree) e
+  a nova lado a lado sobre os grupos reais, escrita no Supabase BLOQUEADA, auth
+  stubado, comparando sha256 de cada resposta: 501 faturas (167 grupos × −1/0/1)
+  + 425 feeds — todas iguais. ⚠️ A ordem das parcelas de dívida na agenda pode
+  variar entre execuções (a consulta não tem ORDER BY) — diferença que aparece
+  assim é do banco, não da mudança: confirmar rodando a versão ANTIGA contra ela
+  mesma. ⚠️ Rodar as duas versões em momentos diferentes acusa "diferença" de
+  dado que mudou no meio — repetir o grupo lado a lado antes de concluir.
+- **Não feito (de propósito):** juntar a leitura dupla de `users` nas rotas do Grow
+  (`auth` + `getUser`) — exigiria mexer na autenticação de TODA rota por ~20 ms.
+
 ### ⚠️ O que NÃO fazer: portar /investimentos e /metas pra leitura direta
 
 As duas ainda usam `backendGet` (hop do Render, ~483ms × ~155ms direto), e a
@@ -4761,7 +4808,7 @@ histórico, então quem editar por lá tem de trazer a mudança pro arquivo.
 ## Deployment
 
 - **Frontend:** Vercel — auto-deploy a cada push no branch `master` do GitHub
-- **Backend:** Render — auto-deploy via GitHub (sora-backend-jqm8.onrender.com). Vars de ambiente via painel Render → Environment.
+- **Backend:** Render — auto-deploy via GitHub (`sora-backend-ohio.onrender.com`, região Ohio, runtime **Docker**). Vars de ambiente via painel Render → Environment. ⚠️ `CRONS_ATIVOS` decide qual servidor roda os lembretes — só um pode (ver as env vars).
 - **Migrations SQL:** rodar manualmente no Supabase Dashboard → SQL Editor
 - **Cache Vercel:** `export const revalidate = 0` em `app/page.tsx` pra landing não cachear
 - **Service Worker:** `public/sw.js` usa `CACHE = 'sora-v3'`, HTML nunca cacheado
