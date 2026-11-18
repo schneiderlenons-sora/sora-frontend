@@ -3484,6 +3484,11 @@ aba já desenhada. Duas mudanças (item 2: `ec66c9a`; item 1: este commit):
 - Medido depois (conta comercial, aparelho sem cache): **zero baleia** nas 11
   abas de Finanças, na abertura e na volta ao dashboard; troca de mês sem
   baleia em Transações, Relatórios e Categorias.
+- ⚠️ **O que sobra (medido em produção):** abrir **Cartões nos primeiros ~3 s**
+  depois de abrir o app ainda dá ~1,4 s de baleia (antes 3,5 s) — a tela espera
+  a busca do aquecimento que já está no ar (pedida UMA vez só). Quem segura é
+  `/wallets/faturas` (~2–4 s no Render). Daí pra frente, só deixando essa rota
+  mais rápida no backend — não mexer no portão por isso.
 
 ### 3D. ⚠️ O `LoadingGate` engolia TODO toque na navegação (set/2026)
 
