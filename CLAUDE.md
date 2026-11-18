@@ -4705,6 +4705,7 @@ BRAPI_TOKEN              (cotação da B3 — o Yahoo recusa o IP do Render. SEM
 API_SECRET_TOKEN (autenticação entre frontend e backend)
 SUPABASE_URL, SUPABASE_KEY
 SORA_CAPA_URL (capa 1200x630 da Sora; default ${APP_URL}/sora-capa.png)
+CRONS_ATIVOS             (trava dos 24 crons — config/crons.js. Sem a variável = LIGADOS. 0 = este servidor NÃO manda lembrete/aviso/resumo; valor torto também desliga. Estado em GET /health → "crons". Só UM backend no ar pode ter os crons ligados: o remédio guarda o "já mandei" na memória e sairia em dobro. eval:crons-ativos)
 ```
 
 ---
