@@ -3494,7 +3494,11 @@ aba já desenhada. Duas mudanças (item 2: `ec66c9a`; item 1: este commit):
   `EsqueletoDashboard`/`EsqueletoNegocios`). Fora do painel (só o `/wrapped`)
   segue a baleia. ⚠️ **Modal (`createPortal`) que busca dado usa
   `portao: false`**: o portão da página nunca cobriu o modal (z acima), só
-  escondia a tela atrás dele.
+  escondia a tela atrás dele. Peso conferido em A/B (mesma máquina, CPU 4×
+  mais lenta, 3 rodadas alternadas): antigo 44 travas / 4,89 s, novo 39 / 5,00 s
+  — faixas sobrepostas, sem diferença. ⚠️ O que sobra de espera (Grow,
+  Comunidade, Negócios, Cartões cedo) é o BACKEND: ver memória
+  `project-render-regiao` (cada ida em série ao banco custa 110–125 ms).
 - Medido depois (conta comercial, aparelho sem cache): **zero baleia** nas 11
   abas de Finanças, na abertura e na volta ao dashboard; troca de mês sem
   baleia em Transações, Relatórios e Categorias.
