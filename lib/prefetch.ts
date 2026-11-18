@@ -185,14 +185,14 @@ const DADOS_DO_MENU: Record<string, (p: string, ctx: CtxMenu) => ItemAquecimento
   '/grow/agenda': (p) => [
     { key: `grow:feed:${p}`, buscar: () => api.grow.compromissos.feed(p) },
   ],
-  // O item do menu leva a /grow/estudos, que redireciona pro painel de Estudos.
-  '/grow/estudos': (p) => [
+  // O item do menu leva direto ao PAINEL de Estudos (o índice só redireciona).
+  '/grow/estudos/dashboard': (p) => [
     { key: `est:dash:${p}`, buscar: () => api.estudos.dashboard(p) },
     { key: `est:sessoes:${p}`, buscar: () => api.estudos.sessoes.listar(p, { dias: 90 }) },
     { key: `est:biblia:${p}`, buscar: () => api.biblia.get(p) },
   ],
-  // Idem: /grow/saude redireciona pro painel de Saúde.
-  '/grow/saude': (p) => [
+  // Idem: direto ao painel de Saúde.
+  '/grow/saude/dashboard': (p) => [
     { key: `saude:dash:${p}`, buscar: () => api.saude.dashboard(p) },
   ],
   '/grow/bem-estar': (p) => [

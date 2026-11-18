@@ -177,6 +177,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const todasAsRotas = useMemo(() => Array.from(new Set([
     ...NAV_TOPO.map((i) => i.href),
     ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
+    // ⚠️ As SEÇÕES do fim do menu (Gestão compartilhada) não entravam: a 1ª
+    // visita à /comunidade baixava a rota inteira na hora do toque (~0,7 s
+    // medido). As de `externa` (com ?aba=) já vêm pela rota-base, abaixo.
+    ...SECOES.flatMap((sg) => sg.itens.filter((i) => !i.externa).map((i) => i.href)),
     '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
   ])), []);
 
@@ -524,8 +528,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const sidebarBg = isTemaBlack ? SIDEBAR_BG_BLACK : (isDark ? SIDEBAR_BG_DARK : SIDEBAR_BG_LIGHT);
 
   function isActive(href: string) {
-    if (href === '/grow/saude')   return !!pathname?.startsWith('/grow/saude');
-    if (href === '/grow/estudos') return !!pathname?.startsWith('/grow/estudos');
+    // Saúde e Estudos têm sub-abas: o item fica aceso em qualquer uma delas.
+    if (href.startsWith('/grow/saude'))   return !!pathname?.startsWith('/grow/saude');
+    if (href.startsWith('/grow/estudos')) return !!pathname?.startsWith('/grow/estudos');
     if (href === '/negocios')     return !!pathname?.startsWith('/negocios');
     // O Admin aponta pra /admin?aba=chamados quando há resposta nova: segue aceso.
     if (href.startsWith('/admin'))  return pathname === '/admin';

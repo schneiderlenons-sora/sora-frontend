@@ -146,8 +146,12 @@ export const GRUPOS: GrupoNav[] = [
           { href: '/grow/habitos',   label: 'Hábitos',   icone: 'Target' },
           { href: '/grow/tarefas',   label: 'Tarefas',   icone: 'ListChecks' },
           { href: '/grow/agenda',    label: 'Agenda',    icone: 'CalendarDays', gate: 'grow_agenda', badge: 'Básico' },
-          { href: '/grow/estudos',   label: 'Estudos',   icone: 'GraduationCap', gate: 'grow_estudos', badge: 'Premium' },
-          { href: '/grow/saude',     label: 'Saúde',     icone: 'Activity',      gate: 'grow_saude',   badge: 'Premium', semAndroid: true },
+          // ⚠️ Direto no PAINEL de cada um, não no índice (/grow/estudos,
+          // /grow/saude): o índice só redireciona, e a ida a mais ao servidor
+          // custava ~0,6 s na 1ª visita (medido, nov/2026) — o pré-carregamento
+          // da rota ia pro endereço que redireciona, não pro painel.
+          { href: '/grow/estudos/dashboard', label: 'Estudos', icone: 'GraduationCap', gate: 'grow_estudos', badge: 'Premium' },
+          { href: '/grow/saude/dashboard',   label: 'Saúde',   icone: 'Activity',      gate: 'grow_saude',   badge: 'Premium', semAndroid: true },
           { href: '/grow/bem-estar', label: 'Bem-estar', icone: 'Heart' },
         ],
       },
