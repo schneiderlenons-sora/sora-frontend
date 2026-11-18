@@ -2529,6 +2529,32 @@ atrasada. Medido: **26 dívidas** marcadas em atraso sem estar. ⚠️ Dívida d
 Open Finance fica de fora (o status vem do sync). O formulário mostra a data
 da próxima parcela sob "Data início" (= data da contratação).
 
+### Atrasada ATÉ PAGAR — mas só com prova (nov/2026)
+
+Relato (Fábio, o mesmo do cartão): *"não paguei e no outro mês não mostrava em
+atraso"*. `vencidaNoMes` só olha o vencimento do MÊS CORRENTE: a parcela de
+10/10 não paga voltava a "ativa" em 1º/11.
+- **`parcelasEmAtraso`** (backend canônico + porte fiel em
+  `lib/vencimento-divida.ts`): com **pagamento registrado**, a dívida segue em
+  atraso enquanto a última parcela vencida não estiver coberta, e devolve
+  desde quando e quantas (teto 12 e as que faltam pagar). `statusDeAtraso`
+  (cron + edição) usa esta regra.
+- ⚠️ **SEM pagamento registrado = exatamente como antes** (só o mês corrente):
+  quem paga por fora sem registrar não vira alarme permanente, e o relato
+  "mudei do 15 pro 20" segue protegido. Medido: 54 de 113 dívidas manuais
+  nunca tiveram pagamento registrado.
+- ⚠️ **`vencidaNoMes` continua sendo a regra do LEMBRETE do WhatsApp** — ele só
+  avisa depois do vencimento deste mês, e ali as duas regras dão o mesmo
+  resultado. Trocar o lembrete pela regra nova mudaria quem recebe mensagem.
+- O **card calcula** com a mesma regra (não espera o cron da manhã): selo + bloco
+  "N parcelas atrasadas · desde DD/MM" + "Já pagou? Toque em Registrar pagamento".
+- ⚠️ Limite que já existia: a Sora só sabe a DATA do último pagamento
+  (`vencimentoCoberto` = ocorrência mais próxima). Quem deve 2 e registra 1
+  aparece em dia. Resolver exige contar pagamentos por parcela.
+- Medido em 18/11: 109 de 113 iguais, 4 passam a em atraso (todas com
+  pagamento registrado), nenhuma sai. Evals: back 74.736 combinações de
+  não-regressão (6/6 mutações); front = back em 392.042 comparações (4/4).
+
 ## Ajuste de saldo NÃO é receita nem despesa (set/2026)
 
 ⚠️ **Inverte a nota da migration 135** ("o ajuste continua contando, de
