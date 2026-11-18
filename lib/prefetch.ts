@@ -152,11 +152,142 @@ const PREFETCHERS: Record<string, (p: string, c: CacheSWR) => void> = {
   },
 };
 
-// Prefetch da aba que o usuário está prestes a clicar (chamado no hover/touch).
-export function prefetchRota(rota: string, phone: string, c: CacheSWR) {
+// ─────────────────────────────────────────────────────────────
+// DADOS DAS ABAS DO MENU — Grow e Gestão compartilhada (nov/2026).
+//
+// Estas abas são SÓ CLIENTE (não vêm do servidor): na 1ª visita a tela espera
+// a resposta do backend com o esqueleto na frente. Medido no celular, já com o
+// backend em Ohio: Hábitos 1,4 s, Tarefas 1,4 s, Agenda 1,9 s, Comunidade
+// 1,9 s (a Comunidade pede os grupos e SÓ DEPOIS os membros e números do
+// grupo — duas viagens em série).
+//
+// Quando aquecem: no celular, quando o MENU LATERAL ABRE (é por ele que se
+// chega a elas — não estão na barra de baixo), e no computador ao passar o
+// mouse no item. Nunca no ocioso: quem não abre o menu não paga nada.
+//
+// ⚠️ CUSTO É UMA VEZ POR APARELHO, não por sessão: `aquecer` pula a chave que
+// o cache já tem, e o cache fica salvo no aparelho (lib/swr-cache.ts).
+// ⚠️ SÓ ABA LIBERADA NO PLANO — quem decide é a Sidebar, com a MESMA regra do
+// cadeado do item. Aba trancada responderia 403 e seria gasto puro.
+// ⚠️ AS CHAVES TÊM DE SER IDÊNTICAS ÀS DAS TELAS — o eval:prefetch §5 lê o
+// código de cada página e falha se a chave ou a chamada mudarem.
+// ─────────────────────────────────────────────────────────────
+export type CtxMenu = { grupoAtivoId?: string | null };
+
+const DADOS_DO_MENU: Record<string, (p: string, ctx: CtxMenu) => ItemAquecimento[]> = {
+  '/grow/habitos': (p) => [
+    { key: `hab:full:${p}`, buscar: () => api.grow.habitos.listar(p, { dias: 120, incluir_arquivados: true }) },
+  ],
+  '/grow/tarefas': (p) => [
+    { key: `grow:tarefas-all:${p}`, buscar: () => api.grow.tarefas.listar(p) },
+    { key: `grow:projetos:${p}`, buscar: () => api.grow.projetos.listar(p) },
+  ],
+  '/grow/agenda': (p) => [
+    { key: `grow:feed:${p}`, buscar: () => api.grow.compromissos.feed(p) },
+  ],
+  // O item do menu leva a /grow/estudos, que redireciona pro painel de Estudos.
+  '/grow/estudos': (p) => [
+    { key: `est:dash:${p}`, buscar: () => api.estudos.dashboard(p) },
+    { key: `est:sessoes:${p}`, buscar: () => api.estudos.sessoes.listar(p, { dias: 90 }) },
+    { key: `est:biblia:${p}`, buscar: () => api.biblia.get(p) },
+  ],
+  // Idem: /grow/saude redireciona pro painel de Saúde.
+  '/grow/saude': (p) => [
+    { key: `saude:dash:${p}`, buscar: () => api.saude.dashboard(p) },
+  ],
+  '/grow/bem-estar': (p) => [
+    { key: `bem:humor:${p}`, buscar: () => api.grow.humor.listar(p, 30) },
+  ],
+  '/grow/casa': (p) => [
+    { key: `casa:compras:${p}`, buscar: () => api.grow.compras.listar(p) },
+    { key: `casa:despensa:${p}`, buscar: () => api.grow.despensa.listar(p) },
+    { key: `casa:manut:${p}`, buscar: () => api.grow.manutencoes.listar(p) },
+    { key: `casa:receitas:${p}`, buscar: () => api.grow.receitas.listar(p) },
+  ],
+  '/grow/viagens': (p) => [
+    { key: `viagens:${p}`, buscar: () => api.grow.viagens.listar(p) },
+    { key: `bucket:${p}`, buscar: () => api.grow.bucketList.listar(p) },
+  ],
+  '/grow/midia': (p) => [
+    { key: `midia:${p}`, buscar: () => api.grow.midia.listar(p) },
+  ],
+  '/grow/leituras': (p) => [
+    { key: `leituras:${p}`, buscar: () => api.grow.leituras.listar(p) },
+  ],
+  // A tela escolhe o grupo ATIVO (o do perfil) e só então pede membros e
+  // números — aquecer os três tira a segunda viagem da frente da pessoa.
+  '/comunidade': (p, ctx) => {
+    const itens: ItemAquecimento[] = [{ key: `grupos:${p}`, buscar: () => api.grupos.listar(p) }];
+    const gid = ctx.grupoAtivoId;
+    if (gid) {
+      itens.push({ key: `grupos:membros:${gid}`, buscar: () => api.grupos.membros(gid) });
+      itens.push({ key: `grupos:stats:${gid}`, buscar: () => api.grupos.stats(gid) });
+    }
+    return itens;
+  },
+};
+
+const baseDaRota = (rota: string) => (rota || '').split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
+
+/**
+ * Lista PURA do que aquecer quando o menu abre — na ordem das rotas recebidas
+ * (a ordem do menu: o topo aquece primeiro), sem chave repetida. Só as rotas
+ * de `rotasLiberadas` entram; as que não têm dado próprio são ignoradas.
+ */
+export function itensDoMenu(p: string, rotasLiberadas: string[], ctx: CtxMenu = {}): ItemAquecimento[] {
+  if (!p) return [];
+  const vistas = new Set<string>();
+  const out: ItemAquecimento[] = [];
+  for (const rota of rotasLiberadas) {
+    const montar = DADOS_DO_MENU[baseDaRota(rota)];
+    if (!montar) continue;
+    for (const it of montar(p, ctx)) {
+      if (vistas.has(it.key)) continue;
+      vistas.add(it.key);
+      out.push(it);
+    }
+  }
+  return out;
+}
+
+/**
+ * Aquece os dados das abas do menu em lotes curtos (o menu acabou de abrir:
+ * não há conteúdo de página disputando a rede, mas o backend é o plano
+ * gratuito do Render e sente rajada). Devolve o cancelador.
+ */
+export function aquecerDadosDoMenu(
+  phone: string,
+  c: CacheSWR,
+  rotasLiberadas: string[],
+  ctx: CtxMenu = {},
+  opts: { lote?: number; intervaloMs?: number } = {},
+): () => void {
+  const itens = itensDoMenu(phone, rotasLiberadas, ctx);
+  const LOTE = opts.lote ?? 3;
+  const INTERVALO = opts.intervaloMs ?? 250;
+  const timers: number[] = [];
+  let cancelado = false;
+  for (let i = 0; i < itens.length; i += LOTE) {
+    const fatia = itens.slice(i, i + LOTE);
+    timers.push(window.setTimeout(() => {
+      if (cancelado) return;
+      try { fatia.forEach((it) => aquecer(c, it.key, it.buscar)); } catch { /* best-effort */ }
+    }, (i / LOTE) * INTERVALO));
+  }
+  return () => { cancelado = true; timers.forEach((t) => clearTimeout(t)); };
+}
+
+// Prefetch da aba que o usuário está prestes a clicar (hover no computador).
+// ⚠️ Quem chama garante que a aba está LIBERADA (a Sidebar não chama em item
+// com cadeado).
+export function prefetchRota(rota: string, phone: string, c: CacheSWR, ctx: CtxMenu = {}) {
   if (!phone) return;
-  const base = (rota || '').split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
-  try { PREFETCHERS[base]?.(phone, c); } catch { /* prefetch é best-effort */ }
+  const base = baseDaRota(rota);
+  try {
+    if (PREFETCHERS[base]) { PREFETCHERS[base](phone, c); return; }
+    const montar = DADOS_DO_MENU[base];
+    if (montar) montar(phone, ctx).forEach((it) => aquecer(c, it.key, it.buscar));
+  } catch { /* prefetch é best-effort */ }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -171,7 +302,8 @@ export function prefetchRota(rota: string, phone: string, c: CacheSWR) {
 //
 // Aqui entram SÓ as chaves que a tela pede ao abrir SEM dado do servidor — as
 // que já vêm no SSR não precisam (e buscá-las de novo seria leitura em dobro).
-// Grow fica de fora (decisão do dono).
+// Grow e Gestão compartilhada NÃO entram no ocioso: aquecem quando o menu abre
+// (`aquecerDadosDoMenu`, acima) — é por ele que se chega a elas.
 //
 // ⚠️ AS CHAVES TÊM DE SER IDÊNTICAS ÀS DA TELA no estado inicial (mês atual,
 // aba padrão, sem filtro de membro). Chave diferente = aquecimento inútil.

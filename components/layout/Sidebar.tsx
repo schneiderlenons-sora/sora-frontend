@@ -28,7 +28,7 @@ import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
-import { prefetchRota, prefetchTopTabs, aquecerAbasNoOcioso } from '@/lib/prefetch';
+import { prefetchRota, prefetchTopTabs, aquecerAbasNoOcioso, aquecerDadosDoMenu } from '@/lib/prefetch';
 import { useSWRConfig } from 'swr';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import { useEhAndroid, useEhAppIos } from '@/lib/useOrigem';
@@ -93,6 +93,9 @@ let jaAqueceu: string | null = null;
 let jaAqueceuResto: string | null = null;
 // E pros DADOS das abas (não as rotas) — ver `aquecerAbasNoOcioso`.
 let jaAqueceuDados: string | null = null;
+// E pros DADOS das abas do MENU (Grow, Gestão compartilhada) — ver
+// `aquecerDadosDoMenu`.
+let jaAqueceuDadosMenu: string | null = null;
 
 // ⚠️ AQUECIMENTO SOB DEMANDA (out/2026) — medido no Fluid Active CPU da Vercel,
 // que estourou o plano Hobby. Aquecer TODAS as abas a cada abertura do painel
@@ -256,7 +259,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // Sem isto, a 1ª visita a Cartões, Previstos e Relatórios cobria a tela com a
   // baleia por ~1 s no celular (não há hover pra disparar `prefetchRota`). Uma
   // vez por sessão e por telefone, só no app pessoal, com lotes pequenos (ver
-  // `aquecerAbasNoOcioso`). Grow fica de fora (decisão do dono).
+  // `aquecerAbasNoOcioso`). Grow e Gestão compartilhada aquecem quando o MENU
+  // abre (efeito mais abaixo), não aqui.
   //
   // ⚠️ NÃO ESPERA O `load` (nov/2026). Em produção o `load` sai tarde (scripts
   // de terceiros), e o aquecimento só começava aos ~7 s — a fatura seguinte
@@ -325,6 +329,47 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // ⚠️ SEM cancelar no cleanup: fechar o menu antes do último lote não é
     // motivo pra deixar metade das abas fria — e a flag já marcou a sessão.
   }, [open, phone, pathname, router, todasAsRotas]);
+
+  // Aba trancada pelo plano? É a MESMA regra do cadeado do item — `navLink`
+  // usa esta função, e o aquecimento do menu também, pra nunca buscar dado de
+  // aba trancada (a rota responderia 403 e seria gasto puro).
+  const itemTrancado = (gate: Feature | undefined, grow: boolean) => {
+    const growLocked = grow && !temAcessoGrow;
+    // ⚠️ Negócios NÃO passa por `podeUsar`: o gate dele soma o direito adquirido
+    // e o vitalício (temNegocios). Usar podeUsar aqui trancaria a aba de quem já
+    // a usa — o item sumiria da barra do dia pra noite.
+    const gateLocked = gate === 'negocios' ? !temNegocios : gate ? !podeUsar(gate) : false;
+    return growLocked || gateLocked;
+  };
+  const grupoAtivoId = perfil?.grupo_ativo?.id ?? null;
+
+  // ── Aquece os DADOS das abas do menu quando ele abre no celular (nov/2026) ─
+  // Grow e Gestão compartilhada são só cliente: sem isto, a 1ª visita a cada
+  // uma esperava o backend com o esqueleto na frente (1,4–1,9 s medidos com o
+  // backend já em Ohio). Uma vez por sessão e por telefone, só aba LIBERADA
+  // (`itemTrancado`), e `aquecer` pula o que o aparelho já tem guardado — da
+  // 2ª sessão em diante isto quase não sai do aparelho. Detalhes em
+  // `aquecerDadosDoMenu` (lib/prefetch.ts).
+  useEffect(() => {
+    if (!open || !phone || !perfilPronto) return;   // sem perfil, o plano (e os cadeados) ainda é desconhecido
+    if (jaAqueceuDadosMenu === phone) return;
+    if (pathname?.startsWith('/negocios') || pathname?.startsWith('/labs')) return;
+    jaAqueceuDadosMenu = phone;
+    // Na ORDEM do menu: o que aparece primeiro aquece primeiro.
+    const liberadas = [
+      ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens
+        .filter((i) => !(i.semAndroid && ehAndroid) && !i.breve && !i.externa && !itemTrancado(i.gate, !!g.grow))
+        .map((i) => i.href))),
+      ...SECOES.flatMap((sg) => sg.itens
+        .filter((i) => !i.breve && !i.externa && !itemTrancado(i.gate, false))
+        .map((i) => i.href)),
+    ];
+    aquecerDadosDoMenu(phone, cacheSWR, liberadas, { grupoAtivoId });
+    // ⚠️ Sem cancelar no cleanup — mesma razão do aquecimento das rotas acima.
+    // `cacheSWR`/`itemTrancado` são recriados a cada render; cache/mutate e os
+    // dados do plano que eles leem já estão nas dependências (perfilPronto).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, phone, perfilPronto, pathname, ehAndroid, grupoAtivoId]);
 
   // ── Respostas do suporte que a pessoa ainda não leu ───────────────────────
   //
@@ -587,11 +632,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     }
 
     const growLocked = grow && !temAcessoGrow;
-    // ⚠️ Negócios NÃO passa por `podeUsar`: o gate dele soma o direito adquirido
-    // e o vitalício (temNegocios). Usar podeUsar aqui trancaria a aba de quem já
-    // a usa — o item sumiria da barra do dia pra noite.
-    const gateLocked = gate === 'negocios' ? !temNegocios : gate ? !podeUsar(gate) : false;
-    const locked     = growLocked || gateLocked;
+    // A regra do cadeado mora em `itemTrancado` (o aquecimento do menu usa a
+    // mesma — ver lá o porquê de Negócios não passar por `podeUsar`).
+    const locked     = itemTrancado(gate, grow);
     // ⚠️ APP DE IPHONE: aba fora do plano NÃO aparece (nem com cadeado). Lá não
     // há como comprar (lib/app-ios.ts), e cadeado + selo "Premium" sem caminho
     // de compra é o tipo de coisa que a revisão da Apple questiona.
@@ -621,7 +664,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         // Hover no desktop prefetcha ROTA + DADOS daquela aba → o clique já
         // encontra tudo pronto. No mobile NÃO: prefetch no touchstart adiciona
         // jank ao próprio toque, e o aquecimento ocioso já baixou a rota.
-        onMouseEnter={() => { router.prefetch(destino); prefetchRota(destino, phone, cacheSWR); }}
+        // ⚠️ Item com cadeado só aquece a ROTA (o convite), nunca o dado: a
+        // rota de dados responderia 403.
+        onMouseEnter={() => { router.prefetch(destino); if (!locked) prefetchRota(destino, phone, cacheSWR, { grupoAtivoId }); }}
         // visível, então o prefetch automático do Next baixava TODAS as rotas de
         // uma vez — e /investimentos, /metas, /relatorios e /juros carregam
         // recharts (~288 KB cada). Medido: 3 MB de JS no dashboard sem desenhar
