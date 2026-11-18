@@ -3410,6 +3410,33 @@ pedidos que o Next faz por aba, ~15ms cada).
 - ⚠️ Fora do Negócios/Labs: o menu ali é outro, aquecer o app pessoal seria gasto.
 - ⚠️ Aba nova muito usada entra em `ROTAS_ESSENCIAIS`; o resto não precisa de nada.
 
+### 2C. DADOS do Grow e da Gestão compartilhada aquecem com o menu (nov/2026)
+
+São abas só cliente: na 1ª visita (aparelho novo) esperavam o backend com o
+esqueleto na frente. Medido no celular, aparelho limpo, já com o backend em
+Ohio: **Hábitos 1,4 s → 0,34 · Tarefas 1,4 → 0,26 · Agenda 1,9 → 0,46 ·
+Comunidade 1,9 → 0,8 · demais do Grow 0,28–0,66 s.**
+
+- `DADOS_DO_MENU` + `aquecerDadosDoMenu` (`lib/prefetch.ts`): quando o menu abre
+  no celular (flag `jaAqueceuDadosMenu`) e no hover do item no computador
+  (`prefetchRota`). Lotes de 3 a cada 250 ms, na ordem do menu.
+- ⚠️ **Só aba LIBERADA**: a regra do cadeado virou `itemTrancado()` na Sidebar,
+  usada pelo item E pelo aquecimento. Item com cadeado não aquece dado (403).
+- Custo é **uma vez por aparelho**: `aquecer` pula a chave que o cache (salvo no
+  aparelho) já tem. Hábitos/Tarefas/Agenda quase sempre já vêm do
+  `GrowResumo` do dashboard.
+- ⚠️ **Tela nova do Grow (ou chave mudada) entra em `DADOS_DO_MENU`**: o
+  `eval:prefetch` §5 lê cada página e trava chave E chamada dos dois lados, e
+  exige que todo item do Grow no menu tenha o que aquecer.
+- ⚠️ Estudos e Saúde apontam pro **painel** (`/grow/estudos/dashboard`,
+  `/grow/saude/dashboard`), não pro índice: o índice só redireciona e o
+  pré-carregamento da rota parava no redirect (~0,6 s a mais). E as SEÇÕES do fim
+  do menu (Gestão compartilhada) entraram em `todasAsRotas` — nunca estiveram.
+- ⚠️ **Medir "aparelho novo" exige CONTEXTO NOVO do navegador.** Apagar o
+  `sora-swr-cache-v1` e recarregar não basta: o painel salva o cache de novo no
+  `visibilitychange`, DEPOIS do `pagehide`. Uma rodada minha mediu revisita
+  achando que era 1ª visita.
+
 ### 3. `staleTimes` — o Router Cache estava desligado
 
 ⚠️ **O default do Next 16 é `experimental.staleTimes.dynamic = 0`**, e TODAS as
