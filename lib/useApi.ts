@@ -67,6 +67,6 @@ export function useApi<T>(
     revalidateOnMount: config?.revalidateOnMount ?? (pularMount ? false : undefined),
   });
   // 1º carregamento (sem dado em cache) → mostra a baleia cobrindo a tela.
-  useGateRegister(swr.isLoading);
+  useGateRegister(swr.isLoading, typeof key === 'string' ? key : undefined);
   return swr;
 }

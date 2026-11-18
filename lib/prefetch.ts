@@ -27,15 +27,35 @@ export type CacheSWR = { cache: Cache; mutate: ScopedMutator };
 
 const emVoo = new Set<string>();
 function aquecer(cfg: CacheSWR, key: string, buscar: () => Promise<unknown>) {
-  if (!cfg?.cache || cfg.cache.get(key)?.data !== undefined || emVoo.has(key)) return;
+  if (!cfg?.cache || emVoo.has(key)) return;
+  const atual = cfg.cache.get(key);
+  // Já tem dado, ou a própria TELA já está buscando esta chave (o SWR marca a
+  // busca em andamento no cache): pedir de novo seria requisição em dobro —
+  // foi o caso da rota de faturas (~4 s), pedida pelo dashboard E aqui.
+  if (atual?.data !== undefined || atual?.isValidating) return;
   emVoo.add(key);
   buscar()
     .then((data) => {
-      if (cfg.cache.get(key)?.data === undefined) cfg.mutate(key, data, { revalidate: false });
+      const agora = cfg.cache.get(key);
+      // A tela buscou (ou está buscando) enquanto isto estava no ar: o dado
+      // dela é o que vale — não grava nada por cima.
+      if (agora?.data !== undefined || agora?.isValidating) return;
+      // ⚠️ GRAVA O ESTADO COMPLETO, NÃO SÓ O DADO (nov/2026). O `mutate` grava
+      // só `{ data, error }`; numa chave nova o campo `isLoading` fica AUSENTE,
+      // e o SWR, ao montar uma tela que vai revalidar, monta o estado como
+      // `{ isLoading: true, ...cache }` — ausente vira TRUE. Resultado medido:
+      // a tela abria com o dado pré-carregado na mão e a baleia cobria tudo
+      // durante a revalidação inteira (Cartões 1,8 s, Previstos 1,3 s,
+      // Relatórios 1,2 s). Com `isLoading: false` gravado, a chave se comporta
+      // como uma que o próprio SWR buscou: abre com o dado e revalida calada.
+      cfg.cache.set(key, { ...(agora || {}), isLoading: false, isValidating: false });
+      cfg.mutate(key, data, { revalidate: false });
     })
     .catch(() => { /* aquecimento é best-effort */ })
     .finally(() => { emVoo.delete(key); });
 }
+// Exportada só pro eval (lib/prefetch.eval.mjs).
+export const aquecerChave = aquecer;
 
 // ─────────────────────────────────────────────────────────────
 // Prefetch dos dados das abas — casado com as CHAVES do useApi de cada página.
@@ -107,6 +127,105 @@ export function prefetchRota(rota: string, phone: string, c: CacheSWR) {
   if (!phone) return;
   const base = (rota || '').split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
   try { PREFETCHERS[base]?.(phone, c); } catch { /* prefetch é best-effort */ }
+}
+
+// ─────────────────────────────────────────────────────────────
+// AQUECIMENTO DAS ABAS NO OCIOSO (nov/2026) — pra a 1ª visita não mostrar a
+// baleia.
+//
+// Medido em produção (conta no plano grátis, celular): a baleia cobria a tela
+// por 0,8–1,6 s na 1ª visita a Cartões, Previstos e Relatórios, porque as
+// chamadas abaixo NÃO vêm prontas do servidor (o SSR dessas abas não as traz)
+// e o `useApi` segura a tela até a 1ª resposta. No celular não existe hover,
+// então `prefetchRota` nunca rodava pra elas.
+//
+// Aqui entram SÓ as chaves que a tela pede ao abrir SEM dado do servidor — as
+// que já vêm no SSR não precisam (e buscá-las de novo seria leitura em dobro).
+// Grow fica de fora (decisão do dono).
+//
+// ⚠️ AS CHAVES TÊM DE SER IDÊNTICAS ÀS DA TELA no estado inicial (mês atual,
+// aba padrão, sem filtro de membro). Chave diferente = aquecimento inútil.
+// Conferido contra: PrevistosClient (aba "projecao", offset 0), RelatoriosClient
+// (tab "graficos", mês/ano locais), CartaoClient e InvestimentosClient.
+//
+// ⚠️ DÍVIDAS VÊM COM FOTO (select '*', foto em base64 na linha). A exclusão de
+// `/metas` e `/dividas` acima é do HOVER, que se repete a cada passada do
+// mouse. Aqui é UMA vez por aparelho: `aquecer` não busca o que já está no
+// cache, e o cache fica salvo no aparelho. Medido em 17/11/2026: 22 de 426
+// dívidas têm foto, em 5 grupos; o pior soma 1,3 MB. Previstos não abre sem
+// elas (a baleia ficaria), então entram.
+// ─────────────────────────────────────────────────────────────
+export type ItemAquecimento = { key: string; buscar: () => Promise<unknown> };
+
+/** Lista PURA do que aquecer — separada do agendamento pra ser testada. */
+export function itensDoAquecimento(
+  p: string,
+  opts: { investimentos?: boolean; agora?: Date } = {},
+): ItemAquecimento[] {
+  const agora = opts.agora || new Date();
+  // Relatórios usa mês/ano LOCAIS (`new Date().getMonth()`).
+  const mesLocal = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+  const anoLocal = agora.getFullYear();
+  // Previstos usa o mês de SÃO PAULO (`ymHojeSP`).
+  const ymSP = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).slice(0, 7);
+  const [anoSP, mesSP] = ymSP.split('-').map(Number);
+  const PERIODO_PADRAO_PREVISTOS = 6; // `useState<number>(6)` em PrevistosClient
+
+  const itens: ItemAquecimento[] = [
+    // Relatórios (barra de baixo) — o resto da aba vem do SSR.
+    { key: chave.anual(p, anoLocal), buscar: () => api.transacoes.anual(p, anoLocal) },
+    { key: chave.limites(p, mesLocal), buscar: () => api.limites.listar(p, mesLocal) },
+    // Cartões — as faturas não vêm no SSR.
+    { key: chave.faturas(p, 0), buscar: () => api.wallets.faturas(p, 0) },
+    { key: chave.faturas(p, 1), buscar: () => api.wallets.faturas(p, 1) },
+    // Previstos — a aba inteira é só cliente.
+    { key: chave.recorrencias(p), buscar: () => api.recorrencias.listar(p) },
+    { key: chave.dividas(p), buscar: () => api.dividas.listar(p) },
+    { key: chave.wallets(p), buscar: () => api.wallets.listar(p) },
+    { key: chave.resumo(p, ymSP), buscar: () => api.transacoes.resumo(p, ymSP) },
+    { key: chave.anual(p, anoSP), buscar: () => api.transacoes.anual(p, anoSP) },
+    { key: chave.transacoes(p, { mes: ymSP, limit: 500 }), buscar: () => api.transacoes.listar(p, { mes: ymSP, limit: 500 }) },
+  ];
+  // Previstos também pede o ano ANTERIOR quando o período padrão passa da
+  // virada (de janeiro a maio).
+  if (PERIODO_PADRAO_PREVISTOS > mesSP) {
+    itens.push({ key: chave.anual(p, anoSP - 1), buscar: () => api.transacoes.anual(p, anoSP - 1) });
+  }
+  // Investimentos é do plano — sem acesso, a rota responde 403 e seria gasto.
+  if (opts.investimentos) {
+    itens.push({ key: `inv:movimentos:${p}`, buscar: () => api.investimentos.movimentos(p) });
+  }
+  // Sem repetir chave (ano local e de SP quase sempre coincidem).
+  const vistas = new Set<string>();
+  return itens.filter((i) => (vistas.has(i.key) ? false : (vistas.add(i.key), true)));
+}
+
+/**
+ * Aquece as abas em LOTES PEQUENOS e espaçados — a mesma lição do aquecimento
+ * de rotas no Sidebar: disparar tudo de uma vez enfileira atrás das 6 conexões
+ * do navegador e atrasa justamente o que a pessoa está vendo. O backend
+ * (Render, plano gratuito) também sente rajadas. Devolve o cancelador.
+ */
+export function aquecerAbasNoOcioso(
+  phone: string,
+  c: CacheSWR,
+  opts: { investimentos?: boolean; esperaMs?: number; lote?: number; intervaloMs?: number } = {},
+): () => void {
+  if (!phone) return () => {};
+  const itens = itensDoAquecimento(phone, { investimentos: opts.investimentos });
+  const LOTE = opts.lote ?? 2;
+  const INTERVALO = opts.intervaloMs ?? 600;
+  const ESPERA = opts.esperaMs ?? 2500;
+  const timers: number[] = [];
+  let cancelado = false;
+  for (let i = 0; i < itens.length; i += LOTE) {
+    const fatia = itens.slice(i, i + LOTE);
+    timers.push(window.setTimeout(() => {
+      if (cancelado) return;
+      try { fatia.forEach((it) => aquecer(c, it.key, it.buscar)); } catch { /* best-effort */ }
+    }, ESPERA + (i / LOTE) * INTERVALO));
+  }
+  return () => { cancelado = true; timers.forEach((t) => clearTimeout(t)); };
 }
 
 // ⚠️ AQUECE SÓ O QUE O DASHBOARD JÁ IA BUSCAR DE QUALQUER JEITO.

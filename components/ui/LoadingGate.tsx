@@ -55,13 +55,25 @@ export function LoadingGateProvider({ children }: { children: React.ReactNode })
   );
 }
 
+// Diagnóstico: QUAIS chaves estão segurando a baleia agora. Fica só na memória
+// da página (`window.__soraPortao`), sem rede — foi o que faltou pra explicar
+// "a baleia apareceu nesta aba" sem chutar a causa (nov/2026).
+const chavesNoPortao = new Map<string, number>();
+function marcarChave(chaveDebug: string | undefined, delta: 1 | -1) {
+  if (!chaveDebug || typeof window === 'undefined') return;
+  const n = (chavesNoPortao.get(chaveDebug) || 0) + delta;
+  if (n > 0) chavesNoPortao.set(chaveDebug, n); else chavesNoPortao.delete(chaveDebug);
+  (window as unknown as { __soraPortao?: string[] }).__soraPortao = Array.from(chavesNoPortao.keys());
+}
+
 // Registra um carregamento ativo no portão. `active` deve ser o `isLoading` do
 // SWR (true só no 1º load sem cache). Usado internamente pelo useApi.
-export function useGateRegister(active: boolean) {
+export function useGateRegister(active: boolean, chaveDebug?: string) {
   const register = useContext(LoadingGateCtx);
   useIsoLayoutEffect(() => {
     if (!active) return;
     register(true);
-    return () => register(false);
-  }, [active, register]);
+    marcarChave(chaveDebug, 1);
+    return () => { register(false); marcarChave(chaveDebug, -1); };
+  }, [active, register, chaveDebug]);
 }

@@ -8,6 +8,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 - **Commit + push automático.** Depois de QUALQUER alteração de código, faça `git commit` e `git push` por conta própria, sem o usuário pedir. Push no `master` (frontend) / `main` (backend) → deploy automático.
 - **Domínio oficial:** **https://www.forsora.com** (site + painel da Sora).
 - **Preview só quando pedido.** Às vezes o usuário pede um **preview** das alterações (painel ou landing) sem mandar pra produção — esses previews ficam na **Vercel**. Só gere preview se o usuário pedir explicitamente; o padrão é sempre deploy direto pra produção.
+- **Conta de TESTES: `comercialsora@gmail.com`** (a conta comercial da Sora). Sempre que precisar testar no painel ou no banco real, use ESTA conta — **não crie contas novas** (decisão do dono, nov/2026). Pra entrar sem a senha: gerar o link mágico pelo admin do Supabase (`auth.admin.generateLink`, não envia e-mail) e validar o token. Teste que grava dado nela tem de desfazer o que gravou.
 
 ## 📌 Onde está cada coisa (ler antes de supor)
 

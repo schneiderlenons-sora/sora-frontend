@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Wallet, TrendingUp, TrendingDown, CreditCard, ChevronDown,
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import IconeMarca from '@/components/ui/IconeMarca';
 import ValorAuto from '@/components/ui/ValorAuto';
+import useSWR from 'swr';
 import { api } from '@/lib/api';
+import { chave } from '@/lib/chaves-swr';
 import { competenciaAtual, cicloPorCompetencia, pertenceAFatura, criterioDaFatura } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
 import {
@@ -98,38 +100,45 @@ export default function ResumoCards({
   // cartões, do WhatsApp e dos crons). Busca DEPOIS de pintar: o card já
   // aparece com o valor local e é corrigido quando isto chega, então não
   // competimos com o LCP.
-  const [restanteApi, setRestanteApi] = useState<Record<string, number>>({});
+  //
+  // ⚠️ NA CHAVE CANÔNICA DO CACHE (`chave.faturas(phone, 0)`), nov/2026. Antes
+  // era um fetch avulso: a resposta era usada aqui e DESCARTADA, e Cartões e
+  // Previstos pediam tudo de novo. Essa rota leva ~4 s, e era exatamente ela
+  // que segurava a baleia na 1ª visita dessas duas abas. Agora o dashboard
+  // busca uma vez e as duas abas abrem com o dado pronto.
+  // `useSWR` direto (não `useApi`): este card nunca bloqueia a tela — mostra o
+  // valor local e corrige quando a resposta chega, como sempre fez.
+  const temCartao = wallets.some(w => w.tipo === 'Crédito');
+  const { data: faturasResp } = useSWR(
+    phone && temCartao ? chave.faturas(phone, 0) : null,
+    // Só roda com chave não-nula, ou seja, com `phone`.
+    () => api.wallets.faturas(phone as string, 0),
+    { revalidateOnFocus: false, keepPreviousData: true, dedupingInterval: 4000 },
+  );
   // Fatura do emissor por cartão (mesma resposta do restante — sem chamada nova).
-  const [billApi, setBillApi] = useState<Record<string, string | null>>({});
-  useEffect(() => {
-    if (!phone || !wallets.some(w => w.tipo === 'Crédito')) return;
-    let vivo = true;
-    api.wallets.faturas(phone)
-      .then((r) => {
-        if (!vivo) return;
-        const acc: Record<string, number> = {};
-        for (const f of r.faturas || []) {
-          // ⚠️ FATURA FECHADA E QUITADA: o número vivo é o da SEGUINTE. Sem
-          // isto o card mostrava R$ 0,00 num cartão com compras novas — e a
-          // aba de cartões, que já pulava sozinha (CartaoClient `pulaUma`),
-          // mostrava outro valor pro MESMO cartão no MESMO dia. Caso real:
-          // EQI BLACK em 19/08, R$ 0,00 aqui e R$ 2.083,92 lá.
-          // `proxima` vem pronta do endpoint em lote, então as duas telas
-          // passam a ler o mesmo campo em vez de cada uma decidir a sua.
-          const f2 = f as typeof f & { fechada?: boolean; quitada?: boolean; proxima?: { restante: number } | null };
-          acc[f.cartao_id] = (f2.fechada && f2.quitada && f2.proxima)
-            ? f2.proxima.restante
-            : f.restante;
-        }
-        const bills: Record<string, string | null> = {};
-        for (const f of r.faturas || []) bills[f.cartao_id] = (f as any).of_bill_id || null;
-        setBillApi(bills);
-        setRestanteApi(acc);
-      })
-      .catch(() => { /* mantém o cálculo local */ });
-    return () => { vivo = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phone, wallets.length]);
+  const { restanteApi, billApi } = useMemo(() => {
+    const acc: Record<string, number> = {};
+    const bills: Record<string, string | null> = {};
+    const r = faturasResp as { faturas?: any[] } | undefined;
+    if (r) {
+      for (const f of r.faturas || []) {
+        // ⚠️ FATURA FECHADA E QUITADA: o número vivo é o da SEGUINTE. Sem
+        // isto o card mostrava R$ 0,00 num cartão com compras novas — e a
+        // aba de cartões, que já pulava sozinha (CartaoClient `pulaUma`),
+        // mostrava outro valor pro MESMO cartão no MESMO dia. Caso real:
+        // EQI BLACK em 19/08, R$ 0,00 aqui e R$ 2.083,92 lá.
+        // `proxima` vem pronta do endpoint em lote, então as duas telas
+        // passam a ler o mesmo campo em vez de cada uma decidir a sua.
+        const f2 = f as typeof f & { fechada?: boolean; quitada?: boolean; proxima?: { restante: number } | null };
+        acc[f.cartao_id] = (f2.fechada && f2.quitada && f2.proxima)
+          ? f2.proxima.restante
+          : f.restante;
+        bills[f.cartao_id] = f.of_bill_id || null;
+      }
+    }
+    // Sem resposta (ou erro): mapas vazios → o card mantém o cálculo local.
+    return { restanteApi: acc, billApi: bills };
+  }, [faturasResp]);
 
   // Fatura por cartão: OF → −saldo (o banco manda); manual → soma dos Gasto do
   // CICLO REAL de fechamento. O valor local é aproximado quando o ciclo começa

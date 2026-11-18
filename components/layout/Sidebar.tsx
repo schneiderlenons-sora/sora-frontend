@@ -28,7 +28,7 @@ import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
-import { prefetchRota, prefetchTopTabs } from '@/lib/prefetch';
+import { prefetchRota, prefetchTopTabs, aquecerAbasNoOcioso } from '@/lib/prefetch';
 import { useSWRConfig } from 'swr';
 import { usePwa } from '@/components/pwa/InstallPwa';
 import { useEhAndroid, useEhAppIos } from '@/lib/useOrigem';
@@ -91,6 +91,8 @@ let jaAqueceu: string | null = null;
 // Mesma ideia, pras abas que NÃO são essenciais: aquecidas só quando o menu
 // lateral abre no celular (ver o efeito `aquecerResto`).
 let jaAqueceuResto: string | null = null;
+// E pros DADOS das abas (não as rotas) — ver `aquecerAbasNoOcioso`.
+let jaAqueceuDados: string | null = null;
 
 // ⚠️ AQUECIMENTO SOB DEMANDA (out/2026) — medido no Fluid Active CPU da Vercel,
 // que estourou o plano Hobby. Aquecer TODAS as abas a cada abertura do painel
@@ -249,6 +251,49 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       if (ocioso !== null && cic) cic(ocioso);
     };
   }, [phone, router, todasAsRotas]);
+  // ── Aquece os DADOS das abas que abrem sem dado do servidor (nov/2026) ────
+  //
+  // Sem isto, a 1ª visita a Cartões, Previstos e Relatórios cobria a tela com a
+  // baleia por ~1 s no celular (não há hover pra disparar `prefetchRota`). Uma
+  // vez por sessão e por telefone, só no app pessoal, depois do `load` e com
+  // espera + lotes pequenos (ver `aquecerAbasNoOcioso`) pra não disputar a rede
+  // com o que já está na tela. Grow fica de fora (decisão do dono).
+  const podeInvestimentos = podeUsar('investimentos');
+  const perfilPronto = !!perfil;
+  useEffect(() => {
+    if (!phone || !perfilPronto) return;   // sem perfil, o plano (e o acesso a Investimentos) ainda é desconhecido
+    if (jaAqueceuDados === phone) return;
+    if (pathname?.startsWith('/negocios') || pathname?.startsWith('/labs')) return;
+    let ocioso: number | null = null;
+    const iniciar = () => {
+      // Marcada só quando começa de fato: se a Sidebar desmontar antes, a
+      // próxima montagem ainda aquece.
+      if (jaAqueceuDados === phone) return;
+      jaAqueceuDados = phone;
+      aquecerAbasNoOcioso(phone, cacheSWR, { investimentos: podeInvestimentos });
+    };
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    const agendar = () => {
+      if (w.requestIdleCallback) ocioso = w.requestIdleCallback(iniciar);
+      else iniciar();
+    };
+    if (document.readyState === 'complete') agendar();
+    else window.addEventListener('load', agendar, { once: true });
+    return () => {
+      window.removeEventListener('load', agendar);
+      if (ocioso !== null && w.cancelIdleCallback) w.cancelIdleCallback(ocioso);
+      // ⚠️ NÃO cancela os lotes já agendados: trocar de aba logo depois de
+      // entrar remonta partes da tela, e cortar o aquecimento ali deixaria
+      // justamente as abas seguintes frias. A flag já marcou a sessão.
+    };
+    // `cacheSWR` é recriado a cada render (objeto literal), mas cache/mutate
+    // são estáveis — depender dele reexecutaria o efeito à toa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, pathname, podeInvestimentos, perfilPronto]);
+
   // Open Finance: a aba aparece pra TODOS. Quem está na allowlist (config no
   // back) vê o fluxo real da Polp; o resto vê o aviso "Em atualização" na página.
   // Drawer mobile agora é CONTROLADO pelo DashboardLayout (aberto pelo perfil do
