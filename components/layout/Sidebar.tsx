@@ -21,7 +21,7 @@ import { NAV_TOPO, GRUPOS, SECOES, type ItemNav, type SubgrupoNav } from '@/lib/
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
-import { podeVerChatgpt } from '@/lib/ia-conectada';
+import { podeVerIaConectada } from '@/lib/ia-conectada';
 import { useAdminPendencias } from '@/lib/useAdminPendencias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useMemo, useState } from 'react';
@@ -164,8 +164,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const ehAdmin = isAdminEmail(perfil?.email);
   // Item de teste fechado (`teste` em lib/sidebar-nav): some pra quem não está
   // na lista — nem cadeado, nem "em breve", nem aquecimento da rota.
-  const veChatgpt = podeVerChatgpt(perfil?.email);
-  const itemVisivel = (i: ItemNav) => !(i.semAndroid && ehAndroid) && !(i.teste === 'chatgpt' && !veChatgpt);
+  const veIaConectada = podeVerIaConectada(perfil?.email);
+  const itemVisivel = (i: ItemNav) => !(i.semAndroid && ehAndroid) && !(i.teste === 'ia_conectada' && !veIaConectada);
   // Cliente respondeu chamado e o admin não abriu (só consulta pra admin).
   const { respostas: adminRespostas } = useAdminPendencias();
   // Conformidade com a política do Play Console — ver `semAndroid` em
@@ -182,13 +182,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const todasAsRotas = useMemo(() => Array.from(new Set([
     ...NAV_TOPO.map((i) => i.href),
     ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens
-      .filter((i) => !(i.teste === 'chatgpt' && !veChatgpt)).map((i) => i.href))),
+      .filter((i) => !(i.teste === 'ia_conectada' && !veIaConectada)).map((i) => i.href))),
     // ⚠️ As SEÇÕES do fim do menu (Gestão compartilhada) não entravam: a 1ª
     // visita à /comunidade baixava a rota inteira na hora do toque (~0,7 s
     // medido). As de `externa` (com ?aba=) já vêm pela rota-base, abaixo.
     ...SECOES.flatMap((sg) => sg.itens.filter((i) => !i.externa).map((i) => i.href)),
     '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
-  ])), [veChatgpt]);
+  ])), [veIaConectada]);
 
   useEffect(() => {
     if (!phone) return;

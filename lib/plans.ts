@@ -49,7 +49,7 @@ export type Feature =
   | 'ocr_imagem'             // Premium+: enviar foto de comprovante
   | 'drive'                  // Premium+: Drive — guardar/buscar arquivos pelo WhatsApp
   | 'oraculo'                // Premium+: "posso comprar isso?" no WhatsApp
-  | 'chatgpt'                // Premium+: a Sora no ChatGPT do cliente (leitura)
+  | 'ia_conectada'           // Premium+: a Sora no ChatGPT/Claude do cliente (leitura)
   | 'suporte_prioritario'    // Platinum: fila de atendimento própria
   // ─── Gates criados junto do plano `gratis` (migration 156) ────────────────
   // ⚠️ Estes NÃO EXISTIAM: as abas eram abertas a qualquer plano, sem
@@ -106,7 +106,7 @@ const FEATURES: Record<Feature, ReadonlyArray<Plano>> = {
   // cairia em "não sei" quase sempre, o que leria como função quebrada.
   oraculo:            ['premium', 'platinum'],
   // ⚠️ Espelha PLANOS em sora-backend/src/config/iaConectada.js (eval:ia-conectada).
-  chatgpt:            ['premium', 'platinum'],
+  ia_conectada:       ['premium', 'platinum'],
   suporte_prioritario: ['platinum'],
 
   // ─── "Todo mundo MENOS gratis" ────────────────────────────────────────────

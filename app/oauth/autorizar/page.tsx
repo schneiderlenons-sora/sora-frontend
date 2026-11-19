@@ -1,15 +1,15 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// "Permitir que o ChatGPT leia sua Sora?" — a tela de consentimento do OAuth.
+// "Permitir que o ChatGPT (ou o Claude) leia sua Sora?" — o consentimento do OAuth.
 //
-// O ChatGPT manda o navegador pra cá com os parâmetros do OAuth na URL
+// O ChatGPT / Claude manda o navegador pra cá com os parâmetros do OAuth na URL
 // (client_id, redirect_uri, code_challenge, state…). Esta tela NÃO decide
 // nada: o backend confere tudo ao abrir (GET /api/ia-conectada/pedido) e de
 // novo ao aprovar — só então devolve pra onde o navegador vai. Ver
 // sora-backend/src/routes/mcp.js e services/oauthIa.js.
 //
-// ⚠️ PÚBLICA NO MIDDLEWARE, de propósito: quem chega aqui pelo ChatGPT pode
+// ⚠️ PÚBLICA NO MIDDLEWARE, de propósito: quem chega aqui pelo ChatGPT/Claude pode
 // não estar logado, e o redirect padrão do middleware diria "Sua sessão
 // expirou" — falso e assustador no meio de uma conexão. A própria tela pede o
 // login e volta pra cá com os mesmos parâmetros.
@@ -22,11 +22,11 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Loader2, LogIn, Check, X, AlertCircle, Eye, ShieldCheck, ArrowLeftRight,
+  Loader2, LogIn, Check, X, AlertCircle, Eye, ShieldCheck, ArrowLeftRight, Bot,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
-import type { AcessoChatgpt } from '@/lib/ia-conectada';
+import type { AcessoIa } from '@/lib/ia-conectada';
 
 const BRAND = '#61D17B';
 
@@ -46,7 +46,17 @@ const NAO_FAZ = [
 ];
 
 type Fase = 'carregando' | 'deslogado' | 'pedido' | 'invalido' | 'sem_acesso' | 'enviando' | 'voltando';
-type Pedido = { cliente: { nome: string; logo: string | null; host: string }; email: string | null; acesso: AcessoChatgpt };
+type Pedido = { cliente: { nome: string; logo: string | null; host: string; empresa?: string }; email: string | null; acesso: AcessoIa };
+
+/**
+ * Nome do assistente ANTES de o backend conferir (a pessoa ainda nem entrou).
+ * Só rótulo de tela: quem decide se o cliente vale é o backend.
+ */
+function nomePeloId(clientId: string | null): string {
+  if (clientId?.startsWith('https://claude.ai/')) return 'Claude';
+  if (clientId?.startsWith('https://chatgpt.com/')) return 'ChatGPT';
+  return 'assistente de IA';
+}
 
 function Autorizar() {
   const sp = useSearchParams();
@@ -74,7 +84,7 @@ function Autorizar() {
         setFase(r.acesso.ok ? 'pedido' : 'sem_acesso');
       } catch (e: any) {
         // Pedido com erro já conferido (ex.: sem PKCE): o OAuth manda voltar
-        // ao ChatGPT com o erro. Sem endereço conferido, só a tela explica.
+        // ao assistente com o erro. Sem endereço conferido, só a tela explica.
         const voltar = e?.body?.voltar;
         if (voltar) { setFase('voltando'); window.location.assign(voltar); return; }
         setErro(e?.body?.descricao || e?.message || 'Não consegui conferir este pedido de conexão.');
@@ -111,18 +121,19 @@ function Autorizar() {
     window.location.assign(`/login?next=${encodeURIComponent(aqui)}`);
   }
 
-  const nomeCliente = pedido?.cliente.nome || 'ChatGPT';
+  const nomeCliente = pedido?.cliente.nome || nomePeloId(sp.get('client_id'));
+  const empresa = pedido?.cliente.empresa || (nomeCliente === 'Claude' ? 'Anthropic' : 'OpenAI');
 
   return (
     <main className="min-h-dvh flex items-center justify-center px-4 py-8 bg-background">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 sm:p-7 shadow-xl">
-        {/* Sora ↔ ChatGPT */}
+        {/* Sora ↔ assistente */}
         <div className="flex items-center justify-center gap-3" aria-hidden="true">
           <img src="/sora-icon.png" alt="" width={48} height={48} className="w-12 h-12 rounded-2xl" />
           <ArrowLeftRight size={18} className="text-muted-foreground" />
           {pedido?.cliente.logo
             ? <img src={pedido.cliente.logo} alt="" width={48} height={48} className="w-12 h-12 rounded-2xl bg-white p-2 border border-border" />
-            : <span className="w-12 h-12 rounded-2xl bg-muted grid place-items-center text-sm font-bold text-foreground">AI</span>}
+            : <span className="w-12 h-12 rounded-2xl bg-muted grid place-items-center text-foreground"><Bot size={22} /></span>}
         </div>
 
         {(fase === 'carregando' || fase === 'voltando') && (
@@ -134,9 +145,9 @@ function Autorizar() {
 
         {fase === 'deslogado' && (
           <div className="text-center">
-            <h1 className="mt-5 text-xl font-bold text-foreground">Conectar o ChatGPT à Sora</h1>
+            <h1 className="mt-5 text-xl font-bold text-foreground">Conectar o {nomeCliente} à Sora</h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              Entre na sua conta da Sora para escolher se o ChatGPT pode ler seus dados.
+              Entre na sua conta da Sora para escolher se o {nomeCliente} pode ler seus dados.
             </p>
             <Link href={`/login?next=${encodeURIComponent(aqui)}`}
                   className="mt-6 w-full h-12 rounded-xl text-sm font-bold text-white inline-flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -153,7 +164,7 @@ function Autorizar() {
               <AlertCircle size={16} className="mt-0.5 flex-shrink-0" /> {erro}
             </p>
             <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-              Volte ao ChatGPT e comece a conexão de novo por lá. Se continuar, fale com o suporte na Ajuda da Sora.
+              Volte ao {nomeCliente} e comece a conexão de novo por lá. Se continuar, fale com o suporte na Ajuda da Sora.
             </p>
             <Link href="/dashboard"
                   className="mt-6 w-full h-11 rounded-xl text-sm font-semibold text-foreground border border-border inline-flex items-center justify-center hover:bg-muted transition-colors">
@@ -169,10 +180,10 @@ function Autorizar() {
             </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               {pedido.acesso.motivo === 'plano'
-                ? 'O plano desta conta não inclui a Sora no ChatGPT.'
+                ? `O plano desta conta não inclui a Sora no ${nomeCliente}.`
                 : pedido.acesso.motivo === 'desligada'
-                  ? 'A conexão com o ChatGPT está pausada por enquanto.'
-                  : 'A Sora no ChatGPT está em teste com poucas contas. Ela chega para todos em breve.'}
+                  ? `A conexão com o ${nomeCliente} está pausada por enquanto.`
+                  : `A Sora no ${nomeCliente} está em teste com poucas contas. Ela chega para todos em breve.`}
             </p>
             {pedido.email && (
               <p className="mt-3 text-xs text-muted-foreground">
@@ -226,8 +237,8 @@ function Autorizar() {
             </section>
 
             <p className="mt-5 rounded-2xl bg-muted/50 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-              O que o {nomeCliente} ler fica na sua conta dele e segue as regras da OpenAI. Você desconecta
-              quando quiser, na aba <strong className="text-foreground">ChatGPT</strong> do painel da Sora.
+              O que o {nomeCliente} ler fica na sua conta dele e segue as regras da {empresa}. Você desconecta
+              quando quiser, na aba <strong className="text-foreground">ChatGPT e Claude</strong> do painel da Sora.
             </p>
 
             {pedido.email && (

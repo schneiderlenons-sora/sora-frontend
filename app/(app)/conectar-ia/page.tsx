@@ -1,12 +1,12 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// A aba "ChatGPT": conectar o ChatGPT da pessoa à Sora (fase 1: só leitura).
+// A aba "ChatGPT e Claude": conectar a IA da pessoa à Sora (fase 1: só leitura).
 //
-// A conversa acontece NO ChatGPT, na conta e no plano da pessoa — a Sora não
-// paga pela IA. Aqui ela (1) aprende a conectar, (2) vê o que está conectado e
-// desconecta, e (3) vê o que o ChatGPT consultou. Transparência é o que faz
-// alguém confiar o próprio dinheiro a outro app.
+// A conversa acontece NO ChatGPT / NO Claude, na conta e no plano da pessoa —
+// a Sora não paga pela IA. Aqui ela (1) aprende a conectar, (2) vê o que está
+// conectado e desconecta, e (3) vê o que a IA consultou. Transparência é o que
+// faz alguém confiar o próprio dinheiro a outro app.
 //
 // Backend: sora-backend/src/routes/mcp.js (GET /api/ia-conectada/conexoes).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,9 +19,11 @@ import GrowHero from '@/components/grow/GrowHero';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/lib/useApi';
 import { api } from '@/lib/api';
-import { NOME_FERRAMENTA, type ConexaoChatgpt, type EstadoChatgpt } from '@/lib/ia-conectada';
+import { NOME_FERRAMENTA, type ConexaoIa, type EstadoIa } from '@/lib/ia-conectada';
 
 const BRAND = '#61D17B';
+
+type Assistente = 'ChatGPT' | 'Claude';
 
 const PERGUNTAS = [
   'Onde eu mais gastei este mês e como isso se compara com o mês passado?',
@@ -36,8 +38,7 @@ const VE = ['Transações e o resumo de cada mês', 'Saldos das contas, cartões
 const NAO_FAZ = ['Lançar, editar ou apagar qualquer coisa', 'Ver sua senha ou o acesso ao seu banco',
   'Mexer no seu plano ou pagamento'];
 
-function haQuanto(iso: string | null): string {
-  if (!iso) return 'ainda não usada';
+function haQuanto(iso: string): string {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (min < 2) return 'agora há pouco';
   if (min < 60) return `há ${min} min`;
@@ -63,12 +64,14 @@ function useCopiar() {
 
 const cartao = 'rounded-2xl border border-border/40 backdrop-blur-xl p-5';
 const fundo = { background: 'hsl(var(--bg-card) / 0.5)' };
+const comBrilho = { ...fundo, backgroundImage: `radial-gradient(circle at top right, ${BRAND}24 0%, transparent 70%)` };
 
-export default function ChatgptPage() {
+export default function IaConectadaPage() {
   const { user } = useAuth();
   const chave = user?.id ? `d:ia-conectada:${user.id}` : null;
-  const { data, error, mutate } = useApi<EstadoChatgpt>(chave, () => api.iaConectada.conexoes());
+  const { data, error, mutate } = useApi<EstadoIa>(chave, () => api.iaConectada.conexoes());
   const { copiado, copiar } = useCopiar();
+  const [escolhido, setEscolhido] = useState<Assistente | null>(null);
 
   if (error && !data) {
     return (
@@ -97,24 +100,40 @@ export default function ChatgptPage() {
           <p className="flex items-start gap-3 text-sm text-foreground leading-relaxed">
             <FlaskConical size={18} className="mt-0.5 flex-shrink-0" style={{ color: BRAND }} />
             {data.acesso.motivo === 'desligada'
-              ? 'A conexão com o ChatGPT está pausada por enquanto.'
-              : 'A Sora no ChatGPT está em teste com poucas contas. Ela chega para todos em breve, e esta aba vai mostrar como conectar.'}
+              ? 'A conexão com o ChatGPT e o Claude está pausada por enquanto.'
+              : 'A conexão com o ChatGPT e o Claude está em teste com poucas contas. Ela chega para todos em breve, e esta aba vai mostrar como conectar.'}
           </p>
         </div>
       </div>
     );
   }
 
-  const conectado = data.conexoes.length > 0;
+  const conectados = new Set(data.conexoes.map((c) => c.cliente_nome));
+  // Abre no que ainda falta conectar (quem já tem o ChatGPT vê o Claude).
+  const aba: Assistente = escolhido || (conectados.has('ChatGPT') && !conectados.has('Claude') ? 'Claude' : 'ChatGPT');
+  const nomeDaConexao = Object.fromEntries(data.conexoes.map((c) => [c.id, c.cliente_nome]));
+
+  const enderecoCopiavel = (
+    <span className="mt-2 flex items-center gap-2">
+      <code className="flex-1 min-w-0 truncate rounded-lg bg-muted/60 px-3 py-2 text-xs text-foreground" title={data.url_mcp}>
+        {data.url_mcp}
+      </code>
+      <button type="button" onClick={() => copiar(data.url_mcp)}
+              className="h-11 px-3 rounded-lg border border-border text-xs font-semibold text-foreground inline-flex items-center gap-1.5 hover:bg-muted/40 flex-shrink-0"
+              aria-label="Copiar o endereço da Sora">
+        {copiado === data.url_mcp ? <Check size={14} style={{ color: BRAND }} /> : <Copy size={14} />}
+        {copiado === data.url_mcp ? 'Copiado' : 'Copiar'}
+      </button>
+    </span>
+  );
 
   return (
     <div className="space-y-5">
       <Cabecalho />
 
-      {/* ── Estado da conexão ─────────────────────────────────────────────── */}
-      {conectado ? (
-        <section className={`${cartao} animate-[slide-up_500ms_ease-out_both]`} aria-labelledby="conexoes"
-                 style={{ ...fundo, backgroundImage: `radial-gradient(circle at top right, ${BRAND}24 0%, transparent 70%)` }}>
+      {/* ── O que está conectado ──────────────────────────────────────────── */}
+      {data.conexoes.length > 0 && (
+        <section className={`${cartao} animate-[slide-up_500ms_ease-out_both]`} aria-labelledby="conexoes" style={comBrilho}>
           <h2 id="conexoes" className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <CheckCircle2 size={16} style={{ color: BRAND }} /> Conectado
           </h2>
@@ -122,46 +141,73 @@ export default function ChatgptPage() {
             {data.conexoes.map((c) => <LinhaConexao key={c.id} c={c} aoDesconectar={() => mutate()} />)}
           </ul>
           <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-            Numa conversa do ChatGPT, ative a Sora e pergunte. Ele só lê: nada é lançado nem apagado por lá.
+            Numa conversa, ative a Sora no botão de ferramentas e pergunte. Ela só lê: nada é lançado nem apagado por lá.
           </p>
         </section>
-      ) : (
-        <section className={`${cartao} animate-[slide-up_500ms_ease-out_both]`} aria-labelledby="como"
-                 style={{ ...fundo, backgroundImage: `radial-gradient(circle at top right, ${BRAND}24 0%, transparent 70%)` }}>
-          <h2 id="como" className="text-base font-bold text-foreground">Como conectar</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Leva um minuto. Faça pelo computador, no chatgpt.com.</p>
-          <ol className="mt-4 space-y-4">
+      )}
+
+      {/* ── Como conectar ─────────────────────────────────────────────────── */}
+      <section className={`${cartao} animate-[slide-up_500ms_ease-out_both]`} aria-labelledby="como"
+               style={data.conexoes.length ? fundo : comBrilho}>
+        <h2 id="como" className="text-base font-bold text-foreground">Como conectar</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Leva um minuto. Faça pelo computador, no site do assistente.</p>
+
+        <div role="tablist" aria-label="Escolha o assistente" className="mt-4 grid grid-cols-2 gap-1 rounded-xl bg-muted/50 p-1">
+          {(['ChatGPT', 'Claude'] as Assistente[]).map((a) => (
+            <button key={a} type="button" role="tab" aria-selected={aba === a} aria-controls={`passos-${a}`}
+                    onClick={() => setEscolhido(a)}
+                    className={`h-11 rounded-lg text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${
+                      aba === a ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              {a}
+              {conectados.has(a) && <Check size={14} style={{ color: BRAND }} aria-label="conectado" />}
+            </button>
+          ))}
+        </div>
+
+        {aba === 'ChatGPT' ? (
+          <ol id="passos-ChatGPT" role="tabpanel" className="mt-4 space-y-4">
             <Passo n={1}>
-              No ChatGPT, abra <strong className="text-foreground">Plugins</strong> (ou Apps), toque em <strong className="text-foreground">+</strong> e
-              escolha <strong className="text-foreground">Adicionar servidor MCP personalizado</strong>.
+              Em <strong className="text-foreground">chatgpt.com</strong>, abra <strong className="text-foreground">Plugins</strong> (ou Apps),
+              toque em <strong className="text-foreground">+</strong> e escolha <strong className="text-foreground">Adicionar servidor MCP personalizado</strong>.
             </Passo>
             <Passo n={2}>
-              Dê o nome <strong className="text-foreground">Sora</strong>, escolha <strong className="text-foreground">endereço público</strong> e cole este endereço:
-              <span className="mt-2 flex items-center gap-2">
-                <code className="flex-1 min-w-0 truncate rounded-lg bg-muted/60 px-3 py-2 text-xs text-foreground" title={data.url_mcp}>
-                  {data.url_mcp}
-                </code>
-                <button type="button" onClick={() => copiar(data.url_mcp)}
-                        className="h-11 px-3 rounded-lg border border-border text-xs font-semibold text-foreground inline-flex items-center gap-1.5 hover:bg-muted/40 flex-shrink-0"
-                        aria-label="Copiar o endereço da Sora">
-                  {copiado === data.url_mcp ? <Check size={14} style={{ color: BRAND }} /> : <Copy size={14} />}
-                  {copiado === data.url_mcp ? 'Copiado' : 'Copiar'}
-                </button>
-              </span>
+              Dê o nome <strong className="text-foreground">Sora</strong>, escolha <strong className="text-foreground">endereço público</strong> e cole:
+              {enderecoCopiavel}
             </Passo>
             <Passo n={3}>
               Em autenticação, escolha <strong className="text-foreground">OAuth</strong> e conclua. Vai abrir a tela da Sora: confira e
               toque em <strong className="text-foreground">Permitir acesso</strong>.
             </Passo>
+            <li className="text-xs text-muted-foreground leading-relaxed">
+              Não achou a opção? Ela depende do plano e da conta do ChatGPT; nem toda conta permite adicionar servidores próprios.
+            </li>
           </ol>
-          <p className="mt-4 text-xs text-muted-foreground">Quando terminar, a conexão aparece aqui.</p>
-        </section>
-      )}
+        ) : (
+          <ol id="passos-Claude" role="tabpanel" className="mt-4 space-y-4">
+            <Passo n={1}>
+              Em <strong className="text-foreground">claude.ai</strong>, abra <strong className="text-foreground">Configurações → Conectores</strong> e
+              toque em <strong className="text-foreground">Adicionar conector personalizado</strong>.
+            </Passo>
+            <Passo n={2}>
+              Dê o nome <strong className="text-foreground">Sora</strong>, cole o endereço abaixo e toque em <strong className="text-foreground">Adicionar</strong>:
+              {enderecoCopiavel}
+            </Passo>
+            <Passo n={3}>
+              Toque em <strong className="text-foreground">Conectar</strong>. Vai abrir a tela da Sora: confira e toque em{' '}
+              <strong className="text-foreground">Permitir acesso</strong>.
+            </Passo>
+            <li className="text-xs text-muted-foreground leading-relaxed">
+              No plano gratuito do Claude cabe 1 conector personalizado. Depois de conectar, a Sora também aparece no app do Claude no celular.
+            </li>
+          </ol>
+        )}
+        <p className="mt-4 text-xs text-muted-foreground">Quando terminar, a conexão aparece aqui.</p>
+      </section>
 
       {/* ── O que perguntar ───────────────────────────────────────────────── */}
       <section className={cartao} style={fundo} aria-labelledby="perguntas">
         <h2 id="perguntas" className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <MessageSquareText size={16} style={{ color: BRAND }} /> Para perguntar no ChatGPT
+          <MessageSquareText size={16} style={{ color: BRAND }} /> Para perguntar
         </h2>
         <ul className="mt-3 space-y-2">
           {PERGUNTAS.map((p) => (
@@ -179,11 +225,11 @@ export default function ChatgptPage() {
         </ul>
       </section>
 
-      {/* ── O que ele vê / não faz ────────────────────────────────────────── */}
+      {/* ── O que a IA vê / não faz ───────────────────────────────────────── */}
       <section className={`${cartao} grid gap-5 sm:grid-cols-2`} style={fundo}>
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Eye size={16} style={{ color: BRAND }} /> O ChatGPT pode ver
+            <Eye size={16} style={{ color: BRAND }} /> A IA pode ver
           </h2>
           <ul className="mt-2 space-y-1.5">
             {VE.map((t) => (
@@ -195,7 +241,7 @@ export default function ChatgptPage() {
         </div>
         <div>
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <ShieldCheck size={16} className="text-muted-foreground" /> O ChatGPT não pode
+            <ShieldCheck size={16} className="text-muted-foreground" /> A IA não pode
           </h2>
           <ul className="mt-2 space-y-1.5">
             {NAO_FAZ.map((t) => (
@@ -206,16 +252,16 @@ export default function ChatgptPage() {
           </ul>
         </div>
         <p className="sm:col-span-2 text-xs text-muted-foreground leading-relaxed">
-          O que o ChatGPT ler fica na sua conta dele e segue as regras da OpenAI. Os dados são os do seu grupo ativo na
-          Sora; em gestão compartilhada, entram os lançamentos das outras pessoas do grupo.
+          O que a IA ler fica na sua conta dela e segue as regras de quem a oferece (OpenAI no ChatGPT, Anthropic no Claude).
+          Os dados são os do seu grupo ativo na Sora; em gestão compartilhada, entram os lançamentos das outras pessoas do grupo.
         </p>
       </section>
 
       {/* ── O que foi consultado ──────────────────────────────────────────── */}
-      {conectado && (
+      {data.conexoes.length > 0 && (
         <section className={cartao} style={fundo} aria-labelledby="consultas">
           <h2 id="consultas" className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Clock size={16} className="text-muted-foreground" /> O que o ChatGPT consultou
+            <Clock size={16} className="text-muted-foreground" /> O que a IA consultou
           </h2>
           {data.consultas.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">Nada ainda. Assim que você perguntar algo, aparece aqui.</p>
@@ -228,6 +274,9 @@ export default function ChatgptPage() {
                       ? <Check size={14} className="flex-shrink-0" style={{ color: BRAND }} aria-label="Respondida" />
                       : <AlertCircle size={14} className="flex-shrink-0 text-amber-500" aria-label="Não respondida" />}
                     <span className="truncate">{NOME_FERRAMENTA[q.ferramenta] || q.ferramenta}</span>
+                    {q.conexao_id && nomeDaConexao[q.conexao_id] && data.conexoes.length > 1 && (
+                      <span className="text-xs text-muted-foreground flex-shrink-0">· {nomeDaConexao[q.conexao_id]}</span>
+                    )}
                   </span>
                   <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">{haQuanto(q.criado_em)}</span>
                 </li>
@@ -243,9 +292,9 @@ export default function ChatgptPage() {
 function Cabecalho() {
   return (
     <GrowHero
-      badge="ChatGPT"
-      titulo="A Sora no seu ChatGPT"
-      subtitulo="Pergunte sobre o seu dinheiro no ChatGPT. Ele lê os seus números na Sora e responde."
+      badge="ChatGPT e Claude"
+      titulo="A Sora no seu ChatGPT ou Claude"
+      subtitulo="Pergunte sobre o seu dinheiro na IA que você já usa. Ela lê os seus números na Sora e responde."
     />
   );
 }
@@ -260,7 +309,7 @@ function Passo({ n, children }: { n: number; children: React.ReactNode }) {
   );
 }
 
-function LinhaConexao({ c, aoDesconectar }: { c: ConexaoChatgpt; aoDesconectar: () => void }) {
+function LinhaConexao({ c, aoDesconectar }: { c: ConexaoIa; aoDesconectar: () => void }) {
   const [confirmando, setConfirmando] = useState(false);
   const [saindo, setSaindo] = useState(false);
   const [erro, setErro] = useState('');

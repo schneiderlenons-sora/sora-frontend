@@ -1397,19 +1397,19 @@ export const api = {
       req<any>(`/api/wrapped/grow/${phone}${periodo ? `?periodo=${periodo}` : ''}`),
   },
 
-  // ── SORA NO CHATGPT (servidor MCP + OAuth, sora-backend/src/routes/mcp.js) ──
+  // ── SORA NO CHATGPT / CLAUDE (servidor MCP + OAuth, sora-backend/src/routes/mcp.js) ──
   // Identidade pelo JWT (sem telefone): quem tem só e-mail também conecta.
   iaConectada: {
     /** Confere o pedido que o ChatGPT mandou pra tela de consentimento. */
     pedido: (params: Record<string, string>) =>
-      req<{ ok: true; cliente: { nome: string; logo: string | null; host: string }; escopo: string;
-        acesso: import('@/lib/ia-conectada').AcessoChatgpt; email: string | null }>(
+      req<{ ok: true; cliente: { nome: string; logo: string | null; host: string; chave?: string; empresa?: string }; escopo: string;
+        acesso: import('@/lib/ia-conectada').AcessoIa; email: string | null }>(
         `/api/ia-conectada/pedido?${qs(params)}`),
     aprovar: (params: Record<string, string>) =>
       req<{ ok: boolean; url: string }>('/api/ia-conectada/aprovar', { method: 'POST', body: JSON.stringify(params) }),
     negar: (params: Record<string, string>) =>
       req<{ ok: boolean; url: string | null }>('/api/ia-conectada/negar', { method: 'POST', body: JSON.stringify(params) }),
-    conexoes: () => req<import('@/lib/ia-conectada').EstadoChatgpt>('/api/ia-conectada/conexoes'),
+    conexoes: () => req<import('@/lib/ia-conectada').EstadoIa>('/api/ia-conectada/conexoes'),
     desconectar: (id: string) =>
       req<{ ok: boolean; revogada: boolean }>(`/api/ia-conectada/conexoes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },

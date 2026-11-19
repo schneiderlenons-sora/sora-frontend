@@ -64,7 +64,7 @@ export type ItemNav = {
   breve?:  boolean;                    // aba futura: mostra, não navega
   // Teste fechado: o item só aparece pra quem está na lista do teste
   // (lib/ia-conectada.ts). Fora dela some — não vira cadeado nem "em breve".
-  teste?:  'chatgpt';
+  teste?:  'ia_conectada';
   externa?: boolean;                  // href com query (não casa por igualdade)
 };
 
@@ -136,9 +136,9 @@ export const GRUPOS: GrupoNav[] = [
           { href: '/categorias',    label: 'Categorias',           icone: 'Tag' },
           { href: '/investimentos', label: 'Investimentos',        icone: 'TrendingUp', gate: 'investimentos', badge: 'Premium' },
           { href: '/juros',         label: 'Calculadora de Juros', icone: 'Percent' },
-          // A Sora no ChatGPT do cliente: a conversa (e a análise) acontece no
-          // ChatGPT dele. Mora em Analisar porque, na fase 1, ela só LÊ.
-          { href: '/chatgpt',       label: 'ChatGPT',              icone: 'Bot', gate: 'chatgpt', badge: 'Premium', teste: 'chatgpt' },
+          // A Sora no ChatGPT ou no Claude do cliente: a conversa (e a análise)
+          // acontece na IA dele. Mora em Analisar porque, na fase 1, ela só LÊ.
+          { href: '/conectar-ia',   label: 'ChatGPT e Claude',     icone: 'Bot', gate: 'ia_conectada', badge: 'Premium', teste: 'ia_conectada' },
         ],
       },
     ],

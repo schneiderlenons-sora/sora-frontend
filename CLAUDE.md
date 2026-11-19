@@ -622,11 +622,12 @@ lançam no caixa digitavam a sua, e a mesma aparecia escrita de 3 jeitos
 - Evals: back `eval:categorias-negocio` (51) + `-rota` (48), 16/16 mutações;
   front 30 casos, 8/8. Testado na tela (sem a 196) com conta de teste apagada.
 
-## Sora no ChatGPT — servidor MCP só leitura (nov/2026, TESTE FECHADO)
+## Sora no ChatGPT e no Claude — servidor MCP só leitura (nov/2026, TESTE FECHADO)
 
-O cliente conecta o ChatGPT DELE à Sora; a conversa e a IA ficam no ChatGPT,
-no plano da pessoa (a Sora não paga pela IA). Decisão do dono: **só ChatGPT por
-enquanto**, fase 1 **só leitura**, Premium/Platinum. Migration **197**.
+O cliente conecta o ChatGPT OU o Claude DELE à Sora; a conversa e a IA ficam
+lá, no plano da pessoa (a Sora não paga pela IA — nos dois). Decisões do dono:
+ChatGPT e Claude, fase 1 **só leitura**, Premium/Platinum. Migration **197**
+(rodada em 18/11/2026).
 
 - **Backend:** `routes/mcp.js` (`/mcp` stateless, `/.well-known/*`,
   `/oauth/token`, `/oauth/revoke`, `/api/ia-conectada/*`), `services/oauthIa.js`
@@ -637,26 +638,35 @@ enquanto**, fase 1 **só leitura**, Premium/Platinum. Migration **197**.
   existe na memória do processo, só GET, só 127.0.0.1) — inclusive os 403 de
   plano. O arquivo das ferramentas só escolhe campos e tira telefone de membro.
 - ⚠️ **OAuth PRÓPRIO, não o do Supabase:** o JWT do Supabase valeria em toda
-  rota do backend e direto no banco. O token do ChatGPT é opaco e só vale no
-  `/mcp` — o eval prova que ele é recusado nas rotas do painel.
-- **Cliente por URL (CIMD), só `https://chatgpt.com/oauth/…client.json`,
-  retorno só em chatgpt.com.** Sem cadastro aberto de cliente. Pra ligar o
-  Claude depois, é em `CLIENTE_ID_OK`/`ORIGENS_RETORNO`.
+  rota do backend e direto no banco. O token da IA é opaco e só vale no
+  `/mcp` — o eval e o teste em produção provam que ele é recusado no painel.
+- **Cliente por URL (CIMD), sem cadastro aberto** (`CLIENTES` em
+  `config/iaConectada.js`): ChatGPT = `https://chatgpt.com/oauth/…client.json`,
+  retorno só em chatgpt.com; Claude = `https://claude.ai/oauth/mcp-oauth-client-metadata`,
+  retorno só em claude.ai/claude.com. ⚠️ **Os domínios de retorno são POR
+  CLIENTE** — o documento de um não consegue mandar o código pro domínio do
+  outro (eval §3). O Claude não manda `resource` (vale o /mcp por padrão).
+  O claude.ai responde ao Render com desafio do Cloudflare: a lista
+  `CLIENTES_CONHECIDOS` é o que segura nesse caso.
+- ⚠️ **Claude Code (linha de comando) fica de fora:** volta pra `localhost`.
 - **Tela de consentimento:** `app/oauth/autorizar` (pública no middleware — a
   própria tela pede login; nas allowlists da abertura, onboarding e paywall;
-  sem iframe). **Aba:** `app/(app)/chatgpt` em Finanças → Analisar, gate
-  `chatgpt`, item com `teste: 'chatgpt'` (some pra quem não está na lista).
+  sem iframe; cita a empresa certa, OpenAI ou Anthropic). **Aba:**
+  `app/(app)/conectar-ia` ("ChatGPT e Claude", Finanças → Analisar), gate
+  `ia_conectada`, item com `teste: 'ia_conectada'` (some pra quem não está na lista).
 - **Teste fechado:** lista de e-mails em `config/iaConectada.js` E
   `lib/ia-conectada.ts` (`eval:ia-conectada` compara). Abrir: `IA_CONECTADA_ABERTA=1`
   no Render + `ABERTA = true` no front. Desligar tudo: `IA_CONECTADA_ATIVA=0`.
-- ⚠️ **O endereço fica gravado no ChatGPT de cada cliente.** Antes de abrir,
+- ⚠️ **O endereço fica gravado na IA de cada cliente.** Antes de abrir,
   apontar `MCP_BASE_URL` pra um domínio próprio (ex.: mcp.forsora.com) — trocar
   depois derruba todas as conexões.
-- Evals: back `eval:ia-conectada` (105, inclui o `/mcp` por HTTP com o `auth`
-  real); front `eval:ia-conectada`.
+- Evals: back `eval:ia-conectada` (inclui o `/mcp` por HTTP com o `auth`
+  real); front `eval:ia-conectada`. Teste em produção com a conta comercial
+  (gera link mágico, aprova, token, as 11 ferramentas, compara com o painel,
+  rotação, desconectar; apaga as linhas ia_* e revoga a sessão no fim): 31/31.
 - **Fase 2 (não feita):** escrita com confirmação (lançar, recategorizar)
-  reusando `alterarTransacao`/`quitacao`; publicar no diretório do ChatGPT
-  como **"ForSora"** ("Sora" é o app de vídeo da OpenAI).
+  reusando `alterarTransacao`/`quitacao`; publicar nos diretórios como
+  **"ForSora"** ("Sora" é o app de vídeo da OpenAI).
 
 ## Painel admin reorganizado (nov/2026)
 
@@ -4967,7 +4977,7 @@ sql/193_reservas_no_pessoal.sql — contas_negocio.reservas_no_pessoal: mostrar 
 sql/194_ultimo_acesso.sql       — users.ultimo_acesso_em + função admin_ultimo_uso (só service_role): o "último uso" do admin era o último LOGIN (cliente logado no app aparecia "há 68 dias"). Sem ela a tela mostra o login, como antes.
 sql/195_pagamento_fatura_dia_sp.sql — corrige pagamentos_fatura.data gravada no dia UTC (pagamento entre 21h e meia-noite caía no dia seguinte). 60 linhas em 27 cartões. Só mexe em data.
 sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícone, natureza fixa/variável, oculta). ⚠️ A tabela JÁ EXISTIA desde a 105 (sem uso, sem natureza/oculta/criado_por/updated_at) — a 196 completa as colunas com ALTER; rodar de novo é seguro. Sem ela: as digitadas aparecem pra reaproveitar, renomear/juntar/mover funcionam, mas ícone e "tirar da lista" não (a tela avisa sem jargão).
-sql/197_ia_conectada.sql — Sora no ChatGPT: ia_conexoes (tokens só em sha256), ia_oauth_codigos (uso único, 5 min), ia_acessos (o que o ChatGPT consultou). **OBRIGATÓRIA pra conectar**: sem ela a aba diz "em teste" e o /oauth/token falha.
+sql/197_ia_conectada.sql — Sora no ChatGPT e no Claude: ia_conexoes (tokens só em sha256), ia_oauth_codigos (uso único, 5 min), ia_acessos (o que o ChatGPT consultou). **OBRIGATÓRIA pra conectar**: sem ela a aba diz "em teste" e o /oauth/token falha.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
