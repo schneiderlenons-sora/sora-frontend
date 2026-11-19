@@ -9,6 +9,13 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 - **Domínio oficial:** **https://www.forsora.com** (site + painel da Sora).
 - **Preview só quando pedido.** Às vezes o usuário pede um **preview** das alterações (painel ou landing) sem mandar pra produção — esses previews ficam na **Vercel**. Só gere preview se o usuário pedir explicitamente; o padrão é sempre deploy direto pra produção.
 - **Conta de TESTES: `comercialsora@gmail.com`** (a conta comercial da Sora). Sempre que precisar testar no painel ou no banco real, use ESTA conta — **não crie contas novas** (decisão do dono, nov/2026). Pra entrar sem a senha: gerar o link mágico pelo admin do Supabase (`auth.admin.generateLink`, não envia e-mail) e validar o token. Teste que grava dado nela tem de desfazer o que gravou.
+  - ⚠️ **Exceção, de propósito (19/11/2026, pedido do dono):** a conta tem
+    **dados de demonstração** pro vídeo e a revisão do ChatGPT/Claude —
+    ~85 lançamentos de set–nov (transações com `fitid` `DEMO-…`), faturas
+    vencidas do Nubank Ultravioleta pagas, 2 dívidas novas e parcelas
+    registradas, limites de novembro. **Não são lixo de teste: não apagar.**
+    Pra remover: `node remover.js` em `Sora/demo-comercialsora/` (fora dos
+    repositórios; o `manifesto.json` lista o que foi criado).
 
 ## 📌 Onde está cada coisa (ler antes de supor)
 
