@@ -306,7 +306,9 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
       });
       setCartaoArquivo(ehCartao);
       setInvertido(inv);
-      setMoverOutras(true);
+      // Fatura de cartão numa conta que não é cartão: não sugerir levar as
+      // compras PRA ela (a pessoa provavelmente vai trocar a conta acima).
+      setMoverOutras(!(ehCartao && !destinoEhCartao));
       setRows(novas);
       setStep('review');
     } catch (e: any) {
