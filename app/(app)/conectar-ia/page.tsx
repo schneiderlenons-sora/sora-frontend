@@ -114,7 +114,7 @@ export default function IaConectadaPage() {
   const nomeDaConexao = Object.fromEntries(data.conexoes.map((c) => [c.id, c.cliente_nome]));
 
   const enderecoCopiavel = (
-    <span className="mt-2 flex items-center gap-2">
+    <div className="mt-2 flex items-center gap-2">
       <code className="flex-1 min-w-0 truncate rounded-lg bg-muted/60 px-3 py-2 text-xs text-foreground" title={data.url_mcp}>
         {data.url_mcp}
       </code>
@@ -124,7 +124,7 @@ export default function IaConectadaPage() {
         {copiado === data.url_mcp ? <Check size={14} style={{ color: BRAND }} /> : <Copy size={14} />}
         {copiado === data.url_mcp ? 'Copiado' : 'Copiar'}
       </button>
-    </span>
+    </div>
   );
 
   return (
@@ -304,7 +304,8 @@ function Passo({ n, children }: { n: number; children: React.ReactNode }) {
     <li className="flex gap-3">
       <span className="w-7 h-7 rounded-full grid place-items-center text-xs font-bold text-white flex-shrink-0 tabular-nums"
             style={{ background: BRAND }} aria-hidden="true">{n}</span>
-      <span className="flex-1 min-w-0 text-sm text-muted-foreground leading-relaxed flex flex-col">{children}</span>
+      {/* Bloco, não flex: com flex cada trecho de texto e cada <strong> virava uma linha. */}
+      <div className="flex-1 min-w-0 text-sm text-muted-foreground leading-relaxed">{children}</div>
     </li>
   );
 }
