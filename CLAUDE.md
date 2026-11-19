@@ -224,6 +224,15 @@ contas e cartões, duplicado. Agora o step 5 abre com a escolha.
 - Estado derivado (`escolha ?? querOpenFinance(...)`), **não** `useEffect` +
   setState: com efeito, o primeiro render saía "manual" e piscava pra
   "Open Finance" quando o auth chegava.
+- ⚠️ **Passos 6 e 7 (gastos/receitas fixas) com o banco escolhido e sem contas**
+  mostram `DepoisDoBanco` ("ficam pra depois de conectar · toque em
+  Continuar · depois, na aba Previstos"). Antes mostravam "Adicione contas
+  primeiro · volte ao passo anterior", que contradizia o passo 5, e o cliente
+  leu como travado (nov/2026). O Continuar sempre funcionou; no celular o
+  "Pular este passo" nem aparece.
+- ⚠️ **Vitalício vê a opção de conectar, mas a conexão é paga à parte**
+  (franquia 0, R$ 6/mês por banco) e o passo 5 não diz isso — decisão
+  pendente do dono sobre avisar ali (escondido nos apps de celular).
 
 **Guard:** `components/auth/OnboardingRedirect.tsx` — redireciona pra `/onboarding` se `perfil.onboarding_completed === false`.
 
@@ -3307,6 +3316,27 @@ Relato: *"transações lançadas hoje (01/09) aparecem com a data do dia anterio
   esses três call sites ficaram como estavam de propósito.
 - **`npm run eval:data-br`** trava a regra e roda com **`TZ=America/Sao_Paulo`
   de propósito**: em UTC o bug não aparece e o eval passaria por acidente.
+
+---
+
+## Resgate de meta devolve o valor pra uma conta (nov/2026)
+
+Pedido de cliente: resgatar R$ 500 de uma meta e o dinheiro voltar pra uma
+conta. O modal de resgate ganhou "Devolver o valor pra uma conta?"
+(`ContaDebitoSelect modo="credito"`, opcional, cartões fora) e
+`POST /api/metas/:id/resgate` aceita `wallet_id`.
+
+- **Mesma função do resgate de investimento (`creditarConta`)**: soma no saldo
+  e grava a entrada com `transferencia: true` — resgatar da própria meta não é
+  receita do mês. Conta do Open Finance registra a entrada sem mexer no saldo.
+- ⚠️ **Tudo ou nada:** a conta é conferida antes de mexer na meta (do grupo,
+  não cartão); se a entrada falhar, a meta volta ao valor e status de antes e o
+  registro do resgate é apagado.
+- De passagem: aporte e resgate só acham meta do PRÓPRIO grupo (antes bastava
+  o id) e as escritas do resgate leem o erro.
+- `eval:resgate-meta` (backend, 54 verificações, rota e `creditarConta` reais
+  sobre banco falso, 10/10 mutações). Testado na tela em produção com a conta
+  de testes (desfeito). O WhatsApp só tem aporte de meta, não resgate.
 
 ---
 
