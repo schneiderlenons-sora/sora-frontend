@@ -23,6 +23,8 @@ const ROTAS_PUBLICAS = [
   // Vendas e funis — visitante sem conta é o público delas.
   '/oferta', '/kit', '/checkout-vitalicio', '/financas', '/chat', '/quiz', '/tour',
   '/termos', '/privacidade',
+  // Documentação da Sora no ChatGPT/Claude: os dois diretórios exigem página aberta.
+  '/assistentes',
   // Exigência da Play Store: a exclusão de conta tem de abrir SEM login.
   '/excluir-conta',
   // Redirects de rota antiga. Públicas de propósito: elas só apontam pra

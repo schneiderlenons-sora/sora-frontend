@@ -9,7 +9,7 @@ export default function PrivacidadePage() {
       <div className="max-w-3xl mx-auto px-5 sm:px-8 py-16">
         <Link href="/" className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>← Voltar</Link>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mt-6 mb-2">Política de Privacidade</h1>
-        <p className="text-sm text-zinc-500 dark:text-white/50 mb-10">Última atualização: 28/10/2026 · Conforme a LGPD (Lei 13.709/2018)</p>
+        <p className="text-sm text-zinc-500 dark:text-white/50 mb-10">Última atualização: 18/11/2026 · Conforme a LGPD (Lei 13.709/2018)</p>
 
         <div className="space-y-8 text-[15px] leading-relaxed text-zinc-700 dark:text-white/75">
           <section>

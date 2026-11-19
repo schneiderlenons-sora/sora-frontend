@@ -43,6 +43,8 @@ export default function OnboardingRedirect() {
       // Tela de consentimento do ChatGPT (OAuth): o wizard no meio perderia
       // os parâmetros e a conexão falharia sem explicação.
       '/oauth',
+      // Documentação pública da Sora no ChatGPT/Claude.
+      '/assistentes',
       '/vincular-whatsapp',
       '/oferta',
       '/checkout-vitalicio',

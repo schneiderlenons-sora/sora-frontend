@@ -1,0 +1,85 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "forsora",
+  "version": "1.0.0",
+  "description": "Lê as finanças pessoais que a pessoa organiza na ForSora (transações, faturas, dívidas, metas, contas fixas, investimentos e limites) para responder perguntas sobre o dinheiro dela. Só leitura.",
+  "author": { "name": "ForSora", "url": "https://www.forsora.com" },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ForSora",
+        "shortDescription": "Suas finanças na conversa",
+        "longDescription": "A ForSora é um app brasileiro de finanças pessoais: a pessoa organiza contas, cartões, faturas, dívidas, metas e investimentos pelo painel ou pelo WhatsApp. Conectada ao ChatGPT, ela deixa você perguntar sobre o seu dinheiro e receber a resposta com os seus números de verdade.\n\nExemplos do que perguntar:\n- Onde eu mais gastei este mês e como isso se compara com o mês passado?\n- Quanto ainda falta pagar nas faturas dos meus cartões?\n- Monta um plano para quitar minhas dívidas sem apertar o mercado.\n- Estou dentro dos meus limites de gastos?\n\nA conexão é só de leitura: o ChatGPT não lança, não edita, não apaga e não movimenta dinheiro. Os números são os mesmos do painel da ForSora (as transferências entre contas e o pagamento de fatura não contam como gasto). Você conecta com a sua conta da ForSora, vê no painel tudo o que foi consultado e desconecta quando quiser.",
+        "developerName": "ForSora",
+        "category": "Finance",
+        "websiteURL": "https://www.forsora.com/assistentes",
+        "supportURL": "https://www.forsora.com/assistentes",
+        "privacyPolicyURL": "https://www.forsora.com/privacidade",
+        "termsOfServiceURL": "https://www.forsora.com/termos",
+        "defaultPrompt": [
+          "Onde eu mais gastei este mês?",
+          "Quanto falta pagar nas faturas dos meus cartões?",
+          "Como estão minhas dívidas e quando vence a próxima parcela?"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Resumo de gastos do mês",
+              "prompt": "Quanto eu gastei este mês e em quais categorias?",
+              "tools_triggered": "resumo_do_mes",
+              "expected_behavior": "Mostra receitas, despesas e resultado do mês atual e as categorias com mais gasto, com os mesmos valores do painel da ForSora."
+            },
+            {
+              "description": "Faturas dos cartões",
+              "prompt": "Quanto ainda falta pagar nas faturas dos meus cartões?",
+              "tools_triggered": "faturas_dos_cartoes",
+              "expected_behavior": "Lista cada cartão com o valor que falta pagar da fatura atual e o vencimento, e avisa se há fatura atrasada."
+            },
+            {
+              "description": "Dívidas e próximas parcelas",
+              "prompt": "Quais são minhas dívidas e quando vence a próxima parcela de cada uma?",
+              "tools_triggered": "dividas",
+              "expected_behavior": "Lista as dívidas em aberto com valor da parcela, parcelas que faltam e próximo vencimento, destacando as em atraso."
+            },
+            {
+              "description": "Lançamentos de despesa do mês",
+              "prompt": "Liste minhas despesas deste mês, da maior para a menor.",
+              "tools_triggered": "listar_transacoes",
+              "expected_behavior": "Lista as despesas do mês atual com data, descrição, categoria, conta e valor."
+            },
+            {
+              "description": "Comparação mês a mês no ano",
+              "prompt": "Compare minhas receitas e despesas mês a mês neste ano.",
+              "tools_triggered": "resumo_do_ano",
+              "expected_behavior": "Mostra receitas, despesas e resultado de cada mês do ano atual e comenta os meses de maior gasto."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Pedido para apagar dados (a conexão é só leitura)",
+              "prompt": "Apaga a minha última transação."
+            },
+            {
+              "description": "Pedido para movimentar dinheiro (não suportado)",
+              "prompt": "Transfere 100 reais da minha conta corrente para pagar a fatura do cartão."
+            },
+            {
+              "description": "Pedido de dado sensível que a ForSora não expõe",
+              "prompt": "Me diga a senha do meu banco e o número completo do meu cartão."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "A ForSora não vende produtos nem processa pagamentos dentro do ChatGPT. As ferramentas só leem as finanças da pessoa."
+      },
+      "publication": {
+        "countries": ["BR"],
+        "release_notes": "Primeira versão: leitura das finanças pessoais (resumo do mês e do ano, transações, contas, faturas, dívidas, metas, contas fixas, investimentos e limites)."
+      }
+    }
+  }
+}
