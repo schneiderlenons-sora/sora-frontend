@@ -21,9 +21,29 @@ import { TxParsed, parseData, parseValor } from './importar-tabela';
 
 // Valor em real: 1.234,56 · 150,00 · R$ 150,00 · -150,00 · 150,00 D/C.
 // Captura o SINAL (-) e o sufixo D/C (débito/crédito) quando houver.
-const TOKEN_VALOR = /(-)?\s*R?\$?\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*([DC])?\b/gi;
+// ⚠️ O sinal pode vir TIPOGRÁFICO (− U+2212 ou – U+2013), não o hífen: é como a
+// fatura do Nubank escreve o pagamento ("−R$ 1.000,00").
+const TOKEN_VALOR = /([-−–])?\s*R?\$?\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*([DC])?\b/gi;
 // Data no começo/meio da linha: DD/MM, DD/MM/AA ou DD/MM/AAAA.
 const RE_DATA = /(?:^|\s)(\d{2})\/(\d{2})(?:\/(\d{2,4}))?(?=\s|$)/;
+// ⚠️ Data com o MÊS ESCRITO: "14 OUT", "14 out.", "14 de outubro", "14/OUT",
+// "14 OUT 2026". É o formato da fatura do Nubank (e de outros cartões): sem
+// isto, nenhuma linha era reconhecida e a tela dizia que o PDF "parece imagem"
+// (relato de nov/2026). Ano só com 4 dígitos — "14 OUT 12 PARCELAS" não é 2012.
+const MESES: Record<string, string> = { jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06', jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12' };
+// ⚠️ O mês é a abreviação OU o nome inteiro, seguido de pausa — senão "LOJA 2
+// MARIAS" virava 2 de março.
+const RE_DATA_MES = /(?:^|\s)(\d{1,2})\s*(?:\/|de\s+)?\s*(jan(?:eiro)?|fev(?:ereiro)?|mar(?:[cç]o)?|abr(?:il)?|mai(?:o)?|jun(?:ho)?|jul(?:ho)?|ago(?:sto)?|set(?:embro)?|out(?:ubro)?|nov(?:embro)?|dez(?:embro)?)\.?(?:\s*(?:\/|de\s+)?\s*(\d{4}))?(?=[\s,/]|$)/i;
+
+/** A 1ª data da linha, nos dois formatos: { index, fim, dia, mes, ano? }. */
+function dataDaLinha(linha: string): { index: number; fim: number; dia: string; mes: string; ano?: string } | null {
+  const a = linha.match(RE_DATA);
+  const b = linha.match(RE_DATA_MES);
+  const ca = a ? { index: a.index ?? 0, fim: (a.index ?? 0) + a[0].length, dia: a[1], mes: a[2], ano: a[3] } : null;
+  const cb = b ? { index: b.index ?? 0, fim: (b.index ?? 0) + b[0].length, dia: b[1].padStart(2, '0'), mes: MESES[b[2].toLowerCase().slice(0, 3)], ano: b[3] } : null;
+  if (ca && cb) return ca.index <= cb.index ? ca : cb;
+  return ca || cb;
+}
 
 // Crédito/estorno (não é compra): vira Recebimento pra não contar como gasto.
 const KW_CREDITO = /(pagamento|pgto|pagto|estorno|estornad|cr[eé]dito|reembolso|devolu[cç]|ressarc|cashback)/i;
@@ -64,7 +84,7 @@ export function parsePdfLinhas(linhas: string[], hojeISO?: string): TxParsed[] {
     const linha = String(raw || '').replace(/\s+/g, ' ').trim();
     if (!linha || KW_IGNORAR.test(linha)) continue;
 
-    const md = linha.match(RE_DATA);
+    const md = dataDaLinha(linha);
     if (!md) continue;                                   // sem data → não é transação
 
     const valores = [...linha.matchAll(TOKEN_VALOR)];
@@ -73,21 +93,23 @@ export function parsePdfLinhas(linhas: string[], hojeISO?: string): TxParsed[] {
     const valorNum = parseValor(ultimo[2]);
     if (!(valorNum > 0)) continue;
 
-    // Descrição = o que está ENTRE a data e o último valor.
-    const iniDesc = (md.index ?? 0) + md[0].length;
+    // Descrição = o que está ENTRE a data e o último valor. Sai também o final
+    // do cartão que algumas faturas põem antes ("•••• 1234 Uber").
     const fimDesc = ultimo.index ?? linha.length;
-    const desc = linha.slice(iniDesc, fimDesc)
-      .replace(/\s+/g, ' ').trim().replace(/^[-–·.\s]+|[-–·.\s]+$/g, '');
+    const desc = linha.slice(md.fim, fimDesc)
+      .replace(/\s+/g, ' ').trim()
+      .replace(/^(?:[•*·]{2,}\s*\d{4}\s*)/, '')
+      .replace(/^[-–−·.\s]+|[-–−·.\s]+$/g, '');
     if (desc.length < 2 || !/[a-zA-ZÀ-ÿ]/.test(desc)) continue;  // sem texto real → pula
 
     // Data: ano explícito vence; sem ano, usa o de referência e, se cair no
     // FUTURO, volta um ano (fatura de dez vista em jan, etc.).
-    let ano = md[3] ? (md[3].length === 2 ? 2000 + +md[3] : +md[3]) : anoRef;
-    let dataISO = parseData(`${md[1]}/${md[2]}/${ano}`);
+    let ano = md.ano ? (md.ano.length === 2 ? 2000 + +md.ano : +md.ano) : anoRef;
+    let dataISO = parseData(`${md.dia}/${md.mes}/${ano}`);
     if (!dataISO) continue;
-    if (!md[3] && dataISO > hojeStr) {
+    if (!md.ano && dataISO > hojeStr) {
       ano -= 1;
-      dataISO = parseData(`${md[1]}/${md[2]}/${ano}`) || dataISO;
+      dataISO = parseData(`${md.dia}/${md.mes}/${ano}`) || dataISO;
     }
 
     // Tipo: compra (Gasto) por padrão; crédito/estorno/pagamento ou valor
@@ -100,4 +122,22 @@ export function parsePdfLinhas(linhas: string[], hojeISO?: string): TxParsed[] {
   }
 
   return out;
+}
+
+/**
+ * Por que um PDF não deu lançamento — pra tela não chamar de "imagem" um PDF
+ * que tem texto. Era a mensagem que o cliente leu como "o sistema identifica
+ * o documento como uma imagem" numa fatura normal.
+ *   - 'sem_texto': quase nada de texto → escaneado/imagem.
+ *   - 'formato':   tem texto, mas não no formato que sabemos ler.
+ */
+export function motivoPdfSemLancamentos(linhas: string[]): 'sem_texto' | 'formato' {
+  const texto = (linhas || []).join(' ').replace(/\s+/g, '');
+  return texto.length < 40 ? 'sem_texto' : 'formato';
+}
+
+/** O PDF é uma FATURA de cartão (e não extrato de conta)? */
+export function pdfEhFatura(linhas: string[]): boolean {
+  const topo = (linhas || []).slice(0, 60).join(' ');
+  return /\bfatura\b/i.test(topo) && /(cart[aã]o|vencimento|limite)/i.test(topo);
 }

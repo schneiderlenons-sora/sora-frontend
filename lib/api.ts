@@ -439,8 +439,9 @@ export const api = {
       valor_parcela: number; num_parcelas: number; data: string; pagas: number[];
     }) => req<{ ok: boolean; parcela_grupo: string; criadas: number }>(
       '/api/transacoes/parcelado', { method: 'POST', body: JSON.stringify(body) }),
-    criarBulk: (body: { phone: string; transacoes: any[] }) =>
-      req<{ inserted: number }>('/api/transacoes/bulk', { method: 'POST', body: JSON.stringify(body) }),
+    /** Importação de extrato. `mover_fitids`: as já importadas noutra conta vão pra `carteira_destino`. */
+    criarBulk: (body: { phone: string; transacoes: any[]; mover_fitids?: string[]; carteira_destino?: string }) =>
+      req<{ inserted: number; duplicados?: number; movidas?: number }>('/api/transacoes/bulk', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>
       req(`/api/transacoes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     // Divide o lançamento em N categorias (migration 151). SUBSTITUI a

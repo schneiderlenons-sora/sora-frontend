@@ -467,6 +467,31 @@ Ao usar gestão compartilhada, nem tudo é do grupo. Modelo: toda linha tem **`u
     jogaria tudo pro dia anterior no Brasil. Conferido com `.xlsx` real.
   - CSV salvo pelo Excel em português vem em **Windows-1252**: tenta UTF-8 estrito
     e cai pro 1252 (antes, "Descrição" virava "Descri��o").
+- **Importar FATURA de cartão (OFX/CSV/PDF) — nov/2026, relato com 3 defeitos:**
+  - ⚠️ **"0 importadas" no OFX:** a tela abre com a CONTA CORRENTE escolhida; a
+    fatura entrou lá, e a reimportação no cartão foi descartada inteira — o
+    FITID é conferido no GRUPO inteiro, e a prévia só procurava repetidos na
+    conta escolhida. Hoje: a prévia acha o FITID em qualquer conta e diz onde
+    está, com "Mover para <conta>" (`mover_fitids` no `POST /transacoes/bulk`,
+    `services/importacaoExtrato.js`, `eval:importacao-extrato` — só importado,
+    sem `of_tx_id`, sem mexer em saldo); a conta pode ser trocada NA REVISÃO
+    (reanalisa o arquivo); arquivo de cartão (`<CCSTMTRS>`, cabeçalho
+    `date,title,amount`, PDF com "fatura") numa conta que não é cartão avisa, e
+    com UM cartão só e conta não escolhida à mão vai sozinho pro cartão. O aviso
+    final diz importadas / movidas / puladas.
+  - ⚠️ **CSV do Nubank:** cabeçalho em inglês (`title` não era descrição → tudo
+    "Transação importada") e **compra POSITIVA** — lida como extrato, toda compra
+    viraria RECEITA. `analisarTabela`: arquivo de cartão (conta destino cartão ou
+    cabeçalho do Nubank) com ≥70% positivos → positivo = gasto. "Tipo" e
+    Entrada/Saída mandam sobre a regra. Fora do cartão nada muda (eval §6).
+  - ⚠️ **PDF:** a fatura usa "14 OUT" e o leitor só entendia "14/10" → zero
+    linhas → a tela dizia "PDF como imagem". `importar-pdf.ts` lê mês escrito
+    (abreviado ou inteiro, seguido de pausa — "LOJA 2 MARIAS" não vira 2/mar),
+    menos tipográfico (−R$) e tira "•••• 1234". `motivoPdfSemLancamentos`: só
+    diz "imagem" quando não há texto. ⚠️ Sem amostra real de PDF do Nubank: a
+    regra cobre o formato conhecido, não foi conferida com o arquivo dele.
+  - Pagamento da fatura dentro da fatura ("Pagamento recebido") fica DESMARCADO
+    na revisão (`ehPagamentoDaFatura`): pagar a fatura não é receita.
 - **Dívidas com imagem** (migration **088** `divida_imagem`): mesma organização por foto que já existia em metas.
 - **Fix do checkup de hábitos** (`app/grow/habitos/page.tsx`): marcar rápido 2 hábitos perdia um. Causa: otimista com `revalidate:false` sem reconciliar. Fix = **revalidação debounced (600ms)** no `finally` do toggle. Esse é o padrão pra qualquer toggle rápido.
 

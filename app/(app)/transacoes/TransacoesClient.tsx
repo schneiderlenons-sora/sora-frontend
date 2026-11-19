@@ -1552,9 +1552,19 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           wallets={wallets}
           formato={importarFormato}
           onClose={() => setImportarFormato(null)}
-          onSuccess={(qtd) => {
-            setImportToast(`✓ ${qtd} transação${qtd === 1 ? '' : 'ões'} importada${qtd === 1 ? '' : 's'} com sucesso.`);
-            setTimeout(() => setImportToast(''), 5000);
+          onSuccess={(r) => {
+            // ⚠️ Diz o que aconteceu com CADA parte. Antes só havia "N importadas",
+            // e uma reimportação que caía toda como repetida virava "0
+            // transações importadas" sem explicação (relato de nov/2026).
+            const s = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+            const partes: string[] = [];
+            if (r.inserted) partes.push(s(r.inserted, 'transação importada', 'transações importadas'));
+            if (r.movidas) partes.push(`${s(r.movidas, 'movida', 'movidas')} para ${r.conta}`);
+            if (r.duplicados && !r.movidas) partes.push(`${s(r.duplicados, 'já existia e foi pulada', 'já existiam e foram puladas')}`);
+            setImportToast(partes.length
+              ? `✓ ${partes.join(' · ')}.`
+              : 'Nada novo neste arquivo: tudo já estava importado.');
+            setTimeout(() => setImportToast(''), 7000);
             carregar();
           }}
         />

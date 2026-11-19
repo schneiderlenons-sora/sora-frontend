@@ -8,10 +8,10 @@ import { nomeCategoria } from '@/lib/categorias';
 import { bancoLogo } from '@/components/cartoes/AdicionarCartaoModal';
 import { useDinheiro } from '@/lib/moeda-base';
 // Planilha (CSV ou Excel) sai de um parser só — ver lib/importar-tabela.ts.
-import { parseCSV, parseTabela, ehPlanilhaExcel, type TxParsed, type Celula } from '@/lib/importar-tabela';
+import { analisarCSV, analisarTabela, ehPlanilhaExcel, ehPagamentoDaFatura, type TxParsed, type Celula, type ResultadoTabela } from '@/lib/importar-tabela';
 // PDF (fatura/extrato): a extração de texto roda no servidor (/api/importar/pdf,
 // pdf.js em Node); aqui só interpretamos as linhas. Ver lib/importar-pdf.ts.
-import { parsePdfLinhas } from '@/lib/importar-pdf';
+import { parsePdfLinhas, motivoPdfSemLancamentos, pdfEhFatura } from '@/lib/importar-pdf';
 import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 
 // ─────────────────────────────────────────────────────────────
@@ -80,12 +80,15 @@ async function lerTexto(file: File): Promise<string> {
 const fmtData = (d: string) =>
   new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 
+/** O que a importação fez — a tela de Transações monta o aviso a partir disto. */
+export type ResultadoImportacao = { inserted: number; duplicados: number; movidas: number; conta: string };
+
 interface Props {
   phone:   string;
   wallets: any[];
   formato: 'ofx' | 'csv' | 'pdf';
   onClose:   () => void;
-  onSuccess: (qtd: number) => void;
+  onSuccess: (r: ResultadoImportacao) => void;
 }
 
 type Row = {
@@ -97,8 +100,15 @@ type Row = {
   categoria:  string;
   selecionada: boolean;
   dup:        boolean;   // possível duplicata (já existe transação igual)
+  // Já importada (mesmo FITID) noutra conta do grupo: o nome dela.
+  jaEm?:      string;
+  // Pagamento da fatura dentro da fatura: desmarcado (não é receita).
+  pagamentoFatura?: boolean;
   editando:   boolean;
 };
+
+// Fatura de cartão em OFX: o extrato do cartão vem em <CCSTMTRS> (o de conta, em <STMTRS>).
+const OFX_DE_CARTAO = /<(CCSTMTRS|CREDITCARDMSGSRSV1)>/i;
 
 const CAT_IMPORTADO = '📦 Importado';
 
@@ -118,6 +128,15 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   const [erro, setErro] = useState('');
   const [categorias, setCategorias] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  // O arquivo fica guardado: trocar a conta na revisão reanalisa sem pedir de novo.
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  // A pessoa tocou numa conta? Sem isso a conta é a que a tela pré-escolheu
+  // (a corrente) e um arquivo de CARTÃO pode trocá-la sozinho.
+  const [escolhaManual, setEscolhaManual] = useState(false);
+  const [cartaoArquivo, setCartaoArquivo] = useState(false);
+  const [trocouConta, setTrocouConta] = useState<string | null>(null);
+  const [invertido, setInvertido] = useState(false);
+  const [moverOutras, setMoverOutras] = useState(true);
 
   // ⚠️ EXTENSÃO SOZINHA NÃO BASTA NO ANDROID. O `accept` vira filtro por tipo
   // de arquivo, e o gerenciador do Redmi (e outros) marca CSV como
@@ -147,9 +166,15 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
       .catch(() => setCategorias([CAT_IMPORTADO]));
   }, [phone]);
 
-  async function handleFile(file: File) {
+  /**
+   * Lê o arquivo e monta a revisão. `contaEscolhida` vem quando a pessoa troca
+   * a conta NA REVISÃO: aí a escolha é dela e o arquivo não troca a conta sozinho.
+   */
+  async function handleFile(file: File, contaEscolhida?: string) {
+    setArquivo(file);
     setArquivoNome(file.name);
     setErroParse('');
+    setTrocouConta(null);
     // PDF sobe pro servidor (limite da Vercel ~4,5 MB); OFX/planilha são lidos aqui.
     const limiteMB = formato === 'pdf' ? 4 : 5;
     if (file.size > limiteMB * 1024 * 1024) {
@@ -158,7 +183,9 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
         : 'Arquivo muito grande (máx. 5 MB).');
       return;
     }
-    if (!walletId) { setErroParse('Selecione a conta destino antes de escolher o arquivo.'); return; }
+    let wId = contaEscolhida || walletId;
+    if (!wId) { setErroParse('Selecione a conta destino antes de escolher o arquivo.'); return; }
+    const contaDe = (id: string) => wallets.find((w) => w.id === id);
 
     setAnalisando(true);
     try {
@@ -168,6 +195,10 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
         return;
       }
       let txs: TxParsed[];
+      let ehCartao = false;
+      let inv = false;
+      // Planilha relida quando a conta muda pra um cartão (o sinal depende disso).
+      let lerPlanilha: ((cartao: boolean) => ResultadoTabela) | null = null;
       if (formato === 'pdf') {
         // Extração no servidor (pdf.js em Node); o parse e a revisão são aqui.
         const fd = new FormData();
@@ -179,51 +210,103 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
           setAnalisando(false);
           return;
         }
-        txs = parsePdfLinhas(Array.isArray(data.linhas) ? data.linhas : []);
+        const linhasPdf: string[] = Array.isArray(data.linhas) ? data.linhas : [];
+        txs = parsePdfLinhas(linhasPdf);
+        ehCartao = pdfEhFatura(linhasPdf);
+        if (txs.length === 0) {
+          // ⚠️ Só diz "imagem" quando NÃO há texto. Um PDF com texto num layout
+          // que não sabemos ler era chamado de imagem — e o cliente tentava em
+          // vão exportar de novo (relato de nov/2026).
+          setErroParse(motivoPdfSemLancamentos(linhasPdf) === 'sem_texto'
+            ? 'Este PDF não tem texto pra ler: parece uma imagem escaneada. No app do banco, exporte a fatura ou o extrato em OFX ou em planilha (CSV).'
+            : 'Não reconheci os lançamentos neste PDF (cada banco monta o arquivo de um jeito). No app do banco, exporte em OFX: ele traz cada lançamento certinho.');
+          setAnalisando(false);
+          return;
+        }
       } else if (formato === 'ofx') {
-        txs = parseOFX(await lerTexto(file));
-      } else if (ehPlanilhaExcel(file.name)) {
-        // Carregado só aqui: quem nunca importa Excel não baixa o leitor.
-        const { default: readXlsxFile } = await import('read-excel-file/browser');
-        const folhas = await readXlsxFile(file);
-        // Usa a aba com MAIS lançamentos — app que exporta resumo numa aba e
-        // extrato em outra não pode cair na aba errada.
-        txs = folhas.map((f) => parseTabela(f.data as unknown as Celula[][])).sort((a, b) => b.length - a.length)[0] || [];
+        const texto = await lerTexto(file);
+        txs = parseOFX(texto);
+        ehCartao = OFX_DE_CARTAO.test(texto);
       } else {
-        txs = parseCSV(await lerTexto(file));
+        if (ehPlanilhaExcel(file.name)) {
+          // Carregado só aqui: quem nunca importa Excel não baixa o leitor.
+          const { default: readXlsxFile } = await import('read-excel-file/browser');
+          const folhas = await readXlsxFile(file);
+          // Usa a aba com MAIS lançamentos — app que exporta resumo numa aba e
+          // extrato em outra não pode cair na aba errada.
+          lerPlanilha = (cartao) => folhas
+            .map((f) => analisarTabela(f.data as unknown as Celula[][], { cartao }))
+            .sort((a, b) => b.txs.length - a.txs.length)[0] || { txs: [], cartao: false, invertido: false };
+        } else {
+          const texto = await lerTexto(file);
+          lerPlanilha = (cartao) => analisarCSV(texto, { cartao });
+        }
+        const r = lerPlanilha(contaDe(wId)?.tipo === 'Crédito');
+        txs = r.txs; ehCartao = r.cartao; inv = r.invertido;
       }
+
+      // ⚠️ FATURA DE CARTÃO NA CONTA CORRENTE: a tela abre com a corrente já
+      // escolhida, e foi assim que uma fatura inteira foi parar lá (relato de
+      // nov/2026). Se a pessoa não escolheu a conta e há UM cartão só, vai pra
+      // ele; com mais de um, a revisão avisa e deixa trocar.
+      if (ehCartao && contaDe(wId)?.tipo !== 'Crédito' && !escolhaManual && !contaEscolhida) {
+        const cartoes = wallets.filter((w) => w.tipo === 'Crédito');
+        if (cartoes.length === 1) {
+          wId = cartoes[0].id;
+          setWalletId(wId);
+          setTrocouConta(cartoes[0].nome);
+          if (lerPlanilha) { const r = lerPlanilha(true); txs = r.txs; inv = r.invertido; }
+        }
+      }
+
       if (txs.length === 0) {
         setErroParse(
           formato === 'ofx'
             ? 'Nenhuma transação detectada. Verifique se o arquivo é um OFX válido.'
-          : formato === 'pdf'
-            ? 'Não consegui ler lançamentos neste PDF. Alguns bancos geram PDF como imagem (escaneado) ou num layout que não dá pra ler — nesses casos, exporte em OFX ou planilha (CSV/Excel).'
             : 'Nenhuma transação detectada. A planilha precisa de uma coluna de DATA e uma de VALOR (ou de Entrada e Saída).');
         setAnalisando(false);
         return;
       }
       txs.sort((a, b) => b.data.localeCompare(a.data));
+      const contaAlvo = contaDe(wId);
+      const nomeAlvo = contaAlvo?.nome || 'Dinheiro';
+      const destinoEhCartao = contaAlvo?.tipo === 'Crédito';
 
-      // Detecção de duplicatas: compara com as transações já existentes na
-      // conta (mesma data + valor + tipo). O FITID também é deduplicado no
-      // servidor — esta heurística cobre recorrências/lançamentos manuais.
-      let existentes: any[] = [];
+      // Duplicatas, de dois jeitos:
+      //  · MESMO FITID em qualquer conta do grupo — é o que o servidor confere.
+      //    ⚠️ Antes a tela só olhava a conta escolhida: o lançamento importado
+      //    noutra conta aparecia como novo, e o servidor respondia "0
+      //    importadas" sem explicar. Agora a tela diz ONDE ele está e oferece
+      //    mover pra conta escolhida.
+      //  · mesma data + valor + tipo na conta escolhida (lançado à mão).
+      let todas: any[] = [];
       try {
         const r = await api.transacoes.listar(phone, { limit: 800 });
-        existentes = (r.transacoes || []).filter(
-          (t: any) => (t.carteira_nome || t.wallet_nome) === walletNome,
-        );
+        todas = r.transacoes || [];
       } catch { /* sem rede — segue sem dedup heurística */ }
+      const contaDaTx = (t: any) => t.carteira_nome || t.wallet_nome;
+      const ondeFitid = new Map<string, string>();
+      for (const t of todas) if (t.fitid) ondeFitid.set(String(t.fitid), contaDaTx(t));
       const chave = (d: string, v: number, tp: string) => `${d}|${v.toFixed(2)}|${tp}`;
-      const existSet = new Set(existentes.map((t: any) => chave(String(t.data).slice(0, 10), Math.abs(t.valor || 0), t.tipo)));
+      const existSet = new Set(todas.filter((t: any) => contaDaTx(t) === nomeAlvo)
+        .map((t: any) => chave(String(t.data).slice(0, 10), Math.abs(t.valor || 0), t.tipo)));
 
       const novas: Row[] = txs.map(t => {
-        const dup = existSet.has(chave(t.data, t.valor, t.tipo));
+        const ja = t.fitid ? ondeFitid.get(t.fitid) : undefined;
+        const jaEm = ja && ja !== nomeAlvo ? ja : undefined;
+        const dup = !!ja || existSet.has(chave(t.data, t.valor, t.tipo));
+        const pagamentoFatura = (ehCartao || destinoEhCartao) && t.tipo === 'Recebimento' && ehPagamentoDaFatura(t.observacao);
         // Auto-categoriza pela descrição ("AMAZONMD" → Amazon, "IFOOD*" → iFood…).
         // Só sugere pra despesas; receitas ficam como Importado pra revisão.
         const sugerida = t.tipo === 'Gasto' ? categorizarDescricao(t.observacao) : null;
-        return { ...t, categoria: sugerida || CAT_IMPORTADO, selecionada: !dup, dup, editando: false };
+        return {
+          ...t, categoria: sugerida || CAT_IMPORTADO, selecionada: !dup && !pagamentoFatura,
+          dup, jaEm, pagamentoFatura, editando: false,
+        };
       });
+      setCartaoArquivo(ehCartao);
+      setInvertido(inv);
+      setMoverOutras(true);
       setRows(novas);
       setStep('review');
     } catch (e: any) {
@@ -243,7 +326,8 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   async function importar() {
     setErro('');
     const escolhidas = rows.filter(r => r.selecionada);
-    if (escolhidas.length === 0) { setErro('Selecione pelo menos uma transação.'); return; }
+    const paraMover = moverOutras ? rows.filter(r => r.jaEm && r.fitid).map(r => r.fitid as string) : [];
+    if (escolhidas.length === 0 && paraMover.length === 0) { setErro('Selecione pelo menos uma transação.'); return; }
     if (!walletId) { setErro('Escolha a conta destino.'); return; }
 
     setImportando(true);
@@ -256,8 +340,10 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
           categoria: t.categoria || CAT_IMPORTADO, pago: true,
           fitid: t.fitid,
         })),
+        mover_fitids: paraMover,
+        carteira_destino: walletNome,
       });
-      onSuccess(r.inserted);
+      onSuccess({ inserted: r.inserted || 0, duplicados: r.duplicados || 0, movidas: r.movidas || 0, conta: walletNome });
       onClose();
     } catch (e: any) {
       setErro(e.message || 'Erro ao importar.');
@@ -267,7 +353,22 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
   }
 
   const selecionadas = rows.filter(r => r.selecionada);
-  const dupCount = rows.filter(r => r.dup).length;
+  // Duplicata NA PRÓPRIA conta (lançada à mão ou importada antes nela).
+  const dupCount = rows.filter(r => r.dup && !r.jaEm).length;
+  const emOutras = rows.filter(r => r.jaEm);
+  const contasOutras = Array.from(new Set(emOutras.map(r => r.jaEm as string)));
+  const qtdMover = moverOutras ? emOutras.filter(r => r.fitid).length : 0;
+  const qtdPagamentos = rows.filter(r => r.pagamentoFatura).length;
+  const contaAtual = wallets.find(w => w.id === walletId);
+  const cartaoNaContaErrada = cartaoArquivo && contaAtual?.tipo !== 'Crédito';
+  const listaContas = (ns: string[]) => ns.length <= 1 ? (ns[0] || '') : `${ns.slice(0, -1).join(', ')} e ${ns[ns.length - 1]}`;
+
+  /** Trocar a conta NA REVISÃO: reanalisa o mesmo arquivo pra conta nova. */
+  function trocarConta(id: string) {
+    setEscolhaManual(true);
+    setWalletId(id);
+    if (arquivo) void handleFile(arquivo, id);
+  }
   const resumo = useMemo(() => ({
     qtd: selecionadas.length,
     receitas: selecionadas.filter(t => t.tipo === 'Recebimento').reduce((s, t) => s + t.valor, 0),
@@ -322,7 +423,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                     const logo = bancoLogo(w.nome);
                     const ativa = w.id === walletId;
                     return (
-                      <button key={w.id} onClick={() => setWalletId(w.id)}
+                      <button key={w.id} onClick={() => { setWalletId(w.id); setEscolhaManual(true); }}
                         className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all ${ativa ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-muted/20 hover:border-primary/40'}`}>
                         <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0" style={{ background: logo.bg }}>{logo.text}</div>
                         <div className="flex-1 min-w-0">
@@ -390,9 +491,73 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
         {step === 'review' && (
           <>
             <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-3">
+              {/* A conta pode ser trocada AQUI: reanalisa o mesmo arquivo. Antes só
+                  dava pra escolher no passo 1, onde a corrente já vem marcada. */}
+              <label className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                <span>Importar na conta</span>
+                <select value={walletId} onChange={e => trocarConta(e.target.value)} disabled={analisando}
+                  className="h-10 min-w-0 max-w-full px-2.5 rounded-xl bg-background border border-border text-sm font-semibold text-foreground focus:outline-none focus:border-primary">
+                  {wallets.map(w => <option key={w.id} value={w.id}>{w.nome}{w.tipo === 'Crédito' ? ' (cartão)' : ''}</option>)}
+                </select>
+                {analisando && <Loader2 size={14} className="animate-spin text-primary" />}
+              </label>
+
+              {trocouConta && (
+                <div className="rounded-xl p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 flex items-start gap-2.5">
+                  <Check size={15} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                    Este arquivo é uma fatura de cartão, então escolhemos a conta <strong>{trocouConta}</strong>. Se for outro cartão, troque acima.
+                  </p>
+                </div>
+              )}
+
+              {cartaoNaContaErrada && (
+                <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5" role="alert">
+                  <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                    Este arquivo parece ser uma <strong>fatura de cartão de crédito</strong>, mas a conta escolhida é <strong>{walletNome}</strong>. Escolha o cartão acima antes de importar.
+                  </p>
+                </div>
+              )}
+
+              {emOutras.length > 0 && (
+                <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    <Copy size={15} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                      <strong>{emOutras.length}</strong> transaç{emOutras.length === 1 ? 'ão deste arquivo já foi importada' : 'ões deste arquivo já foram importadas'} na conta <strong>{listaContas(contasOutras)}</strong>.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2.5 pl-[25px] min-h-[44px] cursor-pointer">
+                    <input type="checkbox" checked={moverOutras} onChange={() => setMoverOutras(v => !v)} className="w-4 h-4 accent-primary" />
+                    <span className="text-[12px] font-semibold text-amber-800 dark:text-amber-200">
+                      Mover para {walletNome}
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {invertido && (
+                <div className="rounded-xl p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 flex items-start gap-2.5">
+                  <ArrowDownRight size={15} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                    Nesta fatura as compras vêm com valor positivo, então entraram como <strong>gasto</strong>. Confira antes de importar.
+                  </p>
+                </div>
+              )}
+
+              {qtdPagamentos > 0 && (
+                <div className="rounded-xl p-3 bg-muted/40 border border-border flex items-start gap-2.5">
+                  <AlertCircle size={15} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {qtdPagamentos === 1 ? 'O pagamento da fatura ficou desmarcado' : `Os ${qtdPagamentos} pagamentos da fatura ficaram desmarcados`}: pagar a fatura não é receita, o dinheiro saiu da sua conta.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">{selecionadas.length}</strong> de {rows.length} selecionada{selecionadas.length !== 1 ? 's' : ''} · conta <strong className="text-foreground">{walletNome}</strong>
+                  <strong className="text-foreground">{selecionadas.length}</strong> de {rows.length} selecionada{selecionadas.length !== 1 ? 's' : ''}
                 </p>
                 <div className="flex gap-1.5">
                   <button onClick={() => setRows(rs => rs.map(r => ({ ...r, selecionada: true })))} className="btn-ghost px-2.5 py-1 text-[11px]">Todas</button>
@@ -404,7 +569,7 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                 <div className="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 flex items-start gap-2.5">
                   <Copy size={15} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                    <strong>{dupCount}</strong> transaç{dupCount === 1 ? 'ão parece' : 'ões parecem'} já estar na conta (mesma data e valor) — desmarcamos pra você não duplicar. Confira e marque se quiser importar mesmo assim.
+                    <strong>{dupCount}</strong> transaç{dupCount === 1 ? 'ão parece' : 'ões parecem'} já estar nesta conta — desmarcamos pra você não duplicar. Confira e marque se quiser importar mesmo assim.
                   </p>
                 </div>
               )}
@@ -419,7 +584,13 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
                         <span className="text-xs text-muted-foreground tabular w-12 flex-shrink-0">{fmtData(r.data)}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground truncate">{r.observacao}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">{r.categoria}{r.dup && <span className="text-amber-600 dark:text-amber-400 font-semibold"> · possível duplicata</span>}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {r.categoria}
+                            {r.jaEm
+                              ? <span className="text-amber-600 dark:text-amber-400 font-semibold"> · já importada em {r.jaEm}</span>
+                              : r.dup && <span className="text-amber-600 dark:text-amber-400 font-semibold"> · possível duplicata</span>}
+                            {r.pagamentoFatura && <span className="font-semibold"> · pagamento da fatura</span>}
+                          </p>
                         </div>
                         <span className={`tabular font-bold text-xs inline-flex items-center gap-0.5 flex-shrink-0 ${ehGasto ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                           {ehGasto ? <ArrowDownRight size={11} /> : <ArrowUpRight size={11} />}{fmt(r.valor)}
@@ -478,10 +649,11 @@ export default function ImportarModal({ phone, wallets, formato, onClose, onSucc
               </div>
               <div className="flex items-center justify-end gap-2">
                 <button onClick={() => setStep('upload')} className="btn-ghost px-4 py-2 text-sm">Voltar</button>
-                <button onClick={importar} disabled={importando || resumo.qtd === 0}
+                <button onClick={importar} disabled={importando || analisando || (resumo.qtd === 0 && qtdMover === 0)}
                   className="btn btn-primary px-4 py-2 text-sm gap-2 shadow-glow-sm whitespace-nowrap">
                   {importando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                  Importar {resumo.qtd > 0 ? `(${resumo.qtd})` : ''}
+                  {resumo.qtd > 0 ? `Importar (${resumo.qtd})` : 'Importar'}
+                  {qtdMover > 0 ? ` · mover ${qtdMover}` : ''}
                 </button>
               </div>
             </div>

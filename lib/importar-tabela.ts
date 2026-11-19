@@ -107,7 +107,10 @@ const tipoDaPalavra = (c: Celula): 'Gasto' | 'Recebimento' | null => {
 
 // ── CABEÇALHO ───────────────────────────────────────────────────────────────
 const RE_H_DATA    = /\b(data|date|dt|dia)\b/;
-const RE_H_DESC    = /(descri|histor|memo|titulo|estabel|lancamento|nome|name|detalhe|observ)/;
+// ⚠️ `title` é a coluna de descrição da fatura do NUBANK em CSV (`date,title,amount`,
+// em inglês). Sem ela a descrição saía "Transação importada" em todas as linhas
+// (relato de nov/2026).
+const RE_H_DESC    = /(descri|histor|memo|titulo|\btitle\b|estabel|lancamento|nome|name|detalhe|observ|merchant|payee|favorecido|beneficiario)/;
 const RE_H_VALOR   = /(valor|amount|amt|montante|quantia|total)/;
 const RE_H_ENTRADA = /^(entradas?|creditos?|receitas?|credit|inflow)\b/;
 const RE_H_SAIDA   = /^(saidas?|debitos?|despesas?|debit|outflow)\b/;
@@ -131,19 +134,42 @@ function mapearCabecalho(linha: Celula[]): Mapa | null {
   };
 }
 
+/** Fatura de CARTÃO do Nubank em CSV: `date,title,amount` (em inglês). */
+const ehCabecalhoFaturaNubank = (linha: Celula[]) => {
+  const h = linha.map(semAcento);
+  return h.includes('title') && h.includes('amount');
+};
+
+export interface ResultadoTabela {
+  txs: TxParsed[];
+  /** O arquivo tem cara de FATURA de cartão (pelo cabeçalho). */
+  cartao: boolean;
+  /** Os sinais foram invertidos: neste arquivo, compra vem POSITIVA. */
+  invertido: boolean;
+}
+
 /**
  * Linhas de células → transações. O cabeçalho é PROCURADO nas 20 primeiras
  * linhas: exportação de app costuma começar com título, período e linha em
  * branco antes da tabela.
+ *
+ * ⚠️ FATURA DE CARTÃO VEM COM O SINAL AO CONTRÁRIO do extrato de conta: a
+ * compra é POSITIVA e o pagamento/estorno é negativo (é assim no CSV do Nubank).
+ * Lido como extrato, toda compra entrava como RECEITA. Quando o arquivo é de
+ * cartão (`opts.cartao`, a conta de destino é um cartão, ou o cabeçalho é o da
+ * fatura do Nubank) e a MAIORIA dos valores é positiva, positivo vira gasto.
+ * Só quando o sinal é a única pista: coluna "Tipo" ou Entrada/Saída mandam.
  */
-export function parseTabela(linhas: Celula[][]): TxParsed[] {
+export function analisarTabela(linhas: Celula[][], opts: { cartao?: boolean } = {}): ResultadoTabela {
   const limpas = (linhas || []).filter((l) => Array.isArray(l) && l.some((c) => c != null && String(c).trim() !== ''));
   let inicio = -1, mapa: Mapa | null = null;
   for (let i = 0; i < Math.min(20, limpas.length); i++) {
     const m = mapearCabecalho(limpas[i]);
     if (m) { inicio = i; mapa = m; break; }
   }
-  if (!mapa) return tabelaSemCabecalho(limpas);
+  if (!mapa) return { txs: tabelaSemCabecalho(limpas), cartao: false, invertido: false };
+  const cartaoPeloCabecalho = ehCabecalhoFaturaNubank(limpas[inicio]);
+  const cartao = !!opts.cartao || cartaoPeloCabecalho;
 
   // A coluna "tipo" só vale se o CONTEÚDO for mesmo despesa/receita — "tipo de
   // pagamento" (Pix, cartão) tem o mesmo nome e não diz o sinal.
@@ -155,13 +181,14 @@ export function parseTabela(linhas: Celula[][]): TxParsed[] {
     usaTipo = preenchidas.length > 0 && reconhecidas.length / preenchidas.length >= 0.6;
   }
 
-  const out: TxParsed[] = [];
+  const colunasSeparadas = mapa.entrada >= 0 && mapa.saida >= 0;
+  const lidas: { data: string; v: number; desc: string; tipoPalavra: 'Gasto' | 'Recebimento' | null }[] = [];
   for (const l of corpo) {
     const data = parseData(l[mapa.data]);
     if (!data) continue;
 
     let v: number;
-    if (mapa.entrada >= 0 && mapa.saida >= 0) {
+    if (colunasSeparadas) {
       const e = parseValor(l[mapa.entrada]);
       const s = parseValor(l[mapa.saida]);
       // Saída às vezes vem com sinal, às vezes sem: vale o módulo.
@@ -171,13 +198,27 @@ export function parseTabela(linhas: Celula[][]): TxParsed[] {
     }
     if (isNaN(v) || v === 0) continue;
 
-    let tipo: 'Gasto' | 'Recebimento' = v < 0 ? 'Gasto' : 'Recebimento';
-    if (usaTipo) tipo = tipoDaPalavra(l[mapa.tipo]) ?? tipo;
-
     const desc = mapa.desc >= 0 ? String(l[mapa.desc] ?? '').trim() : '';
-    out.push({ data, observacao: (desc || 'Transação importada').slice(0, 200), valor: Math.abs(v), tipo });
+    lidas.push({ data, v, desc, tipoPalavra: usaTipo ? tipoDaPalavra(l[mapa.tipo]) : null });
   }
-  return out;
+
+  // Fatura de cartão: só o sinal diz o tipo, e a maioria é positiva → as
+  // positivas são COMPRAS. 70% e não 50%: fatura tem poucos créditos.
+  const soSinal = !usaTipo && !colunasSeparadas;
+  const positivas = lidas.filter((x) => x.v > 0).length;
+  const invertido = cartao && soSinal && lidas.length > 0 && positivas / lidas.length >= 0.7;
+
+  const txs: TxParsed[] = lidas.map((x) => {
+    let tipo: 'Gasto' | 'Recebimento' = (invertido ? x.v > 0 : x.v < 0) ? 'Gasto' : 'Recebimento';
+    if (x.tipoPalavra) tipo = x.tipoPalavra;
+    return { data: x.data, observacao: (x.desc || 'Transação importada').slice(0, 200), valor: Math.abs(x.v), tipo };
+  });
+  return { txs, cartao: cartaoPeloCabecalho, invertido };
+}
+
+/** Compatível com o uso antigo (só a lista). */
+export function parseTabela(linhas: Celula[][], opts: { cartao?: boolean } = {}): TxParsed[] {
+  return analisarTabela(linhas, opts).txs;
 }
 
 /** Sem cabeçalho reconhecível: 1ª coluna com data = data, última numérica = valor. */
@@ -225,7 +266,16 @@ export function csvParaLinhas(texto: string): string[][] {
   return linhas.map((l) => quebrarLinha(l, sep));
 }
 
-export const parseCSV = (texto: string): TxParsed[] => parseTabela(csvParaLinhas(texto));
+export const parseCSV = (texto: string, opts: { cartao?: boolean } = {}): TxParsed[] => parseTabela(csvParaLinhas(texto), opts);
+export const analisarCSV = (texto: string, opts: { cartao?: boolean } = {}): ResultadoTabela => analisarTabela(csvParaLinhas(texto), opts);
+
+// ── Pagamento da FATURA dentro de uma fatura ────────────────────────────────
+// Na fatura do cartão, "Pagamento recebido" é a quitação da fatura anterior:
+// dinheiro que saiu da CONTA, não receita. Importado como Recebimento, inflava
+// as receitas do mês. A tela deixa essas linhas DESMARCADAS e explica por quê.
+// Estorno e cashback NÃO entram aqui: são consumo que voltou.
+const RE_PAGAMENTO_FATURA = /\b(pagamento (recebido|efetuado|da fatura|de fatura|fatura|online|on line)|pagto\.? (da |de )?fatura|pgto\.? (da |de )?fatura|pagamento$)/i;
+export const ehPagamentoDaFatura = (descricao: string) => RE_PAGAMENTO_FATURA.test(String(descricao || '').trim());
 
 /** Extensão do arquivo → como ler. */
 export const ehPlanilhaExcel = (nome: string) => /\.xlsx$/i.test(nome || '');
