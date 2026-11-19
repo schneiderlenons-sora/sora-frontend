@@ -23,6 +23,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 |---|---|---|
 | **Docs da Polp/Celcoin (Open Finance)** | **`sora-backend/docs/celcoin/*.txt`** (as 51 páginas da doc, uma por arquivo — `bills__transactions.txt`, `credit-cards__installments.txt`, `consents__resources.txt`, `changelog.txt`… —; índice em `_URLS.txt`; reatualiza com `node docs/celcoin/baixar.js`, conferido em 19/10/2026). ⚠️ Consultar ALI antes de supor qualquer campo da API | "DOCS DA CELCOIN SALVOS" |
 | **App de iPhone / App Store** | **`docs/APP-STORE.md`** (textos da loja, notas, histórico das recusas) + `ios-app/README.md` | "App Store (iPhone)" |
+| **ChatGPT / Claude (diretórios, ForSora)** | **`docs/DIRETORIOS-IA.md`** (envio aos dois portais) + `docs/diretorios/` (pacote do ChatGPT) | "Sora no ChatGPT e no Claude" |
 | **App Android / Play Store (TWA)** | **`docs/ANDROID-TWA.md`** (build, versão, keystore, assetlinks) + build em `C:\Users\jenif\sora-android` | "Play Store (TWA)" |
 | Conciliação (previsto × banco, transferências, fatura paga) | `sora-backend/src/services/` (réguas puras com eval) | "Conciliação de ponta a ponta" + "Outubro/2026" |
 | Diagnóstico de OF de um cliente | `/api/admin/of-debug?email=<cliente>` (`&foco=saldo` / `cartoes`) | "Open Finance (Polp)" |
@@ -663,7 +664,7 @@ lançam no caixa digitavam a sua, e a mesma aparecia escrita de 3 jeitos
 - Evals: back `eval:categorias-negocio` (51) + `-rota` (48), 16/16 mutações;
   front 30 casos, 8/8. Testado na tela (sem a 196) com conta de teste apagada.
 
-## Sora no ChatGPT e no Claude — servidor MCP só leitura (nov/2026, TESTE FECHADO)
+## Sora no ChatGPT e no Claude — servidor MCP só leitura (nov/2026, ABERTA)
 
 O cliente conecta o ChatGPT OU o Claude DELE à Sora; a conversa e a IA ficam
 lá, no plano da pessoa (a Sora não paga pela IA — nos dois). Decisões do dono:
@@ -695,19 +696,29 @@ ChatGPT e Claude, fase 1 **só leitura**, Premium/Platinum. Migration **197**
   sem iframe; cita a empresa certa, OpenAI ou Anthropic). **Aba:**
   `app/(app)/conectar-ia` ("ChatGPT e Claude", Finanças → Analisar), gate
   `ia_conectada`, item com `teste: 'ia_conectada'` (some pra quem não está na lista).
-- **Teste fechado:** lista de e-mails em `config/iaConectada.js` E
-  `lib/ia-conectada.ts` (`eval:ia-conectada` compara). Abrir: `IA_CONECTADA_ABERTA=1`
-  no Render + `ABERTA = true` no front. Desligar tudo: `IA_CONECTADA_ATIVA=0`.
-- ⚠️ **O endereço fica gravado na IA de cada cliente.** Antes de abrir,
-  apontar `MCP_BASE_URL` pra um domínio próprio (ex.: mcp.forsora.com) — trocar
-  depois derruba todas as conexões.
+- **ABERTA pra todo Premium/Platinum desde 19/11/2026** (quem não tem o plano
+  vê a aba com cadeado). Voltar ao teste fechado: `IA_CONECTADA_ABERTA=0` no
+  Render + `ABERTA = false` em `lib/ia-conectada.ts` (aí só a lista de e-mails
+  entra; `eval:ia-conectada` compara os dois lados). Desligar tudo na hora:
+  `IA_CONECTADA_ATIVA=0`.
+- ⚠️ **Endereço: `https://mcp.forsora.com/mcp`** — CNAME `mcp` na Vercel DNS →
+  `sora-backend-ohio.onrender.com` + custom domain no Render. Fica gravado na IA
+  de cada cliente: trocar de servidor = apontar o CNAME pro novo, NUNCA mudar o
+  endereço (derrubaria todas as conexões). O Claude exige domínio da empresa.
+- **Diretórios (ForSora):** guia em `docs/DIRETORIOS-IA.md`; pacote do ChatGPT
+  em `docs/diretorios/forsora-chatgpt.zip` (fonte em `docs/diretorios/chatgpt/`,
+  validado contra o esquema oficial). Documentação pública exigida:
+  `app/assistentes` (forsora.com/assistentes). Verificação de domínio da OpenAI:
+  `/.well-known/openai-apps-challenge` lê `OPENAI_APPS_CHALLENGE` do Render.
+  ⚠️ Regras já cumpridas, não desfazer: nada de plano/upgrade na conversa
+  (diretriz do ChatGPT), "ForSora" em tudo que o modelo vê, anotações em toda
+  ferramenta, sem telefone nem id interno na resposta.
 - Evals: back `eval:ia-conectada` (inclui o `/mcp` por HTTP com o `auth`
   real); front `eval:ia-conectada`. Teste em produção com a conta comercial
   (gera link mágico, aprova, token, as 11 ferramentas, compara com o painel,
   rotação, desconectar; apaga as linhas ia_* e revoga a sessão no fim): 31/31.
 - **Fase 2 (não feita):** escrita com confirmação (lançar, recategorizar)
-  reusando `alterarTransacao`/`quitacao`; publicar nos diretórios como
-  **"ForSora"** ("Sora" é o app de vídeo da OpenAI).
+  reusando `alterarTransacao`/`quitacao`.
 
 ## Painel admin reorganizado (nov/2026)
 

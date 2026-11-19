@@ -1,14 +1,14 @@
 // =============================================================================
-// Sora no ChatGPT e no Claude — quem vê a aba (teste fechado) e o que ela mostra.
+// Sora no ChatGPT e no Claude — quem vê a aba e o que ela mostra.
 //
 // ⚠️ ESPELHO de `sora-backend/src/config/iaConectada.js`. O backend é quem
 // autoriza de verdade (o /mcp e a tela de consentimento conferem lá); isto só
 // decide se a aba aparece no menu. Mexeu num, mexa no outro — `npm run
 // eval:ia-conectada` compara as listas.
 //
-// Enquanto a Sora não estiver publicada nos diretórios do ChatGPT/Claude, só estas contas
-// veem a aba (mesmo modelo do Open Finance no começo). Abrir pra todo
-// Premium/Platinum = `ABERTA = true` aqui + `IA_CONECTADA_ABERTA=1` no Render.
+// ABERTA pra todo Premium/Platinum desde 19/11/2026 (quem não tem o plano vê a
+// aba com cadeado, como as outras). Voltar ao teste fechado = `ABERTA = false`
+// aqui + `IA_CONECTADA_ABERTA=0` no Render: aí só estas contas veem a aba.
 // =============================================================================
 
 export const EMAILS_TESTE_IA = [
@@ -20,7 +20,7 @@ export const EMAILS_TESTE_IA = [
 /** Os planos que incluem a Sora no ChatGPT/Claude (o vitalício da Completa é 'premium'). */
 export const PLANOS_IA = ['premium', 'platinum'] as const;
 
-const ABERTA = false;
+export const ABERTA = true;
 
 /** A aba "ChatGPT e Claude" aparece no menu desta pessoa? (o plano é conferido pelo gate) */
 export function podeVerIaConectada(email?: string | null): boolean {
