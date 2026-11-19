@@ -7,6 +7,8 @@ import { api } from '@/lib/api';
 import { PLANOS_INFO, type PlanoId } from '@/lib/stripe';
 import { PLANO_LABEL } from '@/lib/plans';
 import StepNav from '../components/StepNav';
+import DepoisDoBanco from '../components/DepoisDoBanco';
+import { querOpenFinance } from '@/lib/of-intent';
 import { useSimboloMoeda } from '@/lib/moeda-base';
 import { parseNumeroDigitado } from '@/lib/formato-br';
 
@@ -21,8 +23,11 @@ type Gasto = {
 };
 
 export default function Step6GastosFixos() {
-  const { perfil, phone } = useAuth();
+  const { perfil, phone, user } = useAuth();
   const simbolo = useSimboloMoeda();
+  // Escolheu "Conectar meu banco" no passo 5: as contas ainda vão chegar.
+  // Lido do localStorage, mas só pesa depois do "Carregando…" (pós-hidratação).
+  const viaOF = querOpenFinance(user?.id);
 
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
@@ -120,6 +125,8 @@ export default function Step6GastosFixos() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
           <Loader2 size={16} className="animate-spin" /> Carregando…
         </div>
+      ) : !liberado && viaOF ? (
+        <DepoisDoBanco oque="Os gastos fixos" exemplos="aluguel, internet e assinaturas" />
       ) : !liberado ? (
         <div className="p-5 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-3">
           <AlertCircle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />

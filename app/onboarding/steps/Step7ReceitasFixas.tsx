@@ -5,6 +5,8 @@ import { TrendingUp, Plus, Trash2, Loader2, Landmark, AlertCircle, CircleDashed 
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import StepNav from '../components/StepNav';
+import DepoisDoBanco from '../components/DepoisDoBanco';
+import { querOpenFinance } from '@/lib/of-intent';
 import { useSimboloMoeda } from '@/lib/moeda-base';
 import { parseNumeroDigitado } from '@/lib/formato-br';
 
@@ -20,8 +22,10 @@ type Receita = {
 };
 
 export default function Step7ReceitasFixas() {
-  const { phone } = useAuth();
+  const { phone, user } = useAuth();
   const simbolo = useSimboloMoeda();
+  // Escolheu "Conectar meu banco" no passo 5 (ver Step6GastosFixos).
+  const viaOF = querOpenFinance(user?.id);
 
   const [wallets, setWallets]   = useState<any[]>([]);
   const [carregando, setCarreg] = useState(true);
@@ -110,6 +114,8 @@ export default function Step7ReceitasFixas() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
           <Loader2 size={16} className="animate-spin" /> Carregando…
         </div>
+      ) : !liberado && viaOF ? (
+        <DepoisDoBanco oque="As receitas fixas" exemplos="o salário e o que mais entra todo mês" />
       ) : !liberado ? (
         <div className="p-5 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-3">
           <AlertCircle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
