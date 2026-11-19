@@ -11,7 +11,7 @@ import {
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
   Percent, CalendarRange, FolderLock, CalendarClock,
-  Palette, Lightbulb, Share2, Megaphone,
+  Palette, Lightbulb, Share2, Megaphone, Bot,
   // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
   HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
   IdCard, Plug, CheckCheck, Store, KeyRound,
@@ -21,6 +21,7 @@ import { NAV_TOPO, GRUPOS, SECOES, type ItemNav, type SubgrupoNav } from '@/lib/
 import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
+import { podeVerChatgpt } from '@/lib/ia-conectada';
 import { useAdminPendencias } from '@/lib/useAdminPendencias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useMemo, useState } from 'react';
@@ -121,7 +122,7 @@ const ICONES_APP: Record<string, IconeLucide> = {
   Receipt, Flag, Target, BarChart2, Tag, TrendingUp, Percent, ListChecks,
   CalendarDays, GraduationCap, Activity, Heart, Home: HomeIcon, Plane,
   Clapperboard, BookOpen, Users, Zap, Bug, Palette, Gift, Lightbulb, Share2,
-  Megaphone, Shield, CalendarClock, Sparkles, MessageCircle,
+  Megaphone, Shield, CalendarClock, Sparkles, MessageCircle, Bot,
 };
 
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
@@ -161,6 +162,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const cacheSWR = { cache: swrCache, mutate: swrMutate };
   const { perfil, phone, signOut, podeUsar, temNegocios, temAcessoGrow, trialAtivo, diasTrialRestantes } = useAuth();
   const ehAdmin = isAdminEmail(perfil?.email);
+  // Item de teste fechado (`teste` em lib/sidebar-nav): some pra quem não está
+  // na lista — nem cadeado, nem "em breve", nem aquecimento da rota.
+  const veChatgpt = podeVerChatgpt(perfil?.email);
+  const itemVisivel = (i: ItemNav) => !(i.semAndroid && ehAndroid) && !(i.teste === 'chatgpt' && !veChatgpt);
   // Cliente respondeu chamado e o admin não abriu (só consulta pra admin).
   const { respostas: adminRespostas } = useAdminPendencias();
   // Conformidade com a política do Play Console — ver `semAndroid` em
@@ -176,13 +181,14 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // Todas as abas do app pessoal, na ORDEM do menu (o topo aquece primeiro).
   const todasAsRotas = useMemo(() => Array.from(new Set([
     ...NAV_TOPO.map((i) => i.href),
-    ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens.map((i) => i.href))),
+    ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens
+      .filter((i) => !(i.teste === 'chatgpt' && !veChatgpt)).map((i) => i.href))),
     // ⚠️ As SEÇÕES do fim do menu (Gestão compartilhada) não entravam: a 1ª
     // visita à /comunidade baixava a rota inteira na hora do toque (~0,7 s
     // medido). As de `externa` (com ?aba=) já vêm pela rota-base, abaixo.
     ...SECOES.flatMap((sg) => sg.itens.filter((i) => !i.externa).map((i) => i.href)),
     '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
-  ])), []);
+  ])), [veChatgpt]);
 
   useEffect(() => {
     if (!phone) return;
@@ -362,7 +368,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // Na ORDEM do menu: o que aparece primeiro aquece primeiro.
     const liberadas = [
       ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens
-        .filter((i) => !(i.semAndroid && ehAndroid) && !i.breve && !i.externa && !itemTrancado(i.gate, !!g.grow))
+        .filter((i) => itemVisivel(i) && !i.breve && !i.externa && !itemTrancado(i.gate, !!g.grow))
         .map((i) => i.href))),
       ...SECOES.flatMap((sg) => sg.itens
         .filter((i) => !i.breve && !i.externa && !itemTrancado(i.gate, false))
@@ -747,7 +753,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               em `lib/sidebar-nav.ts`. É filtro, não item desabilitado: o app
               Android tem de genuinamente NÃO oferecer a seção pra declaração de
               saúde do Play Console ser verdadeira. */}
-          {sg.itens.filter((item) => !(item.semAndroid && ehAndroid)).map((item, i) => (
+          {sg.itens.filter(itemVisivel).map((item, i) => (
             <div
               key={item.href}
               className="animate-[fade-in_220ms_ease-out_both] motion-reduce:animate-none"

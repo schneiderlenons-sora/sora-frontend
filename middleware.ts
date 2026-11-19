@@ -39,6 +39,10 @@ function ehPublica(pathname: string): boolean {
   // "Criar conta" de lá ia pro cadastro com plano e pagamento — o "quer
   // cobrar ele" do relato da Pollyana (nov/2026). A página só aceita com login.
   if (pathname.startsWith('/convite/') || pathname.startsWith('/convite-empresa/')) return true;
+  // ⚠️ Consentimento do ChatGPT (OAuth). Quem chega aqui vindo do ChatGPT pode
+  // não estar logado, e o redirect daqui diria "Sua sessão expirou" no meio da
+  // conexão. A própria tela pede o login e volta com os mesmos parâmetros.
+  if (pathname.startsWith('/oauth/')) return true;
   return ROTAS_PUBLICAS.includes(pathname);
 }
 

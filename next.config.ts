@@ -34,6 +34,22 @@ const nextConfig = {
   // A rota real e /api/assetlinks (pra ler variavel de ambiente); o rewrite
   // faz a ponte. O matcher do middleware ignora caminhos com ponto, entao
   // este aqui passa sem interceptacao — conferido.
+  // A tela de consentimento do ChatGPT não pode abrir dentro de um iframe de
+  // outro site: seria a armadilha clássica de esconder o "Permitir acesso"
+  // debaixo de outro botão (clickjacking).
+  async headers() {
+    return [
+      {
+        source: '/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
+    ];
+  },
+
   async rewrites() {
     return [
       { source: '/.well-known/assetlinks.json', destination: '/api/assetlinks' },

@@ -40,6 +40,9 @@ export default function OnboardingRedirect() {
       // Convite de EMPRESA (Negócios multiusuário): resolve o código e só
       // depois entra — o wizard no meio perderia o convite, igual ao de grupo.
       '/convite-empresa',
+      // Tela de consentimento do ChatGPT (OAuth): o wizard no meio perderia
+      // os parâmetros e a conexão falharia sem explicação.
+      '/oauth',
       '/vincular-whatsapp',
       '/oferta',
       '/checkout-vitalicio',
