@@ -10,17 +10,28 @@ import { useDinheiro } from '@/lib/moeda-base';
 // aporte (meta/investimento), pagamento de dívida e fatura. Quando ligado e
 // com conta escolhida, o backend cria uma transação de saída e desconta o
 // saldo. `onChange(null)` quando desligado ou sem conta selecionada.
+//
+// `modo="credito"` é o caminho inverso (resgate de meta): o valor VOLTA pra
+// conta escolhida, como entrada. Só os textos mudam; a escolha é a mesma.
+const TEXTOS = {
+  debito:  { label: 'Descontar do saldo de uma conta?', qual: 'De qual conta', vazio: 'Nenhuma conta cadastrada pra descontar.', ajuda: 'Vai aparecer nas transações como uma saída dessa conta.' },
+  credito: { label: 'Devolver o valor pra uma conta?', qual: 'Pra qual conta', vazio: 'Nenhuma conta cadastrada pra receber.', ajuda: 'Soma no saldo da conta e aparece nas transações como entrada. Não conta como receita do mês: é o seu dinheiro voltando da meta.' },
+} as const;
+
 export default function ContaDebitoSelect({
   value,
   onChange,
   excluirCredito = true,
-  label = 'Descontar do saldo de uma conta?',
+  modo = 'debito',
+  label,
 }: {
   value: string | null;
   onChange: (walletId: string | null) => void;
   excluirCredito?: boolean;
+  modo?: 'debito' | 'credito';
   label?: string;
 }) {
+  const t = TEXTOS[modo];
   const { phone } = useAuth();
   const [contas, setContas] = useState<any[]>([]);
   const [on, setOn] = useState(false);
@@ -45,7 +56,7 @@ export default function ContaDebitoSelect({
     <div className="rounded-xl bg-muted/30 p-3 space-y-3">
       <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Wallet size={15} className="text-primary" /> {label}
+          <Wallet size={15} className="text-primary" /> {label || t.label}
         </span>
         <button type="button" onClick={toggle} role="switch" aria-checked={on}
                 className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${on ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
@@ -56,10 +67,10 @@ export default function ContaDebitoSelect({
       {on && (
         <div className="animate-fade-in">
           {contas.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma conta cadastrada pra descontar.</p>
+            <p className="text-xs text-muted-foreground">{t.vazio}</p>
           ) : (
             <>
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">De qual conta</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">{t.qual}</label>
               <select value={value || ''} onChange={e => onChange(e.target.value || null)} className="input">
                 <option value="">Selecione a conta…</option>
                 {contas.map(c => (
@@ -67,7 +78,7 @@ export default function ContaDebitoSelect({
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground mt-1.5">
-                Vai aparecer nas transações como uma saída dessa conta.
+                {t.ajuda}
               </p>
             </>
           )}

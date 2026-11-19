@@ -576,8 +576,9 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
     }
     setLoading(true);
     try {
-      const body: any = { phone, valor, observacao: obs.trim() || undefined };
-      if (ehAporte) { body.wallet_id = walletId; await api.metas.aportar(meta.id, body); }
+      // Aporte: desconta da conta escolhida. Resgate: o valor volta pra ela.
+      const body: any = { phone, valor, observacao: obs.trim() || undefined, wallet_id: walletId };
+      if (ehAporte) await api.metas.aportar(meta.id, body);
       else          await api.metas.resgatar(meta.id, body);
       onSuccess();
       onClose();
@@ -668,8 +669,8 @@ function AporteResgateModal({ phone, meta, tipo, onClose, onSuccess }: AportePro
                    className="input" maxLength={80} />
           </div>
 
-          {/* Descontar de uma conta (só no aporte) */}
-          {ehAporte && <ContaDebitoSelect value={walletId} onChange={setWalletId} />}
+          {/* Aporte: descontar de uma conta. Resgate: devolver pra uma conta. */}
+          <ContaDebitoSelect value={walletId} onChange={setWalletId} modo={ehAporte ? 'debito' : 'credito'} />
 
           {erro && (
             <div className="rounded-xl p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5">

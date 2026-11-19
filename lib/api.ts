@@ -1386,7 +1386,7 @@ export const api = {
       req(`/api/metas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     aportar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string; wallet_id?: string | null }) =>
       req<any>(`/api/metas/${id}/aporte`, { method: 'POST', body: JSON.stringify(body) }),
-    resgatar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string }) =>
+    resgatar: (id: string, body: { phone: string; valor: number; observacao?: string; data?: string; wallet_id?: string | null }) =>
       req<any>(`/api/metas/${id}/resgate`, { method: 'POST', body: JSON.stringify(body) }),
   },
 
