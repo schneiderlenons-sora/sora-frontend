@@ -2756,6 +2756,32 @@ nova no botão Ajuda**.
 - `/reportar-bug` é só redirecionamento; `AvisoChamado` leva a
   `/ajuda?aba=suporte&chamado=<id>` e some na própria Ajuda.
 
+## Categoria da dívida (nov/2026) — migration 198
+
+Pedido de cliente (Fábio): o Seguro Residencial parcelado entrava nos
+relatórios como "Dívidas". A dívida ganhou **categoria opcional**
+(`dividas.categoria`, guarda o NOME como `transacoes`/`recorrencias`), e o
+pagamento da parcela e a quitação — painel (`/pagar`, `/quitar`) e WhatsApp —
+são lançados nela. Sem categoria: "Dívidas", como sempre.
+
+- Regra: back `services/categoriaDivida.js` (só despesa ativa do grupo, grava a
+  grafia oficial; leitura que falha não vira "inválida") e front
+  `lib/categoria-divida.ts` (opções em árvore; na EDIÇÃO só envia se mudou —
+  categoria apagada da lista não trava editar o título).
+- ⚠️ Sem a 198 nada quebra: criar/editar salvam sem a categoria. Essa
+  tolerância roda ANTES da da foto — o erro de coluna cita "column" e a da foto
+  casaria com ele, jogando a FOTO fora.
+- ⚠️ WhatsApp lê a categoria À PARTE (`lerCategoriaDivida`): a busca de lá tem
+  colunas fixas e quebraria antes da migration.
+- ⚠️ A regra que impede contar a dívida 2× (`custoMensalDividas`) usa a
+  descrição "Pagamento: <título>" — não depende da categoria. Não mudar a
+  descrição que `/pagar` escreve.
+- Renomear categoria não propaga (igual transações e contas fixas).
+- O "Sem cartão" do Nova Transação passa a categoria escolhida (era
+  descartada), só se veio da lista real do grupo.
+- De passagem: `/quitar` e `/lembrete` só aceitam dívida do próprio grupo.
+- `eval:categoria-divida` nos dois repos (back 40, 12/12 mutações; front 18).
+
 ## Dívidas: o débito do extrato dá baixa na parcela (out/2026)
 
 Relato (Robert): o extrato do BB trazia os débitos dos empréstimos (727,12 e
@@ -5051,6 +5077,7 @@ sql/194_ultimo_acesso.sql       — users.ultimo_acesso_em + função admin_ulti
 sql/195_pagamento_fatura_dia_sp.sql — corrige pagamentos_fatura.data gravada no dia UTC (pagamento entre 21h e meia-noite caía no dia seguinte). 60 linhas em 27 cartões. Só mexe em data.
 sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícone, natureza fixa/variável, oculta). ⚠️ A tabela JÁ EXISTIA desde a 105 (sem uso, sem natureza/oculta/criado_por/updated_at) — a 196 completa as colunas com ALTER; rodar de novo é seguro. Sem ela: as digitadas aparecem pra reaproveitar, renomear/juntar/mover funcionam, mas ícone e "tirar da lista" não (a tela avisa sem jargão).
 sql/197_ia_conectada.sql — Sora no ChatGPT e no Claude: ia_conexoes (tokens só em sha256), ia_oauth_codigos (uso único, 5 min), ia_acessos (o que o ChatGPT consultou). **OBRIGATÓRIA pra conectar**: sem ela a aba diz "em teste" e o /oauth/token falha.
+sql/198_divida_categoria.sql — dividas.categoria: em que categoria a parcela paga entra. Sem ela a dívida salva sem a categoria e o pagamento segue em "Dívidas" (nada quebra).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
