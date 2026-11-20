@@ -902,7 +902,7 @@ export const api = {
   dividas: {
     listar: (phone: string) =>
       req<{ dividas: any[]; resumo: any }>(`/api/dividas/${phone}`),
-    criar: (body: { phone: string; titulo: string; tipo: string; valor_total: number; valor_parcela?: number; parcelas_total?: number; parcelas_pagas?: number; credor?: string; taxa_juros?: number; indexador?: string; dia_vencimento?: number; data_inicio?: string; observacao?: string }) =>
+    criar: (body: { phone: string; titulo: string; tipo: string; valor_total: number; valor_parcela?: number; parcelas_total?: number; parcelas_pagas?: number; credor?: string; taxa_juros?: number; indexador?: string; dia_vencimento?: number; data_inicio?: string; observacao?: string; categoria?: string | null }) =>
       req<any>('/api/dividas', { method: 'POST', body: JSON.stringify(body) }),
     editar: (id: string, body: any) =>
       req<any>(`/api/dividas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

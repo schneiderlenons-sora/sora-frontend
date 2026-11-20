@@ -315,6 +315,12 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
           dia_vencimento: diaVenc,
           data_inicio:    data,
           observacao:     descricao || undefined,
+          // A categoria escolhida aqui era DESCARTADA (a dívida não tinha onde
+          // guardar). Hoje vai junto (migration 198) — mas só nome que veio da
+          // lista real do grupo: a lista de reserva (sem categorias carregadas)
+          // tem nomes que o servidor recusaria, e a compra inteira falharia.
+          ...(categoria && catsDespesa.some(c => c.nome === categoria || (c.filhos || []).some(f => f.nome === categoria))
+            ? { categoria } : {}),
         });
       } else if (parcelado) {
         if (!ehCartaoSel || !walletNome) { setErro('Compra parcelada só pode ser lançada em um cartão de crédito.'); setLoading(false); return; }

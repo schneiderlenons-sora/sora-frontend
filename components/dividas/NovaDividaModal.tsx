@@ -12,6 +12,8 @@ import { proximoVencimento } from '@/lib/vencimento-divida';
 import { contasQuePagam } from '@/lib/contas-debito';
 import useSWR from 'swr';
 import { chave } from '@/lib/chaves-swr';
+// Categoria da dívida (migration 198): em que categoria a parcela paga entra.
+import { opcoesCategoriaDivida, categoriaNaLista, categoriaNoPedido, CATEGORIA_PADRAO_DIVIDA } from '@/lib/categoria-divida';
 
 // Redimensiona a foto pra dataURL (~1000px) — igual às metas, sem bucket.
 async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> {
@@ -102,6 +104,21 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
   // Dentro do componente a regra só era exercitada por quem abrisse o modal —
   // por isso ela saiu daqui e ganhou `eval:contas-debito`.
   const contasDebito = useMemo(() => contasQuePagam(walData), [walData]);
+
+  // ── Categoria (migration 198) ─────────────────────────────────────────────
+  // Pedido de cliente: o seguro parcelado entrava como "Dívidas". Mesma chave
+  // canônica das categorias (quem passou por outra tela não paga a requisição)
+  // e `useSWR` direto pelo mesmo motivo das contas acima.
+  const [categoria, setCategoria] = useState<string>(edicao?.categoria || '');
+  const { data: catsData } = useSWR(
+    phone ? chave.categorias(phone) : null,
+    () => api.categorias.listar(phone),
+    { revalidateOnFocus: false },
+  );
+  const opcoesCat = useMemo(() => opcoesCategoriaDivida(catsData), [catsData]);
+  // A categoria salva pode ter saído da lista (apagada): continua aparecendo
+  // selecionada, senão o campo mostraria "Dívidas" mentindo sobre o que está gravado.
+  const categoriaForaDaLista = !!categoria && !!catsData && !categoriaNaLista(categoria, opcoesCat);
   const [dataInicio,      setDataInicio]      = useState(edicao?.data_inicio || new Date().toISOString().slice(0, 10));
   const [observacao,      setObservacao]      = useState(edicao?.observacao || '');
   const [imagem,          setImagem]          = useState<string | null>(edicao?.imagem_url || null);
@@ -171,6 +188,8 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
         data_inicio:    dataInicio || undefined,
         observacao:     observacao.trim() || undefined,
         imagem_url:     imagem || null,
+        // Na edição só vai se mudou (ver `categoriaNoPedido`).
+        ...categoriaNoPedido(categoria, edicao?.categoria, ediMode),
         // Só manda os campos do consórcio quando o tipo é consórcio — assim
         // trocar de tipo não deixa carta órfã numa dívida que não é cota.
         ...(ehConsorcio ? {
@@ -330,6 +349,35 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                 className="input"
               />
             </div>
+          </div>
+
+          {/* Categoria (migration 198) — em que categoria a parcela paga entra */}
+          <div>
+            <label htmlFor="divida-categoria" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+              Categoria nos relatórios
+            </label>
+            <select
+              id="divida-categoria"
+              value={categoria}
+              onChange={e => setCategoria(e.target.value)}
+              className="input"
+              style={{ minHeight: 44 }}
+            >
+              <option value="">{CATEGORIA_PADRAO_DIVIDA} (padrão)</option>
+              {categoriaForaDaLista && <option value={categoria}>{categoria}</option>}
+              {opcoesCat.map(o => o.filhas.length === 0 ? (
+                <option key={o.nome} value={o.nome}>{o.nome}</option>
+              ) : (
+                <optgroup key={o.nome} label={o.nome}>
+                  <option value={o.nome}>{o.nome}</option>
+                  {o.filhas.map(f => <option key={f} value={f}>{f}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+              As parcelas pagas entram nessa categoria nas transações e nos relatórios.
+              Ex.: um seguro parcelado em &ldquo;Seguros&rdquo;.
+            </p>
           </div>
 
           {/* Valor total + parcelas */}

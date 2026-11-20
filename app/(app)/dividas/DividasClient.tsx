@@ -15,7 +15,7 @@ import {
   Plus, Sparkles, Receipt, Pencil, Trash2, ArrowDownRight, CheckCircle2,
   AlertCircle, Loader2, TrendingDown, Calendar, Zap, Eye, EyeOff,
   Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase,
-  GraduationCap, FileText, MoreVertical, Bell, BellOff, Ticket, Trophy,
+  GraduationCap, FileText, MoreVertical, Bell, BellOff, Ticket, Trophy, Tag,
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
@@ -477,6 +477,13 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
               </span>
               {divida.credor && (
                 <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{divida.credor}</span>
+              )}
+              {/* Categoria (migration 198): onde a parcela paga entra nos relatórios. */}
+              {divida.categoria && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground truncate max-w-[120px]"
+                      title="Categoria das parcelas pagas">
+                  <Tag size={10} aria-hidden className="flex-shrink-0" /> {divida.categoria}
+                </span>
               )}
             </div>
           </div>

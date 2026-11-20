@@ -46,6 +46,7 @@
     "eval:conta-empresa": "npx tsx lib/conta-empresa.eval.mjs",
     "eval:chamados-admin": "npx tsx lib/chamados-admin.eval.mjs",
     "eval:receber": "npx tsx lib/receber.eval.mjs",
+    "eval:categoria-divida": "npx tsx lib/categoria-divida.eval.mjs",
     "eval:categorias-negocio": "npx tsx lib/categorias-negocio.eval.mjs",
     "eval:peso": "npx tsx lib/peso.eval.mjs",
     "eval:fatura-atrasada": "npx tsx lib/fatura-atrasada.eval.mjs",

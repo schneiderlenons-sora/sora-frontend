@@ -779,6 +779,7 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       d.parcelas_total ? `${(d.parcelas_pagas || 0) + 1} de ${d.parcelas_total}` : 'parcela',
       `vence dia ${d.dia_vencimento}`,
       d.credor,
+      d.categoria, // categoria da dívida (migration 198), quando escolhida
     ].filter(Boolean).join(' · '),
     icone: '🏦',
     grupo: 'divida',
