@@ -2009,6 +2009,25 @@ Relato (Yoshima): vitalício queria 3+ bancos; R$ 6/conexão inviabilizava.
 - ⚠️ `window.confirm` foi trocado por diálogo próprio em Planos/Configurações/
   Dívidas: no navegador do WhatsApp o `confirm()` some e devolve `false`.
 
+### Assinante que compra o vitalício: a mensalidade PARA (nov/2026)
+
+Caso real (Cesar): assinante Premium mensal comprou o vitalício em 20/08; a
+assinatura seguiu cobrando R$ 29,90/mês, e o `/api/stripe/sync` regravou o
+plano com a validade DELA. Quando a data passou, o `exigirPlano` o deixou
+`inativo` — pagando os dois, sem acesso. Regra pura em
+`lib/assinatura-vitalicio.ts` (`eval:assinatura-vitalicio`, 34, 11/11):
+
+- `ativarVitalicio` encerra as assinaturas de PLANO (ativa → no fim do período
+  pago; pendente → já). A da conexão de Open Finance fica.
+- `/api/stripe/sync` e o "Sincronizar com Stripe" do admin: numa conta
+  vitalícia, só assinatura criada DEPOIS do `vitalicio_em` manda no plano (a
+  troca deliberada — e aí zeram `vitalicio`, como o webhook). Ignoram o add-on.
+  O do admin não deixa mais vitalício sem assinatura como `inativo`.
+- Backend `exigirPlano` não expira vitalício (`eval:plano-vitalicio`).
+- ⚠️ **Assinante trocando de plano cria uma SEGUNDA assinatura** (o portal do
+  Stripe está sem troca de plano; "Mudar de plano" abre checkout novo). 1 caso
+  (Danilo: Premium + Platinum anuais, ficou Premium). Decisão pendente do dono.
+
 ### Venda escondida SÓ dentro do app nativo (`useEhAppNativo`)
 
 Relato (Lushima): os planos não apareciam nem no Chrome do Android. O TWA

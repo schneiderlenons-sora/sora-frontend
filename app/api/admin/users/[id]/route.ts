@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { stripe, priceIdToPlano } from '@/lib/stripe';
+import { assinaturaDoPlano, assinaturaDefineOPlano } from '@/lib/assinatura-vitalicio';
+import { assinaturasDoCliente } from '@/lib/assinatura-vitalicio-stripe';
 import { checkAdmin } from '@/lib/admin-server';
 import { cancelarAssinatura, playConfigurado, ErroPlay } from '@/lib/google-play';
 
@@ -123,10 +125,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   // ── Sincronizar plano direto do Stripe ───────────────────────────
   if (action === 'stripe_sync') {
-    const { data: u } = await supabaseAdmin.from('users').select('stripe_customer_id').eq('id', id).maybeSingle();
+    const { data: u } = await supabaseAdmin.from('users').select('stripe_customer_id, vitalicio, vitalicio_em').eq('id', id).maybeSingle();
     if (!u?.stripe_customer_id) return NextResponse.json({ ok: true, plano: null, motivo: 'sem_customer' });
-    const subs = await stripe.subscriptions.list({ customer: u.stripe_customer_id as string, status: 'all', limit: 10 });
-    const sub = subs.data.find((s) => s.status === 'active' || s.status === 'trialing');
+    // Só assinatura de PLANO (a da conexão de Open Finance não define plano).
+    const resumida = assinaturaDoPlano(await assinaturasDoCliente(u.stripe_customer_id as string));
+    const sub = resumida?.sub;
+    // ⚠️ VITALÍCIO NÃO DEPENDE DE ASSINATURA. Sem esta guarda, "Sincronizar"
+    // num vitalício sem assinatura o deixava `inativo`, e com uma assinatura
+    // de ANTES do vitalício regravava o plano com a validade dela (que vence e
+    // deixa a conta inativa). Mesma regra do /api/stripe/sync.
+    if (u.vitalicio && (!resumida || !assinaturaDefineOPlano(u, resumida))) {
+      return NextResponse.json({ ok: true, plano: null, motivo: 'vitalicio' });
+    }
     if (!sub) {
       await supabaseAdmin.from('users').update({ plano: 'inativo' }).eq('id', id);
       return NextResponse.json({ ok: true, plano: 'inativo', motivo: 'sem_assinatura_ativa' });
@@ -139,6 +149,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         plano,
         plano_valido_ate: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         stripe_subscription_id: sub.id,
+        // Assinatura feita depois do vitalício = a troca deliberada (igual ao webhook).
+        ...(u.vitalicio ? { vitalicio: false } : {}),
       }).eq('id', id);
     }
     return NextResponse.json({ ok: true, plano });

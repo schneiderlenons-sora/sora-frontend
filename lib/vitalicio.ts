@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { encerrarAssinaturasDoPlano } from '@/lib/assinatura-vitalicio-stripe';
 
 // Ativa um plano VITALÍCIO (sem expiração) pra um usuário. `plano` define o que
 // libera: 'premium' (Sora Completa) ou 'kit' (Kit Organização, sem WhatsApp/Grow).
@@ -38,6 +39,14 @@ export async function ativarVitalicio(userId: string, plano: string = 'premium',
     const { error: ev } = await supabaseAdmin.from('users').update({ vitalicio_valor: valor }).eq('id', userId);
     if (ev) console.warn('[vitalicio] vitalicio_valor não gravado (rode migration 065):', ev.message);
   }
+
+  // ⚠️ ASSINANTE QUE COMPRA O VITALÍCIO: a assinatura de PLANO no Stripe para.
+  // Sem isto ela seguia cobrando todo mês (caso real: R$ 29,90 × 3 depois do
+  // vitalício) — e, pior, servia de base pro `/api/stripe/sync` regravar o
+  // plano com a validade dela, que vencia e deixava a conta `inativo`. Ativa →
+  // cancela no fim do período já pago; pendente → cancela já. A conexão de
+  // Open Finance (add-on) fica. Ver lib/assinatura-vitalicio.ts.
+  if (ok) await encerrarAssinaturasDoPlano(userId);
 
   return ok;
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, priceIdToPlano, priceIdToIntervalo } from '@/lib/stripe';
+import { priceIdToPlano, priceIdToIntervalo } from '@/lib/stripe';
+import { assinaturaDoPlano, assinaturaDefineOPlano } from '@/lib/assinatura-vitalicio';
+import { assinaturasDoCliente } from '@/lib/assinatura-vitalicio-stripe';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -13,7 +15,7 @@ export async function POST(_req: NextRequest) {
 
     const { data: profile } = await supabaseAdmin
       .from('users')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, vitalicio, vitalicio_em')
       .eq('id', user.id)
       .single();
 
@@ -21,15 +23,22 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json({ plano: null, motivo: 'sem_customer' });
     }
 
-    const subs = await stripe.subscriptions.list({
-      customer: profile.stripe_customer_id as string,
-      status: 'all',
-      limit: 10,
-    });
-    const sub = subs.data.find((s) => s.status === 'active' || s.status === 'trialing');
+    // ⚠️ Só assinatura de PLANO — a da conexão de Open Finance (add-on) não
+    // define plano nenhum, e pegá-la por ser a mais nova deixava quem acabou
+    // de assinar sem ativar.
+    const resumida = assinaturaDoPlano(await assinaturasDoCliente(profile.stripe_customer_id as string));
+    const sub = resumida?.sub;
 
     if (!sub) {
       return NextResponse.json({ plano: 'inativo', motivo: 'sem_assinatura_ativa' });
+    }
+
+    // ⚠️ VITALÍCIO: só uma assinatura feita DEPOIS do vitalício (a troca
+    // deliberada, pela /planos) manda no plano. A de antes é a que sobrou de
+    // quando a pessoa era assinante: regravar o plano com a validade dela fazia
+    // a conta virar `inativo` quando a data passava (caso real, nov/2026).
+    if (!assinaturaDefineOPlano(profile, resumida)) {
+      return NextResponse.json({ plano: null, motivo: 'vitalicio' });
     }
 
     const priceId   = sub.items.data[0]?.price.id;
@@ -50,6 +59,11 @@ export async function POST(_req: NextRequest) {
         plano_intervalo:        intervalo,
         plano_valido_ate:       valido_ate,
         stripe_subscription_id: sub.id,
+        // Vitalício que assinou depois do vitalício está TROCANDO um pelo
+        // outro — o mesmo que o webhook faz em checkout.session.completed. Sem
+        // isto, se o sync chegasse antes do webhook (e o webhook falhasse), a
+        // conta ficava com o plano novo e a marca de vitalício ao mesmo tempo.
+        ...(profile.vitalicio ? { vitalicio: false } : {}),
       }).eq('id', user.id);
     }
 
