@@ -56,7 +56,8 @@
     "eval:portao": "npx tsx lib/portao.eval.mjs",
     "eval:ia-conectada": "npx tsx lib/ia-conectada.eval.mjs",
     "eval:tipos-divida": "npx tsx lib/tipos-divida.eval.mjs",
-    "eval:assinatura-vitalicio": "npx tsx lib/assinatura-vitalicio.eval.mjs"
+    "eval:assinatura-vitalicio": "npx tsx lib/assinatura-vitalicio.eval.mjs",
+    "eval:limite-cartao": "npx tsx lib/limite-cartao.eval.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",

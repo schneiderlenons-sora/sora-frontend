@@ -1815,6 +1815,26 @@ outubro, já quitada pelo de 09/10.
 - ⚠️ `pagamentos_fatura.data` era o dia em **UTC** (21h06 de 08/11 → 09/11,
   depois do fechamento). Hoje `diaSP`; migration **195** corrige 60 linhas.
 
+## Limite usado do cartão MANUAL desconta a fatura paga (nov/2026)
+
+Relato (Juhlyan): pagou a fatura de R$ 178,15 e a tela de cartões seguiu com
+"usado R$ 1.207,56". `comprometidoPorCartao` somava tudo do início da fatura
+atual em diante e nunca descontava pagamento. Regra única em
+`lib/limite-cartao.ts` (`eval:limite-cartao`, 3.000 casos de regressão contra a
+conta antiga + 1.500 de propriedade, 9/10 mutações — a sobrevivente é
+equivalente): por fatura da atual em diante, conta `fatura − pago` (nunca < 0;
+pagar a mais não libera parcela de outro mês).
+
+- O `pago` vem do `/wallets/faturas` (offsets 0 e 1) que a tela já busca.
+- Sem pagamento é EXATAMENTE o de antes (`abatido` 0 mantém o `|| fatura`).
+  Medido: 300 de 306 cartões manuais iguais, 6 mudam, nenhum sobe.
+- Open Finance intocado (usa `of_limite_usado` do banco).
+- ⚠️ O resto da diferença dele era lançamento: parcelas datadas nos dias
+  22–27 com fechamento dia 20 caem na fatura SEGUINTE; o banco as cobrou na
+  anterior. Com as datas certas o Sora bate ao centavo (874,72 / 1.025,28).
+- ⚠️ Fora (decisão pendente): o resumo de cartões do DASHBOARD usa outra regra
+  (limite − fatura, sem parcelas futuras) — 3º número pro mesmo cartão.
+
 ## Fatura ATRASADA do cartão manual + passar pra próxima por ESCOLHA (nov/2026)
 
 Relato (Fábio): o C6 venceu sem pagamento e a tela pulou pra fatura seguinte

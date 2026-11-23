@@ -21,6 +21,7 @@ import {
   type Ciclo,
 } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
+import { limiteComprometido } from '@/lib/limite-cartao';
 import {
   Plus, Sparkles, CreditCard, DollarSign, Pencil, Trash2,
   ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight, AlertTriangle, Check,
@@ -152,6 +153,21 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     [(faturasData as any)?.faturas, (faturasProx as any)?.faturas].forEach((lista) => {
       (lista || []).forEach((f: any) => {
         if (typeof f.restante === 'number') acc[`${f.cartao_id}|${f.competencia}`] = f.restante;
+      });
+    });
+    return acc;
+  }, [faturasData, faturasProx]);
+
+  // Quanto já foi PAGO de cada fatura (cartão manual), por cartão → competência.
+  // É o que tira a fatura paga do limite usado (lib/limite-cartao.ts). Mesma
+  // fonte das linhas acima: não custa chamada nova.
+  const pagoPor = useMemo(() => {
+    const acc: Record<string, Record<string, number>> = {};
+    type ComFaturas = { faturas?: FaturaCartao[] } | undefined;
+    [(faturasData as ComFaturas)?.faturas, (faturasProx as ComFaturas)?.faturas].forEach((lista) => {
+      (lista || []).forEach((f) => {
+        if (f.of || !(Number(f.pago) > 0) || !f.competencia) return;
+        (acc[f.cartao_id] ||= {})[f.competencia] = Number(f.pago);
       });
     });
     return acc;
@@ -341,18 +357,24 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   // No cartão, a transação fica pago=true ao ser lançada, mas conceitualmente
   // ocupa o limite até a fatura ser paga — então contamos tudo do início do
   // ciclo atual em diante (compras do ciclo + parcelas dos próximos meses).
+  //
+  // ⚠️ CARTÃO MANUAL: o que já foi PAGO de cada fatura sai da conta (relato de
+  // nov/2026: fatura de R$ 178,15 paga e o "usado" seguia contando ela). Regra
+  // única em lib/limite-cartao.ts. `abatido` diz se algum pagamento entrou —
+  // sem pagamento o número é exatamente o de antes.
   const comprometidoPorCartao = useMemo(() => {
-    const acc: Record<string, number> = {};
+    const acc: Record<string, { valor: number; abatido: number }> = {};
     wallets.forEach(w => {
+      const minhas = txsTodas.filter(t => mesmaCarteira(t, w));
+      if (!w.of_conta_id) { acc[w.id] = limiteComprometido(w, minhas, pagoPor[w.id]); return; }
       const inicio = cicloPorCompetencia(w, competenciaAtual(w)).ini;
       // Também assinada: estorno DEVOLVE limite. Era a queixa do cliente —
       // pedia reembolso, o banco liberava o limite e a Sora não mexia em nada.
-      acc[w.id] = somarFatura(txsTodas
-        .filter(t => mesmaCarteira(t, w) && (t.data || '').slice(0, 10) >= inicio));
+      acc[w.id] = { valor: somarFatura(minhas.filter(t => (t.data || '').slice(0, 10) >= inicio)), abatido: 0 };
     });
     return acc;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets, txsTodas]);
+  }, [wallets, txsTodas, pagoPor]);
 
   // Dados do gráfico (6 FATURAS, mais recente à direita). Como o ciclo cruza
   // meses, junta as transações de todos os meses baixados num pote só e soma
@@ -516,7 +538,8 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                   key={w.id}
                   cartao={w}
                   fatura={faturaPorCartao[w.id] || 0}
-                  comprometido={comprometidoPorCartao[w.id] || 0}
+                  comprometido={comprometidoPorCartao[w.id]?.valor || 0}
+                  comprometidoComPagamento={(comprometidoPorCartao[w.id]?.abatido || 0) > 0}
                   ocultar={ocultar}
                   competencia={cicloPorCartao[w.id]?.competencia || ''}
                   ciclo={cicloPorCartao[w.id]}
@@ -665,6 +688,8 @@ interface CardCartaoProps {
   cartao:    Wallet;
   fatura:    number;
   comprometido: number;
+  /** Algum pagamento de fatura saiu do `comprometido` (cartão manual). */
+  comprometidoComPagamento?: boolean;
   ocultar:   boolean;
   delay:     number;
   competencia: string;   // 'YYYY-MM' do VENCIMENTO da fatura exibida
@@ -683,7 +708,7 @@ interface CardCartaoProps {
   onRestanteChange?: (cartaoId: string, restante: number) => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia, ciclo, ehMesAtual, atrasadas = [], compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, ocultar, delay, competencia, ciclo, ehMesAtual, atrasadas = [], compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
   // Conexão do banco encerrada? (ver lib/conexao-of.ts — o caso do BTG). Só
   // busca pra cartão que vem do Open Finance; o SWR divide a lista entre os cards.
   const conexoes = useConexoesOF(!!cartao.of_conta_id);
@@ -760,7 +785,10 @@ function CardCartao({ cartao, fatura, comprometido, ocultar, delay, competencia,
   // era o "Usado R$ 1.870,24" embaixo de uma fatura maior.
   // Cartão manual segue no comprometido (fatura + parcelas futuras lançadas).
   const usadoBanco = typeof cartao.of_limite_usado === 'number' ? cartao.of_limite_usado : null;
-  const usado = usadoBanco ?? (comprometido || fatura);
+  // ⚠️ Com pagamento descontado, o comprometido é a resposta mesmo quando dá 0
+  // (tudo pago): cair no `|| fatura` mostraria a fatura exibida — e, navegando
+  // pra uma fatura antiga, o limite "usado" viraria o valor dela.
+  const usado = usadoBanco ?? (comprometidoComPagamento ? comprometido : (comprometido || fatura));
   const disponivel = Math.max(limite - usado, 0);
   const pctUsado = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
 
