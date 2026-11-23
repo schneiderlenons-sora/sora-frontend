@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { ehPagamentoFatura, ehPagamentoFaturaLegado, ehAjusteSaldo } from '@/lib/categorizar';
+import { situacaoDaTransacao, mapaDeCartoes, cartaoDaTransacao, rotuloNaFatura } from '@/lib/situacao-transacao';
 import { createPortal } from 'react-dom';
 import NovaTransacaoModal from '@/components/dashboard/NovaTransacaoModal';
 import ImportarModal from '@/components/transacoes/ImportarModal';
@@ -376,6 +377,16 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // Nomes dos cartões, pro filtro "só contas" × "só cartões" (pedido do Robert:
   // ver o caixa sem o cartão misturado, sem tirar o cartão da aba).
   const nomesCartao = useMemo(() => new Set(wallets.filter((w) => w.tipo === 'Crédito').map((w) => w.nome)), [wallets]);
+  // Situação de cada linha (pago / pendente / "Fatura de X") — fonte única em
+  // lib/situacao-transacao.ts. Parcela de cartão que ainda não chegou não é
+  // conta a pagar: vai numa fatura. Filtro, quadro de pendentes, CSV e a linha
+  // leem daqui, pra nunca discordarem entre si.
+  const mapaCartoes = useMemo(() => mapaDeCartoes(wallets), [wallets]);
+  const hojeLista = hojeSP();
+  const situacaoDe = useCallback(
+    (t: any) => situacaoDaTransacao(t, cartaoDaTransacao(mapaCartoes, t), hojeLista),
+    [mapaCartoes, hojeLista],
+  );
   const txsBase = useMemo(() => {
     return txs.filter(t => {
       const q = busca.toLowerCase();
@@ -387,14 +398,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
         || (contaId === FILTRO_SO_CONTAS ? !nomesCartao.has(nomeConta)
           : contaId === FILTRO_SO_CARTOES ? nomesCartao.has(nomeConta)
           : nomeConta === contaId);
-      const matchStatus = status === 'todos' ||
-                          (status === 'pago' && t.pago) ||
-                          (status === 'pendente' && !t.pago);
+      const matchStatus = status === 'todos' || situacaoDe(t).tipo === status;
       const matchMembro = membroFiltro === 'todos' || t.criado_por === membroFiltro;
       const matchCartao = cartaoFiltro === 'todos' || cardDaTx(t) === cartaoFiltro;
       return matchBusca && matchTipo && matchCat && matchConta && matchStatus && matchMembro && matchCartao;
     });
-  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro, nomesCartao]);
+  }, [txs, busca, tipo, status, catFiltro, contaId, membroFiltro, cartaoFiltro, nomesCartao, situacaoDe]);
 
   // ⚠️ CONTA "SÓ DA EMPRESA" (nov/2026, relato do Robert): os lançamentos dela
   // já não entram em total nenhum (`ignorar_em = 'empresa'`), mas seguiam na
@@ -465,15 +474,18 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // apareciam como "pendentes" do mesmo jeito que uma conta a pagar. Mesmo
   // universo de antes (toda linha não paga), só dividido pelo tipo: a soma dos
   // dois é exatamente o total antigo.
+  // ⚠️ Parcela de cartão fica FORA (nov/2026): ela é cobrada dentro da fatura,
+  // e a fatura já tem a própria conta — somá-la aqui como "a pagar" contava a
+  // mesma compra duas vezes pra quem olhasse os dois números.
   const pendentes = useMemo(() => {
     let aReceber = 0, aPagar = 0, qtd = 0;
     for (const t of txsFiltradas) {
-      if (t.pago) continue;
+      if (situacaoDe(t).tipo !== 'pendente') continue;
       qtd++;
       if (t.tipo === 'Recebimento') aReceber += t.valor || 0; else aPagar += t.valor || 0;
     }
     return { aReceber, aPagar, qtd };
-  }, [txsFiltradas]);
+  }, [txsFiltradas, situacaoDe]);
 
   // ⚠️ O QUE `receitasTotal`/`despesasTotal` DEIXAM DE FORA.
   // Os dois excluem transferência (pagamento de fatura, Pix entre contas
@@ -737,8 +749,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
   function exportarCSV() {
     const header = 'Data,Tipo,Categoria,Descrição,Valor,Conta,Status\n';
+    const statusCsv = (t: any) => {
+      const s = situacaoDe(t);
+      return s.tipo === 'pago' ? 'Pago' : s.tipo === 'na_fatura' ? rotuloNaFatura(s.competencia, hojeLista) : 'Pendente';
+    };
     const rows = txsFiltradas.map(t =>
-      `${fmtData(t.data)},${t.tipo},${nomeCategoria(t.categoria)},"${t.observacao || ''}",${t.valor},${t.wallet_nome || ''},${t.pago ? 'Pago' : 'Pendente'}`
+      `${fmtData(t.data)},${t.tipo},${nomeCategoria(t.categoria)},"${t.observacao || ''}",${t.valor},${t.wallet_nome || ''},${statusCsv(t)}`
     ).join('\n');
     const blob = new Blob(['﻿' + header + rows], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -1454,6 +1470,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                       <TransactionRow
                         key={tx.id}
                         tx={tx}
+                        situacao={situacaoDe(tx)}
+                        hoje={hojeLista}
                         onConciliar={parPorPrevisto.has(tx.id) ? () => setParAberto(parPorPrevisto.get(tx.id)!) : undefined}
                         index={i}
                         ocultar={ocultar}
@@ -1703,7 +1721,7 @@ function StatCard({
 function TransactionRow({
   tx, index, ocultar, compartilhado, avatar, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
-  onConciliar,
+  onConciliar, situacao, hoje,
 }: any) {
   const fmt = useDinheiro();
   const temaCategoria = useTemaCategoria();
@@ -1885,7 +1903,14 @@ function TransactionRow({
               // (previsto pendente, ou já pago numa conta do banco): no lugar
               // do status, a ação — a linha está contando em dobro.
               <SeloConciliar onClick={onConciliar} />
-            ) : tx.pago ? (
+            ) : situacao?.tipo === 'na_fatura' ? (
+              // Parcela de cartão que ainda não chegou: não é conta a pagar,
+              // é cobrada dentro da fatura que a linha nomeia. Cor neutra de
+              // propósito — âmbar leria como pendência.
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-sky-700 dark:text-sky-400 whitespace-nowrap">
+                <CreditCard size={9} aria-hidden /> {rotuloNaFatura(situacao.competencia, hoje)}
+              </span>
+            ) : (situacao ? situacao.tipo === 'pago' : tx.pago) ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 dark:text-green-400">
                 <CheckCircle2 size={9} /> {isGasto ? 'Pago' : 'Recebido'}
               </span>

@@ -28,6 +28,8 @@ import { temMarcaConhecida } from '@/components/ui/IconeMarca';
 // payload antigo no cache do SWR, onde `saldo` ja e BRL.
 import { saldoNaBase } from '@/lib/moeda';
 import { fmtDataBR, diaDoMes } from '@/lib/data-br';
+import { situacaoDaTransacao, mapaDeCartoes, cartaoDaTransacao } from '@/lib/situacao-transacao';
+import { hojeSP } from '@/lib/ciclo-fatura';
 import {
   TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownRight,
   Wallet, ChevronRight, Clock, BarChart3,
@@ -270,6 +272,8 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
   const txs = useMemo(() => txsRecTodas.filter((t) => !ehLancamentoDaEmpresa(t, nomesEmpresa)), [txsRecTodas, nomesEmpresa]);
   const txsMes:    any[] = data?.txsMes?.transacoes ?? [];
   const categorias: any[] = data?.categorias ?? [];
+  const mapaCartoes = useMemo(() => mapaDeCartoes(wallets), [wallets]);
+  const situacaoRecente = (tx: any) => situacaoDaTransacao(tx, cartaoDaTransacao(mapaCartoes, tx), hojeSP()).tipo;
 
   // Revalida o dashboard (ex.: após criar uma transação no modal).
   const revalidar = useCallback(() => { revalidarDados(); }, [revalidarDados]);
@@ -885,12 +889,15 @@ export default function DashboardClient({ phoneInicial, initialData }: { phoneIn
                         <p className={`text-sm font-bold tabular ${isGasto ? 'text-red-500' : 'text-green-500'}`}>
                           {isGasto ? '-' : '+'}{fmt(tx.valor)}
                         </p>
+                        {/* Mesma regra da aba Transações (lib/situacao-transacao):
+                            parcela de cartão cujo dia chegou foi cobrada — não é
+                            pendente. Os Recentes não trazem lançamento futuro. */}
                         <span className={`text-[10px] font-medium ${
-                          tx.pago
+                          situacaoRecente(tx) === 'pago'
                             ? 'text-green-600 dark:text-green-400'
                             : 'text-yellow-600 dark:text-yellow-400'
                         }`}>
-                          {tx.pago ? 'Pago' : 'Pendente'}
+                          {situacaoRecente(tx) === 'pago' ? 'Pago' : 'Pendente'}
                         </span>
                       </div>
                     </div>

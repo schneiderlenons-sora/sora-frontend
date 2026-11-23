@@ -2152,6 +2152,30 @@ setembro enquanto o app do Mercado Pago a mostra em "3 de agosto".
   "Antecipar" nelas e o filtro "pendente" de /transacoes ainda as conta.
 - Travado em `eval:consulta-parcela` §6 e `eval:reconciliar-parcelas` §6.
 
+### Na TELA a parcela de cartão não é "Pendente" (nov/2026)
+
+Relato (Arisson): "lancei 1.000 em 5x no cartão; a 1ª aparece paga e as
+outras pendentes". A aba Transações pintava as parcelas futuras de âmbar e o
+quadro "Pendentes · a pagar" as somava — sendo que elas são cobradas DENTRO de
+faturas, que já têm a própria conta. Medido: 2.276 manuais + 1.511 do banco em
+82 grupos; 995 já cobradas seguiam "Pendente" pra sempre.
+
+- ⚠️ **O `pago` NÃO MUDA — decisão.** `pago = false` com data futura é "não
+  cobrada nem antecipada" (comando "parcelas", "Antecipar" no painel e no zap,
+  `patchReconciliacaoParcela`); `pago = true` com data futura é ANTECIPADA.
+  Marcar tudo pago na criação quebraria os três. A correção é de LEITURA.
+- Regra única: `lib/situacao-transacao.ts` (`eval:situacao-transacao`, 14/14
+  mutações). Só parcela de cartão (Crédito, Gasto, não transferência,
+  `parcela_total > 1`): dia chegou → "Pago" (igual à 1ª); dia não chegou →
+  "Fatura de jan/27" (ciclo que CONTÉM o dia, o mesmo da visão "Por fatura").
+  Compra de cartão SEM parcela não muda (pode ser previsão de conta fixa).
+- Usada na linha, no filtro de status, no quadro Pendentes e no CSV da aba
+  Transações, e nos "Recentes" do dashboard. Relatórios já tirava cartão.
+- ⚠️ Achado do eval, NÃO corrigido: no cálculo canônico do ciclo
+  (`cicloFatura`/`ciclo-fatura`), cartão que fecha 28 e vence 29–31 (ou fecha
+  30 e vence 31) tem, em mês curto, DOIS ciclos seguidos com a mesma
+  competência — `cicloPorCompetencia` devolve o outro.
+
 ## Conta do Open Finance: saldo NUNCA à mão, e a tela diz isso (set/2026)
 
 Relato com vídeo: *"a Sora não sincroniza"* — o cliente lançava pelo app e o
