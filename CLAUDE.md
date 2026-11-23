@@ -2423,6 +2423,30 @@ como saldo de uma conta com R$ 5.217,71).
 > muda os números da aba e exige decidir a parcela de dívida JÁ paga no mês
 > (hoje `linhasDoMes` a projeta mesmo assim).
 
+## Receitas fixas no WhatsApp + "quanto tenho a receber" (nov/2026)
+
+Relato (Fábio): "quais minhas receitas fixas?" respondia "nenhuma receita fixa
+cadastrada" com duas no painel, e "quanto tenho a receber ainda no mês" não
+citava a 1ª parcela do 13º.
+
+- ⚠️ **Receita fixa é gravada como `tipo = 'Recebimento'`** (como transação).
+  `handlers/recorrencias.js` consultava `'Receita'`, que não existe na base (0
+  linhas; 129 ativas em 59 grupos são 'Recebimento') — vazio pra TODO mundo, e
+  a listagem geral mostrava receita com 💸 e fora do "entra". O contrato
+  `filtro: 'Receita'` (interpretador, IA, Central) ficou; a tradução é no
+  handler. `eval:listar-recorrencias` roda o handler real (falha 11× no antigo).
+- **"Quanto tenho a receber <período>" é ação nova `a_receber`** — espelho do
+  `a_pagar`, com as mesmas peças (janela, `ocorrenciasDeFixas`, dia da
+  transação): receita fixa não recebida + entrada prevista (`pago=false`) no
+  período. Sem período = resto do mês. Sai: recebida/pulada, transferência,
+  ajuste, "não considerar", crédito em cartão. `services/aReceberPeriodo.js` +
+  `handlers/aReceber.js`; detector logo depois do `a_pagar` no interpretador.
+  ⚠️ Exige pergunta + "receber" (infinitivo); recusa "recebi", número na frase,
+  "todo mês"/"fixas" (lista de fixas) e resumos/lembretes. Medido: reage a 0
+  das 267 frases da Central e a 0 de 60 mil descrições reais.
+  `eval:a-receber` (78, 13/14 mutações; a sobrevivente é equivalente) — inclui
+  as frases que a Central anuncia (`a-receber-periodo`).
+
 ## "O que tenho pra pagar", dívidas no resumo e "Já recebi" (set/2026)
 
 - **WhatsApp "o que tenho pra pagar essa semana/hoje/amanhã/esse mês/nos

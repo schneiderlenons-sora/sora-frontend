@@ -631,6 +631,20 @@ export const COMANDOS: Comando[] = [
     categoria: 'analises',
   },
   {
+    id: 'a-receber-periodo',
+    titulo: 'O que tenho a receber',
+    exemplo: 'quanto eu tenho a receber esse mês?',
+    descricao:
+      'Lista, dia a dia, o que ainda vai entrar no período: receitas fixas que ainda não caíram e entradas previstas (como o 13º ou um valor combinado), com o total. O que você já recebeu no mês não aparece.',
+    variantes: [
+      'o que tenho pra receber essa semana?',
+      'quanto falta receber esse mês?',
+      'quanto vou receber mês que vem?',
+      'tenho algo pra receber hoje?',
+    ],
+    categoria: 'analises',
+  },
+  {
     id: 'gasto-por-periodo',
     titulo: 'Quanto gastei com algo, num período',
     exemplo: 'quanto gastei com mercado livre em setembro?',
