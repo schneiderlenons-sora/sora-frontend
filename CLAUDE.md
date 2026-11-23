@@ -2806,6 +2806,23 @@ são lançados nela. Sem categoria: "Dívidas", como sempre.
 - De passagem: `/quitar` e `/lembrete` só aceitam dívida do próprio grupo.
 - `eval:categoria-divida` nos dois repos (back 40, 12/12 mutações; front 18).
 
+## Tipo da dívida: uma lista só (nov/2026) — `lib/tipos-divida.ts`
+
+Relato (Fábio): "classifico como Parcelamento e depois de salvar aparece
+Outros". O banco estava CERTO (`tipo = 'parcelamento'`); o card tinha um mapa
+próprio sem esse tipo e caía no "Outro" (rótulo, cor e ícone). Medido: 28
+dívidas de parcelamento em 13 grupos exibidas como "OUTRO".
+
+- Formulário (`NovaDividaModal`) e card (`DividasClient`) leem `TIPOS_DIVIDA` /
+  `tipoDaDivida`. `rotulo` = formulário, `curto` = selo do card.
+- ⚠️ Tipo NOVO entra ali E no CHECK `dividas_tipo_check` (hoje a 125).
+  `eval:tipos-divida` lê o CHECK da migration mais recente em
+  `sora-backend/sql` e falha se algum tipo aceito pelo banco não tiver entrada
+  (61 verificações, 9/9 mutações).
+- Fora (anotado): o WhatsApp não cria parcelamento/consórcio por "criar dívida"
+  (`detectarTipo` e o prompt de `ia.js` não os listam) — parcelamento entra
+  pelo "parcelei com fulano".
+
 ## Dívidas: o débito do extrato dá baixa na parcela (out/2026)
 
 Relato (Robert): o extrato do BB trazia os débitos dos empréstimos (727,12 e

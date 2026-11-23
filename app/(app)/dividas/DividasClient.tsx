@@ -14,26 +14,14 @@ import { proximoVencimento, parcelasEmAtraso, statusDeAtraso, hojeSP } from '@/l
 import {
   Plus, Sparkles, Receipt, Pencil, Trash2, ArrowDownRight, CheckCircle2,
   AlertCircle, Loader2, TrendingDown, Calendar, Zap, Eye, EyeOff,
-  Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase,
-  GraduationCap, FileText, MoreVertical, Bell, BellOff, Ticket, Trophy, Tag,
+  AlertTriangle, MoreVertical, Bell, BellOff, Trophy, Tag,
 } from 'lucide-react';
+import { tipoDaDivida } from '@/lib/tipos-divida';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro } from '@/lib/moeda-base';
 
 const BRAND = 'hsl(var(--primary))';
-
-const TIPO_INFO: Record<string, { label: string; cor: string; icon: any }> = {
-  emprestimo:       { label: 'Empréstimo',      cor: '#3b82f6', icon: Briefcase    },
-  financiamento:    { label: 'Financiamento',   cor: '#8b5cf6', icon: Home         },
-  consorcio:        { label: 'Consórcio',       cor: '#0ea5e9', icon: Ticket       },
-  crediario:        { label: 'Crediário',       cor: '#f59e0b', icon: ShoppingCart },
-  cartao_rotativo:  { label: 'Cartão rotativo', cor: '#ef4444', icon: CreditCard   },
-  cheque_especial:  { label: 'Cheque especial', cor: '#f97316', icon: AlertTriangle},
-  consignado:       { label: 'Consignado',      cor: '#06b6d4', icon: Building2    },
-  fies:             { label: 'FIES',            cor: '#14b8a6', icon: GraduationCap},
-  outro:            { label: 'Outro',           cor: '#64748b', icon: FileText     },
-};
 
 const STATUS_INFO: Record<string, { label: string; cor: string }> = {
   ativa:        { label: 'Ativa',         cor: '#3b82f6' },
@@ -392,7 +380,9 @@ interface DividaCardProps {
 function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onToggleLembrete, onTogglePrevistos }: DividaCardProps) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const [menuOpen, setMenuOpen] = useState(false);
-  const tipo = TIPO_INFO[divida.tipo] || TIPO_INFO.outro;
+  // Rótulo, cor e ícone do tipo: a MESMA lista do formulário (lib/tipos-divida).
+  // Com uma lista própria aqui, "Parcelamento" virava "Outro" depois de salvo.
+  const tipo = tipoDaDivida(divida.tipo);
   // ⚠️ ATRASADA ATÉ PAGAR (nov/2026, relato do Fábio — o mesmo do cartão). A
   // regra antiga só via o vencimento do MÊS CORRENTE: a parcela de outubro não
   // paga voltava a "Ativa" em 1º de novembro, como se tivesse sido paga. O
@@ -473,7 +463,7 @@ function DividaCard({ divida, ocultar, delay, onPagar, onEditar, onExcluir, onTo
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
                     style={{ background: `color-mix(in srgb, ${tipo.cor} 13%, transparent)`, color: tipo.cor }}>
-                {tipo.label}
+                {tipo.curto}
               </span>
               {divida.credor && (
                 <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{divida.credor}</span>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Loader2, AlertCircle, Check, Receipt, Building2, Home, ShoppingCart, CreditCard, AlertTriangle, Briefcase, GraduationCap, FileText, Camera, Upload, Trash2, Users, Ticket, Trophy } from 'lucide-react';
+import { X, Loader2, AlertCircle, Check, Receipt, Camera, Upload, Trash2, Ticket, Trophy } from 'lucide-react';
+import { TIPOS_DIVIDA } from '@/lib/tipos-divida';
 import { api } from '@/lib/api';
 import { useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
@@ -39,18 +40,10 @@ async function redimensionar(file: File, max = 1000, q = 0.82): Promise<string> 
   });
 }
 
-const TIPOS = [
-  { v: 'emprestimo',       l: 'Empréstimo',         icon: Briefcase,    cor: '#3b82f6', desc: 'Pessoal, consignado livre, etc.' },
-  { v: 'financiamento',    l: 'Financiamento',      icon: Home,         cor: '#8b5cf6', desc: 'Imóvel, veículo, equipamento' },
-  { v: 'consorcio',        l: 'Consórcio',          icon: Ticket,       cor: '#0ea5e9', desc: 'Carta de crédito, com ou sem contemplação' },
-  { v: 'crediario',        l: 'Crediário',          icon: ShoppingCart, cor: '#f59e0b', desc: 'Loja de departamento, eletro' },
-  { v: 'parcelamento',     l: 'Parcelamento',       icon: Users,        cor: '#10b981', desc: 'Parcelei com alguém, sem cartão' },
-  { v: 'cartao_rotativo',  l: 'Cartão rotativo',    icon: CreditCard,   cor: '#ef4444', desc: 'Saldo não pago da fatura' },
-  { v: 'cheque_especial',  l: 'Cheque especial',    icon: AlertTriangle,cor: '#f97316', desc: 'Limite do banco usado' },
-  { v: 'consignado',       l: 'Consignado',         icon: Building2,    cor: '#06b6d4', desc: 'Descontado em folha' },
-  { v: 'fies',             l: 'FIES / Crédito edu.', icon: GraduationCap, cor: '#14b8a6', desc: 'Financiamento estudantil' },
-  { v: 'outro',            l: 'Outro',              icon: FileText,     cor: '#64748b', desc: 'Outra modalidade' },
-] as const;
+// Os tipos vêm da fonte única (lib/tipos-divida.ts) — a MESMA lista que o card
+// usa pra exibir. Duas listas foi o que fez "Parcelamento" virar "Outro" no
+// card depois de salvo (relato do Fábio, nov/2026).
+const TIPOS = TIPOS_DIVIDA;
 
 const INDEXADORES = ['Pré-fixado', 'CDI', 'IPCA', 'Selic', 'Outro'];
 
@@ -315,7 +308,7 @@ export default function NovaDividaModal({ phone, edicao, onClose, onSuccess }: P
                     >
                       <Icon size={16} />
                     </div>
-                    <span className="text-[10px] font-semibold text-foreground leading-tight">{t.l}</span>
+                    <span className="text-[10px] font-semibold text-foreground leading-tight">{t.rotulo}</span>
                   </button>
                 );
               })}
