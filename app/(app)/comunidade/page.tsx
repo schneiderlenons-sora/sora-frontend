@@ -261,8 +261,12 @@ export default function ComunidadePage() {
               const papel = PAPEL_INFO[m.papel] || PAPEL_INFO.leitura;
               const initial = (m.users?.name || '?').charAt(0).toUpperCase();
               return (
+                // ⚠️ `animate-fade-in` deixa um transform permanente: o card vira
+                // camada própria e o menu (z-20) fica PRESO nele. Sem subir o
+                // card enquanto o menu está aberto, o card do membro seguinte
+                // cobria a parte de baixo do "Remover do grupo" (medido).
                 <div key={m.id}
-                     className="card-hover rounded-2xl p-4 animate-fade-in relative"
+                     className={`card-hover rounded-2xl p-4 animate-fade-in relative ${menuMembro === m.id ? 'z-30' : ''}`}
                      style={{ animationDelay: `${i * 40}ms` }}>
                   <div className="flex items-start gap-3">
                     <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm"

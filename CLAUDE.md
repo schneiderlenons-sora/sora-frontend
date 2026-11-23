@@ -4437,6 +4437,21 @@ perfil" em toda mensagem e Open Finance "Você não tem um grupo ativo".
   (`grupo_ativo is null`), senão nasceriam 10 grupos. Leitura que falha não cria.
 - `GET /grupos/:phone` devolve `original`; a Comunidade não oferece "Sair" nele.
 
+### Remover membro / mudar papel: o DONO não tem linha (nov/2026)
+
+Relato (Arisson): "sou ADM e não consigo remover um membro". As rotas
+`DELETE`/`PATCH /grupos/membro/:id` procuravam o papel de quem pediu SÓ em
+`grupo_membros`, e o dono do grupo original não tem linha ali → 403. Medido:
+4 dos 18 grupos com convidados. Hoje `administracaoDoGrupo` (backend
+`routes/grupos.js`): o dono sempre administra (vence até uma linha "escrita"
+no próprio grupo); admin promovido não remove nem rebaixa quem criou o grupo;
+falha de gravação dá 500. `eval:membros-grupo` (35, 9/9 mutações).
+⚠️ **Rota nova que decide "é admin do grupo?" tem de olhar `grupos.dono_id`
+também** — `papelNoGrupo` e `administracaoDoGrupo` fazem isso.
+De passagem: o menu ⋮ do membro ficava preso no card (`animate-fade-in`) e o
+card seguinte cobria a parte de baixo do "Remover do grupo"; o card sobe pra
+`z-30` enquanto o menu está aberto.
+
 ## O alerta de teto nunca disparava pra quem gasta em conta fixa (set/2026)
 
 Relato do dono: *"ultrapassei meu limite geral de gastos e não fui avisado"*.
