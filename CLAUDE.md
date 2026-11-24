@@ -2702,6 +2702,28 @@ reconhece a frase**.
 > que a frase cai no fallback de IA em vez do parser local. Ampliar a lista
 > reduziria o uso da IA nesse caminho, mas não era a causa do bug.
 
+### Título do compromisso: grafia da pessoa e sem o "dia" (nov/2026)
+
+Relato (Bruno): "marca Reunião com Pedro dia 18/11 as 8h" salvava
+"Reunião com pedro dia". `eval:agenda-titulo` (handler real, 15/16 mutações).
+
+- O reconhecimento continua todo em minúsculas (dezenas de regexes dependem
+  disso). Só no fim `tituloCompromisso(base, dt, hr, grafia)` devolve a
+  grafia: `grafiaPorPalavra` (`services/descricaoTx.js`). Trecho contínuo →
+  fatia original, com pontuação ("Dr. Carlos"); data no meio → palavra a
+  palavra. Pelo fallback de IA, `opts.original` (a frase da pessoa) vence o
+  comando que a IA devolveu. Inicial maiúscula só se a 1ª palavra está toda
+  minúscula ("iPhone" fica).
+- Sai junto da data o que está COLADO nela ("dia", "no/na/pro/até",
+  "próxima", "feira", "que vem") e o "às" da hora, por PALAVRA INTEIRA — a
+  remoção por pedaço fazia "qua" (quarta) apagar o miolo de "quadra".
+- **"dia N de mês"** lê o mês (antes "dia 5 de janeiro" em novembro = 5/12;
+  sem ano, a próxima vez que a data acontece). Só o formato COM "dia": ele já
+  era data, então nenhuma frase muda de rumo (agenda × tarefa × nota) — o
+  eval compara com a cópia congelada do parser antigo em 1.050 frases. "5 de
+  dezembro" sem "dia" segue não sendo data ("Rua 25 de Março").
+- Tarefa já usava a frase original — só a Agenda perdia a grafia.
+
 ## Selo "EM ATRASO" da dívida anda nos DOIS sentidos (set/2026)
 
 Relato: *"mudei o vencimento do dia 15 pro 20 e continua em atraso"*. O cron
