@@ -84,6 +84,7 @@ Conferidas em 11/11/2026: nenhuma mostra "Sora".
 | 04/11/2026 | Apple: "resubmit once any necessary adjustments have been made" |
 | 08/11/2026 | Venda residual tirada do app (76ee10c); reenviado o mesmo build |
 | 11/11/2026 | Recusa **4.1(a) Copycats** (nome "Sora"). App vira ForSora (5bb5845, 9381f20); build **1.0 (4)**; reenviado com resposta e notas |
+| até 24/11/2026 | ✅ **APROVADO** — build 1.0 (4), "ForSora - Controle de Gastos". Nada se vende no app (fase 2 = StoreKit) |
 
 Resposta enviada à Apple em 11/11/2026:
 ```
