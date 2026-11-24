@@ -75,6 +75,14 @@ No purchases are available inside the iOS app.
 **Capturas:** `Sora/capturas-app-store/` (fora do repo), conta comercialsora@gmail.com.
 Conferidas em 11/11/2026: nenhuma mostra "Sora".
 
+**Capturas da 1.0.1 (24/11/2026):** artes de marketing do dono em
+`Sora/capturas-app-store/v1.0.1/` (1320×2868 e 1206×2622). Vieram em 1080×1920
+(9:16), que a App Store não aceita: foram escaladas pela largura e o fundo
+estendido em cima e embaixo, sem cortar nem distorcer.
+⚠️ Trocar captura exige VERSÃO NOVA (versão aprovada trava as capturas), e
+versão nova exige build com o mesmo número: `MARKETING_VERSION` em
+`ios-app/ios/App/App.xcodeproj/project.pbxproj` (o Codemagic só numera o build).
+
 ## Histórico da revisão
 
 | Data | O que aconteceu |
