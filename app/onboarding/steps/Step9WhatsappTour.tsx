@@ -3,6 +3,7 @@
 import { MessageCircle, Mic, Camera, FileText, Sparkles, CheckCircle2, LayoutDashboard, Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import StepNav from '../components/StepNav';
+import { useOnboarding } from '../OnboardingContext';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -25,6 +26,10 @@ export default function Step9WhatsappTour() {
   // Kit e grátis não atendem pelo WhatsApp (mesma lista do webhook). O grátis
   // chega aqui pelo onboarding do app (modo curto, nov/2026); antes só o Kit.
   const isKit = !podeUsar('whatsapp_sora');
+  // O botão diz o que vem a seguir. Antes o Kit lia "Ir para o painel" e caía
+  // no passo 10 (comandos), que vem depois em toda sequência.
+  const { posicao, total } = useOnboarding();
+  const ehUltimo = posicao >= total;
   const temPhone = !isKit && !!perfil?.phone;
 
   return (
@@ -150,7 +155,7 @@ export default function Step9WhatsappTour() {
 
       <StepNav
         podeAvancar={true}
-        textoContinuar={isKit ? 'Ir para o painel' : 'Ver o que eu sei fazer'}
+        textoContinuar={ehUltimo ? 'Ir para o painel' : 'Ver o que eu sei fazer'}
         semPular
       />
     </>

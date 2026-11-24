@@ -3,11 +3,17 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, MessageCircle, Sparkles } from 'lucide-react';
 import StepNav from '../components/StepNav';
+import { useAuth } from '@/contexts/AuthContext';
 import { CATEGORIAS, COMANDOS } from '@/lib/sora-commands';
 
 const BRAND = 'hsl(var(--primary))';
 
 export default function Step10Comandos() {
+  // Grátis e Kit também veem os comandos (pedido do dono, nov/2026), mas sem
+  // o aviso a pessoa mandaria mensagem e levaria um "não atendo" do WhatsApp.
+  // ⚠️ Só informa, sem convite a comprar: no app de iPhone não há venda.
+  const { podeUsar } = useAuth();
+  const semZap = !podeUsar('whatsapp_sora');
   // Agrupa os comandos por categoria (só categorias que têm comandos).
   const grupos = useMemo(
     () => CATEGORIAS
@@ -37,6 +43,12 @@ export default function Step10Comandos() {
           </p>
         </div>
       </div>
+
+      {semZap && (
+        <p className="mb-5 text-xs text-muted-foreground text-center leading-relaxed max-w-md mx-auto">
+          O atendimento pelo WhatsApp não faz parte do seu plano. Pelo painel você registra tudo isso à mão.
+        </p>
+      )}
 
       {/* Acordeão de categorias */}
       <div className="space-y-2.5">

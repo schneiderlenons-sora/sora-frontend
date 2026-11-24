@@ -19,13 +19,15 @@ export type ModoOnboarding = "completo" | "curto";
  * O curto é o de quem cria a conta DENTRO DO APP (iPhone/Android: o /tour manda
  * `?modo=curto`) e entra no plano grátis. Até nov/2026 ele rodava só [1, 5]
  * (nome e contas); o dono pediu o mesmo caminho do navegador — categorias,
- * contas fixas, meta. Fica de fora só o passo 10 (comandos do WhatsApp): o
- * grátis não atende pelo zap. O 9 vira "tudo pronto" do painel (variante sem
- * WhatsApp, a mesma do Kit) e é o último.
+ * contas fixas, meta e também os comandos do WhatsApp (o passo 10 avisa que o
+ * zap não faz parte do grátis). O 9 usa a variante do painel (a mesma do Kit).
+ *
+ * Hoje as duas sequências são iguais; o modo continua existindo porque decide
+ * outra coisa: no curto não há desvio pro Open Finance no fim (StepNav).
  */
 export const SEQUENCIAS: Record<ModoOnboarding, number[]> = {
   completo: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  curto:    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  curto:    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 };
 
 interface OnboardingState {
