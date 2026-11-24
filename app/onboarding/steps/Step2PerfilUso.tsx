@@ -89,7 +89,10 @@ export default function Step2PerfilUso() {
                 ${ativo
                   ? 'bg-primary/5 shadow-glow-sm'
                   : bloqueado
-                    ? 'border-border/50 bg-card/40 opacity-60 cursor-not-allowed'
+                    // ⚠️ No app de iPhone a opção trancada SOME: o selo "Premium"
+                    // sem como comprar ali é o que a revisão da Apple questiona
+                    // (lib/app-ios.ts). Com a compra pela Apple, volta a aparecer.
+                    ? 'border-border/50 bg-card/40 opacity-60 cursor-not-allowed oculto-no-app-ios'
                     : 'border-border bg-card hover:border-primary/40 hover:-translate-y-0.5'
                 }`}
               style={ativo ? { borderColor: opcao.cor } : undefined}

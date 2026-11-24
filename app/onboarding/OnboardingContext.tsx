@@ -13,17 +13,19 @@ export type ModoOnboarding = "completo" | "curto";
  * Quais passos cada modo roda, na ordem.
  *
  * ⚠️ É UMA SEQUÊNCIA, NÃO UM CORTE. O modo curto reaproveita os MESMOS
- * componentes de passo, só pulando os que não fazem sentido pra quem entrou
- * pelo modo manual: perfil de uso, objetivo, gastos e receitas fixas, meta e
- * os dois passos de WhatsApp — que ele nem tem. Renumerar os steps quebraria
- * o `onboarding_step` já gravado de quem está no meio do wizard completo.
+ * componentes de passo. Renumerar os steps quebraria o `onboarding_step` já
+ * gravado de quem está no meio do wizard completo.
  *
- * Sobram nome (quem é) e contas (de onde sai o dinheiro). Categoria não entra
- * porque o banco já cria as padrão sozinho (`criar_categorias_padrao`).
+ * O curto é o de quem cria a conta DENTRO DO APP (iPhone/Android: o /tour manda
+ * `?modo=curto`) e entra no plano grátis. Até nov/2026 ele rodava só [1, 5]
+ * (nome e contas); o dono pediu o mesmo caminho do navegador — categorias,
+ * contas fixas, meta. Fica de fora só o passo 10 (comandos do WhatsApp): o
+ * grátis não atende pelo zap. O 9 vira "tudo pronto" do painel (variante sem
+ * WhatsApp, a mesma do Kit) e é o último.
  */
 export const SEQUENCIAS: Record<ModoOnboarding, number[]> = {
   completo: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  curto:    [1, 5],
+  curto:    [1, 2, 3, 4, 5, 6, 7, 8, 9],
 };
 
 interface OnboardingState {

@@ -13,16 +13,18 @@ const CANAIS = [
   { icon: FileText,      titulo: 'PDF',    desc: 'Envie boletos e notas fiscais',     cor: '#8b5cf6' },
 ];
 
-// Kit (R$47) é painel-only — não tem WhatsApp da Sora. Mostra o que dá pra fazer
-// direto no painel no lugar dos canais de envio.
+// Kit (R$47) e grátis são painel-only — não têm WhatsApp da Sora. Mostra o que
+// dá pra fazer direto no painel no lugar dos canais de envio.
 const KIT_RECURSOS = [
   { icon: LayoutDashboard, titulo: 'Lance no painel',  desc: 'Gastos e receitas em segundos',   cor: BRAND     },
   { icon: Target,          titulo: 'Metas e reserva',  desc: 'Planeje objetivos e sua reserva', cor: '#f59e0b' },
 ];
 
 export default function Step9WhatsappTour() {
-  const { perfil, plano } = useAuth();
-  const isKit = plano === 'kit';                 // Kit não tem WhatsApp da Sora
+  const { perfil, plano, podeUsar } = useAuth();
+  // Kit e grátis não atendem pelo WhatsApp (mesma lista do webhook). O grátis
+  // chega aqui pelo onboarding do app (modo curto, nov/2026); antes só o Kit.
+  const isKit = !podeUsar('whatsapp_sora');
   const temPhone = !isKit && !!perfil?.phone;
 
   return (
@@ -81,8 +83,10 @@ export default function Step9WhatsappTour() {
               <div>
                 <p className="text-sm font-bold text-foreground">Tudo no seu painel</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Lance gastos, acompanhe metas e veja seus gráficos direto por aqui. Quando quiser
-                  registrar pelo WhatsApp também — por texto, áudio ou foto — é só fazer upgrade.
+                  Lance gastos, acompanhe metas e veja seus gráficos direto por aqui.
+                  {/* No app de iPhone nada se vende (lib/app-ios.ts): sem convite a upgrade. */}
+                  <span className="oculto-no-app-ios"> Quando quiser
+                  registrar pelo WhatsApp também — por texto, áudio ou foto — é só fazer upgrade.</span>
                 </p>
               </div>
             </div>
