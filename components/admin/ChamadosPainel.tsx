@@ -7,12 +7,16 @@
 // quando o cliente respondeu. A ordem e a situação vêm prontas do servidor
 // (lib/chamados-admin, com eval); aqui é só o desenho.
 //
-// Três blocos, na ordem da urgência:
-//   1. Precisam de resposta — quem respondeu e você não leu vem no topo, com
-//      selo; depois os que esperam há mais tempo.
+// Três blocos, na ordem da urgência, e em cada um o MAIS RECENTE primeiro
+// (abertura ou última mensagem — pedido do dono em 25/11/2026):
+//   1. Precisam de resposta — o cliente falou por último (ou ninguém respondeu).
 //   2. Aguardando o cliente — você respondeu por último.
 //   3. Resolvidos — recolhidos: a conversa deles já foi apagada, então só
 //      servem de histórico.
+//
+// Busca por nome, e-mail ou telefone (`casaBusca`, com eval) filtra os três
+// blocos. Buscando, bloco vazio some e os resolvidos abrem sozinhos — senão o
+// chamado encerrado da pessoa ficaria escondido atrás do "Resolvidos (n)".
 //
 // Antes eram duas abas (Bugs e Melhorias) sem ordem por situação: um chamado
 // "em andamento" cujo cliente acabou de responder ficava no meio da lista,
@@ -21,9 +25,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Loader2, MessageSquare, Send, AlertCircle, CheckCircle2, Clock, Inbox, ChevronDown, RefreshCw,
+  Loader2, MessageSquare, Send, AlertCircle, CheckCircle2, Clock, Inbox, ChevronDown, RefreshCw, Search, X,
 } from 'lucide-react';
 import { useConfirmar } from '@/contexts/ConfirmContext';
+import { casaBusca } from '@/lib/chamados-admin';
 
 type Situacao = 'precisa_resposta' | 'aguardando_cliente' | 'resolvido';
 export type Chamado = {
@@ -64,6 +69,7 @@ export default function ChamadosPainel({ flash, onMudou }: {
   const [erro, setErro] = useState('');
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]['id']>('todos');
   const [verResolvidos, setVerResolvidos] = useState(false);
+  const [busca, setBusca] = useState('');
   const [respId, setRespId] = useState<string | null>(null);
   const [respMsg, setRespMsg] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -81,9 +87,10 @@ export default function ChamadosPainel({ flash, onMudou }: {
   }, []);
   useEffect(() => { carregar(); }, [carregar]);
 
+  const buscando = busca.trim().length > 0;
   const filtrada = useMemo(
-    () => (lista || []).filter((c) => tipo === 'todos' || (c.tipo || 'problema') === tipo),
-    [lista, tipo],
+    () => (lista || []).filter((c) => (tipo === 'todos' || (c.tipo || 'problema') === tipo) && casaBusca(c, busca)),
+    [lista, tipo, busca],
   );
   const grupos = useMemo(() => ({
     precisa: filtrada.filter((c) => c.situacao === 'precisa_resposta'),
@@ -263,6 +270,22 @@ export default function ChamadosPainel({ flash, onMudou }: {
 
   return (
     <div className="space-y-4">
+      {/* 16px no celular: abaixo disso o iPhone dá zoom ao tocar no campo. */}
+      <div className="relative">
+        <Search size={16} aria-hidden className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
+               placeholder="Buscar por nome, e-mail ou telefone"
+               aria-label="Buscar chamado por nome, e-mail ou telefone"
+               autoComplete="off" spellCheck={false}
+               className="w-full h-11 pl-10 pr-11 rounded-xl border border-border bg-card text-[16px] sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary [&::-webkit-search-cancel-button]:hidden" />
+        {buscando && (
+          <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 grid place-items-center rounded-lg text-muted-foreground hover:text-foreground">
+            <X size={15} />
+          </button>
+        )}
+      </div>
+
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TIPOS.map((t) => (
           <button key={t.id} onClick={() => setTipo(t.id)} aria-pressed={tipo === t.id}
@@ -275,23 +298,38 @@ export default function ChamadosPainel({ flash, onMudou }: {
         </button>
       </div>
 
-      <Bloco titulo="Precisam de resposta" n={grupos.precisa.length}
-             vazio="Ninguém esperando por você. 🎉">
-        {grupos.precisa.map(cartao)}
-      </Bloco>
-      <Bloco titulo="Aguardando o cliente" n={grupos.aguardando.length} vazio="Nenhum chamado esperando o cliente.">
-        {grupos.aguardando.map(cartao)}
-      </Bloco>
-
-      {grupos.resolvidos.length > 0 && (
-        <section className="space-y-2.5">
-          <button onClick={() => setVerResolvidos((v) => !v)} aria-expanded={verResolvidos}
-                  className="w-full flex items-center justify-between gap-2 h-11 px-3 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:text-foreground">
-            <span>Resolvidos <span className="tabular-nums font-semibold">({grupos.resolvidos.length})</span></span>
-            <ChevronDown size={15} className={`transition-transform ${verResolvidos ? 'rotate-180' : ''}`} />
+      {buscando && filtrada.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-5 text-center text-[13px] text-muted-foreground flex flex-col items-center gap-2">
+          <span className="inline-flex items-center gap-2"><Search size={15} /> Nenhum chamado de “{busca.trim()}”{tipo !== 'todos' ? ' neste filtro' : ''}.</span>
+          <button type="button" onClick={() => setBusca('')} className="h-9 px-3 rounded-lg border border-border text-[12px] font-bold text-foreground hover:bg-muted/40">
+            Limpar busca
           </button>
-          {verResolvidos && grupos.resolvidos.map(cartao)}
-        </section>
+        </div>
+      ) : (
+        <>
+          {(!buscando || grupos.precisa.length > 0) && (
+            <Bloco titulo="Precisam de resposta" n={grupos.precisa.length}
+                   vazio="Ninguém esperando por você. 🎉">
+              {grupos.precisa.map(cartao)}
+            </Bloco>
+          )}
+          {(!buscando || grupos.aguardando.length > 0) && (
+            <Bloco titulo="Aguardando o cliente" n={grupos.aguardando.length} vazio="Nenhum chamado esperando o cliente.">
+              {grupos.aguardando.map(cartao)}
+            </Bloco>
+          )}
+
+          {grupos.resolvidos.length > 0 && (
+            <section className="space-y-2.5">
+              <button onClick={() => setVerResolvidos((v) => !v)} aria-expanded={verResolvidos || buscando}
+                      className="w-full flex items-center justify-between gap-2 h-11 px-3 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:text-foreground">
+                <span>Resolvidos <span className="tabular-nums font-semibold">({grupos.resolvidos.length})</span></span>
+                <ChevronDown size={15} className={`transition-transform ${verResolvidos || buscando ? 'rotate-180' : ''}`} />
+              </button>
+              {(verResolvidos || buscando) && grupos.resolvidos.map(cartao)}
+            </section>
+          )}
+        </>
       )}
     </div>
   );

@@ -2,7 +2,8 @@
 // Ordem e situação dos chamados no painel admin — regra PURA (eval:chamados-admin).
 //
 // Pedido do dono (nov/2026): "organize pelos abertos; finalizado vai pro fim;
-// e quero saber quando o cliente respondeu". A situação sai da CONVERSA, não
+// e quero saber quando o cliente respondeu". Depois (25/11): o mais recente
+// primeiro em cada bloco, e busca por nome. A situação sai da CONVERSA, não
 // só do campo `status`: um chamado "em andamento" cujo cliente acabou de
 // responder precisa de você tanto quanto um novo.
 //
@@ -54,19 +55,39 @@ export function situacaoDoChamado<T extends ChamadoBase>(c: T, msgs: MsgResumo[]
 const PESO: Record<Situacao, number> = { precisa_resposta: 0, aguardando_cliente: 1, resolvido: 2 };
 
 /**
- * Ordem da lista: precisa de resposta → aguardando o cliente → resolvidos.
- * Dentro do 1º grupo, quem respondeu e você não leu vem antes; depois, o que
- * está esperando há MAIS tempo (o mais antigo primeiro — é o mais atrasado).
- * Aguardando: o mais recente primeiro. Resolvidos: o mais recente primeiro.
+ * Ordem da lista: precisa de resposta → aguardando o cliente → resolvidos, e
+ * DENTRO de cada bloco o MAIS RECENTE PRIMEIRO (pedido do dono, 25/11/2026:
+ * "por ordem de último chamado"). Recente = última atividade — a abertura ou a
+ * última mensagem —, então chamado novo e cliente que acabou de responder sobem
+ * pro topo juntos. Resolvidos: pela abertura (a conversa deles foi apagada).
+ *
+ * Antes, em "precisa de resposta", o mais ANTIGO vinha primeiro (o mais
+ * atrasado) — o dono preferiu achar o último que chegou.
  */
 export function ordenarChamados<T extends ChamadoComSituacao<ChamadoBase>>(lista: T[]): T[] {
   return [...lista].sort((a, b) => {
     if (PESO[a.situacao] !== PESO[b.situacao]) return PESO[a.situacao] - PESO[b.situacao];
-    if (a.situacao === 'precisa_resposta') {
-      if ((a.nao_lidas > 0) !== (b.nao_lidas > 0)) return a.nao_lidas > 0 ? -1 : 1;
-      return a.ultima_atividade.localeCompare(b.ultima_atividade);
-    }
     if (a.situacao === 'resolvido') return b.created_at.localeCompare(a.created_at);
     return b.ultima_atividade.localeCompare(a.ultima_atividade);
   });
+}
+
+/** Texto comparável: sem acento, sem caixa, sem espaço sobrando. */
+export function chaveBusca(s: string | null | undefined): string {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * A busca do painel acha este chamado? Por NOME ou E-MAIL (todas as palavras
+ * digitadas, em qualquer ordem, sem acento nem caixa) ou por TELEFONE (só os
+ * dígitos, a partir de 4 — "(14) 99188" acha 5514991889199). Busca vazia acha
+ * tudo.
+ */
+export function casaBusca(c: { nome?: string | null; email?: string | null; phone?: string | null }, termo: string): boolean {
+  const t = chaveBusca(termo);
+  if (!t) return true;
+  const texto = chaveBusca(`${c.nome || ''} ${c.email || ''}`);
+  if (t.split(' ').every((p) => texto.includes(p))) return true;
+  const digitos = t.replace(/\D/g, '');
+  return digitos.length >= 4 && String(c.phone || '').replace(/\D/g, '').includes(digitos);
 }

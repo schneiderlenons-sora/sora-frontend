@@ -728,8 +728,11 @@ resposta, pagando conexão sem banco, banco parado) e métricas em 3 grupos
 
 - **Chamados** (`components/admin/ChamadosPainel.tsx`) juntou Bugs + Melhorias.
   Situação e ordem em `lib/chamados-admin.ts` (`eval:chamados-admin`):
-  precisa de resposta (não lida primeiro, depois o mais antigo) → aguardando o
-  cliente → resolvidos no fim, recolhidos. Melhoria sem resposta não acende.
+  precisa de resposta → aguardando o cliente → resolvidos no fim, recolhidos;
+  **em cada bloco o mais recente primeiro** (abertura ou última mensagem —
+  pedido do dono em 25/11/2026; antes o mais antigo vinha primeiro). Melhoria
+  sem resposta não acende. **Busca** por nome, e-mail ou telefone (`casaBusca`):
+  buscando, bloco vazio some e os resolvidos abrem sozinhos.
   ⚠️ Abrir a conversa MARCA COMO LIDA em produção — não abrir chamado real em teste.
 - **Selo vermelho no item Admin** da sidebar (e ponto no "Menu" do celular):
   `lib/useAdminPendencias.ts` → `/api/admin/pendencias`, 2 min, só pra admin;
