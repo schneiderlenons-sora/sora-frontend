@@ -56,6 +56,12 @@ termos, cadastrar a conta bancária (no nome do titular: a conta é individual) 
 o formulário de impostos. Só o **titular da conta** vê essa área. Sem o contrato
 **ativo** não dá nem para testar compra em sandbox. Pode levar dias.
 
+✅ Conferido em 24/11/2026: **Acordo de apps pagos ATIVO** desde 27/10/2026,
+conta bancária ativa, W-8BEN ativo. ⚠️ Pendente: o **Formulário fiscal do
+Brasil** ("Faltam informações fiscais") pede **CNPJ**, a ajuda da Apple não cita
+CPF, e depois de enviado não dá pra editar no App Store Connect (só pelo
+suporte). Decisão do dono com o contador.
+
 Não criar nada em **Assinaturas** nem em **Compras dentro do app** à mão: o
 script do passo 3 cria o grupo e as 6 assinaturas.
 
