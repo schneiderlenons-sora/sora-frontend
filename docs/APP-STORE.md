@@ -93,6 +93,7 @@ versão nova exige build com o mesmo número: `MARKETING_VERSION` em
 | 08/11/2026 | Venda residual tirada do app (76ee10c); reenviado o mesmo build |
 | 11/11/2026 | Recusa **4.1(a) Copycats** (nome "Sora"). App vira ForSora (5bb5845, 9381f20); build **1.0 (4)**; reenviado com resposta e notas |
 | até 24/11/2026 | ✅ **APROVADO** — build 1.0 (4), "ForSora - Controle de Gastos". Nada se vende no app (fase 2 = StoreKit) |
+| 25/11/2026 | Versão **1.1.0 (5)** enviada pela API (`WAITING_FOR_REVIEW`): capturas novas, primeiros passos completos, abas fora do plano com cadeado e aviso "Fora do seu plano". **Sem assinaturas** (CNPJ pendente — ver docs/APPLE-COMPRAS.md); notas: "No purchases are available inside the iOS app". Liberação automática depois de aprovada |
 
 Resposta enviada à Apple em 11/11/2026:
 ```
