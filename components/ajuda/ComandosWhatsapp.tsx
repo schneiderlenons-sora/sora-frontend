@@ -7,7 +7,7 @@ import type { CategoriaCmdId } from '@/lib/sora-commands';
 import ComandoCard from '@/app/central-sora/components/ComandoCard';
 import CategoriaCard from '@/app/central-sora/components/CategoriaCard';
 import { Search, Sparkles, MessageCircle, ArrowLeft, X } from 'lucide-react';
-import { useEhAppIos } from '@/lib/useOrigem';
+import { useEhAppIos, useIosVende } from '@/lib/useOrigem';
 
 const BRAND = 'hsl(var(--primary))';
 
@@ -142,7 +142,10 @@ function CategoriaView({ id, onVoltar }: { id: CategoriaCmdId; onVoltar: () => v
   const cat = CATEGORIAS.find((c) => c.id === id);
   const comandos = COMANDOS.filter((c) => c.categoria === id);
   const { podeUsar, perfil } = useAuth();
-  const ehIos = useEhAppIos(); // app de iPhone: sem "Ver planos" (lib/app-ios.ts)
+  // App de iPhone sem compra pela Apple: sem "Ver planos" (lib/app-ios.ts).
+  const ehIos = useEhAppIos();
+  const iosVende = useIosVende();
+  const semVenda = ehIos && !iosVende;
   if (!cat) return null;
 
   const bloqueada = cat.feature && !podeUsar(cat.feature);
@@ -176,7 +179,7 @@ function CategoriaView({ id, onVoltar }: { id: CategoriaCmdId; onVoltar: () => v
       {bloqueada && (
         <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60">
           <p className="text-sm text-amber-800 dark:text-amber-300">
-            {ehIos
+            {semVenda
               ? 'Esses comandos não fazem parte do plano da sua conta.'
               : <>Esses comandos exigem um plano superior. <a href="/planos" className="font-bold underline">Ver planos →</a></>}
           </p>

@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
-import { useEhAppNativo, useEhAppIos } from '@/lib/useOrigem';
+import { useEhAppNativo, useEhAppIos, useIosVende } from '@/lib/useOrigem';
 import PlanosNoAppIos from '@/components/planos/PlanosNoAppIos';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import PlanosPlay, { useStatusPlay } from '@/components/planos/PlanosPlay';
+import PlanosApple from '@/components/planos/PlanosApple';
+import { useStatusApple } from '@/components/planos/useAppleCompra';
 import { linkGerenciarPlay } from '@/lib/digital-goods';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
@@ -478,13 +480,15 @@ function SecaoPlano() {
   // Assinatura pela Google Play: esconde a grade do Stripe no site (cobrança em
   // dobro) e faz o "Gerenciar" abrir a Play Store em vez do portal do Stripe.
   const { data: statusPlay } = useStatusPlay(!!perfil);
+  const { data: statusApple } = useStatusApple(!!perfil);
   const ofertas = perfil
-    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa })
+    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa, assinaturaApple: !!statusApple?.ativa })
     : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
 
   // App de iPhone: sem preço, sem portal do Stripe e sem grade — só o plano
   // atual (lib/app-ios.ts). Depois de TODOS os hooks desta função.
   const ehIos = useEhAppIos();
+  const iosVende = useIosVende();
 
   // Plano fora do catálogo de assinatura (kit, inativo) cai no visual do Premium.
   // ⚠️ Mas o Kit leva o PRÓPRIO nome: o hero dizia "Sora Premium" pra quem tem
@@ -506,7 +510,9 @@ function SecaoPlano() {
     ? Math.max(0, Math.ceil((validoAte.getTime() - Date.now()) / 86400000))
     : null;
 
-  if (ehIos) return <PlanosNoAppIos dentroDeConfiguracoes />;
+  // No build que vende, a grade da Apple (com "Gerenciar assinatura" e
+  // "Restaurar compras"); no antigo, só o plano atual.
+  if (ehIos) return iosVende ? <PlanosApple /> : <PlanosNoAppIos dentroDeConfiguracoes />;
 
   async function iniciarCheckout(planoAlvo: PlanoId) {
     setFeedback(null);

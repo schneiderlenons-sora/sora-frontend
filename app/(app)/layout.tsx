@@ -1,5 +1,5 @@
 import { cookies, headers } from 'next/headers';
-import { uaEhAppIos } from '@/lib/app-ios';
+import { uaEhAppIos, uaIosVende } from '@/lib/app-ios';
 import { AppIosProvider } from '@/lib/app-ios-contexto';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ValoresProvider, COOKIE_VALORES } from '@/lib/valores-ocultos';
@@ -68,8 +68,9 @@ export default async function AppShellLayout({ children }: { children: React.Rea
   const [jar, cab, ctx] = await Promise.all([cookies(), headers(), contextoSSR()]);
   const ocultos = jar.get(COOKIE_VALORES)?.value === '1';
   const appIos = uaEhAppIos(cab.get('user-agent'));
+  const iosVende = uaIosVende(cab.get('user-agent'));
   return (
-    <AppIosProvider valor={appIos}>
+    <AppIosProvider valor={appIos} vende={iosVende}>
       <MoedaBaseProvider moeda={ctx?.moedaBase}>
         <ValoresProvider inicial={ocultos}>
           <DashboardLayout>{children}</DashboardLayout>

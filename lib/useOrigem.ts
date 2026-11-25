@@ -2,8 +2,8 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { detectarOrigem, esquecerOrigem, PARAM_ANDROID, type Origem } from './origem-app';
-import { ehAppIos } from './app-ios';
-import { AppIosContexto } from './app-ios-contexto';
+import { ehAppIos, uaIosVende } from './app-ios';
+import { AppIosContexto, AppIosVendeContexto } from './app-ios-contexto';
 
 /**
  * `true` SÓ quando a sessão está rodando DENTRO do app nativo (TWA) agora.
@@ -83,4 +83,19 @@ export function useEhAppIos(): boolean {
   const [ios, setIos] = useState(false);
   useEffect(() => { if (doServidor === null) setIos(ehAppIos()); }, [doServidor]);
   return doServidor ?? ios;
+}
+
+/**
+ * `true` no app de iPhone que VENDE pela Apple (build com o plugin de compra —
+ * ver `uaIosVende`). Mesmo esquema do `useEhAppIos`: no painel vem do servidor.
+ *
+ * Use junto: `ehIos && !iosVende` = app antigo, nada se vende.
+ */
+export function useIosVende(): boolean {
+  const doServidor = useContext(AppIosVendeContexto);
+  const [vende, setVende] = useState(false);
+  useEffect(() => {
+    if (doServidor === null && typeof navigator !== 'undefined') setVende(uaIosVende(navigator.userAgent));
+  }, [doServidor]);
+  return doServidor ?? vende;
 }

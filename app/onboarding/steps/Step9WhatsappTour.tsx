@@ -89,8 +89,8 @@ export default function Step9WhatsappTour() {
                 <p className="text-sm font-bold text-foreground">Tudo no seu painel</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   Lance gastos, acompanhe metas e veja seus gráficos direto por aqui.
-                  {/* No app de iPhone nada se vende (lib/app-ios.ts): sem convite a upgrade. */}
-                  <span className="oculto-no-app-ios"> Quando quiser
+                  {/* No app de iPhone sem compra pela Apple: sem convite a upgrade. */}
+                  <span className="oculto-sem-venda-ios"> Quando quiser
                   registrar pelo WhatsApp também — por texto, áudio ou foto — é só fazer upgrade.</span>
                 </p>
               </div>

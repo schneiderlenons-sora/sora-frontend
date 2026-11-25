@@ -971,6 +971,10 @@ html[data-abertura='on'] body {
    Tudo que cita venda/pagamento FORA do painel leva esta classe — dentro do
    painel quem decide é o `useEhAppIos`, que já vem do servidor. */
 html[data-app-ios] .oculto-no-app-ios { display: none !important; }
+/* Convite a plano/upgrade que vale quando o app VENDE pela Apple (build com
+   `SoraCompras/` no User-Agent). No app antigo, sem compra, ele some. Coisa
+   do Stripe/site continua em `.oculto-no-app-ios` — essa nunca aparece. */
+html[data-app-ios]:not([data-app-ios-vende]) .oculto-sem-venda-ios { display: none !important; }
 
 /* ── Portão de carregamento: estado "trocando" (lib/portao.ts, nov/2026) ──
    Só opacidade — o `fade-in` do tema desloca 8px e jogaria a barra de 3px do

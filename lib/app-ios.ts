@@ -26,6 +26,22 @@ export function uaEhAppIos(ua: string | null | undefined): boolean {
   return String(ua || '').includes(MARCA_APP_IOS);
 }
 
+/**
+ * VERSÃO DO APP QUE VENDE pela Apple (StoreKit). A partir do build 1.1.0 a
+ * casca acrescenta `SoraCompras/1` ao User-Agent (capacitor.config.json) e
+ * traz o plugin de compra (ios-app/ios/App/App/SoraComprasPlugin.swift).
+ *
+ * ⚠️ É ISTO que decide se o app de iPhone mostra cadeado, paywall e planos.
+ * Quem está com o app antigo (sem o plugin) segue sem venda nenhuma: mostrar
+ * "Assinar" sem como comprar é o que a revisão recusa (3.1.1).
+ */
+export const MARCA_COMPRAS_IOS = 'SoraCompras/';
+
+export function uaIosVende(ua: string | null | undefined): boolean {
+  const s = String(ua || '');
+  return s.includes(MARCA_APP_IOS) && s.includes(MARCA_COMPRAS_IOS);
+}
+
 /** No cliente. No servidor (sem `navigator`) responde `false`. */
 export function ehAppIos(): boolean {
   if (typeof navigator === 'undefined') return false;

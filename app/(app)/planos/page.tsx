@@ -5,10 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmar } from '@/contexts/ConfirmContext';
-import { useEhAppNativo, useEhAppIos } from '@/lib/useOrigem';
+import { useEhAppNativo, useEhAppIos, useIosVende } from '@/lib/useOrigem';
 import PlanosNoAppIos from '@/components/planos/PlanosNoAppIos';
 import { ofertasDoPlano } from '@/lib/ofertas-plano';
 import PlanosPlay, { useStatusPlay } from '@/components/planos/PlanosPlay';
+import PlanosApple from '@/components/planos/PlanosApple';
+import { useStatusApple } from '@/components/planos/useAppleCompra';
 import { linkGerenciarPlay } from '@/lib/digital-goods';
 import { detectarOrigem } from '@/lib/origem-app';
 import { PLANOS_INFO, type PlanoId, type Intervalo } from '@/lib/stripe';
@@ -63,8 +65,10 @@ function PlanosContent() {
   // Assinatura pela Google Play (comprada no app): no SITE ela esconde a grade
   // do Stripe — senão a pessoa pagaria o mesmo plano duas vezes.
   const { data: statusPlay } = useStatusPlay(!!perfil);
+  // Idem pela Apple (comprada no app de iPhone).
+  const { data: statusApple } = useStatusApple(!!perfil);
   const ofertas = perfil
-    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa })
+    ? ofertasDoPlano({ plano: planoAtual, vitalicio: isVitalicio, android: ehAndroid, assinaturaPlay: !!statusPlay?.ativa, assinaturaApple: !!statusApple?.ativa })
     : { assinaturas: true, upgradeKit: false, completaVitalicia: false };
 
   useEffect(() => {
@@ -461,6 +465,14 @@ function PlanosContent() {
             grade abaixo (Stripe) nunca aparece ali — `ofertas` já vem vazia. */}
         {ehAndroid && <PlanosPlay />}
 
+        {/* No SITE, quem assinou pelo iPhone vê de onde vem a cobrança. */}
+        {!ehAndroid && statusApple?.ativa && (
+          <div className="max-w-xl mx-auto rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-foreground/80 text-center leading-relaxed">
+            Sua assinatura foi feita pelo app no iPhone e é cobrada pela Apple.
+            Pra trocar de plano ou cancelar, use o app ou os Ajustes do iPhone › seu nome › Assinaturas.
+          </div>
+        )}
+
         {/* No SITE, quem assinou pelo app vê de onde vem a cobrança e onde mexer. */}
         {!ehAndroid && statusPlay?.ativa && (
           <div className="max-w-xl mx-auto rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-foreground/80 text-center leading-relaxed">
@@ -663,10 +675,23 @@ function PlanosContent() {
 }
 
 export default function PlanosPage() {
-  // App de iPhone: nada se vende (lib/app-ios.ts). Decidido no servidor, então
-  // os preços do site nunca chegam a aparecer lá dentro.
+  // App de iPhone: decidido no servidor, então os preços do site nunca chegam
+  // a aparecer lá dentro. No build que vende, a grade da Apple; no antigo,
+  // nada se vende (lib/app-ios.ts).
   const ehIos = useEhAppIos();
-  if (ehIos) return <PlanosNoAppIos />;
+  const iosVende = useIosVende();
+  if (ehIos) {
+    if (!iosVende) return <PlanosNoAppIos />;
+    return (
+      <div className="py-6 space-y-6">
+        <div className="text-center px-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Planos</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">Escolha o plano e assine pela App Store.</p>
+        </div>
+        <PlanosApple />
+      </div>
+    );
+  }
 
   return (
     <Suspense fallback={

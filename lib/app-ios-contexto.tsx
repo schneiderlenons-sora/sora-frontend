@@ -13,6 +13,13 @@ import { createContext } from 'react';
 // `navigator` depois de montar.
 export const AppIosContexto = createContext<boolean | null>(null);
 
-export function AppIosProvider({ valor, children }: { valor: boolean; children: React.ReactNode }) {
-  return <AppIosContexto.Provider value={valor}>{children}</AppIosContexto.Provider>;
+/** "Esta versão do app de iPhone vende pela Apple?" — ver `uaIosVende`. */
+export const AppIosVendeContexto = createContext<boolean | null>(null);
+
+export function AppIosProvider({ valor, vende = false, children }: { valor: boolean; vende?: boolean; children: React.ReactNode }) {
+  return (
+    <AppIosContexto.Provider value={valor}>
+      <AppIosVendeContexto.Provider value={valor && vende}>{children}</AppIosVendeContexto.Provider>
+    </AppIosContexto.Provider>
+  );
 }

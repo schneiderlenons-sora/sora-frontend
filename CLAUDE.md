@@ -5029,7 +5029,24 @@ Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
   desligada no app. ⚠️ Imagem nova com "Sora" ESCRITO não é coberta — no app
   de iPhone, esconder. Web, Android e WhatsApp seguem "Sora".
   **Textos da loja, notas de revisão e histórico das recusas: `docs/APP-STORE.md`.**
-- **Fase 2 (não feita):** assinatura pela Apple (StoreKit), igual à Play.
+- ✅ **No ar desde 23/11/2026** (1.0, build 4): apps.apple.com/br/app/forsora-controle-de-gastos/id6827597771.
+- **Assinatura pela Apple (StoreKit) — código pronto, build 1.1.0 (nov/2026).**
+  Roteiro e regras: **`docs/APPLE-COMPRAS.md`**. Plugin próprio em Swift
+  (`SoraComprasPlugin.swift`, registrado pelo `SoraViewController`), servidor
+  com a biblioteca oficial da Apple (`lib/app-store.ts`, `lib/apple-sync.ts`,
+  `app/api/apple/*`), regras em `lib/apple-billing.ts` (`eval:apple-billing`,
+  12/12 mutações), migration **199**. Mesmos IDs de produto da Play.
+  - ⚠️ **Só o build que vende** liga a venda: o User-Agent traz
+    `SoraCompras/` (`uaIosVende`, `useIosVende`). No app 1.0 segue tudo como
+    antes (nada se vende). Convite a plano que vale com a Apple usa a classe
+    `oculto-sem-venda-ios`; coisa do Stripe/site segue em `oculto-no-app-ios`.
+  - ⚠️ **Na Apple a compra não é devolvida sozinha** (na Play, sim): nunca
+    oferecer a quem já tem plano por outro caminho (`appleMandaNoPlano`).
+  - ⚠️ A Sora **não cancela** assinatura da Apple: a exclusão de conta avisa.
+  - Preço do iPhone cobre os 15% da Apple (decisão do dono, 24/11/2026).
+- **Primeiros passos do app (nov/2026):** quem cria conta pelo app (modo
+  `curto`, /tour) vê os 10 passos, como no navegador. O passo 10 (comandos do
+  WhatsApp) avisa que o zap não faz parte do plano grátis.
 
 ## Convenções de código
 
@@ -5219,6 +5236,7 @@ sql/195_pagamento_fatura_dia_sp.sql — corrige pagamentos_fatura.data gravada n
 sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícone, natureza fixa/variável, oculta). ⚠️ A tabela JÁ EXISTIA desde a 105 (sem uso, sem natureza/oculta/criado_por/updated_at) — a 196 completa as colunas com ALTER; rodar de novo é seguro. Sem ela: as digitadas aparecem pra reaproveitar, renomear/juntar/mover funcionam, mas ícone e "tirar da lista" não (a tela avisa sem jargão).
 sql/197_ia_conectada.sql — Sora no ChatGPT e no Claude: ia_conexoes (tokens só em sha256), ia_oauth_codigos (uso único, 5 min), ia_acessos (o que o ChatGPT consultou). **OBRIGATÓRIA pra conectar**: sem ela a aba diz "em teste" e o /oauth/token falha.
 sql/198_divida_categoria.sql — dividas.categoria: em que categoria a parcela paga entra. Sem ela a dívida salva sem a categoria e o pagamento segue em "Dívidas" (nada quebra).
+sql/199_apple_assinaturas.sql — assinaturas da APPLE (app de iPhone, StoreKit). **OBRIGATÓRIA antes de vender no iPhone**: sem ela a compra não é registrada (o servidor recusa liberar o plano sem gravar). Ver docs/APPLE-COMPRAS.md.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)

@@ -98,6 +98,14 @@ export default function ExcluirContaClient() {
             nova acontece depois da exclusão. A exclusão é <strong className="text-zinc-900 dark:text-white">permanente</strong>:
             depois dela não dá pra recuperar a conta nem os dados.
           </p>
+          {/* ⚠️ A Apple não deixa o desenvolvedor cancelar a assinatura feita no
+              iPhone — só a própria pessoa. E ela exige avisar isso na exclusão
+              de conta (diretriz 5.1.1). */}
+          <p className="mt-3 text-[15px] leading-relaxed text-zinc-700 dark:text-white/75">
+            <strong className="text-zinc-900 dark:text-white">Assinou pelo iPhone?</strong> A assinatura feita pela App Store só
+            pode ser cancelada por você: antes de pedir a exclusão, cancele em Ajustes › seu nome › Assinaturas. Sem isso,
+            a Apple continua cobrando.
+          </p>
         </section>
 
         {/* ── O que é apagado ────────────────────────────────────────── */}

@@ -32,7 +32,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { prefetchRota, prefetchTopTabs, aquecerAbasNoOcioso, aquecerDadosDoMenu } from '@/lib/prefetch';
 import { useSWRConfig } from 'swr';
 import { usePwa } from '@/components/pwa/InstallPwa';
-import { useEhAndroid, useEhAppIos } from '@/lib/useOrigem';
+import { useEhAndroid, useEhAppIos, useIosVende } from '@/lib/useOrigem';
 import { rotaDeVendaNoAppIos } from '@/lib/app-ios';
 import type { Feature } from '@/lib/plans';
 
@@ -529,6 +529,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
 
   const { abrir: abrirInstall } = usePwa();
   const ehIos = useEhAppIos();
+  const iosVende = useIosVende();
 
   const plano = perfil?.plano || 'inativo';
   const sidebarBg = isTemaBlack ? SIDEBAR_BG_BLACK : (isDark ? SIDEBAR_BG_DARK : SIDEBAR_BG_LIGHT);
@@ -646,10 +647,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // A regra do cadeado mora em `itemTrancado` (o aquecimento do menu usa a
     // mesma — ver lá o porquê de Negócios não passar por `podeUsar`).
     const locked     = itemTrancado(gate, grow);
-    // ⚠️ APP DE IPHONE: aba fora do plano NÃO aparece (nem com cadeado). Lá não
-    // há como comprar (lib/app-ios.ts), e cadeado + selo "Premium" sem caminho
-    // de compra é o tipo de coisa que a revisão da Apple questiona.
-    if (ehIos && (locked || rotaDeVendaNoAppIos(href))) return null;
+    // ⚠️ APP DE IPHONE SEM COMPRA PELA APPLE (build antigo): aba fora do plano
+    // NÃO aparece (nem com cadeado) — cadeado + selo "Premium" sem caminho de
+    // compra é o que a revisão da Apple questiona. No build que vende
+    // (`useIosVende`) ela aparece apagada com cadeado, e o toque abre o paywall
+    // da Apple (AbaBloqueada), igual ao Android. Página de venda do SITE
+    // (indique, afiliados…) some sempre.
+    if (ehIos && ((locked && !iosVende) || rotaDeVendaNoAppIos(href))) return null;
     // ⚠️ ITEM BLOQUEADO POR PLANO ABRE A PRÓPRIA ABA, não o /planos.
     //
     // Cada uma delas renderiza o convite no próprio lugar (`AbaBloqueada`,

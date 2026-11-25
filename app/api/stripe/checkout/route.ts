@@ -3,6 +3,7 @@ import { stripe, PRICE_IDS, type PlanoId, type Intervalo } from '@/lib/stripe';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { linhaComDireito } from '@/lib/play-billing';
+import { linhaComDireitoApple } from '@/lib/apple-billing';
 
 // Checkout de ASSINATURA (planos mensais/anuais). O vitalício é pago via
 // Mercado Pago (checkout transparente) — ver app/api/mercadopago/*.
@@ -33,6 +34,14 @@ export async function POST(req: NextRequest) {
         .from('play_assinaturas').select('plano, intervalo, estado, expira_em').eq('user_id', user.id);
       if (!ePlay && (play || []).some((l) => linhaComDireito(l, Date.now()))) {
         return NextResponse.json({ erro: 'Sua assinatura atual é pela Google Play. Troque de plano pelo app da Sora ou pela Play Store.' }, { status: 409 });
+      }
+    }
+    // Idem pela Apple (migration 199). Tolerante: sem a tabela, segue.
+    {
+      const { data: apple, error: eApple } = await supabaseAdmin
+        .from('apple_assinaturas').select('plano, intervalo, estado, expira_em').eq('user_id', user.id);
+      if (!eApple && (apple || []).some((l) => linhaComDireitoApple(l, Date.now()))) {
+        return NextResponse.json({ erro: 'Sua assinatura atual é pela Apple. Troque de plano pelo app no iPhone ou nos Ajustes do iPhone › Assinaturas.' }, { status: 409 });
       }
     }
 

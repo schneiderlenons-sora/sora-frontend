@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { X, Check, Loader2, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEhAppNativo } from '@/lib/useOrigem';
+import { useEhAppNativo, useIosVende } from '@/lib/useOrigem';
 import { planoMinimo, type Feature } from '@/lib/plans';
 import { PLANOS_DISPLAY } from '@/lib/planos-display';
 import { PLANOS_INFO } from '@/lib/stripe';
@@ -14,12 +14,15 @@ import { LINK_PLAY_STORE } from '@/lib/play-store';
 import { ORDEM_PLAY, produtoPlay, type PlanoPlay, type IntervaloPlay } from '@/lib/play-billing';
 import { trackAddToCart, trackInitiateCheckout } from '@/lib/analytics';
 import { usePlayCompra, precoTexto } from '../usePlayCompra';
+import { useAppleCompra } from '../useAppleCompra';
+import { AvisoAssinaturaApple } from '../PlanosApple';
 import Celulares, { type TelaCentro } from './Celulares';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // O PAYWALL DA ABA BLOQUEADA — pra quem está no modo grátis (ou sem plano).
 //
-// Dentro do app Android vende pela Google Play (usePlayCompra); no site, pelo
+// Dentro do app Android vende pela Google Play (usePlayCompra), no app de
+// iPhone pela Apple (useAppleCompra — só no build que vende) e no site pelo
 // Stripe (o mesmo /api/stripe/checkout da /planos). Quem já paga por fora, é
 // vitalício ou Kit não chega aqui: o AbaBloqueada decide antes.
 //
@@ -95,8 +98,15 @@ const DESCRICAO_CENTRO: Record<TelaCentro, string> = {
 export default function PaywallPlanos({ feature, chamada, texto }: { feature: Feature; chamada: string; texto: string }) {
   const router = useRouter();
   const { plano: planoAtual } = useAuth();
-  const nativo = useEhAppNativo();
-  const compra = usePlayCompra(nativo);
+  const androidApp = useEhAppNativo();
+  const iosVende = useIosVende();
+  // Qual loja vende aqui. As duas hooks rodam sempre (regra dos hooks); só a
+  // da loja certa liga. `nativo` = "vende por uma loja de app", não pelo Stripe.
+  const loja: 'apple' | 'play' | null = iosVende ? 'apple' : androidApp ? 'play' : null;
+  const nativo = loja !== null;
+  const play = usePlayCompra(loja === 'play');
+  const apple = useAppleCompra(loja === 'apple');
+  const compra = loja === 'apple' ? apple : play;
   const { status, disponivel, precos, erroPreco, motivoIndisponivel, comprando, aviso } = compra;
   const celular = useCelular();
 
@@ -141,6 +151,12 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
           referencia: false,
         };
       }
+      // ⚠️ Na APPLE não há tabela de reserva: o preço do iPhone é outro (cobre
+      // a comissão da Apple), e mostrar o do site seria prometer um valor que a
+      // janela da Apple não vai cobrar.
+      if (loja === 'apple') {
+        return { mensal: null, anualTotal: null, anualMes: null, economia: null, referencia: false };
+      }
       // ⚠️ O Google não devolveu o preço: cai no preço de TABELA (o mesmo
       // cadastrado na Play) em vez de travar a venda. A janela do Google mostra
       // o valor final antes de a pessoa confirmar — por isso o rodapé avisa.
@@ -153,11 +169,13 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
       };
     }
     return { mensal: fmtBRL(info.mensal), anualTotal: null, anualMes: fmtBRL(info.anual), economia: info.descAnual, referencia: false };
-  }, [nativo, precos, plano]);
+  }, [nativo, loja, precos, plano]);
 
   const temPrecoGoogle = Object.keys(precos).length > 0;
   const carregandoPreco = nativo && (disponivel === null || (disponivel === true && !temPrecoGoogle && !erroPreco));
   const appSemCobranca = nativo && disponivel === false;
+  // Na Apple só se compra com o preço que a App Store devolveu (sem tabela de reserva).
+  const semPrecoApple = loja === 'apple' && !carregandoPreco && !(ciclo === 'mensal' ? oferta.mensal : oferta.anualTotal);
 
   // No celular o paywall é uma TELA, não um card: cobre a página inteira, por
   // cima da barra de baixo. Trava a rolagem do fundo enquanto está aberto.
@@ -342,14 +360,18 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
             </div>
 
             {/* Ação */}
-            {appSemCobranca ? (
+            {appSemCobranca && loja === 'apple' ? (
+              <p className="mt-5 rounded-2xl border border-white/10 px-4 py-4 text-center text-sm text-[#9CC4BA]">
+                As assinaturas não estão disponíveis no momento. Tente de novo mais tarde.
+              </p>
+            ) : appSemCobranca ? (
               <a href={LINK_PLAY_STORE}
                 className="mt-5 flex h-14 w-full items-center justify-center rounded-2xl text-base font-bold transition active:scale-[0.99]"
                 style={{ background: `linear-gradient(135deg, ${cor.base}, ${cor.escura})`, color: cor.texto }}>
                 Atualize o app para assinar
               </a>
             ) : (
-              <button type="button" onClick={assinar} disabled={ocupado || carregandoPreco}
+              <button type="button" onClick={assinar} disabled={ocupado || carregandoPreco || semPrecoApple}
                 className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold shadow-[0_14px_30px_-12px_rgba(97,206,112,.55)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 motion-reduce:transition-none"
                 style={{ background: `linear-gradient(135deg, ${cor.base}, ${cor.escura})`, color: cor.texto }}>
                 {ocupado && <Loader2 size={18} className="animate-spin" aria-hidden />}
@@ -378,12 +400,17 @@ export default function PaywallPlanos({ feature, chamada, texto }: { feature: Fe
               </div>
             )}
 
+            {loja === 'apple' ? (
+              // ⚠️ Texto e links que a Apple exige junto de toda oferta de assinatura (3.1.2).
+              <AvisoAssinaturaApple onRestaurar={() => apple.restaurar()} className="mt-4 text-center text-[#9CC4BA]/85" />
+            ) : (
             <p className="mt-4 text-center text-xs leading-relaxed text-[#9CC4BA]/85">
               {nativo
                 ? 'Cobrado pela Google Play. Renova sozinho; cancele quando quiser em Play Store › Pagamentos e assinaturas.'
                 : 'Pagamento seguro. Renova sozinho e você cancela quando quiser.'}
               {nativo && oferta.referencia && !appSemCobranca && ' O valor final aparece na janela do Google antes de você confirmar.'}
             </p>
+            )}
             {/* Detalhe técnico: só aparece quando a conversa com o Google falhou,
                 pra o print do cliente já dizer o motivo. */}
             {nativo && (erroPreco || (appSemCobranca && motivoIndisponivel)) && (

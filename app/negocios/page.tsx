@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEhAppIos } from '@/lib/useOrigem';
+import { useEhAppIos, useIosVende } from '@/lib/useOrigem';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import ModalConfigTributaria from '@/components/negocios/ModalConfigTributaria';
@@ -741,7 +741,10 @@ function FuturoEmBreve() {
 
 function PaywallNegocios() {
   // App de iPhone: sem "Ver planos" nem meio de pagamento (lib/app-ios.ts).
-  const ehIos = useEhAppIos();
+  // App de iPhone sem compra pela Apple: sem convite a plano (lib/app-ios.ts).
+  const appIos = useEhAppIos();
+  const iosVende = useIosVende();
+  const ehIos = appIos && !iosVende;
   return (
     <div className="max-w-2xl mx-auto pb-20 pt-12 px-4">
       <div className="relative overflow-hidden rounded-3xl bg-black text-white p-10 text-center">

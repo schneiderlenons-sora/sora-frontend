@@ -4,10 +4,13 @@
   "webDir": "www",
   "server": {
     "url": "https://www.forsora.com/login",
-    "allowNavigation": ["www.forsora.com", "forsora.com"]
+    "allowNavigation": [
+      "www.forsora.com",
+      "forsora.com"
+    ]
   },
   "ios": {
-    "appendUserAgent": "SoraApp-iOS",
+    "appendUserAgent": "SoraApp-iOS SoraCompras/1",
     "contentInset": "never",
     "backgroundColor": "#44AC74",
     "limitsNavigationsToAppBoundDomains": false

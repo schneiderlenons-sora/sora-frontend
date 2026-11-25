@@ -57,9 +57,11 @@
     "eval:ia-conectada": "npx tsx lib/ia-conectada.eval.mjs",
     "eval:tipos-divida": "npx tsx lib/tipos-divida.eval.mjs",
     "eval:assinatura-vitalicio": "npx tsx lib/assinatura-vitalicio.eval.mjs",
-    "eval:limite-cartao": "npx tsx lib/limite-cartao.eval.mjs"
+    "eval:limite-cartao": "npx tsx lib/limite-cartao.eval.mjs",
+    "eval:apple-billing": "npx tsx lib/apple-billing.eval.mjs"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "@stripe/react-stripe-js": "^6.5.0",
     "@stripe/stripe-js": "^9.7.0",
     "@supabase/ssr": "^0.10.3",
