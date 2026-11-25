@@ -106,6 +106,12 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
   const [ultimos4,       setUltimos4]          = useState('');
   const [diaFechamento,  setDiaFechamento]     = useState<number | ''>('');
   const [diaVencimento,  setDiaVencimento]     = useState<number | ''>('');
+  // "Compra no dia do fechamento vai pra próxima fatura" (migration 200,
+  // sugestão do Arisson). Por CARTÃO e só em cartão MANUAL: os bancos fazem
+  // de jeitos diferentes, e no Open Finance a data em que o banco lança a
+  // compra já decide a fatura (ver services/cicloFatura.js no backend).
+  const [fechaNaProxima, setFechaNaProxima]    = useState<boolean>(!!cartaoExistente?.fechamento_dia_proxima);
+  const ehDoBanco = !!cartaoExistente?.of_conta_id;
   const [loading,        setLoading]           = useState(false);
   const [erro,           setErro]              = useState('');
 
@@ -131,6 +137,7 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
     setUltimos4(cartaoExistente.ultimos4 ?? meta.ultimos4 ?? '');
     setDiaFechamento(cartaoExistente.dia_fechamento ?? meta.diaFechamento ?? '');
     setDiaVencimento(cartaoExistente.dia_vencimento ?? meta.diaVencimento ?? '');
+    setFechaNaProxima(!!cartaoExistente.fechamento_dia_proxima);
   }, [cartaoExistente]);
 
   // Conta selecionada
@@ -188,6 +195,13 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
         ultimos4: ultimos4 || null,
       };
       if (ediMode) walletPayload.id = cartaoExistente.id;
+      // Só manda a opção quando ela MUDA (edição) ou quando foi ligada (cartão
+      // novo): quem nunca mexe nela não depende da coluna nova.
+      if (!ehDoBanco) {
+        if (ediMode ? fechaNaProxima !== !!cartaoExistente.fechamento_dia_proxima : fechaNaProxima) {
+          walletPayload.fechamento_dia_proxima = fechaNaProxima;
+        }
+      }
 
       // ⚠️ EDIÇÃO por PUT (id). O POST faz upsert pela chave `grupo_id,nome` e
       // IGNORA o `id` do payload: renomear por lá criava um cartão novo e
@@ -435,6 +449,30 @@ export default function AdicionarCartaoModal({ phone, cartaoExistente, onClose, 
               </p>
             </div>
           </div>
+
+          {/* Compra no dia do fechamento: em qual fatura? Só cartão manual. */}
+          {!ehDoBanco && diaFechamento !== '' && (
+            <button type="button" onClick={() => setFechaNaProxima((v) => !v)}
+                    role="switch" aria-checked={fechaNaProxima}
+                    className={`w-full flex items-start gap-3 p-3.5 rounded-xl text-left transition-colors ${
+                      fechaNaProxima ? 'bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+                    style={{ border: `1px solid ${fechaNaProxima ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))'}`, minHeight: 44 }}>
+              <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+                      fechaNaProxima ? 'bg-primary text-white' : 'bg-card'}`}
+                    style={fechaNaProxima ? undefined : { border: '1px solid hsl(var(--border))' }}>
+                {fechaNaProxima && <Check size={13} />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  Compra feita no dia do fechamento vai para a próxima fatura
+                </span>
+                <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  É assim no Nubank, no C6, no Mercado Pago e na maioria dos cartões Itaú. Na dúvida,
+                  veja no app do banco em qual fatura caiu uma compra feita no dia {diaFechamento}.
+                </span>
+              </span>
+            </button>
+          )}
 
           {/* Erro */}
           {erro && (

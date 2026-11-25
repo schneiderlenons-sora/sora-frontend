@@ -19,8 +19,10 @@ const TZ = 'America/Sao_Paulo';
 
 export interface Ciclo {
   ini:         string;  // 'YYYY-MM-DD' inclusivo
-  fim:         string;  // 'YYYY-MM-DD' inclusivo (dia do fechamento)
+  fim:         string;  // 'YYYY-MM-DD' da DATA DO FECHAMENTO
   fimExcl:     string;  // 'YYYY-MM-DD' EXCLUSIVO (usar em comparação < )
+  /** Último dia que ENTRA na fatura (= `fim` no padrão; a véspera com `fechamento_dia_proxima`). Use pra mostrar. */
+  ultimo:      string;
   venc:        string;  // 'YYYY-MM-DD' do vencimento
   competencia: string;  // 'YYYY-MM' do vencimento
   label:       string;  // 'DD/MM a DD/MM'
@@ -31,7 +33,22 @@ export interface Ciclo {
 export interface CartaoCiclo {
   dia_fechamento?: number | null;
   dia_vencimento?: number | null;
+  /** Compra no dia do fechamento vai pra PRÓXIMA fatura (migration 200). */
+  fechamento_dia_proxima?: boolean | null;
+  // Só importa se existe; algumas telas tipam o id como número.
+  of_conta_id?: string | number | null;
 }
+
+/**
+ * A compra feita NO DIA DO FECHAMENTO vai pra próxima fatura? Opção do cartão
+ * (migration 200) — e o cartão do Open Finance a IGNORA (lá a data que decide é
+ * a do lançamento no banco, que já empurra pra próxima). Ver o cabeçalho de
+ * `diaNaProximaDe` no backend (services/cicloFatura.js): por que é por cartão.
+ */
+export function diaNaProximaDe(cartao: CartaoCiclo | null | undefined): boolean {
+  return !!(cartao && cartao.fechamento_dia_proxima === true && !cartao.of_conta_id);
+}
+const opcoesDo = (cartao: CartaoCiclo | null | undefined) => ({ diaNaProxima: diaNaProximaDe(cartao) });
 
 function ultimoDia(Y: number, M0: number): number {
   return new Date(Date.UTC(Y, M0 + 1, 0)).getUTCDate();
@@ -74,19 +91,23 @@ export function cicloPorFechamento(
   Y: number, M0: number,
   diaFechamento: number | null | undefined,
   diaVencimento: number | null | undefined,
+  opcoes: { diaNaProxima?: boolean } = {},
 ): Ciclo {
+  const naProxima = !!opcoes?.diaNaProxima;
   const fim = fechamentoDe(Y, M0, diaFechamento);
   const antY = M0 === 0 ? Y - 1 : Y;
   const antM = M0 === 0 ? 11 : M0 - 1;
   const ini = new Date(fechamentoDe(antY, antM, diaFechamento));
-  ini.setUTCDate(ini.getUTCDate() + 1);
+  if (!naProxima) ini.setUTCDate(ini.getUTCDate() + 1);
   const fimExcl = new Date(fim);
-  fimExcl.setUTCDate(fimExcl.getUTCDate() + 1);
+  if (!naProxima) fimExcl.setUTCDate(fimExcl.getUTCDate() + 1);
+  const ultimo = new Date(fimExcl);
+  ultimo.setUTCDate(ultimo.getUTCDate() - 1);
   const venc = vencimentoApos(fim, diaVencimento);
   return {
-    ini: iso(ini), fim: iso(fim), fimExcl: iso(fimExcl),
+    ini: iso(ini), fim: iso(fim), fimExcl: iso(fimExcl), ultimo: iso(ultimo),
     venc: iso(venc), competencia: ym(venc),
-    label: `${dm(ini)} a ${dm(fim)}`,
+    label: `${dm(ini)} a ${dm(ultimo)}`,
     porCiclo: true,
   };
 }
@@ -102,7 +123,7 @@ export function cicloMesCalendario(comp: string, diaVencimento?: number | null):
     ? dataUTC(Y, M0, Math.min(Math.max(Number(diaVencimento) || 10, 1), ultimoDia(Y, M0)))
     : fim;
   return {
-    ini: iso(ini), fim: iso(fim), fimExcl: iso(fimExcl),
+    ini: iso(ini), fim: iso(fim), fimExcl: iso(fimExcl), ultimo: iso(fim),
     venc: iso(venc), competencia: comp,
     label: `${dm(ini)} a ${dm(fim)}`,
     porCiclo: false,
@@ -121,11 +142,12 @@ export function competenciaAtual(cartao: CartaoCiclo, hojeStr?: string): string 
   // Começa no ciclo que fechou no mês ANTERIOR: quando o vencimento é antes do
   // fechamento (ex.: fecha 24, vence 5), a fatura que vence hoje fechou no mês
   // passado — começar no mês de hoje pularia ela.
+  const op = opcoesDo(cartao);
   for (let i = -1; i < 4; i++) {
-    const c = cicloPorFechamento(Y, (M - 1) + i, cartao.dia_fechamento, cartao.dia_vencimento);
+    const c = cicloPorFechamento(Y, (M - 1) + i, cartao.dia_fechamento, cartao.dia_vencimento, op);
     if (c.venc >= hoje) return c.competencia;
   }
-  return cicloPorFechamento(Y, M - 1, cartao.dia_fechamento, cartao.dia_vencimento).competencia;
+  return cicloPorFechamento(Y, M - 1, cartao.dia_fechamento, cartao.dia_vencimento, op).competencia;
 }
 
 /** Resolve o ciclo de um cartão para uma competência. Nunca retorna null. */
@@ -133,11 +155,12 @@ export function cicloPorCompetencia(cartao: CartaoCiclo, competencia?: string): 
   const comp = /^\d{4}-\d{2}$/.test(competencia || '') ? (competencia as string) : hojeSP().slice(0, 7);
   if (!cartao?.dia_fechamento) return cicloMesCalendario(comp, cartao?.dia_vencimento);
   const [Y, M] = comp.split('-').map(Number);
+  const op = opcoesDo(cartao);
   for (const off of [0, -1, 1, -2]) {
-    const c = cicloPorFechamento(Y, (M - 1) + off, cartao.dia_fechamento, cartao.dia_vencimento);
+    const c = cicloPorFechamento(Y, (M - 1) + off, cartao.dia_fechamento, cartao.dia_vencimento, op);
     if (c.competencia === comp) return c;
   }
-  return cicloPorFechamento(Y, M - 1, cartao.dia_fechamento, cartao.dia_vencimento);
+  return cicloPorFechamento(Y, M - 1, cartao.dia_fechamento, cartao.dia_vencimento, op);
 }
 
 /** Navega entre faturas (delta em ciclos: -1 = anterior, +1 = próxima). */
@@ -148,7 +171,7 @@ export function competenciaVizinha(cartao: CartaoCiclo, competencia: string, del
     return ym(new Date(Date.UTC(Y, (M - 1) + delta, 1, 12)));
   }
   const [fY, fM] = base.fim.split('-').map(Number);
-  return cicloPorFechamento(fY, (fM - 1) + delta, cartao.dia_fechamento, cartao.dia_vencimento).competencia;
+  return cicloPorFechamento(fY, (fM - 1) + delta, cartao.dia_fechamento, cartao.dia_vencimento, opcoesDo(cartao)).competencia;
 }
 
 

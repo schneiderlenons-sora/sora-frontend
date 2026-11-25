@@ -1008,7 +1008,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {cicloFatura.porCiclo
-                      ? `Compras de ${ddmm(cicloFatura.ini)} a ${ddmm(cicloFatura.fim)}`
+                      ? `Compras de ${ddmm(cicloFatura.ini)} a ${ddmm(cicloFatura.ultimo || cicloFatura.fim)}`
                       : `Compras de ${ddmm(cicloFatura.ini)} a ${ddmm(cicloFatura.fim)} · cadastre o dia de fechamento do cartão pra seguir o ciclo real`}
                   </p>
                 </div>

@@ -34,7 +34,7 @@
 //
 // Rodar: npm run eval:situacao-transacao
 // =============================================================================
-import { cicloPorFechamento, dataDaFatura } from './ciclo-fatura';
+import { cicloPorFechamento, dataDaFatura, diaNaProximaDe } from './ciclo-fatura';
 import { diaDe } from './data-br';
 
 export type Situacao =
@@ -42,7 +42,10 @@ export type Situacao =
   | { tipo: 'pendente' }
   | { tipo: 'na_fatura'; competencia: string };
 
-type CartaoCiclo = { dia_fechamento?: number | null; dia_vencimento?: number | null } | null | undefined;
+type CartaoCiclo = {
+  dia_fechamento?: number | null; dia_vencimento?: number | null;
+  fechamento_dia_proxima?: boolean | null; of_conta_id?: string | null;
+} | null | undefined;
 
 type TxSituacao = {
   pago?: boolean | null;
@@ -62,9 +65,12 @@ type TxSituacao = {
 export function competenciaDaData(cartao: CartaoCiclo, dia: string): string {
   if (!cartao?.dia_fechamento) return dia.slice(0, 7);
   const [Y, M] = dia.split('-').map(Number);
-  const desteMes = cicloPorFechamento(Y, M - 1, cartao.dia_fechamento, cartao.dia_vencimento);
-  if (dia <= desteMes.fim) return desteMes.competencia;
-  return cicloPorFechamento(Y, M, cartao.dia_fechamento, cartao.dia_vencimento).competencia;
+  // ⚠️ `fimExcl`, não `fim`: com a opção "dia do fechamento vai pra próxima"
+  // (migration 200) o próprio dia do fechamento já é da fatura seguinte.
+  const op = { diaNaProxima: diaNaProximaDe(cartao) };
+  const desteMes = cicloPorFechamento(Y, M - 1, cartao.dia_fechamento, cartao.dia_vencimento, op);
+  if (dia < desteMes.fimExcl) return desteMes.competencia;
+  return cicloPorFechamento(Y, M, cartao.dia_fechamento, cartao.dia_vencimento, op).competencia;
 }
 
 /**

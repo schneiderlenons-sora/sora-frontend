@@ -637,7 +637,7 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
                 diferentes. `porCiclo=false` (cartão sem fechamento) cai no
                 mês-calendário e o rótulo coincide com o mês — segue correto. */}
             <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-              Período da fatura · {ddmm(ciclo.ini)} a {ddmm(ciclo.fim)}
+              Período da fatura · {ddmm(ciclo.ini)} a {ddmm(ciclo.ultimo || ciclo.fim)}
             </p>
 
             {loading ? (

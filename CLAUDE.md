@@ -806,6 +806,23 @@ período** coexistindo, o que já causou "fatura zerada no zap × R$ 146,89 no p
   − `pagamentos_fatura`).
 - **Fora de escopo (decisão consciente):** "contabilizar a fatura pelo mês do
   pagamento" (regime de caixa) — mexeria em dashboard/categorias/relatórios/Wrapped.
+- **Opção por cartão "compra no dia do fechamento vai pra PRÓXIMA fatura"**
+  (`wallets.fechamento_dia_proxima`, migration **200**, sugestão do Arisson,
+  nov/2026). Desligada por padrão; só em cartão MANUAL (o form só mostra lá e o
+  `PUT /wallets/:id` recusa em cartão do OF). Com ela: `ini` = fechamento
+  anterior, `fimExcl` = fechamento; `fim` CONTINUA sendo a data do fechamento
+  (vencimento/competência intactos) e o campo novo `ultimo` é o último dia que
+  entra (use pra mostrar; `ultimo || fim` em "já fechou"/"depois do fechamento").
+  ⚠️ **Por que POR CARTÃO — medido** nas faturas publicadas: a compra do dia do
+  fechamento vai pra próxima em 76% (Nubank, C6, MP, maioria Itaú), mas fica na
+  Caixa/BB/Inter; trocar pra todos os manuais fazia 11 faturas JÁ PAGAS
+  (pago = total ao centavo) aparecerem atrasadas. ⚠️ **Open Finance IGNORA**
+  (`diaNaProximaDe` exige `!of_conta_id`): lá `dataDaFatura` usa a data do
+  lançamento, que já empurra pra próxima — aplicar por cima piorou o acerto de
+  95,1% → 92,6%. Evals: `eval:ciclo` §9 (back: 11.904 combinações iguais à regra
+  antiga sem a opção; front compara 1.524 ciclos com a opção),
+  `eval:fechamento-dia-proxima` (trava: TODA consulta com `dia_fechamento` lê
+  também a opção e o `of_conta_id`; ninguém compara `ciclo.fim` com < ou >).
 
 ## Fatura: crédito ABATE, pagamento é NEUTRO (ago/2026) — fonte única
 
