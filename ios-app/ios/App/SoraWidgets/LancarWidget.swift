@@ -8,13 +8,14 @@ import AppIntents
 // Sora no WhatsApp (Gasto e Receita já com "gastei " / "recebi " escrito).
 //
 // ⚠️ NO IPHONE, O TOQUE NUM WIDGET SEMPRE ABRE O PRÓPRIO APP — um widget não
-// abre outro app direto. Por isso cada botão abre um link da ForSora
-// (https://www.forsora.com/lancar/<acao>), e o SceneDelegate do app o troca
-// na hora pela conversa no WhatsApp, sem carregar a página.
+// abre outro app direto. Cada botão roda a `AbrirLancamentoIntent`, que abre a
+// ForSora e, já dentro dela, troca pela conversa no WhatsApp (ver o arquivo da
+// intenção: ela entra nos DOIS alvos).
 //
 // ⚠️ Num widget PEQUENO, só botões com "ação" (AppIntent) têm alvos de toque
-// separados — `Link` só funciona do tamanho médio pra cima. A ação que abre um
-// link é o OpenURLIntent, do iOS 18: é por isso que esta extensão exige iOS 18.
+// separados — `Link` só funciona do tamanho médio pra cima.
+// ⚠️ NÃO voltar para `Button(intent: OpenURLIntent(url))`: no build 6 o toque
+// não fazia nada.
 
 /// O que cada botão faz.
 enum AcaoLancar: String, CaseIterable {
@@ -115,7 +116,7 @@ struct LancarVista: View {
         // Na tela inicial "tingida" do iOS 18 as cores somem: o fundo do botão
         // vira um vidro neutro e o ícone acompanha a cor que a pessoa escolheu.
         let colorido = modo == .fullColor
-        return Button(intent: OpenURLIntent(acao.endereco)) {
+        return Button(intent: AbrirLancamentoIntent(acao: acao.rawValue)) {
             VStack(spacing: 6) {
                 Image(systemName: acao.simbolo)
                     .font(.system(size: 22, weight: .semibold))

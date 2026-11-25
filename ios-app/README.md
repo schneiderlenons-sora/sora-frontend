@@ -48,8 +48,16 @@ código em `ios/App/SoraWidgets/`. Fase 1: só o "Lançar rápido".
   sozinho perfis `com.forsora.app.*`, mas o perfil precisa estar em Team
   settings → Code signing identities → iOS provisioning profiles (botão
   "Fetch profiles").
-- ⚠️ **No iPhone um widget não abre outro app direto.** Os botões abrem
-  `https://www.forsora.com/lancar/<acao>` (OpenURLIntent, iOS 18); o
-  `SceneDelegate` (`AtalhoLancar`) troca pela conversa da Sora no WhatsApp sem
-  carregar a página. Se o link abrir no navegador, `app/lancar/[acao]` faz o
-  mesmo. Num widget PEQUENO, `Link` não funciona (só do médio pra cima).
+- ⚠️ **No iPhone um widget não abre outro app direto.** Os botões rodam a
+  `AbrirLancamentoIntent` (`SoraWidgets/AbrirLancamentoIntent.swift`), que
+  entra nos DOIS alvos e tem `openAppWhenRun`: o iPhone abre a ForSora e roda o
+  `perform()` dentro do app, que abre o WhatsApp (`AtalhoLancar`, no
+  `SceneDelegate`). O corpo só existe no app pela condição `MAIN_APP` (ligada só
+  no alvo App). Num widget PEQUENO, `Link` não funciona (só do médio pra cima).
+  - ⚠️ A 1ª versão (build 6) usava `Button(intent: OpenURLIntent(url))` direto
+    e o toque não fazia nada. Não voltar a ela.
+  - ⚠️ O app ainda roda no iOS 15 e o AppIntents é do 16: o alvo App liga o
+    framework como opcional (`OTHER_LDFLAGS -weak_framework AppIntents`). Sem
+    isso o app não abriria em iPhone com iOS 15.
+  - Os links `https://www.forsora.com/lancar/<acao>` seguem tratados pelo
+    `SceneDelegate`, e no navegador `app/lancar/[acao]` redireciona.

@@ -5118,9 +5118,11 @@ internet").
   - Android: `android-widgets/` (Java + RemoteViews, sem dependência nova),
     aplicado no projeto do Bubblewrap por `aplicar.cjs` — ver ANDROID-TWA.md.
   - iPhone: alvo `SoraWidgets` (iOS 18+) — ver `ios-app/README.md`. ⚠️ Widget
-    de iPhone não abre outro app: os botões abrem `/lancar/<acao>` da ForSora e
-    o `SceneDelegate` passa para o WhatsApp (`app/lancar/[acao]` é a rede de
-    segurança no navegador, pública no middleware).
+    de iPhone não abre outro app: os botões rodam `AbrirLancamentoIntent`
+    (nos DOIS alvos, `openAppWhenRun`), que abre a ForSora e, dentro dela, o
+    WhatsApp. ⚠️ `Button(intent: OpenURLIntent(url))` direto NÃO funcionou
+    (build 6: o toque não fazia nada). `app/lancar/[acao]` é a rede de
+    segurança no navegador, pública no middleware.
   - ⚠️ O número da Sora tem cópias nos dois nativos (ver `lib/sora-whatsapp.ts`).
   - ⚠️ Sem login, este widget **não sabe o plano**: segurar em teste (TestFlight
     / Teste interno) até a fase 2 trazer a conexão — decisão do dono.
