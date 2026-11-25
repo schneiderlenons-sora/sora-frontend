@@ -5291,6 +5291,7 @@ sql/196_categorias_negocio.sql — categorias PRÓPRIAS do Sora Negócios (ícon
 sql/197_ia_conectada.sql — Sora no ChatGPT e no Claude: ia_conexoes (tokens só em sha256), ia_oauth_codigos (uso único, 5 min), ia_acessos (o que o ChatGPT consultou). **OBRIGATÓRIA pra conectar**: sem ela a aba diz "em teste" e o /oauth/token falha.
 sql/198_divida_categoria.sql — dividas.categoria: em que categoria a parcela paga entra. Sem ela a dívida salva sem a categoria e o pagamento segue em "Dívidas" (nada quebra).
 sql/199_apple_assinaturas.sql — assinaturas da APPLE (app de iPhone, StoreKit). **OBRIGATÓRIA antes de vender no iPhone**: sem ela a compra não é registrada (o servidor recusa liberar o plano sem gravar). Ver docs/APPLE-COMPRAS.md.
+sql/200_fechamento_dia_proxima.sql — wallets.fechamento_dia_proxima (cartão manual: compra no dia do fechamento vai pra próxima fatura). **OBRIGATÓRIA ANTES do deploy do backend**: 17 consultas de cartão pedem a coluna; sem ela elas falham.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
