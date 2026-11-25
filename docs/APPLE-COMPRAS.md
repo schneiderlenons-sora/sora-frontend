@@ -49,9 +49,15 @@ pela Apple quando o User-Agent traz `SoraCompras/` (`uaIosVende` em
 
 ## Passo 1 — Contrato de Apps Pagos (dono)
 
-App Store Connect → **Negócios** → aceitar o **Paid Apps Agreement**, cadastrar
-a conta bancária e o formulário de impostos. Sem ele **ativo** não dá nem para
-testar compra em sandbox. Pode levar dias.
+**Negócios** NÃO fica dentro do app (a barra do app só tem Monetização): é um
+ícone da **página inicial** do App Store Connect —
+`https://appstoreconnect.apple.com/business`. Lá: **Apps pagos** → aceitar os
+termos, cadastrar a conta bancária (no nome do titular: a conta é individual) e
+o formulário de impostos. Só o **titular da conta** vê essa área. Sem o contrato
+**ativo** não dá nem para testar compra em sandbox. Pode levar dias.
+
+Não criar nada em **Assinaturas** nem em **Compras dentro do app** à mão: o
+script do passo 3 cria o grupo e as 6 assinaturas.
 
 ## Passo 2 — Small Business Program (dono)
 
