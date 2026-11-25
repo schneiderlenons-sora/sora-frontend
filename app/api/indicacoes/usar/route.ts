@@ -72,7 +72,9 @@ export async function POST(req: Request) {
       if (String(eIns.code || '').includes('23505')) {
         return NextResponse.json({ erro: 'Você já usou um código de convite.' }, { status: 422 });
       }
-      return NextResponse.json({ erro: eIns.message }, { status: 500 });
+      // O texto do banco fica no log; o cliente recebe uma frase que ele entende.
+      console.error('[indicacoes] indicação não gravada:', eIns.code, eIns.message);
+      return NextResponse.json({ erro: 'Não consegui registrar o código agora. Tente de novo em alguns minutos.' }, { status: 500 });
     }
 
     // ── 5. Credita o mês no Stripe do indicador ─────────────────────────────

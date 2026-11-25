@@ -68,7 +68,11 @@ export async function POST(req: Request) {
       if (String(error.code || '').includes('23505')) {
         return NextResponse.json({ erro: 'Você já tem uma candidatura em análise.' }, { status: 422 });
       }
-      return NextResponse.json({ erro: error.message }, { status: 500 });
+      // ⚠️ O texto do banco NÃO vai pro cliente: com a migration 153 pendente
+      // ele recebia "Could not find the table 'public.afiliados_candidaturas'
+      // in the schema cache" (relato da Tatiane, nov/2026). Detalhe no log.
+      console.error('[afiliados] candidatura não gravada:', error.code, error.message);
+      return NextResponse.json({ erro: 'Não consegui enviar sua candidatura agora. Tente de novo em alguns minutos.' }, { status: 500 });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
