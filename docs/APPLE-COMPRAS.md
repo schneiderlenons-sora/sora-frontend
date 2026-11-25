@@ -6,9 +6,19 @@ dono (24/11/2026): **implementação própria** (sem RevenueCat), **preço do iP
 cobrindo a comissão** de 15% e assinaturas criadas **pela API** do App Store
 Connect.
 
-O código está pronto e **desligado até o build 1.1.0 existir**: o site só vende
-pela Apple quando o User-Agent traz `SoraCompras/` (`uaIosVende` em
-`lib/app-ios.ts`). Quem está com o app 1.0 continua sem venda nenhuma.
+O código está pronto e **desligado**: o site só vende pela Apple quando o
+User-Agent traz `SoraCompras/<n>` com n ≥ 2 (`uaIosVende` em `lib/app-ios.ts`).
+
+⚠️ **TRAVADO em 25/11/2026 pelo CNPJ.** A Apple exige CNPJ no Formulário fiscal
+do Brasil e, sem ele, o StoreKit devolve as assinaturas vazias ("a App Store não
+devolveu nenhum plano", conferido no TestFlight). O build **1.1.0 (5)** saiu com
+`SoraCompras/1` e **não vende**: aba fora do plano mostra só o cadeado e o aviso
+"Fora do seu plano". Quando o CNPJ estiver no formulário:
+
+1. Trocar `appendUserAgent` em `ios-app/capacitor.config.json` para
+   `SoraApp-iOS SoraCompras/2` e subir `MARKETING_VERSION` (ex.: 1.2.0).
+2. Build no Codemagic → TestFlight → testar a compra (agora deve vir o preço).
+3. Enviar a versão à revisão **com as 6 assinaturas** anexadas.
 
 ## Peças no código
 

@@ -5037,9 +5037,23 @@ Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
   `app/api/apple/*`), regras em `lib/apple-billing.ts` (`eval:apple-billing`,
   12/12 mutações), migration **199**. Mesmos IDs de produto da Play.
   - ⚠️ **Só o build que vende** liga a venda: o User-Agent traz
-    `SoraCompras/` (`uaIosVende`, `useIosVende`). No app 1.0 segue tudo como
-    antes (nada se vende). Convite a plano que vale com a Apple usa a classe
+    `SoraCompras/<n>` com **n ≥ 2** (`VERSAO_COMPRAS_QUE_VENDE`, `uaIosVende`,
+    `useIosVende`). Convite a plano que vale com a Apple usa a classe
     `oculto-sem-venda-ios`; coisa do Stripe/site segue em `oculto-no-app-ios`.
+  - ⚠️ **TRAVADO (25/11/2026): a Apple exige CNPJ** no Formulário fiscal do
+    Brasil e o dono não tem (conta pessoa física; MEI não cobre software). Sem
+    ele a App Store devolve as assinaturas VAZIAS. Por isso o build **1.1.0 saiu
+    com `SoraCompras/1` e NÃO vende**; o build que for à revisão com as
+    assinaturas sobe pra `SoraCompras/2` (capacitor.config.json). Nunca ligar a
+    venda por fora num build aprovado (2.3.1/2.5.19).
+  - **Sem venda (app 1.0 e 1.1.0):** aba fora do plano aparece na barra com
+    cadeado e SEM selo de plano; o toque abre o aviso neutro "Fora do seu
+    plano" (AbaBloqueada). ⚠️ Nada de preço, "Assinar" ou "assine pelo site"
+    dentro do app (3.1.1/3.1.3) — o app abre o site, então isso iria ao ar sem
+    revisão. Falar do site é permitido FORA do app (e-mail, WhatsApp).
+  - Assinaturas JÁ CRIADAS no App Store Connect (grupo ForSora, 23,90/35,90/
+    58,90 e 172,90/339,90/564,90, só Brasil, capturas de revisão enviadas) por
+    `ios-app/loja/criar-assinaturas.mjs` e `enviar-capturas-revisao.mjs`.
   - ⚠️ **Na Apple a compra não é devolvida sozinha** (na Play, sim): nunca
     oferecer a quem já tem plano por outro caminho (`appleMandaNoPlano`).
   - ⚠️ A Sora **não cancela** assinatura da Apple: a exclusão de conta avisa.

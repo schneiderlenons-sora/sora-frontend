@@ -28,18 +28,32 @@ export function uaEhAppIos(ua: string | null | undefined): boolean {
 
 /**
  * VERSÃO DO APP QUE VENDE pela Apple (StoreKit). A partir do build 1.1.0 a
- * casca acrescenta `SoraCompras/1` ao User-Agent (capacitor.config.json) e
+ * casca acrescenta `SoraCompras/<n>` ao User-Agent (capacitor.config.json) e
  * traz o plugin de compra (ios-app/ios/App/App/SoraComprasPlugin.swift).
  *
- * ⚠️ É ISTO que decide se o app de iPhone mostra cadeado, paywall e planos.
- * Quem está com o app antigo (sem o plugin) segue sem venda nenhuma: mostrar
- * "Assinar" sem como comprar é o que a revisão recusa (3.1.1).
+ * ⚠️ É ISTO que decide se o app de iPhone mostra paywall e planos à venda.
+ * Sem venda, a aba fora do plano aparece com cadeado e só diz que não faz
+ * parte do plano — sem preço, sem "Assinar", sem link pro site (3.1.1).
+ *
+ * ⚠️ O BUILD 1.1.0 (`SoraCompras/1`) NÃO VENDE. A Apple não entrega as
+ * assinaturas no Brasil enquanto o Formulário fiscal do Brasil (CNPJ) está
+ * pendente (nov/2026). O build que for à revisão JUNTO com as assinaturas sobe
+ * a marca pra `SoraCompras/2`: assim a venda nunca é ligada por fora num build
+ * já aprovado — "recurso escondido" é motivo de remoção (regras 2.3.1/2.5.19).
  */
 export const MARCA_COMPRAS_IOS = 'SoraCompras/';
+export const VERSAO_COMPRAS_QUE_VENDE = 2;
+
+/** O `<n>` de `SoraCompras/<n>` (0 = sem a marca ou sem número). */
+export function versaoComprasIos(ua: string | null | undefined): number {
+  const s = String(ua || '');
+  const i = s.indexOf(MARCA_COMPRAS_IOS);
+  if (i < 0) return 0;
+  return parseInt(s.slice(i + MARCA_COMPRAS_IOS.length), 10) || 0;
+}
 
 export function uaIosVende(ua: string | null | undefined): boolean {
-  const s = String(ua || '');
-  return s.includes(MARCA_APP_IOS) && s.includes(MARCA_COMPRAS_IOS);
+  return uaEhAppIos(ua) && versaoComprasIos(ua) >= VERSAO_COMPRAS_QUE_VENDE;
 }
 
 /** No cliente. No servidor (sem `navigator`) responde `false`. */

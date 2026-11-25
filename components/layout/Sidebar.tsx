@@ -530,6 +530,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const { abrir: abrirInstall } = usePwa();
   const ehIos = useEhAppIos();
   const iosVende = useIosVende();
+  // App de iPhone que NÃO vende (app 1.0 e build 1.1.0): cadeado sem nome de plano.
+  const semVendaIos = ehIos && !iosVende;
 
   const plano = perfil?.plano || 'inativo';
   const sidebarBg = isTemaBlack ? SIDEBAR_BG_BLACK : (isDark ? SIDEBAR_BG_DARK : SIDEBAR_BG_LIGHT);
@@ -590,7 +592,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
    * esconderia que a função existe.
    */
   function atalho(href: string, label: string, icone: React.ReactNode, liberado: boolean) {
-    if (ehIos && !liberado) return null;   // ver navLink
     const fundo = isTemaBlack
       ? 'bg-black/40 hover:bg-black/55 border border-white/5'
       : 'bg-white/10 hover:bg-white/20';
@@ -601,7 +602,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         // de convite ali, com o nome dela. Ver o comentário em `destino`.
         href={href}
         onClick={() => setOpen(false)}
-        title={liberado ? label : `${label} — disponível a partir do plano Básico`}
+        title={liberado ? label : semVendaIos ? `${label} — fora do seu plano` : `${label} — disponível a partir do plano Básico`}
         className={`flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-[13px] font-medium transition-all ${fundo} ${
           liberado ? 'text-white/85 hover:text-white' : 'text-white/40 hover:text-white/60'
         }`}
@@ -647,13 +648,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // A regra do cadeado mora em `itemTrancado` (o aquecimento do menu usa a
     // mesma — ver lá o porquê de Negócios não passar por `podeUsar`).
     const locked     = itemTrancado(gate, grow);
-    // ⚠️ APP DE IPHONE SEM COMPRA PELA APPLE (build antigo): aba fora do plano
-    // NÃO aparece (nem com cadeado) — cadeado + selo "Premium" sem caminho de
-    // compra é o que a revisão da Apple questiona. No build que vende
-    // (`useIosVende`) ela aparece apagada com cadeado, e o toque abre o paywall
-    // da Apple (AbaBloqueada), igual ao Android. Página de venda do SITE
-    // (indique, afiliados…) some sempre.
-    if (ehIos && ((locked && !iosVende) || rotaDeVendaNoAppIos(href))) return null;
+    // ⚠️ APP DE IPHONE: a aba fora do plano aparece apagada com cadeado. No
+    // build que vende (`useIosVende`) o toque abre o paywall da Apple, igual ao
+    // Android. SEM venda (app 1.0 e build 1.1.0, decisão do dono em nov/2026):
+    // só o cadeado, SEM o selo do plano, e o toque abre o aviso neutro "fora do
+    // seu plano" (AbaBloqueada) — sem preço, sem "Assinar", sem link pro site
+    // (Apple 3.1.1). Página de venda do SITE (indique, afiliados…) some sempre.
+    if (ehIos && rotaDeVendaNoAppIos(href)) return null;
     // ⚠️ ITEM BLOQUEADO POR PLANO ABRE A PRÓPRIA ABA, não o /planos.
     //
     // Cada uma delas renderiza o convite no próprio lugar (`AbaBloqueada`,
@@ -668,7 +669,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
     // Item com query (`?aba=`) nunca marca ativo: o pathname é o mesmo da aba
     // inteira e ele acenderia junto com ela.
     const ativo      = !locked && !externa && isActive(href);
-    const badgeText  = growLocked ? 'Premium' : badge;
+    // Sem venda no iPhone, nada de selo com nome de plano: só o cadeado.
+    const badgeText  = semVendaIos ? undefined : growLocked ? 'Premium' : badge;
     const corBadge   = badgeText === 'Platinum' ? 'bg-violet-600 text-white' : 'bg-white text-emerald-700';
 
     return (
@@ -689,7 +691,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
         onClick={() => setOpen(false)}
         aria-current={ativo ? 'page' : undefined}
         aria-disabled={locked || undefined}
-        title={locked ? `Disponível no plano ${badgeText || 'Premium'}` : label}
+        title={locked ? (semVendaIos ? `${label} — fora do seu plano` : `Disponível no plano ${badgeText || 'Premium'}`) : label}
         className={`group relative flex items-center gap-3 pl-2 pr-2 rounded-xl text-[13.5px] transition-all duration-200 ${
           ativo
             ? 'bg-white/[0.18] text-white font-semibold shadow-sm ring-1 ring-inset ring-white/20'
@@ -783,7 +785,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
       >
         {locked && <Lock size={11} className="text-white/55 flex-shrink-0" />}
         <span className="text-[11px] font-extrabold uppercase tracking-[0.16em]">{label}</span>
-        {locked && (
+        {locked && !semVendaIos && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-700">Premium</span>
         )}
         {trial != null && trial > 0 && (
@@ -1024,7 +1026,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
               const aberto    = g.id === 'grow' ? openGrow : openFin;
               const alternar  = g.id === 'grow' ? toggleGrow : toggleFin;
               const bloqueado = !!g.grow && !temAcessoGrow;
-              if (ehIos && bloqueado) return null;   // ver navLink: iPhone não mostra o que não pode comprar
               return (
                 <div key={g.id}>
                   {groupHeader({
