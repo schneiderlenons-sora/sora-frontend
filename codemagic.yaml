@@ -50,7 +50,12 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+    # Só ENVIA o build ao App Store Connect. Ele fica no TestFlight pros
+    # testadores INTERNOS (o dono) assim que a Apple termina de processar.
+    # `submit_to_testflight: true` pedia a revisão do teste EXTERNO, que exige
+    # contato de beta preenchido — e deixava o build vermelho sem motivo
+    # (build 5, 1.1.0). Não usamos testador externo.
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        submit_to_testflight: false
