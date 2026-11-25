@@ -110,6 +110,27 @@ if (grupo) {
 
 const existentes = grupo ? await todos(`/v1/subscriptionGroups/${grupo.id}/subscriptions?limit=50`) : [];
 
+// Prévia de preço na simulação: sem a assinatura criada não dá pra ler a
+// tabela DELA, então usa a do app (mesma grade de valores pro cliente no
+// Brasil). O valor gravado no --aplicar sai da tabela da própria assinatura.
+// Preço escolhido: o menor terminado em ,90 (o padrão dos preços do site) que
+// cubra o alvo; sem nenhum ,90 acima do alvo, o menor que cubra.
+const centavos90 = (v) => Math.round(v * 100) % 100 === 90;
+const escolher = (lista, alvo, valorDe) =>
+  lista.find((x) => valorDe(x) >= alvo && centavos90(valorDe(x))) || lista.find((x) => valorDe(x) >= alvo);
+
+let gradeApp = null;
+async function previaDePreco(alvo) {
+  if (!gradeApp) {
+    const pts = await todos(`/v1/apps/${APP_ID}/appPricePoints?filter[territory]=${TERRITORIO}&limit=200`);
+    gradeApp = pts.map((pp) => Number(pp.attributes.customerPrice)).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+  }
+  const escolhido = escolher(gradeApp, alvo, (v) => v);
+  const vizinhos = gradeApp.filter((v) => Math.abs(v - alvo) <= alvo * 0.08).map((v) => v.toFixed(2)).join(' · ');
+  console.log(`   preços da Apple perto de R$ ${alvo.toFixed(2)}: ${vizinhos || '(nenhum)'}`);
+  console.log(escolhido ? `   → prévia: R$ ${escolhido.toFixed(2)}` : '   ⚠️ nenhum preço da tabela cobre o alvo');
+}
+
 // ── 3. as assinaturas ───────────────────────────────────────────────────────
 for (const p of PRODUTOS) {
   console.log(`\n${p.ref} (${p.id})`);
@@ -138,13 +159,13 @@ for (const p of PRODUTOS) {
       }));
     }
   }
-  if (!sub) { console.log('   (preço: depois de criar)'); continue; }
+  if (!sub) { await previaDePreco(p.alvo); continue; }
 
   // Preço: o menor da tabela da Apple que cubra o alvo.
   const pontos = await todos(`/v1/subscriptions/${sub.id}/pricePoints?filter[territory]=${TERRITORIO}&limit=200`);
   const ordenados = pontos.map((pp) => ({ id: pp.id, valor: Number(pp.attributes.customerPrice), liquido: Number(pp.attributes.proceeds) }))
     .filter((x) => Number.isFinite(x.valor)).sort((a, b) => a.valor - b.valor);
-  const escolhido = ordenados.find((x) => x.valor >= p.alvo);
+  const escolhido = escolher(ordenados, p.alvo, (x) => x.valor);
   const vizinhos = ordenados.filter((x) => Math.abs(x.valor - p.alvo) <= p.alvo * 0.08).map((x) => x.valor.toFixed(2)).join(' · ');
   console.log(`   preços da Apple perto de R$ ${p.alvo.toFixed(2)}: ${vizinhos || '(nenhum)'}`);
   if (!escolhido) { console.log('   ⚠️ nenhum preço da tabela cobre o alvo'); continue; }
