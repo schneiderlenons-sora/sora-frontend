@@ -404,6 +404,7 @@ aceitava `data`, mas a tela nunca mandava, e o WhatsApp gravava sempre "hoje".
 ## FAQ local-first no WhatsApp
 
 - **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.
+- ⚠️ **Resposta pronta ROUBA a mensagem** (roda depois do leitor de comandos e antes da IA). Caso real (nov/2026, cliente vitalícia): "Mensalidade da IA cobrou no crédito NuBank… 107,54" recebia a **tabela de preços** (gatilho `mensalidade` solto) e o gasto nunca entrava. Hoje: mensagem com valor em dinheiro (centavos/R$) ou com cobrou/debitou/lançou/registrou não recebe resposta pronta; "mensalidade" só casa perguntando o preço ou junto de Sora/assinatura/plano pelo nome; "quanto e" com fronteira (não pega "quanto eu"). `eval:faq` (58 casos, 7/7 mutações). Ainda há gatilhos soltos (`seguro`, `grupo`, `saldo`, `comprovante`, `cupom`, `anual`) — frase sem valor com essas palavras ainda cai neles. Diagnóstico: `/webhook/meta/diag?key=…&frase=` agora devolve `faq` (id da resposta pronta).
 
 ## Resumos proativos no WhatsApp (semanal + mensal)
 
