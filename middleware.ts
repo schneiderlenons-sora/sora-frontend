@@ -45,6 +45,10 @@ function ehPublica(pathname: string): boolean {
   // não estar logado, e o redirect daqui diria "Sua sessão expirou" no meio da
   // conexão. A própria tela pede o login e volta com os mesmos parâmetros.
   if (pathname.startsWith('/oauth/')) return true;
+  // Botões do widget "Lançar rápido" (iPhone): o app os troca pelo WhatsApp;
+  // se o link abrir no navegador, app/lancar/[acao] redireciona. Sem login,
+  // como o próprio widget.
+  if (pathname.startsWith('/lancar/')) return true;
   return ROTAS_PUBLICAS.includes(pathname);
 }
 

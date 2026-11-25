@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="widget_raio">24dp</dimen>
+    <dimen name="widget_raio_botao">18dp</dimen>
+    <dimen name="widget_lancar_margem">14dp</dimen>
+    <dimen name="widget_lancar_vao">10dp</dimen>
+</resources>

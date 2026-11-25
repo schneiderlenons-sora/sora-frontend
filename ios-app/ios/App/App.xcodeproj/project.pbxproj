@@ -18,7 +18,34 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		C0A1B2C3D4E5F60718293A02 /* SoraComprasPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A01 /* SoraComprasPlugin.swift */; };
 		C0A1B2C3D4E5F60718293A04 /* SoraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A03 /* SoraViewController.swift */; };
+		5A1D9E770000000000000011 /* SoraWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000001 /* SoraWidgetsBundle.swift */; };
+		5A1D9E770000000000000012 /* LancarWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000002 /* LancarWidget.swift */; };
+		5A1D9E770000000000000013 /* SoraWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000004 /* SoraWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5A1D9E770000000000000041 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A1D9E770000000000000051;
+			remoteInfo = SoraWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A1D9E770000000000000034 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5A1D9E770000000000000013 /* SoraWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -34,6 +61,10 @@
 		C0A1B2C3D4E5F60718293A01 /* SoraComprasPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoraComprasPlugin.swift; sourceTree = "<group>"; };
 		C0A1B2C3D4E5F60718293A03 /* SoraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoraViewController.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		5A1D9E770000000000000004 /* SoraWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SoraWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A1D9E770000000000000001 /* SoraWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoraWidgetsBundle.swift; sourceTree = "<group>"; };
+		5A1D9E770000000000000002 /* LancarWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LancarWidget.swift; sourceTree = "<group>"; };
+		5A1D9E770000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +76,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A1D9E770000000000000032 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -53,6 +91,7 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				5A1D9E770000000000000021 /* SoraWidgets */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				5A1D9E770000000000000004 /* SoraWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -83,6 +123,16 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		5A1D9E770000000000000021 /* SoraWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				5A1D9E770000000000000001 /* SoraWidgetsBundle.swift */,
+				5A1D9E770000000000000002 /* LancarWidget.swift */,
+				5A1D9E770000000000000003 /* Info.plist */,
+			);
+			path = SoraWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -93,10 +143,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				5A1D9E770000000000000034 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5A1D9E770000000000000042 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -105,6 +157,23 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		5A1D9E770000000000000051 /* SoraWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A1D9E770000000000000061 /* Build configuration list for PBXNativeTarget "SoraWidgets" */;
+			buildPhases = (
+				5A1D9E770000000000000031 /* Sources */,
+				5A1D9E770000000000000032 /* Frameworks */,
+				5A1D9E770000000000000033 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SoraWidgets;
+			productName = SoraWidgets;
+			productReference = 5A1D9E770000000000000004 /* SoraWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -118,6 +187,10 @@
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
+						ProvisioningStyle = Automatic;
+					};
+					5A1D9E770000000000000051 = {
+						CreatedOnToolsVersion = 16.0;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -139,6 +212,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				5A1D9E770000000000000051 /* SoraWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -157,6 +231,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A1D9E770000000000000033 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -171,7 +252,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A1D9E770000000000000031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A1D9E770000000000000011 /* SoraWidgetsBundle.swift in Sources */,
+				5A1D9E770000000000000012 /* LancarWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5A1D9E770000000000000042 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A1D9E770000000000000051 /* SoraWidgets */;
+			targetProxy = 5A1D9E770000000000000041 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -317,7 +415,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.forsora.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -341,10 +439,58 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.forsora.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		5A1D9E770000000000000062 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = V4P649QY95;
+				INFOPLIST_FILE = SoraWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.forsora.app.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		5A1D9E770000000000000063 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = V4P649QY95;
+				INFOPLIST_FILE = SoraWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.forsora.app.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -367,6 +513,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A1D9E770000000000000061 /* Build configuration list for PBXNativeTarget "SoraWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A1D9E770000000000000062 /* Debug */,
+				5A1D9E770000000000000063 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

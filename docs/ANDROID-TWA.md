@@ -53,8 +53,18 @@ Se aparecer de novo, apague: não sincronize.
 2. ```bash
    cd C:\Users\jenif\sora-android
    bubblewrap update    # regenera o projeto Android a partir do manifesto
+   node splash-transparente.cjs
+   node "C:\Users\jenif\OneDrive\Área de Trabalho\Sora\sora-frontend\android-widgets\aplicar.cjs"
    bubblewrap build     # gera o .aab assinado
    ```
+   ⚠️ **Os widgets (desde o build 14) moram no repositório**, em
+   `sora-frontend/android-widgets/`, e o `aplicar.cjs` os copia para o projeto
+   e registra no manifesto. O `bubblewrap update` reescreve o
+   `AndroidManifest.xml`: pular o `aplicar.cjs` gera um app SEM widget, sem
+   erro nenhum. Pode rodar quantas vezes quiser.
+   ⚠️ O Java do Bubblewrap é de **32 bits**: o Gradle não aceita mais que ~1,5 GB
+   de memória. Se o build parar com "OutOfMemoryError", feche programas e tente
+   de novo.
 3. Suba `app-release-bundle.aab` no Play Console (**Enviar**, não "Adicionar da
    biblioteca" — essa é só pra promover um pacote já enviado).
 4. Copie a cópia do repo: `cp twa-manifest.json <repo>/twa-manifest.json`.

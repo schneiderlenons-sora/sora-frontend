@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_fundo">#1B231E</color>
+    <color name="widget_texto">#E0E6DF</color>
+    <color name="widget_gasto_fundo">#26FF6B70</color>
+    <color name="widget_gasto_icone">#FF8F93</color>
+    <color name="widget_receita_fundo">#2661D17B</color>
+    <color name="widget_receita_icone">#7FE09A</color>
+    <color name="widget_audio_fundo">#2664AAFF</color>
+    <color name="widget_audio_icone">#7DB8FF</color>
+    <color name="widget_foto_fundo">#26FFB347</color>
+    <color name="widget_foto_icone">#FFC266</color>
+</resources>

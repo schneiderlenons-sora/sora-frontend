@@ -5102,6 +5102,42 @@ Detalhes em `ios-app/README.md`. Push no `master` chega no app sem build novo.
   `curto`, /tour) vê os 10 passos, como no navegador. O passo 10 (comandos do
   WhatsApp) avisa que o zap não faz parte do plano grátis.
 
+## Widgets (iPhone e Android) — fase 1 de 4 (nov/2026)
+
+Sugestão de cliente (Juhlyan). Plano aprovado pelo dono, com prévia visual em
+https://claude.ai/artifact/29FwHYfxW4KQT3F87CT9zo (design aprovado). Decisões:
+widgets **só para assinantes (mensal E anual)**; valores aparecem por padrão,
+com opção de esconder; offline completo **descartado** (medido: a maior conta
+tem 2,4 MB, memória não é o problema; o risco é duplicar dinheiro ao
+sincronizar — o widget guarda o último retrato e o WhatsApp já é o "lançar sem
+internet").
+
+- **Fase 1 (código pronto, 25/11/2026): "Lançar rápido"** — Gasto, Receita,
+  Áudio e Foto, todos para a conversa da Sora no WhatsApp ("gastei " / "recebi "
+  já escritos). Sem login e sem dados.
+  - Android: `android-widgets/` (Java + RemoteViews, sem dependência nova),
+    aplicado no projeto do Bubblewrap por `aplicar.cjs` — ver ANDROID-TWA.md.
+  - iPhone: alvo `SoraWidgets` (iOS 18+) — ver `ios-app/README.md`. ⚠️ Widget
+    de iPhone não abre outro app: os botões abrem `/lancar/<acao>` da ForSora e
+    o `SceneDelegate` passa para o WhatsApp (`app/lancar/[acao]` é a rede de
+    segurança no navegador, pública no middleware).
+  - ⚠️ O número da Sora tem cópias nos dois nativos (ver `lib/sora-whatsapp.ts`).
+  - ⚠️ Sem login, este widget **não sabe o plano**: segurar em teste (TestFlight
+    / Teste interno) até a fase 2 trazer a conexão — decisão do dono.
+- **Fase 2:** chave própria do widget (como a do ChatGPT/Claude, só vale em
+  `/api/widget/*`), endereço único enxuto e "Livre pra gastar", "Próximas
+  contas", "Cartão". ⚠️ Custo no Supabase MEDIDO: o retrato completo custa 12–14
+  consultas (18 KB conta típica, 67 KB a maior), ~1 KB de cabeçalho por
+  consulta. Desenho obrigatório: versão por grupo marcada pelo banco (trigger)
+  e o widget só pergunta "mudou?" (1 KB); recálculo só quando muda; "por dia" e
+  "amanhã" calculados no aparelho; ler só o que o widget instalado mostra.
+  Estimativa: ~4 MB/pessoa/mês (~0,1 GB/mês para os 32 assinantes de hoje).
+  O "vai sobrar" só existe no painel (`lib/ainda-vem-mes.ts`): levar ao backend
+  com eval comparando os dois lados.
+- **Fase 3:** "Hoje" e "Hábitos" com marcar feito. **Fase 4:** tela bloqueada,
+  Central de Controle, atualização por notificação no iPhone, "Mês em resumo",
+  "Meta".
+
 ## Convenções de código
 
 - **Componentes:** functional + hooks, `'use client'` quando usa state/effects

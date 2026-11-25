@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cores dos widgets da Sora (tema claro). O escuro está em values-night. -->
+<resources>
+    <color name="widget_fundo">#F7FBF5</color>
+    <color name="widget_texto">#171D19</color>
+    <color name="widget_gasto_fundo">#17E5484D</color>
+    <color name="widget_gasto_icone">#C8323A</color>
+    <color name="widget_receita_fundo">#2661D17B</color>
+    <color name="widget_receita_icone">#1F7A45</color>
+    <color name="widget_audio_fundo">#170A6CDF</color>
+    <color name="widget_audio_icone">#0A64CF</color>
+    <color name="widget_foto_fundo">#21F5A623</color>
+    <color name="widget_foto_icone">#9A5B00</color>
+</resources>

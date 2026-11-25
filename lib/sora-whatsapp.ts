@@ -17,7 +17,9 @@
 //
 // ⚠️ NÃO INVENTAR ESTE NÚMERO. Ele foi confirmado com o dono do produto; um
 // dígito errado manda a base inteira conversar com um desconhecido. Se mudar,
-// muda AQUI e em lugar nenhum mais.
+// muda AQUI e nas duas cópias dos widgets nativos, que não leem este arquivo:
+// ios-app/ios/App/App/SceneDelegate.swift (`AtalhoLancar`) e
+// android-widgets/src/main/java/com/forsora/app/widget/LancarWidget.java.
 // =============================================================================
 
 /** Número oficial da Sora, em E.164 sem o `+` (como o wa.me espera). */

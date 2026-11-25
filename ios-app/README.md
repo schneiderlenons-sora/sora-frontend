@@ -32,3 +32,24 @@ Pixel do Facebook (declaramos "não rastreia" na Privacidade do app).
 
 ⚠️ Rodar `npx cap sync ios` de novo NÃO desfaz esses ajustes (ele só copia
 `www/` e o config). Já `cap add ios` do zero desfaz tudo.
+
+## Widgets (desde a 1.2.0)
+
+Alvo `SoraWidgets` (extensão WidgetKit, `com.forsora.app.widgets`, iOS 18+),
+código em `ios/App/SoraWidgets/`. Fase 1: só o "Lançar rápido".
+
+- ⚠️ **O alvo foi acrescentado À MÃO no `project.pbxproj`** (não há Mac): IDs
+  `5A1D9E77…`. O app embute a extensão ("Embed Foundation Extensions") e
+  depende dela. A extensão TEM de ter a mesma versão do app
+  (`MARKETING_VERSION` nos dois alvos), senão a Apple recusa o envio. O passo
+  "Numerar a build" do Codemagic troca o `CURRENT_PROJECT_VERSION` dos dois.
+- **Assinatura:** o identificador e o perfil "ForSora Widgets App Store" foram
+  criados pela API da Apple (25/11/2026). O `ios_signing` do Codemagic acha
+  sozinho perfis `com.forsora.app.*`, mas o perfil precisa estar em Team
+  settings → Code signing identities → iOS provisioning profiles (botão
+  "Fetch profiles").
+- ⚠️ **No iPhone um widget não abre outro app direto.** Os botões abrem
+  `https://www.forsora.com/lancar/<acao>` (OpenURLIntent, iOS 18); o
+  `SceneDelegate` (`AtalhoLancar`) troca pela conversa da Sora no WhatsApp sem
+  carregar a página. Se o link abrir no navegador, `app/lancar/[acao]` faz o
+  mesmo. Num widget PEQUENO, `Link` não funciona (só do médio pra cima).

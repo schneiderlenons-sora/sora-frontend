@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_lancar_nome">Lançar rápido</string>
+    <string name="widget_lancar_descricao">Gasto, receita, áudio ou foto direto no WhatsApp da Sora.</string>
+    <string name="widget_lancar_gasto">Gasto</string>
+    <string name="widget_lancar_receita">Receita</string>
+    <string name="widget_lancar_audio">Áudio</string>
+    <string name="widget_lancar_foto">Foto</string>
+    <string name="widget_lancar_gasto_acessivel">Lançar gasto no WhatsApp da Sora</string>
+    <string name="widget_lancar_receita_acessivel">Lançar receita no WhatsApp da Sora</string>
+    <string name="widget_lancar_audio_acessivel">Mandar áudio para a Sora no WhatsApp</string>
+    <string name="widget_lancar_foto_acessivel">Mandar foto do comprovante para a Sora no WhatsApp</string>
+</resources>
