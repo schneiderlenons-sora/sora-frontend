@@ -9,6 +9,7 @@ import RegraForm from '@/components/agentes/RegraForm';
 import { useSimboloMoeda } from '@/lib/moeda-base';
 import { parseNumeroDigitado, numeroParaCampo } from '@/lib/formato-br';
 import { diaDe } from '@/lib/data-br';
+import { mostraMarcaTransferencia, erroMarcaTransferencia } from '@/lib/marca-transferencia';
 
 type Wallet = { id: string; nome: string; tipo?: string };
 
@@ -76,6 +77,19 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
   const [regraAberta, setRegraAberta] = useState(false);
   const [regraFeita, setRegraFeita]   = useState('');
 
+  // "Transferência entre minhas contas" (relato do Breno, nov/2026): o banco
+  // classifica errado — o pagamento do financiamento veio como transferência
+  // (fora dos gastos) e o Pix pra si mesmo como gasto — e não havia como
+  // corrigir. Só em lançamento do BANCO, fora de cartão e de pagamento de
+  // fatura (lib/marca-transferencia.ts, espelho do servidor). Só vai no
+  // payload quando MUDA.
+  const eraTransferencia = tx.transferencia === true;
+  const [marcaTransf, setMarcaTransf] = useState<boolean>(eraTransferencia);
+  const tipoCarteira = wallets.find((w) => w.nome === (tx.carteira_nome || tx.wallet_nome))?.tipo;
+  const podeMarcarTransf = mostraMarcaTransferencia(tx, tipoCarteira);
+  const mudouTransf = podeMarcarTransf && marcaTransf !== eraTransferencia;
+  const avisoTransf = mudouTransf ? erroMarcaTransferencia({ quer: marcaTransf, categoriaFinal: categoria || 'Outros' }) : null;
+
   // Carrega o catálogo de categorias do grupo pro seletor.
   useEffect(() => {
     api.categorias.listar(phone)
@@ -93,6 +107,7 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
     // não aceitava vírgula (relato Vander, out/2026).
     const v = parseNumeroDigitado(valor);
     if (isNaN(v) || v <= 0) { setErro('Informe um valor válido (ex.: 2.911,60).'); return; }
+    if (avisoTransf) { setErro(avisoTransf); return; }
 
     const querRegra = aplicarTodas && mudouCategoria && !!estabelecimento;
     const payload = {
@@ -100,6 +115,7 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
       observacao, carteira_nome: carteira || undefined, data, pago,
       ...(querRegra ? { aplicar_todas: true } : {}),
       ...(aplicarParcelas ? { aplicar_parcelas: true } : {}),
+      ...(mudouTransf ? { transferencia: marcaTransf } : {}),
     };
 
     // #6 otimista (opt-in): fecha na hora e delega o save pro pai, que troca a
@@ -236,6 +252,35 @@ export default function EditarTransacaoModal({ tx, phone, wallets, onClose, onSa
               </div>
             )}
           </div>
+
+          {/* Transferência entre minhas contas — só lançamento do banco. Estado
+              à vista no próprio texto (fora das contas × conta normal). */}
+          {podeMarcarTransf && (
+            <div>
+              <button type="button" onClick={() => setMarcaTransf((m) => !m)}
+                      role="switch" aria-checked={marcaTransf}
+                      className={`w-full flex items-start gap-2.5 p-3 rounded-xl text-left transition-colors ${
+                        marcaTransf ? 'bg-primary/10' : 'bg-muted/40 hover:bg-muted/60'}`}
+                      style={{ border: `1px solid ${marcaTransf ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))'}`, minHeight: 44 }}>
+                <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+                        marcaTransf ? 'bg-primary text-white' : 'bg-card'}`}
+                      style={marcaTransf ? undefined : { border: '1px solid hsl(var(--border))' }}>
+                  {marcaTransf && <Check size={13} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">Transferência entre minhas contas</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    {marcaTransf
+                      ? 'Fica fora dos gastos e receitas: o dinheiro só mudou de uma conta sua para outra.'
+                      : `Conta como ${tipo === 'Gasto' ? 'gasto' : 'receita'} normalmente.`}
+                  </span>
+                </span>
+              </button>
+              {avisoTransf && (
+                <p role="alert" className="mt-1.5 text-xs text-amber-700 dark:text-amber-400 leading-snug">{avisoTransf}</p>
+              )}
+            </div>
+          )}
 
           {/* Descrição */}
           <div>

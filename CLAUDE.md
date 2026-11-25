@@ -1944,6 +1944,25 @@ instante; `12:00:00.000` não).
 - ⚠️ **MEIO-PAR conta:** transferência em que uma ponta já está marcada e a
   outra ainda soma como receita (caso real, R$ 5.500). A régua só pula o par
   quando as DUAS já não contam.
+- **Janelas da sugestão (nov/2026, relato do Breno):** o Bradesco não marca o
+  Pix pra si mesmo (a ENTRADA no outro banco vem marcada) e o OF traz meses de
+  histórico — R$ 30 mil de transferências dele contavam como gasto (jun–set),
+  fora dos 60 dias que a tela olhava. Hoje `paresParaSugerir`: até 60 dias
+  qualquer par (igual antes); de 60 dias a 1 ano SÓ o meio-par (o par sem
+  nenhuma ponta marcada é onde mora a coincidência medida). Base: 53 → 217
+  pares, os 164 novos todos meio-par, nenhum de 60 dias sumiu. "Marcar todas"
+  no quadro (3+ pendentes). `eval:transferencia-propria`.
+- **"Transferência entre minhas contas" na EDIÇÃO** (`services/marcaTransferencia.js`
+  + espelho `lib/marca-transferencia.ts`, `eval:marca-transferencia` nos dois):
+  o banco também marca demais — o Bradesco manda o PAGAMENTO DO FINANCIAMENTO
+  (TED pro Itaú) como transferência, e não havia como desmarcar. Só lançamento
+  do BANCO (`of_tx_id`; em manual a marca decide o saldo), nunca cartão (mexe
+  na fatura), nem pagamento de fatura/ajuste (saem pela categoria). ⚠️ A
+  categoria "Transferências" sozinha já tira a linha das somas: tirar a marca
+  exige outra categoria (a tela avisa antes de salvar). Só vai no PUT quando
+  MUDA. Não mexe em saldo. ⚠️ Latente: se o agregador REPROCESSAR a linha
+  (`dedupReprocesso`), a escolha da marca não é levada pro sobrevivente (só a
+  categoria é) — igual ao "É transferência" do quadro.
 - ⚠️ **Marcar transferência usa `transferencia = true`**, não `ignorar_em`
   (que é das regras do cliente e pode ser sobrescrito). Consequência
   assumida: editar o VALOR depois não ajusta saldo — igual a qualquer

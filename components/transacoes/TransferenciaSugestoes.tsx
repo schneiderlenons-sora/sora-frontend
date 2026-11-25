@@ -62,9 +62,23 @@ export default function TransferenciaSugestoes({ pares, onDispensar, onMarcar, o
   // que o servidor deixa de sugeri-los.
   const [feitos, setFeitos] = useState<ParTransferencia[]>([]);
 
+  // "Marcar todas": o Open Finance traz meses de histórico de uma vez (relato do
+  // Breno: 15 transferências dele contando como gasto). Marca a lista QUE A
+  // PESSOA ESTÁ VENDO, uma por uma (o servidor reconfere cada par), e cada item
+  // segue com o próprio "Desfazer".
+  const [marcandoTodas, setMarcandoTodas] = useState(false);
+
   const lista = [...feitos, ...pares.filter((p) => !feitos.some((f) => idParTransf(f) === idParTransf(p)))];
   if (!lista.length) return null;
-  const pendentes = lista.filter((p) => estado[idParTransf(p)] !== 'feito').length;
+  const aMarcar = lista.filter((p) => { const s = estado[idParTransf(p)]; return s !== 'feito' && s !== 'desfazendo'; });
+  const pendentes = aMarcar.length;
+
+  async function marcarTodas() {
+    if (marcandoTodas) return;
+    setMarcandoTodas(true);
+    try { for (const p of aMarcar) await marcar(p); }
+    finally { setMarcandoTodas(false); }
+  }
 
   async function marcar(p: ParTransferencia) {
     const id = idParTransf(p);
@@ -118,6 +132,16 @@ export default function TransferenciaSugestoes({ pares, onDispensar, onMarcar, o
         </div>
       </div>
 
+      {pendentes >= 3 && (
+        <div className="relative mt-3 flex justify-end">
+          <button type="button" onClick={marcarTodas} disabled={marcandoTodas} aria-busy={marcandoTodas}
+                  className="btn-primary min-h-[44px] px-4 text-sm font-semibold whitespace-nowrap inline-flex items-center justify-center gap-1.5 disabled:opacity-70">
+            {marcandoTodas ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <ArrowRightLeft size={15} aria-hidden="true" />}
+            {marcandoTodas ? 'Marcando…' : `Marcar todas como transferência (${pendentes})`}
+          </button>
+        </div>
+      )}
+
       <ul className="relative mt-3 space-y-2">
         {lista.map((p) => {
           const id = idParTransf(p);
@@ -152,11 +176,11 @@ export default function TransferenciaSugestoes({ pares, onDispensar, onMarcar, o
                 </div>
               ) : (
                 <div className="mt-2.5 grid grid-cols-2 sm:flex sm:justify-end gap-2">
-                  <button type="button" onClick={() => { dispensar(p); onDispensar(p); }} disabled={st === 'marcando'}
+                  <button type="button" onClick={() => { dispensar(p); onDispensar(p); }} disabled={st === 'marcando' || marcandoTodas}
                           className="btn-ghost min-h-[44px] px-4 text-sm text-muted-foreground disabled:opacity-50">
                     Não é
                   </button>
-                  <button type="button" onClick={() => marcar(p)} disabled={st === 'marcando'} aria-busy={st === 'marcando'}
+                  <button type="button" onClick={() => marcar(p)} disabled={st === 'marcando' || marcandoTodas} aria-busy={st === 'marcando'}
                           className="btn-primary min-h-[44px] px-3 sm:px-4 text-sm font-semibold whitespace-nowrap inline-flex items-center justify-center gap-1.5 disabled:opacity-70">
                     {st === 'marcando' ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <ArrowRightLeft size={15} className="hidden sm:inline" aria-hidden="true" />}
                     É transferência
