@@ -90,7 +90,18 @@ Grupo **ForSora**, um produto por plano + ciclo (mesmos IDs da Play), só Brasil
 | `sora_premium_mensal` / `_anual` | 2 | R$ 35,18 / R$ 337,69 |
 | `sora_basico_mensal` / `_anual` | 3 | R$ 23,41 / R$ 172,82 |
 
-O script escolhe o **menor preço da tabela da Apple que cubra o alvo**.
+O script escolhe o **menor preço terminado em ,90 que cubra o alvo** (padrão do
+site); sem nenhum ,90 acima do alvo, o menor que cubra.
+
+✅ **CRIADAS em 24/11/2026** (chave de equipe `BZVNC2D656`, o `.p8` em
+`C:\Users\jenif\chaves-apple\`). Preços gravados — e o que a Apple diz que você
+recebe:
+
+| Plano | Mensal | Anual |
+|---|---|---|
+| Básico | R$ 23,90 (recebe ~19,60) | R$ 172,90 (~141,82) |
+| Premium | R$ 35,90 (~29,45) | R$ 339,90 (~278,80) |
+| Platinum | R$ 58,90 (~48,31) | R$ 564,90 (~463,36) |
 Preços do site conferidos no Stripe em 24/11/2026: Básico 19,90 / 146,90 ·
 Premium 29,90 / 287,04 · Platinum 49,90 / 479,00.
 
