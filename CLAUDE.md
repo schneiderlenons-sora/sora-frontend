@@ -5126,9 +5126,25 @@ internet").
   - ⚠️ O número da Sora tem cópias nos dois nativos (ver `lib/sora-whatsapp.ts`).
   - ⚠️ Sem login, este widget **não sabe o plano**: segurar em teste (TestFlight
     / Teste interno) até a fase 2 trazer a conexão — decisão do dono.
-- **Fase 2:** chave própria do widget (como a do ChatGPT/Claude, só vale em
-  `/api/widget/*`), endereço único enxuto e "Livre pra gastar", "Próximas
-  contas", "Cartão". ⚠️ Custo no Supabase MEDIDO: o retrato completo custa 12–14
+- **Fase 2 — SERVIDOR NO AR (25/11/2026), apps pendentes.** `routes/widget.js`
+  (`/api/widget`: `/codigo` com login → código de uso único 5 min; `/token`
+  troca pela chave do aparelho; `/resumo` com a chave; `/aparelhos`),
+  `services/widgetChave.js` (chave opaca, só sha256 no banco),
+  `services/widgetResumo.js` (retrato com o TEXTO pronto — "Amanhã", "R$ 47",
+  "Atrasada há 2 dias" — pra iPhone e Android só desenharem),
+  `config/widgets.js` (só assinante mensal/anual; teste fechado pela lista de
+  e-mails até `WIDGETS_ABERTOS=1`; `WIDGETS_ATIVOS=0` desliga). Migration
+  **201** (gatilhos de versão por grupo + `widget_contexto`), testada num
+  Postgres em memória (PGlite, 23 verificações).
+  - ⚠️ "Vai sobrar" no servidor = `services/aindaVemMes.js`, CÓPIA FIEL do
+    painel: `eval:ainda-vem-mes-back` (front, 12.312 comparações) e 60 grupos
+    reais iguais à aba Previstos. Mexeu em `lib/ainda-vem-mes.ts` ou
+    `saldo-projetado.ts`, mexa lá.
+  - ⚠️ A rota `/wallets/faturas` virou `services/faturasDoGrupo.js` (mesma
+    lógica, conferida resposta a resposta) — o widget usa a mesma.
+  - ⚠️ Conta fixa nunca aparece como "atrasada" no widget (muita gente paga por
+    fora sem marcar); atrasada só com prova: fatura vencida, parcela de dívida
+    (`parcelasEmAtraso`) e lançamento pendente com data passada. ⚠️ Custo no Supabase MEDIDO: o retrato completo custa 12–14
   consultas (18 KB conta típica, 67 KB a maior), ~1 KB de cabeçalho por
   consulta. Desenho obrigatório: versão por grupo marcada pelo banco (trigger)
   e o widget só pergunta "mudou?" (1 KB); recálculo só quando muda; "por dia" e
