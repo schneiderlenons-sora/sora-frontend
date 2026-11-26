@@ -402,6 +402,37 @@ aceitava `data`, mas a tela nunca mandava, e o WhatsApp gravava sempre "hoje".
 - Testado ponta a ponta com conta de teste (apagada): zap pelo handler real +
   tela no computador e no celular.
 
+## Notas no Drive (nov/2026) — migration 203
+
+Pedido de cliente (Tatiane: "Poderia ter um espaço para notas! Eu escrevo
+muito!"). O Drive ganhou **"Arquivos e pastas | Notas"** (`/grow/dados?aba=notas`).
+
+- ⚠️ **É a MESMA tabela `notas` do "anota que …" do WhatsApp** (063): o que
+  entra por lá aparece aqui, e o "o que anotei sobre …" acha o que se escreve
+  aqui. Privada por pessoa (`user_id`), com `grupo_id` = grupo ativo e
+  `origem: 'texto'`, como o zap grava. A confirmação do zap aponta pra
+  "Drive → Notas".
+- Backend: rotas em `routes/dados.js` (`/api/dados/notas`), regra em
+  `services/notasPainel.js` (`eval:notas-painel`, 29 casos, 14/14). Texto até
+  50.000 caracteres — passou disso dá ERRO com o motivo, **nunca corta calado**.
+  Update/delete sempre com `.eq('user_id')` (404 se não for da pessoa).
+- Front: `components/dados/NotasDrive.tsx` (busca sem acento, cadernos em
+  pílulas, fixadas no topo) + `EditorNota.tsx` (tela cheia no celular, salva
+  sozinho em FILA — nunca duas gravações juntas; fechar espera a última e não
+  fecha calado se falhar; nota esvaziada some ao fechar). Regras puras em
+  `lib/notas.ts` (`eval:notas`, 28 casos, 16/16 mutações). "Caderno" = coluna
+  `categoria`.
+- ⚠️ **O editor fica SEMPRE no mesmo lugar da árvore** (`<>{corpo()}{editor}</>`).
+  Dentro de cada estado (vazio / lista), o 1º salvamento da 1ª nota trocava o
+  estado e o React montava o editor de novo: o título sumia e a nota se partia
+  em duas. Achado testando em produção.
+- ⚠️ Clique no fundo só fecha se o toque COMEÇOU no fundo: arrastar uma
+  seleção de texto e soltar fora gera "click" no fundo.
+- **Sem a 203:** tudo funciona menos FIXAR (503 "ainda está sendo liberado",
+  o alfinete volta); a ordem cai pra data de criação.
+- Testado em produção com a conta de testes (API 15/15 + tela no celular e no
+  computador); tudo apagado depois.
+
 ## FAQ local-first no WhatsApp
 
 - **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.
@@ -5387,6 +5418,7 @@ sql/198_divida_categoria.sql — dividas.categoria: em que categoria a parcela p
 sql/199_apple_assinaturas.sql — assinaturas da APPLE (app de iPhone, StoreKit). **OBRIGATÓRIA antes de vender no iPhone**: sem ela a compra não é registrada (o servidor recusa liberar o plano sem gravar). Ver docs/APPLE-COMPRAS.md.
 sql/200_fechamento_dia_proxima.sql — wallets.fechamento_dia_proxima (cartão manual: compra no dia do fechamento vai pra próxima fatura). **OBRIGATÓRIA ANTES do deploy do backend**: 17 consultas de cartão pedem a coluna; sem ela elas falham.
 sql/202_of_importar_desde.sql — of_conexoes.importar_desde ("trazer movimentações a partir de [data]", por banco). Sem ela nada quebra: o sync grava tudo como antes e a janela responde "ainda sendo liberada".
+sql/203_notas_painel.sql — notas.fixada + notas.updated_at (aba Notas do Drive). Sem ela as notas funcionam; só FIXAR responde "ainda está sendo liberado" e a ordem é pela criação.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
