@@ -433,6 +433,35 @@ muito!"). O Drive ganhou **"Arquivos e pastas | Notas"** (`/grow/dados?aba=notas
 - Testado em produção com a conta de testes (API 15/15 + tela no celular e no
   computador); tudo apagado depois.
 
+## Drive: cota de 500 MB por pessoa (nov/2026)
+
+Decisão do dono, depois da pergunta da Tatiane ("qual o espaço desse
+drive?"). Os arquivos ficam no bucket privado `dados-arquivos` do Supabase
+(10 MB por arquivo); o plano gratuito tem 1 GB pro projeto INTEIRO, e sem
+cota um cliente sozinho podia enchê-lo. Notas e campos de texto ficam no banco
+e não entram na cota.
+
+- Regra: `sora-backend/src/services/espacoDrive.js` (`eval:espaco-drive`,
+  47 verificações, 17/18 mutações — a sobrevivente é equivalente). O uso é
+  medido NO STORAGE (pasta `{userId}/`), não numa coluna.
+- ⚠️ Arquivo ÓRFÃO (no storage sem item apontando) com mais de 24h NÃO conta
+  contra a pessoa — ela não vê nem consegue apagá-lo. O recente conta (upload
+  em andamento).
+- ⚠️ Sem conseguir medir, DEIXA SUBIR: a cota protege custo, não segurança. O
+  excesso possível é de um arquivo.
+- Painel: `/upload-url` recebe `tamanho` e responde 413 `drive_cheio` com o
+  texto pronto; `GET /api/dados/espaco/:phone` alimenta a barra "X de 500 MB"
+  (`EspacoDrive` na aba de arquivos; some quando `usado` é null).
+- WhatsApp (`services/drive.js`): cheio nem baixa; máximo por arquivo agora
+  10 MB (era 20 e o storage recusava acima de 10).
+- ⚠️ **Apagar PASTA ou SUBPASTA não apagava os arquivos** (o banco apaga os
+  itens em cascata, o storage não). Hoje lê os caminhos → apaga no banco →
+  apaga no storage (nessa ordem). Trocar o arquivo de um item apaga o antigo.
+- Item só aceita (POST/PUT) e só apaga arquivo da pasta da PRÓPRIA pessoa —
+  antes o caminho vinha do corpo sem conferência.
+- ⚠️ Itens tipo "senha" ficam como texto comum no banco; o PIN só tranca a
+  tela. Criptografar esses itens é o passo pendente pra dizer "guarde tudo".
+
 ## FAQ local-first no WhatsApp
 
 - **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.
@@ -2831,6 +2860,35 @@ olham `data`, então o lembrete sai antes do 1º dia e nada disso mudou.
 - Fora (anotado): Planejamento Semanal recebe só o 1º dia de evento com hora.
 - Testado em produção sem a 204 (API + tela); a parte com a 204 só depois de
   rodar (script pronto: `teste-agenda-prod.mjs` no scratchpad da sessão).
+
+### Aniversários e datas comemorativas (nov/2026) — migration 205
+
+Pedido de cliente (Tatiane): aba na Agenda com datas que se repetem todo ano,
+lembrete UMA SEMANA antes (presente) e NO DIA. Tabela `aniversarios` (dia +
+mês + ano opcional pra idade; tipo aniversario/casamento/data; ideia de
+presente vai no aviso da semana). Pessoal (`user_id`), RLS ligada.
+
+- Regra: `sora-backend/src/services/aniversarios.js` (`eval:aniversarios`,
+  77 verificações, 25/25 mutações) + `lib/aniversarios.ts` no front (eval
+  compara 2.125 casos com o backend). ⚠️ 29/02 cai em 28/02 em ano comum.
+  Nascimento no futuro é recusado. Título sem "da/do" ("Aniversário: Ana").
+- **JOB 1U** (a cada 30 min, 9h–22h SP): lê SÓ as datas de hoje e de daqui a
+  7 dias (`paresDoDia`, inclui o 29/02 quando é 28/02 de ano comum). Cada aviso
+  sai UMA vez por ano (`aviso_semana_ano`/`aviso_dia_ano`, reserva atômica
+  antes de enviar); recusa provada da Meta desfaz a marca, falha ambígua não
+  repete. "No dia" com briefing ligado fica com o briefing (exceto data criada
+  hoje). Usa o modelo do lembrete de compromisso (`loki.compromissos`, já
+  aprovado) com `direto: true`.
+- Feed da Agenda: fonte `aniversario` (todo ano, `anos` = "faz 30 anos"),
+  `editavel: false` — a tela abre o formulário próprio pelo `source`. Briefing
+  mostra 🎂. "Só compromissos" mantém aniversários (`PESSOAIS`).
+- Tela: aba "Aniversários" (`components/agenda/Aniversarios.tsx`, portal),
+  botão do topo vira "Nova data" nela; mudar a data no PUT zera as marcas do
+  ano. Sem a 205: lista `liberado: false`, criar 503 sem jargão, cron calado.
+- Testado: evals + tela em produção com o servidor SIMULADO (backend estava
+  suspenso na Render). Falta o teste ponta a ponta depois da 205.
+- Fora (anotado): criar aniversário pelo WhatsApp ("marca aniversário da Ana
+  dia 5/12" ainda vira compromisso de um dia) e listá-los no "minha agenda".
 
 ### Título do compromisso: grafia da pessoa e sem o "dia" (nov/2026)
 
@@ -5455,6 +5513,7 @@ sql/200_fechamento_dia_proxima.sql — wallets.fechamento_dia_proxima (cartão m
 sql/202_of_importar_desde.sql — of_conexoes.importar_desde ("trazer movimentações a partir de [data]", por banco). Sem ela nada quebra: o sync grava tudo como antes e a janela responde "ainda sendo liberada".
 sql/203_notas_painel.sql — notas.fixada + notas.updated_at (aba Notas do Drive). Sem ela as notas funcionam; só FIXAR responde "ainda está sendo liberado" e a ordem é pela criação.
 sql/204_compromisso_varios_dias.sql — compromissos.data_fim + CHECK (fim > início): evento de mais de um dia na Agenda. Sem ela tudo funciona como antes; marcar "até" responde "ainda está sendo liberado" (no zap, marca só o 1º dia e avisa).
+sql/205_aniversarios.sql — tabela aniversarios (aba Aniversários da Agenda + JOB 1U). Sem ela a aba diz que está sendo liberada e o cron não faz nada.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
