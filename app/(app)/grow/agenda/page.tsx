@@ -15,6 +15,9 @@ import {
   ArrowLeftRight, TrendingUp, TrendingDown, ListChecks, Filter,
 } from 'lucide-react';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import {
+  validarPeriodo, moverFim, somarDias, duracaoEmDias, umPorEvento, chaveDoEvento, rotuloDoDia, diaMes, MAX_DIAS,
+} from '@/lib/agenda-periodo';
 
 const BRAND = 'hsl(var(--primary))';
 const STORAGE_KEY = 'sora-grow-agenda-view';
@@ -170,7 +173,8 @@ export default function AgendaPage() {
   const proximos7 = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const lim = new Date(hoje); lim.setDate(lim.getDate() + 7);
-    return agendaVisiveis.filter(c => { const d = parseD(c.data); return d >= hoje && d <= lim; });
+    // Evento de vários dias conta UMA vez ("2 esta semana", não 3).
+    return umPorEvento(agendaVisiveis.filter(c => { const d = parseD(c.data); return d >= hoje && d <= lim; }));
   }, [agendaVisiveis]);
   const proximo = useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -202,13 +206,15 @@ export default function AgendaPage() {
   }
   async function deletar(e: any) {
     if (!e.editavel) return;
-    if (!confirm(`Excluir "${e.titulo}"?`)) return;
-    // Remoção otimista via SWR.
+    // Vários dias: excluir apaga o evento inteiro — e a pergunta diz isso.
+    if (!confirm(`Excluir "${e.titulo}"${e.periodo ? ` (os ${e.periodo.total} dias)` : ''}?`)) return;
+    const alvo = chaveDoEvento(e);
+    // Remoção otimista via SWR (todos os dias do mesmo compromisso).
     try {
       await mFeed(
         async () => { await api.grow.compromissos.deletar(e.raw.id, phone!); return undefined; },
         {
-          optimisticData: (cur: any) => ({ ...(cur || { eventos: [] }), eventos: (cur?.eventos || []).filter((x: any) => x.id !== e.id) }),
+          optimisticData: (cur: any) => ({ ...(cur || { eventos: [] }), eventos: (cur?.eventos || []).filter((x: any) => chaveDoEvento(x) !== alvo) }),
           rollbackOnError: true, populateCache: false, revalidate: true,
         },
       );
@@ -380,6 +386,14 @@ function EventoCard({ e, onAbrir, onDelete }: any) {
             <span className={`text-[11px] font-bold tabular ${resolvida ? 'text-muted-foreground' : ''}`}
                   style={resolvida ? undefined : { color: e.cor }}>{brl(e.valor)}</span>
           )}
+          {rotuloDoDia(e.periodo) && (
+            <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular"
+                  style={{ background: `color-mix(in srgb, ${e.cor} 12%, transparent)`, color: e.cor }}
+                  title={`De ${diaMes(e.periodo.inicio)} a ${diaMes(e.periodo.fim)}`}>
+              <CalendarRange size={10} /> {rotuloDoDia(e.periodo)}
+              <span className="font-semibold opacity-80">· até {diaMes(e.periodo.fim)}</span>
+            </span>
+          )}
           {e.source === 'recorrencia' && e.adiada && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
               <Clock size={10} /> adiada
@@ -512,12 +526,14 @@ function ViewMes({ eventos, onAbrir, onDelete, onNovoNoDia }: any) {
                   <div className="hidden sm:flex flex-col gap-0.5 min-w-0">
                     {evs.slice(0, 3).map((e: any) => (
                       <button key={e.id} onClick={(ev) => { ev.stopPropagation(); onAbrir(e); }}
-                        title={rotuloFixa(e) ? `${e.titulo} (${rotuloFixa(e)!.toLowerCase()})` : e.titulo}
+                        title={rotuloFixa(e) ? `${e.titulo} (${rotuloFixa(e)!.toLowerCase()})`
+                          : rotuloDoDia(e.periodo) ? `${e.titulo} (${rotuloDoDia(e.periodo)!.toLowerCase()})` : e.titulo}
                         className="w-full text-left rounded-md px-1.5 py-1 text-[10px] font-semibold leading-tight flex items-center gap-1 min-w-0 transition-all hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current"
                         style={{ background: `color-mix(in srgb, ${e.cor} 12%, transparent)`, color: e.cor }}>
                         {e.hora && <span className="tabular shrink-0 opacity-80">{e.hora}</span>}
                         {rotuloFixa(e) && <Check size={10} strokeWidth={3} className="shrink-0" aria-label={rotuloFixa(e)!} />}
                         <span className={`truncate ${rotuloFixa(e) ? 'opacity-60' : ''}`}>{e.titulo}</span>
+                        {e.periodo && <span className="tabular shrink-0 opacity-70 ml-auto">{e.periodo.dia}/{e.periodo.total}</span>}
                       </button>
                     ))}
                     {evs.length > 3 && (
@@ -636,15 +652,34 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
   const [local, setLocal]     = useState(item?.local || '');
   const [lembrete, setLembrete] = useState<boolean>(item?.lembrete_ativo ?? true);
   const [antec, setAntec]     = useState<number>(item?.lembrete_antecedencia ?? 60);
+  // Mais de um dia (migration 204): `data` é o início, `fim` o último dia.
+  const [variosDias, setVariosDias] = useState<boolean>(!!item?.data_fim);
+  const [fim, setFim]         = useState<string>(item?.data_fim ? String(item.data_fim).slice(0, 10) : '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+
+  // Mudou o início: o fim anda junto (um evento de 2 dias continua de 2).
+  function mudarInicio(novo: string) {
+    if (variosDias && fim && data) setFim(moverFim(data, novo, fim));
+    setData(novo);
+  }
+  function alternarVarios(on: boolean) {
+    setVariosDias(on);
+    if (on && (!fim || !data || fim <= data)) setFim(somarDias(data || iso(new Date()), 1));
+    setErro('');
+  }
+  const conferido = variosDias ? validarPeriodo(data, fim) : null;
+  const dias = conferido?.ok && conferido.dataFim ? duracaoEmDias(data, conferido.dataFim) : 1;
 
   async function salvar() {
     if (!titulo.trim()) { setErro('Dê um título pro compromisso.'); return; }
     if (!data) { setErro('Escolha a data.'); return; }
+    if (conferido && !conferido.ok) { setErro(conferido.erro); return; }
     setErro(''); setSalvando(true);
     const body = {
       phone, titulo: titulo.trim(), data, hora: diaTodo ? null : hora,
+      // Sempre vai (null = um dia só): é assim que "tirar o até" volta a um dia.
+      data_fim: conferido?.ok ? conferido.dataFim : null,
       categoria, cor: CATEGORIAS[categoria].cor, local: local.trim() || undefined,
       lembrete_ativo: lembrete, lembrete_antecedencia: antec,
     };
@@ -672,18 +707,37 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Data</label>
-              <input type="date" value={data} onChange={e => setData(e.target.value)} className="input" />
+              <label htmlFor="comp-data" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">{variosDias ? 'Começa em' : 'Data'}</label>
+              <input id="comp-data" type="date" value={data} onChange={e => mudarInicio(e.target.value)} className="input" />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Hora</label>
-              <input type="time" value={hora} onChange={e => setHora(e.target.value)} disabled={diaTodo} className="input disabled:opacity-40" />
+              <label htmlFor="comp-hora" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Hora</label>
+              <input id="comp-hora" type="time" value={hora} onChange={e => setHora(e.target.value)} disabled={diaTodo} className="input disabled:opacity-40" />
             </div>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer select-none -mt-2">
-            <input type="checkbox" checked={diaTodo} onChange={e => setDiaTodo(e.target.checked)} className="w-4 h-4 accent-primary" />
-            <span className="text-xs font-semibold text-foreground">Dia todo (sem horário)</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 -mt-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none min-h-[32px]">
+              <input type="checkbox" checked={diaTodo} onChange={e => setDiaTodo(e.target.checked)} className="w-4 h-4 accent-primary" />
+              <span className="text-xs font-semibold text-foreground">Dia todo (sem horário)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none min-h-[32px]">
+              <input type="checkbox" checked={variosDias} onChange={e => alternarVarios(e.target.checked)} className="w-4 h-4 accent-primary" />
+              <span className="text-xs font-semibold text-foreground">Mais de um dia</span>
+            </label>
+          </div>
+          {variosDias && (
+            <div className="animate-fade-in -mt-1">
+              <label htmlFor="comp-fim" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Termina em</label>
+              <input id="comp-fim" type="date" value={fim} min={data ? somarDias(data, 1) : undefined}
+                     max={data ? somarDias(data, MAX_DIAS - 1) : undefined}
+                     onChange={e => { setFim(e.target.value); setErro(''); }} className="input" />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                {conferido && !conferido.ok
+                  ? <span className="text-red-600">{conferido.erro}</span>
+                  : <>Aparece em cada um dos <b className="text-foreground tabular">{dias} dias</b> da agenda{diaTodo ? '' : ', no mesmo horário'}.</>}
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Categoria</label>
@@ -716,6 +770,9 @@ function ModalCompromisso({ phone, item, dataPrefill, onClose, onSaved }: any) {
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${lembrete ? 'translate-x-5' : ''}`} />
               </button>
             </label>
+            {lembrete && variosDias && (
+              <p className="text-[11px] text-muted-foreground -mt-1">O lembrete sai antes do 1º dia.</p>
+            )}
             {lembrete && (
               <div className="flex gap-1.5 flex-wrap animate-fade-in">
                 {ANTEC.map(a => (

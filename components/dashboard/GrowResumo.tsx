@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useVisivel } from '@/lib/useVisivel';
 import { useEhAppIos, useIosVende } from '@/lib/useOrigem';
+import { umPorEvento, rotuloCurto } from '@/lib/agenda-periodo';
 import {
   ListChecks, Heart, CalendarDays, ChevronRight, Crown, ArrowRight,
 } from 'lucide-react';
@@ -49,9 +50,10 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
   // faturas a pagar, dívidas, recorrências, manutenções). Exclui transações já
   // lançadas (source 'transacao') — elas já aconteceram, não são "próximo evento".
   // Na Agenda completa elas continuam aparecendo no calendário.
-  const proximos = [...eventos]
+  // Evento de vários dias entra UMA vez (o 1º dia que ainda vem).
+  const proximos = umPorEvento([...eventos]
     .filter(e => e.data >= hojeStr && e.source !== 'transacao')
-    .sort((a, b) => a.data.localeCompare(b.data) || (a.hora || '99').localeCompare(b.hora || '99'))
+    .sort((a, b) => a.data.localeCompare(b.data) || (a.hora || '99').localeCompare(b.hora || '99')))
     .slice(0, 4);
   const rotuloDia = (d: string) => {
     const diff = Math.round((new Date(d + 'T12:00:00').getTime() - new Date(hojeStr + 'T12:00:00').getTime()) / 86400000);
@@ -96,7 +98,10 @@ function GrowResumo({ ritmoSlot, pronto = true }: { ritmoSlot?: ReactNode; pront
               {proximos.map(e => (
                 <div key={e.id} className="flex items-center gap-2.5 min-w-0">
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: e.cor }} />
-                  <span className="text-sm text-foreground truncate flex-1">{e.titulo}</span>
+                  <span className="text-sm text-foreground truncate flex-1">
+                    {e.titulo}
+                    {rotuloCurto(e.periodo) && <span className="text-muted-foreground"> · {rotuloCurto(e.periodo)}</span>}
+                  </span>
                   <span className="text-[11px] font-medium text-muted-foreground flex-shrink-0 tabular-nums">{rotuloDia(e.data)}</span>
                 </div>
               ))}
