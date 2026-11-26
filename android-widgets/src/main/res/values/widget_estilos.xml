@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Janela de opções dos widgets (claro). O escuro está em values-night. -->
+<resources>
+    <style name="WidgetOpcoes" parent="@android:style/Theme.Material.Light.Dialog.NoActionBar">
+        <item name="android:colorAccent">@color/widget_status_verde</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>

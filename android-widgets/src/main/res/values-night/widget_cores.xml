@@ -2,6 +2,8 @@
 <resources>
     <color name="widget_fundo">#1B231E</color>
     <color name="widget_texto">#E0E6DF</color>
+    <color name="widget_texto2">#9BA59E</color>
+    <color name="widget_divisor">#1FE0E6DF</color>
     <color name="widget_gasto_fundo">#26FF6B70</color>
     <color name="widget_gasto_icone">#FF8F93</color>
     <color name="widget_receita_fundo">#2661D17B</color>
@@ -10,4 +12,41 @@
     <color name="widget_audio_icone">#7DB8FF</color>
     <color name="widget_foto_fundo">#26FFB347</color>
     <color name="widget_foto_icone">#FFC266</color>
+
+    <color name="widget_verde_marca">#61D17B</color>
+    <color name="widget_marca_onda">#0B3D21</color>
+    <color name="widget_conectar_fundo">#3361D17B</color>
+    <color name="widget_conectar_texto">#86E3A0</color>
+
+    <color name="widget_mare_verde_agua">#2B61D17B</color>
+    <color name="widget_mare_verde_frente">#2661D17B</color>
+    <color name="widget_status_verde">#86E3A0</color>
+    <color name="widget_resto_verde">#B7F0C6</color>
+    <color name="widget_mare_ambar_agua">#2BFFB347</color>
+    <color name="widget_mare_ambar_frente">#24FFB347</color>
+    <color name="widget_status_ambar">#FFC266</color>
+    <color name="widget_resto_ambar">#FFD699</color>
+    <color name="widget_mare_coral_agua">#33FF6B70</color>
+    <color name="widget_mare_coral_frente">#29FF6B70</color>
+    <color name="widget_status_coral">#FF9497</color>
+    <color name="widget_resto_coral">#FFB8BA</color>
+    <color name="widget_linha_ritmo">#66FFFFFF</color>
+    <color name="widget_vermelho">#FF9497</color>
+
+    <color name="widget_hoje_fundo">#3361D17B</color>
+    <color name="widget_hoje_texto">#B7F0C6</color>
+    <color name="widget_ponto_fatura">#C4B5FD</color>
+    <color name="widget_ponto_divida">#3DD6C8</color>
+    <color name="widget_ponto_fixa">#FFD24D</color>
+    <color name="widget_ponto_agendado">#7DB8FF</color>
+    <color name="widget_ic_ambar">#FFD24D</color>
+    <color name="widget_ic_azul">#7DB8FF</color>
+    <color name="widget_ic_violeta">#C4B5FD</color>
+    <color name="widget_ic_teal">#3DD6C8</color>
+    <color name="widget_ic_cinza">#D1D1D6</color>
+    <color name="widget_tile_ambar">#24FFD24D</color>
+    <color name="widget_tile_azul">#247DB8FF</color>
+    <color name="widget_tile_violeta">#24C4B5FD</color>
+    <color name="widget_tile_teal">#243DD6C8</color>
+    <color name="widget_tile_cinza">#24D1D1D6</color>
 </resources>

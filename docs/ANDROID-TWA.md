@@ -4,7 +4,7 @@ A Sora na Play Store é uma **TWA**: o `.aab` é uma casca que abre
 `www.forsora.com` em tela cheia. **O conteúdo não vive dentro do pacote.**
 
 **Estado:** público na Play Store desde **10/10/2026** — pacote `com.forsora.app`,
-último `appVersionCode` no build local: **10** em 19/10/2026 (o guia dizia 3 e estava desatualizado); o **12** (1.1.0, cobrança da Play ligada) foi enviado ao Teste interno em 20/10/2026 — o `bubblewrap update` sobe o número sozinho (11→12). O **13** (1.1.1, splash transparente) foi preparado em 21/10/2026. O **14** (1.2.0, widget "Lançar rápido") foi preparado em 25/11/2026 — só falta o `bubblewrap build` — **o próximo é o 15.** Nunca repete — conferir no Explorador de pacotes do Play Console.
+último `appVersionCode` no build local: **10** em 19/10/2026 (o guia dizia 3 e estava desatualizado); o **12** (1.1.0, cobrança da Play ligada) foi enviado ao Teste interno em 20/10/2026 — o `bubblewrap update` sobe o número sozinho (11→12). O **13** (1.1.1, splash transparente) foi preparado em 21/10/2026. O **14** (1.2.0, widget "Lançar rápido") foi enviado ao Teste interno em 25/11/2026. O **15** (1.3.0, widgets com números: Livre pra gastar, Próximas contas e Cartão) foi preparado em 25/11/2026 — só falta o `bubblewrap build` — **o próximo é o 16.** Nunca repete — conferir no Explorador de pacotes do Play Console.
 URL pública de exclusão de conta (Play Console → Segurança dos dados):
 **`https://www.forsora.com/excluir-conta`** (19/10/2026). Lacuna ainda aberta:
 operadores na Política de Privacidade — ver a seção "Play Store (TWA)" do
@@ -48,11 +48,13 @@ Se aparecer de novo, apague: não sincronize.
 
 ## Como publicar uma versão nova
 
-1. Edite `C:\Users\jenif\sora-android\twa-manifest.json` e **suba o
-   `appVersionCode`**.
+1. Se for mudar o nome da versão, edite `appVersionName` em
+   `C:\Users\jenif\sora-android\twa-manifest.json`. ⚠️ **NÃO suba o
+   `appVersionCode` à mão:** o `bubblewrap update` sobe sozinho (14 → 15), e
+   subir antes pula um número.
 2. ```bash
    cd C:\Users\jenif\sora-android
-   bubblewrap update    # regenera o projeto Android a partir do manifesto
+   bubblewrap update    # regenera o projeto Android e sobe o appVersionCode
    node splash-transparente.cjs
    node "C:\Users\jenif\OneDrive\Área de Trabalho\Sora\sora-frontend\android-widgets\aplicar.cjs"
    bubblewrap build     # gera o .aab assinado
@@ -67,7 +69,36 @@ Se aparecer de novo, apague: não sincronize.
    de novo.
 3. Suba `app-release-bundle.aab` no Play Console (**Enviar**, não "Adicionar da
    biblioteca" — essa é só pra promover um pacote já enviado).
-4. Copie a cópia do repo: `cp twa-manifest.json <repo>/twa-manifest.json`.
+
+## Widgets da tela inicial (desde o build 14)
+
+Código em `sora-frontend/android-widgets/` (Java + RemoteViews, sem biblioteca
+nova). Quatro widgets: **Lançar rápido** (2x2), **Livre pra gastar** (2x2),
+**Próximas contas** (4x2) e **Cartão** (2x2).
+
+- **O retrato vem do servidor** (`GET /api/widget/resumo`, texto já pronto —
+  regra em `sora-backend/src/services/widgetResumo.js`, a mesma do iPhone).
+  `Resumo.java` busca com ETag (quase sempre volta 304, sem corpo), guarda o
+  último e o reaproveita por 90 s quando vários widgets atualizam juntos. Sem
+  internet, mostra o último com "Atualizado às HH:MM".
+- **Conectar:** a aba Widgets do painel gera um código de 5 min e abre
+  `forsora://widget/conectar?codigo=…` → `WidgetConexaoActivity` troca pela
+  chave do aparelho (só vale no `/api/widget/*`). Ela só aceita servidor da Sora
+  no `api` do link (link forjado não leva o código pra fora).
+- **Opções** (toque e segure → Personalizar; no Android 11 e antes, abre ao
+  adicionar): mostrar valores e, no do Cartão, qual cartão — `WidgetOpcoesActivity`.
+- **Sem conexão** o widget pede pra conectar; **fora do plano** diz que não faz
+  parte (só assinantes mensal/anual). O Lançar rápido também segue essa regra.
+- ⚠️ **A maré é uma imagem** (`Desenho.mare`) com teto de 320 px por lado: a
+  imagem viaja inteira pro lançador e o Android recusa pacote acima de ~1 MB.
+- ⚠️ **Ícones, prévias da galeria e o layout das contas são GERADOS** por
+  `android-widgets/gerar/*.cjs` (rodar com `node`). Mexeu no layout de um widget?
+  Rode `gerar-previas.cjs` de novo, senão a prévia da galeria fica diferente.
+- Conferir sem celular: o `aplicar.cjs` aceita outra pasta (uma cópia do
+  projeto) e o Gradle compila e roda o lint ali (`processDebugResources
+  compileDebugJavaWithJavac lintDebug`). Na conferência o `assembleDebug`
+  inteiro ficou sem memória (Java de 32 bits); o pacote de verdade sai do
+  `bubblewrap build`, como sempre.
 
 ⚠️ **`appVersionCode` nunca pode repetir**, nem se o envio for excluído ou
 reprovado. Em 19/10/2026 o build local estava no 10; o 11 é o da cobrança da Play.

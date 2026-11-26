@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="WidgetOpcoes" parent="@android:style/Theme.Material.Dialog.NoActionBar">
+        <item name="android:colorAccent">@color/widget_status_verde</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>

@@ -1,11 +1,10 @@
 package com.forsora.app.widget;
 
 import android.app.PendingIntent;
-import android.appwidget.AppWidgetManager;
-import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.widget.RemoteViews;
 
 import com.forsora.app.R;
@@ -17,39 +16,33 @@ import com.forsora.app.R;
  * chegam com "gastei " / "recebi " escrito; Audio e Foto so abrem a conversa
  * (o WhatsApp nao deixa abrir direto no gravador nem na camera).
  *
- * Nao precisa de login nem de internet: sem sinal, o WhatsApp guarda a mensagem
- * e manda quando a conexao volta.
+ * Widgets sao so pra assinantes (decisao do dono): sem conexao o widget pede
+ * pra conectar, e fora do plano diz que nao faz parte do plano. Sem internet
+ * (nunca conseguiu conferir), os botoes aparecem: eles so abrem o WhatsApp,
+ * que guarda a mensagem e manda quando o sinal volta. Igual ao iPhone.
  *
- * ATENCAO: O codigo-fonte vive em sora-frontend/android-widgets/ e e COPIADO para o
+ * ATENCAO: o codigo-fonte vive em sora-frontend/android-widgets/ e e COPIADO para o
  * projeto do Bubblewrap por aplicar.cjs. Editar direto no projeto do build se
  * perde no proximo `bubblewrap update`.
  */
-public class LancarWidget extends AppWidgetProvider {
+public class LancarWidget extends BaseWidget {
 
     /** O numero da Sora no WhatsApp (o mesmo de lib/sora-whatsapp.ts). */
     private static final String NUMERO_SORA = "5532985096225";
 
     @Override
-    public void onUpdate(Context contexto, AppWidgetManager gerente, int[] ids) {
-        for (int id : ids) {
-            gerente.updateAppWidget(id, montar(contexto));
+    protected RemoteViews desenhar(Context c, int id, Resumo.Situacao s, Bundle opcoes) {
+        if (s.tipo == Resumo.Tipo.DESCONECTADO || s.tipo == Resumo.Tipo.FORA_DO_PLANO) {
+            return estado(c, s.tipo, id);
         }
-    }
-
-    static RemoteViews montar(Context contexto) {
-        RemoteViews tela = new RemoteViews(contexto.getPackageName(), R.layout.widget_lancar);
-        tela.setOnClickPendingIntent(R.id.widget_lancar_gasto, abrirConversa(contexto, 1, "gastei "));
-        tela.setOnClickPendingIntent(R.id.widget_lancar_receita, abrirConversa(contexto, 2, "recebi "));
-        tela.setOnClickPendingIntent(R.id.widget_lancar_audio, abrirConversa(contexto, 3, null));
-        tela.setOnClickPendingIntent(R.id.widget_lancar_foto, abrirConversa(contexto, 4, null));
+        RemoteViews tela = new RemoteViews(c.getPackageName(), R.layout.widget_lancar);
+        tela.setOnClickPendingIntent(R.id.widget_lancar_gasto, abrirConversa(c, codigo(id, 1), "gastei "));
+        tela.setOnClickPendingIntent(R.id.widget_lancar_receita, abrirConversa(c, codigo(id, 2), "recebi "));
+        tela.setOnClickPendingIntent(R.id.widget_lancar_audio, abrirConversa(c, codigo(id, 3), null));
+        tela.setOnClickPendingIntent(R.id.widget_lancar_foto, abrirConversa(c, codigo(id, 4), null));
         return tela;
     }
 
-    /**
-     * Cada botao precisa do PROPRIO codigo de pedido: PendingIntents iguais com o
-     * mesmo codigo sao reaproveitados pelo sistema, e os quatro botoes passariam
-     * a abrir a mesma coisa.
-     */
     private static PendingIntent abrirConversa(Context contexto, int codigo, String texto) {
         Uri.Builder endereco = Uri.parse("https://wa.me/" + NUMERO_SORA).buildUpon();
         if (texto != null) {

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Amostra das prévias da galeria (gerada por gerar-previas.cjs). Igual à do iPhone. -->
+<resources>
+    <string name="widget_previa_livre_prefixo" translatable="false">R$</string>
+    <string name="widget_previa_livre_numero" translatable="false">47</string>
+    <string name="widget_previa_livre_sufixo" translatable="false">por dia</string>
+    <string name="widget_previa_livre_status" translatable="false">No ritmo</string>
+    <string name="widget_previa_livre_resto" translatable="false">R$ 612 até 30/11</string>
+    <string name="widget_previa_contas_cabecalho" translatable="false">Próximos 7 dias</string>
+    <string name="widget_previa_contas_qtd" translatable="false">4</string>
+    <string name="widget_previa_contas_rotulo" translatable="false">contas</string>
+    <string name="widget_previa_contas_total" translatable="false">R$ 1.322,30</string>
+    <string name="widget_previa_contas_mais" translatable="false">e mais 1</string>
+    <string name="widget_previa_contas_dia0" translatable="false">T</string>
+    <string name="widget_previa_contas_dia1" translatable="false">Q</string>
+    <string name="widget_previa_contas_dia2" translatable="false">Q</string>
+    <string name="widget_previa_contas_dia3" translatable="false">S</string>
+    <string name="widget_previa_contas_dia4" translatable="false">S</string>
+    <string name="widget_previa_contas_dia5" translatable="false">D</string>
+    <string name="widget_previa_contas_dia6" translatable="false">S</string>
+    <string name="widget_previa_contas_titulo0" translatable="false">Condomínio</string>
+    <string name="widget_previa_contas_valor0" translatable="false">R$ 480,00</string>
+    <string name="widget_previa_contas_sub0" translatable="false">Atrasada há 2 dias</string>
+    <string name="widget_previa_contas_titulo1" translatable="false">Luz</string>
+    <string name="widget_previa_contas_valor1" translatable="false">R$ 182,40</string>
+    <string name="widget_previa_contas_sub1" translatable="false">Amanhã</string>
+    <string name="widget_previa_contas_titulo2" translatable="false">Fatura Nubank</string>
+    <string name="widget_previa_contas_valor2" translatable="false">R$ 524,90</string>
+    <string name="widget_previa_contas_sub2" translatable="false">Sexta, 21</string>
+    <string name="widget_previa_cartao_nome" translatable="false">Nubank</string>
+    <string name="widget_previa_cartao_rotulo" translatable="false">Fatura atual</string>
+    <string name="widget_previa_cartao_valor" translatable="false">R$ 1.631,27</string>
+    <string name="widget_previa_cartao_sub" translatable="false">Fecha em 8 dias · vence 10/12</string>
+</resources>

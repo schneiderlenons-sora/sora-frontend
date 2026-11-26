@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Maré da prévia (gerada por gerar-previas.cjs). O widget de verdade desenha a dele em Desenho.mare. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="170dp" android:height="170dp" android:viewportWidth="170" android:viewportHeight="170">
+    <path android:pathData="M0,91.5C34,87 57.800000000000004,87 85,91.5C112.2,96 136,96 170,91.5L170,170L0,170Z" android:fillColor="@color/widget_mare_verde_agua" />
+    <path android:pathData="M0,98.5C34,103 57.800000000000004,103 85,98.5C112.2,94 136,94 170,98.5L170,170L0,170Z" android:fillColor="@color/widget_mare_verde_frente" />
+    <path android:pathData="M1,108.8h2M7,108.8h2M13,108.8h2M19,108.8h2M25,108.8h2M31,108.8h2M37,108.8h2M43,108.8h2M49,108.8h2M55,108.8h2M61,108.8h2M67,108.8h2M73,108.8h2M79,108.8h2M85,108.8h2M91,108.8h2M97,108.8h2M103,108.8h2M109,108.8h2M115,108.8h2M121,108.8h2M127,108.8h2M133,108.8h2M139,108.8h2M145,108.8h2M151,108.8h2M157,108.8h2M163,108.8h2M169,108.8h2" android:strokeColor="@color/widget_linha_ritmo" android:strokeWidth="1.2" android:strokeLineCap="round" android:fillColor="#00000000" />
+</vector>

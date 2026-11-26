@@ -10,4 +10,46 @@
     <string name="widget_lancar_receita_acessivel">Lançar receita no WhatsApp da Sora</string>
     <string name="widget_lancar_audio_acessivel">Mandar áudio para a Sora no WhatsApp</string>
     <string name="widget_lancar_foto_acessivel">Mandar foto do comprovante para a Sora no WhatsApp</string>
+
+    <!-- Fase 2: widgets com números -->
+    <string name="widget_livre_nome">Livre pra gastar</string>
+    <string name="widget_livre_descricao">Quanto dá pra gastar por dia até o fim do mês.</string>
+    <string name="widget_contas_nome">Próximas contas</string>
+    <string name="widget_contas_descricao">O que vence nos próximos 7 dias, com as atrasadas primeiro.</string>
+    <string name="widget_cartao_nome">Cartão</string>
+    <string name="widget_cartao_descricao">A fatura atual, quando fecha e quando vence.</string>
+
+    <string name="widget_livre_hoje">Livre hoje</string>
+    <string name="widget_atualizado_as">Atualizado às %1$s</string>
+    <string name="widget_as">Às %1$s</string>
+    <string name="widget_contas_7dias">Próximos 7 dias</string>
+    <string name="widget_e_mais">e mais %1$d</string>
+    <string name="widget_nada_vence">Nada vence nos próximos 7 dias</string>
+    <string name="widget_fatura_atual">Fatura atual</string>
+    <string name="widget_nenhum_cartao">Nenhum cartão</string>
+    <string name="widget_cadastre_cartao">Cadastre um cartão na Sora para ver a fatura aqui.</string>
+    <string name="widget_fatura_em_atraso">Fatura em atraso</string>
+
+    <string name="widget_conectar_titulo">Conecte o widget</string>
+    <string name="widget_conectar_texto">Toque para entrar na Sora e conectar.</string>
+    <string name="widget_conectar_botao">Conectar</string>
+    <string name="widget_plano_titulo">Fora do seu plano</string>
+    <string name="widget_plano_texto">Os widgets fazem parte das assinaturas mensal e anual.</string>
+    <string name="widget_sem_dados_titulo">Sem dados agora</string>
+    <string name="widget_sem_dados_texto">Abra a Sora para atualizar.</string>
+
+    <string name="widget_conectado">Widgets conectados</string>
+    <string name="widget_conexao_invalida">Link de conexão inválido. Toque em Conectar de novo na aba Widgets.</string>
+    <string name="widget_conexao_expirada">Este código expirou. Toque em Conectar de novo na aba Widgets.</string>
+    <string name="widget_conexao_falhou">Não consegui conectar agora. Confira a internet e tente de novo.</string>
+
+    <string name="widget_opcoes_titulo">Opções do widget</string>
+    <string name="widget_opcoes_valores">Mostrar valores</string>
+    <string name="widget_opcoes_valores_sub">Desligado, os valores aparecem como ••••.</string>
+    <string name="widget_opcoes_cartao">Cartão</string>
+    <string name="widget_opcoes_carregando">Buscando seus cartões…</string>
+    <string name="widget_opcoes_sem_cartao">Nenhum cartão cadastrado na Sora.</string>
+    <string name="widget_opcoes_conecte">Conecte o widget na aba Widgets da Sora para escolher o cartão.</string>
+    <string name="widget_opcoes_cancelar">Cancelar</string>
+    <string name="widget_opcoes_salvar">Salvar</string>
 </resources>

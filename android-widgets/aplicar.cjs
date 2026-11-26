@@ -45,22 +45,66 @@ function copiar(de, para) {
 copiar(origem, mainDestino);
 
 // 2) Registra os widgets no manifesto (uma vez).
+const widget = (classe, rotulo, nome, info) => ({
+  classe: 'com.forsora.app.widget.' + classe,
+  bloco: [
+    `        <!-- Widget "${rotulo}" (sora-frontend/android-widgets) -->`,
+    '        <receiver',
+    `            android:name="com.forsora.app.widget.${classe}"`,
+    '            android:exported="true"',
+    `            android:label="@string/${nome}">`,
+    '            <intent-filter>',
+    '                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />',
+    '            </intent-filter>',
+    '            <meta-data',
+    '                android:name="android.appwidget.provider"',
+    `                android:resource="@xml/${info}" />`,
+    '        </receiver>',
+  ].join('\n'),
+});
+
 const RECEPTORES = [
+  widget('LancarWidget', 'Lançar rápido', 'widget_lancar_nome', 'widget_lancar_info'),
+  widget('LivreWidget', 'Livre pra gastar', 'widget_livre_nome', 'widget_livre_info'),
+  widget('ContasWidget', 'Próximas contas', 'widget_contas_nome', 'widget_contas_info'),
+  widget('CartaoWidget', 'Cartão', 'widget_cartao_nome', 'widget_cartao_info'),
   {
-    classe: 'com.forsora.app.widget.LancarWidget',
+    // Recebe o código da aba Widgets (forsora://widget/conectar?codigo=...)
+    // e troca pela chave do aparelho. Sem tela: avisa e fecha.
+    classe: 'com.forsora.app.widget.WidgetConexaoActivity',
     bloco: [
-      '        <!-- Widget "Lançar rápido" (sora-frontend/android-widgets) -->',
-      '        <receiver',
-      '            android:name="com.forsora.app.widget.LancarWidget"',
+      '        <!-- Conexão dos widgets (sora-frontend/android-widgets) -->',
+      '        <activity',
+      '            android:name="com.forsora.app.widget.WidgetConexaoActivity"',
+      '            android:excludeFromRecents="true"',
       '            android:exported="true"',
-      '            android:label="@string/widget_lancar_nome">',
+      '            android:noHistory="true"',
+      '            android:taskAffinity=""',
+      '            android:theme="@android:style/Theme.NoDisplay">',
       '            <intent-filter>',
-      '                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />',
+      '                <action android:name="android.intent.action.VIEW" />',
+      '                <category android:name="android.intent.category.DEFAULT" />',
+      '                <category android:name="android.intent.category.BROWSABLE" />',
+      '                <data android:scheme="forsora" android:host="widget" android:path="/conectar" />',
       '            </intent-filter>',
-      '            <meta-data',
-      '                android:name="android.appwidget.provider"',
-      '                android:resource="@xml/widget_lancar_info" />',
-      '        </receiver>',
+      '        </activity>',
+    ].join('\n'),
+  },
+  {
+    // Opções de cada widget (toque e segure → Personalizar).
+    classe: 'com.forsora.app.widget.WidgetOpcoesActivity',
+    bloco: [
+      '        <!-- Opções dos widgets (sora-frontend/android-widgets) -->',
+      '        <activity',
+      '            android:name="com.forsora.app.widget.WidgetOpcoesActivity"',
+      '            android:excludeFromRecents="true"',
+      '            android:exported="true"',
+      '            android:taskAffinity=""',
+      '            android:theme="@style/WidgetOpcoes">',
+      '            <intent-filter>',
+      '                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />',
+      '            </intent-filter>',
+      '        </activity>',
     ].join('\n'),
   },
 ];
@@ -85,5 +129,5 @@ if (xml !== antes) {
   fs.writeFileSync(manifesto, xml);
 }
 
-console.log(`Widgets aplicados: ${copiados} arquivos copiados, ${registrados} registrado(s) agora no manifesto` +
+console.log(`Widgets aplicados: ${copiados} arquivos copiados, ${registrados} item(ns) registrado(s) agora no manifesto` +
   (registrados === 0 ? ' (já estavam lá).' : '.'));
