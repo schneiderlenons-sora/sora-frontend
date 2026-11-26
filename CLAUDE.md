@@ -4949,7 +4949,7 @@ essencial pra não errar:
   em `versionCode 1`, build em `3`) e foi apagada. Se reaparecer, apague.
 - ⚠️ **`appVersionCode` nunca repete**, nem após exclusão ou reprovação. O build
   local estava no **10** em 19/10/2026 (este arquivo dizia 3 — estava velho); o
-  **12** (1.1.0, cobrança da Play) foi pro Teste interno em 20/10/2026. O **13** (1.1.1) tem o splash TRANSPARENTE (sem o quadrado do ícone antes da animação; `bubblewrap update` recria o splash — rodar `node splash-transparente.cjs` depois). O **14** (1.2.0, widget "Lançar rápido") foi preparado em 25/11/2026 (update + splash + `android-widgets/aplicar.cjs`; cópia em `backup-antes-v14/`) — falta o `bubblewrap build`, que pede as senhas. **Próximo: 15.**
+  **12** (1.1.0, cobrança da Play) foi pro Teste interno em 20/10/2026. O **13** (1.1.1) tem o splash TRANSPARENTE (sem o quadrado do ícone antes da animação; `bubblewrap update` recria o splash — rodar `node splash-transparente.cjs` depois). O **14** (1.2.0, widget "Lançar rápido") foi pro Teste interno em 25/11/2026. O **15** (1.3.0, widgets com números) foi preparado em 25/11/2026 (`bubblewrap update --appVersionName=1.3.0` + splash + `android-widgets/aplicar.cjs`; cópia em `backup-antes-v15/`) — falta o `bubblewrap build`, que pede as senhas. **Próximo: 16.**
   ⚠️ O `bubblewrap update` incrementa o número sozinho — não pré-incrementar no manifesto.
 - ✅ **assetlinks no ar e correto** (conferido 08/10): responde 200 com as DUAS
   impressões — `CE:38:9C…` (upload, CN=Sora) e `32:DA:85…` (Play App Signing).
@@ -5150,8 +5150,17 @@ internet").
   e o widget só pergunta "mudou?" (1 KB); recálculo só quando muda; "por dia" e
   "amanhã" calculados no aparelho; ler só o que o widget instalado mostra.
   Estimativa: ~4 MB/pessoa/mês (~0,1 GB/mês para os 32 assinantes de hoje).
-  O "vai sobrar" só existe no painel (`lib/ainda-vem-mes.ts`): levar ao backend
-  com eval comparando os dois lados.
+  - **Apps (25/11/2026, código pronto, em teste fechado):** aba **Widgets** do
+    painel (`app/(app)/widgets`, `lib/widgets.ts`, item com `teste: 'widgets'`)
+    gera o código e conecta o aparelho. iPhone: plugin `SoraWidget` + chave no
+    keychain compartilhado + Livre/Contas/Cartão em `WidgetsNumeros.swift`
+    (commit c111003). Android: `android-widgets/` (BaseWidget, Resumo,
+    Livre/Contas/Cartão, `WidgetConexaoActivity` pelo link
+    `forsora://widget/conectar`, `WidgetOpcoesActivity`; commit a97f8cc) —
+    detalhes em `docs/ANDROID-TWA.md` → "Widgets da tela inicial".
+  - ⚠️ O Lançar rápido agora também pede conexão e plano (igual ao iPhone).
+  - ⚠️ Abrir pra todos: `WIDGETS_ABERTOS=1` no Render **e** `WIDGETS_ABERTO =
+    true` em `lib/widgets.ts`. Só depois de o dono testar nos dois celulares.
 - **Fase 3:** "Hoje" e "Hábitos" com marcar feito. **Fase 4:** tela bloqueada,
   Central de Controle, atualização por notificação no iPhone, "Mês em resumo",
   "Meta".
