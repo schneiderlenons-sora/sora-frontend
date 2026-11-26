@@ -11,7 +11,8 @@
 //     é uma TWA e não tem ponte JS).
 //
 // ⚠️ ESPELHO de sora-backend/src/config/widgets.js (lista de teste e "aberto").
-// Abrir pra todos = `WIDGETS_ABERTO = true` aqui + `WIDGETS_ABERTOS=1` no Render.
+// ABERTO pra todo assinante desde 25/11/2026 (decisão do dono). Voltar ao teste
+// fechado = `WIDGETS_ABERTO = false` aqui + `WIDGETS_ABERTOS=0` no Render.
 // =============================================================================
 
 export const EMAILS_TESTE_WIDGETS = [
@@ -20,7 +21,7 @@ export const EMAILS_TESTE_WIDGETS = [
   'comercialsora@gmail.com',
 ];
 
-export const WIDGETS_ABERTO = false;
+export const WIDGETS_ABERTO = true;
 
 /** O item "Widgets" aparece no menu desta pessoa? (o plano é conferido pelo servidor) */
 export function podeVerWidgets(email?: string | null): boolean {
