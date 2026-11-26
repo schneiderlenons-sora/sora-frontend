@@ -5,12 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
+import { useSWRConfig } from 'swr';
 import GrowHero from '@/components/grow/GrowHero';
 import NotasDrive from '@/components/dados/NotasDrive';
 import {
   Lock, ShieldCheck, ShieldOff, Loader2, Plus, ChevronLeft, ChevronRight, X,
   Pencil, Trash2, Copy, Check, Eye, EyeOff, KeyRound, FileText, Paperclip, Download,
-  FolderLock, Search, Clock, Folder, NotebookPen,
+  FolderLock, Search, Clock, Folder, NotebookPen, HardDrive,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -251,6 +252,8 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
         </div>
       )}
 
+      {!emNotas && <EspacoDrive phone={phone} />}
+
       {secao
         ? <NivelItens phone={phone} secao={secao} onVoltar={() => setSecao(null)} />
         : emNotas
@@ -258,6 +261,43 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
           : <Board phone={phone} onAbrirSecao={setSecao} />}
 
       {modalPin && <ModalPin phone={phone} temPin={temPin} onFechar={() => setModalPin(false)} onMudou={onPinChange} />}
+    </div>
+  );
+}
+
+// ── Espaço do Drive: cota de 500 MB por pessoa (decisão do dono, nov/2026) ──
+// A regra mora no backend (services/espacoDrive.js, eval:espaco-drive): o uso é
+// medido no armazenamento e o servidor recusa o upload que não cabe. Aqui só a
+// barra. Sem medição (`usado` null), a barra não aparece: número inventado não.
+const chaveEspaco = (phone: string) => `dados:espaco:${phone}`;
+const MB = 1024 * 1024;
+function fmtMB(bytes: number): string {
+  const n = Math.max(0, bytes) / MB;
+  if (n === 0) return '0 MB';
+  const v = n < 0.1 ? 0.1 : n;
+  const casas = v >= 100 || Number.isInteger(v) ? 0 : 1;
+  return `${v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })} MB`;
+}
+function EspacoDrive({ phone }: { phone: string }) {
+  const { data } = useApi(chaveEspaco(phone), () => api.dados.arquivo.espaco(phone), { portao: false });
+  if (!data || data.usado == null || !data.limite) return null;
+  const pct = Math.min(100, (data.usado / data.limite) * 100);
+  const cor = pct >= 95 ? '#dc2626' : pct >= 80 ? '#d97706' : 'hsl(var(--primary))';
+  return (
+    <div className="rounded-2xl border border-border/40 px-4 py-3" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-foreground"><HardDrive size={14} aria-hidden /> Espaço do Drive</span>
+        <span className="tabular-nums text-muted-foreground"><b className="text-foreground">{fmtMB(data.usado)}</b> de {fmtMB(data.limite)}</span>
+      </div>
+      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-label="Espaço usado do Drive"
+           aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${data.usado > 0 ? Math.max(pct, 1) : 0}%`, background: cor }} />
+      </div>
+      {pct >= 80 && (
+        <p className="mt-1.5 text-[11px] font-medium" style={{ color: cor }}>
+          {pct >= 100 ? 'Seu Drive está cheio. Apague arquivos que não usa mais pra liberar espaço.' : 'Seu Drive está quase cheio.'}
+        </p>
+      )}
     </div>
   );
 }
@@ -517,7 +557,9 @@ function ModalQuadro({ phone, quadro, onFechar, onSalvo }: any) {
     try { ed ? await api.dados.quadros.editar(ed.id, { phone, nome: nome.trim(), cor, icone }) : await api.dados.quadros.criar({ phone, nome: nome.trim(), cor, icone }); onSalvo(); }
     finally { setSalvando(false); }
   };
-  const excluir = async () => { if (!ed || !confirm('Excluir esta pasta e tudo dentro dela?')) return; await api.dados.quadros.deletar(ed.id, phone); onSalvo(); };
+  const { mutate: mutGlobal } = useSWRConfig();
+  // Apagar a pasta apaga os arquivos dela também (o espaço volta).
+  const excluir = async () => { if (!ed || !confirm('Excluir esta pasta e tudo dentro dela?')) return; await api.dados.quadros.deletar(ed.id, phone); void mutGlobal(chaveEspaco(phone)); onSalvo(); };
   return (
     <ModalShell titulo={ed ? 'Editar pasta' : 'Nova pasta'} onFechar={onFechar}>
       <label className="text-xs font-semibold text-muted-foreground">Nome</label>
@@ -540,7 +582,8 @@ function ModalSecao({ phone, quadroId, secao, onFechar, onSalvo }: any) {
     try { ed ? await api.dados.secoes.editar(ed.id, { phone, nome: nome.trim(), icone }) : await api.dados.secoes.criar({ phone, quadro_id: quadroId, nome: nome.trim(), icone }); onSalvo(); }
     finally { setSalvando(false); }
   };
-  const excluir = async () => { if (!ed || !confirm('Excluir esta subpasta e seu conteúdo?')) return; await api.dados.secoes.deletar(ed.id, phone); onSalvo(); };
+  const { mutate: mutGlobal } = useSWRConfig();
+  const excluir = async () => { if (!ed || !confirm('Excluir esta subpasta e seu conteúdo?')) return; await api.dados.secoes.deletar(ed.id, phone); void mutGlobal(chaveEspaco(phone)); onSalvo(); };
   return (
     <ModalShell titulo={ed ? 'Editar subpasta' : 'Nova subpasta'} onFechar={onFechar}>
       <label className="text-xs font-semibold text-muted-foreground">Nome</label>
@@ -562,16 +605,23 @@ function ModalItem({ phone, secaoId, item, onFechar, onSalvo }: any) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
+  const { mutate: mutGlobal } = useSWRConfig();
   const onFile = async (e: any) => {
     const f = e.target.files?.[0]; if (!f) return;
+    e.target.value = ''; // escolher o mesmo arquivo de novo dispara de novo
     if (f.size > 10 * 1024 * 1024) { setErro('Arquivo muito grande (máx. 10 MB).'); return; }
     setUploading(true); setErro('');
     try {
-      const { path, token, nome } = await api.dados.arquivo.uploadUrl({ phone, filename: f.name });
+      // O servidor confere a cota de 500 MB com o tamanho do arquivo.
+      const { path, token, nome } = await api.dados.arquivo.uploadUrl({ phone, filename: f.name, tamanho: f.size });
       const { error } = await supabase.storage.from('dados-arquivos').uploadToSignedUrl(path, token, f);
       if (error) throw error;
       setArquivoUrl(path); setArquivoNome(nome); if (!titulo.trim()) setTitulo(f.name);
-    } catch { setErro('Falha no upload. Tente de novo.'); }
+      void mutGlobal(chaveEspaco(phone));
+    } catch (err: any) {
+      // "Seu Drive está cheio…" / "não cabe…" vêm prontos do servidor; o resto é genérico.
+      setErro(err?.body?.codigo ? err.message : 'Falha no upload. Tente de novo.');
+    }
     finally { setUploading(false); }
   };
 
@@ -585,7 +635,7 @@ function ModalItem({ phone, secaoId, item, onFechar, onSalvo }: any) {
     try { ed ? await api.dados.itens.editar(ed.id, body) : await api.dados.itens.criar({ ...body, secao_id: secaoId }); onSalvo(); }
     catch { setErro('Não consegui salvar.'); setSalvando(false); }
   };
-  const excluir = async () => { if (!ed || !confirm('Excluir este item?')) return; await api.dados.itens.deletar(ed.id, phone); onSalvo(); };
+  const excluir = async () => { if (!ed || !confirm('Excluir este item?')) return; await api.dados.itens.deletar(ed.id, phone); void mutGlobal(chaveEspaco(phone)); onSalvo(); };
 
   return (
     <ModalShell titulo={ed ? 'Editar item' : 'Adicionar item'} onFechar={onFechar}>

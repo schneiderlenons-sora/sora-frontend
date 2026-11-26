@@ -964,7 +964,10 @@ export const api = {
       deletar: (id: string, phone: string) => req(`/api/dados/dados_itens/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
     arquivo: {
-      uploadUrl:   (body: { phone: string; filename: string }) => req<{ path: string; token: string; nome: string }>('/api/dados/upload-url', { method: 'POST', body: JSON.stringify(body) }),
+      // `tamanho` (bytes): o servidor confere a cota de 500 MB antes de liberar o upload.
+      uploadUrl:   (body: { phone: string; filename: string; tamanho?: number }) => req<{ path: string; token: string; nome: string }>('/api/dados/upload-url', { method: 'POST', body: JSON.stringify(body) }),
+      /** Quanto a pessoa usa do Drive (`usado` null = não deu pra medir agora). */
+      espaco:      (phone: string) => req<{ usado: number | null; arquivos: number | null; limite: number }>(`/api/dados/espaco/${phone}`),
       downloadUrl: (body: { phone: string; path: string }) => req<{ url: string }>('/api/dados/download-url', { method: 'POST', body: JSON.stringify(body) }),
       todos:       (phone: string) => req<any[]>(`/api/dados/arquivos/${phone}`),
     },
