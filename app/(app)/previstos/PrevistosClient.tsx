@@ -15,6 +15,7 @@ import { useApi } from '@/lib/useApi';
 import { api, type FaturaCartao } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
+import ContasDoMes from '@/components/previstos/ContasDoMes';
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
 import { contasDoPessoal } from '@/lib/conta-empresa';
@@ -129,12 +130,12 @@ const somaItens = (itens: ItemComposicao[]) => itens.reduce((s, i) => s + (Numbe
 /** Quantos meses a Projeção enxerga à frente. */
 const MESES_A_FRENTE = 6;
 
-type Aba = 'receitas' | 'despesas' | 'caixa' | 'projecao' | 'extrato';
+type Aba = 'receitas' | 'despesas' | 'caixa' | 'projecao' | 'extrato' | 'contas';
 
 export default function PrevistosClient({ phoneInicial }: { phoneInicial?: string }) {
   const temaCategoria = useTemaCategoria();
   const moedaBase = useMoedaBase();
-  const { phone: authPhone } = useAuth();
+  const { phone: authPhone, user } = useAuth();
   const phone = authPhone || phoneInicial || '';
 
   // ⚠️ PROJEÇÃO É A PORTA DE ENTRADA. É a pergunta que traz a pessoa a esta
@@ -155,6 +156,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
     if (typeof window === 'undefined') return;
     const p = new URLSearchParams(window.location.search);
     if (p.get('aba') === 'extrato') setAba('extrato');
+    // Aba "Contas" (contas a pagar e receber do mês) — pedido de cliente, nov/2026.
+    if (p.get('aba') === 'contas') setAba('contas');
     if (p.get('novo') === '1') setAbrirNovoPrevisto(true);
   }, []);
   const [periodo, setPeriodo] = useState<number>(6);
@@ -1073,6 +1076,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0" role="tablist">
         {([
           ['projecao', 'Projeção', LineChart],
+          // Contas a pagar e a receber do mês (pedido de cliente, nov/2026).
+          ['contas',   'Contas',   ClipboardList],
           ['receitas', 'Receitas', TrendingUp],
           ['despesas', 'Despesas', TrendingDown],
           ['caixa',    'Caixa',    Wallet],
@@ -1096,7 +1101,24 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         ))}
       </div>
       {/* ── Conteúdo ───────────────────────────────────────────────────── */}
-      {aba === 'extrato' ? (
+      {aba === 'contas' ? (
+        <ContasDoMes
+          phone={phone}
+          userId={user?.id ?? null}
+          recorrencias={recorrencias as any[]}
+          dividas={dividas as any[]}
+          wallets={wallets}
+          faturasAtuais={faturas as FaturaCartao[]}
+          faturasBrutas={((fatData as any)?.faturas || []) as FaturaCartao[]}
+          carteirasBanco={carteirasBanco}
+          contasPagamento={contasPagamento}
+          onAcaoFixa={acaoExtrato}
+          ocupado={quitandoRec}
+          erro={erroAcaoExtrato}
+          onNovaConta={() => setFormTarget('novo')}
+          onMudou={() => { void Promise.all([mutDiv?.(), mutFat?.(), mutWal?.(), recarregarRec(), mutTxA?.()]); }}
+        />
+      ) : aba === 'extrato' ? (
         <ExtratoFuturo
           dados={dadosExtrato}
           carteiras={carteirasDebito}
