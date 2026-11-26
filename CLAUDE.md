@@ -2797,6 +2797,41 @@ reconhece a frase**.
 > que a frase cai no fallback de IA em vez do parser local. Ampliar a lista
 > reduziria o uso da IA nesse caminho, mas não era a causa do bug.
 
+### Compromisso de MAIS DE UM DIA (nov/2026) — migration 204
+
+Pedido de cliente (Tatiane): um evento de dois dias seguidos teve de ser
+cadastrado duas vezes. `compromissos.data_fim` (opcional); **`data` segue
+sendo o INÍCIO** — lembrete (JOB 1J), briefingCobre e Planejamento Semanal
+olham `data`, então o lembrete sai antes do 1º dia e nada disso mudou.
+
+- Regra única: `sora-backend/src/services/compromissoPeriodo.js`
+  (`eval:compromisso-periodo`, 89 verificações, 21/21 mutações; roda feed,
+  rotas e o handler do WhatsApp reais). Até 60 dias; fim igual ao início =
+  um dia (`data_fim` nulo; o CHECK do banco exige fim > início).
+- ⚠️ **NENHUMA CONSULTA FILTRA POR `data_fim`.** Quem busca pede `data` desde
+  `inicioDaBusca(de)` (59 dias antes) e filtra no código — evento que começou
+  antes da janela aparece, e nada quebra antes da 204.
+- **Feed:** um evento POR DIA com `periodo: { dia, total, inicio, fim }` e o
+  mesmo `raw`; evento de um dia sai IGUAL a antes (mesmo id `comp-<id>`,
+  sem `periodo` — travado no eval). Briefing: "(dia 2 de 2)".
+- **Rotas:** POST só manda a coluna quando há fim; PUT que muda só o início
+  MANTÉM a duração (`fimAoMoverInicio`). Sem a 204: um dia grava como
+  sempre (o PUT tenta de novo sem a coluna); "até" → 503 sem jargão.
+- **WhatsApp:** "marca X de 27 a 28/11", "dias 27 e 28/11", "do dia 27 ao dia
+  30", "dia 27 a 29 de novembro". ⚠️ Exige sinal de DATA (mês ou "dia"):
+  "reunião de 9 a 11" segue horário; "dias 10 e 20" são dois dias soltos;
+  "a 30 minutos"/"2 a 3 pessoas" não viram período. `preservarDataOriginal`
+  impede a IA de resumir o período num dia. "minha agenda" mostra o evento
+  UMA vez ("até sáb, 28/11" / "dia 2 de 3, até…").
+- **Painel:** "Mais de um dia" + "Termina em" no formulário (mudar o início
+  leva o fim junto), selo "Dia 1 de 2 · até 28/11", excluir apaga o evento
+  inteiro; contagem da semana e "Próximos eventos" do dashboard contam UMA vez
+  (`lib/agenda-periodo.ts`, `eval:agenda-periodo` compara o "até" com o
+  backend em 88 casos).
+- Fora (anotado): Planejamento Semanal recebe só o 1º dia de evento com hora.
+- Testado em produção sem a 204 (API + tela); a parte com a 204 só depois de
+  rodar (script pronto: `teste-agenda-prod.mjs` no scratchpad da sessão).
+
 ### Título do compromisso: grafia da pessoa e sem o "dia" (nov/2026)
 
 Relato (Bruno): "marca Reunião com Pedro dia 18/11 as 8h" salvava
@@ -5419,6 +5454,7 @@ sql/199_apple_assinaturas.sql — assinaturas da APPLE (app de iPhone, StoreKit)
 sql/200_fechamento_dia_proxima.sql — wallets.fechamento_dia_proxima (cartão manual: compra no dia do fechamento vai pra próxima fatura). **OBRIGATÓRIA ANTES do deploy do backend**: 17 consultas de cartão pedem a coluna; sem ela elas falham.
 sql/202_of_importar_desde.sql — of_conexoes.importar_desde ("trazer movimentações a partir de [data]", por banco). Sem ela nada quebra: o sync grava tudo como antes e a janela responde "ainda sendo liberada".
 sql/203_notas_painel.sql — notas.fixada + notas.updated_at (aba Notas do Drive). Sem ela as notas funcionam; só FIXAR responde "ainda está sendo liberado" e a ordem é pela criação.
+sql/204_compromisso_varios_dias.sql — compromissos.data_fim + CHECK (fim > início): evento de mais de um dia na Agenda. Sem ela tudo funciona como antes; marcar "até" responde "ainda está sendo liberado" (no zap, marca só o 1º dia e avisa).
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
