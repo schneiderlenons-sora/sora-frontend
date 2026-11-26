@@ -23,6 +23,11 @@
 		5A1D9E770000000000000013 /* SoraWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000004 /* SoraWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5A1D9E770000000000000014 /* AbrirLancamentoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000005 /* AbrirLancamentoIntent.swift */; };
 		5A1D9E770000000000000015 /* AbrirLancamentoIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000005 /* AbrirLancamentoIntent.swift */; };
+		5A1D9E770000000000000016 /* ChaveWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000006 /* ChaveWidget.swift */; };
+		5A1D9E770000000000000017 /* ChaveWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000006 /* ChaveWidget.swift */; };
+		5A1D9E770000000000000018 /* ServicoResumo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000007 /* ServicoResumo.swift */; };
+		5A1D9E770000000000000019 /* WidgetsNumeros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E770000000000000008 /* WidgetsNumeros.swift */; };
+		5A1D9E77000000000000001A /* SoraWidgetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D9E77000000000000000A /* SoraWidgetPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +73,11 @@
 		5A1D9E770000000000000002 /* LancarWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LancarWidget.swift; sourceTree = "<group>"; };
 		5A1D9E770000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		5A1D9E770000000000000005 /* AbrirLancamentoIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbrirLancamentoIntent.swift; sourceTree = "<group>"; };
+		5A1D9E770000000000000006 /* ChaveWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChaveWidget.swift; sourceTree = "<group>"; };
+		5A1D9E770000000000000007 /* ServicoResumo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicoResumo.swift; sourceTree = "<group>"; };
+		5A1D9E770000000000000008 /* WidgetsNumeros.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetsNumeros.swift; sourceTree = "<group>"; };
+		5A1D9E770000000000000009 /* SoraWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoraWidgets.entitlements; sourceTree = "<group>"; };
+		5A1D9E77000000000000000A /* SoraWidgetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoraWidgetPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,6 +124,7 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				C0A1B2C3D4E5F60718293A01 /* SoraComprasPlugin.swift */,
 				C0A1B2C3D4E5F60718293A03 /* SoraViewController.swift */,
+				5A1D9E77000000000000000A /* SoraWidgetPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -132,6 +143,10 @@
 				5A1D9E770000000000000001 /* SoraWidgetsBundle.swift */,
 				5A1D9E770000000000000002 /* LancarWidget.swift */,
 				5A1D9E770000000000000005 /* AbrirLancamentoIntent.swift */,
+				5A1D9E770000000000000006 /* ChaveWidget.swift */,
+				5A1D9E770000000000000007 /* ServicoResumo.swift */,
+				5A1D9E770000000000000008 /* WidgetsNumeros.swift */,
+				5A1D9E770000000000000009 /* SoraWidgets.entitlements */,
 				5A1D9E770000000000000003 /* Info.plist */,
 			);
 			path = SoraWidgets;
@@ -254,6 +269,8 @@
 				C0A1B2C3D4E5F60718293A02 /* SoraComprasPlugin.swift in Sources */,
 				C0A1B2C3D4E5F60718293A04 /* SoraViewController.swift in Sources */,
 				5A1D9E770000000000000015 /* AbrirLancamentoIntent.swift in Sources */,
+				5A1D9E770000000000000016 /* ChaveWidget.swift in Sources */,
+				5A1D9E77000000000000001A /* SoraWidgetPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -264,6 +281,9 @@
 				5A1D9E770000000000000011 /* SoraWidgetsBundle.swift in Sources */,
 				5A1D9E770000000000000012 /* LancarWidget.swift in Sources */,
 				5A1D9E770000000000000014 /* AbrirLancamentoIntent.swift in Sources */,
+				5A1D9E770000000000000017 /* ChaveWidget.swift in Sources */,
+				5A1D9E770000000000000018 /* ServicoResumo.swift in Sources */,
+				5A1D9E770000000000000019 /* WidgetsNumeros.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -467,6 +487,7 @@
 		5A1D9E770000000000000062 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SoraWidgets/SoraWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V4P649QY95;
@@ -491,6 +512,7 @@
 		5A1D9E770000000000000063 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SoraWidgets/SoraWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V4P649QY95;

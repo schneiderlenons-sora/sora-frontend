@@ -8,5 +8,6 @@ import Capacitor
 class SoraViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(SoraComprasPlugin())
+        bridge?.registerPluginInstance(SoraWidgetPlugin())
     }
 }

@@ -1,4 +1,5 @@
 import UIKit
+import WebKit
 import Capacitor
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
@@ -8,14 +9,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = SoraViewController()  // registra o plugin de compras
+        window?.rootViewController = SoraViewController()  // registra os plugins (compras e widgets)
         window?.makeKeyAndVisible()
 
-        // App fechado e aberto por um link /lancar/<acao>: guarda pra abrir o
-        // WhatsApp assim que o app estiver ativo.
+        // App fechado e aberto por um link (botão ou toque de widget): guarda pra
+        // agir assim que o app estiver ativo.
         for atividade in connectionOptions.userActivities {
-            if let url = atividade.webpageURL, let destino = AtalhoLancar.whatsapp(para: url) {
+            guard let url = atividade.webpageURL else { continue }
+            if let destino = AtalhoLancar.whatsapp(para: url) {
                 AtalhoLancar.pendente = destino
+            } else if let tela = NavegarApp.destino(url) {
+                NavegarApp.pendente = tela
             }
         }
 
@@ -24,6 +28,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         AtalhoLancar.abrirPendente()
+        NavegarApp.abrirPendente(em: window)
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
@@ -31,12 +36,55 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-        // Link /lancar/<acao>: vai direto pro WhatsApp e não chega ao site.
-        if let url = userActivity.webpageURL, let destino = AtalhoLancar.whatsapp(para: url) {
-            AtalhoLancar.abrir(destino)
-            return
+        if let url = userActivity.webpageURL {
+            // Link /lancar/<acao>: vai direto pro WhatsApp e não chega ao site.
+            if let destino = AtalhoLancar.whatsapp(para: url) {
+                AtalhoLancar.abrir(destino)
+                return
+            }
+            // Toque num widget: abre a tela dele DENTRO do app.
+            if let tela = NavegarApp.destino(url) {
+                if scene.activationState == .foregroundActive {
+                    NavegarApp.abrir(tela, em: window)
+                } else {
+                    NavegarApp.pendente = tela
+                }
+                return
+            }
         }
         SceneDelegateProxy.shared.scene(scene, continue: userActivity)
+    }
+}
+
+/// Toque num widget com números abre a tela dele no app (Previstos, Cartões,
+/// Widgets). Sem isto o iPhone abria o app e a página não mudava: o link chega
+/// ao app, mas ninguém mandava a tela navegar.
+///
+/// ⚠️ Lista FECHADA de caminhos: outros links do site seguem o caminho de antes.
+enum NavegarApp {
+    static var pendente: URL?
+    private static let caminhos = ["/widgets", "/previstos", "/cartao-de-credito"]
+
+    static func destino(_ url: URL) -> URL? {
+        guard let host = url.host?.lowercased(), host == "forsora.com" || host.hasSuffix(".forsora.com") else {
+            return nil
+        }
+        guard caminhos.contains(where: { url.path == $0 || url.path.hasPrefix($0 + "/") }) else { return nil }
+        return url
+    }
+
+    static func abrir(_ url: URL, em janela: UIWindow?) {
+        guard let web = (janela?.rootViewController as? CAPBridgeViewController)?.bridge?.webView else {
+            pendente = url
+            return
+        }
+        web.load(URLRequest(url: url))
+    }
+
+    static func abrirPendente(em janela: UIWindow?) {
+        guard let url = pendente else { return }
+        pendente = nil
+        abrir(url, em: janela)
     }
 }
 

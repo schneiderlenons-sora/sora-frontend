@@ -7,5 +7,9 @@
 		<string>applinks:www.forsora.com</string>
 		<string>webcredentials:www.forsora.com</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.forsora.app.compartilhado</string>
+	</array>
 </dict>
 </plist>

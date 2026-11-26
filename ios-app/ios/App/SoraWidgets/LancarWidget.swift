@@ -74,26 +74,64 @@ enum AcaoLancar: String, CaseIterable {
     }
 }
 
-struct LancarEntrada: TimelineEntry {
-    let date: Date
+/// Widgets só para assinantes (decisão do dono): sem conexão o widget pede
+/// pra conectar, e fora do plano diz que não faz parte do plano. Sem internet
+/// (nunca conseguiu conferir), os botões aparecem — eles só abrem o WhatsApp.
+enum SituacaoLancar {
+    case liberado, conectar, foraDoPlano
 }
 
-/// Nada neste widget muda com o tempo: um retrato só, sem atualização marcada.
+struct LancarEntrada: TimelineEntry {
+    let date: Date
+    let situacao: SituacaoLancar
+}
+
+private func situacaoDoLancar(_ s: SituacaoWidget) -> SituacaoLancar {
+    switch s {
+    case .desconectado: return .conectar
+    case .foraDoPlano: return .foraDoPlano
+    default: return .liberado
+    }
+}
+
 struct LancarProvedor: TimelineProvider {
     func placeholder(in context: Context) -> LancarEntrada {
-        LancarEntrada(date: .now)
+        LancarEntrada(date: .now, situacao: .liberado)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (LancarEntrada) -> Void) {
-        completion(LancarEntrada(date: .now))
+        if context.isPreview {
+            completion(LancarEntrada(date: .now, situacao: .liberado))
+            return
+        }
+        Task {
+            completion(LancarEntrada(date: .now, situacao: situacaoDoLancar(await ServicoResumo.buscar())))
+        }
     }
 
+    /// Confere a conexão e o plano a cada 3 horas (barato: o servidor responde
+    /// 304 quando nada mudou).
     func getTimeline(in context: Context, completion: @escaping (Timeline<LancarEntrada>) -> Void) {
-        completion(Timeline(entries: [LancarEntrada(date: .now)], policy: .never))
+        Task {
+            let e = LancarEntrada(date: .now, situacao: situacaoDoLancar(await ServicoResumo.buscar()))
+            completion(Timeline(entries: [e], policy: .after(Date().addingTimeInterval(3 * 60 * 60))))
+        }
     }
 }
 
 struct LancarVista: View {
+    let situacao: SituacaoLancar
+
+    var body: some View {
+        switch situacao {
+        case .conectar: EstadoConectar()
+        case .foraDoPlano: EstadoForaDoPlano()
+        case .liberado: LancarBotoes()
+        }
+    }
+}
+
+struct LancarBotoes: View {
     @Environment(\.colorScheme) private var esquema
     @Environment(\.widgetRenderingMode) private var modo
 
@@ -143,8 +181,8 @@ struct LancarWidget: Widget {
     let kind = "SoraLancar"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: LancarProvedor()) { _ in
-            LancarVista()
+        StaticConfiguration(kind: kind, provider: LancarProvedor()) { entrada in
+            LancarVista(situacao: entrada.situacao)
                 .containerBackground(for: .widget) {
                     FundoWidget()
                 }
