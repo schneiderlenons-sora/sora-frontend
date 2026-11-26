@@ -1415,6 +1415,14 @@ export const api = {
       req<{ ok: boolean; revogada: boolean }>(`/api/ia-conectada/conexoes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
 
+  // ── WIDGETS DO CELULAR (fase 2 — sora-backend/src/routes/widget.js) ────
+  widget: {
+    estado: () => req<import('@/lib/widgets').EstadoWidgets>('/api/widget/aparelhos'),
+    codigo: () => req<{ codigo: string; expira_em: string }>('/api/widget/codigo', { method: 'POST' }),
+    desconectar: (id: string) =>
+      req<{ ok: boolean }>(`/api/widget/aparelhos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+
   // ── NEGÓCIOS (CFO de bolso — DRE, integrações, custos, IA) ────
   negocios: {
     // Multi-empresa (ilimitadas no Premium). `tipo` define como a aba se

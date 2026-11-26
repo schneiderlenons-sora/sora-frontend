@@ -64,7 +64,7 @@ export type ItemNav = {
   breve?:  boolean;                    // aba futura: mostra, não navega
   // Teste fechado: o item só aparece pra quem está na lista do teste
   // (lib/ia-conectada.ts). Fora dela some — não vira cadeado nem "em breve".
-  teste?:  'ia_conectada';
+  teste?:  'ia_conectada' | 'widgets';
   externa?: boolean;                  // href com query (não casa por igualdade)
 };
 
@@ -139,6 +139,9 @@ export const GRUPOS: GrupoNav[] = [
           // A Sora no ChatGPT ou no Claude do cliente: a conversa (e a análise)
           // acontece na IA dele. Mora em Analisar porque, na fase 1, ela só LÊ.
           { href: '/conectar-ia',   label: 'ChatGPT e Claude',     icone: 'Bot', gate: 'ia_conectada', badge: 'Premium', teste: 'ia_conectada' },
+          // Widgets do celular (fase 2). O plano é conferido pelo servidor e a
+          // própria aba explica quem fica de fora; o item some fora do teste.
+          { href: '/widgets',       label: 'Widgets',              icone: 'LayoutGrid', teste: 'widgets' },
         ],
       },
     ],

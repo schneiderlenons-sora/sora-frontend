@@ -11,7 +11,7 @@ import {
   Beaker, ArrowLeft, Wallet, Rocket, Check, Gift,
   Plane, Clapperboard, BookOpen, Bug, Shield, Building2,
   Percent, CalendarRange, FolderLock, CalendarClock,
-  Palette, Lightbulb, Share2, Megaphone, Bot,
+  Palette, Lightbulb, Share2, Megaphone, Bot, LayoutGrid,
   // Painel Negócios (resolvidos por nome a partir de lib/negocios-nav)
   HandCoins, FileBarChart, ShoppingCart, Package, Boxes, Truck,
   IdCard, Plug, CheckCheck, Store, KeyRound,
@@ -22,6 +22,7 @@ import { useEmpresa } from '@/components/negocios/EmpresaContext';
 import EmpresaAvatar from '@/components/negocios/EmpresaAvatar';
 import { isAdminEmail } from '@/lib/admin';
 import { podeVerIaConectada } from '@/lib/ia-conectada';
+import { podeVerWidgets } from '@/lib/widgets';
 import { useAdminPendencias } from '@/lib/useAdminPendencias';
 import AvatarMembro from '@/components/ui/AvatarMembro';
 import { useEffect, useMemo, useState } from 'react';
@@ -122,7 +123,7 @@ const ICONES_APP: Record<string, IconeLucide> = {
   Receipt, Flag, Target, BarChart2, Tag, TrendingUp, Percent, ListChecks,
   CalendarDays, GraduationCap, Activity, Heart, Home: HomeIcon, Plane,
   Clapperboard, BookOpen, Users, Zap, Bug, Palette, Gift, Lightbulb, Share2,
-  Megaphone, Shield, CalendarClock, Sparkles, MessageCircle, Bot,
+  Megaphone, Shield, CalendarClock, Sparkles, MessageCircle, Bot, LayoutGrid,
 };
 
 const ICONES_NEGOCIOS: Record<string, IconeLucide> = {
@@ -165,7 +166,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   // Item de teste fechado (`teste` em lib/sidebar-nav): some pra quem não está
   // na lista — nem cadeado, nem "em breve", nem aquecimento da rota.
   const veIaConectada = podeVerIaConectada(perfil?.email);
-  const itemVisivel = (i: ItemNav) => !(i.semAndroid && ehAndroid) && !(i.teste === 'ia_conectada' && !veIaConectada);
+  const veWidgets = podeVerWidgets(perfil?.email);
+  const foraDoTeste = (i: ItemNav) => (i.teste === 'ia_conectada' && !veIaConectada) || (i.teste === 'widgets' && !veWidgets);
+  const itemVisivel = (i: ItemNav) => !(i.semAndroid && ehAndroid) && !foraDoTeste(i);
   // Cliente respondeu chamado e o admin não abriu (só consulta pra admin).
   const { respostas: adminRespostas } = useAdminPendencias();
   // Conformidade com a política do Play Console — ver `semAndroid` em
@@ -182,13 +185,14 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: { mobileO
   const todasAsRotas = useMemo(() => Array.from(new Set([
     ...NAV_TOPO.map((i) => i.href),
     ...GRUPOS.flatMap((g) => g.subgrupos.flatMap((sg) => sg.itens
-      .filter((i) => !(i.teste === 'ia_conectada' && !veIaConectada)).map((i) => i.href))),
+      .filter((i) => !foraDoTeste(i)).map((i) => i.href))),
     // ⚠️ As SEÇÕES do fim do menu (Gestão compartilhada) não entravam: a 1ª
     // visita à /comunidade baixava a rota inteira na hora do toque (~0,7 s
     // medido). As de `externa` (com ?aba=) já vêm pela rota-base, abaixo.
     ...SECOES.flatMap((sg) => sg.itens.filter((i) => !i.externa).map((i) => i.href)),
     '/wrapped', '/ajuda', '/central-sora', '/planos', '/configuracoes', '/agentes', '/grow/dados',
-  ])), [veIaConectada]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- foraDoTeste só depende destes dois
+  ])), [veIaConectada, veWidgets]);
 
   useEffect(() => {
     if (!phone) return;
