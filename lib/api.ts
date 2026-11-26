@@ -968,6 +968,16 @@ export const api = {
       downloadUrl: (body: { phone: string; path: string }) => req<{ url: string }>('/api/dados/download-url', { method: 'POST', body: JSON.stringify(body) }),
       todos:       (phone: string) => req<any[]>(`/api/dados/arquivos/${phone}`),
     },
+    /** Notas do Drive (tabela `notas`, a mesma do "anota que …" do WhatsApp).
+     *  Privadas por pessoa. Ver lib/notas.ts e services/notasPainel.js. */
+    notas: {
+      listar:  (phone: string) => req<import('@/lib/notas').Nota[]>(`/api/dados/notas/${phone}`),
+      criar:   (body: { titulo?: string | null; texto?: string; categoria?: string | null; fixada?: boolean }) =>
+        req<import('@/lib/notas').Nota>('/api/dados/notas', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: { titulo?: string | null; texto?: string; categoria?: string | null; fixada?: boolean }) =>
+        req<import('@/lib/notas').Nota>(`/api/dados/notas/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string) => req<{ ok: boolean }>(`/api/dados/notas/${id}`, { method: 'DELETE' }),
+    },
   },
 
   // ── GROW (segundo painel: hábitos, tarefas, humor, casa) ─────

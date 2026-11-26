@@ -6,10 +6,11 @@ import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import GrowHero from '@/components/grow/GrowHero';
+import NotasDrive from '@/components/dados/NotasDrive';
 import {
   Lock, ShieldCheck, ShieldOff, Loader2, Plus, ChevronLeft, ChevronRight, X,
   Pencil, Trash2, Copy, Check, Eye, EyeOff, KeyRound, FileText, Paperclip, Download,
-  FolderLock, Search, Clock,
+  FolderLock, Search, Clock, Folder, NotebookPen,
 } from 'lucide-react';
 
 const BRAND = 'hsl(var(--primary))';
@@ -197,13 +198,22 @@ function EsqueciPin({ phone, email, onPronto, onVoltar }: { phone: string; email
 function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean; onPinChange: (definido: boolean) => void }) {
   const [secao, setSecao] = useState<any | null>(null);
   const [modalPin, setModalPin] = useState(false);
+  // Aba do Drive. `?aba=notas` abre direto nas notas. O cofre só monta no
+  // navegador (depois do PIN), então ler a URL aqui não descasa do servidor.
+  const [aba, setAba] = useState<'arquivos' | 'notas'>(() => {
+    try { return new URLSearchParams(window.location.search).get('aba') === 'notas' ? 'notas' : 'arquivos'; }
+    catch { return 'arquivos'; }
+  });
+  const emNotas = aba === 'notas' && !secao;
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
         badge="Drive" badgeIcon={FolderLock}
-        titulo={secao ? secao.nome : 'Meu Drive'}
-        subtitulo={secao ? 'Arquivos e informações desta pasta' : 'Seus arquivos e informações, guardados e à mão — mande pela Sora no WhatsApp e ela organiza.'}
+        titulo={secao ? secao.nome : emNotas ? 'Minhas notas' : 'Meu Drive'}
+        subtitulo={secao ? 'Arquivos e informações desta pasta'
+          : emNotas ? 'Escreva à vontade: salva sozinho enquanto você digita. O que você anotar pelo WhatsApp também aparece aqui.'
+          : 'Seus arquivos e informações, guardados e à mão — mande pela Sora no WhatsApp e ela organiza.'}
       >
         <button onClick={() => setModalPin(true)}
           className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-border/60 text-foreground hover:bg-foreground/[0.04] transition-all">
@@ -220,9 +230,32 @@ function Vault({ phone, temPin, onPinChange }: { phone: string; temPin: boolean;
         </button>
       )}
 
+      {/* Arquivos | Notas — só na raiz do Drive (dentro de uma pasta, o
+          caminho de volta é o "Voltar" da própria pasta). */}
+      {!secao && (
+        <div role="tablist" aria-label="Seções do Drive"
+             className="inline-flex p-1 rounded-2xl border border-border/60" style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
+          {([
+            { v: 'arquivos', l: 'Arquivos e pastas', Icon: Folder },
+            { v: 'notas', l: 'Notas', Icon: NotebookPen },
+          ] as const).map(({ v, l, Icon }) => {
+            const ativa = aba === v;
+            return (
+              <button key={v} role="tab" aria-selected={ativa} onClick={() => setAba(v)}
+                      className={`h-11 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors ${
+                        ativa ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Icon size={15} aria-hidden /> {l}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {secao
         ? <NivelItens phone={phone} secao={secao} onVoltar={() => setSecao(null)} />
-        : <Board phone={phone} onAbrirSecao={setSecao} />}
+        : emNotas
+          ? <NotasDrive phone={phone} />
+          : <Board phone={phone} onAbrirSecao={setSecao} />}
 
       {modalPin && <ModalPin phone={phone} temPin={temPin} onFechar={() => setModalPin(false)} onMudou={onPinChange} />}
     </div>
@@ -574,7 +607,8 @@ function ModalItem({ phone, secaoId, item, onFechar, onSalvo }: any) {
         </>
       ) : tipo === 'nota' ? (
         <><label className="text-xs font-semibold text-muted-foreground">Conteúdo</label>
-        <textarea value={valor} onChange={e => setValor(e.target.value)} rows={4} className={`${inputCls} mt-1 mb-5 resize-y`} autoFocus /></>
+        <textarea value={valor} onChange={e => setValor(e.target.value)} rows={9} className={`${inputCls} mt-1 mb-2 resize-y min-h-[12rem] leading-relaxed`} autoFocus />
+        <p className="text-[11px] text-muted-foreground mb-4">Pra textos longos, a aba <b className="text-foreground">Notas</b> do Drive salva sozinha enquanto você escreve.</p></>
       ) : (
         <><label className="text-xs font-semibold text-muted-foreground">Valor</label>
         <input value={valor} onChange={e => setValor(e.target.value)} className={`${inputCls} mt-1 mb-5`} autoFocus /></>

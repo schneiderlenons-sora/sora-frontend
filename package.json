@@ -60,7 +60,8 @@
     "eval:limite-cartao": "npx tsx lib/limite-cartao.eval.mjs",
     "eval:apple-billing": "npx tsx lib/apple-billing.eval.mjs",
     "eval:marca-transferencia": "npx tsx lib/marca-transferencia.eval.mjs",
-    "eval:ainda-vem-mes-back": "npx tsx lib/ainda-vem-mes-back.eval.mjs"
+    "eval:ainda-vem-mes-back": "npx tsx lib/ainda-vem-mes-back.eval.mjs",
+    "eval:notas": "npx tsx lib/notas.eval.mjs"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
