@@ -40,7 +40,7 @@ export type Chamado = {
 };
 
 // Higiene de formulário, não regra de plataforma: a resposta vai pro painel
-// (coluna text); o WhatsApp leva só a campainha. Ver responder-relato.
+// (coluna text). O cliente é avisado só pelo painel. Ver responder-relato.
 const LIMITE_RESPOSTA = 6000;
 
 const TIPOS = [
@@ -140,10 +140,10 @@ export default function ChamadosPainel({ flash, onMudou }: {
         body: JSON.stringify({ bugId: c.id, texto: respMsg.trim() }),
       });
       const d = await r.json().catch(() => ({}));
-      // Só é erro quando a RESPOSTA não foi publicada — a campainha do
-      // WhatsApp falhando volta como `aviso` e não invalida nada.
-      if (d?.erro) { flash('⚠️ ' + d.erro); return; }
-      flash(d?.aviso ? '⚠️ ' + d.aviso : 'Respondido ✓ (avisado no WhatsApp)');
+      // Só é erro quando a resposta não foi gravada. Não há mais aviso pelo
+      // WhatsApp (decisão do dono): o cliente vê pelo selo no painel.
+      if (!r.ok || d?.erro) { flash('⚠️ ' + (d?.erro || `Erro ${r.status}`)); return; }
+      flash('Respondido ✓ (o cliente vê no painel)');
       setRespId(null); setRespMsg('');
       setVersao((v) => ({ ...v, [c.id]: (v[c.id] || 0) + 1 }));
       await carregar();

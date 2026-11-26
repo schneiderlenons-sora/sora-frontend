@@ -818,6 +818,11 @@ resposta, pagando conexão sem banco, banco parado) e métricas em 3 grupos
   sem resposta não acende. **Busca** por nome, e-mail ou telefone (`casaBusca`):
   buscando, bloco vazio some e os resolvidos abrem sozinhos.
   ⚠️ Abrir a conversa MARCA COMO LIDA em produção — não abrir chamado real em teste.
+- **Responder chamado NÃO avisa mais no WhatsApp** (26/11/2026, decisão do
+  dono, pra economizar mensagens pagas na Meta): `responder-relato` só grava
+  a resposta e o cliente vê pelo selo do painel (`useChamadosNaoLidos`). A rota
+  do backend com o mesmo nome ficou sem uso. O aviso ao número de SUPORTE
+  quando chega relato novo (`routes/bug.js`) continua.
 - **Selo vermelho no item Admin** da sidebar (e ponto no "Menu" do celular):
   `lib/useAdminPendencias.ts` → `/api/admin/pendencias`, 2 min, só pra admin;
   leva a `/admin?aba=chamados`. Existe porque o aviso ao suporte por WhatsApp é

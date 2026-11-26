@@ -12,16 +12,9 @@ export const dynamic = 'force-dynamic';
 // no WhatsApp da Sora e a mensagem nunca chegava ao dono: aquele número
 // atende a assistente financeira, não o suporte.
 //
-// Agora o PAINEL é o canal e o WhatsApp é só a campainha:
-//   1. grava a resposta em `bug_mensagens` — é ela que o cliente vai ler;
-//   2. avisa no WhatsApp (sem o texto) que há resposta, com o link;
-//   3. o aviso é BEST-EFFORT: falhar nele não invalida uma resposta que já
-//      está no painel e já dispara a notificação na tela.
-//
-// ⚠️ E É ISSO QUE DESTRAVA QUEM NÃO TEM TELEFONE. Antes a rota recusava com
-// 400 ("responda por e-mail") e o botão nem aparecia no admin — um cliente
-// real (jr.sprega@gmail.com) ficou sem resposta possível. Sem WhatsApp a
-// resposta é entregue do mesmo jeito; o que ele perde é só a campainha.
+// Agora o PAINEL é o canal: grava a resposta em `bug_mensagens` e o cliente
+// a lê no painel (com o selo de resposta nova). Desde 26/11/2026 NÃO há mais
+// aviso pelo WhatsApp — ver o passo 2 abaixo.
 export async function POST(req: NextRequest) {
   const gate = await checkAdmin();
   if ('error' in gate) return gate.error;
@@ -54,48 +47,11 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin.from('bug_reports')
     .update({ status: 'em_andamento' }).eq('id', bugId).eq('status', 'aberto');
 
-  // ── 2. A campainha (opcional).
-  if (!b.phone) {
-    return NextResponse.json({
-      ok: true, para: b.nome || 'cliente', avisado: false,
-      aviso: 'Resposta publicada no painel. Sem WhatsApp cadastrado, o cliente vê pela notificação ao abrir a Sora.',
-    });
-  }
-
-  const base = process.env.NEXT_PUBLIC_API_URL;
-  const secret = process.env.ADMIN_SECRET;
-  if (!base || !secret) {
-    return NextResponse.json({
-      ok: true, para: b.nome || b.phone, avisado: false,
-      aviso: 'Resposta publicada, mas o aviso por WhatsApp não saiu (falta NEXT_PUBLIC_API_URL ou ADMIN_SECRET na Vercel).',
-    });
-  }
-
-  try {
-    const r = await fetch(`${base}/api/admin/responder-relato`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
-      // `texto` vai só pra rota recusar chamada vazia — o backend NÃO o envia.
-      body: JSON.stringify({ phone: b.phone, nome: b.nome || '', texto: texto.trim() }),
-    });
-    const data = await r.json().catch(() => ({}));
-
-    // ⚠️ Falha aqui NÃO é falha da resposta: ela já está no painel e a
-    // notificação na tela já vai aparecer. Dizer "erro" faria o admin
-    // reescrever tudo e a conversa sairia duplicada.
-    if (!r.ok || data?.ok === false) {
-      const motivo = data?.erro || `falha ${r.status}`;
-      return NextResponse.json({
-        ok: true, para: b.nome || b.phone, avisado: false,
-        aviso: `Resposta publicada no painel, mas o aviso por WhatsApp não foi entregue (${motivo}). O cliente ainda vê pela notificação.`,
-      });
-    }
-
-    return NextResponse.json({ ok: true, para: b.nome || b.phone, avisado: true });
-  } catch (e: unknown) {
-    return NextResponse.json({
-      ok: true, para: b.nome || b.phone, avisado: false,
-      aviso: `Resposta publicada, mas o aviso por WhatsApp falhou (${e instanceof Error ? e.message : 'erro'}).`,
-    });
-  }
+  // ── 2. SEM AVISO NO WHATSAPP (decisão do dono, 26/11/2026). O cliente vê a
+  // resposta pela notificação do painel (selo no botão Ajuda e no "Menu" do
+  // celular — lib/useChamadosNaoLidos.ts). A "campainha" pelo WhatsApp custava
+  // uma mensagem paga na Meta a cada resposta e, quando falhava, mostrava ao
+  // admin um aviso de erro numa resposta que tinha dado certo. A rota do
+  // backend (/api/admin/responder-relato) fica lá, sem uso.
+  return NextResponse.json({ ok: true, para: b.nome || b.phone || 'cliente' });
 }
