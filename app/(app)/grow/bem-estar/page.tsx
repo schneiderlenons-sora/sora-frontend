@@ -7,8 +7,9 @@ import SectionSkeleton from '@/components/ui/SectionSkeleton';
 import { useApi } from '@/lib/useApi';
 import {
   Heart, Sparkles, Loader2, Check, Smile, Plus, TrendingUp,
-  Moon, Zap, X,
+  Moon, Zap, X, CalendarDays, Pencil, Trash2,
 } from 'lucide-react';
+import { dataLocal, somarDias, alvoPadrao, rotuloDia, erroDaData, recentesPrimeiro, DIAS_PRA_TRAS, type Alvo } from '@/lib/humor';
 import GrowHero from '@/components/grow/GrowHero';
 import dynamic from 'next/dynamic';
 
@@ -34,17 +35,27 @@ const HUMOR_LABEL = ['', 'Péssimo', 'Mal', 'Normal', 'Bem', 'Ótimo'];
 
 export default function BemEstarPage() {
   const { phone } = useAuth();
-  const [modalOpen, setModalOpen] = useState(false);
+  // Formulário: { registro } = editar aquele; { registro: null } = novo naquele dia.
+  const [modal, setModal] = useState<{ registro: any | null; data: string } | null>(null);
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  // ⚠️ Data do APARELHO (era toISOString = UTC: às 22h já marcava o dia seguinte).
+  const hoje = dataLocal();
+  const ontem = somarDias(hoje, -1);
+  // Pedido da Tatiane: na madrugada o registro rápido vai pra ONTEM (e diz isso);
+  // a pessoa troca com um toque. Derivado, sem efeito: nada pisca.
+  const [alvoEscolhido, setAlvoEscolhido] = useState<Alvo | null>(null);
+  const alvo: Alvo = alvoEscolhido ?? alvoPadrao();
+  const dataAlvo = alvo === 'ontem' ? ontem : hoje;
+  const madrugadaSugeriu = alvoEscolhido === null && alvo === 'ontem';
 
   // ── Humor via SWR: revisitar a tela é instantâneo (cache em memória). ──
   const { data: humorData, mutate: mHumor } = useApi(phone ? `bem:humor:${phone}` : null, () => api.grow.humor.listar(phone, 30));
-  const registros: any[] = (humorData as any) ?? [];
+  const registros: any[] = useMemo(() => (humorData as any) ?? [], [humorData]);
   const loading = humorData === undefined;
-  const carregar = useCallback((_silent = false) => mHumor(), [mHumor]);
+  const carregar = useCallback(() => mHumor(), [mHumor]);
 
-  const registroHoje = useMemo(() => registros.find(r => r.data === hoje), [registros, hoje]);
+  const registroAlvo = useMemo(() => registros.find(r => r.data === dataAlvo), [registros, dataAlvo]);
+  const abrirDia = (data: string) => setModal({ registro: registros.find(r => r.data === data) || null, data });
   const humorMedio = useMemo(() => registros.length
     ? (registros.reduce((s, r) => s + r.humor, 0) / registros.length).toFixed(1)
     : null,
@@ -53,8 +64,8 @@ export default function BemEstarPage() {
   const diasBons = useMemo(() => registros.filter(r => r.humor >= 4).length, [registros]);
 
   const dadosGrafico = useMemo(() => {
-    return registros.map(r => ({
-      dia: r.data?.slice(5).replace('-', '/'),
+    return [...registros].sort((a, b) => a.data.localeCompare(b.data)).map(r => ({
+      dia: r.data?.slice(5).split('-').reverse().join('/'),
       humor: r.humor,
       energia: r.energia,
     }));
@@ -67,7 +78,7 @@ export default function BemEstarPage() {
     const ult7 = ord.slice(-7);
     const media7 = ult7.length ? ult7.reduce((s, r) => s + Number(r.sono_horas), 0) / ult7.length : null;
     const ultimo = ord[ord.length - 1] || null;
-    const barras = ord.slice(-14).map(r => ({ dia: r.data?.slice(5).replace('-', '/'), horas: Number(r.sono_horas) }));
+    const barras = ord.slice(-14).map(r => ({ dia: r.data?.slice(5).split('-').reverse().join('/'), horas: Number(r.sono_horas) }));
     return { temDados: com.length > 0, ultimo, media7, barras };
   }, [registros]);
 
@@ -80,6 +91,8 @@ export default function BemEstarPage() {
     [registros]
   );
 
+  const seletor = <SeletorDia alvo={alvo} onMudar={setAlvoEscolhido} />;
+
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
       <GrowHero
@@ -87,7 +100,7 @@ export default function BemEstarPage() {
         titulo="Bem-estar"
         subtitulo="Como você está hoje? Registrar o humor te ajuda a notar padrões."
       >
-        <button onClick={() => setModalOpen(true)}
+        <button onClick={() => abrirDia(dataAlvo)}
           className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
           <Plus size={16} /> Registrar
         </button>
@@ -97,33 +110,46 @@ export default function BemEstarPage() {
         <SectionSkeleton />
       ) : (
         <>
-          {/* CHECKIN DO DIA */}
-          {!registroHoje ? (
+          {/* CHECK-IN (hoje, ou ontem na madrugada) */}
+          {!registroAlvo ? (
             <div className="card rounded-3xl p-6 sm:p-8 animate-fade-in" style={{ animationDelay: '60ms' }}>
-              <h2 className="text-lg font-bold text-foreground mb-1">Como você está hoje?</h2>
-              <p className="text-sm text-muted-foreground mb-5">Um clique e a Sora aprende mais sobre você.</p>
+              <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+                <h2 className="text-lg font-bold text-foreground">{alvo === 'ontem' ? 'Como foi o seu dia ontem?' : 'Como você está hoje?'}</h2>
+                {seletor}
+              </div>
+              <p className="text-sm text-muted-foreground mb-5">
+                {madrugadaSugeriu
+                  ? <>Já passou da meia-noite, então vamos registrar como <b className="text-foreground">ontem ({ontem.slice(8, 10)}/{ontem.slice(5, 7)})</b>. Se for sobre hoje, toque em Hoje.</>
+                  : 'Um clique e a Sora aprende mais sobre você.'}
+              </p>
               <CheckinHumor
                 phone={phone!}
+                data={dataAlvo}
                 onOtimista={(humor) => mHumor(
                   (cur: any) => [
-                    { data: hoje, humor, energia: null, nota: null },
-                    ...((cur || []).filter((r: any) => r.data !== hoje)),
+                    ...((cur || []).filter((r: any) => r.data !== dataAlvo)),
+                    { data: dataAlvo, humor, energia: null, nota: null },
                   ],
                   { revalidate: false, populateCache: true },
                 )}
-                onSuccess={() => carregar(true)}
+                onSuccess={() => carregar()}
               />
             </div>
           ) : (
             <div className="card rounded-3xl p-5 sm:p-6 animate-fade-in" style={{ animationDelay: '60ms' }}>
               <div className="flex items-center gap-4">
-                <div className="text-4xl sm:text-5xl flex-shrink-0">{HUMOR_EMOJI[registroHoje.humor]}</div>
+                <div className="text-4xl sm:text-5xl flex-shrink-0">{HUMOR_EMOJI[registroAlvo.humor]}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Hoje</p>
-                  <p className="text-lg sm:text-xl font-bold text-foreground">{HUMOR_LABEL[registroHoje.humor]} ({registroHoje.humor}/5)</p>
-                  {registroHoje.nota && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{registroHoje.nota}</p>}
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{rotuloDia(registroAlvo.data, hoje)}</p>
+                  <p className="text-lg sm:text-xl font-bold text-foreground">{HUMOR_LABEL[registroAlvo.humor]} ({registroAlvo.humor}/5)</p>
+                  {registroAlvo.nota && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{registroAlvo.nota}</p>}
                 </div>
+                <button onClick={() => setModal({ registro: registroAlvo, data: registroAlvo.data })} aria-label="Editar este registro"
+                        className="w-11 h-11 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted flex-shrink-0">
+                  <Pencil size={16} />
+                </button>
               </div>
+              <div className="mt-3 flex justify-end">{seletor}</div>
             </div>
           )}
 
@@ -135,7 +161,7 @@ export default function BemEstarPage() {
           </div>
 
           {/* SONO */}
-          {registros.length > 0 && <SonoCard sono={sono} onAdd={() => setModalOpen(true)} />}
+          {registros.length > 0 && <SonoCard sono={sono} onAdd={() => abrirDia(dataAlvo)} />}
 
           {/* GRAFICO */}
           {dadosGrafico.length > 0 && (
@@ -145,8 +171,15 @@ export default function BemEstarPage() {
             </div>
           )}
 
+          {/* HISTÓRICO — corrigir o dia ou o que foi registrado */}
+          {registros.length > 0 && (
+            <HistoricoHumor registros={registros} hoje={hoje}
+              onAbrir={(r) => setModal({ registro: r, data: r.data })}
+              onOutroDia={() => setModal({ registro: null, data: somarDias(hoje, -1) })} />
+          )}
+
           {/* MURAL DE GRATIDÃO */}
-          {registros.length > 0 && <GratidaoMural entries={gratidaoEntries} onAdd={() => setModalOpen(true)} />}
+          {registros.length > 0 && <GratidaoMural entries={gratidaoEntries} onAdd={() => abrirDia(dataAlvo)} />}
 
           {registros.length === 0 && (
             <div className="card rounded-3xl py-16 flex flex-col items-center text-center px-6">
@@ -163,20 +196,39 @@ export default function BemEstarPage() {
         </>
       )}
 
-      {modalOpen && phone && (
+      {modal && phone && (
         <ModalHumor
+          key={`${modal.registro?.id || 'novo'}-${modal.data}`}
           phone={phone}
-          atual={registroHoje}
-          onClose={() => setModalOpen(false)}
-          onSuccess={() => { carregar(true); setModalOpen(false); }}
+          registro={modal.registro}
+          dataInicial={modal.data}
+          registros={registros}
+          hoje={hoje}
+          onClose={() => setModal(null)}
+          onSuccess={() => { carregar(); setModal(null); }}
         />
       )}
     </div>
   );
 }
 
-function CheckinHumor({ phone, onOtimista, onSuccess }: {
+// Hoje | Ontem — de qual dia é o check-in rápido.
+function SeletorDia({ alvo, onMudar }: { alvo: Alvo; onMudar: (a: Alvo) => void }) {
+  return (
+    <div className="inline-flex p-0.5 rounded-xl bg-muted/50" role="group" aria-label="Dia do registro">
+      {(['ontem', 'hoje'] as const).map(a => (
+        <button key={a} onClick={() => onMudar(a)} aria-pressed={alvo === a}
+          className={`h-9 px-3 rounded-lg text-xs font-semibold transition-colors ${alvo === a ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+          {a === 'ontem' ? 'Ontem' : 'Hoje'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CheckinHumor({ phone, data, onOtimista, onSuccess }: {
   phone: string;
+  data: string;
   onOtimista: (humor: number) => void;
   onSuccess: () => void;
 }) {
@@ -184,7 +236,7 @@ function CheckinHumor({ phone, onOtimista, onSuccess }: {
     // Optimismo total — UI atualiza imediatamente, sem disable de botão.
     onOtimista(humor);
     try {
-      await api.grow.humor.registrar({ phone, humor });
+      await api.grow.humor.registrar({ phone, humor, data });
       onSuccess(); // revalida em background
     } catch (e: any) {
       alert(e.message);
@@ -208,41 +260,135 @@ function CheckinHumor({ phone, onOtimista, onSuccess }: {
   );
 }
 
-function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
-  const [humor, setHumor]   = useState<number>(atual?.humor || 3);
-  const [nota, setNota]     = useState(atual?.nota || '');
-  const [energia, setEnergia] = useState<number>(atual?.energia || 3);
-  const [sono, setSono]     = useState(atual?.sono_horas?.toString() || '');
-  const [gratidao, setGratidao] = useState<string[]>(atual?.gratidao || ['', '', '']);
+// ═══════════════════════════════════════════════════════════════════
+// HISTÓRICO — os registros recentes; tocar abre pra corrigir (inclusive o dia)
+// ═══════════════════════════════════════════════════════════════════
+function HistoricoHumor({ registros, hoje, onAbrir, onOutroDia }: {
+  registros: any[]; hoje: string; onAbrir: (r: any) => void; onOutroDia: () => void;
+}) {
+  const [todos, setTodos] = useState(false);
+  const lista = recentesPrimeiro(registros);
+  const mostra = todos ? lista : lista.slice(0, 7);
+  return (
+    <div className="card rounded-3xl p-5 sm:p-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Seus registros</h2>
+          <p className="text-xs text-muted-foreground">Toque num dia pra corrigir o humor ou a data.</p>
+        </div>
+        <button onClick={onOutroDia}
+          className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl text-xs font-semibold text-foreground border border-border/60 hover:bg-muted flex-shrink-0">
+          <CalendarDays size={14} aria-hidden /> Outro dia
+        </button>
+      </div>
+      <ul className="divide-y divide-border/50">
+        {mostra.map((r) => (
+          <li key={r.id || r.data}>
+            <button onClick={() => r.id && onAbrir(r)} disabled={!r.id}
+              className="w-full flex items-center gap-3 py-2.5 text-left rounded-lg hover:bg-muted/40 px-1 -mx-1 disabled:opacity-60">
+              <span className="text-2xl flex-shrink-0" aria-hidden>{HUMOR_EMOJI[r.humor]}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  {rotuloDia(r.data, hoje)} <span className="font-normal text-muted-foreground">· {HUMOR_LABEL[r.humor]}</span>
+                </span>
+                {(r.nota || r.sono_horas != null || r.energia) && (
+                  <span className="block text-xs text-muted-foreground truncate">
+                    {[r.energia ? `energia ${r.energia}/5` : null, r.sono_horas != null ? `${Number(r.sono_horas).toFixed(1)}h de sono` : null, r.nota].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </span>
+              <Pencil size={14} className="text-muted-foreground flex-shrink-0" aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {lista.length > 7 && (
+        <button onClick={() => setTodos(v => !v)} className="mt-2 h-10 px-2 text-xs font-semibold text-primary hover:underline">
+          {todos ? 'Mostrar menos' : `Ver todos (${lista.length})`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ModalHumor({ phone, registro, dataInicial, registros, hoje, onClose, onSuccess }: {
+  phone: string; registro: any | null; dataInicial: string; registros: any[]; hoje: string;
+  onClose: () => void; onSuccess: () => void;
+}) {
+  const [data, setData]     = useState<string>(registro?.data || dataInicial);
+  const [humor, setHumor]   = useState<number>(registro?.humor || 3);
+  const [nota, setNota]     = useState(registro?.nota || '');
+  const [energia, setEnergia] = useState<number>(registro?.energia || 3);
+  const [sono, setSono]     = useState(registro?.sono_horas?.toString() || '');
+  const [gratidao, setGratidao] = useState<string[]>(() => {
+    const g = Array.isArray(registro?.gratidao) ? registro.gratidao.slice(0, 3) : [];
+    return [...g, '', '', ''].slice(0, 3);
+  });
   const [loading, setLoading] = useState(false);
+  const [confirmarApagar, setConfirmarApagar] = useState(false);
   const [erro, setErro] = useState('');
 
+  const erroData = erroDaData(data, hoje);
+  // Outro registro no dia escolhido (o próprio não conta).
+  const outro = registros.find(r => r.data === data && r.id !== registro?.id);
+  const bloqueado = !!erroData || (!!registro && !!outro);
+
   async function salvar() {
+    if (bloqueado) return;
     setErro(''); setLoading(true);
+    const corpo = {
+      data, humor, nota: nota.trim() || null,
+      energia, sono_horas: sono ? parseFloat(sono.replace(',', '.')) : null,
+      gratidao: gratidao.filter(g => g.trim()),
+    };
     try {
-      await api.grow.humor.registrar({
-        phone, humor, nota: nota.trim() || undefined,
-        energia, sono_horas: sono ? parseFloat(sono) : undefined,
-        gratidao: gratidao.filter(g => g.trim()),
-      });
+      if (registro?.id) await api.grow.humor.editar(registro.id, corpo);
+      else await api.grow.humor.registrar({ phone, ...corpo, nota: corpo.nota || undefined, sono_horas: corpo.sono_horas ?? undefined });
       onSuccess();
     } catch (e: any) { setErro(e.message); } finally { setLoading(false); }
   }
 
+  async function apagar() {
+    if (!registro?.id) return;
+    setLoading(true);
+    try { await api.grow.humor.apagar(registro.id); onSuccess(); }
+    catch (e: any) { setErro(e.message); setConfirmarApagar(false); setLoading(false); }
+  }
+
+  const ontem = somarDias(hoje, -1);
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={registro ? 'Editar registro de humor' : 'Registrar humor'}
+           className="relative w-full max-w-md bg-card rounded-3xl shadow-2xl overflow-hidden border border-border animate-fade-in max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-base font-bold text-foreground">Como foi seu dia?</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
+          <h2 className="text-base font-bold text-foreground">{registro ? 'Editar registro' : 'Como foi seu dia?'}</h2>
+          <button onClick={onClose} aria-label="Fechar" className="p-2 rounded-xl hover:bg-muted"><X size={18} /></button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+          {/* DIA — o pedido: registrar e corrigir a data */}
+          <div>
+            <label htmlFor="humor-dia" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><CalendarDays size={11} /> Dia</label>
+            <div className="flex items-center gap-2">
+              <input id="humor-dia" type="date" value={data} max={hoje} min={somarDias(hoje, -DIAS_PRA_TRAS)}
+                     onChange={e => { setData(e.target.value); setErro(''); }} className="input flex-1 min-w-0" />
+              {[['Ontem', ontem], ['Hoje', hoje]].map(([l, d]) => (
+                <button key={l} type="button" onClick={() => { setData(d); setErro(''); }} aria-pressed={data === d}
+                  className={`h-11 px-3 rounded-xl text-xs font-semibold border transition-colors flex-shrink-0 ${data === d ? 'border-primary bg-primary/10 text-foreground' : 'border-border/60 text-muted-foreground hover:text-foreground'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {erroData ? <p className="mt-1.5 text-xs text-red-600" role="alert">{erroData}</p>
+              : outro && registro ? <p className="mt-1.5 text-xs text-red-600" role="alert">Esse dia já tem outro registro ({HUMOR_EMOJI[outro.humor]} {HUMOR_LABEL[outro.humor]}). Edite ou apague aquele primeiro.</p>
+              : outro ? <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-500">Esse dia já tem um registro ({HUMOR_EMOJI[outro.humor]} {HUMOR_LABEL[outro.humor]}). Salvar substitui.</p>
+              : null}
+          </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Humor</label>
             <div className="grid grid-cols-5 gap-1.5">
               {[1,2,3,4,5].map(h => (
-                <button key={h} onClick={() => setHumor(h)}
+                <button key={h} onClick={() => setHumor(h)} aria-label={HUMOR_LABEL[h]} aria-pressed={humor === h}
                   className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
                     humor === h ? 'scale-110 ring-2 ring-primary bg-primary/10 dark:bg-primary/15' : 'bg-muted/30 hover:bg-muted/60'
                   }`}>
@@ -253,35 +399,46 @@ function ModalHumor({ phone, atual, onClose, onSuccess }: any) {
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Zap size={11} /> Energia</label>
-            <input type="range" min={1} max={5} value={energia} onChange={e => setEnergia(parseInt(e.target.value))} className="w-full accent-primary" />
+            <input type="range" min={1} max={5} value={energia} onChange={e => setEnergia(parseInt(e.target.value))} className="w-full accent-primary" aria-label="Energia" />
             <p className="text-xs text-muted-foreground text-center mt-1 tabular">{energia}/5</p>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Moon size={11} /> Horas de sono</label>
-            <input type="number" step="0.5" min="0" max="24" value={sono} onChange={e => setSono(e.target.value)} placeholder="8" className="input" />
+            <label htmlFor="humor-sono" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Moon size={11} /> Horas de sono</label>
+            <input id="humor-sono" type="text" inputMode="decimal" value={sono} onChange={e => setSono(e.target.value)} placeholder="8" className="input" />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">3 coisas pelas quais você é grato hoje</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">3 coisas pelas quais você é grato</label>
             <div className="space-y-2">
               {gratidao.map((g, i) => (
                 <input key={i} value={g} onChange={e => {
                   const novo = [...gratidao]; novo[i] = e.target.value; setGratidao(novo);
-                }} placeholder={`${i + 1}.`} className="input" maxLength={80} />
+                }} placeholder={`${i + 1}.`} className="input" maxLength={80} aria-label={`Gratidão ${i + 1}`} />
               ))}
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Como foi o dia? <span className="text-muted-foreground/60 normal-case font-normal">(opcional)</span></label>
-            <textarea value={nota} onChange={e => setNota(e.target.value)} rows={2} placeholder="Algo marcante..." className="input" maxLength={400} />
+            <label htmlFor="humor-nota" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Como foi o dia? <span className="text-muted-foreground/60 normal-case font-normal">(opcional)</span></label>
+            <textarea id="humor-nota" value={nota} onChange={e => setNota(e.target.value)} rows={2} placeholder="Algo marcante..." className="input" maxLength={400} />
           </div>
-          {erro && <p className="text-xs text-red-600">{erro}</p>}
+          {erro && <p className="text-xs text-red-600" role="alert">{erro}</p>}
+          {registro?.id && (confirmarApagar ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2.5" role="alert">
+              <p className="text-sm text-foreground flex-1 min-w-[10rem]">Apagar o registro de {rotuloDia(registro.data, hoje).toLowerCase()}?</p>
+              <button onClick={() => setConfirmarApagar(false)} className="h-10 px-3 rounded-xl text-sm font-semibold text-foreground hover:bg-muted">Cancelar</button>
+              <button onClick={() => void apagar()} disabled={loading} className="h-10 px-3.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-60">Apagar</button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmarApagar(true)} className="inline-flex items-center gap-1.5 h-10 px-2 -ml-2 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-500/10">
+              <Trash2 size={14} aria-hidden /> Apagar este registro
+            </button>
+          ))}
         </div>
-        <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20">
+        <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-border bg-card">
           <button onClick={onClose} className="btn-ghost px-4 py-2 text-sm">Cancelar</button>
-          <button onClick={salvar} disabled={loading}
+          <button onClick={() => void salvar()} disabled={loading || bloqueado}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Registrar
+            {registro ? 'Salvar' : 'Registrar'}
           </button>
         </div>
       </div>

@@ -63,7 +63,8 @@
     "eval:ainda-vem-mes-back": "npx tsx lib/ainda-vem-mes-back.eval.mjs",
     "eval:notas": "npx tsx lib/notas.eval.mjs",
     "eval:agenda-periodo": "npx tsx lib/agenda-periodo.eval.mjs",
-    "eval:aniversarios": "npx tsx lib/aniversarios.eval.mjs"
+    "eval:aniversarios": "npx tsx lib/aniversarios.eval.mjs",
+    "eval:humor": "npx tsx lib/humor.eval.mjs"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",

@@ -1107,6 +1107,10 @@ export const api = {
         req<any[]>(`/api/grow/humor/${phone}?dias=${dias || 30}`),
       registrar: (body: { phone: string; humor: number; nota?: string; gratidao?: string[]; energia?: number; sono_horas?: number; data?: string }) =>
         req<any>('/api/grow/humor', { method: 'POST', body: JSON.stringify(body) }),
+      // Corrigir um registro (inclusive MUDAR O DIA). Dia ocupado: 409 'dia_ocupado'.
+      editar: (id: string, body: Record<string, unknown>) =>
+        req<any>(`/api/grow/humor/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      apagar: (id: string) => req<{ ok: boolean }>(`/api/grow/humor/${id}`, { method: 'DELETE' }),
     },
 
     compras: {
