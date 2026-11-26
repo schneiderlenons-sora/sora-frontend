@@ -12,9 +12,12 @@ import {
   MapPin, ChevronLeft, ChevronRight, List, CalendarRange, CalendarX,
   User, Briefcase, Heart, Activity, Wallet, GraduationCap, Tag, ArrowUpRight,
   Home as HomeIcon, Stethoscope, Receipt, CreditCard, Wrench, Sun,
-  ArrowLeftRight, TrendingUp, TrendingDown, ListChecks, Filter,
+  ArrowLeftRight, TrendingUp, TrendingDown, ListChecks, Filter, Cake,
 } from 'lucide-react';
 import { useDinheiro, useSimboloMoeda } from '@/lib/moeda-base';
+import { useSWRConfig } from 'swr';
+import { ViewAniversarios, ModalAniversario, chaveAniversarios } from '@/components/agenda/Aniversarios';
+import type { Aniversario } from '@/lib/aniversarios';
 import {
   validarPeriodo, moverFim, somarDias, duracaoEmDias, umPorEvento, chaveDoEvento, rotuloDoDia, diaMes, MAX_DIAS,
 } from '@/lib/agenda-periodo';
@@ -59,17 +62,22 @@ const CATEGORIAS: Record<CatKey, { label: string; cor: string; icon: any }> = {
 };
 
 // ─── Famílias de origem (pro filtro + legenda do agregador) ─────────
-type FamKey = 'compromisso' | 'tarefa' | 'saude' | 'financas' | 'casa' | 'transacao';
+type FamKey = 'compromisso' | 'aniversario' | 'tarefa' | 'saude' | 'financas' | 'casa' | 'transacao';
 const FAMILIAS: Record<FamKey, { label: string; cor: string; icon: any }> = {
   compromisso: { label: 'Compromissos', cor: 'hsl(var(--primary))', icon: CalendarDays },
+  aniversario: { label: 'Aniversários', cor: '#db2777', icon: Cake },
   tarefa:      { label: 'Tarefas',      cor: '#7c3aed', icon: ListChecks },
   saude:       { label: 'Saúde',        cor: '#0d9488', icon: Stethoscope },
   financas:    { label: 'Finanças',     cor: '#16a34a', icon: Wallet },
   casa:        { label: 'Casa',         cor: '#d97706', icon: HomeIcon },
   transacao:   { label: 'Movimentações', cor: '#0ea5e9', icon: ArrowLeftRight },
 };
+// "Só compromissos" deixa à vista os compromissos E os aniversários: os dois
+// são a agenda pessoal (o resto é o que a Sora puxa de outras abas).
+const PESSOAIS: FamKey[] = ['compromisso', 'aniversario'];
 function familiaDe(source: string): FamKey {
   if (source === 'compromisso') return 'compromisso';
+  if (source === 'aniversario') return 'aniversario';
   if (source === 'tarefa') return 'tarefa';
   if (source === 'consulta') return 'saude';
   if (source === 'manutencao') return 'casa';
@@ -78,7 +86,7 @@ function familiaDe(source: string): FamKey {
 }
 // Ícone por source (mostrado na coluna de hora quando não há horário)
 const ICONE_SOURCE: Record<string, any> = {
-  compromisso: CalendarDays, consulta: Stethoscope, recorrencia: Receipt,
+  compromisso: CalendarDays, aniversario: Cake, consulta: Stethoscope, recorrencia: Receipt,
   divida: Receipt, fatura: CreditCard, fechamento: CreditCard, manutencao: Wrench,
   tarefa: ListChecks,       // tarefa do Grow com prazo (sempre privada)
   conta_negocio: Briefcase, // contas a pagar da empresa (aba Negócios)
@@ -120,14 +128,17 @@ export default function AgendaPage() {
   const { phone, user } = useAuth();
   const userId = user?.id ?? null;
   const router = useRouter();
-  const [view, setView]       = useState<'lista' | 'mes'>('lista');
+  const [view, setView]       = useState<'lista' | 'mes' | 'aniversarios'>('lista');
+  // Formulário de aniversário: { item: null } = novo.
+  const [aniv, setAniv] = useState<{ item: Aniversario | null } | null>(null);
+  const { mutate: mutGlobal } = useSWRConfig();
   const [ocultas, setOcultas] = useState<Set<FamKey>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando]   = useState<any | null>(null);
   const [dataPrefill, setDataPrefill] = useState<string | null>(null);
 
   useEffect(() => {
-    try { const s = localStorage.getItem(STORAGE_KEY) as any; if (s === 'lista' || s === 'mes') setView(s); } catch {}
+    try { const s = localStorage.getItem(STORAGE_KEY) as any; if (s === 'lista' || s === 'mes' || s === 'aniversarios') setView(s); } catch {}
   }, []);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEY, view); } catch {} }, [view]);
 
@@ -191,16 +202,17 @@ export default function AgendaPage() {
 
   // "Só compromissos": tudo oculto menos a família `compromisso`.
   const apenasCompromissos = useMemo(
-    () => (Object.keys(FAMILIAS) as FamKey[]).every(f => (f === 'compromisso' ? !ocultas.has(f) : ocultas.has(f))),
+    () => (Object.keys(FAMILIAS) as FamKey[]).every(f => (PESSOAIS.includes(f) ? !ocultas.has(f) : ocultas.has(f))),
     [ocultas],
   );
   function soCompromissos() {
     setOcultas(apenasCompromissos
       ? new Set()
-      : new Set((Object.keys(FAMILIAS) as FamKey[]).filter(f => f !== 'compromisso')));
+      : new Set((Object.keys(FAMILIAS) as FamKey[]).filter(f => !PESSOAIS.includes(f))));
   }
   function abrirNovo(data?: string) { setEditando(null); setDataPrefill(data || null); setModalOpen(true); }
   function abrirEvento(e: any) {
+    if (e.source === 'aniversario' && e.raw) { setAniv({ item: e.raw }); return; }
     if (e.editavel) { setEditando(e.raw); setDataPrefill(null); setModalOpen(true); }
     else router.push(e.deeplink); // read-only → vai pra área de origem
   }
@@ -228,7 +240,7 @@ export default function AgendaPage() {
       {/* Toggle de visão + Novo */}
       <div className="flex items-center justify-between gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>
         <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-muted/40">
-          {([['lista', 'Próximos', List], ['mes', 'Mês', CalendarRange]] as const).map(([v, l, Icon]) => {
+          {([['lista', 'Próximos', List], ['mes', 'Mês', CalendarRange], ['aniversarios', 'Aniversários', Cake]] as const).map(([v, l, Icon]) => {
             const ativo = view === v;
             return (
               <button key={v} onClick={() => setView(v)} aria-pressed={ativo}
@@ -246,7 +258,8 @@ export default function AgendaPage() {
         </button>
       </div>
 
-      {/* Filtro / legenda por origem */}
+      {/* Filtro / legenda por origem (não vale na aba de aniversários) */}
+      {view !== 'aniversarios' && (
       <div className="flex items-center gap-1.5 flex-wrap animate-fade-in" style={{ animationDelay: '100ms' }}>
         {/* ⚠️ ATALHO DO PEDIDO (30/09/2026): "preciso tirar a seleção de
             finanças, tarefas, saúde e etc para ver apenas meus compromissos".
@@ -277,6 +290,7 @@ export default function AgendaPage() {
           );
         })}
       </div>
+      )}
 
       {/* Briefing matinal */}
       {phone && <BriefingCard phone={phone} />}
@@ -285,10 +299,17 @@ export default function AgendaPage() {
         <SectionSkeleton />
       ) : (
         <div className="animate-fade-in">
-          {view === 'lista'
-            ? <ViewLista eventos={agendaVisiveis} onAbrir={abrirEvento} onDelete={deletar} onNovo={() => abrirNovo()} />
-            : <ViewMes eventos={visiveis} onAbrir={abrirEvento} onDelete={deletar} onNovoNoDia={abrirNovo} />}
+          {view === 'aniversarios'
+            ? (phone ? <ViewAniversarios phone={phone} onAbrir={(a) => setAniv({ item: a })} /> : null)
+            : view === 'lista'
+              ? <ViewLista eventos={agendaVisiveis} onAbrir={abrirEvento} onDelete={deletar} onNovo={() => abrirNovo()} />
+              : <ViewMes eventos={visiveis} onAbrir={abrirEvento} onDelete={deletar} onNovoNoDia={abrirNovo} />}
         </div>
+      )}
+
+      {aniv && (
+        <ModalAniversario item={aniv.item} onFechar={() => setAniv(null)}
+          onSalvo={() => { setAniv(null); if (phone) void mutGlobal(chaveAniversarios(phone)); carregar(true); }} />
       )}
 
       {modalOpen && (
@@ -385,6 +406,12 @@ function EventoCard({ e, onAbrir, onDelete }: any) {
           {e.valor != null && (
             <span className={`text-[11px] font-bold tabular ${resolvida ? 'text-muted-foreground' : ''}`}
                   style={resolvida ? undefined : { color: e.cor }}>{brl(e.valor)}</span>
+          )}
+          {e.source === 'aniversario' && e.anos && (
+            <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                  style={{ background: `color-mix(in srgb, ${e.cor} 12%, transparent)`, color: e.cor }}>
+              <Cake size={10} /> {e.anos}
+            </span>
           )}
           {rotuloDoDia(e.periodo) && (
             <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular"

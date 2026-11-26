@@ -1157,6 +1157,14 @@ export const api = {
       deletar: (id: string, phone: string) =>
         req(`/api/grow/receitas/${id}`, { method: 'DELETE', body: JSON.stringify({ phone }) }),
     },
+    /** Aniversários e datas comemorativas (migration 205) — repetem todo ano.
+     *  `liberado: false` = a tabela ainda não existe. Ver lib/aniversarios.ts. */
+    aniversarios: {
+      listar:  (phone: string) => req<{ itens: import('@/lib/aniversarios').Aniversario[]; liberado: boolean }>(`/api/grow/aniversarios/${phone}`),
+      criar:   (body: Record<string, unknown>) => req<import('@/lib/aniversarios').Aniversario>('/api/grow/aniversarios', { method: 'POST', body: JSON.stringify(body) }),
+      editar:  (id: string, body: Record<string, unknown>) => req<import('@/lib/aniversarios').Aniversario>(`/api/grow/aniversarios/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      deletar: (id: string) => req<{ ok: boolean }>(`/api/grow/aniversarios/${id}`, { method: 'DELETE' }),
+    },
     compromissos: {
       listar: (phone: string, range?: { de?: string; ate?: string }) => {
         const qs = new URLSearchParams();
