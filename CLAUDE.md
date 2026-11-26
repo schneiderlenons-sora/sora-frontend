@@ -402,6 +402,28 @@ aceitava `data`, mas a tela nunca mandava, e o WhatsApp gravava sempre "hoje".
 - Testado ponta a ponta com conta de teste (apagada): zap pelo handler real +
   tela no computador e no celular.
 
+## Humor com DATA no Bem-estar (nov/2026)
+
+Pedido de cliente (Tatiane): "fui dormir depois da meia-noite e o app já
+considerava o dia seguinte" + registrar dia esquecido + corrigir a data.
+
+- ⚠️ **O "hoje" do humor era UTC** (`toISOString`) no painel, na rota e no
+  WhatsApp: das 21h à meia-noite caía no dia SEGUINTE. Hoje: data do aparelho
+  no painel (`lib/humor.ts` `dataLocal`) e dia de São Paulo no servidor
+  (`services/humorRegistro.js`, `eval:humor` 36 verificações, 13/13).
+  ⚠️ O mesmo `toISOString().slice(0, 10)` segue em outros pontos do
+  `handlers/grow.js` (hábito pelo zap etc.) e no `data_req` das rotas do Grow
+  — NÃO corrigidos nesta rodada.
+- Check-in rápido com **Ontem | Hoje**; até as 5h sugere ONTEM e diz isso.
+- Formulário com o dia (até 1 ano pra trás, nada no futuro); um registro por
+  dia: criar num dia ocupado SUBSTITUI (a tela avisa antes); mover um
+  registro pra dia ocupado é 409 `dia_ocupado` (a tela trava antes).
+  `PUT`/`DELETE /api/grow/humor/:id` só da própria pessoa.
+- "Seus registros" lista os dias (tocar corrige humor/data; apagar com
+  confirmação). Editar um registro sem energia não inventa energia.
+- Testado: evals + tela em produção com servidor simulado e relógio às 00:40
+  (backend suspenso na Render no dia). Sem migration.
+
 ## Notas no Drive (nov/2026) — migration 203
 
 Pedido de cliente (Tatiane: "Poderia ter um espaço para notas! Eu escrevo

@@ -318,7 +318,9 @@ function ModalHumor({ phone, registro, dataInicial, registros, hoje, onClose, on
   const [data, setData]     = useState<string>(registro?.data || dataInicial);
   const [humor, setHumor]   = useState<number>(registro?.humor || 3);
   const [nota, setNota]     = useState(registro?.nota || '');
-  const [energia, setEnergia] = useState<number>(registro?.energia || 3);
+  // Registro novo nasce com energia 3; num registro que NÃO tinha energia, ela
+  // só é gravada se a pessoa mexer na barra (editar a data não inventa energia).
+  const [energia, setEnergia] = useState<number | null>(registro ? (registro.energia ?? null) : 3);
   const [sono, setSono]     = useState(registro?.sono_horas?.toString() || '');
   const [gratidao, setGratidao] = useState<string[]>(() => {
     const g = Array.isArray(registro?.gratidao) ? registro.gratidao.slice(0, 3) : [];
@@ -343,7 +345,7 @@ function ModalHumor({ phone, registro, dataInicial, registros, hoje, onClose, on
     };
     try {
       if (registro?.id) await api.grow.humor.editar(registro.id, corpo);
-      else await api.grow.humor.registrar({ phone, ...corpo, nota: corpo.nota || undefined, sono_horas: corpo.sono_horas ?? undefined });
+      else await api.grow.humor.registrar({ phone, ...corpo, nota: corpo.nota || undefined, sono_horas: corpo.sono_horas ?? undefined, energia: corpo.energia ?? undefined });
       onSuccess();
     } catch (e: any) { setErro(e.message); } finally { setLoading(false); }
   }
@@ -399,8 +401,8 @@ function ModalHumor({ phone, registro, dataInicial, registros, hoje, onClose, on
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Zap size={11} /> Energia</label>
-            <input type="range" min={1} max={5} value={energia} onChange={e => setEnergia(parseInt(e.target.value))} className="w-full accent-primary" aria-label="Energia" />
-            <p className="text-xs text-muted-foreground text-center mt-1 tabular">{energia}/5</p>
+            <input type="range" min={1} max={5} value={energia ?? 3} onChange={e => setEnergia(parseInt(e.target.value))} className="w-full accent-primary" aria-label="Energia" />
+            <p className="text-xs text-muted-foreground text-center mt-1 tabular">{energia == null ? 'não informada' : `${energia}/5`}</p>
           </div>
           <div>
             <label htmlFor="humor-sono" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1"><Moon size={11} /> Horas de sono</label>
