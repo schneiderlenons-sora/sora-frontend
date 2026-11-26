@@ -365,6 +365,18 @@ export const api = {
         { method: 'POST', body: JSON.stringify(grupo_id ? { grupo_id } : {}) }),
     desconectar: (externalId: string) =>
       req<{ ok: boolean }>(`/api/open-finance/conexoes/${externalId}`, { method: 'DELETE' }),
+    /** Quantas movimentações DO BANCO desta conexão são anteriores a `desde`
+     *  (prévia do "trazer a partir de"; só leitura). */
+    anteriores: (externalId: string, desde: string) =>
+      req<{ quantidade: number }>(
+        `/api/open-finance/conexoes/${externalId}/anteriores?desde=${encodeURIComponent(desde)}`),
+    /** "Trazer movimentações a partir de" (migration 202). `desde: null` volta a
+     *  trazer tudo. `apagar_anteriores` apaga as do banco de antes da data (o
+     *  digitado fica). Nenhuma sincronização grava nada anterior ao corte. */
+    importarDesde: (externalId: string, desde: string | null, apagar_anteriores: boolean) =>
+      req<{ ok: boolean; importar_desde: string | null; apagadas: number }>(
+        `/api/open-finance/conexoes/${externalId}/importar-desde`,
+        { method: 'PUT', body: JSON.stringify({ desde, apagar_anteriores }) }),
     /** Diagnóstico (temporário): resposta crua da Polp pra ajustar o mapeamento. */
     debug: (externalId: string) =>
       req<any>(`/api/open-finance/debug/${externalId}`),

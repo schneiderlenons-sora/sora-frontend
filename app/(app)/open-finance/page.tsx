@@ -18,6 +18,7 @@ import { isAdminEmail } from '@/lib/admin';
 import { api } from '@/lib/api';
 import IconeMarca from '@/components/ui/IconeMarca';
 import AvisoCobertura, { type Cobertura } from '@/components/open-finance/AvisoCobertura';
+import ImportarDesdeModal, { dataBR } from '@/components/open-finance/ImportarDesdeModal';
 import { useMoedaBase } from '@/lib/moeda-base';
 import { useEhAppIos } from '@/lib/useOrigem';
 import { MOEDAS } from '@/lib/moeda';
@@ -26,7 +27,7 @@ import {
 } from '@/lib/open-finance-docs';
 import {
   Landmark, Plus, Loader2, RefreshCw, Trash2, CheckCircle2, AlertCircle,
-  Clock, ShieldCheck, Search, ExternalLink, X,
+  Clock, ShieldCheck, Search, ExternalLink, X, CalendarClock,
   Wrench, FileUp, Sparkles, ArrowRight, Scale, Info,
 } from 'lucide-react';
 
@@ -53,6 +54,10 @@ type Conexao = {
   /** O veredito do BANCO sobre o cartão (migration 175). `null` = não sabemos
    *  — e aí a tela não afirma nada, que é melhor do que afirmar errado. */
   cartao_status?: CartaoStatus | null;
+  /** Trilho da conexão ('polp-celcoin' é o atual; o "a partir de" só vale nele). */
+  provider?: string | null;
+  /** "Trazer movimentações a partir de" (migration 202). `null` = tudo. */
+  importar_desde?: string | null;
 };
 
 /** Ver `statusCartao` em routes/openFinance.js — os nomes têm de bater. */
@@ -179,6 +184,8 @@ export default function OpenFinancePage() {
   const [erro, setErro] = useState('');
   const [flash, setFlash] = useState('');
   const [sincronizando, setSincronizando] = useState('');
+  /** Banco com a janela "a partir de quando trazer" aberta. */
+  const [corte, setCorte] = useState<Conexao | null>(null);
 
   // Seletor de banco
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -766,6 +773,25 @@ export default function OpenFinancePage() {
                           </div>
                           {c.ultimo_erro && <p className="text-[11px] text-red-500 line-clamp-2 mt-0.5">{c.ultimo_erro}</p>}
 
+                          {/* "Trazer a partir de" (migration 202). Só no trilho
+                              atual e só aqui no grupo da conexão (os dados dela
+                              vivem nele). Diz o estado e é o próprio atalho. */}
+                          {!c.outro_grupo && c.provider === 'polp-celcoin' && (
+                            <button
+                              type="button"
+                              onClick={() => setCorte(c)}
+                              className="mt-0.5 min-h-11 sm:min-h-0 sm:py-0.5 inline-flex items-center gap-1 text-left text-[11px] text-muted-foreground hover:text-foreground"
+                            >
+                              <CalendarClock size={11} className="flex-shrink-0" aria-hidden />
+                              <span>
+                                {c.importar_desde
+                                  ? <>Movimentações a partir de {dataBR(c.importar_desde)}</>
+                                  : <>Trazendo todo o histórico que o banco envia</>}
+                                {' · '}<span className="font-semibold underline underline-offset-2">Alterar</span>
+                              </span>
+                            </button>
+                          )}
+
                           {/* ⚠️ "O cartão ainda está vindo".
                               A conta chega em segundos; o CARTÃO costuma demorar
                               horas — medido: 8 de 28 conexões, mediana de 5,7h.
@@ -901,6 +927,20 @@ export default function OpenFinancePage() {
                   );
                 })}
               </ul>
+            )}
+
+            {corte && (
+              <ImportarDesdeModal
+                externalId={corte.external_id}
+                banco={corte.instituicao || 'banco'}
+                atual={corte.importar_desde || null}
+                onClose={() => setCorte(null)}
+                onSalvo={(msg) => {
+                  setFlash(msg);
+                  setTimeout(() => setFlash(''), 9000);
+                  carregar();
+                }}
+              />
             )}
 
             {/* Diagnóstico (temporário) — resposta crua da Polp pra ajustar o mapeamento */}

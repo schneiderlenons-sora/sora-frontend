@@ -1398,6 +1398,29 @@ por decisão (pagou uma vez; cada conexão é mensalidade nossa no agregador).
 - ⚠️ **Nada acontece até a 179 rodar** (o `select` erra e o job não age) — então
   é a migration que dá a partida no relógio.
 
+## "Trazer movimentações a partir de [data]", por banco (nov/2026)
+
+Pedido de cliente (Tatiane): a conexão trouxe meses que ela não queria, e o
+botão Atualizar (180 dias; o sync automático relê 90) podia trazer meses que
+nunca tinham vindo. Migration **202** (`of_conexoes.importar_desde`).
+
+- Regra: `sora-backend/src/services/importarDesde.js` (`eval:importar-desde`,
+  41 verificações, 14/14 mutações). O dia é o de **São Paulo** (23h de 31/08
+  no Brasil é 01/09 em UTC). Data ilegível ENTRA (não some com lançamento).
+- ⚠️ **O filtro mora em `inserirTransacoes`** (as duas chamadas levam
+  `{ desde: desdeCorte }`, travado no eval): só a GRAVAÇÃO é filtrada — fatura,
+  parcelas previstas e dedup do reprocesso seguem vendo o lote inteiro. Faturas
+  publicadas antigas (`of_faturas`) continuam navegáveis no cartão.
+- `PUT /api/open-finance/conexoes/:id/importar-desde { desde|null,
+  apagar_anteriores }` e `GET …/anteriores?desde=` (prévia). ⚠️ Grava o corte
+  ANTES de apagar (um sync no meio traria de volta); apaga só movimentação DO
+  BANCO (`of_tx_id`) das carteiras da conexão (`wallets.of_consent_id`) — o
+  digitado fica. NÃO grava em `of_tx_ignoradas`: mover a data pra trás traz de
+  volta o que o banco ainda enviar. Só trilho `polp-celcoin` (legado: 409).
+- Tela: linha "Movimentações a partir de … · Alterar" em cada banco da aba Open
+  Finance → `components/open-finance/ImportarDesdeModal.tsx` (portal; conta as
+  que sairiam; "Salvar e apagar N" em vermelho; "Voltar a trazer tudo").
+
 ## Conta PJ do Open Finance nasce "… PJ" (out/2026)
 
 Relato (Robert): conectou a conta PJ do Mercado Pago; como já havia a pessoal
@@ -5363,6 +5386,7 @@ sql/197_ia_conectada.sql — Sora no ChatGPT e no Claude: ia_conexoes (tokens s�
 sql/198_divida_categoria.sql — dividas.categoria: em que categoria a parcela paga entra. Sem ela a dívida salva sem a categoria e o pagamento segue em "Dívidas" (nada quebra).
 sql/199_apple_assinaturas.sql — assinaturas da APPLE (app de iPhone, StoreKit). **OBRIGATÓRIA antes de vender no iPhone**: sem ela a compra não é registrada (o servidor recusa liberar o plano sem gravar). Ver docs/APPLE-COMPRAS.md.
 sql/200_fechamento_dia_proxima.sql — wallets.fechamento_dia_proxima (cartão manual: compra no dia do fechamento vai pra próxima fatura). **OBRIGATÓRIA ANTES do deploy do backend**: 17 consultas de cartão pedem a coluna; sem ela elas falham.
+sql/202_of_importar_desde.sql — of_conexoes.importar_desde ("trazer movimentações a partir de [data]", por banco). Sem ela nada quebra: o sync grava tudo como antes e a janela responde "ainda sendo liberada".
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
