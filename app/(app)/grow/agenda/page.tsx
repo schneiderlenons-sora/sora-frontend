@@ -238,7 +238,7 @@ export default function AgendaPage() {
       <GrowHero badge="Agenda" badgeIcon={CalendarDays} titulo="Agenda" subtitulo={subtitulo} />
 
       {/* Toggle de visão + Novo */}
-      <div className="flex items-center justify-between gap-3 animate-fade-in" style={{ animationDelay: '60ms' }}>
+      <div className="flex items-center justify-between gap-x-3 gap-y-2 flex-wrap animate-fade-in" style={{ animationDelay: '60ms' }}>
         <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-muted/40">
           {([['lista', 'Próximos', List], ['mes', 'Mês', CalendarRange], ['aniversarios', 'Aniversários', Cake]] as const).map(([v, l, Icon]) => {
             const ativo = view === v;
@@ -247,15 +247,23 @@ export default function AgendaPage() {
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                   ativo ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-muted-foreground hover:text-foreground'
                 }`}>
-                <Icon size={13} /> {l}
+                <Icon size={13} className="hidden sm:block" aria-hidden /> {l}
               </button>
             );
           })}
         </div>
-        <button onClick={() => abrirNovo()}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
-          <Plus size={15} /> <span className="hidden sm:inline">Novo compromisso</span><span className="sm:hidden">Novo</span>
-        </button>
+        {view === 'aniversarios' ? (
+          <button onClick={() => setAniv({ item: null })}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg transition-all active:scale-[0.98] hover:opacity-90"
+            style={{ background: '#db2777', boxShadow: '0 10px 20px -10px #db2777' }}>
+            <Plus size={15} /> <span className="hidden sm:inline">Nova data</span><span className="sm:hidden">Nova</span>
+          </button>
+        ) : (
+          <button onClick={() => abrirNovo()}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
+            <Plus size={15} /> <span className="hidden sm:inline">Novo compromisso</span><span className="sm:hidden">Novo</span>
+          </button>
+        )}
       </div>
 
       {/* Filtro / legenda por origem (não vale na aba de aniversários) */}

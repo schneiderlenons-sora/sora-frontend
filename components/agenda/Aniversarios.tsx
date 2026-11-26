@@ -93,12 +93,10 @@ export function ViewAniversarios({ phone, onAbrir }: { phone: string; onAbrir: (
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
-          Repetem todo ano. A Sora te avisa uma semana antes e no dia.
-        </p>
-        {adicionar}
-      </div>
+      {/* O botão de adicionar é o do topo da Agenda ("Nova data"). */}
+      <p className="text-xs text-muted-foreground leading-relaxed px-1">
+        Repetem todo ano. A Sora te avisa no WhatsApp uma semana antes e no dia.
+      </p>
       {grupos.map(([rotulo, lista], gi) => (
         <section key={rotulo} aria-label={rotulo} className="animate-[slide-up_400ms_ease-out_both]" style={{ animationDelay: `${Math.min(gi, 6) * 40}ms` }}>
           <div className="flex items-center gap-2 mb-2 px-1">
@@ -200,14 +198,14 @@ export function ModalAniversario({ item, onFechar, onSalvo }: {
       if (item) await api.grow.aniversarios.editar(item.id, body);
       else await api.grow.aniversarios.criar(body);
       onSalvo();
-    } catch (er: any) { setErro(er?.message || 'Não consegui salvar.'); setSalvando(false); }
+    } catch (er) { setErro(er instanceof Error && er.message ? er.message : 'Não consegui salvar.'); setSalvando(false); }
   }
 
   async function apagar() {
     if (!item) return;
     setSalvando(true);
     try { await api.grow.aniversarios.deletar(item.id); onSalvo(); }
-    catch (er: any) { setErro(er?.message || 'Não consegui apagar.'); setSalvando(false); setConfirmarApagar(false); }
+    catch (er) { setErro(er instanceof Error && er.message ? er.message : 'Não consegui apagar.'); setSalvando(false); setConfirmarApagar(false); }
   }
 
   if (!montado) return null;
@@ -305,7 +303,7 @@ export function ModalAniversario({ item, onFechar, onSalvo }: {
           ))}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 sticky bottom-0">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-card sticky bottom-0">
           <button onClick={onFechar} className="btn-ghost px-4 h-11 text-sm">Cancelar</button>
           <button onClick={() => void salvar()} disabled={salvando || !nome.trim()}
                   className="inline-flex items-center gap-2 px-4 h-11 rounded-xl text-white text-sm font-bold hover:opacity-90 disabled:opacity-50"
