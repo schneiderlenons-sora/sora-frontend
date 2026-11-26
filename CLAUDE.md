@@ -5132,8 +5132,9 @@ internet").
   `services/widgetChave.js` (chave opaca, só sha256 no banco),
   `services/widgetResumo.js` (retrato com o TEXTO pronto — "Amanhã", "R$ 47",
   "Atrasada há 2 dias" — pra iPhone e Android só desenharem),
-  `config/widgets.js` (só assinante mensal/anual; teste fechado pela lista de
-  e-mails até `WIDGETS_ABERTOS=1`; `WIDGETS_ATIVOS=0` desliga). Migration
+  `config/widgets.js` (só assinante mensal/anual; **ABERTO desde 25/11/2026** —
+  `WIDGETS_ABERTOS=0` volta ao teste fechado da lista de e-mails, que entra
+  sempre; `WIDGETS_ATIVOS=0` desliga). Migration
   **201** (gatilhos de versão por grupo + `widget_contexto`), testada num
   Postgres em memória (PGlite, 23 verificações).
   - ⚠️ "Vai sobrar" no servidor = `services/aindaVemMes.js`, CÓPIA FIEL do
@@ -5150,7 +5151,7 @@ internet").
   e o widget só pergunta "mudou?" (1 KB); recálculo só quando muda; "por dia" e
   "amanhã" calculados no aparelho; ler só o que o widget instalado mostra.
   Estimativa: ~4 MB/pessoa/mês (~0,1 GB/mês para os 32 assinantes de hoje).
-  - **Apps (25/11/2026, código pronto, em teste fechado):** aba **Widgets** do
+  - **Apps (25/11/2026, código pronto):** aba **Widgets** do
     painel (`app/(app)/widgets`, `lib/widgets.ts`, item com `teste: 'widgets'`)
     gera o código e conecta o aparelho. iPhone: plugin `SoraWidget` + chave no
     keychain compartilhado + Livre/Contas/Cartão em `WidgetsNumeros.swift`
@@ -5159,8 +5160,13 @@ internet").
     `forsora://widget/conectar`, `WidgetOpcoesActivity`; commit a97f8cc) —
     detalhes em `docs/ANDROID-TWA.md` → "Widgets da tela inicial".
   - ⚠️ O Lançar rápido agora também pede conexão e plano (igual ao iPhone).
-  - ⚠️ Abrir pra todos: `WIDGETS_ABERTOS=1` no Render **e** `WIDGETS_ABERTO =
-    true` em `lib/widgets.ts`. Só depois de o dono testar nos dois celulares.
+  - **Aberto pra todo assinante em 25/11/2026** (decisão do dono: os clientes
+    testam; o Android não foi testado em aparelho). Voltar ao teste fechado:
+    `WIDGETS_ABERTOS=0` no Render **e** `WIDGETS_ABERTO = false` em
+    `lib/widgets.ts`. ⚠️ A conta comercial (revisão da Apple) está na lista e
+    entra sempre, mesmo sendo vitalícia.
+  - ⚠️ O Livre diz QUAL número manda (`motivo`: limite ou caixa). Texto novo no
+    retrato = subir `TEXTOS` em `widgetResumo.js` (entra no ETag).
 - **Fase 3:** "Hoje" e "Hábitos" com marcar feito. **Fase 4:** tela bloqueada,
   Central de Controle, atualização por notificação no iPhone, "Mês em resumo",
   "Meta".
