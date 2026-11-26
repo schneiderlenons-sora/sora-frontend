@@ -94,6 +94,7 @@ versão nova exige build com o mesmo número: `MARKETING_VERSION` em
 | 11/11/2026 | Recusa **4.1(a) Copycats** (nome "Sora"). App vira ForSora (5bb5845, 9381f20); build **1.0 (4)**; reenviado com resposta e notas |
 | até 24/11/2026 | ✅ **APROVADO** — build 1.0 (4), "ForSora - Controle de Gastos". Nada se vende no app (fase 2 = StoreKit) |
 | 25/11/2026 | Versão **1.1.0 (5)** enviada pela API (`WAITING_FOR_REVIEW`): capturas novas, primeiros passos completos, abas fora do plano com cadeado e aviso "Fora do seu plano". **Sem assinaturas** (CNPJ pendente — ver docs/APPLE-COMPRAS.md); notas: "No purchases are available inside the iOS app". Liberação automática depois de aprovada |
+| 25/11/2026 | A 1.1.0 saiu da fila ANTES de entrar em revisão e virou **1.2.0 (8)** — widgets (Livre pra gastar, Próximas contas, Cartão, Lançar rápido) + tudo da 1.1.0. Feito pela API (script da sessão: cancela o envio, troca versão e build, novidades, notas com o passo a passo dos widgets pela conta comercial, envio novo). `WAITING_FOR_REVIEW`, liberação automática. ⚠️ A conta comercial é vitalícia: só vê os widgets por estar na lista `EMAILS_TESTE` de `config/widgets.js` — não tirar enquanto ela for a conta da revisão |
 
 Resposta enviada à Apple em 11/11/2026:
 ```
