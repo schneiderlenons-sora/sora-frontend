@@ -27,6 +27,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 | **App Android / Play Store (TWA)** | **`docs/ANDROID-TWA.md`** (build, versão, keystore, assetlinks) + build em `C:\Users\jenif\sora-android` | "Play Store (TWA)" |
 | Conciliação (previsto × banco, transferências, fatura paga) | `sora-backend/src/services/` (réguas puras com eval) | "Conciliação de ponta a ponta" + "Outubro/2026" |
 | Diagnóstico de OF de um cliente | `/api/admin/of-debug?email=<cliente>` (`&foco=saldo` / `cartoes`) | "Open Finance (Polp)" |
+| **A Polp/Celcoin está no ar?** (só leitura, de DENTRO do Render — as credenciais só existem lá) | `GET https://sora-backend-ohio.onrender.com/api/open-finance/diag-polp?key=<API_SECRET_TOKEN>` (`&consent=<id>` detalha um): alertas, bancos, consentimentos por status, conexões paradas há +12h como a Polp as vê, e uma consulta em tempo real na Celcoin. Nasceu no fim da manutenção da Celcoin (26/11/2026). O erro de conectar agora vai em texto de cliente (`erroDeConexaoParaCliente`); o técnico fica no log | "Open Finance (Polp)" |
 | Migrations | `sora-backend/sql/` (rodar à mão no Supabase) | "Migrations SQL a rodar" |
 | **Consumo do Supabase (egress, cota do Free 5 GB/ciclo)** | `sora-backend/docs/diagnostico-egress.sql` (`pg_stat_statements`, filtrar por `"public"."`) | "Egress do Supabase" + "Egress: metade era o sync" |
 
