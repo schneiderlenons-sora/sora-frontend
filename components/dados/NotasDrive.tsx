@@ -54,6 +54,14 @@ export default function NotasDrive({ phone }: { phone: string }) {
     />
   );
 
+  // ⚠️ O EDITOR FICA SEMPRE NO MESMO LUGAR DA ÁRVORE (ao lado do corpo). Se
+  // cada estado da tela (vazio / lista) o renderizasse dentro do seu próprio
+  // bloco, o 1º salvamento da 1ª nota trocaria "vazio" por "lista" e o React
+  // montaria o editor DE NOVO: o que já estava escrito sumia da tela e a nota
+  // se partia em duas (achado testando em produção).
+  return <>{corpo()}{editor}</>;
+
+  function corpo() {
   // ── Falhou a leitura: diz e oferece tentar de novo (nunca "nenhuma nota") ──
   if (error && !data) {
     return (
@@ -82,7 +90,6 @@ export default function NotasDrive({ phone }: { phone: string }) {
   // ── Nenhuma nota ainda: um convite, não um vazio ──
   if (!notas.length) {
     return (
-      <>
         <div className="rounded-3xl border border-dashed border-border/60 px-6 py-12 text-center">
           <span className="inline-flex w-14 h-14 rounded-2xl items-center justify-center"
                 style={{ background: 'color-mix(in srgb, hsl(var(--primary)) 14%, transparent)' }}>
@@ -100,8 +107,6 @@ export default function NotasDrive({ phone }: { phone: string }) {
             Pelo WhatsApp também: mande <b className="text-foreground">anota que …</b> e a nota aparece aqui.
           </p>
         </div>
-        {editor}
-      </>
     );
   }
 
@@ -205,7 +210,7 @@ export default function NotasDrive({ phone }: { phone: string }) {
         </>
       )}
 
-      {editor}
     </div>
   );
+  }
 }
