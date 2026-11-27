@@ -1196,8 +1196,15 @@ parcelas previstas, lendo o BANCO DE DADOS), a fatura aberta passa a ser a
 MARCAÇÃO do emissor (`of_bill_forecast`, linhas sem `bill_id`, pagamento fora)
 **só quando** marcação aberta + o que ele marcou pra depois = `used_amount` de
 ALGUMA linha de limite, **ao centavo** (< R$ 0,005). Grava só `wallets.saldo`.
-Interruptor `OF_FATURA_CONFERIDA=0`. `eval:fatura-conferida` (23, 11/12 — a
+Interruptor `OF_FATURA_CONFERIDA=0`. `eval:fatura-conferida` (25, 12/13 — a
 viva é equivalente e morre no `eval:medicao-fatura`).
+- ⚠️ **A competência é a do SIMULADO** (`competenciaDoSimulado`: a fatura
+  SEGUINTE à última publicada), a mesma em que o `faturaVista` mostra o saldo.
+  A 1ª versão usou a "atual", que entre o fechamento e o vencimento é a fatura
+  JÁ FECHADA: em 1 cartão (Itaú) gravou o valor da fechada (222,54) no saldo da
+  aberta (a tela foi de 29,90 pra 222,54). Corrigido no mesmo dia e o saldo
+  restaurado. LIÇÃO: ao gravar `wallets.saldo`, simular a tela na competência
+  em que ELE aparece, não na "atual".
 - ⚠️ **A culpa do MP é meio da Polp:** pela fórmula documentada do
   `unbilled_amount` ("bill_post_date posterior a bill_closing_date + 1 mês"),
   parcela futura — que a própria doc diz vir com `bill_post_date "0001-01-01"`
