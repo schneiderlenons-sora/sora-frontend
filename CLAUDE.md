@@ -27,7 +27,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 | **App Android / Play Store (TWA)** | **`docs/ANDROID-TWA.md`** (build, versão, keystore, assetlinks) + build em `C:\Users\jenif\sora-android` | "Play Store (TWA)" |
 | Conciliação (previsto × banco, transferências, fatura paga) | `sora-backend/src/services/` (réguas puras com eval) | "Conciliação de ponta a ponta" + "Outubro/2026" |
 | Diagnóstico de OF de um cliente | `/api/admin/of-debug?email=<cliente>` (`&foco=saldo` / `cartoes`) | "Open Finance (Polp)" |
-| **A Polp/Celcoin está no ar?** (só leitura, de DENTRO do Render — as credenciais só existem lá) | `GET https://sora-backend-ohio.onrender.com/api/open-finance/diag-polp?key=<API_SECRET_TOKEN>` (`&consent=<id>` detalha um): alertas, bancos, consentimentos por status, conexões paradas há +12h como a Polp as vê, e uma consulta em tempo real na Celcoin. Nasceu no fim da manutenção da Celcoin (26/11/2026). O erro de conectar agora vai em texto de cliente (`erroDeConexaoParaCliente`); o técnico fica no log | "Open Finance (Polp)" |
+| **A Polp/Celcoin está no ar?** (só leitura, de DENTRO do Render — as credenciais só existem lá) | `GET https://sora-backend-ohio.onrender.com/api/open-finance/diag-polp?key=<API_SECRET_TOKEN>` (`&consent=<id>` detalha um): alertas, bancos, consentimentos por status, conexões paradas há +12h como a Polp as vê, e uma consulta em tempo real na Celcoin. **`&debug=<consent>&foco=cartoes&cru=1`** = o mesmo relatório do `/api/admin/of-debug` sem login de admin; **`&txs=<id do cartão na Celcoin>`** = transações CRUAS do cartão (bill_id, bill_post_date, bill_forecast_date). Nasceu no fim da manutenção da Celcoin (26/11/2026). O erro de conectar agora vai em texto de cliente (`erroDeConexaoParaCliente`); o técnico fica no log | "Open Finance (Polp)" |
 | Migrations | `sora-backend/sql/` (rodar à mão no Supabase) | "Migrations SQL a rodar" |
 | **Consumo do Supabase (egress, cota do Free 5 GB/ciclo)** | `sora-backend/docs/diagnostico-egress.sql` (`pg_stat_statements`, filtrar por `"public"."`) | "Egress do Supabase" + "Egress: metade era o sync" |
 
@@ -1154,6 +1154,31 @@ migration **116**.
   banco arredonda na ÚLTIMA. Por isso a tela rotula "Previstas pelo banco" e diz
   que aproxima — inventar a diferença seria pior.
 - Travado em `npm run eval:parcelas-previstas` e `npm run eval:pagamento-fatura`.
+- ⚠️ **O LOTE DO SYNC NÃO BASTA pro `jaEhTransacao` (corrigido 27/11/2026).** O
+  sync pede só o que tem DATA DE COMPRA nos últimos 90 dias e o emissor manda
+  toda parcela com a data da compra: compra parcelada mais velha some do lote e
+  a parcela JÁ GRAVADA era projetada de novo (786 linhas, R$ 104.974, 28
+  grupos). Hoje as parcelas gravadas do cartão entram na conferência (§7).
+
+### Fatura divergente do Breno (27/11/2026) — o que ficou PENDENTE
+
+Nubank R$ 500 × 586, Mercado Pago 1.995 × 1.500, PicPay 1.653 × 650. Os três
+eram NOSSOS (a Polp mandou tudo coerente). Além da contagem em dobro acima:
+- ⚠️ **Parcela que o banco JÁ faturou é empurrada pra frente.** Compra do PicPay
+  ESTORNADA: o banco lançou as parcelas 2–6 de uma vez na fatura de out
+  (`bill_id` + `bill_post_date` 24/09) e o sync, pelo `charge_identificator`,
+  pôs a 4/6 em nov, 5/6 em dez, 6/6 em jan. Mesmo caso menor no Nubank (iFood
+  2/2) e no MP (Shopee 2/2). Não corrigido — medir antes.
+- ⚠️ **MP: a trava do limite usa a MAIOR fatura da HISTÓRIA** (`usoConhecido`):
+  uma fatura antiga de R$ 2.658 derrubou o limite atual de R$ 2.200 como
+  "impossível" → `of_limite_usado` nulo → `simuladoEhOLimiteUsado` não dispara
+  e a tela mostra o limite usado (com R$ 464 de parcelas de jan/fev).
+- ⚠️ **Nubank tem uma 2ª linha "OUTROS"** (R$ 86,44, teto = usado) fora do
+  `LIMITE_CREDITO_TOTAL`; a fatura do banco = 917,42 − 330,62 (unbilled).
+- ⚠️ **`of_bill_forecast` da fatura ABERTA acerta os 3 do Breno ao centavo, mas
+  NÃO serve pra todos:** medido nos 109 cartões Celcoin, discorda da tela em 84
+  e muitos emissores (C6, Bradesco, Santander, BB) não marcam a fatura aberta
+  assim. Só por emissor, com valor do app do banco pra conferir.
 
 **3. Quem decide o VALOR exibido: `services/faturaVista.js`** — fonte única das
 duas rotas de fatura (`/fatura/status` e `/faturas`) e do feed da agenda, que
