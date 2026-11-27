@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { ehPagamentoFatura, ehPagamentoFaturaLegado, ehAjusteSaldo } from '@/lib/categorizar';
 import { situacaoDaTransacao, mapaDeCartoes, cartaoDaTransacao, rotuloNaFatura } from '@/lib/situacao-transacao';
 import { createPortal } from 'react-dom';
@@ -2223,7 +2223,8 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
   dividida?: boolean;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number; btnTop: number } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -2232,8 +2233,28 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
   useEffect(() => {
     if (!menuOpen || !btnRef.current) { setCoords(null); return; }
     const r = btnRef.current.getBoundingClientRect();
-    setCoords({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setCoords({ top: r.bottom + 6, right: window.innerWidth - r.right, btnTop: r.top });
   }, [menuOpen]);
+
+  // ⚠️ Na última linha da tela o menu abria pra baixo e os últimos itens
+  // ("Excluir") ficavam fora da tela ou atrás da barra de baixo do celular.
+  // Sem espaço embaixo, abre pra CIMA do botão. Medido antes de pintar.
+  useLayoutEffect(() => {
+    if (!coords || !menuRef.current) return;
+    const h = menuRef.current.offsetHeight;
+    const reserva = window.innerWidth < 768 ? 96 : 12; // barra de baixo + margem
+    if (coords.top + h <= window.innerHeight - reserva) return;
+    const acima = Math.max(8, coords.btnTop - 6 - h);
+    if (acima !== coords.top) setCoords({ ...coords, top: acima });
+  }, [coords]);
+
+  // Esc fecha o menu (sem isso, só tocando fora).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const fechar = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseMenu(); };
+    window.addEventListener('keydown', fechar);
+    return () => window.removeEventListener('keydown', fechar);
+  }, [menuOpen, onCloseMenu]);
 
   return (
     <>
@@ -2249,6 +2270,7 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
         <>
           <div className="fixed inset-0 z-[60]" onClick={onCloseMenu} />
           <div
+            ref={menuRef}
             className="fixed w-52 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-[61] animate-fade-in"
             style={{ top: coords.top, right: coords.right }}
           >
