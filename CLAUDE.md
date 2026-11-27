@@ -21,7 +21,7 @@ Arquivo de contexto do projeto — lido automaticamente em toda nova conversa.
 
 | Assunto | Fonte | Seção aqui |
 |---|---|---|
-| **Docs da Polp/Celcoin (Open Finance)** | **`sora-backend/docs/celcoin/*.txt`** (as 51 páginas da doc, uma por arquivo — `bills__transactions.txt`, `credit-cards__installments.txt`, `consents__resources.txt`, `changelog.txt`… —; índice em `_URLS.txt`; reatualiza com `node docs/celcoin/baixar.js`, conferido em 19/10/2026). ⚠️ Consultar ALI antes de supor qualquer campo da API | "DOCS DA CELCOIN SALVOS" |
+| **Docs da Polp/Celcoin (Open Finance)** | **`sora-backend/docs/celcoin/*.txt`** (as 58 páginas da doc, uma por arquivo — `bills__transactions.txt`, `credit-cards__installments.txt`, `consents__resources.txt`, `changelog.txt`… —; índice em `_URLS.txt`; reatualiza com `node docs/celcoin/baixar.js`, atualizado em 27/11/2026 — o que mudou está em "DOCS DA CELCOIN SALVOS"). ⚠️ Consultar ALI antes de supor qualquer campo da API | "DOCS DA CELCOIN SALVOS" |
 | **App de iPhone / App Store** | **`docs/APP-STORE.md`** (textos da loja, notas, histórico das recusas) + `ios-app/README.md` | "App Store (iPhone)" |
 | **ChatGPT / Claude (diretórios, ForSora)** | **`docs/DIRETORIOS-IA.md`** (envio aos dois portais) + `docs/diretorios/` (pacote do ChatGPT) | "Sora no ChatGPT e no Claude" |
 | **App Android / Play Store (TWA)** | **`docs/ANDROID-TWA.md`** (build, versão, keystore, assetlinks) + build em `C:\Users\jenif\sora-android` | "Play Store (TWA)" |
@@ -1004,7 +1004,36 @@ correções erradas na fatura de um cliente.
 - ⚠️ **A cópia estava PELA METADE: 35 de 51 páginas.** Faltavam `consents/resources`,
   `consents/show`, `changelog`, `enums`, `alerts`, `institutions`, `rate-limits` e
   mais. Foi essa lacuna que travou o diagnóstico do Banco Inter. O `_URLS.txt`
-  agora tem as 51 — reconferir contra o índice ao vivo de vez em quando.
+  agora tem as 58 — reconferir contra o índice ao vivo de vez em quando.
+
+### O que mudou nos docs até 27/11/2026 (atualização de 51 → 58 páginas)
+
+- **Frequência real da sincronização** (`sync-frequencies.txt`, "Limites
+  Operacionais"): transações e limites do cartão a cada ~3h06, **faturas
+  publicadas a cada ~2 dias e 2h15**, saldo da conta a cada ~1h47. A cota é por
+  CPF/CNPJ + instituição; consentimento DUPLICADO divide a cota e deixa tudo
+  mais lento.
+- **`POST /accounts/{account}/balance/sync`** (nova, 30/10): saldo da conta na
+  hora. Com `skipScheduleUpdate: false` (padrão) substitui a próxima
+  sincronização e NÃO gasta cota extra; 30 req/min; "só quando o usuário pedir,
+  nunca polling". Não usamos ainda — é o "atualizar saldo agora" que cliente
+  pede (Breno).
+- **Tabela "Ciclo de faturamento"** em `credit-cards__transactions.txt`:
+  `bill_id` imutável depois de atribuído, `bill_post_date` só avança,
+  `bill_forecast_date` sempre preenchido. ⚠️ A garantia é da Polp; o CONTEÚDO
+  que o emissor põe ali em parcela não é confiável (ver "Fatura divergente do
+  Breno").
+- **`/installments`**: `paidInstallments` saiu (14/10 — o código já cai pro nº
+  de `occurrences`), agrupa por dia da compra (fuso de Brasília), só DÉBITO,
+  inclui parcelas futuras; `purchasedAt` vinha 3h adiantado (corrigido).
+- **Consentimento v3** (`x-consent-version: 3`, 14/11): não duplica, reaproveita
+  o mesmo id ao reconectar, link de uso único; status novos `AUTHORIZATION_STARTED`
+  e `REVOKED`. Usamos a v2 (padrão sem o header) — a v2 será desativada um dia,
+  e aí o padrão vira 3 na mesma rota.
+- ⚠️ **Desde 14/11, consentimento REJECTED/EXPIRED/REVOKED BLOQUEIA os dados**
+  (403 `CONSENT_INACTIVE` nas rotas do consentimento, 404 nas diretas) e eles
+  são APAGADOS 6 dias depois. Pendente de autorização expira em 1 hora.
+- `counterparty` perdeu `website_url`/`logo_url` (02/10) — não usamos.
 
 ### `GET /consents/{id}/resources` — quem responde "por que faltou dado"
 
@@ -1160,19 +1189,38 @@ migration **116**.
   a parcela JÁ GRAVADA era projetada de novo (786 linhas, R$ 104.974, 28
   grupos). Hoje as parcelas gravadas do cartão entram na conferência (§7).
 
-### Fatura divergente do Breno (27/11/2026) — o que ficou PENDENTE
+### Fatura divergente do Breno (27/11/2026) — MEDIDO e NÃO corrigido (de propósito)
 
 Nubank R$ 500 × 586, Mercado Pago 1.995 × 1.500, PicPay 1.653 × 650. Os três
-eram NOSSOS (a Polp mandou tudo coerente). Além da contagem em dobro acima:
-- ⚠️ **Parcela que o banco JÁ faturou é empurrada pra frente.** Compra do PicPay
-  ESTORNADA: o banco lançou as parcelas 2–6 de uma vez na fatura de out
-  (`bill_id` + `bill_post_date` 24/09) e o sync, pelo `charge_identificator`,
-  pôs a 4/6 em nov, 5/6 em dez, 6/6 em jan. Mesmo caso menor no Nubank (iFood
-  2/2) e no MP (Shopee 2/2). Não corrigido — medir antes.
-- ⚠️ **MP: a trava do limite usa a MAIOR fatura da HISTÓRIA** (`usoConhecido`):
-  uma fatura antiga de R$ 2.658 derrubou o limite atual de R$ 2.200 como
-  "impossível" → `of_limite_usado` nulo → `simuladoEhOLimiteUsado` não dispara
-  e a tela mostra o limite usado (com R$ 464 de parcelas de jan/fev).
+eram NOSSOS (a Polp mandou tudo coerente). A contagem em dobro (acima) foi
+corrigida. As duas correções seguintes foram MEDIDAS com dado vivo de todos os
+81 cartões com conexão (616 faturas fechadas × total publicado, funções reais) e
+**REJEITADAS — as duas pioram o cálculo**. Não tentar de novo sem fato novo:
+- ⚠️ **"Levar a parcela pra fatura que o banco indica (`bill_id`)" — NÃO.** O
+  `bill_id` de PARCELA não é confiável: Santander, Bradesco, Inter, MP, Itaú e
+  parte do Nubank carimbam em TODAS as parcelas o `bill_id`/`bill_post_date`
+  da COMPRA, e cobram mês a mês (os totais publicados provam). As linhas que o
+  banco liga a uma fatura só somam o total publicado em 85/118 faturas do
+  Nubank, 8/61 do Santander, 6/42 do Itaú, ~0 no C6/Inter/Bradesco. Toda
+  versão testada (qualquer direção, só puxar pra trás, 2+ meses, cobrança em
+  bloco, só com estorno na mesma fatura, só estorno 7+ dias depois) estraga
+  fatura certa de outro cliente (melhor caso: 20 melhoram × 7 pioram).
+  ⚠️ **O "ESTORNO" do valor da compra no DIA da compra é o MECANISMO DO
+  PARCELAMENTO** (o banco estorna o à vista e põe as parcelas), não devolução —
+  é o que derruba a regra "tem estorno, então foi cancelada". O caso do Breno
+  (Airbnb estornado 32 dias depois, parcelas 2–6 lançadas de uma vez) é real,
+  mas não há sinal que o separe com segurança.
+- ⚠️ **"Régua do limite pelas faturas recentes" (MP) — NÃO.** Mudaria só o MP
+  do Breno, e a tela iria de R$ 1.995,42 pra **R$ 48,63** (banco: ~1.531): com
+  `of_limite_usado` gravado o `simuladoEhOLimiteUsado` dispara e a tela cai na
+  soma do ciclo do BANCO DE DADOS, que no MP sai quase zerada (pagamento
+  gravado como "Outros" + o empurra-pra-frente do `separarEmpurradas`). A
+  medição pela API dizia "melhora" — LIÇÃO: simular o valor de TELA com
+  `statusFatura` + `valorExibido` lendo o banco, nunca só a API.
+- ⚠️ **Pagamento de fatura com categoria ≠ "Fatura" ABATE a soma do ciclo**
+  (`valorNaFatura`: Recebimento + transferência + categoria ≠ Fatura = crédito).
+  Medido: 19 linhas, R$ 31,5 mil, 5 grupos (regra de categoria do cliente,
+  "Outros", e o "PAGTO.BOLETO" da Caixa virando Reembolso). Não corrigido.
 - ⚠️ **Nubank tem uma 2ª linha "OUTROS"** (R$ 86,44, teto = usado) fora do
   `LIMITE_CREDITO_TOTAL`; a fatura do banco = 917,42 − 330,62 (unbilled).
 - ⚠️ **`of_bill_forecast` da fatura ABERTA acerta os 3 do Breno ao centavo, mas
