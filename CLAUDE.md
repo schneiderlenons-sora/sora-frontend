@@ -1189,7 +1189,37 @@ migration **116**.
   a parcela JÁ GRAVADA era projetada de novo (786 linhas, R$ 104.974, 28
   grupos). Hoje as parcelas gravadas do cartão entram na conferência (§7).
 
-### Fatura divergente do Breno (27/11/2026) — MEDIDO e NÃO corrigido (de propósito)
+### ✅ Fatura aberta CONFERIDA PELO LIMITE (27/11/2026) — `services/marcaDoBanco.js`
+
+Resolve o Nubank e o Mercado Pago do relato do Breno. No sync (depois das
+parcelas previstas, lendo o BANCO DE DADOS), a fatura aberta passa a ser a
+MARCAÇÃO do emissor (`of_bill_forecast`, linhas sem `bill_id`, pagamento fora)
+**só quando** marcação aberta + o que ele marcou pra depois = `used_amount` de
+ALGUMA linha de limite, **ao centavo** (< R$ 0,005). Grava só `wallets.saldo`.
+Interruptor `OF_FATURA_CONFERIDA=0`. `eval:fatura-conferida` (23, 11/12 — a
+viva é equivalente e morre no `eval:medicao-fatura`).
+- ⚠️ **A culpa do MP é meio da Polp:** pela fórmula documentada do
+  `unbilled_amount` ("bill_post_date posterior a bill_closing_date + 1 mês"),
+  parcela futura — que a própria doc diz vir com `bill_post_date "0001-01-01"`
+  — NUNCA entra. Vem 0 e `used − 0` exibia o limite usado com parcelas de
+  jan/fev. O Nubank manda data real nas futuras, por isso lá funcionava.
+- Medido antes (valor de TELA com `statusFatura` + `valorExibido`): 4 cartões
+  mudam — Nubank do relato 500,36 → 586,80, MP 1.995,42 → 1.531,01 (os valores
+  do app do banco), Itaú Click 367,80 → 112,30 (somava 10 parcelas futuras),
+  Nubank 1.871,90 → 1.795,23 (compra lançada depois do fechamento). Os demais
+  não mudam. A medição (207) confere contra as faturas publicadas.
+
+### ✅ Data TRAVADA (migration 208) + correção do PicPay do Breno (27/11/2026)
+
+`transacoes.data_travada`: a reconciliação de parcelas (`patchReconciliacaoParcela`)
+NÃO reescreve linha travada; leitura tolerante (sem a 208, como antes). Existe
+pra correção pontual a partir do dado do banco. Primeiro uso: as parcelas 3–6
+do Airbnb ESTORNADO no PicPay do Breno voltaram pra 24/09 (lançamento do banco,
+fatura de outubro, junto do estorno de R$ 2.553,54) — fatura de dezembro
+1.120,71 → 695,12; a 208 já as trava. Cópia de antes na pasta temporária da
+sessão (`backup-picpay-breno-*.json`). `eval:reconciliar-parcelas` §7.
+
+### Fatura divergente do Breno (27/11/2026) — o que foi MEDIDO e NÃO corrigido (de propósito)
 
 Nubank R$ 500 × 586, Mercado Pago 1.995 × 1.500, PicPay 1.653 × 650. Os três
 eram NOSSOS (a Polp mandou tudo coerente). A contagem em dobro (acima) foi
@@ -5742,6 +5772,7 @@ sql/204_compromisso_varios_dias.sql — compromissos.data_fim + CHECK (fim > in�
 sql/205_aniversarios.sql — tabela aniversarios (aba Aniversários da Agenda + JOB 1U). Sem ela a aba diz que está sendo liberada e o cron não faz nada.
 sql/206_divisao_compra.sql — compra do cartão dividida com outra pessoa: transacoes.dividida_com + parte_outro (CHECK com `is not null` explícito) e tabela divisoes_acertos. Sem ela: dividir responde "ainda está sendo liberado"; nada quebra.
 sql/207_medicao_fatura_aberta.sql — MEDIÇÃO da fatura em aberto (tela × marcação do banco, JOB 1V). Só mede; sem ela o job não grava nada e /diag-medicao responde "sem_tabela".
+sql/208_transacao_data_travada.sql — transacoes.data_travada (a reconciliação de parcelas não reescreve a linha) + trava as 4 parcelas corrigidas do PicPay do relato de 27/11. Sem ela a reconciliação segue como antes — e o "Atualizar" (180 dias) desfaria a correção.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
