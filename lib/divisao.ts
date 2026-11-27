@@ -22,7 +22,7 @@ const cent = (v: unknown) => Math.round((Number(v) || 0) * 100) / 100;
 
 /** "Mesma pessoa" = mesma chave: sem acento, caixa nem pontuação. */
 export function chavePessoa(nome: unknown): string {
-  return String(nome ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return String(nome ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036F]/g, '')
     .replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 

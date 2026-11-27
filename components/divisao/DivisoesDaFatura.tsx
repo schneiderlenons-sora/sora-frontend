@@ -24,6 +24,12 @@ import { pessoasDaFatura, mensagemCobranca, linkWhatsApp, type PessoaDaFatura, t
 import { useConfirmar, useAvisar } from '@/contexts/ConfirmContext';
 import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
 
+/** Abre o WhatsApp numa aba nova; bloqueado (ou dentro do app), vai na mesma. */
+function abrirWhatsApp(link: string) {
+  const w = window.open(link, '_blank');
+  if (w) { try { w.opener = null; } catch { /* outra origem */ } } else window.location.href = link;
+}
+
 const FORMA: Record<string, string> = {
   conta: 'mandou pra sua conta',
   vincular: 'Pix ligado',
@@ -146,10 +152,15 @@ export default function DivisoesDaFatura({
 
             {!quitada && (
               <div className="grid grid-cols-2 gap-2">
-                <a href={linkWhatsApp(texto)} target="_blank" rel="noopener noreferrer"
+                {/* ⚠️ BOTÃO, não <a href>: o script da UTMify (rastreio de
+                    anúncio, carregado no app inteiro) reescreve links do
+                    wa.me e enfia caracteres invisíveis na mensagem — a
+                    cobrança chegaria marcada. Abrindo pelo clique, o link
+                    sai limpo. */}
+                <button type="button" onClick={() => abrirWhatsApp(linkWhatsApp(texto))}
                    className="h-10 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5 border border-border bg-card hover:border-primary/50">
                   <MessageCircle size={14} aria-hidden /> Cobrar no WhatsApp
-                </a>
+                </button>
                 <button type="button" onClick={() => setRegistrando(p)}
                         className="h-10 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 text-white bg-primary">
                   <HandCoins size={14} aria-hidden /> Já pagou

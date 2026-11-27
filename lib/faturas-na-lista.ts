@@ -58,7 +58,7 @@ const cent = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
 const POUCO = 0.009;
 
 function norm(s: unknown): string {
-  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036F]/g, '')
     .replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 

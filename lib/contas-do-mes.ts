@@ -305,7 +305,7 @@ export type FiltroStatus = 'todas' | 'atrasadas' | 'hoje' | 'a_vencer';
 export function filtrarContas(itens: ItemConta[], f: {
   aba: 'pagar' | 'receber' | 'pagas'; status?: FiltroStatus; busca?: string; ocultarFaturas?: boolean;
 }): ItemConta[] {
-  const termo = String(f.busca || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  const termo = String(f.busca || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036F]/g, '').trim();
   return itens.filter((i) => {
     if (f.ocultarFaturas && i.origem === 'fatura') return false;
     if (f.aba === 'pagas') { if (i.status !== 'paga') return false; }
@@ -316,7 +316,7 @@ export function filtrarContas(itens: ItemConta[], f: {
       if (f.status === 'a_vencer' && i.status !== 'a_vencer') return false;
     }
     if (termo) {
-      const alvo = `${i.descricao} ${i.carteira || ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const alvo = `${i.descricao} ${i.carteira || ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036F]/g, '');
       if (!termo.split(/\s+/).every((p) => alvo.includes(p))) return false;
     }
     return true;
