@@ -1227,6 +1227,17 @@ corrigida. As duas correções seguintes foram MEDIDAS com dado vivo de todos os
   NÃO serve pra todos:** medido nos 109 cartões Celcoin, discorda da tela em 84
   e muitos emissores (C6, Bradesco, Santander, BB) não marcam a fatura aberta
   assim. Só por emissor, com valor do app do banco pra conferir.
+- **MEDIÇÃO EM CURSO (migration 207, desde 27/11/2026)** — é ela que decide se a
+  marcação vira o valor da tela POR BANCO. O JOB 1V (23h30 SP) grava em
+  `medicao_fatura_aberta`, por cartão com conexão viva, o valor da tela
+  (`faturasDoGrupo`) e o da marcação (`services/medicaoFaturaAberta.js`,
+  `eval:medicao-fatura`). Ler o resultado:
+  `GET /api/open-finance/diag-medicao?key=<API_SECRET_TOKEN>` — por banco,
+  quantas faturas publicadas cada um acertou (±R$ 1) e quem chegou mais perto,
+  usando o último retrato ATÉ o fechamento. `&fotografar=1` tira um retrato na
+  hora. Só mede: nada na tela lê a tabela. As faturas de dezembro fecham entre
+  01 e 12/12 e o banco publica em até ~2 dias. Ensaio com dados reais: 81
+  cartões, 0 falhas, ~1 min.
 
 **3. Quem decide o VALOR exibido: `services/faturaVista.js`** — fonte única das
 duas rotas de fatura (`/fatura/status` e `/faturas`) e do feed da agenda, que
@@ -5730,6 +5741,7 @@ sql/203_notas_painel.sql — notas.fixada + notas.updated_at (aba Notas do Drive
 sql/204_compromisso_varios_dias.sql — compromissos.data_fim + CHECK (fim > início): evento de mais de um dia na Agenda. Sem ela tudo funciona como antes; marcar "até" responde "ainda está sendo liberado" (no zap, marca só o 1º dia e avisa).
 sql/205_aniversarios.sql — tabela aniversarios (aba Aniversários da Agenda + JOB 1U). Sem ela a aba diz que está sendo liberada e o cron não faz nada.
 sql/206_divisao_compra.sql — compra do cartão dividida com outra pessoa: transacoes.dividida_com + parte_outro (CHECK com `is not null` explícito) e tabela divisoes_acertos. Sem ela: dividir responde "ainda está sendo liberado"; nada quebra.
+sql/207_medicao_fatura_aberta.sql — MEDIÇÃO da fatura em aberto (tela × marcação do banco, JOB 1V). Só mede; sem ela o job não grava nada e /diag-medicao responde "sem_tabela".
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
