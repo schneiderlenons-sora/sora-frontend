@@ -42,6 +42,10 @@ import { ymHojeSP, somarMeses } from '@/lib/previstos';
 import { hojeSP, competenciaAtual, competenciaVizinha, cicloPorCompetencia, labelCompetencia } from '@/lib/ciclo-fatura';
 import { carregarLancamentosDaFatura } from '@/lib/fatura-lista-busca';
 import { somarFatura } from '@/lib/valor-fatura';
+import {
+  faturasDoMes, linhaPassa, montarListaComFaturas, totaisDasFaturas, deslocamentosDoMes,
+  type LinhaFatura, type ItemLista,
+} from '@/lib/faturas-na-lista';
 import dynamic from 'next/dynamic';
 import {
   Plus, Search, Filter, Download, Upload, ChevronDown, X,
@@ -103,7 +107,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const confirmar = useConfirmar();
   const decidir = useDecidir();
   const avisar = useAvisar();
-  const { phone: authPhone, podeUsar, perfil } = useAuth();
+  const { phone: authPhone, podeUsar, perfil, user } = useAuth();
   const phone = authPhone || phoneInicial || ''; // SSR: phone do servidor até hidratar
   const podeImportarOFX = podeUsar('import_ofx');
   // Em grupo compartilhado (não-Pessoal), mostra o avatar de quem fez cada lançamento.
@@ -236,6 +240,38 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
     () => (porFatura ? (fatData?.transacoes ?? []) : (txData?.transacoes ?? [])),
     [porFatura, fatData, txData],
   );
+
+  // ── "Cartões: Compras | Faturas" (pedido do Arisson, nov/2026) ─────────────
+  // Em "Faturas", as compras do cartão saem da lista e cada cartão vira UMA
+  // linha: a fatura que vence no mês (regra em lib/faturas-na-lista.ts). Só a
+  // TELA muda. Preferência do aparelho, por pessoa.
+  const chaveCartoesComo = `sora-transacoes-cartoes:${user?.id || 'anon'}`;
+  const [cartoesComo, setCartoesComoEstado] = useState<'compras' | 'faturas'>('compras');
+  useEffect(() => {
+    try { if (localStorage.getItem(chaveCartoesComo) === 'faturas') setCartoesComoEstado('faturas'); } catch { /* sem storage: fica em compras */ }
+  }, [chaveCartoesComo]);
+  const setCartoesComo = (v: 'compras' | 'faturas') => {
+    setCartoesComoEstado(v);
+    setSelecionados(new Set());
+    try { localStorage.setItem(chaveCartoesComo, v); } catch { /* só não lembra */ }
+  };
+  const modoFaturas = cartoesComo === 'faturas' && !porFatura && !verArquivadas && cartoesCredito.length > 0;
+  // A fatura "atual" de cada cartão vence neste mês ou no seguinte, então a que
+  // vence no mês da tela está num de dois deslocamentos. Chaves canônicas: quem
+  // passou por Cartões/Dashboard/Previstos já tem o deslocamento 0 e o −1.
+  // ⚠️ `useSWR` direto (não `useApi`): a baleia cobriria a página inteira.
+  const [offFatA, offFatB] = deslocamentosDoMes(ymHojeSP(), mesRef);
+  const { data: fatDataA, error: erroFatA, mutate: mFatA } = useSWR(
+    modoFaturas && phone ? chave.faturas(phone, offFatA) : null,
+    () => api.wallets.faturas(phone, offFatA), { revalidateOnFocus: false },
+  );
+  const { data: fatDataB, error: erroFatB, mutate: mFatB } = useSWR(
+    modoFaturas && phone ? chave.faturas(phone, offFatB) : null,
+    () => api.wallets.faturas(phone, offFatB), { revalidateOnFocus: false },
+  );
+  const faturasProntas = modoFaturas && !!fatDataA && !!fatDataB;
+  const falhaFaturas = modoFaturas && !faturasProntas && (!!erroFatA || !!erroFatB);
+  const [faturaAberta, setFaturaAberta] = useState<{ cartao: any; offset: number } | null>(null);
   const carregandoFatura = porFatura && !fatData && !erroFatura;
 
   // ⚠️ PONTO ÚNICO de atualização da lista. Toda edição otimista (arquivar,
@@ -414,7 +450,7 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   // rodapé): o rodapé tem de somar exatamente o que a lista mostra.
   const nomesEmpresa = useMemo(() => new Set(contasDaEmpresa(wallets).map((w) => w.nome)), [wallets]);
   const verEmpresa = mostrarEmpresa || nomesEmpresa.has(contaId);
-  const { txsFiltradas, qtdEmpresaEscondida, qtdEmpresaNaLista } = useMemo(() => {
+  const { txsFiltradas: txsSemFaturas, qtdEmpresaEscondida, qtdEmpresaNaLista } = useMemo(() => {
     const daEmpresa = txsBase.filter((t) => ehLancamentoDaEmpresa(t, nomesEmpresa)).length;
     if (verEmpresa || !daEmpresa) return { txsFiltradas: txsBase, qtdEmpresaEscondida: 0, qtdEmpresaNaLista: daEmpresa };
     return {
@@ -423,6 +459,37 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       qtdEmpresaNaLista: 0,
     };
   }, [txsBase, verEmpresa, nomesEmpresa]);
+
+  // "Cartões: Faturas": tira as compras do cartão e intercala as faturas do mês.
+  // ⚠️ `txsFiltradas` passa a ser o que a LISTA MOSTRA — contador, seleção e
+  // totais leem dela, e o rodapé tem de somar exatamente o que está na tela.
+  // Enquanto as faturas não chegam (ou se falharem), fica a lista de sempre:
+  // nada some sem alguma coisa no lugar.
+  const comFaturas = useMemo(() => {
+    if (!faturasProntas) return null;
+    const doMes = faturasDoMes({
+      mes: mesRef, hoje: hojeLista, moedaBase,
+      respostas: [(fatDataA as any)?.faturas, (fatDataB as any)?.faturas],
+    });
+    const conta = contaId === FILTRO_SO_CONTAS ? 'so_contas' : contaId === FILTRO_SO_CARTOES ? 'so_cartoes' : contaId;
+    const linhas = doMes.linhas.filter((l) => linhaPassa(l, {
+      busca, tipo, status, categoria: catFiltro, conta,
+      outroFiltro: membroFiltro !== 'todos' || cartaoFiltro !== 'todos',
+    }));
+    return montarListaComFaturas({
+      txs: txsSemFaturas, linhas,
+      cartoes: cartoesCredito.map((c) => ({ id: c.id, nome: c.nome })),
+      semCambio: doMes.semCambio,
+    });
+  }, [faturasProntas, fatDataA, fatDataB, mesRef, hojeLista, moedaBase, contaId, busca, tipo, status, catFiltro,
+      membroFiltro, cartaoFiltro, txsSemFaturas, cartoesCredito]);
+  const txsFiltradas = comFaturas ? comFaturas.txs : txsSemFaturas;
+  const linhasFatura: LinhaFatura[] = useMemo(() => comFaturas?.linhas ?? [], [comFaturas]);
+  const totFaturas = useMemo(() => totaisDasFaturas(linhasFatura), [linhasFatura]);
+  const itensLista: ItemLista<any>[] = useMemo(
+    () => comFaturas?.itens ?? txsFiltradas.map((tx) => ({ tipo: 'tx' as const, tx })),
+    [comFaturas, txsFiltradas],
+  );
 
   // ── Métricas calculadas das filtradas ──────────────────────
   //
@@ -484,8 +551,10 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       qtd++;
       if (t.tipo === 'Recebimento') aReceber += t.valor || 0; else aPagar += t.valor || 0;
     }
-    return { aReceber, aPagar, qtd };
-  }, [txsFiltradas, situacaoDe]);
+    // "Cartões: Faturas": a fatura em aberto É a conta a pagar do cartão (as
+    // compras dela não estão na lista, então não há o que contar em dobro).
+    return { aReceber, aPagar: aPagar + totFaturas.aPagar, qtd: qtd + totFaturas.abertas };
+  }, [txsFiltradas, situacaoDe, totFaturas]);
 
   // ⚠️ O QUE `receitasTotal`/`despesasTotal` DEIXAM DE FORA.
   // Os dois excluem transferência (pagamento de fatura, Pix entre contas
@@ -753,7 +822,9 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
       const s = situacaoDe(t);
       return s.tipo === 'pago' ? 'Pago' : s.tipo === 'na_fatura' ? rotuloNaFatura(s.competencia, hojeLista) : 'Pendente';
     };
-    const rows = txsFiltradas.map(t =>
+    // Exporta os LANÇAMENTOS (com as compras do cartão), mesmo no modo
+    // "Cartões: Faturas": a planilha é dado, não a forma de olhar a tela.
+    const rows = txsSemFaturas.map(t =>
       `${fmtData(t.data)},${t.tipo},${nomeCategoria(t.categoria)},"${t.observacao || ''}",${t.valor},${t.wallet_nome || ''},${statusCsv(t)}`
     ).join('\n');
     const blob = new Blob(['﻿' + header + rows], { type: 'text/csv;charset=utf-8' });
@@ -1114,13 +1185,17 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             positive
           />
 
-          {/* Despesas */}
+          {/* Despesas. Em "Cartões: Faturas" (decisão do dono, nov/2026): o que
+              saiu das contas + as faturas que vencem no mês — a mesma soma que
+              a lista mostra. As compras do cartão estão dentro das faturas. */}
           <StatCard
             label="Despesas"
-            value={ocultar ? null : despesasTotal}
+            value={ocultar ? null : despesasTotal + (comFaturas ? totFaturas.valor : 0)}
             icon={TrendingDown}
             colorHue={0}
-            sub={`${txsFiltradas.filter(t => t.tipo === 'Gasto' && contaNoResultado(t)).length} saídas`}
+            sub={comFaturas
+              ? `${txsFiltradas.filter(t => t.tipo === 'Gasto' && contaNoResultado(t)).length} das contas + ${linhasFatura.length} ${linhasFatura.length === 1 ? 'fatura' : 'faturas'}`
+              : `${txsFiltradas.filter(t => t.tipo === 'Gasto' && contaNoResultado(t)).length} saídas`}
             delay={120}
             negative
           />
@@ -1213,6 +1288,31 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 </button>
               ))}
             </div>
+
+            {/* Como o cartão aparece: cada compra, ou só a fatura do mês (que
+                abre as compras ao tocar). Só na visão por mês, com cartão. */}
+            {!porFatura && !verArquivadas && cartoesCredito.length > 0 && (
+              <div role="radiogroup" aria-label="Como os cartões aparecem na lista"
+                   className="flex items-center gap-1 bg-muted/60 rounded-xl p-1 flex-shrink-0">
+                <span className="flex items-center gap-1 pl-2 pr-1 text-[11px] font-semibold text-muted-foreground">
+                  <CreditCard size={12} aria-hidden /> Cartões
+                </span>
+                {([['compras', 'Compras'], ['faturas', 'Faturas']] as const).map(([v, rotulo]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="radio"
+                    aria-checked={cartoesComo === v}
+                    onClick={() => setCartoesComo(v)}
+                    className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      cartoesComo === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Filtros secundários — 3 colunas no mobile, largura própria no
                 desktop. As larguras mínimas existem porque o rótulo estava
@@ -1388,13 +1488,33 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
             <div className="flex items-center gap-3">
               <h3 className="font-semibold text-foreground">Movimentações</h3>
               <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium tabular">
-                {txsFiltradas.length}
+                {txsFiltradas.length + linhasFatura.length}
               </span>
             </div>
             <span className="text-xs text-muted-foreground hidden sm:block">
               Ordenado por data (mais recente)
             </span>
           </div>
+
+          {/* "Cartões: Faturas" ainda sem as faturas (chegando ou falhou): a
+              lista segue com as compras, e a faixa diz por quê. */}
+          {modoFaturas && !comFaturas && (
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2.5 border-b border-border/60 bg-muted/30 text-xs text-muted-foreground"
+                 role={falhaFaturas ? 'alert' : undefined} aria-live="polite">
+              <span className="flex items-center gap-2 min-w-0">
+                <CreditCard size={14} className="flex-shrink-0" aria-hidden />
+                {falhaFaturas
+                  ? 'Não consegui carregar as faturas agora. Mostrando as compras do cartão.'
+                  : 'Carregando as faturas dos cartões…'}
+              </span>
+              {falhaFaturas && (
+                <button type="button" onClick={() => { mFatA(); mFatB(); }}
+                        className="min-h-11 sm:min-h-0 font-semibold text-foreground underline underline-offset-2 hover:opacity-80">
+                  Tentar de novo
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Conta "só da empresa": diz quantos lançamentos ficaram de fora e
               por quê — esconder calado faria parecer que sumiram. */}
@@ -1429,18 +1549,22 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                 Tentar de novo
               </button>
             </div>
-          ) : txsFiltradas.length === 0 ? (
+          ) : itensLista.length === 0 ? (
             <EmptyState temFiltro={!!temFiltro} onLimpar={limparFiltros} onCriar={() => setModalOpen(true)} />
           ) : (
             <>
               {/* Total do filtro ABRINDO a lista: o resultado sem rolar até o
-                  fim. Fora do `overflow-x-auto` pelo mesmo motivo do rodapé. */}
+                  fim. Fora do `overflow-x-auto` pelo mesmo motivo do rodapé.
+                  Em "Cartões: Faturas" ele aparece sempre: é onde a pessoa vê
+                  "contas + faturas" separados. */}
               <LinhaTotais
                 posicao="topo"
-                mostrar={!!temFiltro}
-                qtd={txsFiltradas.length}
+                mostrar={!!temFiltro || !!comFaturas}
+                qtd={itensLista.length}
                 receitas={receitasTotal}
                 despesas={despesasTotal}
+                faturas={comFaturas ? totFaturas.valor : null}
+                filtrado={!!temFiltro}
                 transferencias={transferenciasTotal}
                 ajustes={temAjuste ? ajustesTotal : null}
                 ocultar={ocultar}
@@ -1466,7 +1590,27 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
 
                   {/* Linhas */}
                   <div className="divide-y divide-border/40">
-                    {txsFiltradas.map((tx, i) => (
+                    {itensLista.map((item, i) => {
+                      if (item.tipo === 'fatura') return (
+                      <LinhaFaturaRow
+                        key={item.linha.chave}
+                        linha={item.linha}
+                        index={i}
+                        ocultar={ocultar}
+                        hoje={hojeLista}
+                        onAbrir={() => {
+                          const cartao = cartoesCredito.find((c) => c.id === item.linha.cartaoId);
+                          if (!cartao) return;
+                          // O detalhe navega por FATURAS a partir da atual do cartão.
+                          const atual = competenciaAtual(cartao);
+                          const [ya, ma] = atual.split('-').map(Number);
+                          const [yb, mb] = item.linha.competencia.split('-').map(Number);
+                          setFaturaAberta({ cartao, offset: (yb * 12 + mb) - (ya * 12 + ma) });
+                        }}
+                      />
+                      );
+                      const tx = item.tx;
+                      return (
                       <TransactionRow
                         key={tx.id}
                         tx={tx}
@@ -1501,7 +1645,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         arquivada={!!tx.arquivada_por}
                         onArquivar={() => handleArquivar(tx, !tx.arquivada_por)}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1512,10 +1657,12 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                   pessoa filtrou pra ver. Aqui ele ocupa a largura do card e
                   está sempre visível. */}
               <LinhaTotais
-                mostrar={!!temFiltro && txsFiltradas.length > LISTA_LONGA}
-                qtd={txsFiltradas.length}
+                mostrar={(!!temFiltro || !!comFaturas) && itensLista.length > LISTA_LONGA}
+                qtd={itensLista.length}
                 receitas={receitasTotal}
                 despesas={despesasTotal}
+                faturas={comFaturas ? totFaturas.valor : null}
+                filtrado={!!temFiltro}
                 transferencias={transferenciasTotal}
                 ajustes={temAjuste ? ajustesTotal : null}
                 ocultar={ocultar}
@@ -1535,6 +1682,18 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           offsetInicial={offsetFatura}
           onClose={() => setDetalheFaturaAberto(false)}
           onRefresh={() => { mFat(); mW(); }}
+        />
+      )}
+
+      {/* "Cartões: Faturas": tocar numa fatura abre o MESMO detalhe, na fatura
+          da linha (compras, pagamentos e o botão de pagar). */}
+      {faturaAberta && (
+        <DetalhesCartaoModal
+          phone={phone}
+          cartao={faturaAberta.cartao}
+          offsetInicial={faturaAberta.offset}
+          onClose={() => setFaturaAberta(null)}
+          onRefresh={() => { mFatA(); mFatB(); mTx(); mW(); mR(); }}
         />
       )}
 
@@ -1944,6 +2103,83 @@ function TransactionRow({
 }
 
 // ─────────────────────────────────────────────────────────────
+// LINHA DA FATURA — "Cartões: Faturas" (lib/faturas-na-lista.ts).
+// Mesmas colunas da lista. A linha inteira é um botão: abre o detalhe da
+// fatura (as compras, os pagamentos e o "Pagar"). Sem seleção nem menu — não
+// é um lançamento, é o resumo de vários.
+// ⚠️ Status sempre com ÍCONE + RÓTULO (a cor sozinha não carrega o sentido).
+// ─────────────────────────────────────────────────────────────
+function LinhaFaturaRow({ linha, index, ocultar, onAbrir }: {
+  linha: LinhaFatura; index: number; ocultar: boolean; hoje: string; onAbrir: () => void;
+}) {
+  const fmtCru = useDinheiro();
+  const fmt = (v: number) => (ocultar ? '••••' : fmtCru(v));
+  const temaCategoria = useTemaCategoria();
+  const theme = temaCategoria('Fatura');
+  const { status, pagamentos } = linha;
+
+  const pagos = pagamentos.length === 1
+    ? `${fmt(pagamentos[0].valor)} em ${ddmm(pagamentos[0].data)}${pagamentos[0].conta ? ` · ${pagamentos[0].conta}` : ' · por fora'}`
+    : pagamentos.length > 1 ? `${pagamentos.length} pagamentos no mês` : '';
+  const detalhe =
+    status === 'paga' ? (pagos ? `Paga · ${pagos}` : 'Paga')
+    : status === 'atrasada' ? `Venceu em ${ddmm(linha.venc)} · falta ${fmt(linha.restante)}`
+    : status === 'parcial' ? `Falta ${fmt(linha.restante)} · vence em ${ddmm(linha.venc)}`
+    : status === 'vence_hoje' ? (linha.pago > 0.009 ? `Vence hoje · falta ${fmt(linha.restante)}` : 'Vence hoje')
+    : `Vence em ${ddmm(linha.venc)}`;
+  const selo =
+    status === 'paga' ? { Icone: CheckCircle2, texto: 'Paga', classe: 'text-green-700 dark:text-green-400' }
+    : status === 'atrasada' ? { Icone: AlertCircle, texto: 'Atrasada', classe: 'text-red-600 dark:text-red-400' }
+    : status === 'parcial' ? { Icone: Clock, texto: 'Parcial', classe: 'text-amber-600 dark:text-amber-400' }
+    : status === 'vence_hoje' ? { Icone: Clock, texto: 'Vence hoje', classe: 'text-amber-600 dark:text-amber-400' }
+    : { Icone: Clock, texto: 'Em aberto', classe: 'text-amber-600 dark:text-amber-400' };
+
+  return (
+    <div className="relative transition-colors animate-fade-in hover:bg-muted/40"
+         style={{ animationDelay: `${Math.min(index * 25, 300)}ms`, contentVisibility: 'auto', containIntrinsicSize: 'auto 60px' }}>
+      <button
+        type="button"
+        onClick={onAbrir}
+        aria-label={`Fatura ${linha.cartaoNome}: ${selo.texto.toLowerCase()}. Abrir as compras e o pagamento`}
+        className="grid px-4 py-3.5 gap-3 w-full text-left"
+        style={{ gridTemplateColumns: GRID_COLS }}
+      >
+        <span aria-hidden />
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `color-mix(in srgb, ${theme.color} 14%, transparent)`, color: theme.color }}>
+            <CreditCard size={18} aria-hidden />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">Fatura {linha.cartaoNome}</span>
+            <span className={`block text-[11px] ${status === 'atrasada' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>{detalhe}</span>
+          </span>
+        </span>
+        <span className="flex items-center"><span className="text-xs text-muted-foreground/40">—</span></span>
+        <span className="flex items-center min-w-0">
+          <span className="text-xs font-medium leading-[18px] px-2 py-px rounded-[11px]"
+                style={{ background: `color-mix(in srgb, ${theme.color} 12%, hsl(var(--bg-card)))`, color: theme.color }}>
+            <span className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full" style={{ background: theme.color }} />
+            Fatura
+          </span>
+        </span>
+        <span className="flex items-center min-w-0"><span className="text-xs text-muted-foreground truncate">{linha.cartaoNome}</span></span>
+        <span className="flex items-center"><span className="text-xs text-muted-foreground tabular whitespace-nowrap">{fmtData(linha.venc)}</span></span>
+        <span className="flex flex-col items-end justify-center">
+          <span className="text-sm font-bold tabular whitespace-nowrap text-red-500 dark:text-red-400">
+            {ocultar ? '••••' : `−${fmtCru(linha.valor)}`}
+          </span>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-medium whitespace-nowrap ${selo.classe}`}>
+            <selo.Icone size={9} aria-hidden /> {selo.texto}
+          </span>
+        </span>
+        <span className="flex items-center justify-end text-muted-foreground"><ChevronRight size={16} aria-hidden /></span>
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
 // overflow-x-auto da linha (que cria clipping em ambos os eixos).
 // ─────────────────────────────────────────────────────────────
@@ -2065,11 +2301,16 @@ type SaldoContaInfo =
   | { conta: string; atual: number; estado: 'pronto'; previsto: number; ate: string; estimado: boolean };
 
 function LinhaTotais({
-  mostrar, qtd, receitas, despesas, transferencias, ajustes, ocultar, saldoConta, posicao = 'rodape',
+  mostrar, qtd, receitas, despesas, faturas = null, transferencias, ajustes, ocultar, saldoConta, posicao = 'rodape',
+  filtrado = true,
 }: {
   mostrar: boolean; qtd: number;
+  /** Há filtro na lista? Sem filtro (só em "Cartões: Faturas") o total é do mês. */
+  filtrado?: boolean;
   posicao?: 'topo' | 'rodape';
   receitas: number; despesas: number; transferencias: number;
+  /** "Cartões: Faturas": soma das faturas da lista; null fora desse modo. */
+  faturas?: number | null;
   /** Líquido dos ajustes de saldo; null quando a lista não tem nenhum. */
   ajustes?: number | null;
   ocultar: boolean;
@@ -2082,7 +2323,12 @@ function LinhaTotais({
   const blocos: Bloco[] = [];
 
   if (receitas > 0) blocos.push({ rotulo: 'Receitas', valor: receitas, cor: 'hsl(142 71% 40%)', Icone: ArrowUpRight });
-  if (despesas > 0) blocos.push({ rotulo: 'Despesas', valor: despesas, cor: 'hsl(0 72% 51%)',  Icone: ArrowDownRight });
+  // Em "Cartões: Faturas" as duas saídas vêm separadas — é o que a pessoa
+  // confere: o que saiu das contas e as faturas do mês (as compras estão nelas).
+  const comFaturas = faturas != null;
+  if (despesas > 0) blocos.push({ rotulo: comFaturas ? 'Despesas das contas' : 'Despesas', valor: despesas, cor: 'hsl(0 72% 51%)',  Icone: ArrowDownRight });
+  if (comFaturas && faturas > 0) blocos.push({ rotulo: 'Faturas do mês', valor: faturas, cor: 'hsl(0 72% 51%)', Icone: CreditCard });
+  const saidas = despesas + (faturas || 0);
   // Rótulo explica por que estão à parte — sem isso pareceria uma terceira
   // categoria inventada, e não "o que não é consumo nem ganho".
   if (transferencias > 0) blocos.push({ rotulo: 'Transferências', valor: transferencias, cor: 'hsl(var(--muted-foreground))', Icone: ArrowLeftRight });
@@ -2097,11 +2343,11 @@ function LinhaTotais({
   // listadas (pendentes inclusas) — resultado do período, não dinheiro na
   // conta. Com o rótulo "Saldo" um cliente leu R$ 20.570,36 como saldo da
   // conta, que era R$ 5.217,71. O saldo de verdade vem na linha de baixo.
-  if (receitas > 0 && despesas > 0) {
+  if (receitas > 0 && saidas > 0) {
     blocos.push({
-      rotulo: 'Resultado do filtro', valor: receitas - despesas, forte: true,
-      cor: receitas - despesas >= 0 ? 'hsl(142 71% 40%)' : 'hsl(0 72% 51%)',
-      Icone: receitas - despesas >= 0 ? ArrowUpRight : ArrowDownRight,
+      rotulo: filtrado ? 'Resultado do filtro' : 'Resultado do mês', valor: receitas - saidas, forte: true,
+      cor: receitas - saidas >= 0 ? 'hsl(142 71% 40%)' : 'hsl(0 72% 51%)',
+      Icone: receitas - saidas >= 0 ? ArrowUpRight : ArrowDownRight,
     });
   }
   // Filtro que só pega lançamentos de valor zero: melhor dizer "R$ 0,00" do que
@@ -2114,7 +2360,7 @@ function LinhaTotais({
       <div className="flex items-center gap-2 flex-shrink-0">
         <Filter size={13} className="text-muted-foreground flex-shrink-0" />
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-          Total filtrado
+          {filtrado ? 'Total filtrado' : 'Total do mês'}
         </span>
         <span className="text-[11px] text-muted-foreground/70 tabular">
           · {qtd} {qtd === 1 ? 'lançamento' : 'lançamentos'}

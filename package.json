@@ -65,7 +65,8 @@
     "eval:agenda-periodo": "npx tsx lib/agenda-periodo.eval.mjs",
     "eval:aniversarios": "npx tsx lib/aniversarios.eval.mjs",
     "eval:humor": "npx tsx lib/humor.eval.mjs",
-    "eval:contas-do-mes": "npx tsx lib/contas-do-mes.eval.mjs"
+    "eval:contas-do-mes": "npx tsx lib/contas-do-mes.eval.mjs",
+    "eval:faturas-na-lista": "npx tsx lib/faturas-na-lista.eval.mjs"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
