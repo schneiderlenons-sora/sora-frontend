@@ -59,7 +59,7 @@ export default function CamposDivisao({
             <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0"><Users size={15} aria-hidden /></span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-foreground">Dividir com alguém</span>
-              <span className="block text-[11px] text-muted-foreground">A fatura fica inteira; a parte da outra pessoa é o que ela te deve.</span>
+              <span className="block text-[11px] text-muted-foreground">A fatura fica inteira; a parte da outra pessoa fica como valor a receber.</span>
             </span>
           </span>
           <span className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors" style={{ background: estado.ativo ? 'hsl(var(--primary))' : 'hsl(var(--fg-muted) / .3)' }}>

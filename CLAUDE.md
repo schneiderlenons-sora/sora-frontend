@@ -2486,6 +2486,84 @@ fatura** — escolhe o cartão e navega pelas faturas (‹ Fatura de novembro �
   ver o plano de 5 fases na conversa de 21/10/2026 (começa por simulação só
   leitura; a opção só aparece pros clientes quando TODAS as telas seguirem).
 
+## Transações → "Cartões: Compras | Faturas" (nov/2026)
+
+Pedido do Arisson: ver Transações como o extrato do banco — o que saiu das
+contas e, de cada cartão, só a fatura do mês. Decisão do dono: o topo soma
+"contas + faturas do mês".
+
+- Regra: `lib/faturas-na-lista.ts` (`eval:faturas-na-lista`, 46, 16/16).
+  "Fatura do mês" = a que VENCE no mês (visão de caixa). Valor PRONTO do
+  servidor (`/wallets/faturas`, deslocamentos d−1 e d — a "atual" de cada
+  cartão vence neste mês ou no seguinte). Status: Em aberto / Vence hoje /
+  Parcial / Atrasada / Paga. Tocar abre o `DetalhesCartaoModal` na fatura.
+- ⚠️ **SÓ A TELA MUDA.** Dashboard, relatórios e WhatsApp seguem contando as
+  compras pela data. CSV exporta os LANÇAMENTOS (com as compras do cartão).
+- ⚠️ Pagamento da fatura feito pela Sora ("Fatura <cartão>", categoria Fatura,
+  inclusive "· Esposa (externo)") sai da lista e entra DENTRO da linha da
+  fatura. O que o banco manda ("PAGAMENTO FATURA…") não diz o cartão: fica na
+  lista. Esconder dinheiro saindo da conta é pior que repetir.
+- Cartão em outra moeda sem cotação: as compras dele ficam (sumiriam sem nada
+  no lugar). Enquanto as faturas carregam (ou se falharem) a lista é a de
+  sempre, com faixa avisando. Preferência por aparelho
+  (`sora-transacoes-cartoes:<userId>`). Só na visão por mês.
+
+## Compra do cartão DIVIDIDA com outra pessoa (nov/2026) — migration 206
+
+Pedido do Arisson: "geladeira de R$ 3.000 em 10x de R$ 300, minha esposa
+paga metade". Etapa 1 (decisão do dono): **a compra continua INTEIRA** nos
+totais e na fatura (bate com o banco); a parte da outra pessoa é o que ela
+deve. **Etapa 2 (não feita, decisão do dono):** contar só a parte do cliente
+nos relatórios — mexe em todas as somas do app, do tamanho do "ajuste de saldo".
+
+- Dados: `transacoes.dividida_com` + `parte_outro` (por linha/parcela) e a
+  tabela `divisoes_acertos` (o que a pessoa já acertou de uma fatura;
+  `transacao_id` ON DELETE CASCADE).
+- Backend: `services/divisaoCompra.js` + `routes/divisoes.js`
+  (`eval:divisao-compra`, 70, 22/22; migration testada no PGlite). Só compra
+  de cartão na moeda do grupo. Metade: o centavo ímpar fica com quem passou o
+  cartão. Valor fixo maior que alguma parcela: NADA é gravado. Parcelas irmãs
+  = mesmo `parcela_grupo` + total + cartão (regra do "aplicar nas parcelas").
+- Acertos: **conta manual** → a Sora lança a entrada (Reembolso,
+  `transferencia: true`: fora das receitas) e o saldo sobe; **conta do banco**
+  → 409, o caminho é LIGAR o Pix que chegou (`vincular` marca a entrada como
+  transferência; desfazer devolve); **na fatura** → o "Pagar fatura" manda
+  `acerto_pessoa` na linha paga por fora; **de outro jeito** → só anota.
+  ⚠️ A tabela é conferida ANTES de mexer em dinheiro; se o acerto não grava,
+  a entrada sai e o saldo volta ao valor LIDO ANTES (não desconta duas vezes).
+  Desfazer o "pagou na fatura" tira só a marcação (o pagamento se desfaz na
+  lista de pagamentos da fatura).
+- Painel: `lib/divisao.ts` (`eval:divisao` compara com o backend, 14/14),
+  `components/divisao/` (`CamposDivisao` no Nova transação, `DividirCompraModal`
+  no menu da compra — o "Dividir" antigo virou "Dividir em categorias" —, e
+  `DivisoesDaFatura` no detalhe da fatura). "Quem deve quanto" é calculado
+  sobre as MESMAS compras que o detalhe lista. O `PagarFaturaModal` descobre
+  as partes sozinho (só se o grupo já dividiu algo: `/divisoes/pessoas`).
+- ⚠️ **Cobrar no WhatsApp é BOTÃO, não `<a href>`** — ver "UTMify" abaixo.
+  Abre o WhatsApp do próprio cliente (sem custo na Meta, sem guardar o
+  telefone da outra pessoa).
+- Sem a 206: dividir responde 503 sem jargão; a compra nova é lançada e a tela
+  avisa que não foi dividida; leituras voltam vazias.
+- ⚠️ Latente: se o agregador REPROCESSAR uma compra do banco (id novo), a
+  divisão não vai pro sobrevivente (`dedupReprocesso` leva só a categoria).
+- Testado na tela em produção com servidor simulado (backend suspenso).
+
+### ⚠️ A UTMify marca links do wa.me com caracteres invisíveis (nov/2026)
+
+O script de UTMs (`components/analytics/UtmifyPixel.tsx`, no app inteiro)
+reescreve todo `<a href="https://wa.me/...?text=...">` e enfia 8 caracteres
+invisíveis (U+206C/U+206D) depois da 1ª letra do texto. Medido na aba
+WhatsApp do painel: os exemplos chegavam como "g…astei 50 no mercado" e o
+leitor local NÃO reconhecia mais o comando (caía na IA ou "não entendi").
+- Backend: `processarMensagem` limpa mensagem e legenda na entrada
+  (`services/textoEntrada.js`, `eval:texto-entrada`; o ZWJ fica, é dos emojis).
+- Mensagem pra OUTRA pessoa (cobrança): abrir por botão (`window.open`), que o
+  script não toca. Links de mensagem a humanos que seguem `<a>` (admin →
+  cliente, cobrança do Negócios, convite) chegam com a marca invisível —
+  não quebra nada pra quem lê, mas é rastreio na mensagem do cliente.
+- ⚠️ Escrevendo arquivo por ferramenta, `​` vira o PRÓPRIO caractere.
+  Conferir os bytes; o "tirar acento" (`̀-ͯ`) de 3 libs estava assim.
+
 ## Extrato Futuro: período e FATURAS com conta de pagamento (set/2026)
 
 - ⚠️ **As faturas NUNCA entravam no extrato**: o código passava
@@ -5578,6 +5656,7 @@ sql/202_of_importar_desde.sql — of_conexoes.importar_desde ("trazer movimenta�
 sql/203_notas_painel.sql — notas.fixada + notas.updated_at (aba Notas do Drive). Sem ela as notas funcionam; só FIXAR responde "ainda está sendo liberado" e a ordem é pela criação.
 sql/204_compromisso_varios_dias.sql — compromissos.data_fim + CHECK (fim > início): evento de mais de um dia na Agenda. Sem ela tudo funciona como antes; marcar "até" responde "ainda está sendo liberado" (no zap, marca só o 1º dia e avisa).
 sql/205_aniversarios.sql — tabela aniversarios (aba Aniversários da Agenda + JOB 1U). Sem ela a aba diz que está sendo liberada e o cron não faz nada.
+sql/206_divisao_compra.sql — compra do cartão dividida com outra pessoa: transacoes.dividida_com + parte_outro (CHECK com `is not null` explícito) e tabela divisoes_acertos. Sem ela: dividir responde "ainda está sendo liberado"; nada quebra.
 ```
 
 > **Pendentes de rodar (confirmar no Supabase):** 042 (bucket dados-arquivos — **obrigatório pro Drive**), 043 (bug_reports), 044 (resumos), **062 (categoria em tarefas), 063 (tabela notas)**, 088 (imagem em dívidas), **114, 115, 116, 117, 118 e 119**. Sem elas as features respectivas não funcionam. (062 é tolerante: a tarefa cria sem categoria até rodar; 063 é obrigatória pras notas.)
