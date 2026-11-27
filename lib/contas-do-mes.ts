@@ -28,7 +28,7 @@
 import { montarExtrato, type TransacaoExtrato, type Ajuste } from './extrato-futuro';
 import type { ItemRecorrente, ItemParcelado } from './previstos';
 import { venceEm } from './frequencia-recorrencia';
-import { parcelasEmAtraso } from './vencimento-divida';
+import { parcelasEmAtraso, proximoVencimento } from './vencimento-divida';
 import type { Pendencia } from './previstos-atrasados';
 
 export type StatusConta = 'atrasada' | 'hoje' | 'a_vencer' | 'paga';
@@ -95,6 +95,20 @@ function statusDe(data: string, hoje: string): { status: StatusConta; diasAtraso
   if (data < hoje) return { status: 'atrasada', diasAtraso: diasEntre(data, hoje) };
   if (data === hoje) return { status: 'hoje' };
   return { status: 'a_vencer' };
+}
+/**
+ * Qual parcela vence nesta data. ⚠️ Não é "pagas + 1": com parcela atrasada no
+ * meio, a de dezembro é a 5ª, não a 4ª (a 4ª é a de novembro, ainda em aberto).
+ * Conta os meses desde a PRIMEIRA em aberto — a atrasada mais antiga (mesma
+ * regra do card) ou, sem atraso, o próximo vencimento.
+ */
+function numeroDaParcela(div: ItemParcelado, data: string, hoje: string): number {
+  const total = Number(div.parcelas_total) || 0;
+  const pagas = Number(div.parcelas_pagas) || 0;
+  const primeira = parcelasEmAtraso(div as never, hoje)?.desde ?? proximoVencimento(div as never, hoje)?.data ?? data;
+  const meses = (Number(data.slice(0, 4)) * 12 + Number(data.slice(5, 7))) - (Number(primeira.slice(0, 4)) * 12 + Number(primeira.slice(5, 7)));
+  const n = pagas + 1 + Math.max(0, meses);
+  return total > 0 ? Math.min(n, total) : n;
 }
 /** Primeiro dia em que a conta fixa vence naquela competência (pra pendência antiga). */
 function vencimentoNaCompetencia(r: RecorrenciaConta | undefined, comp: string): string {
@@ -164,7 +178,7 @@ export function montarContasDoMes(p: {
         ...statusDe(l.data, hoje),
         carteira: l.carteira ?? null,
         detalhe: origem === 'divida' && div && Number(div.parcelas_total) > 0
-          ? `parcela ${Math.min(Number(div.parcelas_pagas || 0) + 1, Number(div.parcelas_total))}/${div.parcelas_total}` : (l.adiada ? 'adiada' : null),
+          ? `parcela ${numeroDaParcela(div, l.data, hoje)}/${div.parcelas_total}` : (l.adiada ? 'adiada' : null),
         recorrenciaId: l.recorrenciaId ?? null,
         competencia: l.competencia ?? null,
         transacaoId: l.transacaoId ?? null,

@@ -2697,6 +2697,43 @@ listando-as em "Ainda sai". Testado na tela com conta de teste, antes × depois.
 - ⚠️ Não é bug: parcela paga 18 dias antes do vencimento é lida como a do mês
   ANTERIOR paga atrasada (`vencimentoCoberto`, "o mais próximo").
 
+### Previstos → aba "Contas": a pagar e a receber do mês (nov/2026)
+
+Pedido de cliente (Fábio, com print do GestorMoney). Decisões do dono: aba
+dentro de Previstos, abre no mês atual, entram fatura e parcela de dívida, com
+opção de esconder as faturas. `/previstos?aba=contas`.
+
+- **Regra única:** `lib/contas-do-mes.ts` (`montarContasDoMes`, `filtrarContas`,
+  `totaisContas`; `eval:contas-do-mes`, 44 verificações, 17/17 mutações). ⚠️
+  **Nenhuma regra nova de "já foi pago":** o que está em aberto sai do
+  `montarExtrato` (quitações, pulo, adiamento, `[Previsto]` do cron,
+  `proximoVencimento` da dívida); o pago sai das BAIXAS do mês (quitações,
+  `ultimo_pagamento`, fatura com `pago`). Fatura pelo `/wallets/faturas` (a
+  `competencia` do mês; atrasadas pelo `atrasadas`), dívida atrasada de meses
+  anteriores pelo `parcelasEmAtraso` (uma linha só, sem a do mês).
+- Fica de fora: compra no cartão (entra pela fatura), transferência, ajuste,
+  pagamento de fatura e "não considerar". Lançamento avulso conta se `pago=false`.
+- Só no mês ATUAL entram as pendências de meses anteriores (contas fixas,
+  faturas, parcelas). ⚠️ **O mês é o do seletor da PÁGINA** (um só na tela): com
+  Contas aberta ele trava entre o mês atual e +11 (`CONTAS_MAX_MESES`). Mês
+  passado fica de fora — o que ficou em aberto dele aparece no atual.
+- ⚠️ **Número da parcela NÃO é "pagas + 1"**: com parcela atrasada no meio, a
+  de dezembro é a 5ª, não a 4ª. `numeroDaParcela` conta os meses desde a
+  primeira em aberto (atrasada mais antiga, senão o próximo vencimento).
+- Ações reusam o que já existe (nada de caminho novo de dinheiro): conta fixa →
+  `acaoExtrato` (`/previstos/quitar`, com "Nenhuma conta (só registrar)"; em
+  conta do banco, `SeletorPagamento`); pular → ajuste `pulado`; fatura →
+  `PagarFaturaModal`; parcela → `PagarParcelaModal`; avulso → `pago: true`.
+  Conta fixa SEMANAL não tem "Paguei" (a chave da baixa é mensal).
+- "Esconder faturas" é preferência do aparelho (`localStorage`
+  `sora-contas-ocultar-faturas:<userId>`) e tira as faturas da lista E do total.
+- Dados em `useSWR` (não `useApi`: a baleia cobriria a página).
+- Testado na tela em produção com o servidor simulado (backend suspenso no
+  dia): totais, filtros, busca sem acento, esconder faturas, Paguei/Pular/
+  avulso (payloads conferidos), modais de fatura e parcela, mês seguinte.
+- De passagem: `PagarParcelaModal` usava `toISOString` (UTC) pro dia padrão e
+  pro máximo — depois das 21h sugeria AMANHÃ. Hoje `hojeSP()`.
+
 ## Conta paga ANTES do vencimento continuava "a vencer" (set/2026)
 
 Relato de cliente: pagou **Luz, Gás e Internet no dia 21** — antes dos

@@ -8,6 +8,8 @@ import { useDinheiro, useSimboloMoeda, useMoedaBase } from '@/lib/moeda-base';
 import { valorDasUnidades, textoDasUnidades, unidadesDoValor } from '@/lib/moeda';
 import { useConciliacaoDividas, diaMes } from '@/components/dividas/SugestoesBaixa';
 import type { DebitoEmprestimo } from '@/lib/api';
+// Dia de São Paulo, nunca toISOString (UTC: depois das 21h já é amanhã).
+import { hojeSP } from '@/lib/vencimento-divida';
 
 const TIPOS_PAGAMENTO = [
   { v: 'parcela',       l: 'Parcela',         desc: 'Pagamento mensal regular',     icon: Receipt },
@@ -31,7 +33,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
     valorPadrao ? String(unidadesDoValor(valorPadrao, moeda)) : ''
   );
   const [tipo,    setTipo]    = useState<'parcela' | 'antecipacao' | 'juros_atraso'>('parcela');
-  const [data,    setData]    = useState(new Date().toISOString().slice(0, 10));
+  const [data,    setData]    = useState(() => hojeSP());
   const [obs,     setObs]     = useState('');
   const [walletId, setWalletId] = useState<string | null>(null);
   // Débito do extrato que pagou esta parcela (ligar à mão). Com ele escolhido,
@@ -200,7 +202,7 @@ export default function PagarParcelaModal({ phone, divida, onClose, onSuccess }:
               type="date"
               value={data}
               onChange={e => setData(e.target.value)}
-              max={new Date().toISOString().slice(0, 10)}
+              max={hojeSP()}
               className="input"
             />
           </div>
