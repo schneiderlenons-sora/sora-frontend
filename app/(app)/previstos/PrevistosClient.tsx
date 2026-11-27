@@ -15,7 +15,7 @@ import { useApi } from '@/lib/useApi';
 import { api, type FaturaCartao } from '@/lib/api';
 import { chave } from '@/lib/chaves-swr';
 import ExtratoFuturo, { type AcaoOcorrencia } from '@/components/previstos/ExtratoFuturo';
-import ContasDoMes from '@/components/previstos/ContasDoMes';
+import ContasDoMes, { CONTAS_MAX_MESES } from '@/components/previstos/ContasDoMes';
 import { faturaNaBase, saldoNaBase } from '@/lib/moeda';
 import { saldoInicialDaConta } from '@/lib/saldo-conta';
 import { contasDoPessoal } from '@/lib/conta-empresa';
@@ -1036,7 +1036,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       <div className="flex items-center justify-center gap-3">
         <button
           type="button" onClick={() => setOffset((o) => o - 1)} aria-label="Mês anterior"
-          className="w-11 h-11 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted transition-colors"
+          disabled={aba === 'contas' && offset <= 0}
+          className="w-11 h-11 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
           style={{ minHeight: 44, minWidth: 44 }}
         >
           <ChevronLeft size={18} />
@@ -1046,7 +1047,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
         </span>
         <button
           type="button" onClick={() => setOffset((o) => o + 1)} aria-label="Próximo mês"
-          className="w-11 h-11 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted transition-colors"
+          disabled={aba === 'contas' && offset >= CONTAS_MAX_MESES}
+          className="w-11 h-11 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
           style={{ minHeight: 44, minWidth: 44 }}
         >
           <ChevronRight size={18} />
@@ -1090,7 +1092,11 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
             type="button"
             role="tab"
             aria-selected={aba === id}
-            onClick={() => { setAba(id); setMesSel(null); }}
+            onClick={() => {
+              setAba(id); setMesSel(null);
+              // Contas só navega do mês atual pra frente (o atrasado já aparece no atual).
+              if (id === 'contas') setOffset((o) => Math.min(CONTAS_MAX_MESES, Math.max(0, o)));
+            }}
             className={`inline-flex items-center gap-1.5 px-4 h-11 rounded-2xl text-[13.5px] font-bold whitespace-nowrap transition-colors ${
               aba === id ? 'bg-primary text-white' : 'bg-muted/50 text-muted-foreground hover:text-foreground'
             }`}
@@ -1104,6 +1110,8 @@ export default function PrevistosClient({ phoneInicial }: { phoneInicial?: strin
       {aba === 'contas' ? (
         <ContasDoMes
           phone={phone}
+          offset={offset}
+          onVoltarMesAtual={() => setOffset(0)}
           userId={user?.id ?? null}
           recorrencias={recorrencias as any[]}
           dividas={dividas as any[]}

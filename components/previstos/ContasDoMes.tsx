@@ -21,7 +21,7 @@ import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import useSWR, { useSWRConfig } from 'swr';
 import {
-  ChevronLeft, ChevronRight, Search, X, Receipt, CreditCard, Landmark, CalendarDays,
+  Search, X, Receipt, CreditCard, Landmark, CalendarDays,
   Check, Loader2, SkipForward, Plus, AlertTriangle, Eye, EyeOff, Clock,
 } from 'lucide-react';
 import { api, type FaturaCartao } from '@/lib/api';
@@ -45,7 +45,10 @@ const VERDE = '#16a34a';
 const VERMELHO = '#dc2626';
 const AMBAR = '#d97706';
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const MAX_MESES = 11;
+/** Até quantos meses à frente a aba navega. O seletor de mês é o da PÁGINA
+ *  (um só na tela); ela o trava entre 0 e este número enquanto Contas está aberta.
+ *  Mês passado fica de fora: o que ficou em aberto dele já aparece no mês atual. */
+export const CONTAS_MAX_MESES = 11;
 const chaveFaturas = (userId?: string | null) => `sora-contas-ocultar-faturas:${userId || 'anon'}`;
 
 const ddmm = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
@@ -66,10 +69,13 @@ function textoStatus(i: ItemConta, hoje: string): { texto: string; cor: string }
 const ICONE = { fixa: Receipt, fatura: CreditCard, divida: Landmark, avulsa: CalendarDays } as const;
 
 export default function ContasDoMes({
-  phone, userId, recorrencias, dividas, wallets, faturasAtuais, faturasBrutas,
+  phone, offset: offsetPagina, onVoltarMesAtual, userId, recorrencias, dividas, wallets, faturasAtuais, faturasBrutas,
   carteirasBanco, contasPagamento, onAcaoFixa, ocupado, erro, onNovaConta, onMudou,
 }: {
   phone: string;
+  /** Mês escolhido no seletor da página (0 = mês atual). */
+  offset: number;
+  onVoltarMesAtual: () => void;
   userId?: string | null;
   recorrencias: any[];
   dividas: any[];
@@ -92,7 +98,7 @@ export default function ContasDoMes({
   const ymHoje = ymHojeSP();
   const hoje = hojeSP();
 
-  const [offset, setOffset] = useState(0);
+  const offset = Math.min(CONTAS_MAX_MESES, Math.max(0, offsetPagina));
   const mes = somarMeses(ymHoje, offset);
   const ehMesAtual = offset === 0;
   const [aba, setAba] = useState<'pagar' | 'receber' | 'pagas'>('pagar');
@@ -221,23 +227,12 @@ export default function ContasDoMes({
 
   return (
     <div className="space-y-4">
-      {/* ── Mês ── */}
-      <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={() => setOffset((o) => Math.max(0, o - 1))} disabled={offset === 0}
-          aria-label="Mês anterior" className="w-11 h-11 rounded-xl flex items-center justify-center border border-border/60 disabled:opacity-30 hover:bg-muted">
-          <ChevronLeft size={18} />
-        </button>
-        <div className="text-center">
-          <p className="text-base font-bold text-foreground capitalize">{nomeMes(mes)} <span className="text-muted-foreground font-semibold">{mes.slice(0, 4)}</span></p>
-          {!ehMesAtual && (
-            <button type="button" onClick={() => setOffset(0)} className="text-[11px] font-semibold text-primary hover:underline">Voltar ao mês atual</button>
-          )}
-        </div>
-        <button type="button" onClick={() => setOffset((o) => Math.min(MAX_MESES, o + 1))} disabled={offset >= MAX_MESES}
-          aria-label="Próximo mês" className="w-11 h-11 rounded-xl flex items-center justify-center border border-border/60 disabled:opacity-30 hover:bg-muted">
-          <ChevronRight size={18} />
-        </button>
-      </div>
+      {/* O mês vem do seletor da página (um só na tela). */}
+      {!ehMesAtual && (
+        <p className="text-center -mt-2">
+          <button type="button" onClick={onVoltarMesAtual} className="h-9 px-3 text-xs font-semibold text-primary hover:underline">Voltar ao mês atual</button>
+        </p>
+      )}
 
       {/* ── Totais ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
