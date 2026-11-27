@@ -14,6 +14,9 @@ import IconeMarca from '@/components/ui/IconeMarca';
 import { hojeSP } from '@/lib/ciclo-fatura';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { contasDoPessoal } from '@/lib/conta-empresa';
+import CamposDivisao, { DIVISAO_VAZIA, valorDoEstado, type EstadoDivisao } from '@/components/divisao/CamposDivisao';
+import { pedidoDoFormulario, parteDoOutro, type DivisaoPedido } from '@/lib/divisao';
+import { useAvisar } from '@/contexts/ConfirmContext';
 
 // "Transferência", "transferi", "transferir"… — gatilho do aviso que leva ao
 // "Transferir entre contas". Relato (Vander, out/2026): procurava a categoria
@@ -91,6 +94,9 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
   // ── Compra parcelada (cartão de crédito OU "sem cartão", só despesa) ──
   const [parcelado,   setParcelado]   = useState(false);
   const [estorno,     setEstorno]     = useState(false);
+  // Compra do cartão dividida com outra pessoa (migration 206).
+  const [divisao,     setDivisao]     = useState<EstadoDivisao>(DIVISAO_VAZIA);
+  const avisar = useAvisar();
   const [numParcelas, setNumParcelas] = useState(2);
   const [pagas,       setPagas]       = useState<Set<number>>(new Set());
   const [avisoParcela, setAvisoParcela] = useState(''); // aviso ao tentar parcelar sem conta válida
@@ -218,6 +224,9 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
   // sem contar como receita. Só faz sentido num cartão — e o seletor esconde
   // cartão quando o tipo é Recebimento, então a porta de entrada é esta.
   const podeEstornar = ehCartaoSel && !parcelado;
+  // Dividir com alguém: só compra no cartão, na moeda do grupo (o servidor
+  // confere de novo — services/divisaoCompra.js).
+  const podeDividir = ehCartaoSel && !estorno && !contaEstrangeira;
   useEffect(() => { if (!podeEstornar) setEstorno(false); }, [podeEstornar]);
 
   // Sai de cartão/sem-cartão ou vira receita → desliga o parcelado. Voltando pra
@@ -258,6 +267,18 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
     return textoDasUnidades(raw ? parseInt(raw, 10) : 0, moedaConta);
   }
 
+  // A compra é gravada mesmo se a divisão falhar (ex.: ainda sendo liberada) —
+  // aí a pessoa é avisada e divide depois pelo menu da compra.
+  function avisarDivisao(r: any) {
+    const d = r?.divisao_resultado;
+    if (d && d.ok === false) {
+      void avisar({
+        titulo: 'A compra foi lançada, mas não foi dividida',
+        mensagem: d.erro || 'Dividir compras ainda está sendo liberado. Divida pelo menu da compra mais tarde.',
+      });
+    }
+  }
+
   async function handleSalvar() {
     setErro('');
     if (!valor || valor === '0') { setErro(parcelado ? 'Informe o valor de cada parcela.' : 'Informe o valor.'); return; }
@@ -267,6 +288,17 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
     if (walletsVisiveis.length > 0 && !walletId) { setErro('Selecione a conta de origem.'); return; }
 
     const walletNome = wallets.find(w => w.id === walletId)?.nome;
+
+    let pedidoDivisao: DivisaoPedido | null = null;
+    if (podeDividir && divisao.ativo) {
+      const p = pedidoDoFormulario({ ...divisao, valor: valorDoEstado(divisao, moedaBase) });
+      if (!p.ok) { setErro(p.erro); return; }
+      pedidoDivisao = p.divisao;
+      if (pedidoDivisao && parteDoOutro(valorDasUnidades(parseInt(valor, 10), moedaConta), pedidoDivisao) == null) {
+        setErro(parcelado ? 'A parte da outra pessoa não pode ser maior que a parcela.' : 'A parte da outra pessoa não pode ser maior que a compra.');
+        return;
+      }
+    }
 
     // #6 otimista (opt-in, só o caminho NÃO-parcelado): fecha na hora e delega
     // a criação pro pai, que insere a linha no cache e chama a API em segundo
@@ -283,12 +315,18 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
         tipo: tipoFinal, valor: valorNum, observacao: descricao, categoria: catFull,
         carteira_nome: walletNome, wallet_nome: walletNome, data,
         pago: true, recorrente, transferencia: estorno, _otimista: true,
+        ...(pedidoDivisao ? { dividida_com: pedidoDivisao.com, parte_outro: parteDoOutro(valorNum, pedidoDivisao) } : {}),
       };
-      const doCreate = () => api.transacoes.criar({
-        phone, tipo: tipoFinal, valor: valorNum, observacao: descricao, categoria: catFull,
-        wallet_id: walletId || undefined, carteira_nome: walletNome, data, recorrente,
-        transferencia: estorno,
-      });
+      const doCreate = async () => {
+        const r = await api.transacoes.criar({
+          phone, tipo: tipoFinal, valor: valorNum, observacao: descricao, categoria: catFull,
+          wallet_id: walletId || undefined, carteira_nome: walletNome, data, recorrente,
+          transferencia: estorno,
+          ...(pedidoDivisao ? { divisao: pedidoDivisao } : {}),
+        });
+        avisarDivisao(r);
+        return r;
+      };
       onOptimisticCreate(optimisticRow, doCreate);
       onClose();
       return;
@@ -324,7 +362,7 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
         });
       } else if (parcelado) {
         if (!ehCartaoSel || !walletNome) { setErro('Compra parcelada só pode ser lançada em um cartão de crédito.'); setLoading(false); return; }
-        await api.transacoes.criarParcelado({
+        const r = await api.transacoes.criarParcelado({
           phone,
           categoria: `${catEmoji} ${categoria}`,
           observacao: descricao,
@@ -333,9 +371,11 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
           num_parcelas: numParcelas,
           data,
           pagas: [...pagas],
+          ...(pedidoDivisao ? { divisao: pedidoDivisao } : {}),
         });
+        avisarDivisao(r);
       } else {
-        await api.transacoes.criar({
+        const r = await api.transacoes.criar({
           phone,
           tipo: estorno ? 'Recebimento' : tipo,
           valor: valorDasUnidades(parseInt(valor, 10), moedaConta),
@@ -346,7 +386,9 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
           data,
           recorrente,
           transferencia: estorno,   // abate a fatura, sem virar receita
+          ...(pedidoDivisao ? { divisao: pedidoDivisao } : {}),
         });
+        avisarDivisao(r);
       }
       onSuccess();
       onClose();
@@ -681,6 +723,17 @@ export default function NovaTransacaoModal({ phone, wallets: walletsTodas, onClo
               </p>
             )}
           </div>
+
+          {/* Dividir com alguém (compra no cartão) — migration 206. */}
+          {podeDividir && (
+            <CamposDivisao
+              estado={divisao}
+              onChange={(patch) => setDivisao((d) => ({ ...d, ...patch }))}
+              valorLinha={valorDasUnidades(parseInt(valor || '0', 10), moedaConta)}
+              moeda={moedaBase}
+              parcelado={parcelado}
+            />
+          )}
 
           {/* 6) Descrição */}
           <div>

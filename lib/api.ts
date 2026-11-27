@@ -10,6 +10,7 @@ import type { CategoriaPropria } from '@/lib/categorias-negocio';
 import type { RegistroPeso } from '@/lib/peso';
 import type { Funcionario } from '@/lib/funcionarios';
 import type { Frequencia } from '@/lib/frequencia-recorrencia';
+import type { DivisaoPedido, AcertoDivisao } from '@/lib/divisao';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -85,6 +86,9 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   return res.json();
 }
+
+/** O que aconteceu com a divisão pedida junto com a criação da compra. */
+export type ResultadoDivisao = { ok: boolean; erro?: string; codigo?: string; atualizadas?: number };
 
 // Preferências da central de avisos (espelha /api/user/avisos no backend).
 /** O que a Sora faz no vencimento de uma conta fixa (migration 112).
@@ -449,7 +453,9 @@ export const api = {
     criarParcelado: (body: {
       phone: string; categoria: string; observacao?: string; carteira_nome: string;
       valor_parcela: number; num_parcelas: number; data: string; pagas: number[];
-    }) => req<{ ok: boolean; parcela_grupo: string; criadas: number }>(
+      /** Já nasce dividida com outra pessoa (migration 206). */
+      divisao?: DivisaoPedido | null;
+    }) => req<{ ok: boolean; parcela_grupo: string; criadas: number; divisao_resultado?: ResultadoDivisao }>(
       '/api/transacoes/parcelado', { method: 'POST', body: JSON.stringify(body) }),
     /** Importação de extrato. `mover_fitids`: as já importadas noutra conta vão pra `carteira_destino`. */
     criarBulk: (body: { phone: string; transacoes: any[]; mover_fitids?: string[]; carteira_destino?: string }) =>
@@ -565,7 +571,8 @@ export const api = {
     pagarFatura: (body: {
       phone: string; cartao_id: string; competencia?: string;
       wallet_id?: string; valor?: number;
-      pagamentos?: { wallet_id?: string; valor: number; descricao?: string; externa?: boolean }[];
+      // `acerto_pessoa`: a parte paga por fora é a de quem dividiu a compra (migration 206).
+      pagamentos?: { wallet_id?: string; valor: number; descricao?: string; externa?: boolean; acerto_pessoa?: string }[];
     }) =>
       req<{ ok: boolean; debito: any; debitos?: any[] }>('/api/wallets/fatura/pagar', { method: 'POST', body: JSON.stringify(body) }),
     /**
@@ -908,6 +915,27 @@ export const api = {
       deletar: (id: string) =>
         req(`/api/investimentos/metas/${id}`, { method: 'DELETE' }),
     },
+  },
+
+  // ── DIVISÃO DE COMPRA (migration 206, routes/divisoes.js) ────
+  divisoes: {
+    /** Divide (ou tira a divisão, com `divisao: null`) uma compra do cartão. */
+    dividir: (id: string, body: { divisao: DivisaoPedido | null; aplicar_parcelas?: boolean }) =>
+      req<{ ok: true; atualizadas: number; linhas: number; divisao: DivisaoPedido | null }>(
+        `/api/divisoes/transacao/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    pessoas: () => req<{ pessoas: string[]; liberado: boolean }>('/api/divisoes/pessoas'),
+    acertos: (cartaoId: string, competencia: string) =>
+      req<{ acertos: AcertoDivisao[]; liberado: boolean }>(
+        `/api/divisoes/acertos?cartao_id=${encodeURIComponent(cartaoId)}&competencia=${encodeURIComponent(competencia)}`),
+    recebimentos: (walletId: string, esperado?: number) =>
+      req<{ recebimentos: { id: string; data: string; valor: number; observacao: string }[]; conta: { id: string; nome: string; banco: boolean } }>(
+        `/api/divisoes/recebimentos?wallet_id=${encodeURIComponent(walletId)}${esperado ? `&esperado=${esperado}` : ''}`),
+    registrarAcerto: (body: {
+      cartao_id: string; competencia: string; pessoa: string; valor: number;
+      forma: 'conta' | 'vincular' | 'registro'; wallet_id?: string; transacao_id?: string;
+    }) => req<{ ok: true; acerto: AcertoDivisao; transacao_id?: string }>('/api/divisoes/acertos', { method: 'POST', body: JSON.stringify(body) }),
+    desfazerAcerto: (id: string) =>
+      req<{ ok: true; aviso?: string }>(`/api/divisoes/acertos/${id}`, { method: 'DELETE' }),
   },
 
   // ── DÍVIDAS (empréstimos, financiamentos, crediário) ─────────

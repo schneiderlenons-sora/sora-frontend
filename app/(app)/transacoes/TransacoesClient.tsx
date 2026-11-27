@@ -10,6 +10,7 @@ import EditarTransacaoModal from '@/components/transacoes/EditarTransacaoModal';
 import EditarLoteModal, { type PatchLote } from '@/components/transacoes/EditarLoteModal';
 import RatearModal from '@/components/transacoes/RatearModal';
 import JuntarRateioModal from '@/components/transacoes/JuntarRateioModal';
+import DividirCompraModal from '@/components/divisao/DividirCompraModal';
 import {
   ConciliarSugestoes, ConciliarSheet, ConciliarLoteSheet, SeloConciliar,
   type ParConciliavel, idPar, lerDispensados, dispensarPar,
@@ -52,7 +53,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Clock, MoreVertical,
   Edit2, Trash2, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ArrowLeftRight,
   CheckCircle2, AlertCircle, FileText, Sparkles, Calendar,
-  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench, CreditCard, Building2 } from 'lucide-react';
+  ChevronLeft, ChevronRight, SplitSquareHorizontal, Merge, Wrench, CreditCard, Building2, Users } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
 import BotaoOlhoValores from '@/components/ui/BotaoOlhoValores';
 import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
@@ -142,6 +143,8 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
   const [loteOpen, setLoteOpen] = useState(false);
   const [ratearTx, setRatearTx] = useState<any | null>(null);
   const [juntarTx, setJuntarTx] = useState<any | null>(null);
+  // Compra do cartão dividida com outra pessoa (migration 206).
+  const [dividirTx, setDividirTx] = useState<any | null>(null);
 
   // Filtros
   const [busca,    setBusca]    = useState('');
@@ -1644,6 +1647,13 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
                         }
                         arquivada={!!tx.arquivada_por}
                         onArquivar={() => handleArquivar(tx, !tx.arquivada_por)}
+                        onDividirPessoa={
+                          // Só compra no cartão, na moeda do grupo, já gravada.
+                          tx.tipo === 'Gasto' && tx.transferencia !== true && !tx.moeda && !tx._otimista
+                            && nomesCartao.has(tx.carteira_nome || tx.wallet_nome)
+                            ? () => { setDividirTx(tx); setRowMenuOpen(null); }
+                            : undefined
+                        }
                       />
                       );
                     })}
@@ -1682,6 +1692,14 @@ export default function TransacoesClient({ phoneInicial, initialData }: { phoneI
           offsetInicial={offsetFatura}
           onClose={() => setDetalheFaturaAberto(false)}
           onRefresh={() => { mFat(); mW(); }}
+        />
+      )}
+
+      {dividirTx && (
+        <DividirCompraModal
+          tx={dividirTx}
+          onClose={() => setDividirTx(null)}
+          onSalvo={(msg) => { mLista(); setImportToast(msg); setTimeout(() => setImportToast(''), 4000); }}
         />
       )}
 
@@ -1880,7 +1898,7 @@ function StatCard({
 function TransactionRow({
   tx, index, ocultar, compartilhado, avatar, selecionado, onToggleSelect,
   menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar,
-  onConciliar, situacao, hoje,
+  onConciliar, situacao, hoje, onDividirPessoa,
 }: any) {
   const fmt = useDinheiro();
   const temaCategoria = useTemaCategoria();
@@ -1950,6 +1968,11 @@ function TransactionRow({
           {isIgnorada && (
             <p className="text-[11px] text-muted-foreground">
               {tx.ignorar_em === 'empresa' ? 'Da empresa · conta no Sora Negócios' : 'Não considerado nos totais'}
+            </p>
+          )}
+          {tx.dividida_com && Number(tx.parte_outro) > 0 && (
+            <p className="text-[11px] text-primary">
+              Dividida com {tx.dividida_com} · parte {ocultar ? '••••' : fmt(Number(tx.parte_outro))}
             </p>
           )}
         </div>
@@ -2094,6 +2117,8 @@ function TransactionRow({
           onJuntar={onJuntar}
           arquivada={arquivada}
           onArquivar={onArquivar}
+          onDividirPessoa={onDividirPessoa}
+          dividida={!!tx.dividida_com}
         />
       </div>
 
@@ -2183,7 +2208,7 @@ function LinhaFaturaRow({ linha, index, ocultar, onAbrir }: {
 // MENU DE AÇÕES — renderizado via portal pra não ser cortado pelo
 // overflow-x-auto da linha (que cria clipping em ambos os eixos).
 // ─────────────────────────────────────────────────────────────
-function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar }: {
+function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, onRatear, onJuntar, arquivada, onArquivar, onDividirPessoa, dividida }: {
   menuOpen: boolean;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
@@ -2193,6 +2218,9 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
   onJuntar?: () => void;
   arquivada?: boolean;
   onArquivar?: () => void;
+  /** Compra do cartão: dividir com outra pessoa (migration 206). */
+  onDividirPessoa?: () => void;
+  dividida?: boolean;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
@@ -2221,7 +2249,7 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
         <>
           <div className="fixed inset-0 z-[60]" onClick={onCloseMenu} />
           <div
-            className="fixed w-40 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-[61] animate-fade-in"
+            className="fixed w-52 rounded-2xl bg-card border border-border shadow-2xl p-1.5 z-[61] animate-fade-in"
             style={{ top: coords.top, right: coords.right }}
           >
             <button onClick={onEditar}
@@ -2234,7 +2262,15 @@ function MenuAcoes({ menuOpen, onToggleMenu, onCloseMenu, onDeletar, onEditar, o
             {onRatear && (
               <button onClick={onRatear}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
-                <SplitSquareHorizontal size={14} className="text-muted-foreground" /> Dividir
+                <SplitSquareHorizontal size={14} className="text-muted-foreground" /> Dividir em categorias
+              </button>
+            )}
+            {/* Dividir com OUTRA PESSOA (migration 206) — não confundir com o de
+                cima, que separa a compra em categorias. */}
+            {onDividirPessoa && (
+              <button onClick={onDividirPessoa}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted text-sm text-foreground transition-colors">
+                <Users size={14} className="text-muted-foreground" /> {dividida ? 'Mudar a divisão' : 'Dividir com alguém'}
               </button>
             )}
             {/* Voltar ao normal (migration 152) — só aparece em linha que FAZ

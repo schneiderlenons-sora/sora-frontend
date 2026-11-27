@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon, Landmark } from 'lucide-react';
+import useSWR from 'swr';
+import { X, Loader2, Check, CreditCard, Plus, Trash2, Wallet as WalletIcon, Landmark, Users } from 'lucide-react';
+import { carregarLancamentosDaFatura } from '@/lib/fatura-lista-busca';
+import { pessoasDaFatura, chavePessoa } from '@/lib/divisao';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { hojeSP } from '@/lib/ciclo-fatura';
@@ -21,6 +24,14 @@ interface Props {
   competencia?: string;   // 'YYYY-MM' da fatura (default mês atual)
   onClose:  () => void;
   onPago:   () => void; // chamado após pagar com sucesso
+  /**
+   * Partes de quem DIVIDIU compras desta fatura (migration 206) e ainda não
+   * acertou. Sem a prop, o modal descobre sozinho (só quando o grupo já
+   * dividiu alguma compra — senão não gasta nenhuma ida a mais).
+   */
+  partesDivididas?: { pessoa: string; aReceber: number }[];
+  /** Já abre com a parte desta pessoa separada como "paga por ela". */
+  incluirParteDe?: string;
 }
 
 // Mês corrente no fuso SP. `toISOString()` é UTC e à noite (21h BR = 00h UTC do
@@ -30,12 +41,14 @@ const ymAtual = () => hojeSP().slice(0, 7);
 // Uma linha = uma conta + o valor que sai dela (+ um apelido opcional de quem
 // pagou). Com 1 linha é o pagamento normal; com 2+ divide a fatura entre contas
 // (ex.: parte da esposa, parte do filho). Key estável pro React.
-interface Linha { key: number; walletId: string; valorRaw: string; quem: string }
+// `acerto`: a linha é a parte de quem dividiu a compra — o servidor registra
+// que ela pagou (divisoes_acertos) junto com o pagamento.
+interface Linha { key: number; walletId: string; valorRaw: string; quem: string; acerto?: boolean }
 
 let _seq = 0;
 const novaLinha = (valorRaw = ''): Linha => ({ key: ++_seq, walletId: '', valorRaw, quem: '' });
 
-export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, competencia, onClose, onPago }: Props) {
+export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, competencia, onClose, onPago, partesDivididas, incluirParteDe }: Props) {
   const fmt = useDinheiro({ entrada: 'ouZero' });
   const simbolo = useSimboloMoeda();
   const moeda = useMoedaBase();
@@ -44,6 +57,8 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
   // `ofConta`: a conta vem do Open Finance? É o que decide o aviso abaixo —
   // nela o saldo é o do banco e NÃO anda com este pagamento.
   const [contas, setContas] = useState<{ id: string; nome: string; saldo: number; ofConta: boolean }[]>([]);
+  // O cartão inteiro (dias de fechamento etc.) — é o que monta a lista da fatura.
+  const [cartaoObj, setCartaoObj] = useState<any>(null);
   // Status da fatura: já pago / restante (migration 096). Default = valorFatura.
   const [status, setStatus] = useState<{ fatura: number; pago: number; restante: number } | null>(null);
   const restante = status ? status.restante : valorFatura;
@@ -75,6 +90,7 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
     if (!phone) return;
     api.wallets.listar(phone)
       .then((ws: any[]) => {
+        setCartaoObj((ws || []).find(w => w.id === cartaoId) || null);
         const cs = (ws || []).filter(w => w.tipo !== 'Crédito')
           .map(w => ({ id: w.id, nome: w.nome, saldo: w.saldo || 0, ofConta: !!w.of_conta_id }));
         setContas(cs);
@@ -83,6 +99,57 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
       })
       .catch(() => setContas([]));
   }, [phone]);
+
+  // ── Compras divididas desta fatura (migration 206) ─────────────────────────
+  // Sem a prop, descobre sozinho: primeiro os nomes já usados (consulta leve,
+  // a mesma do formulário); só se houver algum, a lista da fatura + acertos.
+  const { data: pessoasUsadas } = useSWR(!partesDivididas && phone ? 'd:divisoes-pessoas' : null,
+    () => api.divisoes.pessoas(), { revalidateOnFocus: false });
+  const procurarPartes = !partesDivididas && !!phone && !!cartaoObj && !!pessoasUsadas?.liberado && (pessoasUsadas?.pessoas?.length ?? 0) > 0;
+  const { data: partesCarregadas } = useSWR(
+    procurarPartes ? ['partes-fatura', phone, cartaoId, comp] : null,
+    async () => {
+      const [{ transacoes }, { acertos }] = await Promise.all([
+        carregarLancamentosDaFatura(phone!, cartaoObj, comp),
+        api.divisoes.acertos(cartaoId, comp),
+      ]);
+      return pessoasDaFatura(transacoes, acertos)
+        .filter(p => p.aReceber > 0.009)
+        .map(p => ({ pessoa: p.nome, aReceber: p.aReceber }));
+    },
+    { revalidateOnFocus: false },
+  );
+  const partes = partesDivididas ?? partesCarregadas ?? [];
+
+  // Separa a parte da pessoa como uma linha "paga por ela" e tira o mesmo
+  // valor da linha da conta (se ela ainda estava com o total da fatura).
+  function incluirParte(p: { pessoa: string; aReceber: number }) {
+    setLinhas(ls => {
+      if (ls.some(l => l.acerto && chavePessoa(l.quem) === chavePessoa(p.pessoa))) return ls;
+      const parteU = unidadesDoValor(p.aReceber, moeda);
+      const novo = [...ls];
+      const iConta = novo.findIndex(l => l.walletId !== EXTERNA);
+      if (iConta >= 0) {
+        const atual = parseInt(novo[iConta].valorRaw || '0', 10);
+        const cheios = [unidadesDoValor(restante, moeda), unidadesDoValor(valorFatura, moeda)];
+        if (cheios.includes(atual)) {
+          const sobra = Math.max(0, atual - parteU);
+          novo[iConta] = { ...novo[iConta], valorRaw: sobra ? String(sobra) : '' };
+        }
+      }
+      novo.push({ key: ++_seq, walletId: EXTERNA, valorRaw: String(parteU), quem: p.pessoa, acerto: true });
+      return novo;
+    });
+  }
+  const [jaIncluiu, setJaIncluiu] = useState(false);
+  useEffect(() => {
+    if (jaIncluiu || !incluirParteDe || !partes.length) return;
+    const p = partes.find(x => chavePessoa(x.pessoa) === chavePessoa(incluirParteDe));
+    if (!p) return;
+    setJaIncluiu(true);
+    incluirParte(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incluirParteDe, partes, jaIncluiu]);
 
   const dividido = linhas.length > 1;
   const total = linhas.reduce((s, l) => s + valorDasUnidades(parseInt(l.valorRaw || '0', 10), moeda), 0);
@@ -102,6 +169,8 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
         wallet_id: l.walletId === EXTERNA ? undefined : l.walletId,
         valor:     valorDasUnidades(parseInt(l.valorRaw || '0', 10), moeda),
         descricao: l.quem.trim() || (l.walletId === EXTERNA ? 'Externo' : ''),
+        // Parte de quem dividiu a compra: o pagamento por fora vira o acerto dela.
+        acerto_pessoa: l.acerto && l.walletId === EXTERNA && l.quem.trim() ? l.quem.trim() : undefined,
       }))
       .filter(i => i.valor > 0 && (i.externa || i.wallet_id));
 
@@ -253,6 +322,11 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
                     )}
                   </div>
 
+                  {externa && l.acerto && (
+                    <p className="text-[11px] font-semibold text-primary flex items-center gap-1.5">
+                      <Users size={11} aria-hidden /> Parte de quem dividiu a compra — fica registrado que a pessoa pagou.
+                    </p>
+                  )}
                   {externa && (
                     <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
                       <WalletIcon size={11} className="mt-0.5 flex-shrink-0" />
@@ -262,6 +336,37 @@ export default function PagarFaturaModal({ cartaoId, cartaoNome, valorFatura, co
                 </div>
                 );
               })}
+
+              {partes.length > 0 && (
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3.5 space-y-2.5">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Users size={13} className="text-primary" aria-hidden /> Compras divididas nesta fatura
+                  </p>
+                  {partes.map(p => {
+                    const incluida = linhas.some(l => l.acerto && chavePessoa(l.quem) === chavePessoa(p.pessoa));
+                    return (
+                      <div key={p.pessoa} className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-foreground min-w-0 truncate">
+                          {p.pessoa} <span className="text-muted-foreground">· parte {fmt(p.aReceber)}</span>
+                        </span>
+                        {incluida ? (
+                          <span className="text-[11px] font-semibold text-green-700 dark:text-green-400 inline-flex items-center gap-1 flex-shrink-0">
+                            <Check size={12} aria-hidden /> Separada
+                          </span>
+                        ) : (
+                          <button type="button" onClick={() => incluirParte(p)}
+                                  className="h-9 px-3 rounded-lg text-xs font-semibold bg-card border border-border hover:border-primary/50 flex-shrink-0">
+                            Já pagou a parte
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <p className="text-[11px] text-muted-foreground">
+                    Separa a parte como paga pela pessoa (sem sair da sua conta) e registra o acerto.
+                  </p>
+                </div>
+              )}
 
               <button onClick={addLinha}
                       className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 active:scale-[0.99] transition-all">

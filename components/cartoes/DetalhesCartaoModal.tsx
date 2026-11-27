@@ -16,6 +16,7 @@ import { useDinheiro, useMoedaBase } from '@/lib/moeda-base';
 import { cartaoForaDaBase } from '@/lib/moeda';
 import { useTemaCategoria } from '@/contexts/CategoriasUserContext';
 import PagamentosDaFatura from '@/components/cartoes/PagamentosDaFatura';
+import DivisoesDaFatura from '@/components/divisao/DivisoesDaFatura';
 
 const BRAND = 'hsl(var(--primary))';
 // 'YYYY-MM-DD' → 'DD/MM' (rótulo do período da fatura).
@@ -592,6 +593,22 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
             </div>
           </div>
 
+          {/* Compras divididas com outra pessoa (migration 206): quem deve quanto
+              NESTA fatura, em cima das mesmas compras listadas abaixo. Some
+              quando a fatura não tem compra dividida. */}
+          {phone && cartao?.id && !loading && (
+            <DivisoesDaFatura
+              phone={phone}
+              cartao={{ id: cartao.id, nome: cartao.nome }}
+              competencia={mesRef}
+              rotulo={mesNome}
+              linhas={txs}
+              contas={contas}
+              restante={valorFatura}
+              onMudou={recarregarFatura}
+            />
+          )}
+
           {/* Por cartão virtual (Open Finance) — só quando há mais de um */}
           {porCartao.length > 1 && (
             <div>
@@ -729,7 +746,12 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
                             </span>
                           ) : null}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">{data}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {data}
+                          {tx.dividida_com && Number(tx.parte_outro) > 0 && (
+                            <> · dividida com {tx.dividida_com} ({fmt(Number(tx.parte_outro))})</>
+                          )}
+                        </p>
                       </div>
                       <p className="text-sm font-semibold text-foreground tabular flex-shrink-0">
                         {fmt(tx.valor_moeda ?? tx.valor)}
