@@ -343,7 +343,7 @@ export const api = {
     conexoes: () =>
       req<{ conexoes: any[]; cobertura?: any }>('/api/open-finance/conexoes'),
     sincronizar: (externalId: string) =>
-      req<{ ok: boolean; novas?: number; erro?: string; pendente?: string; urlToAuthenticate?: string | null; contas?: any[] }>(
+      req<{ ok: boolean; novas?: number; erro?: string; pendente?: string; urlToAuthenticate?: string | null; contas?: any[]; falhas?: { parte: string }[] }>(
         `/api/open-finance/conexoes/${externalId}/sincronizar`, { method: 'POST' }),
     /** URL de autorização atual (conexão pendente de aprovação no banco). */
     autorizar: (externalId: string) =>

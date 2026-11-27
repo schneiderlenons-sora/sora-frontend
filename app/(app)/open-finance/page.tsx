@@ -138,7 +138,9 @@ const logoInst = (i: Inst) => i.logo_url || i.image_url || null;
 function statusMeta(s?: string | null) {
   const k = (s || '').toLowerCase();
   if (k === 'updated')          return { label: 'Conectado',   cor: '#10b981', Icon: CheckCircle2 };
-  if (k === 'error' || k === 'login_error') return { label: 'Erro no login', cor: '#ef4444', Icon: AlertCircle };
+  if (k === 'login_error') return { label: 'Erro no login', cor: '#ef4444', Icon: AlertCircle };
+  // 'error' é sincronização que falhou — não diz nada sobre o login no banco.
+  if (k === 'error') return { label: 'Não atualizou', cor: '#ef4444', Icon: AlertCircle };
   if (k === 'waiting_user_input') return { label: 'Aguardando você autorizar', cor: '#f59e0b', Icon: Clock };
   return { label: 'Sincronizando…', cor: '#f59e0b', Icon: Clock };
 }
@@ -388,6 +390,7 @@ export default function OpenFinancePage() {
       } else {
         const n = r.novas ?? 0;
         setFlash(r.erro ? 'Não consegui sincronizar agora. Tente em instantes.'
+          : r.falhas?.length ? 'A ligação com o banco falhou em parte: atualizei o que veio. Tente de novo em alguns minutos.'
           : n > 0 ? `Sincronizado! ${n} nova${n === 1 ? '' : 's'} transaç${n === 1 ? 'ão' : 'ões'} importada${n === 1 ? '' : 's'}.`
           : 'Tudo sincronizado — nada novo. ✅');
       }
@@ -443,9 +446,11 @@ export default function OpenFinancePage() {
         return;
       }
       if (r?.urlToAuthenticate) setAuthUrl(r.urlToAuthenticate);
-    } catch {
-      // Renovação indisponível (trilho legado, rede): o polling assume, que
-      // é exatamente o comportamento anterior a esta correção.
+    } catch (e: any) {
+      // O servidor explicou por que não renovou (provedor instável, autorização
+      // que não existe mais): fecha o modal e mostra, em vez de ficar esperando.
+      if (e?.status === 503 || e?.status === 404) { setAuthId(''); setErro(e.message); }
+      // Outra falha (trilho legado, rede): o polling assume.
     } finally { setRenovando(''); }
   }
 
@@ -771,7 +776,14 @@ export default function OpenFinancePage() {
                             </span>
                             {c.ultima_sync && <span className="text-muted-foreground whitespace-nowrap">· {quando(c.ultima_sync)}</span>}
                           </div>
-                          {c.ultimo_erro && <p className="text-[11px] text-red-500 line-clamp-2 mt-0.5">{c.ultimo_erro}</p>}
+                          {/* Conectado com aviso (falha passageira) é âmbar; conexão
+                              com problema, vermelho. Sem cortar o texto: é a
+                              orientação do que fazer. */}
+                          {c.ultimo_erro && (
+                            <p className={`text-[11px] leading-relaxed mt-0.5 ${(c.status || '').toLowerCase() === 'updated' ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
+                              {c.ultimo_erro}
+                            </p>
+                          )}
 
                           {/* "Trazer a partir de" (migration 202). Só no trilho
                               atual e só aqui no grupo da conexão (os dados dela
@@ -900,7 +912,10 @@ export default function OpenFinancePage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-0 sm:flex-nowrap sm:flex-shrink-0">
-                        {(c.status || '').toLowerCase() !== 'updated' && (
+                        {/* Autorizar só onde falta autorização: numa falha de
+                            sincronização ('error') o caminho é Sincronizar. */}
+                        {(c.status || '').toLowerCase() !== 'updated'
+                          && !(c.provider === 'polp-celcoin' && (c.status || '').toLowerCase() === 'error') && (
                           <button onClick={() => autorizar(c.external_id, c.instituicao)}
                             className="flex-1 min-w-[6.5rem] sm:flex-none h-11 px-3 rounded-xl text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
                             style={{ background: `linear-gradient(135deg, ${BRAND}, #3FA85A)`, minHeight: 44 }}>
