@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendCAPIEvent } from '@/lib/facebook-capi';
 import { sendTikTokEvent } from '@/lib/tiktok-events-api';
 import { slugify } from '@/lib/analytics';
+import { atribuirPeloCupomDaSessao } from '@/lib/afiliados';
 
 // Necessário para ler o raw body e verificar a assinatura Stripe
 export const dynamic = 'force-dynamic';
@@ -94,6 +95,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   if (!userId || !plano) return;
+
+  // Código de afiliado digitado no checkout. ANTES de gravar o plano (é quando
+  // ainda dá pra saber se a pessoa já era vitalícia) e sem nunca falhar.
+  await atribuirPeloCupomDaSessao(session, userId);
 
   // 1) ATIVA O PLANO JÁ a partir do metadata — NÃO depende de buscar a
   //    assinatura. Antes, se o subscriptions.retrieve falhasse, o plano nunca

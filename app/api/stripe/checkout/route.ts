@@ -4,6 +4,8 @@ import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { linhaComDireito } from '@/lib/play-billing';
 import { linhaComDireitoApple } from '@/lib/apple-billing';
+import { afiliadoElegivel, atribuir } from '@/lib/afiliados';
+import { COOKIE_AFILIADO } from '@/lib/afiliados-regras';
 
 // Checkout de ASSINATURA (planos mensais/anuais). O vitalício é pago via
 // Mercado Pago (checkout transparente) — ver app/api/mercadopago/*.
@@ -89,16 +91,30 @@ export async function POST(req: NextRequest) {
       fb_ua: (req.headers.get('user-agent') || '').slice(0, 256),
     };
 
-    const session = await stripe.checkout.sessions.create({
+    const dados = {
       customer: customerId,
-      mode: 'subscription',
+      mode: 'subscription' as const,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/planos?success=1`,
       cancel_url:  `${origin}/planos?canceled=1`,
-      allow_promotion_codes: true,
       metadata: { supabase_user_id: user.id, plano, intervalo, ...fbMeta },
       subscription_data: { metadata: { supabase_user_id: user.id, plano, intervalo } },
-    });
+    };
+
+    // Chegou pelo link de um afiliado: o desconto dele já vem aplicado. O Stripe
+    // não aceita as duas coisas juntas (desconto + campo de cupom), e recusa o
+    // código pra quem já comprou antes — aí segue o checkout de sempre.
+    let session = null;
+    const afiliado = await afiliadoElegivel(user.id, req.cookies.get(COOKIE_AFILIADO)?.value);
+    if (afiliado?.stripe_promo_id) {
+      try {
+        session = await stripe.checkout.sessions.create({ ...dados, discounts: [{ promotion_code: afiliado.stripe_promo_id }] });
+        await atribuir(user.id, afiliado.codigo, 'link');
+      } catch (e) {
+        console.warn('[stripe/checkout] código de afiliado recusado:', e instanceof Error ? e.message : e);
+      }
+    }
+    session ??= await stripe.checkout.sessions.create({ ...dados, allow_promotion_codes: true });
 
     return NextResponse.json({ url: session.url });
   } catch (err: unknown) {

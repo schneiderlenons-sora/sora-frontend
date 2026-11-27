@@ -117,9 +117,26 @@ export async function mpGetPayment(id: string) {
       status: string;                 // 'approved' | 'pending' | 'rejected' ...
       external_reference?: string;     // supabase_user_id
       transaction_amount?: number;
+      transaction_amount_refunded?: number;
+      transaction_details?: { net_received_amount?: number };
+      fee_details?: { amount?: number }[];
+      date_created?: string;
+      date_approved?: string;
       metadata?: Record<string, unknown>;
     };
   } catch (e) {
     throw new Error(mensagemErro(e, 'Erro ao buscar pagamento no Mercado Pago'));
+  }
+}
+
+/** Pagamentos de um usuário (`external_reference`) — usado nas comissões de afiliado. */
+export async function mpBuscarPagamentos(externalReference: string) {
+  try {
+    const r = await new Payment(config()).search({ options: { external_reference: externalReference } });
+    return ((r as { results?: unknown[] }).results || []) as {
+      id: number; status: string; metadata?: Record<string, unknown>;
+    }[];
+  } catch (e) {
+    throw new Error(mensagemErro(e, 'Erro ao buscar pagamentos no Mercado Pago'));
   }
 }

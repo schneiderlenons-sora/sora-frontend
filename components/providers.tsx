@@ -19,6 +19,7 @@ import DispositivoSync from '@/components/app/DispositivoSync';
 import AppInstaladoSync from '@/components/app/AppInstaladoSync';
 import SincronizarPlay from '@/components/app/SincronizarPlay';
 import SincronizarApple from '@/components/app/SincronizarApple';
+import AtribuirAfiliado from '@/components/afiliados/AtribuirAfiliado';
 import { aplicarPaleta, getPaletaSalva } from '@/lib/theme-colors';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -75,6 +76,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <SincronizarPlay />
           {/* O mesmo para as assinaturas da Apple, no app de iPhone. */}
           <SincronizarApple />
+          {/* Veio por link de afiliado e entrou na conta → registra. */}
+          <AtribuirAfiliado />
           <MarcasCustomProvider>
             {/* Categorias do grupo: é delas que sai o emoji/cor de cada
                 transação. Fica ao lado das marcas porque as duas alimentam o

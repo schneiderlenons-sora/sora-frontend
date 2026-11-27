@@ -1,6 +1,35 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { painelDoAfiliado, sincronizarAfiliado } from '@/lib/afiliados';
+
+export const maxDuration = 60;
+const RELER_APOS_MS = 60 * 60 * 1000;
+
+/** O código e os ganhos de quem já é afiliado (null = ainda não é). */
+async function dadosDoAfiliado(userId: string) {
+  try {
+    const { data: af, error } = await supabaseAdmin
+      .from('afiliados').select('id, codigo, desconto_pct, ativo, sincronizado_em').eq('user_id', userId).maybeSingle();
+    if (error || !af) return null;
+    // Relê as cobranças no máximo 1× por hora; falha mostra o que já está salvo.
+    if (!af.sincronizado_em || Date.now() - new Date(af.sincronizado_em).getTime() > RELER_APOS_MS) {
+      await sincronizarAfiliado(af.id).catch(() => {});
+    }
+    const { linhas, clientes, resumo } = await painelDoAfiliado(af.id);
+    return {
+      codigo: af.codigo, desconto_pct: af.desconto_pct, ativo: af.ativo, clientes, resumo,
+      // Sem referência nem cliente: o afiliado não vê quem comprou.
+      linhas: linhas.filter((l) => l.status !== 'cancelada').slice(0, 100).map((l) => ({
+        id: l.id, tipo: l.tipo, ajuste: l.ajuste_n > 0, valor_centavos: l.valor_centavos,
+        status: l.status, pago_em: l.pago_em, liberada_em: l.liberada_em,
+      })),
+    };
+  } catch (e) {
+    console.error('[afiliados] painel:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
 
 // GET  /api/afiliados — a candidatura desta pessoa (se houver).
 // POST /api/afiliados — envia a candidatura.
@@ -26,6 +55,7 @@ export async function GET() {
 
   return NextResponse.json({
     candidatura: candidatura || null,
+    afiliado: await dadosDoAfiliado(user.id),
     // A tela mostra "vamos usar X e Y da sua conta" antes do formulário.
     nome:  perfil?.name  || user.user_metadata?.name || '',
     email: perfil?.email || user.email || '',

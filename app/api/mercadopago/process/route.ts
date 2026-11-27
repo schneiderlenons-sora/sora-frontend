@@ -5,6 +5,8 @@ import { aplicarCupomVitalicio } from '@/lib/cupons';
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { ativarVitalicio } from '@/lib/vitalicio';
+import { afiliadoElegivel, atribuir } from '@/lib/afiliados';
+import { COOKIE_AFILIADO, comDesconto, normalizarCodigoAfiliado } from '@/lib/afiliados-regras';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,7 +117,21 @@ export async function POST(req: NextRequest) {
 
     // Cupom (opcional) — desconto SEMPRE recalculado aqui (nunca confiar no
     // cliente). Código inválido → 0% (cobra cheio, fluxo normal).
-    const { valor, pct, codigo } = aplicarCupomVitalicio(cfg.amount, form.cupom);
+    let { valor, pct, codigo } = aplicarCupomVitalicio(cfg.amount, form.cupom);
+
+    // Afiliado: o código digitado vale como cupom; e, digitado ou vindo do
+    // link, a venda passa a contar pra quem trouxe (só cliente novo).
+    const digitado = pct === 0 ? normalizarCodigoAfiliado(form.cupom) : '';
+    const peloCodigo = digitado ? await afiliadoElegivel(user.id, digitado) : null;
+    if (peloCodigo) {
+      pct = peloCodigo.desconto_pct;
+      valor = comDesconto(cfg.amount, pct);
+      codigo = peloCodigo.codigo;
+      await atribuir(user.id, peloCodigo.codigo, 'codigo');
+    } else {
+      const doLink = req.cookies.get(COOKIE_AFILIADO)?.value;
+      if (doLink) await atribuir(user.id, doLink, 'link');
+    }
 
     // 100% OFF (SORA100) → acesso grátis, sem passar pelo Mercado Pago. Sem
     // webhook de rede de segurança aqui: só responde 'approved' se ATIVOU mesmo.

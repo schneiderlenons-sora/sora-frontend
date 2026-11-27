@@ -261,6 +261,29 @@ contas e cartões, duplicado. Agora o step 5 abre com a escolha.
 
 ---
 
+## Programa de afiliados (27/11/2026) — migration 209
+
+Pedido do dono (1ª afiliada: Tatiane). Aprovar no /admin (aba Afiliados) cria
+o **código** + cupom no Stripe. **30% da 1ª cobrança, 15% das renovações por 24
+meses, 30% do vitalício**, sobre o valor LÍQUIDO (depois da taxa do Stripe/MP),
+liberado 30 dias após a cobrança. O Pix é feito fora; "Marcar como pago" só
+registra. Divisão automática (Stripe Connect) foi descartada por ora.
+
+- Regras puras: `lib/afiliados-regras.ts` (`eval:afiliados`); banco/Stripe/MP:
+  `lib/afiliados.ts` (`eval:afiliados-fluxo`). 34/34 mutações mortas.
+- ⚠️ **Comissão é PUXADA, não empurrada:** relê faturas e cobranças do Stripe e
+  pagamentos do MP (`external_reference`) de cada cliente trazido — ao abrir a
+  tela do afiliado (1×/hora) ou em "Atualizar comissões". Não depende de webhook.
+  Comissão paga nunca é reescrita: reembolso vira linha de ajuste negativa.
+  Leitura que falha não cancela nem permite marcar repasse.
+- ⚠️ A conta do Stripe tem OUTROS produtos: só fatura com preço de plano da Sora
+  conta (conexão avulsa não), e o cupom é preso aos produtos dos planos.
+- Atribuição: link `?af=CODIGO` (cookie `sora_af`, 60 dias) ou código digitado
+  (Stripe e vitalício). Vale o último antes da 1ª compra; nunca o próprio, nem
+  quem já é assinante/vitalício. Cupom `once`, só 1ª compra.
+- ⚠️ **Nada daqui pode derrubar checkout** (sem a 209 ou com erro: segue sem
+  afiliado). Apple e Google Play NÃO contam (não passam por aqui).
+
 ## Analytics (Meta Pixel + CAPI)
 
 | Arquivo | Função |
@@ -5801,6 +5824,7 @@ sql/204_compromisso_varios_dias.sql — compromissos.data_fim + CHECK (fim > in�
 sql/205_aniversarios.sql — tabela aniversarios (aba Aniversários da Agenda + JOB 1U). Sem ela a aba diz que está sendo liberada e o cron não faz nada.
 sql/206_divisao_compra.sql — compra do cartão dividida com outra pessoa: transacoes.dividida_com + parte_outro (CHECK com `is not null` explícito) e tabela divisoes_acertos. Sem ela: dividir responde "ainda está sendo liberado"; nada quebra.
 sql/207_medicao_fatura_aberta.sql — MEDIÇÃO da fatura em aberto (tela × marcação do banco, JOB 1V). Só mede; sem ela o job não grava nada e /diag-medicao responde "sem_tabela".
+sql/209_afiliados.sql — afiliados, afiliado_indicados e afiliado_comissoes. **OBRIGATÓRIA pra aprovar afiliado**; sem ela a aba avisa e os checkouts seguem iguais.
 sql/208_transacao_data_travada.sql — transacoes.data_travada (a reconciliação de parcelas não reescreve a linha) + trava as 4 parcelas corrigidas do PicPay do relato de 27/11. Sem ela a reconciliação segue como antes — e o "Atualizar" (180 dias) desfaria a correção.
 ```
 

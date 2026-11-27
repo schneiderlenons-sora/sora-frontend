@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { uaEhAppIos, rotaDeVendaNoAppIos } from './lib/app-ios';
+import { PARAM_AFILIADO, COOKIE_AFILIADO, DIAS_COOKIE, normalizarCodigoAfiliado } from './lib/afiliados-regras';
 
 // ── QUEM PRECISA DE LOGIN ─────────────────────────────────────────────────
 //
@@ -289,7 +290,19 @@ function prefereEspanhol(request: NextRequest): boolean {
   return primeira.startsWith('es');
 }
 
+// Link de afiliado (?af=CODIGO): guarda quem trouxe a pessoa, em qualquer
+// resposta do porteiro (inclusive redirect). Quem valida o código é o servidor,
+// na hora de atribuir.
 export async function middleware(request: NextRequest) {
+  const resposta = await porteiro(request);
+  const codigo = normalizarCodigoAfiliado(request.nextUrl.searchParams.get(PARAM_AFILIADO));
+  if (codigo.length >= 3 && codigo.length <= 20) {
+    resposta.cookies.set(COOKIE_AFILIADO, codigo, { path: '/', maxAge: DIAS_COOKIE * 86400, sameSite: 'lax' });
+  }
+  return resposta;
+}
+
+async function porteiro(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const locale = localeDoPath(pathname);
 

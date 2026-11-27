@@ -6,6 +6,8 @@ import {
   Megaphone, Check, X, Loader2, AtSign, MessageCircle,
   Clock, AlertTriangle, ExternalLink,
 } from 'lucide-react';
+import AfiliadosAtivos from './AfiliadosAtivos';
+import { sugerirCodigo, normalizarCodigoAfiliado, DESCONTO_PADRAO } from '@/lib/afiliados-regras';
 
 // =============================================================================
 // Painel de candidaturas a afiliado (aba do /admin).
@@ -32,14 +34,28 @@ export default function AfiliadosPainel() {
   const [salvando, setSalvando] = useState<string | null>(null);
   const [nota, setNota] = useState<Record<string, string>>({});
 
-  async function decidir(id: string, novo: 'aprovado' | 'recusado') {
-    setSalvando(id);
+  // Código e desconto de quem vai ser aprovado (já vêm preenchidos).
+  const [codigo, setCodigo] = useState<Record<string, string>>({});
+  const [desconto, setDesconto] = useState<Record<string, string>>({});
+  const [falha, setFalha] = useState<Record<string, string>>({});
+
+  async function decidir(c: { id: string; nome?: string | null }, novo: 'aprovado' | 'recusado') {
+    const id = c.id;
+    setSalvando(id); setFalha((f) => ({ ...f, [id]: '' }));
     try {
-      await fetch('/api/admin/afiliados', {
+      const r = await fetch('/api/admin/afiliados', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: novo, observacao: nota[id] || null }),
+        body: JSON.stringify({
+          id, status: novo, observacao: nota[id] || null,
+          codigo: codigo[id] ?? sugerirCodigo(c.nome),
+          desconto_pct: Number(desconto[id] ?? DESCONTO_PADRAO),
+        }),
       });
-      mutate();
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) setFalha((f) => ({ ...f, [id]: j.erro || 'Não consegui salvar.' }));
+      await mutate();
+    } catch {
+      setFalha((f) => ({ ...f, [id]: 'Falha de conexão. Tente de novo.' }));
     } finally { setSalvando(null); }
   }
 
@@ -47,6 +63,13 @@ export default function AfiliadosPainel() {
 
   return (
     <div className="space-y-3">
+      {data?.afiliadosErro && (
+        <p role="alert" className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground">
+          {data.afiliadosErro} Até lá, aprovar candidatura não funciona.
+        </p>
+      )}
+      <AfiliadosAtivos afiliados={data?.afiliados || []} onMudou={() => mutate()} />
+
       {/* ⚠️ Alerta ANTES da fila: dinheiro que não chegou é mais urgente que
           uma candidatura esperando análise. */}
       {pendentesSemCredito.length > 0 && (
@@ -151,13 +174,29 @@ export default function AfiliadosPainel() {
                   value={nota[c.id] ?? ''} onChange={(e) => setNota((n) => ({ ...n, [c.id]: e.target.value }))}
                   placeholder="Observação (o candidato vê isto)"
                   className="input w-full text-sm" style={{ minHeight: 40 }} />
+                <div className="grid grid-cols-[1fr_7rem] gap-2">
+                  <label className="block">
+                    <span className="text-[11px] text-muted-foreground">Código do afiliado</span>
+                    <input value={codigo[c.id] ?? sugerirCodigo(c.nome)} autoCapitalize="characters" spellCheck={false} maxLength={20}
+                      onChange={(e) => setCodigo((m) => ({ ...m, [c.id]: normalizarCodigoAfiliado(e.target.value) }))}
+                      className="input w-full text-sm mt-1" style={{ minHeight: 44 }} />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] text-muted-foreground">Desconto (%)</span>
+                    <input value={desconto[c.id] ?? String(DESCONTO_PADRAO)} inputMode="numeric" maxLength={2}
+                      onChange={(e) => setDesconto((m) => ({ ...m, [c.id]: e.target.value.replace(/\D/g, '') }))}
+                      className="input w-full text-sm mt-1" style={{ minHeight: 44 }} />
+                  </label>
+                </div>
+                <p className="text-[12px] text-muted-foreground">O desconto vale na primeira cobrança de cliente novo. Aprovar cria o código no Stripe.</p>
+                {falha[c.id] && <p role="alert" className="text-[13px] text-red-600 dark:text-red-400">{falha[c.id]}</p>}
                 <div className="flex items-center gap-2">
-                  <button onClick={() => decidir(c.id, 'recusado')} disabled={salvando === c.id}
+                  <button onClick={() => decidir(c, 'recusado')} disabled={salvando === c.id}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-bold border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
                     style={{ minHeight: 42 }}>
                     <X size={14} /> Recusar
                   </button>
-                  <button onClick={() => decidir(c.id, 'aprovado')} disabled={salvando === c.id}
+                  <button onClick={() => decidir(c, 'aprovado')} disabled={salvando === c.id}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
                     style={{ background: BRAND, minHeight: 42 }}>
                     {salvando === c.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Aprovar

@@ -13,12 +13,15 @@ import { Megaphone, Loader2, CheckCircle2, Clock, XCircle, ArrowLeft } from 'luc
 // /admin — esta tela só registra.
 // =============================================================================
 
+import PainelAfiliado from '@/components/afiliados/PainelAfiliado';
+
 const BRAND = 'hsl(var(--primary))';
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
 const VANTAGENS = [
   { destaque: '30%',      texto: 'da primeira cobrança de cada assinante que você trouxer' },
   { destaque: '15%',      texto: 'de cada renovação, por até 2 anos de assinatura' },
+  { destaque: '30%',      texto: 'do plano vitalício de quem você trouxer' },
   { destaque: 'Desconto', texto: 'quem usa o seu código paga menos, então você tem o que oferecer' },
 ];
 
@@ -47,8 +50,11 @@ export default function AfiliadosPage() {
         <h1 className="text-2xl font-black text-foreground leading-tight">Seja afiliado</h1>
       </div>
 
-      {/* Já tem candidatura → mostra o ESTADO dela, não o formulário de novo. */}
-      {cand && !form ? (
+      {/* Já aprovado e com código → o painel de ganhos. Senão, o ESTADO da
+          candidatura (nunca o formulário de novo). */}
+      {data?.afiliado ? (
+        <PainelAfiliado dados={data.afiliado} />
+      ) : cand && !form ? (
         <EstadoCandidatura cand={cand} onNova={() => setForm(true)} />
       ) : form ? (
         <Formulario
@@ -67,7 +73,7 @@ export default function AfiliadosPage() {
           </div>
 
           {VANTAGENS.map((v) => (
-            <div key={v.destaque}
+            <div key={v.texto}
                  className="rounded-2xl border border-border/60 p-4 flex items-center gap-4"
                  style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
               <span className="text-2xl font-black flex-shrink-0" style={{ color: BRAND }}>{v.destaque}</span>
@@ -193,8 +199,9 @@ function Formulario({ nome, email, onCancelar, onEnviado }: {
       </Campo>
 
       <p className="text-[12px] text-muted-foreground leading-relaxed px-1">
-        Ao enviar, você aceita as regras do programa: 30% da primeira cobrança e 15% das renovações,
-        sobre o valor repassado pela loja.
+        Ao enviar, você aceita as regras do programa: 30% da primeira cobrança, 15% das renovações por
+        até 2 anos e 30% do vitalício, sobre o valor repassado depois das taxas de pagamento. A comissão
+        libera 30 dias após a cobrança, e compras feitas pelas lojas de aplicativo não entram.
       </p>
 
       {erro && <p className="text-[13px] text-red-600 dark:text-red-400 leading-snug px-1">{erro}</p>}

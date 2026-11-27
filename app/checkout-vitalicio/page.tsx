@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import MercadoPagoBrick, { MP_SDK_ID, MP_SDK_SRC } from '@/components/checkout/MercadoPagoBrick';
 import AuthHero from '@/components/auth/AuthHero';
 import { aplicarCupomVitalicio, pctCupom } from '@/lib/cupons';
+import { comDesconto, normalizarCodigoAfiliado, COOKIE_AFILIADO } from '@/lib/afiliados-regras';
 import { normalizarTier, tierEfetivo } from '@/lib/vitalicio-tier';
 import { trackAddToCart, trackInitiateCheckout } from '@/lib/analytics';
 import { Crown, ShieldCheck, Check, Tag, Loader2, X } from 'lucide-react';
@@ -48,7 +49,49 @@ function CheckoutContent() {
     if (q && pctCupom(q)) { setCupom(q.trim().toUpperCase()); setCupomInput(q.trim().toUpperCase()); }
   }, [params]);
 
-  const { valor: amountFinal, pct } = aplicarCupomVitalicio(t.amount, cupom);
+  // ── Código de afiliado ────────────────────────────────────────────
+  // Vale como cupom. Quem confere se vale é o servidor (e recalcula o preço na
+  // cobrança); aqui é só o que a tela mostra.
+  const [afiliado, setAfiliado] = useState<{ codigo: string; pct: number } | null>(null);
+  const consultarAfiliado = useCallback(async (codigo?: string) => {
+    try {
+      const j = await fetch(`/api/afiliados/codigo${codigo ? `?c=${encodeURIComponent(codigo)}` : ''}`).then((r) => r.json());
+      if (!j?.valido) return null;
+      const achado = { codigo: String(j.codigo), pct: Number(j.desconto_pct) };
+      setAfiliado(achado);
+      return achado;
+    } catch { return null; }
+  }, []);
+
+  // Veio pelo link (ou ?cupom= com o código dele): já aparece aplicado, sem
+  // tirar um cupom da casa que a pessoa tenha.
+  // ⚠️ Quem veio por link espera essa resposta ANTES de o formulário montar: o
+  // desconto muda o valor, e remontar o Payment Brick no meio do carregamento
+  // pode deixar dois formulários na tela.
+  const userId = user?.id;
+  const [codigoConferido, setCodigoConferido] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    const q = params.get('cupom');
+    const veioPorLink = document.cookie.includes(`${COOKIE_AFILIADO}=`);
+    const precisa = q ? !pctCupom(q) : veioPorLink;
+    const limite = setTimeout(() => setCodigoConferido(true), precisa ? 4000 : 0);
+    if (precisa) {
+      consultarAfiliado(q || undefined).then((a) => {
+        if (a) {
+          setCupom((atual) => atual ?? a.codigo);
+          setCupomInput((atual) => atual || a.codigo);
+        }
+        setCodigoConferido(true);
+      });
+    }
+    return () => clearTimeout(limite);
+  }, [userId, params, consultarAfiliado]);
+
+  const daCasa = aplicarCupomVitalicio(t.amount, cupom);
+  const doAfiliado = !daCasa.pct && afiliado && cupom === afiliado.codigo ? afiliado.pct : 0;
+  const pct = daCasa.pct || doAfiliado;
+  const amountFinal = doAfiliado ? comDesconto(t.amount, doAfiliado) : daCasa.valor;
   const gratis = pct >= 100;
 
   // Quem chega direto de /oferta ou /kit (clicando num link, sem passar por
@@ -89,9 +132,11 @@ function CheckoutContent() {
     router.replace(tier === 'upgrade' ? '/vincular-whatsapp?upgrade=1' : '/planos?success=1&vitalicio=1');
   }, [router, tier]);
 
-  function aplicarCupom() {
-    if (!pctCupom(cupomInput)) { setCupomErro('Cupom inválido ou expirado.'); return; }
-    setCupom(cupomInput.trim().toUpperCase()); setCupomErro('');
+  async function aplicarCupom() {
+    if (pctCupom(cupomInput)) { setCupom(cupomInput.trim().toUpperCase()); setCupomErro(''); return; }
+    const a = await consultarAfiliado(normalizarCodigoAfiliado(cupomInput));
+    if (!a) { setCupomErro('Cupom inválido ou expirado.'); return; }
+    setCupom(a.codigo); setCupomErro('');
   }
   function removerCupom() { setCupom(null); setCupomInput(''); setCupomErro(''); setErroGratis(''); }
 
@@ -221,7 +266,9 @@ function CheckoutContent() {
                   padding cai pra `p-2`. Resultado: 342–412px, com folga.
                   `sm:mx-0` devolve o cartão normal a partir de 640px. */}
               <div className="-mx-6 sm:mx-0 rounded-2xl border border-border bg-card p-2 sm:p-5">
-                <MercadoPagoBrick amount={amountFinal} tier={tier} cupom={cupom} email={user?.email} onApproved={onApproved} />
+                {codigoConferido
+                  ? <MercadoPagoBrick amount={amountFinal} tier={tier} cupom={cupom} email={user?.email} onApproved={onApproved} />
+                  : <div className="h-80 rounded-xl bg-muted/50 animate-pulse" aria-busy="true" />}
               </div>
               <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck size={13} /> Pagamento seguro via Mercado Pago · acesso imediato
