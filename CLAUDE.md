@@ -1629,6 +1629,28 @@ nunca tinham vindo. Migration **202** (`of_conexoes.importar_desde`).
   Finance → `components/open-finance/ImportarDesdeModal.tsx` (portal; conta as
   que sairiam; "Salvar e apagar N" em vermelho; "Voltar a trazer tudo").
 
+## Provedor do Open Finance instável (27/11/2026) — não é erro de login
+
+Relato (Tatiane): "Erro no login" + `Celcoin GET /consents/…/credit-cards →
+500`, logo depois de usar o "trazer a partir de" (que funcionou; o 500 era da
+Polp, passageiro, e 1 das 81 conexões estava assim). `eval:instabilidade-of`
+(63 verificações, 21/21 mutações).
+
+- `polpCelcoin.api` repete **só GET** em 5xx/rede (1s, 3s). POST nunca
+  (consentimento em dobro). `ehInstabilidade(e)` = 5xx, 429 ou rede.
+- Lista de **contas ou cartões** que falha não aborta o sync: `relatorio.falhas`,
+  `ultima_sync` não anda, status segue `updated` (só com o consentimento
+  confirmado AUTHORISED), nova tentativa em 10/30/90 min
+  (`services/repetirSyncOF.js`, em memória). Recusa 4xx segue virando `error`.
+- ⚠️ **Recriar um consentimento AUTORISED o REVOGA.** "Autorizar" e a
+  retentativa do `/conectar` só recriam o que `lerParaRenovar` confirma que não
+  está autorizado; leitura que falha → 503, nada recriado.
+- ⚠️ `listarSaldosReservados` **lança** na falha: o `[]` de antes apagava as
+  caixinhas.
+- `ultimo_erro` no banco segue técnico (admin/diagnóstico); o cliente recebe
+  `services/erroDeSyncOF.js`. Rótulo de `error` é "Não atualizou", sem botão
+  Autorizar no trilho Celcoin.
+
 ## Conta PJ do Open Finance nasce "… PJ" (out/2026)
 
 Relato (Robert): conectou a conta PJ do Mercado Pago; como já havia a pessoal
