@@ -522,18 +522,24 @@ export default function DetalhesCartaoModal({ phone, cartao, offsetInicial = 0, 
               {(() => {
                 // Selo: ícone + rótulo (nunca só cor). Atrasada e passada pra
                 // frente vêm do servidor; "Paga" segue a regra de antes.
-                const estado = pagoFlag ? 'paga'
-                  : situacao === 'atrasada' ? 'atrasada'
-                  : situacao === 'rolada' ? 'rolada'
+                // Cartão cadastrado à mão sem nada lançado nem pago: "Nada a
+                // pagar" — o mesmo que o card diz (lib/selo-cartao.ts).
+                const semNada = !cartao?.of_conta_id && faturaApi !== null
+                  && faturaApi <= 0.009 && (pagoApi ?? 0) <= 0.009 && (restanteApi ?? 0) <= 0.009;
+                const estado = situacao === 'atrasada' && !pagoFlag ? 'atrasada'
+                  : situacao === 'rolada' && !pagoFlag ? 'rolada'
+                  : semNada && !pagoFlagLS ? 'vazia'
+                  : pagoFlag ? 'paga'
                   : 'aberta';
                 const estilo = {
                   paga: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400',
                   atrasada: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400',
                   rolada: 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300',
+                  vazia: 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300',
                   aberta: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
                 }[estado];
-                const cor = { paga: '#16a34a', atrasada: '#dc2626', rolada: '#64748b', aberta: '#d97706' }[estado];
-                const rotulo = { paga: 'Paga', atrasada: 'Atrasada', rolada: 'Passada pra próxima', aberta: 'Em aberto' }[estado];
+                const cor = { paga: '#16a34a', atrasada: '#dc2626', rolada: '#64748b', vazia: '#64748b', aberta: '#d97706' }[estado];
+                const rotulo = { paga: 'Paga', atrasada: 'Atrasada', rolada: 'Passada pra próxima', vazia: 'Nada a pagar', aberta: 'Em aberto' }[estado];
                 return (
                   <button
                     onClick={togglePaga}

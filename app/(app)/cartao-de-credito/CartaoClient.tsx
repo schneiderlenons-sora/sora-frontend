@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AdicionarCartaoModal, { bancoLogo, loadCartaoMeta, labelVencimento, CartaoMeta } from '@/components/cartoes/AdicionarCartaoModal';
 import DetalhesCartaoModal from '@/components/cartoes/DetalhesCartaoModal';
 import PagarFaturaModal from '@/components/cartoes/PagarFaturaModal';
@@ -22,8 +22,9 @@ import {
 } from '@/lib/ciclo-fatura';
 import { somarFatura } from '@/lib/valor-fatura';
 import { limiteComprometido } from '@/lib/limite-cartao';
+import { seloDoCartao, anteriorPaga, type SituacaoServidor } from '@/lib/selo-cartao';
 import {
-  Plus, Sparkles, CreditCard, DollarSign, Pencil, Trash2,
+  Plus, Sparkles, CreditCard, DollarSign, Pencil, Trash2, Minus,
   ChevronRight, ChevronLeft, BarChart3, Calendar, Loader2, ArrowRight, AlertTriangle, Check,
 } from 'lucide-react';
 import { useValores } from '@/lib/valores-ocultos';
@@ -106,8 +107,27 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
     phone ? chave.faturas(phone, 0) : null, () => api.wallets.faturas(phone, 0));
   // A fatura SEGUINTE: é dela que saem as parcelas previstas de quem já pagou a
   // atual (a projeção só existe pra fatura futura).
-  const { data: faturasProx } = useApi(
+  const { data: faturasProx, mutate: mFP } = useApi(
     phone ? chave.faturas(phone, 1) : null, () => api.wallets.faturas(phone, 1));
+  // A ANTERIOR: é o que deixa o card dizer "fatura de novembro paga" junto da
+  // fatura em curso. Secundária — não segura a tela.
+  const { data: faturasAnt, mutate: mFA } = useApi(
+    phone ? chave.faturas(phone, -1) : null, () => api.wallets.faturas(phone, -1), { portao: false });
+
+  // A situação que o SERVIDOR já contou de cada fatura, por cartão+competência.
+  const servidorPor = useMemo(() => {
+    const acc: Record<string, FaturaCartao> = {};
+    type ComFaturas = { faturas?: FaturaCartao[] } | undefined;
+    [faturasAnt, faturasData, faturasProx].forEach((dados) => {
+      ((dados as ComFaturas)?.faturas || []).forEach((f) => {
+        if (f.competencia) acc[`${f.cartao_id}|${f.competencia}`] = f;
+      });
+    });
+    return acc;
+  }, [faturasAnt, faturasData, faturasProx]);
+  // Antes de as três respostas chegarem, "não está na lista" ainda não quer
+  // dizer nada.
+  const servidorRespondeu = !!faturasAnt && !!faturasData && !!faturasProx;
 
   // Parcelas que só o banco conhece, por cartão+competência (migration 116).
   const previstoPor = useMemo(() => {
@@ -189,7 +209,7 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
   const loading = wRaw === undefined;
   // `mF`: pagar ou passar uma fatura pra frente muda as atrasadas e o valor
   // canônico de cada card — sem recarregar, o bloco de atraso ficaria na tela.
-  const carregar = useCallback(() => Promise.all([mW(), mTA(), mF()]), [mW, mTA, mF]);
+  const carregar = useCallback(() => Promise.all([mW(), mTA(), mF(), mFP(), mFA()]), [mW, mTA, mF, mFP, mFA]);
 
   // Carrega os últimos meses pro gráfico de histórico. 7 (não 6) porque o ciclo
   // da fatura mais antiga começa no mês anterior a ela.
@@ -545,6 +565,14 @@ export default function CartaoClient({ phoneInicial, initialData }: { phoneInici
                   ciclo={cicloPorCartao[w.id]}
                   ehMesAtual={mesIndex === 0}
                   atrasadas={atrasadasPor[w.id] || []}
+                  servidor={servidorPor[`${w.id}|${cicloPorCartao[w.id]?.competencia}`]
+                    ?? (servidorRespondeu ? null : undefined)}
+                  pagaAntes={(() => {
+                    const comp = cicloPorCartao[w.id]?.competencia;
+                    if (mesIndex !== 0 || !comp) return null;
+                    const antes = competenciaVizinha(w, comp, -1);
+                    return anteriorPaga(servidorPor[`${w.id}|${antes}`], antes);
+                  })()}
                   compartilhado={compartilhado}
                   delay={i * 50}
                   onEditar={() => { setEdicao(w); setAddOpen(true); }}
@@ -698,6 +726,11 @@ interface CardCartaoProps {
   ehMesAtual: boolean;
   /** Faturas VENCIDAS e não pagas deste cartão (só cartão manual). */
   atrasadas?: FaturaAtrasada[];
+  /** A fatura exibida como o servidor a calculou. `undefined` = ainda não
+   *  chegou; `null` = não veio na lista (o card pergunta por ela). */
+  servidor?: SituacaoServidor | null;
+  /** A fatura anterior à exibida, quando está paga. */
+  pagaAntes?: { competencia: string; pago: number } | null;
   compartilhado?: boolean;
   onEditar:  () => void;
   onExcluir: () => void;
@@ -708,7 +741,7 @@ interface CardCartaoProps {
   onRestanteChange?: (cartaoId: string, restante: number) => void;
 }
 
-function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, ocultar, delay, competencia, ciclo, ehMesAtual, atrasadas = [], compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
+function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, ocultar, delay, competencia, ciclo, ehMesAtual, atrasadas = [], servidor, pagaAntes, compartilhado, onEditar, onExcluir, onAbrir, onRefresh, onRestanteChange }: CardCartaoProps) {
   // Conexão do banco encerrada? (ver lib/conexao-of.ts — o caso do BTG). Só
   // busca pra cartão que vem do Open Finance; o SWR divide a lista entre os cards.
   const conexoes = useConexoesOF(!!cartao.of_conta_id);
@@ -728,17 +761,18 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
   const { phone } = useAuth();
   const [meta, setMeta] = useState<CartaoMeta>({});
   const [pagarOpen, setPagarOpen] = useState(false);
-  // Cartão MANUAL: rastreia pago/restante/rollover (migration 096). OF fica de fora.
+  // Cartão MANUAL rastreia pago/restante/rollover (migration 096).
   const ehManual = !cartao.of_conta_id;
-  const [status, setStatus] = useState<{
-    fatura: number; pago: number; restante: number; rollover?: any;
-    quitada?: boolean; fechada?: boolean;
-    situacao?: 'paga' | 'atrasada' | 'rolada' | 'em_aberto';
-  } | null>(null);
+  const [statusBuscado, setStatus] = useState<SituacaoServidor | null>(null);
+  // ⚠️ Resposta de OUTRA fatura (troca de mês) não vale pra esta.
+  const doPedido = statusBuscado?.competencia === competencia ? statusBuscado : null;
+  // ⚠️ CARTÃO DO BANCO TAMBÉM CONSULTA O SERVIDOR (relato de 28/11/2026). Antes
+  // só o manual consultava: fatura paga pelo banco seguia "Em aberto", com
+  // botão de pagar. Usa o que já veio na lista; só pergunta o que não veio.
+  const status = ehManual ? doPedido : (servidor ?? doPedido);
   // Fatura passada pra frente: o saldo dela já está na seguinte. Pagar AQUI
   // cobraria duas vezes — então nem oferece o botão.
   const rolada = ehManual && status?.situacao === 'rolada';
-  const atrasadaExibida = ehManual && status?.situacao === 'atrasada';
   // Fatura atrasada sendo paga / passada pra próxima, e a confirmação depois.
   const [pagarAtrasada, setPagarAtrasada] = useState<FaturaAtrasada | null>(null);
   const [passarAtrasada, setPassarAtrasada] = useState<FaturaAtrasada | null>(null);
@@ -762,12 +796,17 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
     setMeta(loadCartaoMeta(cartao.id));
   }, [cartao.id]);
 
-  // Busca status da fatura (pago/restante/rollover) — só cartão manual.
+  // Busca status da fatura (pago/restante/rollover). No cartão do banco, só
+  // quando a lista não trouxe esta competência (navegando pra trás).
+  const precisaPerguntar = ehManual || servidor === null;
+  const pedidoRef = useRef(0);
   const recarregarStatus = useCallback(() => {
-    if (!phone || !ehManual) { setStatus(null); return; }
+    if (!phone || !competencia || !precisaPerguntar) return;
+    const pedido = ++pedidoRef.current;
     api.wallets.faturaStatus(phone, cartao.id, competencia)
-      .then(setStatus).catch(() => setStatus(null));
-  }, [phone, cartao.id, competencia, ehManual]);
+      .then((r) => { if (pedido === pedidoRef.current) setStatus(r); })
+      .catch(() => { if (pedido === pedidoRef.current) setStatus(null); });
+  }, [phone, cartao.id, competencia, precisaPerguntar]);
   useEffect(() => { recarregarStatus(); }, [recarregarStatus, fatura]);
 
   // Fonte da verdade = banco (wallets.dia_fechamento/vencimento, migration 023);
@@ -792,26 +831,25 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
   const disponivel = Math.max(limite - usado, 0);
   const pctUsado = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
 
-  const hoje = new Date();
-  const mesRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
-
-  // Flag de pagamento. Cartão MANUAL usa o restante real (fatura − pago) do
-  // status (migration 096); OF (e enquanto o status não carrega) usa o
-  // localStorage legado.
+  // Marcação manual neste aparelho, por FATURA (a mesma chave do modal de
+  // detalhes). Pelo mês do calendário, marcar uma pintava a seguinte de paga.
   const [pagaLS, setPagaLS] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setPagaLS(localStorage.getItem(`sora-fatura-${cartao.id}-${mesRef}`) === 'paga');
-  }, [cartao.id, mesRef]);
-  const restante = ehManual && status ? status.restante : fatura;
-  const jaPago   = ehManual && status ? status.pago : 0;
+    setPagaLS(localStorage.getItem(`sora-fatura-${cartao.id}-${competencia}`) === 'paga');
+  }, [cartao.id, competencia]);
+  const restante = typeof status?.restante === 'number' ? status.restante : fatura;
+  const jaPago   = typeof status?.pago === 'number' ? status.pago : 0;
   // No cartão de banco conectado, "paga" é o que o servidor sabe (pagamento
   // registrado depois do fechamento, vindo do extrato). O localStorage fica só
   // como marcação manual — era ele sozinho antes, e por isso cartão de Open
   // Finance ficava eternamente "Em aberto" mesmo depois de pago.
-  const paga = status
-    ? (ehManual ? status.restante <= 0.01 : !!status.quitada)
-    : pagaLS;
+  const paga = status && ehManual
+    ? Number(status.restante) <= 0.01
+    : (!!status?.quitada || pagaLS);
+  const selo = seloDoCartao({
+    manual: ehManual, status, marcadaPaga: pagaLS, temAtrasada: atrasadasVisiveis.length > 0,
+  });
 
   // Reporta o restante pro pai (soma do header "Fatura atual"). Só quando é o
   // mês ATUAL — meses passados não entram na fatura "atual" do topo.
@@ -881,7 +919,7 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           {/* ⚠️ Fatura VENCIDA manda no selo: "Paga"/"Em aberto" falam da
               fatura exibida (a próxima), e a vencida sumia da leitura. */}
-          {atrasadasVisiveis.length > 0 || atrasadaExibida ? (
+          {selo === 'atrasada' ? (
             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
               <AlertTriangle size={11} />
               {atrasadasVisiveis.length > 1 ? `${atrasadasVisiveis.length} atrasadas` : 'Atrasada'}
@@ -890,16 +928,22 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
               <ArrowRight size={11} /> Passada pra próxima
             </span>
+          ) : selo === 'vazia' ? (
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+              <Minus size={11} /> Nada a pagar
+            </span>
           ) : (
           <span
             className={`text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
-              paga
+              selo === 'paga'
                 ? 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400'
                 : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
             }`}
           >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: paga ? '#16a34a' : '#d97706' }} />
-            {paga ? 'Paga' : 'Em aberto'}
+            {selo === 'paga'
+              ? <Check size={11} />
+              : <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#d97706' }} />}
+            {selo === 'paga' ? 'Paga' : 'Em aberto'}
           </span>
           )}
 
@@ -1016,9 +1060,21 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
         )}
 
         {/* Nota discreta do que já foi pago nessa fatura. */}
-        {ehManual && jaPago > 0 && (
+        {jaPago > 0 && (
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {fmt(jaPago)} já pago nesta fatura
+            {ocultar ? '•••' : fmt(jaPago)} já pago nesta fatura
+          </p>
+        )}
+
+        {/* ⚠️ QUEM ACABOU DE PAGAR vê aqui a PRÓXIMA fatura "Em aberto". Sem
+            esta linha parece que o pagamento não foi reconhecido. */}
+        {pagaAntes && (
+          <p className="mt-1.5 text-[11px] font-semibold text-green-700 dark:text-green-400 flex items-start gap-1.5 leading-snug">
+            <Check size={12} className="flex-shrink-0 mt-px" />
+            <span>
+              Fatura de {nomeDoMesFatura(pagaAntes.competencia)} paga
+              {ocultar ? '' : ` · ${fmt(pagaAntes.pago)}`}
+            </span>
           </p>
         )}
 
@@ -1218,7 +1274,7 @@ function CardCartao({ cartao, fatura, comprometido, comprometidoComPagamento, oc
           // Manual: recarrega o restante real (pagamento pode ter sido parcial).
           // OF/legado: mantém a flag localStorage.
           if (ehManual) { recarregarStatus(); }
-          else { try { localStorage.setItem(`sora-fatura-${cartao.id}-${mesRef}`, 'paga'); } catch {} setPagaLS(true); }
+          else { try { localStorage.setItem(`sora-fatura-${cartao.id}-${competencia}`, 'paga'); } catch {} setPagaLS(true); }
           onRefresh();
           // Revalida TUDO (SWR global): saldo das contas, transações e dashboard
           // são caches separados — sem isso o débito e a transação não aparecem.

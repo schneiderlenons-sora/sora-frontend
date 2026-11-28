@@ -62,6 +62,7 @@
     "eval:marca-transferencia": "npx tsx lib/marca-transferencia.eval.mjs",
     "eval:ainda-vem-mes-back": "npx tsx lib/ainda-vem-mes-back.eval.mjs",
     "eval:notas": "npx tsx lib/notas.eval.mjs",
+    "eval:selo-cartao": "npx tsx lib/selo-cartao.eval.mjs",
     "eval:tarefas": "npx tsx lib/tarefas.eval.mjs",
     "eval:afiliados": "npx tsx lib/afiliados-regras.eval.mjs",
     "eval:afiliados-fluxo": "npx tsx lib/afiliados.eval.cjs",

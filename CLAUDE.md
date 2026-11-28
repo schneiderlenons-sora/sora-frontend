@@ -525,6 +525,27 @@ Pedido de cliente (Tatiane): achar tarefa entre muitas e "fixar horário ou não
 
 ---
 
+## Card do cartão: situação da fatura vem do SERVIDOR (28/11/2026)
+
+Relato (Tadashi): Nubank pago, e a tela dizia "Paga" num "cartão virtual"
+cadastrado à mão e VAZIO e "Em aberto" no cartão do banco.
+
+- ⚠️ **O cartão de Open Finance NUNCA consultava a situação** (`if (!ehManual)
+  return`): o `quitada` do comentário era código morto. Fatura paga seguia "Em
+  aberto", com "Pagar fatura". Medido: 62 de 146 cartões de banco com a anterior
+  paga. Hoje usa o item de `/wallets/faturas` (offsets −1/0/+1) e pergunta
+  `/fatura/status` só pra competência fora da lista.
+- Regra: `lib/selo-cartao.ts` (`eval:selo-cartao`). Fatura sem nada em cartão
+  manual = "Nada a pagar" (era "Paga"); na fatura em curso, "Fatura de X paga ·
+  R$" quando a anterior foi quitada; marcação local por COMPETÊNCIA (a mesma do
+  modal), não pelo mês do calendário.
+- O Nubank (e outros) manda físico, virtual e adicionais num cartão SÓ (uma
+  fatura, um limite): não é erro. O detalhe da fatura separa por final.
+- `ehMercadoPago` lê `of_consent_id` quando o chamador não pediu a coluna: o
+  mesmo cartão do MP saía com um valor na lista e outro no detalhe/zap/agenda.
+
+---
+
 ## FAQ local-first no WhatsApp
 
 - **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.
