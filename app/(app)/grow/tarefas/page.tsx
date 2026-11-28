@@ -28,9 +28,10 @@ import {
   Plus, Loader2, X, Check, Trash2, Tag, AlertCircle, FolderPlus,
   CalendarClock, Repeat, LayoutGrid, List as ListIcon, Flame,
   Plane, ShoppingCart, Briefcase, HeartPulse, GraduationCap,
-  Home as HomeIcon, Phone, Wallet, CircleDashed, ArrowRight, Circle,
+  Home as HomeIcon, Phone, Wallet, CircleDashed, ArrowRight, Circle, Search, Clock,
 } from 'lucide-react';
 import GrowHero from '@/components/grow/GrowHero';
+import { casaBusca, compararHora, comHora } from '@/lib/tarefas';
 
 const BRAND = 'hsl(var(--primary))';
 const VISAO_KEY = 'sora-grow-tarefas-visao';
@@ -107,6 +108,8 @@ export default function TarefasPage() {
   const [filtroProjeto, setFiltroProjeto] = useState<string | null>(null);
   const [filtroCat, setFiltroCat] = useState<string | null>(null);
   const [visao, setVisao] = useState<'lista' | 'quadro'>('lista');
+  const [busca, setBusca] = useState('');
+  const buscando = busca.trim().length > 0;
 
   // Visão preferida por aparelho. ⚠️ Lida DEPOIS da montagem: ler
   // localStorage no primeiro render dá hydration mismatch (o servidor não tem
@@ -136,8 +139,9 @@ export default function TarefasPage() {
 
   const tarefasFiltradas = useMemo(() => tarefas.filter(t =>
     (!filtroProjeto || t.projeto_id === filtroProjeto) &&
-    (!filtroCat || t.categoria === filtroCat),
-  ), [tarefas, filtroProjeto, filtroCat]);
+    (!filtroCat || t.categoria === filtroCat) &&
+    casaBusca(t, busca),
+  ), [tarefas, filtroProjeto, filtroCat, busca]);
 
   // ── Faixa "Hoje": atrasadas + vencendo hoje, nunca concluídas ─────────
   // Ordena por atraso (mais velha primeiro) e depois por prioridade: o que
@@ -145,6 +149,7 @@ export default function TarefasPage() {
   const agora = useMemo(() => tarefasFiltradas
     .filter(t => !t.concluida && t.data_vencimento && diasAte(t.data_vencimento) <= 0)
     .sort((a, b) => diasAte(a.data_vencimento) - diasAte(b.data_vencimento)
+      || compararHora(a, b)
       || PESO_PRI[a.prioridade] - PESO_PRI[b.prioridade]),
   [tarefasFiltradas]);
 
@@ -160,7 +165,7 @@ export default function TarefasPage() {
         if (!!a.data_vencimento !== !!b.data_vencimento) return a.data_vencimento ? -1 : 1;
         if (a.data_vencimento && b.data_vencimento && a.data_vencimento !== b.data_vencimento)
           return a.data_vencimento < b.data_vencimento ? -1 : 1;
-        return PESO_PRI[a.prioridade] - PESO_PRI[b.prioridade];
+        return compararHora(a, b) || PESO_PRI[a.prioridade] - PESO_PRI[b.prioridade];
       });
     }
     return m;
@@ -185,7 +190,12 @@ export default function TarefasPage() {
       else if (d <= 7)  g[ix.semana].itens.push(t);
       else              g[ix.depois].itens.push(t);
     }
-    for (const x of g) x.itens.sort((a, b) => PESO_PRI[a.prioridade] - PESO_PRI[b.prioridade]);
+    // "Hoje" segue o relógio; nos outros grupos a prioridade continua mandando,
+    // com dia e horário desempatando.
+    const quando = (a: any, b: any) => String(a.data_vencimento || '').slice(0, 10).localeCompare(String(b.data_vencimento || '').slice(0, 10)) || compararHora(a, b);
+    for (const x of g) x.itens.sort((a, b) => x.chave === 'hoje'
+      ? compararHora(a, b) || PESO_PRI[a.prioridade] - PESO_PRI[b.prioridade]
+      : PESO_PRI[a.prioridade] - PESO_PRI[b.prioridade] || quando(a, b));
     const feitas = tarefasFiltradas.filter(t => t.concluida);
     if (feitas.length) g.push({ chave: 'feitas', titulo: 'Concluídas', cor: '#22c55e', itens: feitas });
     return g.filter(x => x.itens.length);
@@ -242,7 +252,8 @@ export default function TarefasPage() {
   }
 
   const abrirEdicao = (t: any) => { setEditando(t); setNovaOpen(true); };
-  const temFiltro = !!filtroProjeto || !!filtroCat;
+  const temFiltro = !!filtroProjeto || !!filtroCat || buscando;
+  const limparTudo = () => { setFiltroProjeto(null); setFiltroCat(null); setBusca(''); };
 
   return (
     <div className="max-w-7xl mx-auto pb-20 space-y-6">
@@ -264,8 +275,30 @@ export default function TarefasPage() {
       {/* ══ FAIXA HOJE ══════════════════════════════════════════════════
           Só existe quando tem algo. Banda vazia todo dia ensina a ignorar
           aquele espaço — e aí ela não serve nem quando importa. */}
-      {!loading && agora.length > 0 && (
+      {!loading && !buscando && agora.length > 0 && (
         <FaixaHoje itens={agora} onConcluir={alternarConcluida} onAbrir={abrirEdicao} />
+      )}
+
+      {/* ══ BUSCA ═══════════════════════════════════════════════════════
+          Só aparece quando há o que procurar. Procura em tudo (inclusive nas
+          concluídas) e soma com os filtros de projeto e categoria. */}
+      {!loading && tarefas.length > 0 && (
+        <div role="search" className="relative">
+          <Search size={16} aria-hidden className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text" inputMode="search" enterKeyHint="search" value={busca}
+            onChange={e => setBusca(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') setBusca(''); }}
+            aria-label="Buscar tarefa" placeholder="Buscar tarefa" autoComplete="off"
+            className="input w-full text-base sm:text-sm" style={{ minHeight: 48, paddingLeft: 40, paddingRight: 48 }}
+          />
+          {busca && (
+            <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca"
+              className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground">
+              <X size={16} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* ══ FILTROS ═════════════════════════════════════════════════════ */}
@@ -314,10 +347,14 @@ export default function TarefasPage() {
 
       {/* ══ TROCA DE VISÃO ══════════════════════════════════════════════ */}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          <span className="tabular font-semibold text-foreground">{tarefasFiltradas.filter(t => !t.concluida).length}</span> em aberto
-          {temFiltro && <> · <button onClick={() => { setFiltroProjeto(null); setFiltroCat(null); }}
-                                    className="underline hover:text-foreground">limpar filtro</button></>}
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {buscando ? (
+            <><span className="tabular font-semibold text-foreground">{tarefasFiltradas.length}</span> {tarefasFiltradas.length === 1 ? 'tarefa encontrada' : 'tarefas encontradas'}</>
+          ) : (
+            <><span className="tabular font-semibold text-foreground">{tarefasFiltradas.filter(t => !t.concluida).length}</span> em aberto</>
+          )}
+          {temFiltro && <> · <button onClick={limparTudo}
+                                    className="underline hover:text-foreground">{buscando ? 'limpar' : 'limpar filtro'}</button></>}
         </p>
         <div role="tablist" aria-label="Modo de visualização"
              className="inline-flex p-1 rounded-xl border border-border/60 bg-card/60 backdrop-blur-xl">
@@ -336,8 +373,8 @@ export default function TarefasPage() {
       {loading ? (
         <Skeleton visao={visao} />
       ) : tarefasFiltradas.length === 0 ? (
-        <Vazio temFiltro={temFiltro}
-               onLimpar={() => { setFiltroProjeto(null); setFiltroCat(null); }}
+        <Vazio temFiltro={temFiltro} busca={busca.trim()}
+               onLimpar={limparTudo}
                onCriar={() => { setEditando(null); setNovaOpen(true); }} />
       ) : visao === 'lista' ? (
         <div className="space-y-6">
@@ -455,7 +492,7 @@ function FaixaHoje({ itens, onConcluir, onAbrir }: any) {
                 <button onClick={() => onAbrir(t)} className="flex-1 min-w-0 text-left py-1.5">
                   <p className="text-sm font-medium text-foreground truncate">{t.titulo}</p>
                   <p className="text-[11px] flex items-center gap-1.5 mt-0.5" style={{ color: TOM_COR[pz.tom] }}>
-                    <CalendarClock size={10} /> {pz.txt}
+                    <CalendarClock size={10} /> {comHora(pz.txt, t.hora)}
                     <span className="text-muted-foreground">· {pri.l}</span>
                   </p>
                 </button>
@@ -539,7 +576,7 @@ function CardTarefa({ t, i, modo, colunaAtual, onConcluir, onAbrir, onDeletar, o
               {pz && !t.concluida && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
                       style={{ color: TOM_COR[pz.tom], background: `color-mix(in srgb, ${TOM_COR[pz.tom]} 12%, transparent)` }}>
-                  <CalendarClock size={9} /> {pz.txt}
+                  <CalendarClock size={9} /> {comHora(pz.txt, t.hora)}
                 </span>
               )}
               {t.recorrente && (
@@ -659,22 +696,22 @@ function Skeleton({ visao }: { visao: 'lista' | 'quadro' }) {
   );
 }
 
-function Vazio({ temFiltro, onLimpar, onCriar }: any) {
+function Vazio({ temFiltro, busca, onLimpar, onCriar }: any) {
   return (
     <div className="rounded-3xl border border-border/40 backdrop-blur-xl p-10 text-center"
          style={{ background: 'hsl(var(--bg-card) / 0.5)' }}>
       <CircleDashed size={28} className="mx-auto text-muted-foreground/50 mb-3" />
       <p className="text-sm font-semibold text-foreground">
-        {temFiltro ? 'Nada com esse filtro.' : 'Nenhuma tarefa por aqui.'}
+        {busca ? <>Nenhuma tarefa com “{busca}”.</> : temFiltro ? 'Nada com esse filtro.' : 'Nenhuma tarefa por aqui.'}
       </p>
       <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-        {temFiltro
+        {busca ? 'Confira a escrita ou tente uma palavra só.' : temFiltro
           ? 'Tente outro projeto ou categoria.'
           : 'Crie aqui ou mande pela Sora no WhatsApp: “lembra de comprar as passagens”.'}
       </p>
       <button onClick={temFiltro ? onLimpar : onCriar}
               className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary text-white text-sm font-bold">
-        {temFiltro ? <>Limpar filtro</> : <><Plus size={15} /> Nova tarefa</>}
+        {busca ? <>Limpar busca</> : temFiltro ? <>Limpar filtro</> : <><Plus size={15} /> Nova tarefa</>}
       </button>
     </div>
   );
@@ -691,6 +728,7 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
   const [projetoId, setProjetoId] = useState(tarefa?.projeto_id || '');
   const [categoria, setCategoria] = useState<string>(tarefa?.categoria || '');
   const [prazo, setPrazo] = useState<string>((tarefa?.data_vencimento || '').slice(0, 10));
+  const [hora, setHora] = useState<string>(tarefa?.hora || '');
   const [recorrente, setRecorrente] = useState<boolean>(!!tarefa?.recorrente);
   const [frequencia, setFrequencia] = useState<string>(tarefa?.frequencia_recorrencia || 'semanal');
   const [tagsStr, setTagsStr] = useState((tarefa?.tags || []).join(', '));
@@ -707,6 +745,7 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
       projeto_id: projetoId || null,
       categoria: categoria || null,
       data_vencimento: prazo || null,
+      hora: prazo && hora ? hora : null,
       recorrente,
       frequencia_recorrencia: recorrente ? frequencia : null,
       tags,
@@ -719,7 +758,7 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
   }
 
   const atalhoPrazo = (dias: number | null) => {
-    if (dias === null) { setPrazo(''); return; }
+    if (dias === null) { setPrazo(''); setHora(''); return; }
     const d = new Date(); d.setDate(d.getDate() + dias);
     setPrazo(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10));
   };
@@ -761,12 +800,32 @@ function ModalTarefa({ phone, tarefa, projetos, onClose, onSuccess }: any) {
                 </button>
               )}
             </div>
-            <input type="date" value={prazo} onChange={e => setPrazo(e.target.value)} className="input" />
+            <input type="date" value={prazo} aria-label="Data do prazo"
+                   onChange={e => { setPrazo(e.target.value); if (!e.target.value) setHora(''); }} className="input" />
             {prazo && (
               <p className="text-[11px] mt-1.5 inline-flex items-center gap-1" style={{ color: TOM_COR[rotuloPrazo(prazo).tom] }}>
-                <CalendarClock size={11} /> {rotuloPrazo(prazo).txt} · aparece na Agenda
+                <CalendarClock size={11} /> {comHora(rotuloPrazo(prazo).txt, hora)} · aparece na Agenda
               </p>
             )}
+          </Campo>
+
+          {/* ── HORÁRIO — opcional. Escolher a hora sem data vale pra hoje. ── */}
+          <Campo label="Horário" opcional>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Clock size={15} aria-hidden className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <input type="time" value={hora} aria-label="Horário da tarefa"
+                       onChange={e => { setHora(e.target.value); if (e.target.value && !prazo) atalhoPrazo(0); }}
+                       className="input w-full" style={{ minHeight: 44, paddingLeft: 40 }} />
+              </div>
+              {hora && (
+                <button type="button" onClick={() => setHora('')}
+                        className="px-3 h-11 rounded-xl text-xs font-semibold text-muted-foreground hover:text-red-500 inline-flex items-center gap-1 flex-shrink-0">
+                  <X size={12} /> Sem horário
+                </button>
+              )}
+            </div>
+            {!hora && <p className="text-[11px] text-muted-foreground mt-1.5">Deixe em branco se a tarefa não tem hora marcada.</p>}
           </Campo>
 
           {/* ── RECORRÊNCIA ─────────────────────────────────────────── */}

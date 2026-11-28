@@ -507,6 +507,24 @@ e não entram na cota.
 - ⚠️ Itens tipo "senha" ficam como texto comum no banco; o PIN só tranca a
   tela. Criptografar esses itens é o passo pendente pra dizer "guarde tudo".
 
+## Tarefas: busca e horário opcional (28/11/2026) — migration 210
+
+Pedido de cliente (Tatiane): achar tarefa entre muitas e "fixar horário ou não".
+
+- Busca: `lib/tarefas.ts` (`eval:tarefas`) — sem acento, todas as palavras, em
+  título, descrição, categoria, projeto e tags; inclui concluídas, soma com os
+  filtros e esconde a faixa "Pra agora" enquanto busca.
+- Horário: `tarefas.hora` (texto 'HH:MM', opcional). Regra em
+  `sora-backend/src/services/tarefaHora.js` (`eval:tarefa-hora`): hora sem data
+  vale hoje; apagar a data apaga a hora. Agenda, briefing e lembrete diário
+  mostram o horário. **Não dispara aviso na hora marcada** (isso é compromisso
+  da Agenda) e não cria "atrasada por horário". WhatsApp não define hora.
+- ⚠️ Leitura que pede `hora` passa por `lerComHora` (sem a 210 repete sem a
+  coluna). Sem ela, salvar COM horário responde 503 sem jargão.
+- De passagem: editar/apagar tarefa agora só a PRÓPRIA (antes bastava o id).
+
+---
+
 ## FAQ local-first no WhatsApp
 
 - **`src/data/faq.js` + `src/services/faq.js`** — ~32 perguntas respondidas **sem IA**. `responderFaq(mensagem)` roda no webhook ANTES da IA. Gatilhos só de pergunta (não colidem com comandos). Local-first puro.
@@ -5831,6 +5849,7 @@ sql/205_aniversarios.sql — tabela aniversarios (aba Aniversários da Agenda + 
 sql/206_divisao_compra.sql — compra do cartão dividida com outra pessoa: transacoes.dividida_com + parte_outro (CHECK com `is not null` explícito) e tabela divisoes_acertos. Sem ela: dividir responde "ainda está sendo liberado"; nada quebra.
 sql/207_medicao_fatura_aberta.sql — MEDIÇÃO da fatura em aberto (tela × marcação do banco, JOB 1V). Só mede; sem ela o job não grava nada e /diag-medicao responde "sem_tabela".
 sql/209_afiliados.sql — afiliados, afiliado_indicados e afiliado_comissoes. **OBRIGATÓRIA pra aprovar afiliado**; sem ela a aba avisa e os checkouts seguem iguais.
+sql/210_tarefa_hora.sql — tarefas.hora (horário opcional da tarefa). Sem ela tudo funciona; salvar COM horário responde "ainda está sendo liberado".
 sql/208_transacao_data_travada.sql — transacoes.data_travada (a reconciliação de parcelas não reescreve a linha) + trava as 4 parcelas corrigidas do PicPay do relato de 27/11. Sem ela a reconciliação segue como antes — e o "Atualizar" (180 dias) desfaria a correção.
 ```
 
