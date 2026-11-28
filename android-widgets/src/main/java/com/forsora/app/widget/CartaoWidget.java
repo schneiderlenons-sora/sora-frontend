@@ -1,6 +1,7 @@
 package com.forsora.app.widget;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -43,7 +44,11 @@ public class CartaoWidget extends BaseWidget {
                 ? c.getString(R.string.widget_as, Desenho.hora(s.atualizadoEm))
                 : c.getString(R.string.widget_fatura_atual));
         v.setTextViewText(R.id.widget_cartao_valor, valor);
-        v.setTextViewTextSize(R.id.widget_cartao_valor, TypedValue.COMPLEX_UNIT_SP, tamanhoDoValor(valor));
+        // No Android 8+ o layout ajusta a fonte pela largura real; abaixo disso
+        // vale o tamanho pela quantidade de caracteres.
+        if (Build.VERSION.SDK_INT < 26) {
+            v.setTextViewTextSize(R.id.widget_cartao_valor, TypedValue.COMPLEX_UNIT_SP, tamanhoDoValor(valor));
+        }
         v.setTextViewText(R.id.widget_cartao_sub, cartao.optString("sub", ""));
 
         String atraso = cartao.optString("atraso_txt", "");

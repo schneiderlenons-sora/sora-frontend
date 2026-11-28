@@ -62,7 +62,11 @@
         <TextView
             android:id="@+id/widget_contas_total"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="19sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="8sp"
+            android:autoSizeMaxTextSize="13sp"
+            android:autoSizeStepGranularity="1sp"
             android:layout_marginTop="5dp"
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"

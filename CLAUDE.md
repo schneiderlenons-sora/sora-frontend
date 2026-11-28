@@ -5623,6 +5623,12 @@ internet").
     entra sempre, mesmo sendo vitalícia.
   - ⚠️ O Livre diz QUAL número manda (`motivo`: limite ou caixa). Texto novo no
     retrato = subir `TEXTOS` em `widgetResumo.js` (entra no ETag).
+- ⚠️ **Android: valor que não cabe vira só "R$"** (relato 27/11): com
+  `maxLines=1` o texto quebra no espaço e o número fica escondido. Texto de
+  dinheiro em widget novo usa `autoSizeTextType="uniform"` com altura fixa em
+  sp. O build 15 (sem isso) é socorrido pelo servidor: `paraCaber` em
+  `widgetResumo.js` preenche com U+2060 até 14 caracteres (fonte 19sp). A
+  correção nativa entra no build 16.
 - **Fase 3:** "Hoje" e "Hábitos" com marcar feito. **Fase 4:** tela bloqueada,
   Central de Controle, atualização por notificação no iPhone, "Mês em resumo",
   "Meta".

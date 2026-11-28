@@ -50,10 +50,18 @@
         android:textColor="@color/widget_texto2"
         android:textSize="12sp" />
 
+    <!-- ⚠️ A fonte ENCOLHE até o valor caber na largura real (Android 8+). Sem
+         isto o texto quebrava no espaço e sobrava só "R$". A altura em sp é
+         fixa: é o que o ajuste automático exige. -->
     <TextView
         android:id="@+id/widget_cartao_valor"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="32sp"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="11sp"
+        android:autoSizeMaxTextSize="26sp"
+        android:autoSizeStepGranularity="1sp"
+        android:gravity="center_vertical"
         android:layout_marginTop="3dp"
         android:fontFamily="sans-serif"
         android:fontFeatureSettings="tnum"
